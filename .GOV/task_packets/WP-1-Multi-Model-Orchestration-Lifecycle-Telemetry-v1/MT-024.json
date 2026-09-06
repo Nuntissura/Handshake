@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-024",
   "created_at_utc": "2026-08-14T17:24:19.836Z",
-  "updated_at_utc": "2026-09-04T20:45:00.235Z",
+  "updated_at_utc": "2026-09-06T14:02:54.1334261Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -45,9 +45,9 @@
       "AC-5: Failure-path tests prove an individual cleanup timeout/error does not prevent later exact scopes from receiving cleanup attempts and does not target foreign namespaces/databases."
     ],
     "proof_commands": [
-      "Focused process-ledger and real-process lifecycle suites using the WP017 MT-341 real-SurrealDB test helper",
-      "Independent official-SDK canonical reread for the exact task-owned namespace/database scopes allocated by both proof runs; expected count: 0",
-      "Repository tripwire proving no PostgreSQL/SQLite connection, fixture, migration, fallback, or proof path is introduced",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt024_surreal_scope_cleanup_tests -- --nocapture --test-threads=1",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_ledger_surreal_tests --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture --test-threads=1",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets",
       "git diff --check"
     ],
     "risk_if_missed": "Repeated full SurrealDB validation leaks task-owned namespace/database scopes, bloats managed state, slows later tests, and can make otherwise-correct work appear flaky or blocked."
@@ -76,24 +76,32 @@
     "blocks": [],
     "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER-20260902-180244",
-    "claimed_at_utc": "2026-09-04T20:45:00.235Z",
+    "claimed_by": "KERNEL_BUILDER-WP1-V6-20260906-MT024",
+    "claimed_at_utc": "2026-09-06T12:59:45.943Z",
     "ready_for_validation_by": null,
     "ready_for_validation_at_utc": null,
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
-    "hbr_status": "PENDING",
+    "proof_status": "V6_REMEDIATION_IN_PROGRESS: delegated takeover of interrupted checkpoint; current proof pending.",
     "pre_implementation_adversarial_review_status": "REQUIRED",
-    "post_implementation_adversarial_review_status": "REQUIRED",
-    "adversarial_findings_status": "PENDING",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
-    "last_runtime_status_ref": "DISCOVERED_AFTER_MT019_FULL_SUITES_2026-08-14; 27 captured leaks, 13 independently present, exact cleanup completed, canonical count zero"
+    "last_runtime_status_ref": "DISCOVERED_AFTER_MT019_FULL_SUITES_2026-08-14; 27 captured leaks, 13 independently present, exact cleanup completed, canonical count zero",
+    "hbr_status": "PENDING_V6_CURRENT_CANDIDATE_RUNTIME_PROOF",
+    "post_implementation_adversarial_review_status": "IN_PROGRESS_SOURCE_REVIEW_AND_REQUIRED_RUNTIME_PROOF",
+    "adversarial_findings_status": "REVIEWED_SOURCE_FINDINGS_FIXED; REQUIRED_RUNTIME_AND_HBR_BOUNDARY_PROOF_PENDING",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "handoff": {
-    "coder_session": "KERNEL_BUILDER-20260902-180244"
+    "coder_session": "KERNEL_BUILDER-WP1-V6-20260906-MT024",
+    "proof_commands": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt024_surreal_scope_cleanup_tests -- --nocapture --test-threads=1",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_ledger_surreal_tests --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture --test-threads=1",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets",
+      "git diff --check"
+    ]
   },
   "v6_remediation_2026_09_02": {
     "authority": "OPERATOR_DIRECTIVE_2026_09_02_WP1_V6_REMEDIATION_KERNEL_BUILDER_SUBAGENT_LANES",
@@ -114,5 +122,79 @@
         "prior_proof_status": "PENDING_IMPLEMENTATION: exact leak reproduced after successful MT-019 full suites; independent cleanup recovered the dedicated proof database to zero matching schemas."
       }
     ]
+  },
+  "v6_proof_command_repair_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:29:31.145Z",
+    "defect": "scope.proof_commands contained prose descriptions of intent rather than executable commands, so the readiness rubric item asking whether every proof command ran and returned exit 0 could never be answered truthfully.",
+    "original_entries": [
+      "Focused process-ledger and real-process lifecycle suites using the WP017 MT-341 real-SurrealDB test helper",
+      "Independent official-SDK canonical reread for the exact task-owned namespace/database scopes allocated by both proof runs; expected count: 0",
+      "Repository tripwire proving no PostgreSQL/SQLite connection, fixture, migration, fallback, or proof path is introduced",
+      "git diff --check"
+    ],
+    "restated_as_acceptance_intent": [
+      "Run the focused process-ledger and real-process lifecycle suites against a real embedded SurrealDB store (now covered by the second command).",
+      "Independently re-read, through the official SDK, the exact task-owned namespace and database scopes both proof runs allocated; expected count 0 (this is the assertion the MT-024 cleanup tests must make).",
+      "Prove no PostgreSQL or SQLite connection, fixture, migration, fallback or proof path is introduced (tripwire assertion inside the cleanup target)."
+    ],
+    "replacement_commands": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt024_surreal_scope_cleanup_tests -- --nocapture --test-threads=1",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_ledger_surreal_tests --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture --test-threads=1",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets",
+      "git diff --check"
+    ],
+    "note": "The leak assertion moved from a prose instruction into the test target itself, which is where it can actually fail the build."
+  },
+  "owned_files": [
+    "src/backend/handshake_core/tests/mt024_surreal_scope_cleanup_tests.rs",
+    "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs"
+  ],
+  "v6_owned_files_basis_2026_09_06": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-06T00:02:31.636Z",
+    "why": "Declared so the readiness rubric's dead-code and test-gating checks actually run. Absent owned_files those items skip silently and the receipt asserts nothing.",
+    "note": "Lane-owned teardown target and the shared embedded test-store support module it extends. Cargo.toml carries this MT's additive [[test]] declaration but is SHARED across every lane per [KB-CARGO-SHARED-001], so it is not listed as owned.",
+    "shared_file_policy": "Files every lane compiles (Cargo.toml, lib.rs, any mod.rs, storage/surreal/schema.*, the shared test-support module, and the ModelLane provider) are SHARED under [KB-CARGO-SHARED-001]. Edits to them invalidate every lane's build cache, so they are queued and landed in one pass at a lane-quiet boundary, and every live lane is told what changed."
+  },
+  "v6_takeover_2026_09_06": {
+    "recorded_at_utc": "2026-09-06T12:59:45.943Z",
+    "recorded_by": "ORCHESTRATOR-20260906-125300",
+    "authority": "LIVE_OPERATOR_2026_09_06_ORCHESTRATOR_NO_ACP_MT003_MT004_MT024",
+    "session_mt_batch": [
+      "MT-003",
+      "MT-004",
+      "MT-024"
+    ],
+    "prior_claimed_by": "KERNEL_BUILDER-20260902-180244",
+    "prior_proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
+    "product_checkpoint": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+    "execution_owner": "KERNEL_BUILDER-WP1-V6-20260906-MT024",
+    "subagent": "/root/mt024",
+    "authority_ack": "AUTHORITY_CONTRACT_ACK read_after_startup=yes files=ROLE_STARTUP_PROMPT,KBSTART_CMD,ORCSTART_PS1,AGENTS,CODEX,KERNEL_BUILDER_PROTOCOL,RESET_BRIEF",
+    "planned_files": [
+      "src/backend/handshake_core/tests/mt024_surreal_scope_cleanup_tests.rs",
+      "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs",
+      "src/backend/handshake_core/tests/process_reclaim_real_lifecycle_surreal_tests.rs"
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt024_surreal_scope_cleanup_tests -- --nocapture --test-threads=1",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_ledger_surreal_tests --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture --test-threads=1",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets",
+      "git diff --check"
+    ],
+    "artifact_root": "../Handshake/_Artifacts",
+    "cargo_target": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/target",
+    "temporary_root": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/temp",
+    "artifact_authority": "This live Operator instruction supersedes all prior sibling Handshake_Artifacts directions for this session. Serialize one shared Cargo target; preserve proof before deleting only session-owned outputs.",
+    "scope_risk": "Shared production/helper edits are batched before compilation; no product PASS or COMPLETED authority delegated.",
+    "superseded_current_review_fields": {
+      "hbr_status": "PENDING",
+      "post_implementation_adversarial_review_status": "REQUIRED",
+      "adversarial_findings_status": "PENDING",
+      "validated_by": null,
+      "validated_at_utc": null
+    },
+    "current_candidate_commit": "d96e405170afbba66e864fa86b1a6f3de020deab"
   }
 }

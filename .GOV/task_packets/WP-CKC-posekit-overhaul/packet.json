@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-09-05T01:05:00.438Z",
+  "updated_at_utc": "2026-09-06T16:36:11.128Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -70,7 +70,20 @@
     "parallel_agent_policy": {
       "allowed": true,
       "constraint": "Parallel subagents may inspect or implement independent MTs only after the MT owns a non-overlapping file set or explicit merge plan.",
-      "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
+      "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory.",
+      "grouped_mt_slice": {
+        "mt_ids": [
+          "MT-058",
+          "MT-059",
+          "MT-060",
+          "MT-061",
+          "MT-062",
+          "MT-063",
+          "MT-064"
+        ],
+        "session": "KERNEL_BUILDER-20260906-141914",
+        "rationale": "Operator-authorized parallel recovery: disjoint lane files, root-only shared schema/hash edits, one stable-source proof batch; UI/integration gates unchanged."
+      }
     },
     "last_state_update": {
       "at_utc": "2026-07-05T10:51:35.782Z",
@@ -135,7 +148,7 @@
       "Ensure options/settings carries the correct features for this WP (-> MT-042).",
       "No scaffolding, no vibecoding: everything must work at runtime (Spec-Realism Gate).",
       "Unexpected gaps: address in the same MT or defer to a future MT in this WP so nothing is forgotten.",
-      "Artifacts root: ../Handshake_Artifacts (D:); scope cargo target dirs there; clean after use; PC under heavy parallel load -> minimal/sequential builds; never close processes not started by this session; close sub-agents when idle.",
+      "Artifacts root: ../Handshake/_Artifacts (D:); scope cargo target dirs there; clean after use; PC under heavy parallel load -> minimal/sequential builds; never close processes not started by this session; close sub-agents when idle.",
       "Open Handshake internal PostgreSQL when tests/proofs require it.",
       "Repo governance minimal except state recovery + MT status."
     ]
@@ -173,7 +186,13 @@
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_header.rs",
       "../wtc-ckc-posekit-overhaul/app/src/App.tsx",
       "../wtc-ckc-posekit-overhaul/app/src/AtelierPanel.tsx"
-    ]
+    ],
+    "loom_consolidation": {
+      "mt_id": "MT-068",
+      "status": "PENDING",
+      "scope": "Convert live Loom original and derivative writers/readers to ArtifactStore, preserving asset identities, references, routes, Range and recoverable migration. This is implementation scope, not a deferred separate WP.",
+      "operator_requirement": "Studio spec forbids a second blob tier; your job is to consolidate, not to comply retroactively."
+    }
   },
   "baseline": {
     "source_dirty_state_verified": true,
@@ -208,10 +227,10 @@
     "enforcement_profile": "HOTFIX_ADHOC_MICROTASK_WITH_RECOVERY_POINTERS"
   },
   "microtasks": {
-    "active_id": "MT-057",
+    "active_id": "MT-058",
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 67,
+    "count": 68,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -279,14 +298,15 @@
       "MT-064",
       "MT-065",
       "MT-066",
-      "MT-067"
+      "MT-067",
+      "MT-068"
     ],
-    "next_id": "MT-058",
+    "next_id": "MT-069",
     "latest_completed_id": null,
     "latest_completed_artifact": null,
     "latest_ready_for_validation_id": "MT-055",
     "latest_ready_for_validation_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-055.json",
-    "active_claimed_by": "KERNEL_BUILDER-20260904-213453",
+    "active_claimed_by": "KERNEL_BUILDER-20260906-141914",
     "active_claimed_at_utc": "2026-09-05T01:05:00.438Z"
   },
   "research_basis": {
@@ -392,6 +412,40 @@
       "at_utc": "2026-09-05T01:05:00.438Z",
       "by": "KERNEL_BUILDER-20260904-213453",
       "summary": "SurrealDB port lane opened: branch feat/WP-CKC-posekit-overhaul-surreal from feat/WP-KERNEL-012@1d47363f in ../wtc-ckc-surreal. Landed READ path (83bef9a7), skeleton (09febeb8), WIP checkpoint of five lane ports terminated by API limit. MT-057..MT-067 created; MT-004..MT-055 reopened for re-proof."
+    },
+    "current_kernel_merge_review": {
+      "reviewer": "ckc_port_audit",
+      "kind": "READ_ONLY_SOURCE_REVIEW",
+      "ckc_head": "aa1434b9",
+      "kernel_head": "f7791f9d",
+      "common_base": "1d47363f",
+      "dirty_ckc_files_included": 11,
+      "verdict": "NO_MERGE_OR_RUNTIME_COMPATIBILITY_VERDICT",
+      "findings": [
+        {
+          "area": "storage/surreal/schema.rs",
+          "finding": "CKC revision158 requires revision158 identity even in predecessor recognition; current-kernel revision157 database is rejected. Fresh-store proof is not upgrade proof.",
+          "control": "Preserve fail-closed lineage; do not delete existing data or claim upgrade continuity."
+        },
+        {
+          "area": "tests/atelier_surreal_support/mod.rs",
+          "finding": "Kernel OwnedTempRoot overlaps CKC Option<TempDir>+data_dir ownership/reopen changes.",
+          "control": "Reconcile one explicit owner and cleanup policy at integration; retain CKC proofs."
+        },
+        {
+          "area": "tests/atelier_core_data_tests.rs",
+          "finding": "Both branches fix native artifact references and reconnect handling.",
+          "control": "Preserve all CKC scenarios and one consistent reopened-store implementation."
+        }
+      ],
+      "recheck": "Kernel head is moving; reread it at integration."
+    },
+    "cargo_next": {
+      "runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
+      "phase": "pins",
+      "status": "RUNNING_SCHEMA_PINS",
+      "target": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+      "runner_pid": 13360
     }
   },
   "wp_validation_v1": {

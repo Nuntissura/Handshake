@@ -203,11 +203,17 @@ After judgment, write the verdict:
 
 ### 5. Artifact Hygiene Pre-Merge Check (HARD)
 
+- [IV-ART-001] WP-associated Cargo builds, tests, and their output MUST use `../Handshake_Artifacts/<WP_ID>/<MT_ID>/`: one actual WP folder containing actual MT folders. `Handshake_Artifacts` is one directory name, never `Handshake/_Artifacts`. Resolve from the worktree root or `HANDSHAKE_ARTIFACTS_ROOT`; keep recorded paths drive-agnostic.
+- [IV-ART-002] Set `CARGO_TARGET_DIR` to `<artifact-root>/<WP_ID>/<MT_ID>/<OWNER_SLUG>/target`; route logs, test/tool outputs, caches, coverage, `TMP`, and `TEMP` below that same owner directory. Concurrent owners MUST use disjoint mutable targets. Inspect each runner/configuration and resolved paths before launch/review; root/category/owner and WP-only layouts do not satisfy the hierarchy.
+- [IV-ART-003] A batch spanning MTs MUST declare one actual owning MT and every covered MT in existing typed evidence; artifacts stay below the owning WP/MT. Reuse compatible builds and unchanged proof per [CX-503I1]; this hierarchy alone MUST NOT cause duplicate builds/tests or invalidate product proof.
+- [IV-ART-004] Clean only completed, no-longer-needed owner output below WP/MT after resolved-path and process-ownership checks; preserve compatible reuse and required review evidence. Never clean another owner, live output, the shared root, or a shared WP/MT parent. Parent agents inspect delegated cleanup; final WP cleanup follows validation before merge.
+- [IV-ART-005] Legacy root-hygiene helpers do not establish WP/MT hierarchy compliance. Apply newer Operator path-shape precedence in [CX-984-010], retain other HBR obligations, and report helper/HBR drift with verified scoped overrides.
+
 Before merge, verify no build/test/tool artifacts have leaked into the repo:
 - Run `just artifact-root-preflight WP-{ID}` or confirm the current `phase-check VERDICT/CLOSEOUT` artifact already ran it. If it fails, classify the result as `ENVIRONMENT_BLOCKER`, preserve product proof, and do not route coder revalidation unless the blocker proves an actual product boundary violation.
 - Run `just validator-git-hygiene` â€” FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
 - All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-205F], not inside the repo tree.
-- Run a worktree-bound artifact-location check for the assigned WP worktree before merge: any runtime/build output under the WP worktree that belongs in the external sibling root `../Handshake_Artifacts/` (full path `D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts`) is a blocking hygiene failure.
+- Run a worktree-bound artifact-location check for the assigned WP before merge: runtime/build output inside the worktree or outside its required external WP/MT/owner directory is a blocking hygiene failure. Preserve product proof and classify/remediate the placement defect.
 - If artifact contamination is found: do NOT merge. Record the violation with the failure class. `PRODUCT_BLOCKER` requires product remediation/revalidation; `ENVIRONMENT_BLOCKER` routes to artifact-root repair; `GOVERNANCE_BLOCKER` routes to Orchestrator closeout repair.
 
 ### 6. Merge to Main on PASS

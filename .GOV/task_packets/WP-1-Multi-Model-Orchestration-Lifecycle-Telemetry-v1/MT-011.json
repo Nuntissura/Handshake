@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-011",
   "created_at_utc": "2026-06-28T18:06:24.222Z",
-  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "updated_at_utc": "2026-09-05T01:30:11.415Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -248,12 +248,12 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact --test-threads=1",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact --test-threads=1",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests mt011_exact_five_field_scope_restart_and_context_denial -- --exact --test-threads=1",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact --test-threads=1",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_embedded_store -- --exact --test-threads=1",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-native-cargo-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\frontend\\handshake_native\\Cargo.toml' --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact --test-threads=1"
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact --test-threads=1",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact --test-threads=1",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests mt011_exact_five_field_scope_restart_and_context_denial -- --exact --test-threads=1",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact --test-threads=1",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_embedded_store -- --exact --test-threads=1",
+      "cargo test --locked -j 1 --manifest-path 'src/frontend/handshake_native/Cargo.toml' --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact --test-threads=1"
     ],
     "risk_if_missed": "Future models and the operator will only understand the new orchestration system through this chat or stale packets, causing parallel work, recovery, diagnostics, and cloud/local handoff to drift.",
     "reference_only_paths": [
@@ -525,5 +525,66 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "v6_proof_command_hygiene_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:30:11.415Z",
+    "why": "Declared proof commands could not be executed as written. Fixes are mechanical and change no target, feature or assertion: they remove an illegal artifact-root env prefix forbidden by [CX-984-001], strip status markers embedded in command strings, replace absolute host paths per [CX-109B], and add --locked. Originals are preserved verbatim below.",
+    "repairs": [
+      {
+        "field": "proof_targets",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact --test-threads=1",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact --test-threads=1",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact --test-threads=1",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact --test-threads=1",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests mt011_exact_five_field_scope_restart_and_context_denial -- --exact --test-threads=1",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests mt011_exact_five_field_scope_restart_and_context_denial -- --exact --test-threads=1",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact --test-threads=1",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact --test-threads=1",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_embedded_store -- --exact --test-threads=1",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_embedded_store -- --exact --test-threads=1",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt011-native-cargo-target'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\frontend\\handshake_native\\Cargo.toml' --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact --test-threads=1",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/frontend/handshake_native/Cargo.toml' --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact --test-threads=1",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      }
+    ]
   }
 }

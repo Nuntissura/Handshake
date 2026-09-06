@@ -223,6 +223,12 @@ NEXT_ORCHESTRATOR_ACTION: <launch/repair/request-signature/request-enrichment>
 
 ## Worktree Discipline
 
+- [KB-ART-001] WP-associated Cargo builds, tests, and their output MUST use `../Handshake_Artifacts/<WP_ID>/<MT_ID>/`: one actual WP folder containing actual MT folders. `Handshake_Artifacts` is one directory name, never `Handshake/_Artifacts`. Resolve from the worktree root or `HANDSHAKE_ARTIFACTS_ROOT`; keep recorded paths drive-agnostic.
+- [KB-ART-002] Set `CARGO_TARGET_DIR` to `<artifact-root>/<WP_ID>/<MT_ID>/<OWNER_SLUG>/target`; route logs, test/tool outputs, caches, coverage, `TMP`, and `TEMP` below that same owner directory. Concurrent owners MUST use disjoint mutable targets. Inspect each runner/configuration and resolved paths before launch/review; root/category/owner and WP-only layouts do not satisfy the hierarchy.
+- [KB-ART-003] A batch spanning MTs MUST declare one actual owning MT and every covered MT in existing typed evidence; artifacts stay below the owning WP/MT. Reuse compatible builds and unchanged proof per [CX-503I1]; this hierarchy alone MUST NOT cause duplicate builds/tests or invalidate product proof.
+- [KB-ART-004] Clean only completed, no-longer-needed owner output below WP/MT after resolved-path and process-ownership checks; preserve compatible reuse and required review evidence. Never clean another owner, live output, the shared root, or a shared WP/MT parent. Parent agents inspect delegated cleanup; final WP cleanup follows validation before merge.
+- [KB-ART-005] Legacy root-hygiene helpers do not establish WP/MT hierarchy compliance. Apply newer Operator path-shape precedence in [CX-984-010], retain other HBR obligations, and report helper/HBR drift with verified scoped overrides.
+
 - Startup and governance-authoring happens from `wt-gov-kernel` on `gov_kernel`.
 - Product implementation work happens only in the WP-declared `wtc-*` product worktree on the declared `feat/WP-*` branch. All product-code changes for a WP must stay in that worktree (no diverging parallel worktrees for the same WP).
 - WP worktree creation is allowed only in the WP creation/activation phase before any product coding or remediation starts. Creating or switching worktrees is prohibited after product work or remediation begins.
@@ -230,16 +236,16 @@ NEXT_ORCHESTRATOR_ACTION: <launch/repair/request-signature/request-enrichment>
 - Never edit product code through `wt-gov-kernel`.
 - Never edit `.GOV/` through a WP worktree junction.
 - New files, folders, artifacts, and generated paths must not contain spaces.
-- Cargo builds and all tests are the primary artifact producers and MUST target the repo-relative artifacts root `../Handshake_Artifacts/` (resolved via `${HANDSHAKE_ARTIFACTS_ROOT}`). Never write, name, or record an absolute host/drive path for this root [CX-109B]. Redirect cargo with `CARGO_TARGET_DIR` under `../Handshake_Artifacts/handshake-cargo-target/<scoped-subdir>`, and route test/lint/tool outputs and caches under `handshake-test/`, `handshake-tool/`, etc. All build/test/tool/tooling artifacts (test logs, lint/build outputs, tooling caches, Cargo target) MUST stay under this root.
-- PER-OWNER SCOPED TARGET DIR (HARD, [CX-984] / HBR-SWARM-005). `CARGO_TARGET_DIR` MUST be a per-owner subdirectory — `../Handshake_Artifacts/handshake-cargo-target/<wp-or-owner-slug>[-<purpose>]` — never the shared `handshake-cargo-target/` root. "Owner" is the work packet, role session, or sub-agent that owns the build. This is not tidiness: concurrent builds on one target dir serialize on the cargo file lock (a live proof suite has already starved on it and produced a false negative that was misdiagnosed as a product defect), and `handshake_core` embeds its runtime `data_dir` from `env!("CARGO_MANIFEST_DIR")` at COMPILE time, so a binary left in a shared target dir by another worktree opens THAT worktree's DuckDB flight recorder and dies replaying its WAL.
+- Cargo builds and tests MUST follow [KB-ART-001..005]; all build/test/tool output stays under the external root with WP/MT/owner isolation.
+- PER-OWNER SCOPED TARGET DIR (HARD, [CX-984] / HBR-SWARM-005): each concurrent owner uses its own target below the actual WP/MT per [KB-ART-002]. Sharing mutable targets causes Cargo lock contention and cross-worktree binary contamination through compile-time embedded paths.
 - NEVER RUN A PREBUILT BINARY FROM A SHARED TARGET DIR as proof. Build it from THIS worktree into THIS owner's scoped dir first; an `*.exe` found in a shared directory is not evidence about the current worktree's source.
 - PROOF RUNS NEEDING A DATABASE MUST USE A WP-SCOPED SURREALDB NAMESPACE/DATABASE. Divergent SurrealKit rollout sets and concurrent authority writes across worktrees make shared database proof unsafe and non-reproducible.
-- CLEANUP IS CONTINUOUS, NOT A CLOSEOUT STEP (HBR-SWARM-006). Clean your own scoped subdir as each build/test finishes, throughout the work. NEVER delete another owner's scoped dir, and NEVER delete, prune, or `cargo clean` anything under the shared artifact root — a sub-agent doing exactly that removed the shared `.fingerprint` tree and broke the next build outright. `KERNEL_BUILDER` is the cleanup backstop and MUST inspect each sub-agent's scoped dir after it completes.
+- CLEANUP IS CONTINUOUS, NOT A CLOSEOUT STEP (HBR-SWARM-006): follow [KB-ART-004] and [CX-984-006], including reuse/review retention, ownership checks, and parent inspection.
 - ARTIFACT ROOT BOUNDARY (HARD). `../Handshake_Artifacts/` holds build, test, tool, and product-runtime scratch output ONLY. It MUST NOT contain repo-governance artifacts (anything belonging under `/.GOV/`) or repo-governance runtime state (anything belonging under `gov_runtime/`: `WP_COMMUNICATIONS`, session-control ledgers, session registries, dossiers, receipts). Build residue is deletable at any moment; governance state is not. Mixing them makes cleanup unsafe.
 - Any repo-local or sibling `target/` folder created by a script, tool, or sub-agent is ILLEGAL workflow residue. When one appears, steer the producer (set `CARGO_TARGET_DIR`/artifacts root) or patch the offending script so it targets `../Handshake_Artifacts/`; run `just artifact-hygiene-check` to detect residue.
-- Artifact cleanup is automated per owner, never a manual afterthought: each assistant and each sub-agent OWNS a scoped artifact subdir and MUST auto-clean it as soon as its build/test finishes, to conserve disk. A sub-agent MUST NOT delete another owner's scoped dir.
+- Artifact cleanup is per owner below WP/MT under [KB-ART-004]; retain reusable builds and required review evidence, then remove no-longer-needed output.
 - Sub-agent cleanup compliance is unreliable, so the parent `KERNEL_BUILDER` is the cleanup backstop: after each sub-agent completes, the parent MUST inspect that sub-agent's scoped artifact dir and clean up any residue the sub-agent failed to remove. `KERNEL_BUILDER` remains responsible for total artifact hygiene regardless of sub-agent behavior.
-- The pre-merge WP-level `ARTIFACT_DIR_CLEANUP` gate (artifacts root cleaned after WP validation passes, before merge-to-main) still applies as the final backstop.
+- The pre-merge WP-level `ARTIFACT_DIR_CLEANUP` gate remains the final backstop: after validation and before merge, clean only the completed WP's no-longer-needed owned output, preserving other owners' output, live output, and required retained evidence.
 
 ## Kernel Builder Product Implementation Mode
 
@@ -309,8 +315,9 @@ single careless edit to a shared module can cost hours multiplied by the number 
   pinned SHA-256 constants plus the definition counts, and every proof that touches an embedded
   store is blocked until they agree. Batch every lane's schema request and apply them in one
   revision bump.
-- Prefer a shared warm target dir seeded once (copy the dependency cache into each lane's scoped
-  dir before the lanes start) over letting N lanes each build dependencies from cold.
+- Seed compatible dependencies from a quiescent owned target or safe content-addressed cache into
+  each lane's WP/MT/owner target before launch, preserving build provenance. Never share a mutable
+  target between live owners.
 
 ### Host Resource Scheduling Under Parallel Lanes [KB-CARGO-IO-001] (HARD)
 
@@ -344,7 +351,7 @@ clock — roughly 3% utilisation. Adding a seventh lane at that point subtracts 
   rustc's 10 MB, and a peer Claude session's `cargo check --all-targets` was taking two rustc at
   full speed while three lane compiles got nothing. Measure per-process disk transfer, not just
   the aggregate queue, or you will attribute the whole slowdown to whatever you can already see.
-- Point every test runner's `TMP` and `TEMP` at the artifact root before launching a test binary.
+- Point every test runner's `TMP` and `TEMP` below its WP/MT/owner directory before launching a test binary.
   `tempfile::tempdir()` otherwise lands every isolated store on the system drive, which is usually
   the busiest and the least appropriate spindle for throwaway database files.
 - When the host saturates, pause the lane whose work is furthest from the blocking deliverable
@@ -519,7 +526,7 @@ waits for completion notifications is blind for as long as the failure lasts. St
 push-based, never poll-based.
 
 - ARM A WATCHER BEFORE LAUNCHING LANES. Point one persistent monitor at the lanes' own build/test
-  LOG FILES under `../Handshake_Artifacts/handshake-tool/<owner>/`, not at agent transcripts, and
+  LOG FILES under `../Handshake_Artifacts/<WP_ID>/<MT_ID>/<OWNER_SLUG>/logs/`, not at agent transcripts, and
   have it emit one line per state change: started `<log>`, `DONE <exit> <test result>`, `STALL`.
 - A STALL CLAIM MUST BE PROCESS-AWARE. A running test binary prints nothing until it finishes, so
   a static log is not evidence of a stall. Report `STALL` only when the newest log has not grown

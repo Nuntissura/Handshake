@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-020",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-09-01T17:16:03.494Z",
+  "updated_at_utc": "2026-09-05T01:30:11.415Z",
   "scope_status": "V6_BLOCKED_ON_DEPENDENCY_2026-09-01",
   "authority_files": [
     "../handshake_main/AGENTS.md",
@@ -213,16 +213,16 @@
       "Routing composition remains blocked on Parfit's atomic routing/ModelLane facade APIs; MT-020 cannot obtain a frozen compile boundary until that shared source closes."
     ],
     "proof_commands": [
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads -- --exact --nocapture",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured -- --exact --nocapture",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::official_cli_provider_selection_honors_requested_provider -- --exact --nocapture",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::from_vault_factory_cloud_spawn_records_start_and_stop -- --exact --nocapture",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan -- --exact --nocapture",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --nocapture",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --test-threads=1 --nocapture",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::events::tests::durable_swarm_fr_bridge_surreal_outbox -- --nocapture",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; cargo check --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --all-targets",
-      "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; cargo check --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --all-targets"
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::official_cli_provider_selection_honors_requested_provider -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::from_vault_factory_cloud_spawn_records_start_and_stop -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --test-threads=1 --nocapture",
+      "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::events::tests::durable_swarm_fr_bridge_surreal_outbox -- --nocapture",
+      "cargo check --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --all-targets",
+      "cargo check --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --all-targets"
     ],
     "risk_if_missed": "A green historical module could mask a current source compile break, detached writer, unflushed terminal event, cross-scope outbox disclosure, orphaned EventLedger receipt, or retry conflict. Treating the prior PostgreSQL-era run as current would make all of those regressions invisible."
   },
@@ -403,5 +403,116 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "v6_blocker_staleness_survey_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T00:09:55.687Z",
+    "status_unchanged": true,
+    "why_status_unchanged": "A blocker is discharged by a passing proof run, never by a source survey. lifecycle.status is left as recorded; this block is evidence for whoever claims this MT next.",
+    "surveyed_at_commit": "f8e190c9",
+    "finding": "The recorded blocker attributes ownership to a named sub-agent lane (Parfit / Banach / Halley). Those lanes no longer exist; file ownership is now assigned per dispatch by the parent, so this is a coordination artifact rather than a technical blocker.",
+    "evidence": [
+      "The named lanes (Parfit, Banach, Halley) appear nowhere in the current session registry or receipts; they are historical sub-agent labels.",
+      "MT-002 and MT-019 were completed this week by parent-dispatched lanes with explicit disjoint file ownership, which is the mechanism that now governs contention."
+    ],
+    "precedent": "MT-019 recorded a comparable blocker naming an incomplete provider and a missing inspection API. On re-verification the API already existed and the real defects were four unrelated query and projection bugs. Re-verify before believing recorded blocker text.",
+    "next_action": "On claim: re-run this MT's declared proof targets first and classify what actually fails, rather than remediating the recorded blocker text."
+  },
+  "v6_proof_command_hygiene_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:30:11.415Z",
+    "why": "Declared proof commands could not be executed as written. Fixes are mechanical and change no target, feature or assertion: they remove an illegal artifact-root env prefix forbidden by [CX-984-001], strip status markers embedded in command strings, replace absolute host paths per [CX-109B], and add --locked. Originals are preserved verbatim below.",
+    "repairs": [
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads -- --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured -- --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::official_cli_provider_selection_honors_requested_provider -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::official_cli_provider_selection_honors_requested_provider -- --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::from_vault_factory_cloud_spawn_records_start_and_stop -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::from_vault_factory_cloud_spawn_records_start_and_stop -- --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests::production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan -- --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --test-threads=1 --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::production_factory::tests -- --test-threads=1 --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-surreal-stores'; cargo test --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::events::tests::durable_swarm_fr_bridge_surreal_outbox -- --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --lib swarm_orchestration::events::tests::durable_swarm_fr_bridge_surreal_outbox -- --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; cargo check --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --all-targets",
+        "after": "cargo check --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --all-targets",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt020-cargo-target'; cargo check --locked -j 1 --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils,surreal-test-support --all-targets",
+        "after": "cargo check --locked -j 1 --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --all-targets",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      }
+    ]
   }
 }

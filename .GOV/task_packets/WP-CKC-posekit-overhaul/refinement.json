@@ -11,7 +11,7 @@
   },
   "wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-06-28T12:26:14.447Z",
+  "updated_at_utc": "2026-09-06T14:45:21.358Z",
   "authority_files": {
     "refinement_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.json",
     "refinement_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.md",
@@ -60,7 +60,74 @@
       "Run governance sync/checks after WP pointer updates.",
       "For product MTs, run the narrow Rust/UI/test commands tied to the touched files.",
       "Use visual debugging once GUI behavior is changed."
-    ]
+    ],
+    "loom_consolidation": {
+      "operator_requirement": "Studio spec forbids a second blob tier; your job is to consolidate, not to comply retroactively.",
+      "source": "Operator mission attachment; explicit permission to create extra MTs preserving added scope.",
+      "scope": "Convert live Loom original and derivative writers/readers to ArtifactStore, preserving asset identities, references, routes, Range and recoverable migration. This is implementation scope, not a deferred separate WP.",
+      "mt_id": "MT-068",
+      "research_basis": {
+        "sources": [
+          "https://surrealdb.com/docs/learn/querying/concepts-and-guides/transactions",
+          "https://surrealdb.com/docs/reference/query-language/statements/begin",
+          "https://github.com/opencontainers/image-spec/blob/main/descriptor.md",
+          "https://github.com/opencontainers/distribution-spec/blob/main/spec.md",
+          "https://github.com/git-lfs/git-lfs/blob/main/docs/custom-transfers.md",
+          "https://www.rfc-editor.org/rfc/rfc9110.html"
+        ],
+        "local_sources": [
+          "src/backend/handshake_core/src/storage/stage_artifacts.rs:150,370",
+          "src/backend/handshake_core/src/storage/mod.rs:876,1112,1333",
+          "src/backend/handshake_core/src/loom_fs.rs:14",
+          "src/backend/handshake_core/src/api/loom.rs:2295,2318,2471,2618",
+          "src/backend/handshake_core/src/workflows.rs:21033,21160,21247",
+          "src/backend/handshake_core/src/storage/surreal/schema.surql:384,418,443,4651"
+        ],
+        "patterns": [
+          "Database transactions protect catalog/event/idempotency records, not filesystem writes.",
+          "Digest, length and MIME bind content identity; completed transfer alone is not verification.",
+          "Preserve HTTP Range semantics; whole-object hash requires whole-object verification before a slice is served."
+        ],
+        "selected_approach": "Reuse canonical ArtifactStore materialization and verification, then transactionally bind the existing Loom asset identity with expected-state protection and event/idempotency evidence. Canonically reread binding and bytes before any legacy retirement. Preserve all original/derivative references and routes.",
+        "reuse": [
+          "ArtifactStore streaming write, manifests and verified reads",
+          "stage_artifacts request-hash idempotency and catalog/event transaction pattern",
+          "Loom tier selection and Range HTTP tests"
+        ],
+        "rejected": [
+          "Pointer-first migration",
+          "Deleting originals before independent destination proof",
+          "Assuming database rollback undoes filesystem writes",
+          "Adding a second catalog",
+          "Relaxing schema pins/lineage guards",
+          "Dropping Range or derivative paths"
+        ],
+        "risks": [
+          "Crash leaves incomplete destination or orphan",
+          "Concurrent writers race binding publication",
+          "Missing/corrupt legacy bytes",
+          "Revision157/158 database lineage differs",
+          "Full-object verified Range reads incur buffering cost"
+        ],
+        "mitigations": [
+          "Resumable idempotent migration; retain old bytes until canonical proof",
+          "Expected-state compare-and-set and same-transaction event",
+          "Typed fail-closed errors; preserve damaged source for diagnosis",
+          "Use governed schema/pin surface; no implicit reset or unproven upgrade claim",
+          "Preserve existing behavior and document measured resource limits"
+        ],
+        "validation": "Real embedded database and on-disk ArtifactStore; crash/retry boundaries, original and derivative identity/reference preservation, concurrent publication, full and Range HTTP bytes/headers, corruption outside requested range. No skipped embedded setup may count as pass.",
+        "reviewer": "ckc_port_audit",
+        "checked_at_utc": "2026-09-06T14:45:21.358Z"
+      },
+      "minimum_controls": [
+        "Resumable idempotent migration; retain old bytes until canonical proof",
+        "Expected-state compare-and-set and same-transaction event",
+        "Typed fail-closed errors; preserve damaged source for diagnosis",
+        "Use governed schema/pin surface; no implicit reset or unproven upgrade claim",
+        "Preserve existing behavior and document measured resource limits"
+      ]
+    }
   },
   "red_team": {
     "required": true,

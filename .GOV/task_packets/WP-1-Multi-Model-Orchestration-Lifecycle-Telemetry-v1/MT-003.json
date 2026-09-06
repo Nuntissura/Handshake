@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-09-04T20:45:00.378Z",
+  "updated_at_utc": "2026-09-06T14:59:30.8933736Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -77,24 +77,24 @@
     ],
     "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER-20260902-180244",
-    "claimed_at_utc": "2026-09-04T20:45:00.378Z",
+    "claimed_by": "KERNEL_BUILDER-WP1-V6-20260906-MT003",
+    "claimed_at_utc": "2026-09-06T12:59:45.943Z",
     "ready_for_validation_by": null,
     "ready_for_validation_at_utc": null,
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
-    "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
-    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-003:2026-07-20T01:13:21.386Z",
+    "proof_status": "V6_REMEDIATION_IN_PROGRESS: delegated takeover of interrupted checkpoint; current proof pending.",
+    "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
     "last_runtime_status_ref": "FAIL_V5 contract corrected 2026-08-30: no real BYOK credential dependency; deterministic isolated-vault/no-egress proof remains MT-003 remediation work",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_MULTI_LENS_2026-08-14",
-    "adversarial_findings_status": "SOURCE_FINDINGS_REMEDIATED; STALE_EXTERNAL_CREDENTIAL_PREREQUISITE_RETRACTED; DETERMINISTIC_NO_EGRESS_BYOK_PROOF_REMAINS",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
+    "hbr_status": "PENDING_V6_CURRENT_CANDIDATE_RUNTIME_PROOF",
+    "post_implementation_adversarial_review_status": "IN_PROGRESS_SOURCE_REVIEW_AND_REQUIRED_RUNTIME_PROOF",
+    "adversarial_findings_status": "REVIEWED_SOURCE_FINDINGS_FIXED; REQUIRED_RUNTIME_AND_HBR_BOUNDARY_PROOF_PENDING",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
@@ -156,27 +156,18 @@
       "SCOPE ACCURACY (post-review): 'kill' is LlmClient-DEFAULT-scoped, not repo-wide. The OllamaAdapter type + InMemoryLlmClient are retained ONLY as test doubles (never constructed in the default path; no ProviderKind::Ollama variant remains). Ollama couplings intentionally remain OUTSIDE the default LlmClient path and are NOT part of MT-003: tokenization.rs OllamaTokenizerConfigCache, atelier ollama: model-server scheme, bin/capability_registry_workflow.rs OLLAMA_MODEL, dependency_policy tripwires. Removing those is out of MT-003 scope; if desired, a future WP/MT should own it."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_records_factory_failure_through_swarm_coordinator -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests production_builder_wires_model_lane_store_for_failed_dexterity_launch -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_serializes_competing_terminal_updates -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact",
+      "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
+      "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact",
       "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_boot_with_no_local_model_returns_disabled_never_ollama_daemon -- --exact --nocapture",
       "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_local_runtime_client_profile_model_id_is_minted_uuid_v7_and_routes_to_runtime -- --exact --nocapture",
       "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_local_runtime_client_embedding_is_supported_via_model_runtime_embed -- --exact --nocapture",
       "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests external_compat_openai_lane_is_retained_and_non_authoritative -- --exact --nocapture",
       "cargo check --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime",
-      "$env:POSTGRES_TEST_URL='postgresql://postgres@127.0.0.1:5544/handshake'; $env:HANDSHAKE_ARTIFACTS_DIR=(Resolve-Path '../Handshake_Artifacts').Path; $env:HANDSHAKE_TEST_CANDLE_MODEL_DIR='<operator-local-candle-model-dir>'; $env:HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features candle-runtime-engine,test-utils --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
-      "$env:HANDSHAKE_TEST_GGUF_PATH='<operator-local-gguf-path>'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine,test-utils --test llama_cpp_e2e_smoke llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload -- --ignored --exact --nocapture"
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support,candle-runtime-engine --test mt003_candle_default_surreal_tests mt003_real_candle_default_load_emits_surreal_registry_and_process_ledger -- --ignored --exact --nocapture",
+      "$env:HANDSHAKE_TEST_GGUF_PATH='<operator-local-gguf-path>'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine,test-utils --test llama_cpp_e2e_smoke llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload -- --ignored --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_launch_surreal_tests -- --nocapture --test-threads=3",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests --test model_lane_cloud_consent_scope_surreal_tests -- --nocapture --test-threads=2",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets"
     ],
     "risk_if_missed": "Local and cloud models remain separate launch systems and cannot be reasoned about by the coordinator.",
     "reference_only_paths": [
@@ -227,7 +218,7 @@
     "MAN"
   ],
   "handoff": {
-    "coder_session": "KERNEL_BUILDER-20260902-180244",
+    "coder_session": "KERNEL_BUILDER-WP1-V6-20260906-MT003",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
@@ -237,6 +228,11 @@
       "postgres_eventledger_crdt_state_recovery",
       "rust_native_argus_operator_surface_and_usermanual",
       "spec_realism_negative_guards_and_mt_status_signaling"
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_launch_surreal_tests -- --nocapture --test-threads=3",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests --test model_lane_cloud_consent_scope_surreal_tests -- --nocapture --test-threads=2",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets"
     ]
   },
   "red_team": {
@@ -653,6 +649,263 @@
         "prior_blocker": null,
         "prior_missing_resource": null,
         "prior_proof_status": "OPERATOR_STORAGE_CORRECTION_2026_09_01_NOT_READY: PostgreSQL/SQLite production or proof evidence is invalid for MT-003. Embedded SurrealDB is the sole database authority. Deterministic isolated-vault/no-egress launch proof, durable restart replay, and separately owned Surreal ProcessLedger integration remain required; no readiness claim is made."
+      }
+    ]
+  },
+  "v6_proof_target_supersession_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:29:31.145Z",
+    "authority": "OPERATOR_DIRECTIVE_2026_09_01_EMBEDDED_SURREALDB_ONLY plus CX-503R.",
+    "reason": "The declared targets named model_lane_schema_pg_tests and model_lane_launch_tests. Both are PostgreSQL-era targets now fenced behind the never-default feature legacy-postgres-superseded, so they cannot build, let alone prove anything. Their assertions move to the embedded-Surreal launch target.",
+    "superseded_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_records_factory_failure_through_swarm_coordinator -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests production_builder_wires_model_lane_store_for_failed_dexterity_launch -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_serializes_competing_terminal_updates -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact"
+    ],
+    "retained_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_boot_with_no_local_model_returns_disabled_never_ollama_daemon -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_local_runtime_client_profile_model_id_is_minted_uuid_v7_and_routes_to_runtime -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_local_runtime_client_embedding_is_supported_via_model_runtime_embed -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests external_compat_openai_lane_is_retained_and_non_authoritative -- --exact --nocapture",
+      "cargo check --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime",
+      "$env:POSTGRES_TEST_URL='postgresql://postgres@127.0.0.1:5544/handshake'; $env:HANDSHAKE_ARTIFACTS_DIR=(Resolve-Path '../Handshake_Artifacts').Path; $env:HANDSHAKE_TEST_CANDLE_MODEL_DIR='<operator-local-candle-model-dir>'; $env:HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features candle-runtime-engine,test-utils --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+      "$env:HANDSHAKE_TEST_GGUF_PATH='<operator-local-gguf-path>'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine,test-utils --test llama_cpp_e2e_smoke llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload -- --ignored --exact --nocapture"
+    ],
+    "replacement_targets": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_launch_surreal_tests -- --nocapture --test-threads=3",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests --test model_lane_cloud_consent_scope_surreal_tests -- --nocapture --test-threads=2",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets"
+    ],
+    "assertion_continuity_requirement": "The lane must preserve every substantive assertion of the superseded targets in the Surreal replacements: launch authority carried through every adapter, owner and exact five-field scope on the launched resource, and fail-closed rejection when authority is absent."
+  },
+  "v6_proof_command_hygiene_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:30:11.415Z",
+    "why": "Declared proof commands could not be executed as written. Fixes are mechanical and change no target, feature or assertion: they remove an illegal artifact-root env prefix forbidden by [CX-984-001], strip status markers embedded in command strings, replace absolute host paths per [CX-109B], and add --locked. Originals are preserved verbatim below.",
+    "repairs": [
+      {
+        "field": "proof_targets",
+        "before": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
+        "after": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact",
+        "after": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "$env:POSTGRES_TEST_URL='postgresql://postgres@127.0.0.1:5544/handshake'; $env:HANDSHAKE_ARTIFACTS_DIR=(Resolve-Path '../Handshake_Artifacts').Path; $env:HANDSHAKE_TEST_CANDLE_MODEL_DIR='<operator-local-candle-model-dir>'; $env:HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features candle-runtime-engine,test-utils --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+        "after": "$env:HANDSHAKE_ARTIFACTS_DIR=(Resolve-Path '../Handshake_Artifacts').Path; $env:HANDSHAKE_TEST_CANDLE_MODEL_DIR='<operator-local-candle-model-dir>'; $env:HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features candle-runtime-engine,test-utils --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+        "fixes": [
+          "POSTGRES_TEST_URL prefix removed: PostgreSQL is forbidden as a production, fixture or proof database under CX-503R, and the relational target it served is fenced behind legacy-postgres-superseded"
+        ]
+      }
+    ]
+  },
+  "v6_product_defects_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T17:49:09.914Z",
+    "found_by": "MT-003 delegated lane, trace closed exhaustively; parent applied the fixes in parent-owned files.",
+    "defects": [
+      {
+        "id": "MT003-D1",
+        "title": "Revoking a live cloud launch covered zero lanes, always",
+        "severity": "HIGH — the HBR-PRIV-006 revocation guarantee could not hold in production",
+        "cause": "Consent revocation derives covered lanes from model_lane_cloud_authority via list_consent_lanes, but the only writers of that row kind were record_cloud_lane_surreal and record_cloud_run_surreal, whose sole caller was a #[cfg(feature = \"test-utils\")] helper. The production path record_prepared_launch wrote only the main model_lane_authority provider. The consent binding existed on the main lane row as consent_receipt_ref; it was simply absent from the store the fence reads.",
+        "status": "FIXED",
+        "fix": "record_prepared_launch now writes the cloud run and cloud lane authority rows for a cloud lane before publishing the main lane, so a live cloud lane is never visible without its revocable binding.",
+        "file": "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (record_prepared_launch)",
+        "proof": "model_lane_launch_revocation_and_context_switch_fail_closed_on_a_live_launch asserts one launch is revoked; it previously observed zero."
+      },
+      {
+        "id": "MT003-D2",
+        "title": "A cloud launch that fails after preflight cannot persist its failure record",
+        "severity": "MEDIUM — latent until a cloud launch genuinely fails; contradicts the MT-003 acceptance requirement for a startup failure code on every lane kind",
+        "cause": "to_failed_run and to_failed_lane mint model_session_id via failed_model_session_id as failed-model-session:{instance}, while the ProjectionPlan and ConsentReceipt bind runtime_session_id as swarm-session:{instance}. record_prepared_launch then runs the cloud fence over the failed records, so it denies with CX-MM-007 ProjectionPlan.model_session_id must match lane.model_session_id.",
+        "status": "OPEN — deliberately not fixed unilaterally; changing which session identity the cloud authority fence accepts is a contract decision, not a mechanical repair",
+        "options": [
+          "Have the fence accept the failed-record identity when the lane status is Failed, ideally by comparing the shared {instance} rather than accepting an arbitrary mismatch, so the check keeps its meaning.",
+          "Have to_failed_lane retain runtime_session_id, so a failure record never invents a session identity that no authority ever covered."
+        ],
+        "note": "This was the inner half of the first observed failure. Raising the durable START acknowledgement budget from 5s to 30s removed the trigger, so this now stays latent rather than surfacing.",
+        "file": "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (to_failed_run, to_failed_lane, failed_model_session_id, cloud_launch_check_from_records)"
+      },
+      {
+        "id": "MT003-D3",
+        "title": "Durable START acknowledgement budget too tight under load",
+        "severity": "LOW",
+        "status": "FIXED",
+        "cause": "PIDLESS_SESSION_START_DURABILITY_TIMEOUT was 5s, tuned on an idle machine. A correctly denied launch then failed while recording its denial.",
+        "fix": "Raised to 30s with rationale. The expiry path was verified first: it retains the lifecycle and STOP reservation and closes a late commit with a matching STOP, so it never fabricates a row.",
+        "file": "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+        "sibling_risk": "LEDGER_ACK_TIMEOUT in src/api/palmistry.rs and CLI_START_DURABILITY_TIMEOUT in src/model_runtime/cloud/official_cli_bridge.rs are still 5s and are likely to produce the same false failure under load."
+      }
+    ]
+  },
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/catalog.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+    "src/backend/handshake_core/tests/model_lane_launch_surreal_tests.rs"
+  ],
+  "v6_owned_files_basis_2026_09_06": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-06T00:02:31.636Z",
+    "why": "Declared so the readiness rubric's dead-code and test-gating checks actually run. Absent owned_files those items skip silently and the receipt asserts nothing.",
+    "note": "Lane-owned launch surfaces plus the new embedded-Surreal launch target it authored. src/swarm_orchestration/model_lane.rs carries this MT's cloud-authority binding fix but is parent-owned and shared across lanes, so it is deliberately NOT listed here; it is recorded under v6_product_defects_2026_09_05 instead.",
+    "shared_file_policy": "Files every lane compiles (Cargo.toml, lib.rs, any mod.rs, storage/surreal/schema.*, the shared test-support module, and the ModelLane provider) are SHARED under [KB-CARGO-SHARED-001]. Edits to them invalidate every lane's build cache, so they are queued and landed in one pass at a lane-quiet boundary, and every live lane is told what changed."
+  },
+  "v6_queued_shared_file_edits_2026_09_06": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-06T02:41:13.919Z",
+    "policy": "[KB-CARGO-SHARED-001]: src/swarm_orchestration/model_lane.rs is SHARED — every lane compiles it, so an edit invalidates every lane cache at once. These changes are QUEUED and will land in ONE pass at a lane-quiet boundary, with every live lane told what changed. Neither blocks all lanes, so neither qualifies for the immediate-landing exception.",
+    "proof_state": "model_lane_launch_surreal_tests: 4 passed, 2 failed (10282s). Up from 3 passed after the lease fix; the durability budget now correctly reports 30000 ms, confirming that fix is in the binary.",
+    "queued": [
+      {
+        "id": "Q1",
+        "target": "cloud launch insertion fence vs failed-record session identity",
+        "failing_test": "model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority",
+        "observed": "LedgerFailed: PROCESS_LEDGER_DURABILITY_ACK_TIMEOUT ... within 30000 ms: invalid model lane input: CX-MM-007 cloud lane launch denied ...: final cloud launch insertion fence denied: invalid model lane input: ProjectionPlan.model_session_id must match lane.model_session_id",
+        "diagnosis": "The timeout is a symptom, not the cause. dexterity_spawn_model_session_id mints swarm-session:{instance} for a successful launch and is also runtime_session_id, which the ProjectionPlan and ConsentReceipt bind. failed_model_session_id mints failed-model-session:{instance}. record_prepared_launch runs the cloud insertion fence over the FAILED records, the identities differ, the fence denies, so the failure row can never be written, the durable acknowledgement never arrives, and the caller times out. A correctly denied cloud launch therefore cannot record its own denial.",
+        "decision_needed": "This changes what the cloud authority fence accepts, so it is a contract decision rather than a mechanical repair. Preferred: when the lane record status is Failed, compare the shared {instance} rather than requiring exact model_session_id equality, so the check keeps its meaning (same authorised attempt) while denial evidence can still be recorded. Alternative: have to_failed_lane retain runtime_session_id so a failure record never invents an identity no authority covered.",
+        "why_it_matters": "The fence exists to stop unauthorised cloud lanes being persisted as LIVE. Applying it unchanged to denial evidence makes denials unrecordable, which defeats the audit trail the same requirement depends on. A Failed row cannot be used as a live lane."
+      },
+      {
+        "id": "Q2",
+        "target": "consent revocation leaves the covered lane in Ready",
+        "failing_test": "model_lane_launch_revocation_and_context_switch_fail_closed_on_a_live_launch",
+        "observed": "assertion failed: left Ready, right Cancelled, at the revoked[0].status assertion",
+        "progress": "The earlier failure was revoked.len() == 0. The cloud-authority binding fix landed on the production launch path, so revocation now FINDS the lane; it just does not transition it.",
+        "diagnosis": "revoke_cloud_consent_receipt returns finalize_cloud_consent_revocation(..., &provider_cancelled_lane_ids). A lane only enters provider_cancelled_lane_ids when session_cleanup_completed(instance, Cancelled, reason) returns true. The revocation test launches through coordinator.spawn_session, the success path, so its model_session_id is swarm-session:{instance} and the strip_prefix succeeds; the open question is why session_cleanup_completed returns false for a live launch. Assigned to the MT-003 lane to close, since the coordinator path is its subject.",
+        "status": "OPEN — needs the lane to establish whether cleanup genuinely did not complete or the completion is not being observed."
+      }
+    ]
+  },
+  "v6_takeover_2026_09_06": {
+    "recorded_at_utc": "2026-09-06T12:59:45.943Z",
+    "recorded_by": "ORCHESTRATOR-20260906-125300",
+    "authority": "LIVE_OPERATOR_2026_09_06_ORCHESTRATOR_NO_ACP_MT003_MT004_MT024",
+    "session_mt_batch": [
+      "MT-003",
+      "MT-004",
+      "MT-024"
+    ],
+    "prior_claimed_by": "KERNEL_BUILDER-20260902-180244",
+    "prior_proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
+    "product_checkpoint": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+    "execution_owner": "KERNEL_BUILDER-WP1-V6-20260906-MT003",
+    "subagent": "/root/mt003",
+    "authority_ack": "AUTHORITY_CONTRACT_ACK read_after_startup=yes files=ROLE_STARTUP_PROMPT,KBSTART_CMD,ORCSTART_PS1,AGENTS,CODEX,KERNEL_BUILDER_PROTOCOL,RESET_BRIEF",
+    "planned_files": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+      "src/backend/handshake_core/src/model_runtime/catalog.rs",
+      "src/backend/handshake_core/tests/model_lane_launch_surreal_tests.rs",
+      "src/backend/handshake_core/src/storage/surreal.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+      "src/backend/handshake_core/src/storage/surreal/cloud_model_lane.rs",
+      "src/backend/handshake_core/src/storage/surreal/cloud_model_lane_schema.surql",
+      "src/backend/handshake_core/tests/cloud_model_lane_policy_surreal_tests.rs",
+      "src/backend/handshake_core/tests/mt003_candle_default_surreal_tests.rs",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_launch_surreal_tests -- --nocapture --test-threads=3",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test cloud_model_lane_policy_surreal_tests --test model_lane_cloud_consent_scope_surreal_tests -- --nocapture --test-threads=2",
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets"
+    ],
+    "artifact_root": "../Handshake/_Artifacts",
+    "cargo_target": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/target",
+    "temporary_root": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/temp",
+    "artifact_authority": "This live Operator instruction supersedes all prior sibling Handshake_Artifacts directions for this session. Serialize one shared Cargo target; preserve proof before deleting only session-owned outputs.",
+    "scope_risk": "Shared production/helper edits are batched before compilation; no product PASS or COMPLETED authority delegated.",
+    "direct_dependency_work": [
+      {
+        "constraint": "Launch publication and consent revocation lacked an atomic same-row write conflict; the preflight check alone permitted partial live authority.",
+        "owned_by": "/root/mt024",
+        "files": [
+          "src/backend/handshake_core/src/storage/surreal.rs",
+          "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+          "src/backend/handshake_core/src/storage/surreal/cloud_model_lane.rs",
+          "src/backend/handshake_core/src/storage/surreal/cloud_model_lane_schema.surql"
+        ],
+        "work": "Guard general lane writes using the exact consent receipt within the same Surreal transaction; preserve canonical receipt payload through optional fence-counter schema upgrade."
+      },
+      {
+        "constraint": "Retained real Candle proof is still PostgreSQL-gated and uses PgPool for registry/event authority, contrary to current embedded-only correction.",
+        "owned_by": "/root/mt003",
+        "files": [
+          "src/backend/handshake_core/tests/mt003_candle_default_surreal_tests.rs",
+          "src/backend/handshake_core/Cargo.toml"
+        ],
+        "work": "Add current embedded-only real Candle default-load proof sharing the same database for registry and ProcessLedger; preserve the legacy test as history."
+      }
+    ],
+    "candle_proof_supersession": {
+      "original_command": "$env:HANDSHAKE_ARTIFACTS_DIR=(Resolve-Path '../Handshake_Artifacts').Path; $env:HANDSHAKE_TEST_CANDLE_MODEL_DIR='<operator-local-candle-model-dir>'; $env:HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features candle-runtime-engine,test-utils --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+      "replacement_command": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support,candle-runtime-engine --test mt003_candle_default_surreal_tests mt003_real_candle_default_load_emits_surreal_registry_and_process_ledger -- --ignored --exact --nocapture",
+      "reason": "Original retained target remains legacy-PostgreSQL-gated and reads PgPool registry authority. Current replacement preserves substantive real default boot, catalog, canonical registry/EventLedger, exact scoped pidless START/STOP, runtime lease and artifact-integrity assertions in one embedded SurrealDB database. Independent comparison by MT004 found no omitted substantive assertion.",
+      "required_environment": [
+        "HANDSHAKE_TEST_CANDLE_MODEL_DIR verified model.safetensors/config.json/tokenizer.json directory",
+        "HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE fresh UUID",
+        "HANDSHAKE_ARTIFACTS_DIR session-owned directory beneath ../Handshake/_Artifacts"
+      ],
+      "proof_status": "PENDING_RUNTIME"
+    },
+    "superseded_current_review_fields": {
+      "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
+      "post_implementation_adversarial_review_status": "COMPLETED_MULTI_LENS_2026-08-14",
+      "adversarial_findings_status": "SOURCE_FINDINGS_REMEDIATED; STALE_EXTERNAL_CREDENTIAL_PREREQUISITE_RETRACTED; DETERMINISTIC_NO_EGRESS_BYOK_PROOF_REMAINS",
+      "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+      "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
+    },
+    "current_candidate_commit": "d96e405170afbba66e864fa86b1a6f3de020deab",
+    "completed_focused_proofs": [
+      {
+        "id": "WP1-V6-LATE-START-DROP-20260906",
+        "status": "PASS_FOCUSED",
+        "source_commit": "d96e405170afbba66e864fa86b1a6f3de020deab",
+        "passed": 1,
+        "failed": 0,
+        "log": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/late-start-drop-2.log",
+        "receipt": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/late-start-drop-2.command.json"
+      },
+      {
+        "id": "WP1-V6-COORDINATOR-COMPONENTS-20260906",
+        "status": "PASS_COMPONENT_ONLY",
+        "source_commit": "d96e405170afbba66e864fa86b1a6f3de020deab",
+        "passed": 13,
+        "failed": 0,
+        "log": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/coordinator-primitives-binary-1.log",
+        "receipt": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/coordinator-primitives-binary-1.command.json",
+        "note": "Direct reuse of current-session compiled binary with verified SHA256 and clean unchanged source; does not replace durable routing/launch boundary proof."
+      },
+      {
+        "id": "WP1-V6-CLOUD-START-COMPONENTS-20260906",
+        "status": "PASS_COMPONENT_ONLY",
+        "source_commit": "d96e405170afbba66e864fa86b1a6f3de020deab",
+        "passed": 5,
+        "failed": 0,
+        "log": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/cloud-start-components-1.log",
+        "receipt": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/cloud-start-components-1.command.json",
+        "note": "Exact five inspected no-egress tests; current-session binary hash/source reused; no paid/live credential proof."
       }
     ]
   }

@@ -1,0 +1,208 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-068",
+  "title": "Consolidate Loom original and derivative blob storage onto ArtifactStore with preserved identities and recoverable migration",
+  "status": "PENDING",
+  "created_at_utc": "2026-09-06T14:45:21.358Z",
+  "updated_at_utc": "2026-09-06T14:45:21.358Z",
+  "product_edit_allowed": true,
+  "origin": "Preserves omitted explicit operator mission scope; no operator-authorized deferral to a migration WP exists.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-068.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "refinement_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-057",
+      "MT-058",
+      "MT-064"
+    ],
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "completed_by": null
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-surreal",
+    "product_branch": "feat/WP-CKC-posekit-overhaul-surreal",
+    "base_commit": "1d47363fb171590f4eb05d4e5891b08aaec95552",
+    "reference_worktree": "../wtc-ckc-posekit-overhaul",
+    "reference_role": "READ_ONLY_NOT_MERGE_SOURCE",
+    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+    "recovery_rule": "Read this contract and refinement. Claim and append intent before edits. Wait for the active MT059/062 source-frozen Cargo batch and predecessor gates. One parent-owned build only; no foreign target cleanup.",
+    "artifact_path_correction": {
+      "at_utc": "2026-09-06T16:48:27.568Z",
+      "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
+      "runner_pid": 13360
+    }
+  },
+  "scope": {
+    "summary": "Convert live Loom original and derivative writers/readers to ArtifactStore, preserving asset identities, references, routes, Range and recoverable migration. This is implementation scope, not a deferred separate WP.",
+    "owned_files": [
+      "src/backend/handshake_core/src/loom_fs.rs",
+      "src/backend/handshake_core/src/api/loom.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/storage/loom.rs",
+      "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/storage/mod.rs",
+      "src/backend/handshake_core/tests/loom_media_tiers_tests.rs",
+      "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs"
+    ],
+    "shared_file_merge_plan": "Parent edits shared storage/API/workflows/schema files only after MT064 is ready and the active Cargo batch ends; source stable during proof. Any additional integration file must be declared before editing.",
+    "non_goals": [
+      "No Studio implementation or canonical spec edit",
+      "No private catalog or third blob tier",
+      "No automatic deletion/reset of existing databases",
+      "No foreign process interruption or artifact cleanup"
+    ],
+    "acceptance": [
+      {
+        "id": "CKC-MT068-AC001",
+        "requirement": "All production original, thumbnail, preview and proxy byte producers/consumers use canonical ArtifactStore bindings; legacy paths remain only as explicit migration input."
+      },
+      {
+        "id": "CKC-MT068-AC002",
+        "requirement": "Preserve existing asset IDs, workspace scope, block/collection/knowledge/proxy/tier references, MIME, length, classification and exportability."
+      },
+      {
+        "id": "CKC-MT068-AC003",
+        "requirement": "Verify legacy hash/size, materialize and verify destination, atomically publish binding/event with expected-state and idempotency controls, then canonically reread. Retry every interrupted boundary safely; never retire unverified legacy bytes."
+      },
+      {
+        "id": "CKC-MT068-AC004",
+        "requirement": "Preserve content/thumbnail/tier routes and full/explicit/open-ended/suffix/clamped/unsatisfiable Range status, bytes and headers; corruption outside a selected range fails closed."
+      },
+      {
+        "id": "CKC-MT068-AC005",
+        "requirement": "Keep schema revision/pins and assertions coherent. Existing unsupported database lineage fails closed without reset; any supported upgrade must be governed and independently proven."
+      },
+      {
+        "id": "CKC-MT068-AC006",
+        "requirement": "Real embedded-store/on-disk proof executes without skip, covers migration/concurrency/corruption/retry, and proves no new production legacy-tier writes. Independent source review and validator handoff required."
+      }
+    ],
+    "proof_commands": [
+      "cargo test -j 2 --offline --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test loom_artifact_migration_tests --test loom_media_tiers_tests -- --test-threads=1",
+      "Run owning schema pin tests if schema inputs change; rerun MT057 reader proof only if its asserted behavior or dependencies change."
+    ]
+  },
+  "research_basis": {
+    "sources": [
+      "https://surrealdb.com/docs/learn/querying/concepts-and-guides/transactions",
+      "https://surrealdb.com/docs/reference/query-language/statements/begin",
+      "https://github.com/opencontainers/image-spec/blob/main/descriptor.md",
+      "https://github.com/opencontainers/distribution-spec/blob/main/spec.md",
+      "https://github.com/git-lfs/git-lfs/blob/main/docs/custom-transfers.md",
+      "https://www.rfc-editor.org/rfc/rfc9110.html"
+    ],
+    "local_sources": [
+      "src/backend/handshake_core/src/storage/stage_artifacts.rs:150,370",
+      "src/backend/handshake_core/src/storage/mod.rs:876,1112,1333",
+      "src/backend/handshake_core/src/loom_fs.rs:14",
+      "src/backend/handshake_core/src/api/loom.rs:2295,2318,2471,2618",
+      "src/backend/handshake_core/src/workflows.rs:21033,21160,21247",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql:384,418,443,4651"
+    ],
+    "patterns": [
+      "Database transactions protect catalog/event/idempotency records, not filesystem writes.",
+      "Digest, length and MIME bind content identity; completed transfer alone is not verification.",
+      "Preserve HTTP Range semantics; whole-object hash requires whole-object verification before a slice is served."
+    ],
+    "selected_approach": "Reuse canonical ArtifactStore materialization and verification, then transactionally bind the existing Loom asset identity with expected-state protection and event/idempotency evidence. Canonically reread binding and bytes before any legacy retirement. Preserve all original/derivative references and routes.",
+    "reuse": [
+      "ArtifactStore streaming write, manifests and verified reads",
+      "stage_artifacts request-hash idempotency and catalog/event transaction pattern",
+      "Loom tier selection and Range HTTP tests"
+    ],
+    "rejected": [
+      "Pointer-first migration",
+      "Deleting originals before independent destination proof",
+      "Assuming database rollback undoes filesystem writes",
+      "Adding a second catalog",
+      "Relaxing schema pins/lineage guards",
+      "Dropping Range or derivative paths"
+    ],
+    "risks": [
+      "Crash leaves incomplete destination or orphan",
+      "Concurrent writers race binding publication",
+      "Missing/corrupt legacy bytes",
+      "Revision157/158 database lineage differs",
+      "Full-object verified Range reads incur buffering cost"
+    ],
+    "mitigations": [
+      "Resumable idempotent migration; retain old bytes until canonical proof",
+      "Expected-state compare-and-set and same-transaction event",
+      "Typed fail-closed errors; preserve damaged source for diagnosis",
+      "Use governed schema/pin surface; no implicit reset or unproven upgrade claim",
+      "Preserve existing behavior and document measured resource limits"
+    ],
+    "validation": "Real embedded database and on-disk ArtifactStore; crash/retry boundaries, original and derivative identity/reference preservation, concurrent publication, full and Range HTTP bytes/headers, corruption outside requested range. No skipped embedded setup may count as pass.",
+    "reviewer": "ckc_port_audit",
+    "checked_at_utc": "2026-09-06T14:45:21.358Z"
+  },
+  "hbr_obligations": {
+    "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",
+    "HBR-INT-008": "PROVE: Uuid::now_v7() at every new mint site",
+    "HBR-INT-009": "DEFERRED-with-reason: Flight Recorder emit via AtelierStore observability is WIRED; internal_diagnostics and Palmistry are not in this base (WP-KERNEL-012 MT-127 lane), record DEFERRED per tier",
+    "HBR-SWARM-005": "PROVE: per-owner CARGO_TARGET_DIR wp-ckc-surreal[-lane]",
+    "HBR-SWARM-006": "PROVE: owner cleans its scoped dir; KERNEL_BUILDER backstop",
+    "HBR-VIS-004": "PROVE: non-UI lanes record TraceProjection/route evidence; UI proof belongs to MT-065",
+    "HBR-MAN-004": "DEFERRED to MT-066 (UserManual same-change duty batched for the coherent lane batch; typed mapping required)",
+    "HBR-STOP-001..005": "PROVE: no capacity reasoning in receipts; API rate-limit termination is an external blocker, recorded as such",
+    "HBR-PRIV-001..008": "DEFERRED-with-reason: see resource_privacy_obligation"
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "status": "DEFERRED_TO_MT-066",
+    "reason": "Shared manual must document canonical storage, migration/recovery, integrity failures and Range resource limits in same final batch."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "resources_touched": [
+      "Loom asset catalog references",
+      "Legacy workspace asset bytes",
+      "ArtifactStore payload/manifests"
+    ],
+    "expected_evidence": [
+      "Preserve existing workspace checks, classification and exportability. Do not claim missing ResourceBroker behavior exists or weaken cross-module authorization requirements."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "risks": [
+      "Crash leaves incomplete destination or orphan",
+      "Concurrent writers race binding publication",
+      "Missing/corrupt legacy bytes",
+      "Revision157/158 database lineage differs",
+      "Full-object verified Range reads incur buffering cost"
+    ],
+    "minimum_controls": [
+      "Resumable idempotent migration; retain old bytes until canonical proof",
+      "Expected-state compare-and-set and same-transaction event",
+      "Typed fail-closed errors; preserve damaged source for diagnosis",
+      "Use governed schema/pin surface; no implicit reset or unproven upgrade claim",
+      "Preserve existing behavior and document measured resource limits"
+    ]
+  },
+  "handoff": {
+    "status": "PENDING",
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "note": "Kernel Builder implements only; no self-certification."
+  },
+  "validator_verdict": "PENDING"
+}

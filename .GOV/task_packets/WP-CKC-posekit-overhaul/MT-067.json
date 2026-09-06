@@ -14,7 +14,7 @@
   "title": "Studio <-> CKC binding proposal: canonical blob tier, read-path contract, crash-consistency rule, size/eviction, viewport and widget ids; spec amendment recommendations for 14-studio-creative-suite STU-ASSET-004/005/007/008/012-014/025",
   "status": "CLAIMED",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-06T00:28:00.597Z",
+  "updated_at_utc": "2026-09-06T14:45:21.358Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -32,7 +32,7 @@
     "status": "CLAIMED",
     "active": true,
     "depends_on": [],
-    "claimed_by": "KERNEL_BUILDER-20260904-213453",
+    "claimed_by": "KERNEL_BUILDER-20260906-141914",
     "claimed_at_utc": "2026-09-05T01:05:00.438Z",
     "completed_by": null
   },
@@ -48,8 +48,8 @@
       "skeleton": "09febeb8",
       "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
     },
-    "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-    "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
+    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+    "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
     "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`."
   },
   "scope": {
@@ -83,7 +83,7 @@
       "CKC catalog tables listed in scope"
     ],
     "expected_evidence": [
-      "DEFERRED-with-reason: ResourceBroker / LocalAccount / Principal / AccessSpace do not exist in the WP-KERNEL-012 base (verified 2026-09-05 by grep: no ResourceBroker symbol). Reads and writes are attributed via x-hsk-actor-id and the KernelActor on events; default-deny enforcement is WP-KERNEL-006/007 scope. Record the STU-ASSET-007 `unauthorized` state as not yet producible."
+      "Media GET has no handler-level actor extraction or ResourceBroker decision; POST ingestion attribution must not be generalized to reads. STU-ASSET-007/021 cross-module authorization and denial receipts remain required."
     ],
     "not_applicable_reason": null
   },
@@ -94,40 +94,44 @@
   "handoff": {
     "status": "CLAIMED",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification."
+    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification.",
+    "coder_session": "KERNEL_BUILDER-20260906-141914"
   },
   "validator_verdict": "PENDING",
   "studio_binding_proposal": {
-    "canonical_blob_tier": "ArtifactStore (UUID-addressed, manifest per file, atomic write, hash-verified, GC). Loom blobs (<root>/data/workspaces/<ws>/assets/<tier>/<hash>) are the non-canonical second tier and become a migration target: new Studio/CKC bytes never go there.",
-    "why": "ArtifactStore already has the invariants the spec demands (manifest = PRIM-ArtifactManifest, write-once, refuses content_hash != sha256(payload), read-time re-verification, layers, retention fields) and it is the tier CKC media rows already bind to via artifact_ref. Loom blobs have no manifest, no read verification, no GC, and a row-then-blob ordering with no compensation; their one advantage, HTTP Range, is a feature to port rather than a reason to keep a second tier. Choosing ArtifactStore meant porting only a READ path plus a streaming WRITE path, both now landed; choosing Loom would have meant rebuilding manifests, verification and GC from scratch.",
+    "canonical_blob_tier": "Proposed shared Studio/CKC/Tailor binding: existing ArtifactStore, UUID-addressed with content hashes and per-artifact manifests. CKC media already uses it. Loom still has a separate live blob path; consolidation is unimplemented mission work. Retention covers eligible L3 TTL artifacts only.",
+    "why": "Reuse ArtifactStore integrity checks, manifests and CKC catalog references. Media ingress streams with a size cap; reads verify the complete payload before returning buffered bytes. Loom provides a separate Range-capable path. Convergence must preserve existing asset references and seeking; migration and verified Range delivery are not implemented. The concrete PRIM-ArtifactManifest mapping requires the canonical spec amendment.",
     "read_path_contract": {
-      "catalog_identity": "PRIM-Asset = atelier_media_asset.asset_id (uuid v7)",
-      "manifest_identity": "PRIM-ArtifactManifest = artifact://.handshake/artifacts/<layer>/<uuid>/artifact.json; the placed-asset link's artifact_manifest_id is that ref (or the (layer, uuid) pair)",
-      "resolve_bytes": "GET /atelier/media-assets/{asset_id}/bytes -> 200 bytes with Content-Type (catalog MIME), Content-Length, ETag \"sha256-<hex>\", Cache-Control private,immutable, x-hsk-artifact-ref, x-hsk-content-sha256; 404 unknown asset or missing payload; 400 non-native artifact_ref; 500 any integrity mismatch (row vs manifest, manifest vs payload). Store-level equivalent: AtelierStore::read_media_asset_bytes. The link's resolved_content_hash is x-hsk-content-sha256; link state: resolved when it equals the stored resolved_content_hash, modified when it differs, missing on 404-unknown, unresolved before first call. unauthorized cannot be produced yet: no ResourceBroker in the base (WP-KERNEL-006/007); until then the route is actor-attributed (x-hsk-actor-id) but not authorization-enforced and the spec should say so explicitly instead of implying the state exists.",
-      "streaming": "Read is buffered today: the whole payload is hashed and verified before the first byte is sent, so a client never receives partial bytes on an integrity failure, but there is no HTTP Range support. VERIFIED: the Loom tier already implements Range (api/loom.rs get_asset_content, GAP-LM-009b) without verification; the ArtifactStore route verifies without Range. The proposed convergence keeps verification and adds Range by hashing once per artifact and caching the verdict (or verifying the served slice against a per-artifact chunk map), so video seeking works without giving up fail-closed reads. Write IS streaming and size-capped: POST /atelier/media-assets hashes and counts as it writes."
+      "catalog_identity": "Proposed concrete mapping: PRIM-Asset = atelier_media_asset.asset_id (UUID v7).",
+      "manifest_identity": "Proposed PRIM-ArtifactManifest handle: artifact://.handshake/artifacts/<layer>/<uuid>/artifact.json, or a formally specified equivalent. This does not establish implemented Studio placed-asset persistence.",
+      "resolve_bytes": "GET /atelier/media-assets/{asset_id}/bytes calls AtelierStore::read_media_asset_bytes and returns verified buffered bytes with catalog MIME, Content-Length, ETag, Cache-Control, x-hsk-artifact-ref and x-hsk-content-sha256. Unknown catalog identity and missing payload both return 404; invalid native references return 400; integrity failures return 500. GET does not extract an actor header or establish ResourceBroker authorization or per-read attribution. Studio link-state resolution remains unimplemented: distinguish absent catalog identity from missing bytes and preserve unauthorized as distinct from missing under STU-ASSET-007/021.",
+      "streaming": "Implemented: size-capped streaming ingress; complete-payload verification followed by buffered reads without Range. Loom supports Range without equivalent payload verification. Convergence must define and prove integrity-preserving seeking; verification caches and chunk maps are unselected design candidates."
     },
-    "crash_consistency_rule": "Order is blob -> verify -> catalog row (the Atelier pattern), never row -> blob (the Loom pattern). If the row write fails or dedups, the writer removes the blob it just wrote (compensation). Rows and their EventLedger event must commit in ONE SurrealDB transaction (the stage_artifacts.rs BEGIN/COMMIT pattern); the reference branch post-commit event writes (MT-056 F10) must not be ported as-is. VERIFIED GAP: a hard crash strictly between payload rename and row commit leaves an orphan L1 artifact that nothing reclaims - storage::retention::plan_ttl_artifact_gc scans ONLY ArtifactLayer::L3 and prunes only manifests carrying retention_ttl_days (pinned and TTL-less manifests are always spared), and atelier::filesystem_health is documented read-only (it never resyncs, deletes, repairs or creates media rows) and merely records an UntrackedOriginal finding. The mirror case, a catalog row whose payload is gone, surfaces as a 404 on the byte route and a MissingOriginal finding, and is likewise never auto-repaired. An orphan is never served and re-ingesting the same bytes dedups on content_hash, so this is a disk-usage and hygiene gap, not a correctness one.",
-    "size_limits_and_eviction": "Ingest ceiling HANDSHAKE_MEDIA_INGEST_MAX_BYTES (default 4 GiB) enforced while streaming; the JSON/base64 Loom import is bounded by Axum 2 MiB plus the same decoded cap and is not a bulk path. VERIFIED eviction scope: plan_ttl_artifact_gc reads only <workspace>/.handshake/artifacts/L3, spares pinned manifests and every manifest with no retention_ttl_days, and deletes only past-TTL artifacts. Studio/CKC originals are written to L1 with retention_ttl_days=None, so they are never evicted by any current path - which is the desired posture for originals and matches the spec intent that media originals are excluded. Proposed: derived previews/proxies for Studio go to L3 WITH a TTL so they are the only evictable tier; originals stay L1 and TTL-less; and a future L1 sweeper must treat a live placed-asset link as a reference (it cannot simply delete unreferenced L1 payloads while documents hold links).",
-    "viewport": "CKC's Atelier panel IS Studio's asset viewport: Studio opens it as the CKC module in the module rail (or a workbench pane) with a target ref (atelier://media/<asset_id>, atelier://collection/<id>, atelier://character/<id>) and gets back placed-asset picks through the typed drag payload / asset.place command. What it shows: character-scoped albums, media grid with real bytes via the byte route, tags/notes/ratings, Posekit/OpenPose, intake batches, search. Models drive it through the 128 stable atelier-ckc-* AccessKit ids (Argus list_widgets/click_widget/set_value/screenshot); MT-065 ports them verbatim and the report lists them.",
+    "crash_consistency_rule": "Blob write and verification precede the catalog commit. The writer attempts to remove its newly written blob on catalog failure or deduplication; cleanup errors are logged and can leave orphans. Domain row and EventLedger event must commit in one SurrealDB transaction using the existing transaction pattern. A hard crash between payload publication and catalog commit can leave L1 orphans; retention scans only eligible L3 TTL artifacts. Filesystem health reports healthy, manifest-readable artifacts lacking tracked references as UntrackedOriginal, skips malformed/incomplete entries, and never reclaims them. A catalog row with missing bytes produces a byte-route 404 and requires explicit diagnosis rather than silent repair. An uncataloged orphan cannot resolve through the media byte route; re-ingestion may create a new catalog-backed artifact and does not discover or reclaim the orphan.",
+    "size_limits_and_eviction": "Streaming ingest enforces HANDSHAKE_MEDIA_INGEST_MAX_BYTES, default 4 GiB. Loom JSON/base64 import has the Axum 2 MiB body default plus the decoded cap and is not a bulk path. Current CKC streaming ingestion writes L1 artifacts without TTL; plan_ttl_artifact_gc only evicts unpinned, expired L3 artifacts with retention_ttl_days and therefore does not evict these originals. Studio placement is proposed. Derived Studio previews/proxies may use L3 with TTL, eligible for that retention policy; originals remain L1 without TTL. Any future L1 reclamation must account for catalog and live placed-link references.",
+    "viewport": "Proposed: expose a CKC-backed projection inside Studio per STU-ASSET-017, reusing AtelierPanel and typed AtelierRef drag payloads. Show character albums, media, tags/notes/ratings, Posekit, intake and search. Merely opening a separate CKC module does not satisfy the in-Studio requirement. Current AtelierEditor mounts CanvasBoard; Studio asset.place, placed-asset persistence and the projection are not implemented by the panel code. Preserve the inspected 128 atelier-ckc-* widget IDs; Argus must exercise the mounted runtime after gated MT-065 integration. Tailor and cui-studio use the same binding under STU-ASSET-020.",
     "spec_should_say": [
-      "STU-ASSET-025 close: the artifact tier is storage::artifacts (ArtifactStore): UUID-addressed under <workspace>/.handshake/artifacts/<layer>/<uuid>/{payload,artifact.json}; manifest = PRIM-ArtifactManifest; write-once, hash-verified on write and read; GC; layers L1-L4; API = write_file_artifact / write_file_artifact_streaming / read_file_artifact / read_artifact_manifest / remove_file_artifact plus HTTP GET /atelier/media-assets/{id}/bytes and POST /atelier/media-assets; transactional relationship: blob before row, compensation on row failure, row+event in one SurrealDB transaction.",
-      "STU-ASSET-004: name Loom blobs as the existing violation and require consolidation onto the ArtifactStore (migration WP), not a retroactive ban.",
-      "STU-ASSET-005: artifact_manifest_id is the ArtifactStore manifest ref; resolved_content_hash is bare lowercase sha256 hex (the x-hsk-content-sha256 header).",
-      "STU-ASSET-007: state that `unauthorized` is producible only once WP-KERNEL-006/007 ship ResourceBroker; until then resolution is attributed, not authorized, and MUST NOT be reported as `missing`.",
+      "Proposed STU-ASSET-025 amendment, not closure: record ArtifactStore API, UUID addressing, hash verification, configured ingest cap, eligible L3 TTL retention and blob-before-row compensation/transaction relationship. Canonical v02.206 still declares the gap; this proposal neither amends it nor passes STU-ASSET-030 activation.",
+      "Preserve STU-ASSET-004. Consolidating the live Loom blob path remains uncompleted mission work; this proposal does not defer it to a separate migration WP.",
+      "Proposed STU-ASSET-005 mapping: manifest reference and normalized SHA256. Preserve every canonical link field, Studio-owned transform/crop/fit/frame state and linked/embedded provenance; the byte route does not implement those records.",
+      "Preserve STU-ASSET-007/021 unchanged. Media GET has no handler-level actor extraction or ResourceBroker decision; POST attribution does not attribute GET. Authorization, denial receipts and unauthorized remain required and unimplemented.",
       "STU-ASSET-008: bulk binary MUST ingest through the streaming route with the ceiling; base64/JSON ingest is forbidden for Studio assets.",
-      "STU-ASSET-012..014: export-back = POST /atelier/media-assets (streamed) + catalog row + derivation edge; the edge record does not exist yet in CKC (no atelier derivation table) and MUST be added before export-back is claimed.",
-      "STU-ASSET-004 evidence: the port introduced NO third blob tier. Every filesystem write under src/atelier and the atelier API was checked; the two live writers are in validator_first_pass.rs and both exist at base 1d47363f, and the remaining three are inside #[cfg(test)] fixture modules. api/loom.rs now points bulk-binary callers at POST /atelier/media-assets and states it is not a bulk-binary path.",
-      "STU-ASSET-008/009: a SECOND verified byte route exists and is stricter, not weaker. GET /atelier/posekit/openpose-png/bytes?artifact_ref= resolves the manifest, requires a Posekit-generated L1 image/png, requires a rendered atelier_pose_sidecar row bound to the same ref, and requires that row to agree with the manifest on hash (via the canonical sha256_refs_match), size and MIME before reading; it then goes through the same read_file_artifact_with_manifest, so the payload is re-hashed exactly as on the media route. Sidecar missing = 404, sidecar-vs-manifest drift = 500. Studio inherits the same guarantee on Posekit exports."
+      "STU-ASSET-012..014 export-back is not complete: require StudioDocument id/revision, StudioExportRecipe id/resolved parameters, manifest id, consumed source asset ids, KernelActor and EventLedger event id, plus catalog derivation edges from each source to export. Streaming ingestion alone does not supply this contract.",
+      "STU-ASSET-004 forbids a new parallel Studio library/blob tier. Loom import/content still use separate storage with row-before-file writes and Range. Consolidation remains uncompleted mission work; directing new callers to streaming ingestion is not migration proof.",
+      "STU-ASSET-008/009: a SECOND verified byte route exists and adds Posekit-specific manifest and sidecar checks. GET /atelier/posekit/openpose-png/bytes?artifact_ref= resolves the manifest, requires a Posekit-generated L1 image/png, requires a rendered atelier_pose_sidecar row bound to the same ref, and requires that row to agree with the manifest on hash (via the canonical sha256_refs_match), size and MIME before reading; it then goes through the same read_file_artifact_with_manifest, so the payload is re-hashed exactly as on the media route. Sidecar missing = 404, sidecar-vs-manifest drift = 500. The existing backend route is reusable for Studio Posekit consumption; Studio integration and export/publish guarantees remain unimplemented."
     ],
     "declared_debt": [
-      "Orphan L1 payload reclamation has no owner: retention GC is L3+TTL only, filesystem_health is report-only. Needs either an L1 sweeper that is link-aware or a write-ahead intent record so an interrupted ingest is resumable/rollback-able.",
-      "CKC has no derivation-edge table, so STU-ASSET-014 (source asset -> derived export edge) cannot be satisfied today; it must be added before export-back is claimed.",
-      "STU-ASSET-007 `unauthorized` is not producible: no ResourceBroker/Principal in the WP-KERNEL-012 base; resolution is actor-attributed, not authorization-enforced."
+      "Loom consolidation remains unimplemented; preserve identities, references, byte integrity, recovery and Range.",
+      "Interrupted L1 ingest can leave orphans; L3 TTL retention and report-only filesystem health do not reclaim them. Recovery must preserve live catalog/document references.",
+      "Studio viewport, placed links, five link states and typed commands remain future consumer implementation.",
+      "Export-back needs full STU-ASSET-013 provenance and STU-ASSET-014 catalog derivation edges.",
+      "Cross-module authorization, per-read attribution and denial receipts are not implemented by media GET.",
+      "STU-ASSET-025 remains declared pending governed amendment and proof; preserve STU-ASSET-020 shared Studio/Tailor/cui-studio binding."
     ],
     "two_tiers_compared": {
       "artifact_store": {
         "addressing": "UUID: <workspace>/.handshake/artifacts/<layer>/<uuid>/{payload,artifact.json}",
-        "manifest": "yes (PRIM-ArtifactManifest: mime, size, content_hash, classification, retention_ttl_days, pinned, source refs)",
+        "manifest": "Existing ArtifactManifest carries MIME, size, hash, classification and retention fields; proposed PRIM-ArtifactManifest mapping does not prove Studio export provenance.",
         "write": "atomic temp -> fsync -> rename; refuses content_hash != sha256(payload); write-once",
         "read_verification": "yes - read_file_artifact re-hashes the payload against the manifest before serving",
         "gc": "partial: L3 + retention_ttl_days only",
@@ -143,6 +147,31 @@
         "range_requests": "YES (GAP-LM-009b, honors HTTP Range for long-video seeking)",
         "layers": "n/a"
       }
+    },
+    "tailor_preparation": {
+      "binding": "Reuse STU-ASSET-020 links, states, read commands and export-back; module extensions are namespaced on links.",
+      "source_semantics": "TAI-INT-002/003: PoseKit evidence stays immutable/versioned; derived transfer/mix is reversible proposal requiring selected apply, not mutation of source bytes.",
+      "availability": "TAI-INT-006: require authoritative merged-main WP-KERNEL-012 containment receipt and exact compatible PoseKit/character-sheet schema; validated worktree is insufficient. Until then return dependency_unavailable; no substitute private adapter.",
+      "artifact_ownership": "TAI-INT-005: generated bytes belong to ArtifactStore; Tailor records retain handles and source event ids."
+    },
+    "reconciliation_evidence": {
+      "reviewer": "ckc_studio_contract",
+      "kind": "SOURCE_AND_SPEC_REVIEW_ONLY",
+      "spec": ".GOV/spec/master-spec-v02.206/spec-modules/14-studio-creative-suite.md:30625-30723",
+      "tailor": ".GOV/spec/master-spec-v02.206/spec-modules/13-tailor-cloth-garment-engine.md:12956-12995",
+      "product": [
+        "src/backend/handshake_core/src/api/atelier.rs:364",
+        "src/backend/handshake_core/src/api/loom.rs:2295",
+        "src/backend/handshake_core/src/storage/retention.rs:320",
+        "src/frontend/handshake_native/src/app.rs:7356"
+      ],
+      "canonical_spec_amended": false,
+      "post_change_review": "ckc_studio_contract reviewed actual JSON; remaining compensation, orphan detection, retention and future-integration overclaims corrected. Source/spec proof only."
+    },
+    "consolidation_implementation": {
+      "mt_id": "MT-068",
+      "status": "PENDING",
+      "separate_wp_deferral": false
     }
   }
 }

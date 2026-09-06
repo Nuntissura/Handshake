@@ -12,9 +12,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-063",
   "title": "CKC prompt-feedback lane on SurrealDB: cases, verdicts, versioned rule packs, deterministic rewrites, JSONL exports",
-  "status": "READY_FOR_VALIDATION",
+  "status": "CLAIMED",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-05T20:23:43.593Z",
+  "updated_at_utc": "2026-09-06T16:37:12.636Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -29,12 +29,12 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-063.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
-    "active": false,
+    "status": "CLAIMED",
+    "active": true,
     "depends_on": [
       "MT-058"
     ],
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260906-141914",
     "claimed_at_utc": null,
     "completed_by": null,
     "ready_for_validation_at_utc": "2026-09-05T20:23:43.593Z"
@@ -51,14 +51,28 @@
       "skeleton": "09febeb8",
       "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
     },
-    "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal-pf",
-    "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal-pf/run-cargo.cmd",
+    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+    "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
     "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`.",
     "resume_state": {
       "status": "SECOND_PARTIAL_CHECKPOINTED_UNCOMPILED_AS_WHOLE",
       "detail": "Lane agent terminated by API limit after writing prompt_feedback/mod.rs (+1664), model.rs, engine.rs, adapter.rs, api/atelier_ckc_prompt_feedback.rs and tests/atelier_prompt_feedback_tests.rs; nothing compiled; completeness unknown. KERNEL_BUILDER then made the whole tree compile (check4 exit 0) by finishing CollectionRow/CollectionMemberRow + select macros (media) and adding ItemRefsBinding (intake); functional completeness of each lane is still unknown until its routes and tests exist. | Second lane run reported the lib compiles and the atelier_prompt_feedback_tests crate was building when terminated; completeness still unverified.",
       "next_action": "Reopen the lane with the implementation_brief below; diff the checkpointed files against the reference to see what is already ported; finish; cargo check; port tests; run them.",
       "checkpoint": "wip(CKC lanes): second recovery checkpoint (branch feat/WP-CKC-posekit-overhaul-surreal, pushed)"
+    },
+    "prior_lane_build": {
+      "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal-pf",
+      "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal-pf/run-cargo.cmd"
+    },
+    "build_coordination": {
+      "session": "KERNEL_BUILDER-20260906-141914",
+      "reason": "Operator-directed serialized parent batch and dependency-cache reuse after parallel lane source edits.",
+      "parallel_cargo": false
+    },
+    "artifact_path_correction": {
+      "at_utc": "2026-09-06T16:48:27.567Z",
+      "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
+      "runner_pid": 13360
     }
   },
   "scope": {
@@ -113,9 +127,10 @@
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1"
   },
   "handoff": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "CLAIMED",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification."
+    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification.",
+    "coder_session": "KERNEL_BUILDER-20260906-141914"
   },
   "validator_verdict": "PENDING",
   "implementation_brief": {
@@ -176,5 +191,30 @@
       "umbrella test takes ~65 min wall under host contention; do not split it back into per-test harnesses",
       "cargo test <name> can no longer select a single scenario inside the umbrella"
     ]
+  },
+  "recovery_blocker": {
+    "finding": "Adapter dataset:// image references rejected by schema and removed by test fixtures; restore unmodified persistence and HTTP proof. Restore all-or-none batch import fidelity.",
+    "verification": "Independent source review; runtime regression proof pending.",
+    "prior_status": "READY_FOR_VALIDATION"
+  },
+  "recovery_fix_design": {
+    "reviewer": "ckc_port_audit",
+    "approach": "Accept adapter-produced dataset:// image refs alongside artifact:// while preserving existing whitespace/.gov guards. Restore unchanged-reference persistence and HTTP fixtures. Import a prepared case/event vector in one transaction and mirror committed events only after success; preserve sequential duplicate-source behavior and all-or-none batch retry.",
+    "files": [
+      "src/backend/handshake_core/src/atelier/prompt_feedback/mod.rs",
+      "src/backend/handshake_core/tests/atelier_prompt_feedback_tests.rs",
+      "src/backend/handshake_core/tests/atelier_prompt_feedback_api_tests.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs"
+    ],
+    "reuse": [
+      "prepare_event",
+      "RecordEventBindings",
+      "atelier_event_sql!",
+      "finish_event"
+    ],
+    "proof": "Dataset references survive adapter, actual HTTP import and database reread; later case/event failure leaves no earlier cases/events; duplicates preserve reference ordering.",
+    "execution_gate": "No product edits until active Cargo process tree exits or an approved owner cancellation succeeds.",
+    "shared_schema_owner": "KERNEL_BUILDER parent only; apply schema/pin changes once after disjoint lane edits stabilize."
   }
 }

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-004",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-09-04T20:45:00.307Z",
+  "updated_at_utc": "2026-09-06T15:15:39.4324475Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -26,24 +26,24 @@
     ],
     "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER-20260902-180244",
-    "claimed_at_utc": "2026-09-04T20:45:00.307Z",
+    "claimed_by": "KERNEL_BUILDER-WP1-V6-20260906-MT004",
+    "claimed_at_utc": "2026-09-06T12:59:45.943Z",
     "ready_for_validation_by": null,
     "ready_for_validation_at_utc": null,
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
-    "hbr_status": "VALIDATION_PENDING_V6: exact five-field promotion scope, foreign and mixed-source denial, durable decision/event/artifact authority, replay, idempotency, leakage resistance, and atomic failure must be re-proven on embedded SurrealDB.",
+    "proof_status": "V6_REMEDIATION_IN_PROGRESS: delegated takeover of interrupted checkpoint; current proof pending.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": "usermanual://model-lane-promotion#recovery",
     "last_runtime_status_ref": "BLOCKED_ON_DEPENDENCY: incomplete embedded promotion provider/test seam; no Cargo command run in this lane",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-08-14_MULTIPLE_LENSES",
-    "adversarial_findings_status": "POST_REVIEW_EXACT_SCOPE_INHERITANCE_FOREIGN_SCOPE_PREMUTATION_DENIAL_MIXED_SCOPE_NONWIDENING_AND_MANUAL_FINDINGS_REPROVEN",
-    "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
-    "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
+    "hbr_status": "PENDING_V6_CURRENT_CANDIDATE_RUNTIME_PROOF",
+    "post_implementation_adversarial_review_status": "IN_PROGRESS_SOURCE_REVIEW_AND_REQUIRED_RUNTIME_PROOF",
+    "adversarial_findings_status": "REVIEWED_SOURCE_FINDINGS_FIXED; REQUIRED_RUNTIME_AND_HBR_BOUNDARY_PROOF_PENDING",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Implement coordinator routing policies and explicit advisory-to-authority promotion.",
@@ -79,12 +79,12 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
     ],
     "risk_if_missed": "A swarm can look parallel while still depending on hidden prompt arbitration.",
     "reference_only_paths": [
@@ -131,7 +131,7 @@
     "MAN"
   ],
   "handoff": {
-    "coder_session": "KERNEL_BUILDER-20260902-180244",
+    "coder_session": "KERNEL_BUILDER-WP1-V6-20260906-MT004",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
@@ -141,6 +141,14 @@
       "surreal_eventledger_crdt_state_recovery",
       "rust_native_argus_operator_surface_and_usermanual",
       "spec_realism_negative_guards_and_mt_status_signaling"
+    ],
+    "proof_commands": [
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
     ]
   },
   "red_team": {
@@ -379,5 +387,162 @@
         "prior_proof_status": "BLOCKED_V6_PROVIDER_DEPENDENCY: no replacement test, target rename, Cargo validation, or migration claim was made. The superseded suite remains intact until the complete embedded provider/test seam exists."
       }
     ]
+  },
+  "v6_proof_command_normalization_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:29:31.145Z",
+    "change": "Added --locked and explicit -j 2 to the declared cargo commands. No target, feature or assertion changed; the commands were already embedded-Surreal and needed no supersession.",
+    "original_targets": [
+      "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
+    ],
+    "normalized_targets": [
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
+    ],
+    "note": "One entry still names user_manual_api_tests under features test-utils only; it is retained as declared because it is not a relational target, but the lane should confirm it builds under the fenced-target regime and report if it does not."
+  },
+  "owned_files": [
+    "src/backend/handshake_core/tests/model_lane_promotion_surreal_tests.rs",
+    "src/backend/handshake_core/tests/routing_execution_surreal_tests.rs"
+  ],
+  "v6_owned_files_basis_2026_09_06": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-06T00:02:31.636Z",
+    "why": "Declared so the readiness rubric's dead-code and test-gating checks actually run. Absent owned_files those items skip silently and the receipt asserts nothing.",
+    "note": "Lane-owned promotion and routing proof targets. The promotion event-link defect this lane found was fixed in the parent-owned src/swarm_orchestration/model_lane.rs, so that file is not listed here; it is recorded as a finding with before/after instead.",
+    "shared_file_policy": "Files every lane compiles (Cargo.toml, lib.rs, any mod.rs, storage/surreal/schema.*, the shared test-support module, and the ModelLane provider) are SHARED under [KB-CARGO-SHARED-001]. Edits to them invalidate every lane's build cache, so they are queued and landed in one pass at a lane-quiet boundary, and every live lane is told what changed."
+  },
+  "v6_takeover_2026_09_06": {
+    "recorded_at_utc": "2026-09-06T12:59:45.943Z",
+    "recorded_by": "ORCHESTRATOR-20260906-125300",
+    "authority": "LIVE_OPERATOR_2026_09_06_ORCHESTRATOR_NO_ACP_MT003_MT004_MT024",
+    "session_mt_batch": [
+      "MT-003",
+      "MT-004",
+      "MT-024"
+    ],
+    "prior_claimed_by": "KERNEL_BUILDER-20260902-180244",
+    "prior_proof_status": "V6_REMEDIATION_CLAIMED_2026_09_02: claimed by KERNEL_BUILDER-20260902-180244 (parent) for delegated sub-agent implementation in the declared product worktree; dependency gate satisfied inside SESSION_MT_BATCH MT-002..MT-024 (predecessor MTs are remediated in the same batch under CX-503C disjoint-work rule). No proof claimed yet.",
+    "product_checkpoint": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+    "execution_owner": "KERNEL_BUILDER-WP1-V6-20260906-MT004",
+    "subagent": "/root/mt004",
+    "authority_ack": "AUTHORITY_CONTRACT_ACK read_after_startup=yes files=ROLE_STARTUP_PROMPT,KBSTART_CMD,ORCSTART_PS1,AGENTS,CODEX,KERNEL_BUILDER_PROTOCOL,RESET_BRIEF",
+    "planned_files": [
+      "src/backend/handshake_core/tests/model_lane_promotion_surreal_tests.rs",
+      "src/backend/handshake_core/tests/routing_execution_surreal_tests.rs",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/src/user_manual/mod.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/tests/user_manual_api_tests.rs",
+      "src/backend/handshake_core/tests/cloud_model_lane_policy_surreal_tests.rs",
+      "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs"
+    ],
+    "proof_commands": [
+      "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
+      "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
+    ],
+    "artifact_root": "../Handshake/_Artifacts",
+    "cargo_target": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/target",
+    "temporary_root": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/temp",
+    "artifact_authority": "This live Operator instruction supersedes all prior sibling Handshake_Artifacts directions for this session. Serialize one shared Cargo target; preserve proof before deleting only session-owned outputs.",
+    "scope_risk": "Shared production/helper edits are batched before compilation; no product PASS or COMPLETED authority delegated.",
+    "superseded_current_review_fields": {
+      "hbr_status": "VALIDATION_PENDING_V6: exact five-field promotion scope, foreign and mixed-source denial, durable decision/event/artifact authority, replay, idempotency, leakage resistance, and atomic failure must be re-proven on embedded SurrealDB.",
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-08-14_MULTIPLE_LENSES",
+      "adversarial_findings_status": "POST_REVIEW_EXACT_SCOPE_INHERITANCE_FOREIGN_SCOPE_PREMUTATION_DENIAL_MIXED_SCOPE_NONWIDENING_AND_MANUAL_FINDINGS_REPROVEN",
+      "validated_by": "INTEGRATION_VALIDATOR-20260814-060230",
+      "validated_at_utc": "2026-08-14T06:06:48.4919021Z"
+    },
+    "current_candidate_commit": "d96e405170afbba66e864fa86b1a6f3de020deab",
+    "required_boundary_gaps": [
+      {
+        "id": "HBR-INT-007",
+        "observed": "Existing Inspector TraceProjection ignores MODEL_LANE_AUTHORITY_RECORDED, the canonical event type produced by durable promotion decisions.",
+        "minimum_work": "Extend existing projection consumer and exact-scope production reader; exercise accepted/denied replay after reopen with foreign-scope/tampered-receipt denial.",
+        "files": [
+          "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+          "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+          "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs"
+        ],
+        "status": "PATCH_PREPARATION_OUTSIDE_PRODUCT_WHILE_CARGO_ACTIVE"
+      },
+      {
+        "id": "HBR-SWARM-001",
+        "observed": "Current routing CAS/operator cancellation test is sequential; it does not prove two concurrent agent sessions plus simulated operator edit against shared state.",
+        "minimum_work": "Use current session/lane APIs and one shared routing revision; barrier-release two agent actors plus operator, assert deterministic conflicts/no losing partial writes, operator retry and stale actor denial after reopen.",
+        "files": [
+          "src/backend/handshake_core/tests/routing_execution_surreal_tests.rs"
+        ],
+        "status": "PATCH_PREPARATION_OUTSIDE_PRODUCT_WHILE_CARGO_ACTIVE"
+      }
+    ],
+    "boundary_research_refresh": {
+      "checked_at_utc": "2026-09-06T14:08:24.7635288Z",
+      "sources": [
+        "https://docs.temporal.io/encyclopedia/event-history/event-history-typescript",
+        "https://github.com/yjs/yjs/blob/main/INTERNALS.md"
+      ],
+      "pattern": "Durable ordered event replay and explicit revision/state-vector conflict handling; reuse existing scoped ModelLane and Inspector projection consumers.",
+      "rejected": "Synthetic rewritten Kernel V1 events, alternate database, terminal/chat state, and relabelling sequential or isolated-key tests as concurrent shared-state proof.",
+      "validation": "Actual durable producer-to-production-reader replay, exact-scope and tamper negatives, concurrent two-agent/operator CAS and no partial mutations."
+    },
+    "completed_focused_proofs": {
+      "id": "WP1-V6-COORDINATOR-COMPONENTS-20260906",
+      "status": "PASS_COMPONENT_ONLY",
+      "source_commit": "d96e405170afbba66e864fa86b1a6f3de020deab",
+      "passed": 13,
+      "failed": 0,
+      "log": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/coordinator-primitives-binary-1.log",
+      "receipt": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/coordinator-primitives-binary-1.command.json",
+      "note": "Direct reuse of current-session compiled binary with verified SHA256 and clean unchanged source; does not replace durable routing/launch boundary proof."
+    },
+    "native_audit_research_basis": {
+      "recorded_at_utc": "2026-09-06T15:15:39.4229938Z",
+      "scope": "Required HBR-QUIET-001 native audit for MT003 real model proof and MT004 native diagnostic wire",
+      "sources": [
+        "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwineventhook",
+        "https://learn.microsoft.com/en-us/windows/win32/winauto/event-constants",
+        "https://docs.rs/wineventhook/0.11.0/wineventhook/struct.EventFilter.html",
+        "Pinned wineventhook0.11.0 source hook.rs and message_loop.rs; current operator_foreground/focus_audit.rs and tests"
+      ],
+      "reuse": "Extend existing native FocusAuditHandle and exact process attribution; retain existing foreground helper semantics and raw ledger.",
+      "rejected": [
+        "Empty ownership set around external test process",
+        "Self audit with skip_own_process=true",
+        "Attributing all desktop REORDER events to the app",
+        "Synthetic empty report as runtime proof"
+      ],
+      "selected": "Include self events, typed native window events and start/stop inventories, exact created-child PID registration, strict headless no-owned-window assertion; require native runtime control and real Candle/native-observer runs.",
+      "risks": [
+        "HWND reuse can disagree with generating thread PID",
+        "Async hook shutdown can lose final undelivered events",
+        "An unrelated owned window can falsely satisfy a weak negative control"
+      ],
+      "mitigations": [
+        "Fail closed on conflicting or unknown native PID attribution",
+        "Immediate-stop exact-window counterfactual before accepting through-cleanup capture",
+        "Bind native negative control to exact HWND and add idle native positive"
+      ],
+      "validation": [
+        "Focused native focus_audit_tests with actual hidden nonactivating window control",
+        "Real Candle default-load through cleanup with raw audit artifact",
+        "Real native/Palmistry observation with exact child identities and canonical scoped tier reread"
+      ]
+    }
   }
 }

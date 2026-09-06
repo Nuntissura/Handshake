@@ -48,9 +48,14 @@
       "skeleton": "09febeb8",
       "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
     },
-    "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-    "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
-    "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`."
+    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+    "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
+    "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`.",
+    "artifact_path_correction": {
+      "at_utc": "2026-09-06T16:48:27.563Z",
+      "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
+      "runner_pid": 13360
+    }
   },
   "scope": {
     "summary": "Port read_file_artifact (storage-agnostic, from reference MT-043) and land the verified media byte route on SurrealDB. Store-level AtelierStore::read_media_asset_bytes owns the integrity contract (row -> native ref -> manifest -> row/manifest hash+size cross-check -> single-file -> payload re-hash); HTTP maps outcomes (404 unknown/missing payload, 400 non-native ref, 500 integrity).",

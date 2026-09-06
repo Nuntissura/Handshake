@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-016",
   "created_at_utc": "2026-07-02T03:00:00Z",
-  "updated_at_utc": "2026-09-01T00:00:00Z",
+  "updated_at_utc": "2026-09-05T01:30:11.415Z",
   "scope_status": "BLOCKED_ON_DEPENDENCY",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-016.json",
@@ -67,12 +67,12 @@
       "Pre- and post-implementation adversarial review completed; implementer may move MT-016 only to READY_FOR_VALIDATION, never COMPLETED."
     ],
     "proof_commands": [
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_tests mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency -- --exact --nocapture",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat -- --exact --nocapture",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt016_surreal_loom_search_tests -- --nocapture",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support,candle-runtime-engine --test mt016_real_embedding_e2e mt016_real_candle_embedding_restart_recovers_role_isolation_and_event_ledger -- --ignored --exact --nocapture",
-      "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests dedicated_embedding_model_behaviors_have_manual_coverage -- --exact --nocapture"
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_tests mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt016_surreal_loom_search_tests -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support,candle-runtime-engine --test mt016_real_embedding_e2e mt016_real_candle_embedding_restart_recovers_role_isolation_and_event_ledger -- --ignored --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests dedicated_embedding_model_behaviors_have_manual_coverage -- --exact --nocapture"
     ],
     "risk_if_missed": "LoomSearchV2 semantic search is permanently tied to the single chat model's embedding output; operators cannot run a separate, correctly-dimensioned embedding model, limiting semantic search quality and the CPU-baseline story.",
     "reference_only_paths": []
@@ -313,5 +313,75 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "v6_blocker_staleness_survey_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T00:09:55.687Z",
+    "status_unchanged": true,
+    "why_status_unchanged": "A blocker is discharged by a passing proof run, never by a source survey. lifecycle.status is left as recorded; this block is evidence for whoever claims this MT next.",
+    "surveyed_at_commit": "f8e190c9",
+    "finding": "The recorded blocker cites the removed relational path (self.pool / new_with_access / PgPool) or a ModelLane provider seam it calls missing. Both halves are stale as of this commit.",
+    "evidence": [
+      "grep -rn 'self\\.pool|new_with_access|PgPool' over src/swarm_orchestration/ and src/storage/surreal/ returns 0 hits.",
+      "record_context_bundle_artifact_binding, record_context_bundle_handoff, consume_context_bundle_for_downstream, replay_context_bundle_handoffs and schema_registry_rows are all present in src/swarm_orchestration/model_lane.rs.",
+      "MT-002 is READY_FOR_VALIDATION with model_lane_schema_surreal_tests green 10/10 against a real embedded SurrealDB namespace, so the provider boundary these blockers describe as incomplete now compiles and runs."
+    ],
+    "precedent": "MT-019 recorded a comparable blocker naming an incomplete provider and a missing inspection API. On re-verification the API already existed and the real defects were four unrelated query and projection bugs. Re-verify before believing recorded blocker text.",
+    "next_action": "On claim: re-run this MT's declared proof targets first and classify what actually fails, rather than remediating the recorded blocker text."
+  },
+  "v6_proof_command_hygiene_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:30:11.415Z",
+    "why": "Declared proof commands could not be executed as written. Fixes are mechanical and change no target, feature or assertion: they remove an illegal artifact-root env prefix forbidden by [CX-984-001], strip status markers embedded in command strings, replace absolute host paths per [CX-109B], and add --locked. Originals are preserved verbatim below.",
+    "repairs": [
+      {
+        "field": "proof_commands",
+        "before": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_tests mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_tests mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency -- --exact --nocapture",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat -- --exact --nocapture",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests mt016_default_boot_registers_distinct_embedding_model_when_configured -- --exact --nocapture",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt016_surreal_loom_search_tests -- --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test mt016_surreal_loom_search_tests -- --nocapture",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support,candle-runtime-engine --test mt016_real_embedding_e2e mt016_real_candle_embedding_restart_recovers_role_isolation_and_event_ledger -- --ignored --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support,candle-runtime-engine --test mt016_real_embedding_e2e mt016_real_candle_embedding_restart_recovers_role_isolation_and_event_ledger -- --ignored --exact --nocapture",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests dedicated_embedding_model_behaviors_have_manual_coverage -- --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests dedicated_embedding_model_behaviors_have_manual_coverage -- --exact --nocapture",
+        "fixes": [
+          "--locked added"
+        ]
+      }
+    ]
   }
 }

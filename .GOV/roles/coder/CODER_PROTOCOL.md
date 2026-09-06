@@ -159,15 +159,21 @@ RGF-248 named-verb receipts are the preferred wire for routine handoffs: emit `M
 
 ## Product Runtime Root (Current Default)
 
-- External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders:
-  - `handshake-cargo-target/<wp-or-owner-slug>[-<purpose>]` - Cargo build target. **PER-OWNER SCOPED, NEVER THE SHARED ROOT** (HARD, [CX-984] / HBR-SWARM-005). "Owner" is the work packet, role session, or sub-agent that owns the build.
+- [CODER-ART-001] WP-associated Cargo builds, tests, and their output MUST use `../Handshake_Artifacts/<WP_ID>/<MT_ID>/`: one actual WP folder containing actual MT folders. `Handshake_Artifacts` is one directory name, never `Handshake/_Artifacts`. Resolve from the worktree root or `HANDSHAKE_ARTIFACTS_ROOT`; keep recorded paths drive-agnostic.
+- [CODER-ART-002] Set `CARGO_TARGET_DIR` to `<artifact-root>/<WP_ID>/<MT_ID>/<OWNER_SLUG>/target`; route logs, test/tool outputs, caches, coverage, `TMP`, and `TEMP` below that same owner directory. Concurrent owners MUST use disjoint mutable targets. Inspect each runner/configuration and resolved paths before launch/review; root/category/owner and WP-only layouts do not satisfy the hierarchy.
+- [CODER-ART-003] A batch spanning MTs MUST declare one actual owning MT and every covered MT in existing typed evidence; artifacts stay below the owning WP/MT. Reuse compatible builds and unchanged proof per [CX-503I1]; this hierarchy alone MUST NOT cause duplicate builds/tests or invalidate product proof.
+- [CODER-ART-004] Clean only completed, no-longer-needed owner output below WP/MT after resolved-path and process-ownership checks; preserve compatible reuse and required review evidence. Never clean another owner, live output, the shared root, or a shared WP/MT parent. Parent agents inspect delegated cleanup; final WP cleanup follows validation before merge.
+- [CODER-ART-005] Legacy root-hygiene helpers do not establish WP/MT hierarchy compliance. Apply newer Operator path-shape precedence in [CX-984-010], retain other HBR obligations, and report helper/HBR drift with verified scoped overrides.
+
+- External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. WP-associated outputs use [CODER-ART-001..005], with these folders beneath the actual WP/MT:
+  - `<OWNER_SLUG>/target/` - Cargo target; PER-OWNER SCOPED below WP/MT, never a shared target (HARD, [CX-984] / HBR-SWARM-005).
     - This SUPERSEDES the previous guidance to share one target dir across parallel WPs and "accept sequential build locking". That guidance caused two real failures on 2026-08-02: (1) a live proof suite starved on the shared cargo file lock and produced a false negative that was initially misdiagnosed as a product defect; (2) `handshake_core` resolves its runtime `data_dir` from `env!("CARGO_MANIFEST_DIR")` at COMPILE time, so a `handshake_core.exe` left in the shared dir by another worktree embedded THAT worktree's root, opened its DuckDB flight recorder, and died replaying its WAL.
     - NEVER run a prebuilt binary found in a shared target dir as proof. Build it from YOUR worktree into YOUR scoped dir first - an `*.exe` in a shared directory is not evidence about your source.
     - Proof runs needing a database MUST use a WP-scoped database; divergent migration sets across worktrees fail sqlx checksum validation (`migration N was previously applied but has been modified`).
-    - CLEAN YOUR OWN scoped subdir as each build/test finishes - continuously, not only at closeout (HBR-SWARM-006). NEVER delete another owner's scoped dir, and NEVER delete, prune, or `cargo clean` anything under the shared artifact root: a sub-agent doing exactly that removed the shared `.fingerprint` tree and broke the next build.
-  - `handshake-product/` â€” product runtime artifacts, databases, generated files
-  - `handshake-test/` â€” test outputs, coverage reports, benchmark results
-  - `handshake-tool/` â€” governance tooling artifacts, linter caches, script outputs
+    - Clean only completed, no-longer-needed owner output per [CODER-ART-004]; preserve compatible reusable builds/review evidence and never clean shared parents or another owner.
+  - `<OWNER_SLUG>/product/` - product runtime scratch artifacts, databases, generated files
+  - `<OWNER_SLUG>/test/` - test outputs, coverage reports, benchmark results
+  - `<OWNER_SLUG>/tool/` - tooling output and caches; logs and temporary files also remain below the owner directory
 - Do NOT create artifact paths inside the repo or in ad-hoc sibling folders. Use the subfolders above. EVERY other sibling artifact folder is ILLEGAL residue â€” no repo-local `target/`, no sibling `*-target` directory outside this root, no ad-hoc scratch beside the worktrees.
 - ARTIFACT ROOT BOUNDARY (HARD, [CX-984]): `../Handshake_Artifacts/` holds build, test, tool, and product-runtime scratch output ONLY. It MUST NOT contain repo-governance artifacts (anything belonging under `/.GOV/`) or repo-governance runtime state (anything belonging under `gov_runtime/`: `WP_COMMUNICATIONS`, session-control ledgers, session registries, dossiers, receipts). Build residue is deletable at any moment; governance state is not.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
@@ -210,7 +216,7 @@ Sub-agent delegation note (HARD):
 
 Sub-agent steering [KB-STEER-001] (HARD when any sub-agent lane runs):
 - Sub-agents do not report while they work. A lane blocked on a multi-hour build, killed by a provider rate limit, or stopped by the Operator emits NO signal until it terminates, so waiting on completion notifications leaves you blind for exactly as long as the failure lasts. Steer push-based, never poll-based.
-- Arm a watcher BEFORE launching lanes: point one persistent monitor at the lanes' own build/test LOG FILES under `../Handshake_Artifacts/handshake-tool/<owner>/`, not at agent transcripts, and emit one line per state change (started, DONE with exit code and test-result line, STALL).
+- Arm a watcher BEFORE launching lanes: point one persistent monitor at the lanes' own build/test LOG FILES under `../Handshake_Artifacts/<WP_ID>/<MT_ID>/<OWNER_SLUG>/logs/`, not at agent transcripts, and emit one line per state change (started, DONE with exit code and test-result line, STALL).
 - A stall claim MUST be process-aware. A running test binary prints nothing until it finishes, so a static log is not evidence of a stall; report STALL only when the newest log has not grown for the threshold AND no `cargo`/`rustc`/`link`/test process is working in that lane's scoped target dir. Keep the state string coarse or every poll re-emits.
 - One lane, one owned file set, one scoped target dir. Overlapping ownership produces edits that silently overwrite each other and proofs that cannot be attributed. A lane hitting an error outside its owned files reports `file:line` and the message instead of editing.
 - Give every lane a resume contract, not a conversation: base commit, what is already committed, what remains, and the exact proof commands must live in the lane brief and its MT contract, so a fresh replacement agent resumes without any chat history. Checkpoint-commit interrupted lane work promptly; nothing important may live only in an agent's context.
@@ -642,7 +648,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - **Proof Reuse and Cargo Test Batch Cadence [CX-503I1] (HARD):** At session start, declare `SESSION_MT_BATCH` with the exact assigned MT IDs. Iterate exact failing/changed case -> affected full target/binary -> broad/full suite once at the declared batch or final-WP boundary. Reuse proof while source tree, features/profile/platform, command inputs, external-resource version, and asserted behavior remain unchanged. Record covered MT IDs plus exact commit/tree and proof inputs. A relevant later change invalidates affected proof only. A per-MT review may record `FULL_CARGO_SUITE=DEFERRED_TO_SESSION_MT_BATCH` without treating the MT as untested. Independent proofs may run concurrently only with disjoint owner-scoped Cargo targets, SurrealDB namespaces/databases, artifact directories, ports/processes, and other mutable resources.
 - **Shared-File Edit Batching Under Parallel Owners [KB-CARGO-SHARED-001] (HARD):** When more than one owner (another coder session, a WP Validator, or a sub-agent lane) builds the same crate into its own scoped `CARGO_TARGET_DIR`, editing any file in the crate's compile graph invalidates EVERY owner's cache at once. A cold rebuild of `handshake_core` has been measured at 159 minutes, so one careless shared edit costs that multiplied by the number of live owners. Classify each file before editing it: `Cargo.toml`, `Cargo.lock`, `lib.rs`, any `mod.rs`, the shared test-support modules, and any module every owner imports are SHARED; everything only you compile meaningfully is LANE-OWNED. Do not edit a SHARED file while other owners are mid-build — queue the change, say it is queued, and apply the whole queue in ONE pass at a quiet boundary, so N changes cost one rebuild rather than N. The only exception is a defect that blocks every owner (a shared test harness that will not compile, a schema pin mismatch that stops every embedded store from bootstrapping): land it at once and tell every live owner what changed, so a forced recompile is not misread as a stall. Schema edits are the most expensive class, because `schema.surql` forces a recompute of the four pinned SHA-256 constants and the definition counts and blocks every embedded-store proof until they agree — batch every schema request into one revision bump.
 - **Cargo Cost Discipline (HARD):** Build only what the current proof needs. Use `--test <name>` rather than a bare `cargo test` that also links every binary in the package; do not run a standalone `cargo build` when `cargo check` or `cargo test` already proves compilation; do not pass `--all-features` to prove a feature-gated lane you are not testing. Never run two Cargo commands at once in the same target dir — they serialize on the build lock and the waiting one looks hung. Bound parallelism to the host, not to the core count: parallel links are memory-hungry and this host has been driven out of memory by five simultaneous test links, so pass a modest `-j` and drop to `-j 1` on a linker out-of-memory (`LNK1102`, `STATUS_STACK_BUFFER_OVERRUN`). Prefer ONE test binary containing several sequential scenarios over several binaries that each bootstrap their own embedded store: schema bootstrap dominates runtime, and per-test stores are both slower and racy when they assert on a shared artifact root. A long-running build is not a stall — confirm with the process list before abandoning or restarting it, because restarting discards a warm cache.
-- **Host I/O Discipline [KB-CARGO-IO-001] (HARD when lanes run in parallel):** Embedded-store integration tests are almost pure disk work, so parallel copies queue rather than scale. Run exactly ONE cargo process OR ONE test binary at a time in your lane, never both, and never several test binaries at once. Before launching a test binary, point `TMP` and `TEMP` at a directory under the artifact root: `tempfile::tempdir()` otherwise puts every isolated store on the system drive, which is usually the busiest spindle on the host. When something looks slow, measure `Avg. Disk Queue Length` and `% Idle Time` per physical disk and compare a process's accumulated CPU time against its wall-clock age before concluding anything — on this host a rustc has shown 64 seconds of CPU across 35 minutes of wall clock while both disks sat at 0% idle, which is queued, not wedged. If the orchestrator pauses your build to relieve the host, do not restart it; cargo keeps what it finished and resumes where it stopped.
+- **Host I/O Discipline [KB-CARGO-IO-001] (HARD when lanes run in parallel):** Embedded-store integration tests are almost pure disk work, so parallel copies queue rather than scale. Run exactly ONE cargo process OR ONE test binary at a time in your lane, never both, and never several test binaries at once. Before launching a test binary, point `TMP` and `TEMP` below the run's WP/MT/owner directory: `tempfile::tempdir()` otherwise puts every isolated store on the system drive, which is usually the busiest spindle on the host. When something looks slow, measure `Avg. Disk Queue Length` and `% Idle Time` per physical disk and compare a process's accumulated CPU time against its wall-clock age before concluding anything — on this host a rustc has shown 64 seconds of CPU across 35 minutes of wall clock while both disks sat at 0% idle, which is queued, not wedged. If the orchestrator pauses your build to relieve the host, do not restart it; cargo keeps what it finished and resumes where it stopped.
 - **Hook Contract:** The post-commit auto-relay fires only for commit subjects shaped `feat: MT-NNN <description>` and only when the hook is installed at Git's effective `hooks/post-commit` path. If you committed a valid MT and no `REVIEW_REQUEST` notification appears, run the documented manual `wp-review-request` once, report that auto-relay missed, and stop for orchestrator hook repair instead of repeating commits or inventing a second route.
 - **Self-Claim Task Board [CX-503L]:** When available, check the MT task board (`just mt-board WP-{ID}`) for the next unclaimed MT instead of waiting for orchestrator assignment. Claim it (`just mt-claim WP-{ID} MT-NNN`), implement, commit, and mark complete (`just mt-complete WP-{ID} MT-NNN`).
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
@@ -1388,7 +1394,7 @@ Complete ALL steps before claiming work is done.
 ### Step 7: Run Validation [CX-623] STOP
 
 **Pre-Step 7 hygiene (MANDATORY):**
-- Use the owner-scoped external Cargo target required by [CX-984]. Clean only that owner's scoped artifact directory after its build/test finishes. Never run `cargo clean` against the shared artifact root.
+- Use the WP/MT/owner-scoped external Cargo target required by [CX-984]. Clean only completed, no-longer-needed owner output after resolved-path/process checks; preserve compatible reuse and required review evidence. Never run `cargo clean` against a shared root or WP/MT parent.
 
 **Run the TEST_PLAN commands due at this boundary:**
 
@@ -1452,17 +1458,19 @@ Fix issues, rerun the exact failing case, then the affected complete target/bina
 set -euo pipefail
 
 # Prerequisite: cargo-tarpaulin is already available. If installation is required,
-# route its install/cache outputs under $HANDSHAKE_ARTIFACTS_ROOT/handshake-tool/;
+# route install/cache output below the same WP/MT/owner tool directory;
 # do not install it as an unscoped side effect of this coverage proof.
 
 # Run broad coverage analysis only at the required batch/final-WP boundary.
 # Keep compilation and report output in owner-scoped external artifact directories.
 : "${HANDSHAKE_ARTIFACTS_ROOT:?resolve the canonical external artifact root}"
-: "${OWNER_SLUG:?set the WP, role-session, or sub-agent owner slug}"
+: "${OWNER_SLUG:?set a unique role-session or sub-agent owner slug}"
 : "${WP_ID:?set WP ID}"
+: "${MT_ID:?set the actual owning MT ID}"
 : "${CARGO_TARGET_DIR:?set the owner-scoped Cargo target directory}"
 case "$OWNER_SLUG" in ''|.|..|*[!A-Za-z0-9._-]*) echo "OWNER_SLUG is not path-safe" >&2; exit 2 ;; esac
 case "$WP_ID" in ''|.|..|*[!A-Za-z0-9._-]*) echo "WP_ID is not path-safe" >&2; exit 2 ;; esac
+case "$MT_ID" in ''|.|..|*[!A-Za-z0-9._-]*) echo "MT_ID is not path-safe" >&2; exit 2 ;; esac
 # Canonicalize without creating the proposed target; GNU realpath -m is required.
 artifact_root="$(realpath -m -- "$HANDSHAKE_ARTIFACTS_ROOT")"
 cargo_target_dir="$(realpath -m -- "$CARGO_TARGET_DIR")"
@@ -1470,15 +1478,19 @@ repo_root="$(realpath -m -- "$(git rev-parse --show-toplevel)")"
 case "$artifact_root" in
   "$repo_root"|"$repo_root/"*) echo "HANDSHAKE_ARTIFACTS_ROOT must stay outside the repo" >&2; exit 2 ;;
 esac
-required_target_parent="$artifact_root/handshake-cargo-target"
+owner_root="$artifact_root/$WP_ID/$MT_ID/$OWNER_SLUG"
+if [ "$(realpath -m -- "$owner_root")" != "$owner_root" ]; then
+  echo "WP/MT/owner directory resolves outside its exact path" >&2; exit 2
+fi
+required_target_parent="$owner_root"
 case "$cargo_target_dir" in
-  "$required_target_parent/$OWNER_SLUG"|"$required_target_parent/$OWNER_SLUG-"*) ;;
+  "$required_target_parent/target") ;;
   *) echo "CARGO_TARGET_DIR is outside the required owner-scoped target" >&2; exit 2 ;;
 esac
 mkdir -p "$artifact_root" "$cargo_target_dir"
 export HANDSHAKE_ARTIFACTS_ROOT="$artifact_root"
 export CARGO_TARGET_DIR="$cargo_target_dir"
-expected_coverage_wp_root="$artifact_root/handshake-test/$OWNER_SLUG/$WP_ID"
+expected_coverage_wp_root="$owner_root/test"
 coverage_wp_root="$(realpath -m -- "$expected_coverage_wp_root")"
 if [ "$coverage_wp_root" != "$expected_coverage_wp_root" ]; then
   echo "coverage WP root resolves outside its exact owner-scoped path" >&2
@@ -1489,7 +1501,12 @@ if [ "$coverage_dir" != "$coverage_wp_root/coverage" ]; then
   echo "coverage output escapes the owner-scoped WP directory" >&2
   exit 2
 fi
-mkdir -p "$coverage_dir"
+temp_dir="$(realpath -m -- "$owner_root/temp")"
+if [ "$temp_dir" != "$owner_root/temp" ]; then
+  echo "temporary output escapes WP/MT/owner directory" >&2; exit 2
+fi
+mkdir -p "$coverage_dir" "$temp_dir"
+export TMP="$temp_dir" TEMP="$temp_dir" TMPDIR="$temp_dir"
 cd src/backend/handshake_core
 cargo tarpaulin --out Html --output-dir "$coverage_dir"
 

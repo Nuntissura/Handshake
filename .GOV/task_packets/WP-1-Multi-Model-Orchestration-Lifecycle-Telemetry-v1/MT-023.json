@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-023",
   "created_at_utc": "2026-08-02T13:50:00Z",
-  "updated_at_utc": "2026-09-01T17:38:51.7220574Z",
+  "updated_at_utc": "2026-09-05T01:30:11.415Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -46,12 +46,12 @@
       "AC-6: If the live guest transport or a model-bearing guest image is genuinely unavailable, this MT is BLOCKED with the exact missing resource named in lifecycle.missing_resource. It MUST NOT be closed by weakening AC-1 to a fake-adapter test - that is precisely the scaffold-pass this packet has already been failed for."
     ],
     "proof_commands": [
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-registry-v6-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-registry-v6-store'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_vm_registry_surreal_tests -j 1 -- --test-threads=1 --nocapture",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-package-v6-target'; cargo run --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --bin hsk-warm-agent-package -j 1 -- --distro Ubuntu --repo-root 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1' --output-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package' --target-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-package-v6-target' --llama-server '//wsl.localhost/Ubuntu/home/ilja_smets/handshake-sandbox/llama.cpp/build-static-server/bin/llama-server'",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-store'; $env:HANDSHAKE_MT023_LIVE='1'; $env:HANDSHAKE_MT023_WORKTREE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1'; $env:HANDSHAKE_SBX_GGUF='D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf'; $env:HANDSHAKE_SBX_GGUF_SHA256='452E1A2BAE39605977CE0CB34179E1ABBC58743A0EE0B7A4CF02D043D1A35BF0'; $env:HANDSHAKE_CH_WARM_AGENT_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/hsk-warm-agent'; $env:HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/llama-server'; $env:HANDSHAKE_SANDBOX_ROOT='/home/ilja_smets/handshake-sandbox'; $env:HANDSHAKE_CH_WORK_DIR='/tmp/hsk-mt023-surreal-live-v6'; $env:HANDSHAKE_CH_MEMORY_MIB='3072'; $env:HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB='16384'; $env:HANDSHAKE_CH_VCPUS='4'; $env:HANDSHAKE_CH_TIMEOUT_MS='600000'; $env:HANDSHAKE_CH_PROBE_TIMEOUT_MS='60000'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_model_lane_live_surreal_tests mt023_real_worktree_model_lane_runs_inside_microvm -j 1 -- --ignored --exact --nocapture --test-threads=1",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests worktree_microvm_model_lane_is_documented_and_toc_reachable -j 1 -- --exact --nocapture",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests product_local_scope_manual_matches_server_owned_exact_authority -j 1 -- --exact --nocapture",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests wp1_console_manual_matches_scoped_stream_privacy -j 1 -- --exact --nocapture"
+      "cargo test --locked --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_vm_registry_surreal_tests -j 1 -- --test-threads=1 --nocapture",
+      "cargo run --manifest-path 'src/backend/handshake_core/Cargo.toml' --bin hsk-warm-agent-package -j 1 -- --distro Ubuntu --repo-root 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1' --output-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package' --target-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-package-v6-target' --llama-server '//wsl.localhost/Ubuntu/home/ilja_smets/handshake-sandbox/llama.cpp/build-static-server/bin/llama-server'",
+      "$env:HANDSHAKE_MT023_LIVE='1'; $env:HANDSHAKE_MT023_WORKTREE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1'; $env:HANDSHAKE_SBX_GGUF='D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf'; $env:HANDSHAKE_SBX_GGUF_SHA256='452E1A2BAE39605977CE0CB34179E1ABBC58743A0EE0B7A4CF02D043D1A35BF0'; $env:HANDSHAKE_CH_WARM_AGENT_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/hsk-warm-agent'; $env:HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/llama-server'; $env:HANDSHAKE_SANDBOX_ROOT='/home/ilja_smets/handshake-sandbox'; $env:HANDSHAKE_CH_WORK_DIR='/tmp/hsk-mt023-surreal-live-v6'; $env:HANDSHAKE_CH_MEMORY_MIB='3072'; $env:HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB='16384'; $env:HANDSHAKE_CH_VCPUS='4'; $env:HANDSHAKE_CH_TIMEOUT_MS='600000'; $env:HANDSHAKE_CH_PROBE_TIMEOUT_MS='60000'; cargo test --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_model_lane_live_surreal_tests mt023_real_worktree_model_lane_runs_inside_microvm -j 1 -- --ignored --exact --nocapture --test-threads=1",
+      "cargo test --locked --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests worktree_microvm_model_lane_is_documented_and_toc_reachable -j 1 -- --exact --nocapture",
+      "cargo test --locked --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests product_local_scope_manual_matches_server_owned_exact_authority -j 1 -- --exact --nocapture",
+      "cargo test --locked --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests wp1_console_manual_matches_scoped_stream_privacy -j 1 -- --exact --nocapture"
     ],
     "risk_if_missed": "The Operator has declared worktree-in-VM model launch non-negotiable. Leaving it fake-adapter-tested means Handshake claims a sandboxed-execution capability that has never run, which is the exact class of defect the Spec-Realism Gate exists to catch, and it would surface as a spec-vs-runtime gap at Integration Validation rather than here."
   },
@@ -556,5 +556,70 @@
   },
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260901-040340"
+  },
+  "v6_proof_command_hygiene_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:30:11.415Z",
+    "why": "Declared proof commands could not be executed as written. Fixes are mechanical and change no target, feature or assertion: they remove an illegal artifact-root env prefix forbidden by [CX-984-001], strip status markers embedded in command strings, replace absolute host paths per [CX-109B], and add --locked. Originals are preserved verbatim below.",
+    "repairs": [
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-registry-v6-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-registry-v6-store'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_vm_registry_surreal_tests -j 1 -- --test-threads=1 --nocapture",
+        "after": "cargo test --locked --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_vm_registry_surreal_tests -j 1 -- --test-threads=1 --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]",
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-package-v6-target'; cargo run --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --bin hsk-warm-agent-package -j 1 -- --distro Ubuntu --repo-root 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1' --output-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package' --target-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-package-v6-target' --llama-server '//wsl.localhost/Ubuntu/home/ilja_smets/handshake-sandbox/llama.cpp/build-static-server/bin/llama-server'",
+        "after": "cargo run --manifest-path 'src/backend/handshake_core/Cargo.toml' --bin hsk-warm-agent-package -j 1 -- --distro Ubuntu --repo-root 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1' --output-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package' --target-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-package-v6-target' --llama-server '//wsl.localhost/Ubuntu/home/ilja_smets/handshake-sandbox/llama.cpp/build-static-server/bin/llama-server'",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-target'; $env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-store'; $env:HANDSHAKE_MT023_LIVE='1'; $env:HANDSHAKE_MT023_WORKTREE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1'; $env:HANDSHAKE_SBX_GGUF='D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf'; $env:HANDSHAKE_SBX_GGUF_SHA256='452E1A2BAE39605977CE0CB34179E1ABBC58743A0EE0B7A4CF02D043D1A35BF0'; $env:HANDSHAKE_CH_WARM_AGENT_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/hsk-warm-agent'; $env:HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/llama-server'; $env:HANDSHAKE_SANDBOX_ROOT='/home/ilja_smets/handshake-sandbox'; $env:HANDSHAKE_CH_WORK_DIR='/tmp/hsk-mt023-surreal-live-v6'; $env:HANDSHAKE_CH_MEMORY_MIB='3072'; $env:HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB='16384'; $env:HANDSHAKE_CH_VCPUS='4'; $env:HANDSHAKE_CH_TIMEOUT_MS='600000'; $env:HANDSHAKE_CH_PROBE_TIMEOUT_MS='60000'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_model_lane_live_surreal_tests mt023_real_worktree_model_lane_runs_inside_microvm -j 1 -- --ignored --exact --nocapture --test-threads=1",
+        "after": "$env:HANDSHAKE_MT023_LIVE='1'; $env:HANDSHAKE_MT023_WORKTREE_ROOT='D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1'; $env:HANDSHAKE_SBX_GGUF='D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf'; $env:HANDSHAKE_SBX_GGUF_SHA256='452E1A2BAE39605977CE0CB34179E1ABBC58743A0EE0B7A4CF02D043D1A35BF0'; $env:HANDSHAKE_CH_WARM_AGENT_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/hsk-warm-agent'; $env:HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-live-v6-package/llama-server'; $env:HANDSHAKE_SANDBOX_ROOT='/home/ilja_smets/handshake-sandbox'; $env:HANDSHAKE_CH_WORK_DIR='/tmp/hsk-mt023-surreal-live-v6'; $env:HANDSHAKE_CH_MEMORY_MIB='3072'; $env:HANDSHAKE_CH_COMMITTED_MEMORY_BUDGET_MIB='16384'; $env:HANDSHAKE_CH_VCPUS='4'; $env:HANDSHAKE_CH_TIMEOUT_MS='600000'; $env:HANDSHAKE_CH_PROBE_TIMEOUT_MS='60000'; cargo test --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils,surreal-test-support --test worktree_model_lane_live_surreal_tests mt023_real_worktree_model_lane_runs_inside_microvm -j 1 -- --ignored --exact --nocapture --test-threads=1",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests worktree_microvm_model_lane_is_documented_and_toc_reachable -j 1 -- --exact --nocapture",
+        "after": "cargo test --locked --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests worktree_microvm_model_lane_is_documented_and_toc_reachable -j 1 -- --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]",
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests product_local_scope_manual_matches_server_owned_exact_authority -j 1 -- --exact --nocapture",
+        "after": "cargo test --locked --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests product_local_scope_manual_matches_server_owned_exact_authority -j 1 -- --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]",
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt023-manual-v6-target'; cargo test --manifest-path 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests wp1_console_manual_matches_scoped_stream_privacy -j 1 -- --exact --nocapture",
+        "after": "cargo test --locked --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests wp1_console_manual_matches_scoped_stream_privacy -j 1 -- --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]",
+          "--locked added"
+        ]
+      }
+    ]
   }
 }

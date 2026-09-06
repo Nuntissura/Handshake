@@ -31,20 +31,31 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [],
     "blocks": [
       "MT-141"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260906-124209",
     "created_by": "KERNEL_BUILDER-20260903-213930",
     "created_at_utc": "2026-09-05T23:59:12.857Z",
     "creation_reason": "Commit b1802e5d, an earlier microtask in this same work packet, reworked the knowledge_* API modules and the flight recorder emitter and dropped accessors that other microtasks' tests assert through. Seven backend test targets cannot compile as a result, and two of them carry the acceptance proofs for MT-108 and MT-105. The MT-141 implementer found this, refused to delete the tests to reach a green compile, and stopped at BLOCKED_ON_DEPENDENCY. This microtask restores what was dropped.",
     "why_a_separate_microtask": "MT-141's forbidden_paths exclude src/backend/handshake_core/src/**. The repair is product code, not test code. MT-141 was right not to reach for it.",
-    "urgency": "This is the gate on the largest remaining microtask in the packet. MT-141 cannot compile its last 7 targets, cannot run its suite, and cannot satisfy AC-141-4 or PT-141-2 until this lands."
+    "urgency": "This is the gate on the largest remaining microtask in the packet. MT-141 cannot compile its last 7 targets, cannot run its suite, and cannot satisfy AC-141-4 or PT-141-2 until this lands.",
+    "claimed_at_utc": "2026-09-06T00:18:23.679Z",
+    "takeover_2026_09_06": {
+      "preserved_product_head": "4cdf201a",
+      "preserved_uncommitted_files": 8,
+      "authority": "Operator explicitly requested takeover and completion to READY_FOR_VALIDATION",
+      "session_mt_batch": [
+        "MT-149"
+      ],
+      "previous_owner": "KERNEL_BUILDER-20260906-000700",
+      "owner": "KERNEL_BUILDER-20260906-124209"
+    }
   },
   "scope": {
     "summary": "Restore the accessors and visibility that commit b1802e5d removed from src/backend/handshake_core/src/**, so the seven remaining backend test targets compile and MT-108's and MT-105's acceptance proofs are executable again. The durable data and behaviour still exist; only the ways of reaching them were dropped.",
@@ -54,10 +65,10 @@
       "starvation_watermark_at_utc, audit_reason and query_values: re-exposed."
     ],
     "allowed_paths": [
-      "src/backend/handshake_core/src/"
+      "src/backend/handshake_core/src/",
+      "src/backend/handshake_core/tests/micro_task_job_tests.rs"
     ],
     "forbidden_paths": [
-      "src/backend/handshake_core/tests/",
       ".GOV/**",
       "src/frontend/**",
       "app/**",
@@ -68,7 +79,7 @@
       "AC-149-1: all seven previously failing backend test targets compile. Measure with cargo check --all-targets AND --keep-going: plain cargo check stops scheduling after errors and under-reported this same tree as 2 failing when the truth was 34.",
       "AC-149-2: each restored accessor is reconnected to the SAME durable data it read before. Restoring a name while returning a default, an empty collection, or a stub is a worse outcome than leaving it missing, because the tests would go green while proving nothing.",
       "AC-149-3: the tests in knowledge_code_index_tests that carry MT-108's and MT-105's acceptance proofs execute and pass. Compiling is not sufficient; these are the proofs the whole microtask exists to make executable again.",
-      "AC-149-4: nothing under tests/ is modified. If a test appears to need changing, that is a finding for the Operator, not a licence — the entire reason this microtask exists is that deleting or editing those tests was the wrong answer.",
+      "AC-149-4: No tests/ changes except the two Operator-approved starvation_watermark_at_utc initializers in micro_task_job_tests.rs: Some(now) in the populated literal and None in the optional-none literal. Preserve every assertion. All other test edits require a new Operator decision.",
       "AC-149-5: no accessor is restored by reintroducing SQLite or PostgreSQL.",
       "AC-149-6: the product binary still builds and no unrelated behaviour changes. Restoring visibility should not alter runtime behaviour for anything that already compiled."
     ],
@@ -79,14 +90,43 @@
       "PT-149-4: the product binary build."
     ],
     "execution_constraints": [
-      "CARGO_TARGET_DIR must be Handshake_Artifacts/handshake-cargo-target/k12/m149 under the per-microtask convention. Seed it by copying the warm k12-kb0902 rather than building cold - cargo accepts a relocated target dir, which turns a 40 minute build into a file copy.",
-      "HANDSHAKE_ARTIFACTS_ROOT must be the absolute artifacts root. Sibling roots are forbidden: Handshake/Handshake_Artifacts and Handshake Worktrees/handshake-cargo-target both exist and must not be used.",
+      "Operator override 2026-09-06: all Cargo targets use ../Handshake/_Artifacts/m149; reuse the existing MT-149 cache, then remove this owned target subfolder after proof and handoff evidence are preserved.",
+      "HANDSHAKE_ARTIFACTS_ROOT must resolve to ../Handshake/_Artifacts. Do not create any sibling Handshake_Artifacts folder. Set TEMP and TMP below this root for every proof command; inspect scripts for overrides.",
       "Keep target paths SHORT: bundled DuckDB C++ headers hit the MSVC 260-character limit and fail with C1083.",
       "Cap test concurrency at --test-threads=4. At default parallelism this suite livelocked: 29 tests opened 26 concurrent stores and completed 4 in 3.8 hours.",
       "Serialise linking with -j 1 if you hit LNK1102 out of memory.",
       "Other lanes are live in the same worktree. Stage by explicit path, never git add -A, and never kill a process you did not start."
     ],
-    "risk_if_missed": "MT-141 stays blocked, the backend suite is never run, and the work packet cannot reach a ready state. Worse, the failure mode this microtask prevents is the tempting one: a future session under time pressure deletes the seven tests, gets a green compile, and silently destroys MT-108's and MT-105's acceptance evidence inside their own packet."
+    "risk_if_missed": "MT-141 stays blocked, the backend suite is never run, and the work packet cannot reach a ready state. Worse, the failure mode this microtask prevents is the tempting one: a future session under time pressure deletes the seven tests, gets a green compile, and silently destroys MT-108's and MT-105's acceptance evidence inside their own packet.",
+    "operator_exception_2026_09_06": {
+      "approval": "Allow these two initializers only",
+      "file": "src/backend/handshake_core/tests/micro_task_job_tests.rs",
+      "permitted_changes": [
+        "starvation_watermark_at_utc: Some(now) in populated literal",
+        "starvation_watermark_at_utc: None in optional-none literal"
+      ],
+      "constraints": "Preserve every assertion; no other test edits authorized",
+      "supersedes_only": "AC-149-4 and tests/ forbidden path for these two initializers",
+      "path_enforcement": "Only src/ and the exact approved test file are allowlisted; the exception permits only the two initializers, not general edits to that file."
+    },
+    "diagnostic_scope_expansion_2026_09_06": {
+      "approval": "Expand scope to repair diagnostics",
+      "reason": "Complete affected knowledge_code_index_tests target failed only event_ledger_idempotency_conflict_reports_key_and_hashes: required key, payload hashes and aggregate type missing from conflict display",
+      "permitted": "Repair EventLedger conflict diagnostics and necessary compatibility changes; preserve conflict classification and test assertion intent",
+      "supersedes_only": "AC-149-6 unrelated-behavior restriction for this diagnostic repair and AC-149-4 only for necessary compatibility changes",
+      "baseline": "f7791f9d; knowledge.log: 21 passed, 1 failed, 2847.54s, CARGO_EXIT=101",
+      "research_sources": [
+        "https://doc.rust-lang.org/std/error/trait.Error.html",
+        "https://docs.rs/crate/thiserror/latest/source/README.md"
+      ],
+      "research_basis": "Reuse owned error context and existing thiserror Display support; reject leaked formatted strings and Database(String) because they leak memory or change conflict classification. Inspect all conflict consumers before selecting the smallest compatible representation.",
+      "selected_implementation": "Additive ConflictDetails {code:&static str,detail:String}; preserve all existing static constructors, HTTP409 codes and promotion conflict-prefix handling; diagnostic includes key/hashes/aggregate/event IDs, no raw payload or leaked strings.",
+      "compatibility_assertions": [
+        "Three storage/surreal/event_ledger.rs conflict assertions accept either conflict representation while preserving rejection/rollback checks",
+        "One storage/surreal/mt136_database_surface_proof_b.rs atomic conflict assertion accepts either representation; subsequent rollback assertion unchanged"
+      ],
+      "tests": "Existing knowledge_code_index_tests diagnostic assertions unchanged; added three focused src unit tests for HTTP409 code preservation and promotion classification. Original two MicroTaskJob literal additions remain the only integration tests/ edits."
+    }
   },
   "gui_obligation": {
     "operator_surface_required": false,
@@ -136,10 +176,40 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260906-124209",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "unblocks": "MT-141"
-  }
+    "unblocks": "MT-141",
+    "takeover_checkpoint": {
+      "product_commit": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+      "status": "DIAGNOSTIC_REPAIR_PROOF_RUNNING_NOT_READY",
+      "formatting": "rustfmt --check --edition 2021 --config skip_children=true on ten changed files: exit 0",
+      "diff_check": "git diff --check: exit 0",
+      "test_changes": "Exactly two Operator-approved initializers; every existing assertion preserved",
+      "runtime_proof": "At f7791f9d: focused MT108 PASS 1/1; full knowledge target 21 passed, 1 failed (only event_ledger_idempotency_conflict_reports_key_and_hashes), 2847.54s, exit101; MT105 and MT108 passed. Final diagnostic repair 4e3fd06f focused runtime RUNNING in conflict.log; no final-source runtime verdict yet.",
+      "cross_platform_proof": "f7791f9d prior Linux cross-platform PASS retained in linux-cross-platform.log. Final source 4e3fd06f CI run34046756721 in progress; no final-source CI verdict yet.",
+      "prior_compile": "baseline-seven-targets.log: seven failing targets. compile-before-diagnostics.log at f7791f9d: cargo check --all-targets --keep-going PASS, zero failing targets, 24m14s, CARGO_EXIT=0. Final-source rerun required after diagnostic expansion.",
+      "prior_runtime": "inherited-mt105-mt108-proof.log: MT105 passed, MT108 failed at start_run Expected string got none",
+      "artifact_log_dir": "../Handshake/_Artifacts/handshake-tool/m149-takeover",
+      "review_agent": "/root/mt149_review",
+      "review_scope": "Read-only advisory; required kbstart and authority acknowledgment completed; no validator verdict",
+      "restoration_comparison": "b1802e5d^ storage/knowledge.rs durable repair/SCIP fields, state filters and ordering compared to current storage/surreal/knowledge.rs",
+      "runtime_fix": "start_run reads RETURN result index 4 through existing lease-bound query_values_at; all statement errors checked first",
+      "dependency_verification": "Installed surrealdb-core 3.2.0 executor retains BEGIN and COMMIT indexes; surrealdb 3.2.0 QueryResult<Vec<T>> wraps scalar RETURN",
+      "remaining": [
+        "Final-source focused diagnostic execution",
+        "Final-source complete knowledge test target",
+        "Bundled HTTP409 and promotion compatibility unit proofs",
+        "Final-source all-target --keep-going compile",
+        "Concrete product binary build",
+        "Final-source Linux CI",
+        "Readiness checklist and handoff",
+        "Clean owned m149 target"
+      ],
+      "backup_push": "SUCCESS: public Nuntissura/Handshake feat/WP-KERNEL-012 advanced f7791f9d -> 4e3fd06f; live remote SHA and public visibility verified; exactly c8e41daf and4e3fd06f,12Rustfiles,117insertions20deletions.",
+      "cache_copy": "Completed: robocopy exit 1 (successful files copied), zero failed files; process exited normally"
+    }
+  },
+  "updated_at_utc": "2026-09-06T16:51:44.7898606Z"
 }

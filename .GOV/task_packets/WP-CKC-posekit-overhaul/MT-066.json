@@ -14,7 +14,7 @@
   "title": "Lane integration: atelier/mod.rs re-exports + event_family::ALL, Cargo [[test]] entries, OVERVIEW_TABLES, UserManual/ModelManual updates, batch proof, KB ready checklist, Integration Validator handoff",
   "status": "PENDING",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-05T23:55:01.608Z",
+  "updated_at_utc": "2026-09-06T14:45:21.358Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -36,7 +36,8 @@
       "MT-060",
       "MT-061",
       "MT-062",
-      "MT-063"
+      "MT-063",
+      "MT-068"
     ],
     "claimed_by": null,
     "claimed_at_utc": null,
@@ -54,8 +55,8 @@
       "skeleton": "09febeb8",
       "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
     },
-    "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-    "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
+    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+    "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
     "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`."
   },
   "scope": {

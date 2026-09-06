@@ -14,7 +14,7 @@
   "title": "Fix-while-in-there: runtime workspace-root resolver, canonical sha256 helpers + sweep, streaming size-capped ingest, Loom base64 cap",
   "status": "CLAIMED",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-05T01:24:32.636Z",
+  "updated_at_utc": "2026-09-06T16:37:12.636Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -32,7 +32,7 @@
     "status": "CLAIMED",
     "active": true,
     "depends_on": [],
-    "claimed_by": "KERNEL_BUILDER-20260904-213453",
+    "claimed_by": "KERNEL_BUILDER-20260906-141914",
     "claimed_at_utc": "2026-09-05T01:05:00.438Z",
     "completed_by": null
   },
@@ -48,9 +48,23 @@
       "skeleton": "09febeb8",
       "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
     },
-    "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-    "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd",
-    "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`."
+    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+    "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
+    "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`.",
+    "prior_lane_build": {
+      "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+      "hidden_runner": "../Handshake_Artifacts/handshake-tool/wp-ckc-surreal/run-cargo.cmd"
+    },
+    "build_coordination": {
+      "session": "KERNEL_BUILDER-20260906-141914",
+      "reason": "Operator-directed serialized parent batch and dependency-cache reuse after parallel lane source edits.",
+      "parallel_cargo": false
+    },
+    "artifact_path_correction": {
+      "at_utc": "2026-09-06T16:48:27.568Z",
+      "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
+      "runner_pid": 13360
+    }
   },
   "scope": {
     "summary": "Operator-listed fixes. (a) storage::artifacts::resolve_workspace_root no longer falls back to the compile-time CARGO_MANIFEST_DIR; order is HANDSHAKE_WORKSPACE_ROOT -> nearest ancestor with .handshake/ -> nearest git checkout root -> hard error (disk-agnostic, CX-109B). (b) storage::artifacts::sha256_hex is the single crate helper; normalize_sha256_hex_ref / format_sha256_ref / sha256_refs_match handle the three spellings (bare, sha256:, sha256-, artifact://sha256/). Sweep of the ~40 private fn sha256_hex copies: DONE for api/loom.rs; REMAINING for the non-lane files (workflows.rs, flight_recorder/mod.rs, kernel/*, knowledge_*, memory/injection.rs, mex/supply_chain.rs, role_mailbox.rs, governance_pack.rs, capability_registry_workflow.rs, bundles/zip.rs, ai_ready_data/*, loom_ai/mod.rs, inspector_read/trace_projection.rs, swarm_orchestration/state_recovery.rs, user_manual/store.rs, storage/surreal/kernel_crdt_store.rs) and, AFTER the lanes land, the atelier files (exports.rs, intake.rs, moodboards.rs, sheet.rs, sourcing.rs, editable_surface_authority.rs) and the frontend copies. (c) storage::artifacts::write_file_artifact_streaming + StreamingFileArtifactSpec + remove_file_artifact; POST /atelier/media-assets raw-body ingest with HANDSHAKE_MEDIA_INGEST_MAX_BYTES (default 4 GiB) enforced while streaming; blob -> verify -> row with compensating remove on row failure / dedup. (d) Loom JSON+base64 import: explicit decoded-size cap + empty-payload rejection; documented as not a bulk-binary path.",
@@ -102,7 +116,8 @@
   "handoff": {
     "status": "CLAIMED",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification."
+    "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification.",
+    "coder_session": "KERNEL_BUILDER-20260906-141914"
   },
   "validator_verdict": "PENDING"
 }

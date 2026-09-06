@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-015",
   "created_at_utc": "2026-07-01T23:23:30Z",
-  "updated_at_utc": "2026-09-01T16:55:47.6296658Z",
+  "updated_at_utc": "2026-09-05T01:30:11.415Z",
   "scope_status": "BLOCKED_ON_DEPENDENCY",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-015.json",
@@ -67,11 +67,11 @@
       "Pre- and post-implementation adversarial review (incl. a secrets-leakage lens) before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_detached_settings_argus  (egui_kittest HEADLESS; CARGO_TARGET_DIR=.../handshake-native-target)",
-      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_settings_argus  (egui_kittest HEADLESS)",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_byok_access_config_leak_tests",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_access_route_tests",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_access_manual_coverage_tests"
+      "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_detached_settings_argus  (egui_kittest HEADLESS; CARGO_TARGET_DIR=.../handshake-native-target)",
+      "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_settings_argus  (egui_kittest HEADLESS)",
+      "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_byok_access_config_leak_tests",
+      "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_access_route_tests",
+      "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_access_manual_coverage_tests"
     ],
     "risk_if_missed": "Operators (especially BYOK users) have no way to configure cloud model access; the CLI-bridge and BYOK backends WP-KERNEL-004 already built are unreachable from the operator surface, so cloud lanes cannot be used by anyone who is not already logged into a CLI out-of-band.",
     "reference_only_paths": [
@@ -449,5 +449,52 @@
       "RESIDUAL_UNCERTAINTY": "Compilation, OS-keychain round-trip, real provider status, shared composition, operator-chat transient-secret lifetime, native Settings behavior, and authenticated main/detached-window pixels remain unproven in this no-Cargo/source-only lane.",
       "FINAL_RECOMMENDATION": "Keep MT-015 BLOCKED_ON_DEPENDENCY. Parent may validate after serialized focused Cargo/runtime proof and external owner closure; do not wait in this lane."
     }
+  },
+  "v6_proof_command_hygiene_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:30:11.415Z",
+    "why": "Declared proof commands could not be executed as written. Fixes are mechanical and change no target, feature or assertion: they remove an illegal artifact-root env prefix forbidden by [CX-984-001], strip status markers embedded in command strings, replace absolute host paths per [CX-109B], and add --locked. Originals are preserved verbatim below.",
+    "repairs": [
+      {
+        "field": "proof_targets",
+        "before": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_detached_settings_argus  (egui_kittest HEADLESS; CARGO_TARGET_DIR=.../handshake-native-target)",
+        "after": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_detached_settings_argus  (egui_kittest HEADLESS; CARGO_TARGET_DIR=.../handshake-native-target)",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_settings_argus  (egui_kittest HEADLESS)",
+        "after": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --test test_cloud_models_settings_argus  (egui_kittest HEADLESS)",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_byok_access_config_leak_tests",
+        "after": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_byok_access_config_leak_tests",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_access_route_tests",
+        "after": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_access_route_tests",
+        "fixes": [
+          "--locked added"
+        ]
+      },
+      {
+        "field": "proof_targets",
+        "before": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_access_manual_coverage_tests",
+        "after": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_access_manual_coverage_tests",
+        "fixes": [
+          "--locked added"
+        ]
+      }
+    ]
   }
 }

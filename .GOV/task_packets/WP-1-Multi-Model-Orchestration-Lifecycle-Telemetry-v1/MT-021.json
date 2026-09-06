@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-021",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-09-01T15:23:14.9167554Z",
+  "updated_at_utc": "2026-09-05T01:30:39.947Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -107,12 +107,12 @@
       "AC-6: HBR-VIS - every changed surface is proven through headless non-intrusive Argus with before/after observation; no foregrounding, no OS cursor automation."
     ],
     "proof_commands": [
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support --test workspace_settings_surreal_tests -- --nocapture",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar -- --nocapture",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog -- --nocapture",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_interaction_proof -- --nocapture",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_focus_audit_quiet -- --nocapture",
-      "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-gui-proof'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt021_production_settings_consent_concurrency_and_console_main_detached -- --ignored --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support --test workspace_settings_surreal_tests -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_interaction_proof -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_focus_audit_quiet -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt021_production_settings_consent_concurrency_and_console_main_detached -- --ignored --exact --nocapture",
       "git diff --check"
     ],
     "risk_if_missed": "The WP-1 console stays undispatchable by the swarm it exists to observe, and the operator has no surface for cloud consent posture or swarm concurrency - the two controls that decide whether cloud data leaves the machine and how hard the machine is driven."
@@ -455,5 +455,68 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "v6_proof_command_hygiene_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:30:11.415Z",
+    "why": "Declared proof commands could not be executed as written. Fixes are mechanical and change no target, feature or assertion: they remove an illegal artifact-root env prefix forbidden by [CX-984-001], strip status markers embedded in command strings, replace absolute host paths per [CX-109B], and add --locked. Originals are preserved verbatim below.",
+    "repairs": [
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support --test workspace_settings_surreal_tests -- --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support --test workspace_settings_surreal_tests -- --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar -- --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar -- --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog -- --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog -- --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_interaction_proof -- --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_interaction_proof -- --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_focus_audit_quiet -- --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_focus_audit_quiet -- --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:CARGO_TARGET_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-cargo-target'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-gui-proof'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt021_production_settings_consent_concurrency_and_console_main_detached -- --ignored --exact --nocapture",
+        "after": "$env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-gui-proof'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt021_production_settings_consent_concurrency_and_console_main_detached -- --ignored --exact --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}"
+        ]
+      },
+      {
+        "field": "proof_commands",
+        "before": "$env:HANDSHAKE_PROOF_ARTIFACT_DIR='D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt021-gui-proof'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt021_production_settings_consent_concurrency_and_console_main_detached -- --ignored --exact --nocapture",
+        "after": "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live_surfaces mt021_production_settings_consent_concurrency_and_console_main_detached -- --ignored --exact --nocapture",
+        "fixes": [
+          "absolute host diagnostics/proof-artifact path removed; artifacts belong under ${HANDSHAKE_ARTIFACTS_ROOT}, supplied per owner by the cargo slot, per [CX-984-001] and [CX-109B]"
+        ]
+      }
+    ]
   }
 }

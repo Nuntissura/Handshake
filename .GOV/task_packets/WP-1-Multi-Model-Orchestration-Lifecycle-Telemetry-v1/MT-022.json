@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-022",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-09-01T17:35:58.424Z",
+  "updated_at_utc": "2026-09-05T01:30:11.415Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -50,8 +50,8 @@
       "USER_MANUAL_VERSION advances to 2.0.23 and the canonical seeder now targets SurrealStorage with deterministic page, section, anchor, tool, feature, alias, and version upserts.",
       "MT-022 behavior/storage proof uses EmbeddedSurrealTestScope; active relational database symbols and proof text are removed from the owned current manual and MT-022 test surface. Historical V5 validation provenance remains unchanged below.",
       "UserManualStore now owns a cloned lifecycle-managed SurrealStorage handle, performs bounded product-global reads, writes deterministic records, and commits page/version EventLedger linkage atomically in embedded SurrealDB.",
-      "The complete /usermanual API now resolves the store from AppState.surreal_storage; pages, sections, anchors, links, search, tools, features, freshness, compatibility receipts, and gated resync no longer use relational store types."
-      ,"The legacy freshness wrapper and UserManual-owned storage, route, content, and negative-tamper fixtures now run against cloned injected embedded SurrealStorage through a bounded UserManual-local seam; receipt retries preserve committed evidence and receipt-without-mutation inconsistencies fail closed.",
+      "The complete /usermanual API now resolves the store from AppState.surreal_storage; pages, sections, anchors, links, search, tools, features, freshness, compatibility receipts, and gated resync no longer use relational store types.",
+      "The legacy freshness wrapper and UserManual-owned storage, route, content, and negative-tamper fixtures now run against cloned injected embedded SurrealStorage through a bounded UserManual-local seam; receipt retries preserve committed evidence and receipt-without-mutation inconsistencies fail closed.",
       "The UserManual context-bundle bridge now writes exact-scoped user_manual_page KnowledgeEntity records through a dedicated embedded-Surreal provider. The entity and scoped EventLedger receipt commit atomically; deterministic identity, predecessor-bound idempotency, stable identical retries, exact identity lookup, and fail-closed orphan or mismatched receipt handling are implemented.",
       "spec_seed.rs, projection.rs, and migration_plan.rs now describe the current embedded-Surreal UserManual authority. The historical Loom graph-search fixture injects SurrealStorage for UserManual and the knowledge bridge while retaining an explicitly isolated relational Loom-query fixture until that downstream lane migrates."
     ],
@@ -144,9 +144,8 @@
   "lifecycle": {
     "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
-      "MT-022 dedicated Surreal-only knowledge-bridge test target",
-      "MT-022 corrected production-socket native Argus target",
-      "parent serialized compile/runtime validation slot"
+      "MT-010",
+      "MT-011"
     ],
     "blocks": [],
     "active": true,
@@ -223,7 +222,7 @@
       "AC-10: Fresh native Argus proof runs against the production /usermanual socket backed by the same embedded-Surreal namespace, verifies navigation/page/search/loading/error/retry semantics, stable author IDs and pixels, uses only the exact _Artifacts root, and does not steal focus. Headless fixed transports and historical artifacts are supporting evidence only."
     ],
     "proof_commands": [
-      "$env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-surreal-stores'; cargo test --locked -j 1 --target-dir 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-user-manual-target' --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests --test user_manual_storage_tests --test user_manual_freshness_fixture_tests --test user_manual_api_tests --test user_manual_content_tests -- --test-threads=1 --nocapture",
+      "cargo test --locked -j 1 --target-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt022-user-manual-target' --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests --test user_manual_storage_tests --test user_manual_freshness_fixture_tests --test user_manual_api_tests --test user_manual_content_tests -- --test-threads=1 --nocapture",
       "rustfmt --edition 2021 --config skip_children=true --check src/backend/handshake_core/src/user_manual/seed.rs src/backend/handshake_core/src/user_manual/registry.rs src/backend/handshake_core/src/user_manual/behavior_coverage.rs src/backend/handshake_core/src/user_manual/mod.rs src/backend/handshake_core/src/user_manual/store.rs src/backend/handshake_core/src/user_manual/freshness.rs src/backend/handshake_core/src/user_manual/fixtures.rs src/backend/handshake_core/src/user_manual/bundle_bridge.rs src/backend/handshake_core/src/user_manual/spec_seed.rs src/backend/handshake_core/src/user_manual/projection.rs src/backend/handshake_core/src/user_manual/migration_plan.rs src/backend/handshake_core/src/storage/surreal/user_manual_knowledge.rs src/backend/handshake_core/src/api/user_manual.rs src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs src/backend/handshake_core/tests/user_manual_support.rs src/backend/handshake_core/tests/user_manual_storage_tests.rs src/backend/handshake_core/tests/user_manual_freshness_fixture_tests.rs src/backend/handshake_core/tests/user_manual_api_tests.rs src/backend/handshake_core/tests/user_manual_content_tests.rs",
       "git diff --check -- .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-022.json"
     ],
@@ -345,5 +344,53 @@
       "INDEPENDENT_FINDINGS": "Every ready MT failed at least one mandatory current validation gate; no MT was passed from historical, proxy, partial, pending, timed-out, or missing-resource evidence.",
       "RESIDUAL_UNCERTAINTY": "Several focused Cargo commands timed out or remained incomplete during shared-target compilation. Those runs produced no test verdict and are not claimed as code failures; each affected MT nevertheless has an independent mandatory gate failure documented above."
     }
+  },
+  "v6_blocker_staleness_survey_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T00:09:55.687Z",
+    "status_unchanged": true,
+    "why_status_unchanged": "A blocker is discharged by a passing proof run, never by a source survey. lifecycle.status is left as recorded; this block is evidence for whoever claims this MT next.",
+    "surveyed_at_commit": "f8e190c9",
+    "finding": "The recorded blocker cites the removed relational path (self.pool / new_with_access / PgPool) or a ModelLane provider seam it calls missing. Both halves are stale as of this commit.",
+    "evidence": [
+      "grep -rn 'self\\.pool|new_with_access|PgPool' over src/swarm_orchestration/ and src/storage/surreal/ returns 0 hits.",
+      "record_context_bundle_artifact_binding, record_context_bundle_handoff, consume_context_bundle_for_downstream, replay_context_bundle_handoffs and schema_registry_rows are all present in src/swarm_orchestration/model_lane.rs.",
+      "MT-002 is READY_FOR_VALIDATION with model_lane_schema_surreal_tests green 10/10 against a real embedded SurrealDB namespace, so the provider boundary these blockers describe as incomplete now compiles and runs."
+    ],
+    "precedent": "MT-019 recorded a comparable blocker naming an incomplete provider and a missing inspection API. On re-verification the API already existed and the real defects were four unrelated query and projection bugs. Re-verify before believing recorded blocker text.",
+    "next_action": "On claim: re-run this MT's declared proof targets first and classify what actually fails, rather than remediating the recorded blocker text."
+  },
+  "v6_dependency_repair_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T00:10:12.064Z",
+    "defect": "lifecycle.depends_on held prose work items instead of microtask identifiers, including a self-reference and a scheduling note. mt-board dependency resolution matches on MT ids, so no value in that list could ever be satisfied and this MT could never become mechanically claimable.",
+    "invalid_entries": [
+      "MT-022 dedicated Surreal-only knowledge-bridge test target",
+      "MT-022 corrected production-socket native Argus target",
+      "parent serialized compile/runtime validation slot"
+    ],
+    "repair": "Replaced with the real upstream microtask ids. The three prose entries are preserved verbatim here and restated as in-scope work items rather than dependencies.",
+    "restated_as_work_items": [
+      "Create the dedicated Surreal-only knowledge-bridge test target (in scope for this MT).",
+      "Correct the production-socket native Argus target (in scope for this MT).",
+      "Parent-serialized compile/runtime validation slot (an execution mechanism, satisfied by the cargo slot; not a dependency)."
+    ],
+    "dependency_basis": "MT-022 closes WP-1 in-product UserManual coverage gaps and repoints the HBR-MAN-003 self-consistency check at the canonical UserManual corpus. That corpus is produced by the UserManual microtasks MT-010 and MT-011, so those are its genuine upstreams."
+  },
+  "v6_proof_command_hygiene_2026_09_05": {
+    "recorded_by": "KERNEL_BUILDER-20260902-180244",
+    "recorded_at_utc": "2026-09-05T01:30:11.415Z",
+    "why": "Declared proof commands could not be executed as written. Fixes are mechanical and change no target, feature or assertion: they remove an illegal artifact-root env prefix forbidden by [CX-984-001], strip status markers embedded in command strings, replace absolute host paths per [CX-109B], and add --locked. Originals are preserved verbatim below.",
+    "repairs": [
+      {
+        "field": "proof_commands",
+        "before": "$env:HANDSHAKE_SURREAL_TEST_STORE_ROOT='D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-surreal-stores'; cargo test --locked -j 1 --target-dir 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake\\_Artifacts\\mt022-user-manual-target' --manifest-path 'D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1\\src\\backend\\handshake_core\\Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests --test user_manual_storage_tests --test user_manual_freshness_fixture_tests --test user_manual_api_tests --test user_manual_content_tests -- --test-threads=1 --nocapture",
+        "after": "cargo test --locked -j 1 --target-dir 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake/_Artifacts/mt022-user-manual-target' --manifest-path 'src/backend/handshake_core/Cargo.toml' --features test-utils --test user_manual_behavior_coverage_tests --test user_manual_storage_tests --test user_manual_freshness_fixture_tests --test user_manual_api_tests --test user_manual_content_tests -- --test-threads=1 --nocapture",
+        "fixes": [
+          "illegal artifact-root env prefix removed; the cargo slot pins these per owner under ${HANDSHAKE_ARTIFACTS_ROOT}",
+          "absolute host path replaced with a repo-relative path per [CX-109B]"
+        ]
+      }
+    ]
   }
 }
