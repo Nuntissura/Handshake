@@ -994,8 +994,9 @@ macro_rules! collection_select {
 
 macro_rules! collection_member_select {
     () => {
-        "record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
-         asset_id.content_hash AS content_hash, sort_order, linked_by, updated_by, \
+        "asset_id.content_hash AS content_hash, \
+         record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
+         sort_order, linked_by, updated_by, \
          updated_at_utc, added_at_utc"
     };
 }
@@ -1004,9 +1005,10 @@ macro_rules! collection_member_select {
 /// CKC media-album pages render (`CollectionMemberDetail`).
 macro_rules! collection_member_detail_select {
     () => {
-        "record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
-         asset_id.content_hash AS content_hash, asset_id.mime AS mime, \
-         asset_id.source_provenance AS source_provenance, sort_order, added_at_utc, \
+        "asset_id.content_hash AS content_hash, asset_id.mime AS mime, \
+         asset_id.source_provenance AS source_provenance, \
+         record::id(collection_id) AS collection_id, record::id(asset_id) AS asset_id, \
+         sort_order, added_at_utc, \
          linked_by, updated_by, updated_at_utc, source_path_ref, source_url_ref"
     };
 }

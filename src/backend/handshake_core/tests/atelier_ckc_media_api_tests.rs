@@ -2501,7 +2501,7 @@ async fn atelier_ckc_media_notes_tags_commit_all_event_families() {
     let asset_key = asset_id.to_string();
     for (aggregate_type, aggregate_id, family, actor_field, expected_actor) in [
         ("atelier_media_review_metadata", asset_key.clone(),
-         event_family::MEDIA_REVIEW_METADATA_UPDATED, "requested_by", "event-writer".to_owned()),
+         event_family::MEDIA_REVIEW_METADATA_UPDATED, "requested_by_ref", hash_ref("event-writer")),
         ("atelier_media_asset_tag", hash_ref(&format!("media-asset-untag:{asset_id}:retired-tag")),
          collections_event_family::MEDIA_ASSET_UNTAGGED, "", String::new()),
         ("atelier_media_asset_tag", hash_ref(&format!("media-asset-tag:{asset_id}:replacement-tag")),
