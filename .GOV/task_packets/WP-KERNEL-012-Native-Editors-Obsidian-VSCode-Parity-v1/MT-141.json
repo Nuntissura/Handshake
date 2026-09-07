@@ -30,7 +30,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -40,9 +40,9 @@
     "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": "KERNEL_BUILDER-20260905-213403",
+    "claimed_by": "KERNEL_BUILDER-20260906-210447",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
-    "claimed_at_utc": "2026-09-05T21:34:03.000Z",
+    "claimed_at_utc": "2026-09-06T21:05:23.953Z",
     "field_evidence_disclosure_2026_09_04": {
       "schema_id": "hsk.mt_field_evidence_note@1",
       "recorded_by": "KERNEL_BUILDER-20260903-213930",
@@ -118,6 +118,28 @@
       "why_scrubbing_it_would_be_the_wrong_outcome": "Removing it would not make the product less dependent on PostgreSQL, because it never was here. It would delete the only proof that the indexer handles SQL, degrading a real product capability to satisfy a rule aimed at something else. Governance would be damaging the thing it exists to protect.",
       "anti_laundering_test": "The exemption is deliberately hard to abuse: the tokens must live inside a string literal or fixture file used as parser input, and must not appear in an import, dependency, feature gate, env var, connection string, or any code path. If a token can influence how the process talks to a database, it is a dependency and exemption (b) does not apply. A future reader can apply that test mechanically.",
       "operator_note": "The Operator asked for this to be resolved on product grounds rather than ruling on it themselves. This is that ruling."
+    },
+    "takeover_2026_09_06": {
+      "authority": "Operator explicitly requested a subagent finish MT-141 to READY_FOR_VALIDATION",
+      "previous_owner": "KERNEL_BUILDER-20260905-213403",
+      "previous_status": "BLOCKED_ON_DEPENDENCY",
+      "owner": "KERNEL_BUILDER-20260906-210447",
+      "at_utc": "2026-09-06T21:05:23.953Z",
+      "preserved_product_base": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+      "preserved_prior_result": "implementation_result_2026_09_06",
+      "coordination": "Root reviews implementation and owns final readiness/handoff. No task acceptance or implementation scope expansion."
+    },
+    "operator_decision_mt141_orphan_receipts": {
+      "decision_id": "MT141-ORPHAN-RECEIPT-RECONCILIATION-20260907",
+      "authority": "Operator reply: Approve these two test reconciliations",
+      "path": "src/backend/handshake_core/tests/kernel_kb003_promotion_failure_matrix_tests.rs",
+      "reason": "The real schema requires each promotion receipt to reference an existing decision. Prior orphan-receipt expectations cannot hold alongside zero persisted decisions.",
+      "approved_changes": [
+        "storage_failure_rejection_does_not_mutate_authority: expected receipt count 1 to 0 and stored receipt ID Some to None; retain zero decision count.",
+        "storage_failure_retry_is_idempotent: expected receipt counts on both attempts 1 to 0; assert both stored receipt IDs None and both decision counts zero."
+      ],
+      "preservation": "Preserve every typed-error, raw-diagnostic, hash-stability, and no-authority-mutation assertion. Explicitly record retired orphan-receipt behavior and replacement proof.",
+      "boundary": "Exactly these two test reconciliations; no production-schema change, broader assertion waiver, or inherited MT-149 exception. Runtime proof remains required."
     }
   },
   "scope": {
@@ -194,9 +216,66 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": "KERNEL_BUILDER-20260905-213403"
+    "coder_session": "KERNEL_BUILDER-20260906-210447",
+    "session_mt_batch": [
+      "MT-141"
+    ],
+    "execution_constraints": {
+      "artifact_root": "../Handshake/_Artifacts",
+      "target": "../Handshake/_Artifacts/m141",
+      "temp": "../Handshake/_Artifacts/temp/m141",
+      "operator_override": "Continued live session instruction overrides contrary default artifact path guidance; no sibling artifact root creation.",
+      "proof_policy": "Preserve all acceptance criteria; final full-suite per-binary execution required. No inherited MT-149 scope waivers.",
+      "ownership": "Subagent implementation/proof lane; root independent review and final handoff.",
+      "cleanup": "Remove only verified owned target/temp after preserving proof logs."
+    },
+    "implementation_checkpoint": {
+      "at_utc": "2026-09-07T00:06:07.136Z",
+      "status": "IMPLEMENTED_FOCUSED_GREEN_FULL_SUITE_PENDING",
+      "source_review": "Root independently reviewed the adapter helper, fixture FK chains, retained assertions, actual positive-control runtime, approved two-test reconciliation, and output path changes.",
+      "proofs": {
+        "promotion_matrix": {
+          "passed": 18,
+          "failed": 0,
+          "filtered": 0,
+          "receipt": "../Handshake/_Artifacts/handshake-tool/m141-takeover/test-kernel_kb003_promotion_failure_matrix_tests.result.json"
+        },
+        "restart_replay": {
+          "passed": 2,
+          "failed": 0,
+          "filtered": 0,
+          "receipt": "../Handshake/_Artifacts/handshake-tool/m141-takeover/test-kernel_kb003_restart_replay_tests.result.json"
+        },
+        "permitted_actor": {
+          "passed": 1,
+          "failed": 0,
+          "filtered": 2,
+          "log": "../Handshake/_Artifacts/handshake-tool/m141-takeover/positive-probe.log"
+        },
+        "full_backend_suite": "PENDING: compile in progress; no full-suite or readiness verdict"
+      },
+      "gui": {
+        "status": "NOT_APPLICABLE",
+        "reason": "Backend test-harness port with no operator-visible surface."
+      },
+      "user_manual": {
+        "status": "NOT_APPLICABLE",
+        "reason": "Tests and fixture/output isolation only; no shipped behavior change."
+      },
+      "current_main": {
+        "main": "6519f4e2827840642a6c0401ac31055469f09d3b",
+        "base": "4e3fd06f524bd44011fea07f21fa499e6842c992",
+        "ancestor_exit": 1,
+        "merge_tree": "e7f3a8559d1783905440d5c19666e3658120b1a8",
+        "merge_tree_exit": 0,
+        "product_diff": "EMPTY: merged tree vs base for src, app, Cargo.toml, Cargo.lock, rust-toolchain.toml, .cargo. Same MT141 working edits apply to both."
+      },
+      "product_commit": "44e2e3587c3cbfee124a7ee81e7900156095b7b3",
+      "backup_push": "origin/feat/WP-KERNEL-012 verified",
+      "product_worktree": "CLEAN"
+    }
   },
-  "updated_at_utc": "2026-09-05T23:59:12.857Z",
+  "updated_at_utc": "2026-09-06T21:05:23.953Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
