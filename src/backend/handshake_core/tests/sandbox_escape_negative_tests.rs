@@ -46,7 +46,7 @@ fn target_os() -> &'static str {
 }
 
 fn artifact_root() -> PathBuf {
-    PathBuf::from("D:/Projects/LLM projects/Handshake/Handshake_Artifacts/sandbox-escape-results")
+    std::env::temp_dir().join("sandbox-escape-results")
 }
 
 #[test]

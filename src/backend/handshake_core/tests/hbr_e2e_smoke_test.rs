@@ -41,7 +41,7 @@ async fn hbr_e2e_smoke_test() -> Result<(), Box<dyn Error>> {
     let repo_root = repo_root();
     let registry_path = repo_root.join(".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json");
     let registry = HbrRegistry::load_from_path(&registry_path)?;
-    assert_eq!(registry.version, "1.3.0");
+    assert_eq!(registry.version, "1.11.0");
 
     let registry_json: Value = serde_json::from_str(&fs::read_to_string(&registry_path)?)?;
     assert_eq!(

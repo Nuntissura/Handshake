@@ -5,13 +5,10 @@
 //!
 //! The test builds a full KB003 chain:
 //!     SandboxPolicy -> SandboxRun -> ValidationRun -> PromotionDecision -> PromotionReceipt
-//! inside an `InMemoryKb003Storage`, snapshots every durable vector, then
-//! moves those snapshots into a fresh `InMemoryKb003Storage` (the "after
-//! restart" backend). The replay then:
+//! inside embedded SurrealDB, closes its handles, and reopens the same directory.
+//! Replay loads durable rows without copying runtime state.
 //!
-//!   1. Calls `InMemoryKb003Storage::load_replay_bag(run_id, policy_version_id)`
-//!      on the restarted store to gather durable rows only (no chat, no
-//!      terminal scrollback, no in-memory state).
+//!   1. Loads rows through `SurrealKb003Storage::load_run_for_replay`.
 //!   2. Feeds the bag through `kernel::sandbox::replay_projection::reconstruct_projection`
 //!      to rebuild the `DccSandboxProjectionV1`.
 //!   3. Wraps that projection into the top-level `DccKb003RollupV1` (Batch G)
@@ -47,17 +44,19 @@ use handshake_core::kernel::sandbox::replay_projection::{
 use handshake_core::kernel::sandbox::run::{SandboxRunId, SandboxRunStatus, SandboxRunV1};
 use handshake_core::kernel::sandbox::workspace::SandboxWorkspaceV1;
 use handshake_core::storage::kb003_storage::{
-    InMemoryKb003Storage, Kb003Storage, PromotionDecisionRowV1, PromotionReceiptRowV1,
-    ValidationRunRowV1,
+    Kb003Storage, PromotionDecisionRowV1, PromotionReceiptRowV1, ValidationRunRowV1,
 };
+use handshake_core::storage::surreal::SurrealKb003Storage;
 use serde_json::json;
+
+mod kb003_surreal_support;
 
 fn build_workspace() -> SandboxWorkspaceV1 {
     SandboxWorkspaceV1::new_default("kb003-mt077", "handshake-product/kb003/work/mt077")
 }
 
 fn build_chain_in_storage(
-    store: &mut InMemoryKb003Storage,
+    store: &mut SurrealKb003Storage,
     workspace: &SandboxWorkspaceV1,
 ) -> (
     SandboxRunV1,
@@ -139,33 +138,31 @@ fn build_chain_in_storage(
 
     // Re-fetch run with terminal status for the projection.
     let final_run = store
-        .sandbox_runs
-        .iter()
-        .find(|r| r.run_id.0 == run_id)
-        .cloned()
-        .expect("run row present after completion");
+        .load_run_for_replay(&run_id, &policy.version_id())
+        .expect("run row present after completion")
+        .run;
 
     (final_run, policy, vr, dec, receipt)
 }
 
 fn build_rollup_for_store(
-    store: &InMemoryKb003Storage,
+    store: &SurrealKb003Storage,
     workspace: &SandboxWorkspaceV1,
     run_id: &str,
     policy_version_id: &str,
 ) -> DccKb003RollupV1 {
     let bag = store
-        .load_replay_bag(run_id, policy_version_id)
+        .load_run_for_replay(run_id, policy_version_id)
         .expect("durable rows must be replay-loadable");
-    let validation_facts = bag.validation.map(|v| ReplayValidationFactsV1 {
+    let validation_facts = bag.validation.as_ref().map(|v| ReplayValidationFactsV1 {
         validation_run_id: v.validation_run_id.clone(),
         verdict: v.verdict.clone(),
         check_count: v.check_count,
         failed_check_count: v.failed_check_count,
         report_artifact_ref: v.report_artifact_ref.clone(),
     });
-    let promotion_facts = bag.decision.map(|d| {
-        let receipt = bag.receipt;
+    let promotion_facts = bag.decision.as_ref().map(|d| {
+        let receipt = bag.receipt.as_ref();
         ReplayPromotionFactsV1 {
             decision_id: d.decision_id.clone(),
             decision: d.decision.clone(),
@@ -176,8 +173,8 @@ fn build_rollup_for_store(
     });
     let arts = bag.run.artifact_refs.clone();
     let projection = reconstruct_projection(ReplayInputsV1 {
-        run: bag.run,
-        policy: bag.policy,
+        run: &bag.run,
+        policy: &bag.policy,
         workspace,
         denial: None,
         validation: validation_facts.as_ref(),
@@ -198,12 +195,13 @@ fn build_rollup_for_store(
     )
 }
 
-#[test]
-fn full_chain_survives_simulated_restart_and_rollup_replays_identically() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn full_chain_survives_simulated_restart_and_rollup_replays_identically() {
     let workspace = build_workspace();
 
     // ---- Pre-restart store: build the full chain ----
-    let mut pre_store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().expect("isolated KB003 directory");
+    let mut pre_store = kb003_surreal_support::open(directory.path()).await;
     let (run, policy, _vr, _dec, _receipt) = build_chain_in_storage(&mut pre_store, &workspace);
     let policy_version_id = policy.version_id();
     let run_id = run.run_id.0.clone();
@@ -211,20 +209,9 @@ fn full_chain_survives_simulated_restart_and_rollup_replays_identically() {
     let pre_rollup = build_rollup_for_store(&pre_store, &workspace, &run_id, &policy_version_id);
     assert!(pre_rollup.is_self_describing());
 
-    // ---- Snapshot every durable vector ----
-    let snapshot_runs = pre_store.sandbox_runs.clone();
-    let snapshot_policies = pre_store.policies.clone();
-    let snapshot_validations = pre_store.validation_runs.clone();
-    let snapshot_decisions = pre_store.promotion_decisions.clone();
-    let snapshot_receipts = pre_store.promotion_receipts.clone();
-
-    // ---- "Restart": move the snapshots into a brand-new store ----
-    let mut post_store = InMemoryKb003Storage::new_surreal_primary();
-    post_store.sandbox_runs = snapshot_runs;
-    post_store.policies = snapshot_policies;
-    post_store.validation_runs = snapshot_validations;
-    post_store.promotion_decisions = snapshot_decisions;
-    post_store.promotion_receipts = snapshot_receipts;
+    // Preserve the historical test name; this is real backend close/reopen
+    // in the same process, without vector snapshots.
+    let post_store = kb003_surreal_support::reopen(pre_store, directory.path()).await;
 
     // ---- Rebuild rollup from durable state only ----
     let post_rollup = build_rollup_for_store(&post_store, &workspace, &run_id, &policy_version_id);
@@ -263,34 +250,22 @@ fn full_chain_survives_simulated_restart_and_rollup_replays_identically() {
     );
     // Source-schema list survives the round-trip.
     assert!(!post_rollup.projection.source_schema_ids.is_empty());
+    kb003_surreal_support::close(post_store).await;
 }
 
-#[test]
-fn replay_uses_only_durable_rows_no_session_state() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn replay_uses_only_durable_rows_no_session_state() {
     // Build a chain, drop the original store, and confirm the rollup can still
-    // be reconstructed purely from the durable row vectors. This guards
+    // be reconstructed purely from the persisted rows. This guards
     // MT-016's "no provider chat / terminal scrollback / transient log" rule.
     let workspace = build_workspace();
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().expect("isolated KB003 directory");
+    let mut store = kb003_surreal_support::open(directory.path()).await;
     let (run, policy, _vr, _dec, _receipt) = build_chain_in_storage(&mut store, &workspace);
     let run_id = run.run_id.0.clone();
     let policy_version_id = policy.version_id();
 
-    // Drop the live store, keep only durable Vec snapshots.
-    let runs = store.sandbox_runs.clone();
-    let policies = store.policies.clone();
-    let validations = store.validation_runs.clone();
-    let decisions = store.promotion_decisions.clone();
-    let receipts = store.promotion_receipts.clone();
-    drop(store);
-
-    // Rebuild a fresh store from the snapshots only.
-    let mut fresh = InMemoryKb003Storage::new_surreal_primary();
-    fresh.sandbox_runs = runs;
-    fresh.policies = policies;
-    fresh.validation_runs = validations;
-    fresh.promotion_decisions = decisions;
-    fresh.promotion_receipts = receipts;
+    let fresh = kb003_surreal_support::reopen(store, directory.path()).await;
 
     let rollup = build_rollup_for_store(&fresh, &workspace, &run_id, &policy_version_id);
     assert!(
@@ -304,4 +279,5 @@ fn replay_uses_only_durable_rows_no_session_state() {
         .expect("promotion summary present");
     assert_eq!(prom.decision, "PROMOTED");
     assert_eq!(prom.receipt_id.as_deref(), Some("PR-mt077-stable"));
+    kb003_surreal_support::close(fresh).await;
 }

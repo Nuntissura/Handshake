@@ -12,10 +12,13 @@
 //! green.
 
 use handshake_core::kernel::mte_authority_mutation_boundary::AuthorityMutationActor;
+use handshake_core::kernel::sandbox::run::SandboxRunV1;
 use handshake_core::storage::kb003_storage::{
-    InMemoryKb003Storage, Kb003Storage, Kb003StorageError, PromotionDecisionRowV1,
-    PromotionReceiptRowV1,
+    Kb003Storage, Kb003StorageError, PromotionDecisionRowV1, PromotionReceiptRowV1,
+    ValidationRunRowV1,
 };
+
+mod kb003_surreal_support;
 
 fn sample_decision_row() -> PromotionDecisionRowV1 {
     PromotionDecisionRowV1 {
@@ -38,9 +41,10 @@ fn sample_receipt_row() -> PromotionReceiptRowV1 {
     }
 }
 
-#[test]
-fn non_gate_actor_denied_at_storage_boundary_for_decision() {
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn non_gate_actor_denied_at_storage_boundary_for_decision() {
+    let directory = tempfile::tempdir().expect("isolated KB003 directory");
+    let mut store = kb003_surreal_support::open(directory.path()).await;
     for actor in [
         AuthorityMutationActor::Coder,
         AuthorityMutationActor::Validator,
@@ -62,16 +66,19 @@ fn non_gate_actor_denied_at_storage_boundary_for_decision() {
             ),
         }
     }
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
     // No row should have landed despite every attempt.
     assert!(
-        store.promotion_decisions.is_empty(),
+        kb003_surreal_support::decision_count(&store).await == 0,
         "denied actors must not produce decision rows"
     );
+    kb003_surreal_support::close(store).await;
 }
 
-#[test]
-fn non_gate_actor_denied_at_storage_boundary_for_receipt() {
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn non_gate_actor_denied_at_storage_boundary_for_receipt() {
+    let directory = tempfile::tempdir().expect("isolated KB003 directory");
+    let mut store = kb003_surreal_support::open(directory.path()).await;
     for actor in [
         AuthorityMutationActor::Coder,
         AuthorityMutationActor::Validator,
@@ -93,15 +100,35 @@ fn non_gate_actor_denied_at_storage_boundary_for_receipt() {
             ),
         }
     }
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
     assert!(
-        store.promotion_receipts.is_empty(),
+        kb003_surreal_support::receipt_count(&store).await == 0,
         "denied actors must not produce receipt rows"
     );
+    kb003_surreal_support::close(store).await;
 }
 
-#[test]
-fn promotion_gate_actor_permitted_at_storage_boundary() {
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn promotion_gate_actor_permitted_at_storage_boundary() {
+    let directory = tempfile::tempdir().expect("isolated KB003 directory");
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    let run = SandboxRunV1::new_requested("KTR-h2", "SES-h2", "local", "POL-h2@1", "WSP-h2");
+    kb003_surreal_support::seed_validation_ancestors(
+        &mut store,
+        &run,
+        &ValidationRunRowV1 {
+            validation_run_id: sample_decision_row().validation_run_id,
+            sandbox_run_id: run.run_id.0.clone(),
+            descriptor_id: "DESC-h2".into(),
+            verdict: "PASS".into(),
+            check_count: 1,
+            failed_check_count: 0,
+            report_artifact_ref: None,
+            started_at_utc: "2026-05-17T00:00:00Z".into(),
+            finished_at_utc: "2026-05-17T00:00:00Z".into(),
+            summary_json: serde_json::json!({"checks": ["boundary"]}),
+        },
+    );
     let dec_result = store.insert_promotion_decision(
         &sample_decision_row(),
         AuthorityMutationActor::PromotionGate,
@@ -118,6 +145,8 @@ fn promotion_gate_actor_permitted_at_storage_boundary() {
         "PromotionGate actor must succeed at the receipt boundary; got {:?}",
         rec_result
     );
-    assert_eq!(store.promotion_decisions.len(), 1);
-    assert_eq!(store.promotion_receipts.len(), 1);
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
+    assert_eq!(kb003_surreal_support::decision_count(&store).await, 1);
+    assert_eq!(kb003_surreal_support::receipt_count(&store).await, 1);
+    kb003_surreal_support::close(store).await;
 }

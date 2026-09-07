@@ -20,6 +20,10 @@ use handshake_core::storage::surreal::{
 };
 use serde_json::json;
 
+fn test_fixture_root() -> std::path::PathBuf {
+    std::env::temp_dir().join("handshake-test")
+}
+
 fn allowlist() -> RuntimeDependencyAllowlist {
     RuntimeDependencyAllowlist::load_from_repo_root(&repo_root_from_manifest_dir())
         .expect("runtime dependency allowlist loads")
@@ -527,10 +531,7 @@ fn mt_228_229_source_tripwires_are_wired_into_dependency_policy_check_path() {
     )
     .expect("dependency-policy source tripwire gate must scan touched product files cleanly");
 
-    let artifact_root = repo_root
-        .join("..")
-        .join("Handshake_Artifacts")
-        .join("handshake-test");
+    let artifact_root = test_fixture_root();
     std::fs::create_dir_all(&artifact_root).expect("artifact test root exists");
     let mut fixture = tempfile::Builder::new()
         .prefix("mt-228-sqlite-source-")
@@ -556,10 +557,7 @@ fn mt_228_229_source_tripwires_are_wired_into_dependency_policy_check_path() {
 #[test]
 fn mt_228_229_node_dependency_policy_validator_missing_file_probe_fails_closed() {
     let repo_root = repo_root_from_manifest_dir();
-    let missing = repo_root
-        .join("..")
-        .join("Handshake_Artifacts")
-        .join("handshake-test")
+    let missing = test_fixture_root()
         .join("mt-228-229-missing-source-probe.ts");
 
     let output = Command::new("node")
@@ -592,10 +590,7 @@ fn mt_228_229_node_dependency_policy_validator_missing_file_probe_fails_closed()
 #[test]
 fn mt_228_229_node_dependency_policy_validator_file_probe_fails_closed() {
     let repo_root = repo_root_from_manifest_dir();
-    let artifact_root = repo_root
-        .join("..")
-        .join("Handshake_Artifacts")
-        .join("handshake-test");
+    let artifact_root = test_fixture_root();
     std::fs::create_dir_all(&artifact_root).expect("artifact test root exists");
     let mut fixture = tempfile::Builder::new()
         .prefix("mt-228-229-node-source-")
@@ -650,10 +645,7 @@ fn mt_228_229_node_dependency_policy_validator_file_probe_fails_closed() {
 #[test]
 fn mt_228_229_node_dependency_policy_validator_file_probe_scans_path_names() {
     let repo_root = repo_root_from_manifest_dir();
-    let artifact_root = repo_root
-        .join("..")
-        .join("Handshake_Artifacts")
-        .join("handshake-test");
+    let artifact_root = test_fixture_root();
     std::fs::create_dir_all(&artifact_root).expect("artifact root exists");
     let fixture = artifact_root.join("mt-228-229-SqlitePool-path-only-probe.ts");
     std::fs::write(

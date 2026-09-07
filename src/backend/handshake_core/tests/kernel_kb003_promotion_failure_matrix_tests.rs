@@ -24,6 +24,11 @@
 //!   7. Durable storage write failure (decision insert refusal; fallback path)
 //!   8. ProjectionRebuildFailure  (typed reason exists; gate does not surface
 //!      it directly today but the variant must be constructible and serialise)
+//!
+//! MT-141 operator-approved assertion dispositions (test names retained):
+//! | Test | Retired mock-only expectation | Real-store successor proof |
+//! | storage_failure_rejection_does_not_mutate_authority | receipt persists without a decision | no orphan receipt, no stored receipt ID, typed diagnostic retained |
+//! | storage_failure_retry_is_idempotent | both orphan receipts persist | neither orphan persists; equivalent errors retain equal hashes and distinct raw diagnostics |
 
 use handshake_core::kernel::kb003_artifact_classes::Kb003ArtifactClass;
 use handshake_core::kernel::kb003_promotion::artifact_bundle::{
@@ -38,13 +43,11 @@ use handshake_core::kernel::kb003_promotion::gate::{
 use handshake_core::kernel::sandbox::denial::{DenialKind, SandboxDenialRecordV1};
 use handshake_core::kernel::sandbox::policy::SandboxCapability;
 use handshake_core::kernel::sandbox::run::{SandboxRunStatus, SandboxRunV1};
-use handshake_core::kernel::sandbox::AuthorityMode;
 use handshake_core::kernel::validation::report::{DescriptorOutcome, ValidationReport};
 use handshake_core::kernel::validation::status::ValidationStatus;
-use handshake_core::storage::kb003_storage::{
-    InMemoryKb003Storage, Kb003Storage, Kb003StorageError, PromotionDecisionRowV1,
-    PromotionReceiptRowV1,
-};
+use handshake_core::storage::kb003_storage::{Kb003Storage, ValidationRunRowV1};
+use handshake_core::storage::surreal::SurrealKb003Storage;
+mod kb003_surreal_support;
 use uuid::Uuid;
 
 fn completed_run() -> SandboxRunV1 {
@@ -70,6 +73,32 @@ fn pass_report() -> ValidationReport {
         ValidationStatus::pass(),
     ));
     r
+}
+
+fn seed_gate_ancestors(
+    store: &mut SurrealKb003Storage,
+    run: &SandboxRunV1,
+    report: &ValidationReport,
+) -> ValidationRunRowV1 {
+    let failed = report
+        .outcomes
+        .iter()
+        .filter(|outcome| outcome.status.blocks_promotion())
+        .count();
+    let validation = ValidationRunRowV1 {
+        validation_run_id: "VR-mt076".into(),
+        sandbox_run_id: run.run_id.0.clone(),
+        descriptor_id: "DESC-mt076".into(),
+        verdict: if failed == 0 { "PASS" } else { "FAIL" }.into(),
+        check_count: report.outcomes.len() as u32,
+        failed_check_count: failed as u32,
+        report_artifact_ref: Some("kb003://validation_report/h2bbbbbbbbbbbbbb".into()),
+        started_at_utc: "2026-05-17T00:00:00Z".into(),
+        finished_at_utc: "2026-05-17T00:00:01Z".into(),
+        summary_json: serde_json::to_value(report).expect("serialize validation fixture"),
+    };
+    kb003_surreal_support::seed_validation_ancestors(store, run, &validation);
+    validation
 }
 
 fn bundle_for(run: &SandboxRunV1) -> Kb003ArtifactBundleV1 {
@@ -115,21 +144,8 @@ fn good_inputs<'a>(
 /// Helper: assert no `ACCEPTED` receipt landed in the authority sink. Decision
 /// rows MAY land (decisions are append-only audit trail), but a receipt with
 /// `decision = ACCEPTED` is the authority mutation the test guards.
-fn assert_authority_not_mutated(store: &InMemoryKb003Storage) {
-    for r in &store.promotion_receipts {
-        // Find matching decision row.
-        let dec = store
-            .promotion_decisions
-            .iter()
-            .find(|d| d.decision_id == r.decision_id);
-        if let Some(dec) = dec {
-            assert_ne!(
-                dec.decision, "ACCEPTED",
-                "rejection path mutated authority: receipt {} -> ACCEPTED decision {}",
-                r.receipt_id, dec.decision_id
-            );
-        }
-    }
+async fn assert_authority_not_mutated(store: &SurrealKb003Storage) {
+    kb003_surreal_support::assert_authority_not_mutated(store).await;
 }
 
 /// Helper: assert the rejection decision carries the specified typed reason.
@@ -142,9 +158,10 @@ fn assert_rejection_reason(dec: &PromotionDecisionV1, expected_tag: &str) {
     assert_eq!(
         dec.outcome.tag(),
         expected_tag,
-        "rejection tag mismatch: got {} expected {}",
+        "rejection tag mismatch: got {} expected {}; decision: {:?}",
         dec.outcome.tag(),
-        expected_tag
+        expected_tag,
+        dec
     );
     assert!(dec.outcome.rejection_reason().is_some());
 }
@@ -161,12 +178,14 @@ fn assert_storage_failure(dec: &PromotionDecisionV1) {
 // 1. StaleCandidate
 // ------------------------------------------------------------------
 
-#[test]
-fn stale_candidate_rejection_does_not_mutate_authority() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn stale_candidate_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().unwrap();
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    seed_gate_ancestors(&mut store, &run, &report);
     let mut inputs = good_inputs(&run, &report, &bun);
     inputs.latest_known_run_id = Some("SBX-fresher".into());
 
@@ -178,30 +197,43 @@ fn stale_candidate_rejection_does_not_mutate_authority() {
         }
         other => panic!("expected StaleCandidate, got {other:?}"),
     }
-    assert_authority_not_mutated(&store);
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
+    assert_authority_not_mutated(&store).await;
+    kb003_surreal_support::close(store).await;
 }
 
 // ------------------------------------------------------------------
 // 2. DuplicateIdempotencyKey
 // ------------------------------------------------------------------
 
-#[test]
-fn duplicate_idempotency_key_rejection_does_not_mutate_authority_second_time() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn duplicate_idempotency_key_rejection_does_not_mutate_authority_second_time() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().unwrap();
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    let mut alternate_validation = seed_gate_ancestors(&mut store, &run, &report);
 
     // First call lands an ACCEPTED receipt (this is the authority baseline).
     let first = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
     assert!(first.decision.is_accepted());
-    assert_eq!(store.promotion_receipts.len(), 1);
-    let receipt_count_before = store.promotion_receipts.len();
+    assert_eq!(
+        kb003_surreal_support::accepted_receipt_count(&store).await,
+        1,
+        "authority query must observe the accepted baseline"
+    );
+    assert_eq!(kb003_surreal_support::receipt_count(&store).await, 1);
+    let receipt_count_before = kb003_surreal_support::receipt_count(&store).await;
 
     // Second call with SAME idempotency key but DIFFERENT payload (different
     // validation_run_id) surfaces as DuplicateIdempotencyKey rejection.
     let mut inputs2 = good_inputs(&run, &report, &bun);
     inputs2.validation_run_id = "VR-DIFFERENT".into();
+    alternate_validation.validation_run_id = inputs2.validation_run_id.clone();
+    store
+        .insert_validation_run(&alternate_validation)
+        .expect("persist alternate validation ancestor");
     let out2 = PromotionGate::evaluate(inputs2, &mut store).unwrap();
     assert_rejection_reason(&out2.decision, "REJECTED_DUPLICATE_IDEMPOTENCY_KEY");
     match out2.decision.outcome.rejection_reason().unwrap() {
@@ -215,20 +247,22 @@ fn duplicate_idempotency_key_rejection_does_not_mutate_authority_second_time() {
         }
         other => panic!("expected DuplicateIdempotencyKey, got {other:?}"),
     }
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
     // No NEW receipt row was inserted by the rejection.
     assert_eq!(
-        store.promotion_receipts.len(),
+        kb003_surreal_support::receipt_count(&store).await,
         receipt_count_before,
         "DuplicateIdempotencyKey path must not add a receipt row"
     );
+    kb003_surreal_support::close(store).await;
 }
 
 // ------------------------------------------------------------------
 // 3. ValidationFailure
 // ------------------------------------------------------------------
 
-#[test]
-fn validation_failure_rejection_does_not_mutate_authority() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn validation_failure_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let mut report = pass_report();
     report.push(DescriptorOutcome::new(
@@ -236,7 +270,9 @@ fn validation_failure_rejection_does_not_mutate_authority() {
         ValidationStatus::fail("wrote outside workspace").unwrap(),
     ));
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().unwrap();
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    seed_gate_ancestors(&mut store, &run, &report);
     let out = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
     assert_rejection_reason(&out.decision, "REJECTED_VALIDATION_FAILURE");
     match out.decision.outcome.rejection_reason().unwrap() {
@@ -250,15 +286,17 @@ fn validation_failure_rejection_does_not_mutate_authority() {
         }
         other => panic!("expected ValidationFailure, got {other:?}"),
     }
-    assert_authority_not_mutated(&store);
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
+    assert_authority_not_mutated(&store).await;
+    kb003_surreal_support::close(store).await;
 }
 
 // ------------------------------------------------------------------
 // 4. PolicyDenial
 // ------------------------------------------------------------------
 
-#[test]
-fn policy_denial_rejection_does_not_mutate_authority() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn policy_denial_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
@@ -270,7 +308,9 @@ fn policy_denial_rejection_does_not_mutate_authority() {
         "fetch https://example.com",
         "default_deny NETWORK",
     );
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().unwrap();
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    seed_gate_ancestors(&mut store, &run, &report);
     let mut inputs = good_inputs(&run, &report, &bun);
     inputs.denial = Some(&denial);
     let out = PromotionGate::evaluate(inputs, &mut store).unwrap();
@@ -287,19 +327,23 @@ fn policy_denial_rejection_does_not_mutate_authority() {
         }
         other => panic!("expected PolicyDenial, got {other:?}"),
     }
-    assert_authority_not_mutated(&store);
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
+    assert_authority_not_mutated(&store).await;
+    kb003_surreal_support::close(store).await;
 }
 
 // ------------------------------------------------------------------
 // 5. MissingApproval
 // ------------------------------------------------------------------
 
-#[test]
-fn missing_approval_rejection_does_not_mutate_authority() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn missing_approval_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().unwrap();
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    seed_gate_ancestors(&mut store, &run, &report);
     let mut inputs = good_inputs(&run, &report, &bun);
     inputs.approval = OperatorApprovalEvidence::new(
         "",
@@ -315,19 +359,23 @@ fn missing_approval_rejection_does_not_mutate_authority() {
         }
         other => panic!("expected MissingApproval, got {other:?}"),
     }
-    assert_authority_not_mutated(&store);
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
+    assert_authority_not_mutated(&store).await;
+    kb003_surreal_support::close(store).await;
 }
 
 // ------------------------------------------------------------------
 // 6. MissingArtifact
 // ------------------------------------------------------------------
 
-#[test]
-fn missing_artifact_rejection_does_not_mutate_authority() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn missing_artifact_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().unwrap();
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    seed_gate_ancestors(&mut store, &run, &report);
     let mut inputs = good_inputs(&run, &report, &bun);
     inputs.required_artifact_refs = vec!["kb003://promotion_receipt/never_present".into()];
     let out = PromotionGate::evaluate(inputs, &mut store).unwrap();
@@ -345,81 +393,24 @@ fn missing_artifact_rejection_does_not_mutate_authority() {
         }
         other => panic!("expected MissingArtifact, got {other:?}"),
     }
-    assert_authority_not_mutated(&store);
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
+    assert_authority_not_mutated(&store).await;
+    kb003_surreal_support::close(store).await;
 }
 
 // ------------------------------------------------------------------
 // 7. Durable storage write failure
 // ------------------------------------------------------------------
 
-/// A Surreal-primary storage stub that refuses every decision insert. The gate
-/// must return a typed rejection and still attempt its fallback receipt write.
-struct StorageRefusingDecisionInsert {
-    mode: AuthorityMode,
-    pub receipts: Vec<PromotionReceiptRowV1>,
-    pub decisions: Vec<PromotionDecisionRowV1>,
-}
-
-impl StorageRefusingDecisionInsert {
-    fn new() -> Self {
-        Self {
-            mode: AuthorityMode::SurrealPrimary,
-            receipts: Vec::new(),
-            decisions: Vec::new(),
-        }
-    }
-}
-
-impl Kb003Storage for StorageRefusingDecisionInsert {
-    fn authority_mode(&self) -> AuthorityMode {
-        self.mode
-    }
-    fn do_insert_sandbox_run(&mut self, _run: &SandboxRunV1) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_update_sandbox_run_status(
-        &mut self,
-        _run_id: &str,
-        _new_status: SandboxRunStatus,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_sandbox_policy_version(
-        &mut self,
-        _policy: &handshake_core::kernel::sandbox::policy::SandboxPolicyV1,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_validation_run(
-        &mut self,
-        _row: &handshake_core::storage::kb003_storage::ValidationRunRowV1,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_promotion_decision(
-        &mut self,
-        _row: &PromotionDecisionRowV1,
-    ) -> Result<(), Kb003StorageError> {
-        Err(Kb003StorageError::Backend(
-            "simulated storage deadlock during decision insert".to_string(),
-        ))
-    }
-    fn do_insert_promotion_receipt(
-        &mut self,
-        row: &PromotionReceiptRowV1,
-    ) -> Result<String, Kb003StorageError> {
-        // Should never be called when decision insert refuses.
-        self.receipts.push(row.clone());
-        Ok(row.receipt_id.clone())
-    }
-}
-
-#[test]
-fn storage_failure_rejection_does_not_mutate_authority() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn storage_failure_rejection_does_not_mutate_authority() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = StorageRefusingDecisionInsert::new();
+    let directory = tempfile::tempdir().unwrap();
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    seed_gate_ancestors(&mut store, &run, &report);
+    kb003_surreal_support::refuse_decisions(&store, 0).await;
     let out = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
     assert_storage_failure(&out.decision);
     assert!(out
@@ -427,85 +418,42 @@ fn storage_failure_rejection_does_not_mutate_authority() {
         .storage_error_detail
         .as_deref()
         .is_some_and(|detail| detail.contains("simulated storage deadlock")));
-    // H-B2 fix: the gate now ATTEMPTS to persist the rejection receipt even
-    // when the decision insert fails (defence in depth — receipt table may be
-    // independently writable). This stub allows receipt inserts, so the
-    // rejection IS persisted and stored_receipt_id should be Some.
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
+    // H-B2 still attempts the fallback receipt. The real schema requires its
+    // decision ancestor, so a rolled-back decision cannot leave an orphan receipt.
     assert_eq!(
-        store.receipts.len(),
-        1,
-        "storage-failure path must attempt rejection-receipt insert (H-B2)"
+        kb003_surreal_support::receipt_count(&store).await,
+        0,
+        "storage-failure path must not persist an orphan rejection receipt"
     );
     assert!(
-        out.stored_receipt_id.is_some(),
-        "stored_receipt_id should be Some when receipt insert succeeded"
+        out.stored_receipt_id.is_none(),
+        "stored_receipt_id must be None when its decision ancestor was refused"
     );
-    // The decision row was NOT persisted (the stub refused), so authority is
+    // The decision row was NOT persisted (the synchronous event refused), so authority is
     // still unmutated in the sense of "no ACCEPTED row was committed."
     assert!(
-        store.decisions.is_empty(),
+        kb003_surreal_support::decision_count(&store).await == 0,
         "no decision row may exist when decision insert refused"
     );
+    assert_authority_not_mutated(&store).await;
+    kb003_surreal_support::close(store).await;
 }
 
 // ------------------------------------------------------------------
 // 7b. Durable storage failure where BOTH decision AND receipt inserts fail
 // ------------------------------------------------------------------
 
-/// Stricter stub: refuses BOTH decision and receipt inserts. Verifies H-B2
-/// fallback path produces stored_receipt_id=None when storage is fully down.
-struct StorageRefusingAllWrites {
-    mode: AuthorityMode,
-}
-
-impl Kb003Storage for StorageRefusingAllWrites {
-    fn authority_mode(&self) -> AuthorityMode {
-        self.mode
-    }
-    fn do_insert_sandbox_run(&mut self, _r: &SandboxRunV1) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_update_sandbox_run_status(
-        &mut self,
-        _r: &str,
-        _s: SandboxRunStatus,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_sandbox_policy_version(
-        &mut self,
-        _p: &handshake_core::kernel::sandbox::policy::SandboxPolicyV1,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_validation_run(
-        &mut self,
-        _r: &handshake_core::storage::kb003_storage::ValidationRunRowV1,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_promotion_decision(
-        &mut self,
-        _r: &PromotionDecisionRowV1,
-    ) -> Result<(), Kb003StorageError> {
-        Err(Kb003StorageError::Backend("decision_table_offline".into()))
-    }
-    fn do_insert_promotion_receipt(
-        &mut self,
-        _r: &PromotionReceiptRowV1,
-    ) -> Result<String, Kb003StorageError> {
-        Err(Kb003StorageError::Backend("receipt_table_offline".into()))
-    }
-}
-
-#[test]
-fn storage_failure_with_total_outage_yields_none_stored_receipt_id() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn storage_failure_with_total_outage_yields_none_stored_receipt_id() {
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut store = StorageRefusingAllWrites {
-        mode: AuthorityMode::SurrealPrimary,
-    };
+    let directory = tempfile::tempdir().unwrap();
+    let mut store = kb003_surreal_support::open(directory.path()).await;
+    seed_gate_ancestors(&mut store, &run, &report);
+    kb003_surreal_support::refuse_decisions(&store, 1).await;
+    kb003_surreal_support::refuse_receipts(&store).await;
     let out = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
     // Rejection is typed and returned to the caller.
     assert_storage_failure(&out.decision);
@@ -520,14 +468,18 @@ fn storage_failure_with_total_outage_yields_none_stored_receipt_id() {
         out.stored_receipt_id.is_none(),
         "stored_receipt_id must be None when both decision AND receipt inserts refused"
     );
+    let store = kb003_surreal_support::reopen(store, directory.path()).await;
+    assert_eq!(kb003_surreal_support::decision_count(&store).await, 0);
+    assert_eq!(kb003_surreal_support::receipt_count(&store).await, 0);
+    kb003_surreal_support::close(store).await;
 }
 
 // ------------------------------------------------------------------
 // 8. ProjectionRebuildFailure (constructible + typed)
 // ------------------------------------------------------------------
 
-#[test]
-fn projection_rebuild_failure_variant_is_typed_and_serialisable() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn projection_rebuild_failure_variant_is_typed_and_serialisable() {
     // The gate today does not autonomously surface ProjectionRebuildFailure
     // (projection refresh is a downstream concern), but the variant MUST
     // exist as a typed rejection reason so future projection-rebuild paths
@@ -551,25 +503,31 @@ fn projection_rebuild_failure_variant_is_typed_and_serialisable() {
     // Building a PromotionDecisionV1::rejected with this reason does NOT
     // touch the authority sink at all — authority mutation is gated on
     // PromotionGate::evaluate, which we are NOT calling here.
-    let inert_store = InMemoryKb003Storage::new_surreal_primary();
+    let directory = tempfile::tempdir().unwrap();
+    let inert_store = kb003_surreal_support::open(directory.path()).await;
+    let inert_store = kb003_surreal_support::reopen(inert_store, directory.path()).await;
     assert!(
-        inert_store.promotion_receipts.is_empty(),
+        kb003_surreal_support::receipt_count(&inert_store).await == 0,
         "constructing a rejection must not mutate any authority sink"
     );
+    kb003_surreal_support::close(inert_store).await;
 }
 
 // ------------------------------------------------------------------
 // Coverage check: every rejection variant tag appears in our matrix.
 // ------------------------------------------------------------------
 
-#[test]
-fn matrix_covers_all_eight_promotion_rejection_variants() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn matrix_covers_all_eight_promotion_rejection_variants() {
     // Construct every variant and collect the tags. If the taxonomy ever
     // grows, this test fails so the matrix can be extended.
     let run = completed_run();
     let report = pass_report();
     let bun = bundle_for(&run);
-    let mut refusing_store = StorageRefusingDecisionInsert::new();
+    let directory = tempfile::tempdir().unwrap();
+    let mut refusing_store = kb003_surreal_support::open(directory.path()).await;
+    seed_gate_ancestors(&mut refusing_store, &run, &report);
+    kb003_surreal_support::refuse_decisions(&refusing_store, 0).await;
     let storage_failure =
         PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut refusing_store)
             .expect("storage refusal must produce a rejection result")
@@ -617,6 +575,9 @@ fn matrix_covers_all_eight_promotion_rejection_variants() {
         8,
         "all 8 PromotionRejectionReason variants must produce a unique tag; matrix must cover each"
     );
+    let refusing_store = kb003_surreal_support::reopen(refusing_store, directory.path()).await;
+    assert_authority_not_mutated(&refusing_store).await;
+    kb003_surreal_support::close(refusing_store).await;
 }
 
 // ====================================================================
@@ -762,56 +723,8 @@ fn missing_artifact_retry_is_idempotent() {
     );
 }
 
-/// H4 stub: refuses decision insert with a configurable raw error string per
-/// call. Allows asserting that two storage-failure retries with DIFFERENT
-/// raw error strings but the SAME normalised kind still hash identically.
-struct StorageRefusingDecisionInsertWithMessage {
-    mode: AuthorityMode,
-    next_message: String,
-}
-
-impl Kb003Storage for StorageRefusingDecisionInsertWithMessage {
-    fn authority_mode(&self) -> AuthorityMode {
-        self.mode
-    }
-    fn do_insert_sandbox_run(&mut self, _r: &SandboxRunV1) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_update_sandbox_run_status(
-        &mut self,
-        _r: &str,
-        _s: SandboxRunStatus,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_sandbox_policy_version(
-        &mut self,
-        _p: &handshake_core::kernel::sandbox::policy::SandboxPolicyV1,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_validation_run(
-        &mut self,
-        _r: &handshake_core::storage::kb003_storage::ValidationRunRowV1,
-    ) -> Result<(), Kb003StorageError> {
-        Ok(())
-    }
-    fn do_insert_promotion_decision(
-        &mut self,
-        _r: &PromotionDecisionRowV1,
-    ) -> Result<(), Kb003StorageError> {
-        Err(Kb003StorageError::Backend(self.next_message.clone()))
-    }
-    fn do_insert_promotion_receipt(
-        &mut self,
-        r: &PromotionReceiptRowV1,
-    ) -> Result<String, Kb003StorageError> {
-        Ok(r.receipt_id.clone())
-    }
-}
-
-#[test]
-fn storage_failure_retry_is_idempotent() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn storage_failure_retry_is_idempotent() {
     // Two retries of the same logical deadlock — different raw text wobble,
     // SAME NormalisedStorageErrorKind::Deadlock — must produce identical
     // `payload_hash` so the idempotency dedup fires. The non-hashed
@@ -820,16 +733,16 @@ fn storage_failure_retry_is_idempotent() {
     let report = pass_report();
     let bun = bundle_for(&run);
 
-    let mut store1 = StorageRefusingDecisionInsertWithMessage {
-        mode: AuthorityMode::SurrealPrimary,
-        next_message: "deadlock detected on tx 991 at line 412".into(),
-    };
+    let directory1 = tempfile::tempdir().unwrap();
+    let mut store1 = kb003_surreal_support::open(directory1.path()).await;
+    seed_gate_ancestors(&mut store1, &run, &report);
+    kb003_surreal_support::refuse_decisions(&store1, 2).await;
     let out1 = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store1).unwrap();
 
-    let mut store2 = StorageRefusingDecisionInsertWithMessage {
-        mode: AuthorityMode::SurrealPrimary,
-        next_message: "Deadlock Detected on tx 1004 at line 538".into(),
-    };
+    let directory2 = tempfile::tempdir().unwrap();
+    let mut store2 = kb003_surreal_support::open(directory2.path()).await;
+    seed_gate_ancestors(&mut store2, &run, &report);
+    kb003_surreal_support::refuse_decisions(&store2, 3).await;
     let out2 = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store2).unwrap();
 
     assert_storage_failure(&out1.decision);
@@ -855,6 +768,18 @@ fn storage_failure_retry_is_idempotent() {
         out1.receipt.storage_error_detail, out2.receipt.storage_error_detail,
         "raw storage_error_detail should preserve the wobble for observability"
     );
+    let store1 = kb003_surreal_support::reopen(store1, directory1.path()).await;
+    let store2 = kb003_surreal_support::reopen(store2, directory2.path()).await;
+    assert!(out1.stored_receipt_id.is_none());
+    assert!(out2.stored_receipt_id.is_none());
+    assert_eq!(kb003_surreal_support::decision_count(&store1).await, 0);
+    assert_eq!(kb003_surreal_support::decision_count(&store2).await, 0);
+    assert_eq!(kb003_surreal_support::receipt_count(&store1).await, 0);
+    assert_eq!(kb003_surreal_support::receipt_count(&store2).await, 0);
+    assert_authority_not_mutated(&store1).await;
+    assert_authority_not_mutated(&store2).await;
+    kb003_surreal_support::close(store1).await;
+    kb003_surreal_support::close(store2).await;
 }
 
 #[test]
