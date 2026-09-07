@@ -2634,12 +2634,11 @@ mod bulk_review_tests {
         seed_media_asset(&storage, first, "sha256:bulk-review-first").await;
         seed_media_asset(&storage, second, "sha256:bulk-review-second").await;
         let before = authority_snapshot(&storage).await;
-        let trigger = format!("DEFINE EVENT mt060_reject_bulk_later_event ON TABLE atelier_event WHEN $after.event_family = 'atelier.media.review_metadata_updated' AND $after.aggregate_id = '{second}' THEN {{ THROW 'mt060_bulk_later_event_rejected'; }};");
-        storage.with_data_operation(move |ctx| Box::pin(async move {
-            ctx.execute_returning(&trigger, super::super::NoDomain {}).await
+        storage.with_data_operation(|ctx| Box::pin(async move {
+            ctx.execute_returning("DEFINE EVENT mt060_reject_bulk_later_event ON TABLE atelier_event WHEN $after.event_family = 'atelier.media.review_metadata_updated' AND $after.payload.rating = 4 THEN { THROW 'mt060_bulk_later_event_rejected'; };", super::super::NoDomain {}).await
         })).await.expect("install second-event rejection");
         let updates = [first, second].map(|asset_id| MediaReviewMetadataUpdate {
-            asset_id, favorite: true, rating: 4, frontpage: false, carousel: false,
+            asset_id, favorite: true, rating: if asset_id == first { 3 } else { 4 }, frontpage: false, carousel: false,
             notes: Some("reviewed".into()), review_status: "approved".into(),
         });
         let error = atelier.bulk_update_media_review_metadata(&updates, "bulk-review-writer")
@@ -2653,7 +2652,8 @@ mod bulk_review_tests {
         let result = atelier.bulk_update_media_review_metadata(&updates, "bulk-review-writer")
             .await.expect("retry commits full batch");
         assert_eq!(result.metadata.len(), 2);
-        assert!(result.metadata.iter().all(|row| row.updated_by == "bulk-review-writer" && row.rating == 4));
+        assert!(result.metadata.iter().all(|row| row.updated_by == "bulk-review-writer"
+            && row.rating == if row.asset_id == first { 3 } else { 4 }));
         assert_eq!(result.receipt.target_count, 2);
         assert_eq!(result.receipt.mutation_count, 2);
         assert_eq!(result.receipt.payload["metadata_count"], 2);
