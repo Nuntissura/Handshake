@@ -35,9 +35,9 @@ const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 /// Fresh-engine STRUCTURE fingerprint captured with the product-locked SurrealDB 3.2.0
 /// engine family after applying the generated schema to an absent RocksDB path.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "8161b4e8e01d3ef6ec14886ac203878396435e58bf78cf6c28b60fe493403bab";
+    "c723e3043a04f06b7196cebab19154f88ea84ca13f78dd63060d6b6ac808d4ba";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "6866764b478e2694d7c80e57d8fc5067c12f85db02ac67d63eb0a23edcb7475f";
+    "4b3b16a9a36476b1f448b913a37562d610757010b55a7e938f84f6d87b4bbae7";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 
