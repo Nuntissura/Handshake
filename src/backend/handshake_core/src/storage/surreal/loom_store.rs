@@ -1386,19 +1386,7 @@ pub(crate) async fn traverse_graph(
     if max_depth == 0 {
         return Ok(Vec::new());
     }
-    let blocks: HashMap<_, _> = workspace_blocks(db, workspace_id)
-        .await?
-        .into_iter()
-        .map(|block| (block.block_id.clone(), block))
-        .collect();
     let allowed: HashSet<_> = edge_types.iter().map(LoomEdgeType::as_str).collect();
-    let mut outgoing: HashMap<String, Vec<(String, &str)>> = HashMap::new();
-    for edge in workspace_edges(db, workspace_id).await? {
-        outgoing
-            .entry(edge.source_block_id)
-            .or_default()
-            .push((edge.target_block_id, edge.edge_type.as_str()));
-    }
     let mut queue = VecDeque::from([(start_block_id.to_owned(), 0_u32)]);
     let mut depths: HashMap<String, u32> = HashMap::new();
     let mut seen = HashSet::from([start_block_id.to_owned()]);
@@ -1406,24 +1394,28 @@ pub(crate) async fn traverse_graph(
         if depth >= max_depth {
             continue;
         }
-        for (target, edge_type) in outgoing.get(&current).into_iter().flatten() {
-            if !allowed.is_empty() && !allowed.contains(edge_type) {
+        // Query the indexed frontier instead of loading the whole workspace.
+        for edge in get_outgoing_edges(db, workspace_id, &current).await? {
+            if !allowed.is_empty() && !allowed.contains(edge.edge_type.as_str()) {
                 continue;
             }
-            let next_depth = depth + 1;
-            depths
-                .entry(target.clone())
-                .and_modify(|old| *old = (*old).min(next_depth))
-                .or_insert(next_depth);
+            let target = edge.target_block_id;
+            // BFS discovers the shortest depth first; the origin stays excluded.
             if seen.insert(target.clone()) {
-                queue.push_back((target.clone(), next_depth));
+                let next_depth = depth + 1;
+                depths.insert(target.clone(), next_depth);
+                queue.push_back((target, next_depth));
             }
         }
     }
-    let mut result: Vec<_> = depths
-        .into_iter()
-        .filter_map(|(id, depth)| blocks.get(&id).cloned().map(|block| (block, depth)))
-        .collect();
+    let mut result = Vec::with_capacity(depths.len());
+    for (id, depth) in depths {
+        match get_loom_block(db, workspace_id, &id).await {
+            Ok(block) => result.push((block, depth)),
+            Err(StorageError::NotFound("loom_block")) => {}
+            Err(error) => return Err(error),
+        }
+    }
     result.sort_by(|(left_block, left_depth), (right_block, right_depth)| {
         left_depth
             .cmp(right_depth)

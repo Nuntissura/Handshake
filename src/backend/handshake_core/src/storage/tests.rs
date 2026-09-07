@@ -1033,6 +1033,32 @@ async fn loom_traverse_graph_depth_limit(
         ]
     );
 
+    let zero_depth = db
+        .traverse_graph(workspace_id, &graph.start_block_id, 0, &[])
+        .await?;
+    assert!(
+        zero_depth.is_empty(),
+        "zero-depth traversal returns no nodes"
+    );
+
+    let all_edge_types = db
+        .traverse_graph(workspace_id, &graph.start_block_id, 3, &[])
+        .await?;
+    assert_eq!(
+        loom_traversal_signature(&all_edge_types),
+        loom_traversal_signature(&depth_three),
+        "an empty edge filter includes every edge type"
+    );
+
+    let other_workspace = uuid::Uuid::new_v4().to_string();
+    let outside_workspace = db
+        .traverse_graph(&other_workspace, &graph.start_block_id, 3, &[])
+        .await?;
+    assert!(
+        outside_workspace.is_empty(),
+        "a valid start ID must not expose another workspace's graph"
+    );
+
     Ok(())
 }
 
