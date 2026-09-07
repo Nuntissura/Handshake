@@ -1235,7 +1235,7 @@ struct DerivedTagsBindings {
 }
 
 macro_rules! saved_search_select { () => { "saved_search_id, name, include_tags_json, exclude_tags_json, min_rating, favorite, color_hex, scope_kind, scope_id, view_mode, created_by, created_at_utc, updated_at_utc" }; }
-macro_rules! ai_suggestion_select { () => { "suggestion_id, record::id(character_internal_id) AS character_internal_id, record::id(asset_id) AS asset_id, tag_text, confidence, model_receipt_ref, tool_receipt_ref, suggested_by, status, decided_by, decision_reason, record::id(applied_tag_id) AS applied_tag_id, created_at_utc, updated_at_utc" }; }
+macro_rules! ai_suggestion_select { () => { "suggestion_id, record::id(character_internal_id) AS character_internal_id, IF asset_id = NONE { NONE } ELSE { record::id(asset_id) } AS asset_id, tag_text, confidence, model_receipt_ref, tool_receipt_ref, suggested_by, status, decided_by, decision_reason, IF applied_tag_id = NONE { NONE } ELSE { record::id(applied_tag_id) } AS applied_tag_id, created_at_utc, updated_at_utc" }; }
 macro_rules! rule_select { () => { "rule_id, source_field_id, match_type, pattern, emit_tag, enabled, created_at_utc, updated_at_utc" }; }
 macro_rules! projection_select { () => { "record::id(asset_internal_id) AS asset_internal_id, dhash_hex, palette_json, updated_at_utc" }; }
 macro_rules! rebuild_select { () => { "job_id, record::id(asset_internal_id) AS asset_internal_id, status, requested_by, processed_count, failed_count, dhash_hex, palette_json, error_ref, created_at_utc, updated_at_utc" }; }
@@ -1279,12 +1279,12 @@ impl AtelierStore {
             limit,
         };
         let rows: Vec<GlobalSearchCandidateRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
-            ctx.query_values("RETURN array::slice(array::sort::asc(array::concat(\
+            ctx.query_values("RETURN array::concat(\
               (SELECT 'sheet' AS target_kind, <string>version_id AS target_id, string::concat('atelier://sheet/', <string>record::id(character_internal_id), '/', <string>version_id) AS jump_target, string::concat('Sheet v', <string>seq, ' - ', character_internal_id.display_name) AS title, raw_text AS search_text, 10 AS rank, created_at_utc AS sort_at FROM atelier_sheet_version WHERE string::lowercase(raw_text) CONTAINS $query), \
               (SELECT doc_type AS target_kind, <string>document_id AS target_id, string::concat('atelier://document/', <string>document_id) AS jump_target, current_version_id.title AS title, string::concat(current_version_id.title, ' ', current_version_id.body_raw_text, ' ', <string>tags_json) AS search_text, 20 AS rank, current_version_id.created_at_utc AS sort_at FROM atelier_character_document WHERE string::lowercase(string::concat(current_version_id.title, ' ', current_version_id.body_raw_text, ' ', <string>tags_json)) CONTAINS $query), \
               (SELECT 'moodboard_snapshot' AS target_kind, <string>snapshot_id AS target_id, string::concat('atelier://moodboard/', <string>snapshot_id) AS jump_target, moodboard_json.name ?? 'Moodboard' AS title, raw_json_text AS search_text, 30 AS rank, created_at_utc AS sort_at FROM atelier_moodboard WHERE string::lowercase(raw_json_text) CONTAINS $query), \
               (SELECT 'image' AS target_kind, <string>asset_id AS target_id, string::concat('atelier://image/', <string>asset_id) AS jump_target, string::concat(mime, ' ', string::slice(content_hash, 0, 12)) AS title, string::concat(mime, ' ', content_hash, ' ', source_provenance ?? '', ' ', artifact_ref) AS search_text, 40 AS rank, created_at_utc AS sort_at FROM atelier_media_asset WHERE string::lowercase(string::concat(mime, ' ', content_hash, ' ', source_provenance ?? '', ' ', artifact_ref)) CONTAINS $query)\
-            ), true), 0, $limit);", bindings).await
+            );", bindings).await
         })).await?;
         let mut hits: Vec<GlobalSearchHit> = rows
             .into_iter()

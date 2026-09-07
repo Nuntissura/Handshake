@@ -1414,7 +1414,7 @@ const WRITE_RESET_STATEMENT: &str = concat!(
          preferences_deleted_count: $domain.preferences_deleted_count, \
          original_media_preserved_count: $domain.original_media_preserved_count, \
          orphan_manifest_id: IF $domain.preserve_original_media { $domain.manifest_id } \
-           ELSE { NONE } END }; \
+           ELSE { NONE } }; \
        IF $domain.preserve_original_media { \
          CREATE $domain.manifest_ref CONTENT { manifest_id: $domain.manifest_id, reset_id: $rid, \
            manifest_json: $domain.manifest_json, item_count: $domain.original_media_preserved_count }; \

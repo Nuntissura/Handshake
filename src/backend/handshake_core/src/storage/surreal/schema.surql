@@ -2121,8 +2121,8 @@ DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_media_source_provenance_
 DEFINE FIELD OVERWRITE source_note_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
 DEFINE FIELD OVERWRITE contact_sheet_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
 DEFINE FIELD OVERWRITE task_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
-DEFINE FIELD OVERWRITE run_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string> ASSERT ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $value != NONE);
-DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_media_source_provenance_ref TYPE string;
+DEFINE FIELD OVERWRITE run_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
+DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_media_source_provenance_ref TYPE string ASSERT ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $this.run_ref != NONE);
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_media_source_provenance_ref TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_media_source_provenance_ref ON TABLE atelier_media_source_provenance_ref FIELDS asset_id UNIQUE;
 

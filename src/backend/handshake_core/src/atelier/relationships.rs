@@ -265,7 +265,7 @@ const LIST_RELATIONSHIPS_STATEMENT: &str = concat!(
 const GRAPH_EDGES_STATEMENT: &str = "SELECT record::id(edge_id) AS relationship_id, \
             record::id(source_character_id) AS source_character_id, \
             record::id(target_character_id) AS target_character_id, \
-            relationship_kind, label \
+            relationship_kind, label, updated_at_utc \
      FROM atelier_character_relationship_graph_projection \
      WHERE source_character_id = $character_ref OR target_character_id = $character_ref \
      ORDER BY updated_at_utc DESC, relationship_id ASC;";

@@ -1360,9 +1360,9 @@ macro_rules! backup_preflight_select {
 macro_rules! intake_link_select {
     () => {
         "link_id, record::id(export_id) AS export_id, record::id(batch_id) AS batch_id, \
-         record::id(item_id) AS item_id, record::id(target_character_id) AS target_character_id, \
-         record::id(target_sheet_version_id) AS target_sheet_version_id, \
-         record::id(target_collection_id) AS target_collection_id, version_agnostic, \
+         record::id(item_id) AS item_id, IF target_character_id = NONE { NONE } ELSE { record::id(target_character_id) } AS target_character_id, \
+         IF target_sheet_version_id = NONE { NONE } ELSE { record::id(target_sheet_version_id) } AS target_sheet_version_id, \
+         IF target_collection_id = NONE { NONE } ELSE { record::id(target_collection_id) } AS target_collection_id, version_agnostic, \
          created_at_utc"
     };
 }
@@ -1382,6 +1382,12 @@ struct RecordBinding {
 #[derive(SurrealValue)]
 struct ExportIdBinding {
     export_ref: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct ExportResultIdentityBinding {
+    request_ref: RecordId,
+    content_hash: String,
 }
 
 #[derive(SurrealValue)]
@@ -1543,14 +1549,15 @@ const REQUEST_EXPORT_STATEMENT: &str = concat!(
 );
 
 const RECORD_EXPORT_RESULT_STATEMENT: &str = concat!(
-    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_export_result \
+    "RETURN { LET $existing_result = (SELECT VALUE id FROM atelier_export_result \
        WHERE export_id = $domain.export_ref AND content_hash = $domain.content_hash LIMIT 1)[0]; \
-     LET $rid = $existing ?? $domain.result_rid; ",
+     LET $rid = $existing_result ?? $domain.result_rid; \
+     IF $rid != $domain.result_rid { THROW 'ATELIER_EXPORT_RESULT_IDENTITY_CHANGED'; }; ",
     atelier_event_sql!(),
-    " IF $existing IS NONE { CREATE $domain.result_rid CONTENT { result_id: $domain.result_id, \
+    " IF $existing_result IS NONE { CREATE $domain.result_rid CONTENT { result_id: $domain.result_id, \
        export_id: $domain.export_ref, artifact_ref: $domain.artifact_ref, \
        content_hash: $domain.content_hash, byte_len: $domain.byte_len }; \
-     } ELSE { UPDATE $existing SET artifact_ref = $domain.artifact_ref; }; \
+     } ELSE { UPDATE $existing_result SET artifact_ref = $domain.artifact_ref; }; \
      UPDATE $domain.export_ref SET status = 'rendered'; RETURN (SELECT ",
     export_result_select!(),
     " FROM $rid); };"
@@ -1578,15 +1585,16 @@ const REQUEST_PORTFOLIO_STATEMENT: &str = concat!(
 );
 
 const RECORD_PORTFOLIO_RESULT_STATEMENT: &str = concat!(
-    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_web_portfolio_export_result \
+    "RETURN { LET $existing_result = (SELECT VALUE id FROM atelier_web_portfolio_export_result \
        WHERE portfolio_export_id = $domain.request_ref \
          AND content_hash = $domain.content_hash LIMIT 1)[0]; \
-     LET $rid = $existing ?? $domain.result_rid; ",
+     LET $rid = $existing_result ?? $domain.result_rid; \
+     IF $rid != $domain.result_rid { THROW 'ATELIER_EXPORT_RESULT_IDENTITY_CHANGED'; }; ",
     atelier_event_sql!(),
-    " IF $existing IS NONE { CREATE $domain.result_rid CONTENT { result_id: $domain.result_id, \
+    " IF $existing_result IS NONE { CREATE $domain.result_rid CONTENT { result_id: $domain.result_id, \
        portfolio_export_id: $domain.request_ref, artifact_ref: $domain.artifact_ref, \
        content_hash: $domain.content_hash, byte_len: $domain.byte_len, \
-       manifest_json: $domain.manifest_json }; } ELSE { UPDATE $existing SET \
+       manifest_json: $domain.manifest_json }; } ELSE { UPDATE $existing_result SET \
        artifact_ref = $domain.artifact_ref, byte_len = $domain.byte_len, \
        manifest_json = $domain.manifest_json; }; UPDATE $domain.request_ref SET \
        status = 'rendered', updated_at_utc = time::now(); RETURN (SELECT ",
@@ -1643,7 +1651,35 @@ const PLAN_RASTER_EXPORT_STATEMENT: &str = concat!(
     " FROM $domain.plan_rid); };"
 );
 
+fn is_export_result_retryable(error: &AtelierError) -> bool {
+    let text = error.to_string();
+    matches!(error, AtelierError::Database(_))
+        && (text.contains("ATELIER_EXPORT_RESULT_IDENTITY_CHANGED")
+            || text.contains("Transaction conflict: Resource busy. This transaction can be retried")
+            || text.contains("uq_atelier_export_result_")
+            || text.contains("uq_atelier_web_portfolio_export_result_"))
+}
+
 impl AtelierStore {
+    async fn export_result_identity(
+        &self,
+        statement: &'static str,
+        request_ref: RecordId,
+        content_hash: &str,
+    ) -> AtelierResult<Uuid> {
+        let bindings = ExportResultIdentityBinding {
+            request_ref,
+            content_hash: content_hash.to_owned(),
+        };
+        let existing: Option<SurrealUuid> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move { ctx.query_first(statement, bindings).await })
+            })
+            .await?;
+        Ok(existing.map(Uuid::from).unwrap_or_else(Uuid::now_v7))
+    }
+
     /// Open an export request pinned to a specific sheet version (MT-199).
     ///
     /// The sheet version is validated to belong to the named character so an
@@ -1774,36 +1810,53 @@ impl AtelierStore {
         // Guard: the request must exist (also flips status below).
         let _ = self.get_export_request(export_id).await?;
 
-        let result_id = Uuid::new_v4();
-        let row: Option<ExportResultRow> = self
-            .write_with_event(
-                RECORD_EXPORT_RESULT_STATEMENT,
-                RecordExportResultBindings {
-                    result_rid: RecordId::new(
-                        "atelier_export_result",
-                        SurrealUuid::from(result_id),
-                    ),
-                    result_id: result_id.into(),
-                    export_ref: RecordId::new(
-                        "atelier_export_request",
-                        SurrealUuid::from(export_id),
-                    ),
-                    artifact_ref: artifact_ref.to_owned(),
-                    content_hash: content_hash.to_owned(),
-                    byte_len,
-                },
-                EXPORT_RENDERED,
-                "atelier_export_request",
-                &export_id.to_string(),
-                serde_json::json!({
-                    "result_id": result_id,
-                    "content_hash": content_hash,
-                    "byte_len": byte_len,
-                }),
-            )
-            .await?;
-        row.map(Into::into)
-            .ok_or_else(|| AtelierError::Internal("export result write returned no row".into()))
+        for attempt in 0..16 {
+            // Bind the event to the canonical result. The statement checks this
+            // identity again atomically, so a concurrent winner rebuilds the event.
+            let result_id = self.export_result_identity(
+                "SELECT VALUE result_id FROM atelier_export_result WHERE export_id = $request_ref AND content_hash = $content_hash LIMIT 1;",
+                RecordId::new("atelier_export_request", SurrealUuid::from(export_id)),
+                content_hash,
+            ).await?;
+            let written: AtelierResult<Option<ExportResultRow>> = self
+                .write_with_event(
+                    RECORD_EXPORT_RESULT_STATEMENT,
+                    RecordExportResultBindings {
+                        result_rid: RecordId::new(
+                            "atelier_export_result",
+                            SurrealUuid::from(result_id),
+                        ),
+                        result_id: result_id.into(),
+                        export_ref: RecordId::new(
+                            "atelier_export_request",
+                            SurrealUuid::from(export_id),
+                        ),
+                        artifact_ref: artifact_ref.to_owned(),
+                        content_hash: content_hash.to_owned(),
+                        byte_len,
+                    },
+                    EXPORT_RENDERED,
+                    "atelier_export_request",
+                    &export_id.to_string(),
+                    serde_json::json!({
+                        "result_id": result_id,
+                        "content_hash": content_hash,
+                        "byte_len": byte_len,
+                    }),
+                )
+                .await;
+            let row = match written {
+                Ok(row) => row,
+                Err(error) if attempt < 15 && is_export_result_retryable(&error) => {
+                    tokio::time::sleep(std::time::Duration::from_millis(1_u64 << attempt.min(5))).await;
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
+            return row.map(Into::into)
+                .ok_or_else(|| AtelierError::Internal("export result write returned no row".into()));
+        }
+        Err(AtelierError::Internal("export result retries exhausted".into()))
     }
 
     /// The rendered result for an export, if one has been recorded.
@@ -2167,39 +2220,55 @@ impl AtelierStore {
 
         let manifest_json =
             web_portfolio_manifest_json(&request, artifact_ref, content_hash, byte_len, items);
-        let result_id = Uuid::new_v4();
-        let row: Option<WebPortfolioResultRow> = self
-            .write_with_event(
-                RECORD_PORTFOLIO_RESULT_STATEMENT,
-                RecordPortfolioResultBindings {
-                    result_rid: RecordId::new(
-                        "atelier_web_portfolio_export_result",
-                        SurrealUuid::from(result_id),
-                    ),
-                    result_id: result_id.into(),
-                    request_ref: RecordId::new(
-                        "atelier_web_portfolio_export_request",
-                        SurrealUuid::from(portfolio_export_id),
-                    ),
-                    artifact_ref: artifact_ref.to_owned(),
-                    content_hash: content_hash.to_owned(),
-                    byte_len,
-                    manifest_json,
-                },
-                WEB_PORTFOLIO_EXPORT_RENDERED,
-                "atelier_web_portfolio_export_request",
-                &portfolio_export_id.to_string(),
-                serde_json::json!({
-                    "result_id": result_id,
-                    "content_hash": content_hash,
-                    "byte_len": byte_len,
-                    "item_count": items.len(),
-                }),
-            )
-            .await?;
-        row.map(Into::into).ok_or_else(|| {
-            AtelierError::Internal("web portfolio result write returned no row".into())
-        })
+        for attempt in 0..16 {
+            // Reuse the persisted identity in both the row and its event payload.
+            let result_id = self.export_result_identity(
+                "SELECT VALUE result_id FROM atelier_web_portfolio_export_result WHERE portfolio_export_id = $request_ref AND content_hash = $content_hash LIMIT 1;",
+                RecordId::new("atelier_web_portfolio_export_request", SurrealUuid::from(portfolio_export_id)),
+                content_hash,
+            ).await?;
+            let written: AtelierResult<Option<WebPortfolioResultRow>> = self
+                .write_with_event(
+                    RECORD_PORTFOLIO_RESULT_STATEMENT,
+                    RecordPortfolioResultBindings {
+                        result_rid: RecordId::new(
+                            "atelier_web_portfolio_export_result",
+                            SurrealUuid::from(result_id),
+                        ),
+                        result_id: result_id.into(),
+                        request_ref: RecordId::new(
+                            "atelier_web_portfolio_export_request",
+                            SurrealUuid::from(portfolio_export_id),
+                        ),
+                        artifact_ref: artifact_ref.to_owned(),
+                        content_hash: content_hash.to_owned(),
+                        byte_len,
+                        manifest_json: manifest_json.clone(),
+                    },
+                    WEB_PORTFOLIO_EXPORT_RENDERED,
+                    "atelier_web_portfolio_export_request",
+                    &portfolio_export_id.to_string(),
+                    serde_json::json!({
+                        "result_id": result_id,
+                        "content_hash": content_hash,
+                        "byte_len": byte_len,
+                        "item_count": items.len(),
+                    }),
+                )
+                .await;
+            let row = match written {
+                Ok(row) => row,
+                Err(error) if attempt < 15 && is_export_result_retryable(&error) => {
+                    tokio::time::sleep(std::time::Duration::from_millis(1_u64 << attempt.min(5))).await;
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
+            return row.map(Into::into).ok_or_else(|| {
+                AtelierError::Internal("web portfolio result write returned no row".into())
+            });
+        }
+        Err(AtelierError::Internal("web portfolio result retries exhausted".into()))
     }
 
     /// The most recent web portfolio result for a request, if one exists.
@@ -2408,10 +2477,10 @@ impl AtelierStore {
                 move |ctx| {
                     Box::pin(async move {
                         ctx.query_first(
-                            "SELECT record::id(character_internal_id) AS character_internal_id, \
-                             record::id(target_character_id) AS target_character_id, \
-                             record::id(target_sheet_version_id) AS target_sheet_version_id, \
-                             record::id(target_collection_id) AS target_collection_id \
+                            "SELECT IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } AS character_internal_id, \
+                             IF target_character_id = NONE { NONE } ELSE { record::id(target_character_id) } AS target_character_id, \
+                             IF target_sheet_version_id = NONE { NONE } ELSE { record::id(target_sheet_version_id) } AS target_sheet_version_id, \
+                             IF target_collection_id = NONE { NONE } ELSE { record::id(target_collection_id) } AS target_collection_id \
                              FROM $record_ref;",
                             RecordBinding { record_ref },
                         )
@@ -2483,8 +2552,8 @@ impl AtelierStore {
                 .with_data_operation(move |ctx| {
                     Box::pin(async move {
                         ctx.query_first(
-                            "SELECT record::id(character_internal_id) AS character_internal_id, \
-                             record::id(sheet_version_id) AS sheet_version_id \
+                            "SELECT IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } AS character_internal_id, \
+                             IF sheet_version_id = NONE { NONE } ELSE { record::id(sheet_version_id) } AS sheet_version_id \
                              FROM $record_ref;",
                             RecordBinding {
                                 record_ref: collection_ref,

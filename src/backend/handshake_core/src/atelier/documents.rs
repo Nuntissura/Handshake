@@ -550,13 +550,17 @@ const LIST_STORY_BEATS_STATEMENT: &str =
 
 /// How often a seq-assigning insert retries when a concurrent writer takes the
 /// same `(document, seq)` slot. The former PostgreSQL code serialized these
-/// writers with an advisory lock; here the unique index rejects the loser and
-/// the retry re-reads the next free sequence.
-const SEQ_RACE_RETRIES: usize = 5;
+/// writers with an advisory lock; here unique-index and optimistic transaction
+/// conflicts rebuild the sequence, row bindings, and atomic event on retry.
+/// Sixteen bounded attempts allow the eight-writer proof to drain under contention.
+const SEQ_RACE_RETRIES: usize = 16;
 
-fn is_unique_index_conflict(error: &AtelierError) -> bool {
+fn is_story_sequence_conflict(error: &AtelierError) -> bool {
     let text = error.to_string();
-    text.contains("already contains") || text.contains("uq_atelier_")
+    matches!(error, AtelierError::Database(_))
+        && (text.contains("already contains")
+            || text.contains("uq_atelier_")
+            || text.contains("Transaction conflict: Resource busy. This transaction can be retried"))
 }
 
 impl AtelierStore {
@@ -849,7 +853,7 @@ impl AtelierStore {
         let tags = clean_document_tags(&new.tags);
 
         let mut last_error: Option<AtelierError> = None;
-        for _ in 0..SEQ_RACE_RETRIES {
+        for attempt in 0..SEQ_RACE_RETRIES {
             let seq = self
                 .next_story_seq(NEXT_STORY_CARD_SEQ_STATEMENT, new.story_document_id)
                 .await?;
@@ -890,8 +894,12 @@ impl AtelierStore {
                         "adding a story card returned no row".to_owned(),
                     ));
                 }
-                Err(error) if is_unique_index_conflict(&error) => {
+                Err(error) if is_story_sequence_conflict(&error) => {
                     last_error = Some(error);
+                    tokio::time::sleep(std::time::Duration::from_millis(
+                        1_u64 << attempt.min(5),
+                    ))
+                    .await;
                     continue;
                 }
                 Err(error) => return Err(error),
@@ -949,7 +957,7 @@ impl AtelierStore {
         }
 
         let mut last_error: Option<AtelierError> = None;
-        for _ in 0..SEQ_RACE_RETRIES {
+        for attempt in 0..SEQ_RACE_RETRIES {
             let seq = self
                 .next_story_seq(NEXT_STORY_BEAT_SEQ_STATEMENT, new.story_document_id)
                 .await?;
@@ -990,8 +998,12 @@ impl AtelierStore {
                         "adding a story beat returned no row".to_owned(),
                     ));
                 }
-                Err(error) if is_unique_index_conflict(&error) => {
+                Err(error) if is_story_sequence_conflict(&error) => {
                     last_error = Some(error);
+                    tokio::time::sleep(std::time::Duration::from_millis(
+                        1_u64 << attempt.min(5),
+                    ))
+                    .await;
                     continue;
                 }
                 Err(error) => return Err(error),

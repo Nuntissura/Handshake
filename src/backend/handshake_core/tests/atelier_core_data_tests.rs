@@ -174,7 +174,8 @@ fn assert_portable_artifact_handle(field: &str, value: &str) {
 
 /// Materialize a fresh, run-unique media asset and return its `asset_id`.
 async fn fresh_asset(store: &AtelierStore) -> Uuid {
-    let artifact = native_artifact(b"core-data-test-media");
+    let payload = format!("core-data-test-media:{}", Uuid::now_v7());
+    let artifact = native_artifact(payload.as_bytes());
     let asset = store
         .materialize_media_asset(&NewMediaAsset {
             content_hash: artifact.content_hash,
@@ -7111,6 +7112,28 @@ async fn atelier_exports_request_result_idempotency_and_manifest() {
         "re-recording identical (export_id, content_hash) returns the same result"
     );
 
+    let canonical = store
+        .get_export_result(request.export_id)
+        .await
+        .expect("reload canonical export result")
+        .expect("canonical export result exists");
+    assert_eq!(canonical.result_id, result1.result_id);
+    let rendered_events = embedded_event_payloads(
+        &store,
+        "atelier_export_request",
+        &request.export_id.to_string(),
+        export_event_family::EXPORT_RENDERED,
+    )
+    .await;
+    assert_eq!(rendered_events.len(), 2, "both render calls append an event");
+    for event in rendered_events {
+        assert_eq!(
+            event["result_id"],
+            serde_json::json!(canonical.result_id),
+            "render events must reference the persisted result, including replay"
+        );
+    }
+
     // --- add_manifest_entry seq increments ---
     let entry1 = store
         .add_manifest_entry(
@@ -7522,28 +7545,29 @@ async fn atelier_web_portfolio_export_records_portable_manifest_contract() {
 
     let manifest_payload = format!("{marker}-manifest").into_bytes();
     let manifest_artifact = native_artifact(&manifest_payload);
+    let manifest_items = [
+        WebPortfolioManifestItem {
+            asset_id: hero.asset_id,
+            artifact_ref: hero_artifact.artifact_ref.clone(),
+            pack_path: format!("images/{}-hero.png", hero.asset_id),
+            content_hash: hero_artifact.content_hash.clone(),
+            byte_len: hero_artifact.byte_len,
+        },
+        WebPortfolioManifestItem {
+            asset_id: detail.asset_id,
+            artifact_ref: detail_artifact.artifact_ref.clone(),
+            pack_path: format!("images/{}-detail.png", detail.asset_id),
+            content_hash: detail_artifact.content_hash.clone(),
+            byte_len: detail_artifact.byte_len,
+        },
+    ];
     let result = store
         .record_web_portfolio_export_result(
             request.portfolio_export_id,
             &manifest_artifact.artifact_ref,
             &manifest_artifact.content_hash,
             manifest_artifact.byte_len,
-            &[
-                WebPortfolioManifestItem {
-                    asset_id: hero.asset_id,
-                    artifact_ref: hero_artifact.artifact_ref.clone(),
-                    pack_path: format!("images/{}-hero.png", hero.asset_id),
-                    content_hash: hero_artifact.content_hash.clone(),
-                    byte_len: hero_artifact.byte_len,
-                },
-                WebPortfolioManifestItem {
-                    asset_id: detail.asset_id,
-                    artifact_ref: detail_artifact.artifact_ref.clone(),
-                    pack_path: format!("images/{}-detail.png", detail.asset_id),
-                    content_hash: detail_artifact.content_hash.clone(),
-                    byte_len: detail_artifact.byte_len,
-                },
-            ],
+            &manifest_items,
         )
         .await
         .expect("record web portfolio ArtifactStore result and manifest");
@@ -7681,6 +7705,40 @@ async fn atelier_web_portfolio_export_records_portable_manifest_contract() {
             .expect("count web portfolio rendered event"),
         1
     );
+
+    let repeated = store
+        .record_web_portfolio_export_result(
+            request.portfolio_export_id,
+            &manifest_artifact.artifact_ref,
+            &manifest_artifact.content_hash,
+            manifest_artifact.byte_len,
+            &manifest_items,
+        )
+        .await
+        .expect("re-record identical web portfolio result");
+    let canonical = store
+        .get_web_portfolio_export_result(request.portfolio_export_id)
+        .await
+        .expect("reload canonical web portfolio result")
+        .expect("canonical web portfolio result exists");
+    assert_eq!(repeated.result_id, result.result_id);
+    assert_eq!(canonical.result_id, result.result_id);
+    assert_eq!(canonical.manifest_json, result.manifest_json);
+    let rendered_events = embedded_event_payloads(
+        &store,
+        "atelier_web_portfolio_export_request",
+        &request.portfolio_export_id.to_string(),
+        export_event_family::WEB_PORTFOLIO_EXPORT_RENDERED,
+    )
+    .await;
+    assert_eq!(rendered_events.len(), 2, "both render calls append an event");
+    for event in rendered_events {
+        assert_eq!(
+            event["result_id"],
+            serde_json::json!(canonical.result_id),
+            "portfolio render events must reference the persisted result, including replay"
+        );
+    }
 }
 
 #[tokio::test]

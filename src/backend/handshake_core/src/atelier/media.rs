@@ -684,6 +684,16 @@ struct BulkReviewBindings {
     asset_refs: Vec<RecordId>,
     updates: Vec<ReviewUpdateInput>,
     requested_by: String,
+    events: Vec<super::RecordEventBindings>,
+    receipt_rid: RecordId,
+    receipt_id: SurrealUuid,
+    receipt_payload: serde_json::Value,
+}
+
+#[derive(SurrealValue)]
+struct BulkReviewResultRow {
+    metadata: Vec<MediaReviewMetadataRow>,
+    receipt_created_at_utc: Datetime,
 }
 
 const MATERIALIZE_MEDIA_ASSET_STATEMENT: &str = concat!(
@@ -799,13 +809,47 @@ const RETRY_DERIVATIVE_STATEMENT: &str = concat!(
 const BULK_REVIEW_UPDATE_STATEMENT: &str = concat!(
     "RETURN { LET $existing = (SELECT VALUE id FROM atelier_media_asset \
        WHERE id IN $domain.asset_refs); IF array::len($existing) != array::len($domain.asset_refs) \
-       { RETURN []; }; FOR $item IN $domain.updates { UPSERT $item.metadata_rid SET \
+       { THROW 'bulk review media targets changed'; }; ",
+    atelier_event_sql!(),
+    " FOR $item IN $domain.updates { UPSERT $item.metadata_rid SET \
        asset_id = $item.asset_ref, favorite = $item.favorite, rating = $item.rating, \
        frontpage = $item.frontpage, carousel = $item.carousel, notes = $item.notes, \
        review_status = $item.review_status, updated_by = $domain.requested_by, \
-       updated_at_utc = time::now(); }; RETURN (SELECT ",
+       updated_at_utc = time::now(); }; \
+       CREATE $domain.receipt_rid CONTENT { receipt_id: $domain.receipt_id, \
+         operation: 'bulk_update_media_review_metadata', requested_by: $domain.requested_by, \
+         target_count: array::len($domain.asset_refs), mutation_count: array::len($domain.updates), \
+         status: 'applied', payload: $domain.receipt_payload }; \
+       FOR $event IN $domain.events { \
+         LET $ledger_id = $event.ledger_id; \
+         LET $kernel_event_id = $event.kernel_event_id; \
+         LET $event_version = $event.event_version; \
+         LET $kernel_task_run_id = $event.kernel_task_run_id; \
+         LET $session_run_id = $event.session_run_id; \
+         LET $kernel_aggregate_type = $event.kernel_aggregate_type; \
+         LET $kernel_aggregate_id = $event.kernel_aggregate_id; \
+         LET $idempotency_key = $event.idempotency_key; \
+         LET $event_type = $event.event_type; \
+         LET $actor_kind = $event.actor_kind; \
+         LET $actor_id = $event.actor_id; \
+         LET $causation_id = $event.causation_id; \
+         LET $correlation_id = $event.correlation_id; \
+         LET $payload_hash = $event.payload_hash; \
+         LET $source_component = $event.source_component; \
+         LET $ledger_payload = $event.ledger_payload; \
+         LET $created_at = $event.created_at; \
+         LET $atelier_id = $event.atelier_id; \
+         LET $atelier_event_uuid = $event.atelier_event_uuid; \
+         LET $atelier_event_id = $event.atelier_event_id; \
+         LET $event_family = $event.event_family; \
+         LET $atelier_payload = $event.atelier_payload; \
+       ",
+    atelier_event_sql!(),
+    " }; \
+       RETURN { metadata: (SELECT ",
     review_metadata_select!(),
-    " FROM atelier_media_review_metadata WHERE asset_id IN $domain.asset_refs ORDER BY asset_id); };"
+    " FROM atelier_media_review_metadata WHERE asset_id IN $domain.asset_refs ORDER BY asset_id), \
+       receipt_created_at_utc: (SELECT VALUE created_at_utc FROM $domain.receipt_rid)[0] }; };"
 );
 
 fn validate_artifact_ref(artifact_ref: &str) -> AtelierResult<()> {
@@ -2441,68 +2485,187 @@ impl AtelierStore {
                 }
             })
             .collect();
+        let mut supplemental_events = Vec::with_capacity(normalized_updates.len());
+        for update in &normalized_updates {
+            supplemental_events.push(self.prepare_event(
+                event_family::MEDIA_REVIEW_METADATA_UPDATED,
+                "atelier_media_review_metadata",
+                &update.asset_id.to_string(),
+                serde_json::json!({
+                    "asset_id": update.asset_id,
+                    "favorite": update.favorite,
+                    "rating": update.rating,
+                    "frontpage": update.frontpage,
+                    "carousel": update.carousel,
+                    "review_status": update.review_status,
+                    "notes_present": update.notes.is_some(),
+                    "notes_ref": update.notes_ref,
+                    "requested_by": requested_by,
+                }),
+            )?);
+        }
+        let receipt_id = Uuid::now_v7();
+        let count = normalized_updates.len() as i64;
+        let mut ordered_updates: Vec<_> = normalized_updates.iter().collect();
+        ordered_updates.sort_by_key(|update| update.asset_id);
+        let receipt_payload = serde_json::json!({
+            "asset_ids": asset_ids,
+            "metadata_count": normalized_updates.len(),
+            "review_statuses": ordered_updates.iter().map(|update| update.review_status.clone()).collect::<Vec<_>>(),
+        });
         let bindings = BulkReviewBindings {
             asset_refs,
             updates: inputs,
             requested_by: requested_by.to_owned(),
+            events: supplemental_events.iter().map(|event| event.bindings.clone()).collect(),
+            receipt_rid: RecordId::new("atelier_bulk_operation_receipt", SurrealUuid::from(receipt_id)),
+            receipt_id: receipt_id.into(),
+            receipt_payload: receipt_payload.clone(),
         };
-        let rows: Vec<MediaReviewMetadataRow> = self
-            .store()
+        let result: Option<BulkReviewResultRow> = self.write_with_event(
+            BULK_REVIEW_UPDATE_STATEMENT,
+            bindings,
+            event_family::BULK_OPERATION_APPLIED,
+            "atelier_bulk_operation_receipt",
+            &receipt_id.to_string(),
+            serde_json::json!({
+                "receipt_id": receipt_id,
+                "operation": "bulk_update_media_review_metadata",
+                "requested_by": requested_by,
+                "target_count": count,
+                "mutation_count": count,
+                "status": "applied",
+                "receipt_payload": receipt_payload,
+            }),
+        ).await?;
+        let result = result.ok_or_else(|| AtelierError::Internal("bulk review returned no result".into()))?;
+        let metadata: Vec<MediaReviewMetadata> = result.metadata.into_iter()
+            .map(TryInto::try_into).collect::<AtelierResult<_>>()?;
+        let receipt = BulkOperationReceipt {
+            receipt_id,
+            operation: "bulk_update_media_review_metadata".to_owned(),
+            requested_by: requested_by.to_owned(),
+            target_count: count,
+            mutation_count: count,
+            status: "applied".to_owned(),
+            payload: receipt_payload,
+            created_at_utc: result.receipt_created_at_utc.into(),
+        };
+        for prepared in supplemental_events {
+            let key = prepared.bindings.idempotency_key.clone();
+            let recorded: Option<super::RecordedLedgerRow> = self
+                .store()
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move {
+                        ctx.query_first(
+                            "SELECT event_id, event_sequence FROM kernel_event_ledger \
+                             WHERE idempotency_key = $idempotency_key LIMIT 1;",
+                            super::IdempotencyKeyBinding { idempotency_key: key },
+                        )
+                        .await
+                    })
+                })
+                .await?;
+            self.finish_event(prepared, recorded).await?;
+        }
+        Ok(BulkMediaReviewMetadataResult { receipt, metadata })
+    }
+}
+
+#[cfg(test)]
+mod bulk_review_tests {
+    use super::*;
+    use crate::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
+
+    #[derive(SurrealValue)]
+    struct SeedAssetBindings {
+        asset_rid: RecordId,
+        asset_id: SurrealUuid,
+        content_hash: String,
+        artifact_ref: String,
+    }
+
+    async fn seed_media_asset(store: &SurrealStorage, asset_id: Uuid, content_hash: &str) {
+        let bindings = SeedAssetBindings {
+            asset_rid: RecordId::new("atelier_media_asset", SurrealUuid::from(asset_id)),
+            asset_id: SurrealUuid::from(asset_id),
+            content_hash: content_hash.to_owned(),
+            artifact_ref: format!("artifact://atelier/test/{asset_id}"),
+        };
+        let created: Option<bool> = store
             .with_data_operation(move |ctx| {
                 Box::pin(async move {
-                    ctx.query_values(BULK_REVIEW_UPDATE_STATEMENT, bindings)
-                        .await
+                    ctx.query_first(
+                        "RETURN { \
+                           CREATE $asset_rid CONTENT { asset_id: $asset_id, \
+                             content_hash: $content_hash, mime: 'image/png', byte_len: 1, \
+                             artifact_ref: $artifact_ref }; \
+                           RETURN true; };",
+                        bindings,
+                    )
+                    .await
                 })
             })
-            .await?;
-        let metadata: Vec<MediaReviewMetadata> = rows
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<AtelierResult<_>>()?;
-        for persisted in &metadata {
-            let update = normalized_updates
-                .iter()
-                .find(|update| update.asset_id == persisted.asset_id)
-                .ok_or_else(|| {
-                    AtelierError::Internal(
-                        "bulk review result contained an unexpected asset".into(),
-                    )
-                })?;
-            self.record_event(
-                event_family::MEDIA_REVIEW_METADATA_UPDATED,
-                "atelier_media_review_metadata",
-                &persisted.asset_id.to_string(),
-                serde_json::json!({
-                    "asset_id": persisted.asset_id,
-                    "favorite": persisted.favorite,
-                    "rating": persisted.rating,
-                    "frontpage": persisted.frontpage,
-                    "carousel": persisted.carousel,
-                    "review_status": persisted.review_status,
-                    "notes_present": persisted.notes.is_some(),
-                    "notes_ref": update.notes_ref,
-                    "requested_by": requested_by,
-                }),
-            )
-            .await?;
-        }
+            .await
+            .expect("seed media asset");
+        assert_eq!(created, Some(true));
+    }
 
-        let receipt = self
-            .record_bulk_operation_receipt(
-                "bulk_update_media_review_metadata",
-                requested_by,
-                normalized_updates.len() as i64,
-                metadata.len() as i64,
-                serde_json::json!({
-                    "asset_ids": asset_ids,
-                    "metadata_count": metadata.len(),
-                    "review_statuses": metadata
-                        .iter()
-                        .map(|row| row.review_status.clone())
-                        .collect::<Vec<_>>(),
-                }),
-            )
-            .await?;
-        Ok(BulkMediaReviewMetadataResult { receipt, metadata })
+
+    async fn authority_snapshot(storage: &SurrealStorage) -> serde_json::Value {
+        storage.with_data_operation(|ctx| Box::pin(async move {
+            ctx.query_first(
+                "RETURN { metadata: (SELECT * FROM atelier_media_review_metadata ORDER BY id), receipts: (SELECT * FROM atelier_bulk_operation_receipt ORDER BY id), ledger: (SELECT * FROM kernel_event_ledger ORDER BY event_sequence), events: (SELECT * FROM atelier_event ORDER BY id) };",
+                super::super::NoDomain {},
+            ).await
+        })).await.expect("read canonical bulk authority").expect("authority snapshot")
+    }
+
+    #[tokio::test]
+    async fn bulk_review_later_event_failure_rolls_back_metadata_ledger_and_receipt() {
+        let temp = tempfile::tempdir().expect("isolated bulk review store");
+        let storage = SurrealStorage::open(
+            SurrealStorageConfig::for_data_dir(temp.path()).expect("configure store"),
+        ).await.expect("open store");
+        bootstrap_schema(&storage).await.expect("bootstrap schema");
+        let atelier = AtelierStore::new(storage.clone());
+        let first = Uuid::now_v7();
+        let second = Uuid::now_v7();
+        seed_media_asset(&storage, first, "sha256:bulk-review-first").await;
+        seed_media_asset(&storage, second, "sha256:bulk-review-second").await;
+        let before = authority_snapshot(&storage).await;
+        let trigger = format!("DEFINE EVENT mt060_reject_bulk_later_event ON TABLE atelier_event WHEN $after.event_family = 'atelier.media.review_metadata_updated' AND $after.aggregate_id = '{second}' THEN {{ THROW 'mt060_bulk_later_event_rejected'; }};");
+        storage.with_data_operation(move |ctx| Box::pin(async move {
+            ctx.execute_returning(&trigger, super::super::NoDomain {}).await
+        })).await.expect("install second-event rejection");
+        let updates = [first, second].map(|asset_id| MediaReviewMetadataUpdate {
+            asset_id, favorite: true, rating: 4, frontpage: false, carousel: false,
+            notes: Some("reviewed".into()), review_status: "approved".into(),
+        });
+        let error = atelier.bulk_update_media_review_metadata(&updates, "bulk-review-writer")
+            .await.expect_err("later metadata event must abort entire bulk write");
+        assert!(error.to_string().contains("mt060_bulk_later_event_rejected"), "{error}");
+        assert_eq!(authority_snapshot(&storage).await, before,
+            "all metadata, canonical ledger, projections and receipt must roll back");
+        storage.with_data_operation(|ctx| Box::pin(async move {
+            ctx.execute_returning("REMOVE EVENT mt060_reject_bulk_later_event ON TABLE atelier_event;", super::super::NoDomain {}).await
+        })).await.expect("remove rejection trigger");
+        let result = atelier.bulk_update_media_review_metadata(&updates, "bulk-review-writer")
+            .await.expect("retry commits full batch");
+        assert_eq!(result.metadata.len(), 2);
+        assert!(result.metadata.iter().all(|row| row.updated_by == "bulk-review-writer" && row.rating == 4));
+        assert_eq!(result.receipt.target_count, 2);
+        assert_eq!(result.receipt.mutation_count, 2);
+        assert_eq!(result.receipt.payload["metadata_count"], 2);
+        let after = authority_snapshot(&storage).await;
+        for (table, increase) in [("metadata", 2), ("receipts", 1), ("ledger", 3), ("events", 3)] {
+            assert_eq!(after[table].as_array().expect("after rows").len(),
+                before[table].as_array().expect("before rows").len() + increase, "{table}");
+        }
+        let receipt = after["receipts"].as_array().expect("receipts").iter()
+            .find(|row| row["receipt_id"] == result.receipt.receipt_id.to_string())
+            .expect("returned receipt is durably committed");
+        assert_eq!(receipt["payload"], result.receipt.payload);
+        storage.shutdown().await.expect("shutdown bulk review store");
     }
 }
