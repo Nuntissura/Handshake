@@ -14,35 +14,20 @@
  * See `KERNEL_BUILDER_PROTOCOL.md` section "Ready-for-Validation Self-Review"
  * and the Spec-Realism Gate.
  *
- * Two modes:
+ * Default and all emitting invocations derive evidence mechanically from the
+ * current typed contract, source reviews and original command records:
  *
- *   1. Interactive (default). Reads the MT contract, prints each rubric item
- *      with auto-derived findings, prompts for `yes`/`no`/`n/a` and an
- *      explanation, then writes the receipt.
+ *   just kb-ready-checklist WP-{ID} MT-{ID}
  *
- *      just kb-ready-checklist WP-{ID} MT-{ID}
- *
- *   2. Headless JSON mode (`--json`). Prints a JSON skeleton including the
- *      auto-derived findings, and on a follow-up invocation reads a filled-in
- *      skeleton from stdin to emit the receipt. This is the only path that
- *      works inside headless ACP sessions without a TTY.
- *
- *      # 1. Print skeleton:
- *      just kb-ready-checklist WP-{ID} MT-{ID} --json
- *
- *      # 2. Fill in answers/explanations, pipe back via stdin:
- *      cat filled.json | node .GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs WP-{ID} MT-{ID} --json --emit
- *
- *   3. Contract-evidence mode (`--contract-evidence`). Builds the receipt only
- *      from `handoff.kb_ready_checklist_evidence` in the MT contract and
- *      verifies that its product commit is the current clean product tree.
- *
- *      just kb-ready-checklist WP-{ID} MT-{ID} --contract-evidence --emit
+ * --mechanical previews the derived receipt without writing. Legacy --json
+ * and --contract-evidence previews remain available; adding --emit always
+ * selects mechanical derivation and never accepts authored rubric answers.
  *
  * Wired into fail-capture-lib per [CX-205N].
  */
 
 import fs from "node:fs";
+import { deriveMechanicalReady } from "./mechanical-ready-evidence.mjs";
 import path from "node:path";
 import readline from "node:readline";
 import { execFileSync } from "node:child_process";
@@ -966,8 +951,9 @@ async function main() {
       "WP_ID format: WP-<name>",
       "MT_ID format: MT-<id> (or bare numeric id)",
       "--json prints the legacy JSON skeleton (no receipt write)",
-      "--json --emit reads a filled skeleton from stdin and writes the receipt",
-      "--contract-evidence reads typed evidence from the MT contract (add --emit to write the receipt)",
+      "--emit always derives mechanical evidence; authored answers are not emission inputs",
+      "default derives and emits mechanical evidence; --mechanical previews it without writing",
+      "--contract-evidence reads legacy typed answers (compatibility only; not mechanical evidence)",
     ]);
   }
   const wpId = String(positional[0] || "").trim();
@@ -978,6 +964,7 @@ async function main() {
   const jsonMode = flags.has("--json");
   const emitMode = flags.has("--emit");
   const contractEvidenceMode = flags.has("--contract-evidence");
+  const mechanicalMode = emitMode || flags.has("--mechanical") || (!jsonMode && !contractEvidenceMode);
 
   const { mtAbsPath, mtRelPath } = resolveMtContractPath(wpId, mtId);
   const contract = readJson(mtAbsPath);
@@ -989,6 +976,32 @@ async function main() {
   setProductWorktreeResolution(productWorktreeResolution);
 
   const autoFindings = buildAutoFindings(contract);
+
+  if (mechanicalMode) {
+    let nativePlatform = "";
+    try {
+      nativePlatform = /host: (\S+)/.exec(execFileSync("rustc", ["-vV"], {
+        cwd: productWorktreeResolution.root, encoding: "utf8", windowsHide: true,
+      }))?.[1] || "";
+    } catch { /* Missing platform evidence remains a derived blocker. */ }
+    const derived = deriveMechanicalReady({ contract, evidenceBase: REPO_ROOT,
+      productRoot: productWorktreeResolution.root, nativePlatform });
+    const skeleton = buildSkeleton({ wpId, mtId, contract, mtContractPath: mtRelPath,
+      autoFindings, productWorktreeResolution });
+    skeleton.actor_session = String(contract.lifecycle?.claimed_by || "<missing claimant>");
+    skeleton.summary = `Mechanically derived from canonical contract/evidence; HEAD=${derived.binding?.head || "unavailable"}; tree=${derived.binding?.tree || "unavailable"}; source=${derived.binding?.manifest_sha256 || "unavailable"}. ${derived.errors.join("; ")} Historical runtime bindings and subsequent governance-only deltas: ${JSON.stringify({ runtime_bindings: derived.runtime_bindings, retained_artifacts: derived.retained_artifacts })}`;
+    skeleton.rubric_items = RUBRIC.map(rubric => ({ rubric_item_id: rubric.id,
+      question: rubric.question, checked_at_utc: new Date().toISOString(),
+      auto_findings: autoFindings[rubric.id] || [], ...derived.items.get(rubric.id) }));
+    const { receipt, blockers } = buildReceiptFromFilledSkeleton(skeleton, {
+      wpId, mtId, mtContractPath: mtRelPath, autoFindings, productWorktreeResolution });
+    if (emitMode || !flags.has("--mechanical")) {
+      const { relPath } = emitReceipt({ wpId, receipt });
+      process.stdout.write(`${JSON.stringify({ verdict: receipt.overall_verdict, receipt_path: relPath, blockers }, null, 2)}\n`);
+    } else process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);
+    if (receipt.overall_verdict === "BLOCKED") process.exitCode = 2;
+    return;
+  }
 
   if (contractEvidenceMode) {
     const binding = readProductTreeBinding(productWorktreeResolution);

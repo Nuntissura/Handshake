@@ -21,6 +21,16 @@
 
 ## Entries
 
+### 2026.09.08.01 / GOV-CHANGE-20260908-01
+
+- STATUS: APPLIED; final integration pending under `RGF-327`.
+- SUMMARY: Reconciled original component/runtime evidence, full-suite coverage and exact-HEAD non-native CI in the mechanical readiness helper.
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE: `AUDIT-20260908-MT141-MECHANICAL-READY` (`.GOV/Audits/audits/AUDIT-20260908-MT141-MECHANICAL-READY.json`).
+- SURFACES: `.GOV/roles/kernel_builder/scripts/mechanical-ready-evidence.mjs`, `.GOV/roles/kernel_builder/tests/mechanical-ready-evidence.test.mjs`.
+- OUTCOME: Focused provenance, CI, CLI and target-kind regressions pass. Required `just gov-check` exits 1 with twelve previously recorded failures; no helper-specific finding. Root independently checked actual original evidence; MT readiness remains pending final gate. Separate checklist integration changes were inspected, not authored or staged by this lane.
+
+
 ### 2026.07.14.01 / GOV-CHANGE-20260714-01
 
 - Status: APPLIED

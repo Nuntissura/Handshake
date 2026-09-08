@@ -1,0 +1,139 @@
+{
+  "schema_id": "hsk.governance_maintenance_audit@1",
+  "AUDIT_ID": "AUDIT-20260908-MT141-MECHANICAL-READY",
+  "CHANGESET_ID": "GOV-CHANGE-20260908-01",
+  "governance_item": "RGF-327",
+  "owner": "KERNEL_BUILDER-20260908-031957",
+  "status": "IMPLEMENTED_PENDING_FINAL_GATE",
+  "updated_at": "2026-09-08T03:43:27.6933355Z",
+  "scope": [
+    ".GOV/roles/kernel_builder/scripts/mechanical-ready-evidence.mjs",
+    ".GOV/roles/kernel_builder/tests/mechanical-ready-evidence.test.mjs"
+  ],
+  "driver": "MT141 readiness could not reconcile original component builds, full-suite provenance and independently fetched non-native CI without weakening proof or repeating unchanged runtime.",
+  "implementation": [
+    "Hash-bound original build/runtime component receipts with invocation-local immutable-input reuse.",
+    "Metadata-closed suite target inventory, unfiltered runtime counts and per-target original compiler configuration reconciliation.",
+    "Exact-HEAD provider job plus original checkout/Cargo build log verification.",
+    "Correct lib/bin/test command synthesis and standalone CLI fail capture."
+  ],
+  "verification": [
+    {
+      "command": "node --test .GOV/roles/kernel_builder/tests/mechanical-ready-evidence.test.mjs",
+      "result": "17/17 passed before later narrowly tested CLI/CI/target-kind additions"
+    },
+    {
+      "command": "focused source-binding CLI, CI alternative and component proof patterns",
+      "result": "Each passed after its affected final edit; component proof includes lib/bin/test argv"
+    },
+    {
+      "command": "node --test .GOV/roles_shared/tests/fail-capture-lib.test.mjs",
+      "result": "4/4 passed"
+    },
+    {
+      "command": "just gov-check",
+      "result": "exit 1; 12 failed checks, all previously failed September 6; no owned helper finding",
+      "log": "../Handshake/_Artifacts/handshake-tool/m141-takeover/finish-gate-gov-check.log"
+    }
+  ],
+  "independent_proof": "Root independently accepted actual storage receipt, rejected altered post-run binary hash, and checked actual CI positive/non-build negative. Final MT readiness remains root-owned.",
+  "rollback": "Remove only this lane changes using reviewed patch provenance; both helper files existed untracked before takeover. Do not delete their pre-existing content or revert the separate checklist integration lane.",
+  "integration_review": {
+    "unrelated_diff": "No unrelated hunk found in inspected current diff; legacy preview branches remain unchanged. Not staged or authored by this reviewer.",
+    "file": ".GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs",
+    "disposition": "READ_ONLY_OTHER_LANE",
+    "necessary": [
+      "deriveMechanicalReady import",
+      "mechanicalMode selection for default/emit and explicit preview",
+      "current native host discovery and derive invocation",
+      "map derived rubric into existing receipt builder, emit or preview and preserve BLOCKED exit2",
+      "help/comment changes explaining removal of authored-answer emission"
+    ]
+  },
+  "findings": [
+    {
+      "disposition": "repaired and focused-tested",
+      "FAILURE_CLASS": "OWNED",
+      "ROLE_OWNER": "KERNEL_BUILDER",
+      "SYSTEM_SCOPE": "readiness helper",
+      "CATEGORY": "EVIDENCE_COMPATIBILITY"
+    },
+    {
+      "disposition": "retained red; exact WP012 MT141 markdown_projection.path warning identical September6 and September8",
+      "FAILURE_CLASS": "PRE_EXISTING",
+      "ROLE_OWNER": "governance owners",
+      "SYSTEM_SCOPE": "12 existing gov-check failures",
+      "CATEGORY": "GOVERNANCE_BASELINE"
+    }
+  ],
+  "positive_control": {
+    "CONTROL_TYPE": "negative regression",
+    "REGRESSION_GUARDS": "mechanical-ready-evidence.test.mjs plus root independent original-artifact checks",
+    "What went well": "Binary hash tampering, cropped suite identities, filtered runs and non-build CI evidence rejected.",
+    "CONTROL_ID": "MT141-ORIGINAL-PROOF"
+  },
+  "Silent Failures, Command Surface Misuse, and Ambiguity Scan": {
+    "wrong_commands": "PowerShell brace expansion and unquoted HEAD tree revision failed during reads; corrected before any dependent action.",
+    "silent_failures": "Step names alone and cropped suite inventories could create false greens; now checked against original logs and current metadata.",
+    "read_amplification": "Large authority and diagnostic outputs required bounded rereads; shared immutable receipt caches avoid repeated source hashing across runtime components.",
+    "ambiguity": "Explicit operator artifact root overrides conflicting sibling-root examples; root owns lifecycle, runtime agent owns Cargo."
+  },
+  "Workflow Dossier Closeout Rubric": [
+    {
+      "NUMERIC_SCORE": 6,
+      "CURRENT_STATE": "MEDIUM",
+      "TREND": "IMPROVED",
+      "target": "Workflow Smoothness",
+      "What still hurts": "Final gate pending",
+      "What improved": "Original proof reusable",
+      "Next structural fix": "None beyond final integration",
+      "Evidence": "Component reuse and exact target-kind reconstruction are tested"
+    },
+    {
+      "NUMERIC_SCORE": 2,
+      "CURRENT_STATE": "MEDIUM",
+      "TREND": "FLAT",
+      "target": "Master Spec Gap Reduction",
+      "What still hurts": "Product validation separate",
+      "What improved": "No product claim",
+      "Next structural fix": "Root completes MT proof",
+      "Evidence": "Governance-only helper scope"
+    },
+    {
+      "NUMERIC_SCORE": 6,
+      "CURRENT_STATE": "MEDIUM",
+      "TREND": "IMPROVED",
+      "target": "Token Cost Pressure",
+      "What still hurts": "Authority rereads",
+      "What improved": "No duplicate Cargo runtime",
+      "Next structural fix": "Use bounded reads",
+      "Evidence": "Shared input caches and focused validation reuse"
+    },
+    {
+      "NUMERIC_SCORE": 5,
+      "CURRENT_STATE": "MEDIUM",
+      "TREND": "IMPROVED",
+      "target": "Communication Maturity",
+      "What still hurts": "Final governance records coordinated manually",
+      "What improved": "Direct cross-agent correction",
+      "Next structural fix": "Root final typed handoff",
+      "Evidence": "Direct runtime-agent kind finding corrected and root independent review"
+    },
+    {
+      "NUMERIC_SCORE": 6,
+      "CURRENT_STATE": "MEDIUM",
+      "TREND": "FLAT",
+      "target": "Terminal and Session Hygiene",
+      "What still hurts": "repomem open auto-closed peer session",
+      "What improved": "Scoped artifacts",
+      "Next structural fix": "Root canonical actor reconciliation",
+      "Evidence": "No foreground launch or process termination; test fixtures cleaned"
+    }
+  ],
+  "record_validation": [
+    "repo-governance-board-check: exit0; two existing RGF dependency warnings",
+    "docs-check: exit0",
+    "git diff --check on the two records: exit0",
+    "JSON parsed after write; paths are relative to governance worktree root"
+  ]
+}
