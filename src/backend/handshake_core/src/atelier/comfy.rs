@@ -1949,7 +1949,7 @@ const WRITE_WORKFLOW_SPEC_STATEMENT: &str = concat!(
 );
 
 const GET_VERSION_METADATA_STATEMENT: &str =
-    "SELECT version_metadata_id, workflow_run_id, record::id(spec_id) AS spec_id, \
+    "SELECT version_metadata_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, \
             pose_model_asset_version, image_tool_version, comfy_model_version, \
             preflight_evidence, created_at_utc, updated_at_utc \
      FROM atelier_comfy_version_metadata WHERE workflow_run_id = $workflow_run_id LIMIT 1;";
@@ -1962,7 +1962,7 @@ const WRITE_VERSION_METADATA_STATEMENT: &str = concat!(
          comfy_model_version: $domain.comfy_model_version, \
          preflight_evidence: $domain.preflight_evidence, updated_at_utc: time::now() }; ",
     atelier_event_sql!(),
-    " RETURN (SELECT version_metadata_id, workflow_run_id, record::id(spec_id) AS spec_id, \
+    " RETURN (SELECT version_metadata_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, \
        pose_model_asset_version, image_tool_version, comfy_model_version, \
        preflight_evidence, created_at_utc, updated_at_utc FROM $rid)[0]; };"
 );
@@ -1983,15 +1983,15 @@ const WRITE_DIAGNOSTIC_BUNDLE_STATEMENT: &str = concat!(
 );
 
 const FIND_COMFY_JOB_BY_RUN_STATEMENT: &str =
-    "SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, status, \
+    "SELECT job_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, request_json, status, \
             partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
      FROM atelier_comfy_job WHERE workflow_run_id = $workflow_run_id LIMIT 1;";
 const GET_COMFY_JOB_STATEMENT: &str =
-    "SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, status, \
+    "SELECT job_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, request_json, status, \
             partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
      FROM $record_id LIMIT 1;";
 const LIST_COMFY_JOBS_STATEMENT: &str =
-    "SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, status, \
+    "SELECT job_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, request_json, status, \
             partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
      FROM atelier_comfy_job ORDER BY queued_at ASC, job_id ASC;";
 const WRITE_COMFY_JOB_STATEMENT: &str = concat!(
@@ -2001,7 +2001,7 @@ const WRITE_COMFY_JOB_STATEMENT: &str = concat!(
          partial_evidence_ref: NONE, error_reason: NONE, queued_at: time::now(), \
          started_at: NONE, finished_at: NONE }; ",
     atelier_event_sql!(),
-    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+    " RETURN (SELECT job_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, request_json, \
        status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
        FROM $rid)[0]; };"
 );
@@ -2011,7 +2011,7 @@ const MARK_COMFY_JOB_RUNNING_STATEMENT: &str = concat!(
          THROW 'atelier comfy job transition source changed'; }; \
        UPDATE $rid SET status = 'RUNNING', started_at = time::now(); ",
     atelier_event_sql!(),
-    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+    " RETURN (SELECT job_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, request_json, \
        status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
        FROM $rid)[0]; };"
 );
@@ -2021,7 +2021,7 @@ const MARK_COMFY_JOB_COMPLETED_STATEMENT: &str = concat!(
          THROW 'atelier comfy job transition source changed'; }; \
        UPDATE $rid SET status = 'COMPLETED', finished_at = time::now(); ",
     atelier_event_sql!(),
-    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+    " RETURN (SELECT job_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, request_json, \
        status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
        FROM $rid)[0]; };"
 );
@@ -2030,7 +2030,7 @@ const ATTACH_COMFY_JOB_EVIDENCE_STATEMENT: &str = concat!(
        IF !record::exists($rid) { THROW 'atelier comfy job disappeared'; }; \
        UPDATE $rid SET partial_evidence_ref = $domain.partial_evidence_ref; ",
     atelier_event_sql!(),
-    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+    " RETURN (SELECT job_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, request_json, \
        status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
        FROM $rid)[0]; };"
 );
@@ -2040,9 +2040,9 @@ const TERMINATE_COMFY_JOB_STATEMENT: &str = concat!(
          THROW 'atelier comfy job transition source changed'; }; \
        UPDATE $rid SET status = $domain.status, error_reason = $domain.reason, \
          partial_evidence_ref = IF $domain.partial_evidence_ref = NONE { partial_evidence_ref } \
-           ELSE { $domain.partial_evidence_ref } END, finished_at = time::now(); ",
+           ELSE { $domain.partial_evidence_ref }, finished_at = time::now(); ",
     atelier_event_sql!(),
-    " RETURN (SELECT job_id, workflow_run_id, record::id(spec_id) AS spec_id, request_json, \
+    " RETURN (SELECT job_id, workflow_run_id, IF spec_id = NONE { NONE } ELSE { record::id(spec_id) } AS spec_id, request_json, \
        status, partial_evidence_ref, error_reason, queued_at, started_at, finished_at \
        FROM $rid)[0]; };"
 );
@@ -2076,11 +2076,11 @@ const GET_CAPABILITY_REGISTRATION_STATEMENT: &str =
      FROM atelier_comfy_capability_registration \
      WHERE workflow_run_id = $workflow_run_id LIMIT 1;";
 const LIST_DECLARED_OUTPUTS_STATEMENT: &str =
-    "SELECT output_slot, media_kind, expected_mime, routing_intent \
+    "SELECT seq, output_slot, media_kind, expected_mime, routing_intent \
      FROM atelier_comfy_declared_output WHERE registration_id = $registration_id \
      ORDER BY seq ASC;";
 const LIST_CAPABILITY_REJECTS_STATEMENT: &str =
-    "SELECT output_slot, reason FROM atelier_comfy_capability_reject \
+    "SELECT seq, output_slot, reason FROM atelier_comfy_capability_reject \
      WHERE registration_id.workflow_run_id = $workflow_run_id ORDER BY seq ASC;";
 const WRITE_CAPABILITY_REGISTRATION_STATEMENT: &str = concat!(
     "RETURN { LET $rid = $domain.record_id; \
@@ -2110,7 +2110,7 @@ const WRITE_CAPABILITY_REGISTRATION_STATEMENT: &str = concat!(
 macro_rules! intake_output_columns {
     () => {
         "intake_output_id, workflow_run_id, node_execution_id, \
-         record::id(registration_id) AS registration_id, source_node_instance_id, \
+         IF registration_id = NONE { NONE } ELSE { record::id(registration_id) } AS registration_id, source_node_instance_id, \
          source_output_slot, media_kind, mime, artifact_ref, artifact_manifest_ref, \
          content_hash, routing_intent, parent_artifact_ref, prompt_json_ref, graph_hash, seed, \
          workflow_input_metadata, materialized_at_utc"
@@ -2160,7 +2160,7 @@ macro_rules! failure_columns {
          artifact_manifest_ref, content_hash, routing_intent, parent_artifact_ref, \
          prompt_json_ref, graph_hash, seed, workflow_input_metadata, failure_stage, \
          failure_reason, evidence, status, retry_count, \
-         record::id(resolved_intake_output_id) AS resolved_intake_output_id, \
+         IF resolved_intake_output_id = NONE { NONE } ELSE { record::id(resolved_intake_output_id) } AS resolved_intake_output_id, \
          created_at_utc, updated_at_utc"
     };
 }
@@ -2188,19 +2188,19 @@ const WRITE_FAILURE_STATEMENT: &str = concat!(
        workflow_run_id: type::uuid($domain.data.workflow_run_id), \
        node_execution_id: $domain.data.node_execution_id, \
        attempted_registration_id: IF $domain.data.attempted_registration_id IN [NONE, NULL] { NONE } \
-         ELSE { type::uuid($domain.data.attempted_registration_id) } END, \
+         ELSE { type::uuid($domain.data.attempted_registration_id) }, \
        source_node_instance_id: $domain.data.source_node_instance_id, \
        source_output_slot: $domain.data.source_output_slot, media_kind: $domain.data.media_kind, \
        mime: $domain.data.mime, artifact_ref: $domain.data.artifact_ref, \
        artifact_manifest_ref: $domain.data.artifact_manifest_ref, content_hash: $domain.data.content_hash, \
        routing_intent: $domain.data.routing_intent, \
        parent_artifact_ref: IF $domain.data.parent_artifact_ref IN [NONE, NULL] { NONE } \
-         ELSE { $domain.data.parent_artifact_ref } END, \
+         ELSE { $domain.data.parent_artifact_ref }, \
        prompt_json_ref: IF $domain.data.prompt_json_ref IN [NONE, NULL] { NONE } \
-         ELSE { $domain.data.prompt_json_ref } END, \
+         ELSE { $domain.data.prompt_json_ref }, \
        graph_hash: IF $domain.data.graph_hash IN [NONE, NULL] { NONE } \
-         ELSE { $domain.data.graph_hash } END, \
-       seed: IF $domain.data.seed IN [NONE, NULL] { NONE } ELSE { $domain.data.seed } END, \
+         ELSE { $domain.data.graph_hash }, \
+       seed: IF $domain.data.seed IN [NONE, NULL] { NONE } ELSE { $domain.data.seed }, \
        workflow_input_metadata: $domain.data.workflow_input_metadata, \
        failure_stage: $domain.data.failure_stage, failure_reason: $domain.data.failure_reason, \
        evidence: $domain.data.evidence, updated_at_utc: time::now() }; ",
@@ -2241,7 +2241,7 @@ const WRITE_WORKFLOW_RECEIPT_STATEMENT: &str = concat!(
        character_ref: $domain.data.character_ref, workflow_spec_ref: $domain.data.workflow_spec_ref, \
        workflow_json_ref: $domain.data.workflow_json_ref, prompt_ref: $domain.data.prompt_ref, \
        all_refs: $domain.data.all_refs, outputs: $domain.data.outputs, status: $domain.data.status, \
-       error_ref: $domain.data.error_ref, evidence: $domain.data.evidence, \
+       error_ref: IF $domain.data.error_ref IN [NONE, NULL] { NONE } ELSE { $domain.data.error_ref }, evidence: $domain.data.evidence, \
        receipt_json: $domain.data.receipt_json, updated_at_utc: time::now() }; ",
     atelier_event_sql!(),
     " RETURN (SELECT ", workflow_receipt_columns!(), " FROM $rid)[0]; };"
