@@ -228,6 +228,9 @@ pub async fn materialize_loom_asset(
                 .ok_or(error)?,
         },
     };
+    if asset.classification != new_asset.classification || asset.exportable != new_asset.exportable {
+        return Err(StorageError::Conflict("loom_artifact_content_policy"));
+    }
     verify_bytes(&asset.content_hash, asset.size_bytes, bytes)?;
     let binding = storage
         .reserve_loom_artifact_binding(ctx, &asset, retention_ttl_days)

@@ -467,5 +467,131 @@ async fn loom_artifact_migration_preserves_identity_and_recovers_real_boundaries
         handshake_core::storage::artifacts::ArtifactClassification::High
     );
     assert!(!high_manifest.exportable);
+
+    // Equal content cannot silently substitute another classification/export policy.
+    let collision_bytes = b"mt068-policy-collision";
+    let collision_hash = handshake_core::storage::artifacts::sha256_hex(collision_bytes);
+    let collision_input = |classification: &str, exportable: bool| NewAsset {
+        workspace_id: ws.clone(),
+        kind: "original".to_owned(),
+        mime: "application/octet-stream".to_owned(),
+        original_filename: Some("policy-collision.bin".to_owned()),
+        content_hash: collision_hash.clone(),
+        size_bytes: collision_bytes.len() as i64,
+        width: None,
+        height: None,
+        classification: classification.to_owned(),
+        exportable,
+        is_proxy_of: None,
+        proxy_asset_id: None,
+    };
+    let collision = store
+        .db
+        .create_asset(&ctx, collision_input("low", true))
+        .await
+        .unwrap();
+    let collision_source = loom_asset_blob_path(root.path(), &ws, &collision.kind, &collision_hash);
+    fs::create_dir_all(collision_source.parent().unwrap()).unwrap();
+    fs::write(&collision_source, collision_bytes).unwrap();
+    let original_metadata = serde_json::to_value(&collision).unwrap();
+    for canonical in [false, true] {
+        if canonical {
+            assert_eq!(
+                migrate_loom_asset(&store.db, &ctx, root.path(), &collision, Some(30))
+                    .await
+                    .unwrap(),
+                collision_bytes
+            );
+        }
+        let prior_binding = store
+            .db
+            .get_loom_artifact_binding(&ws, &collision.asset_id)
+            .await
+            .unwrap();
+        if canonical {
+            let binding = prior_binding.as_ref().unwrap();
+            assert_eq!(binding.state, LoomArtifactBindingState::Ready);
+            assert_eq!(binding.retention_ttl_days, Some(30));
+        } else {
+            assert!(prior_binding.is_none());
+        }
+        let prior_events = store
+            .db
+            .list_kernel_events_for_aggregate("loom_asset", &collision.asset_id)
+            .await
+            .unwrap()
+            .len();
+        for (classification, exportable) in [("high", false), ("high", true), ("low", false)] {
+            let error = handshake_core::loom_fs::materialize_loom_asset(
+                &store.db,
+                &ctx,
+                root.path(),
+                collision_input(classification, exportable),
+                collision_bytes,
+                Some(30),
+            )
+            .await
+            .expect_err("incompatible content policy must not deduplicate successfully");
+            assert!(
+                matches!(
+                    error,
+                    handshake_core::storage::StorageError::Conflict("loom_artifact_content_policy")
+                ),
+                "exact policy conflict required: {error}"
+            );
+            assert_eq!(
+                store
+                    .db
+                    .get_loom_artifact_binding(&ws, &collision.asset_id)
+                    .await
+                    .unwrap(),
+                prior_binding,
+                "policy conflict cannot reserve or change canonical identity/TTL"
+            );
+            assert_eq!(
+                serde_json::to_value(store.db.get_asset(&ws, &collision.asset_id).await.unwrap())
+                    .unwrap(),
+                original_metadata,
+                "policy conflict preserves asset identity and all catalog metadata"
+            );
+            assert_eq!(
+                store
+                    .db
+                    .list_kernel_events_for_aggregate("loom_asset", &collision.asset_id)
+                    .await
+                    .unwrap()
+                    .len(),
+                prior_events,
+                "rejected policy emits no binding transition"
+            );
+            if canonical {
+                assert_eq!(
+                    read_loom_asset_bytes(&store.db, &ctx, root.path(), &collision)
+                        .await
+                        .unwrap(),
+                    collision_bytes
+                );
+                let manifest = handshake_core::storage::artifacts::read_artifact_manifest(
+                    root.path(),
+                    ArtifactLayer::L1,
+                    prior_binding.as_ref().unwrap().artifact_id,
+                )
+                .unwrap();
+                assert_eq!(
+                    manifest.classification,
+                    handshake_core::storage::artifacts::ArtifactClassification::Low
+                );
+                assert!(manifest.exportable);
+                assert_eq!(manifest.retention_ttl_days, Some(30));
+            } else {
+                assert_eq!(
+                    fs::read(&collision_source).unwrap(),
+                    collision_bytes,
+                    "unbound legacy bytes remain readable without introducing a reservation"
+                );
+            }
+        }
+    }
+
     store.close_and_remove().await.unwrap();
 }
