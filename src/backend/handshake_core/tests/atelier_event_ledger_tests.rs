@@ -25,6 +25,7 @@ use handshake_core::flight_recorder::{
 };
 use handshake_core::kernel::{KernelActor, KernelEventType};
 use handshake_core::storage::Database;
+use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
@@ -531,7 +532,7 @@ async fn atelier_tag_events_use_ref_aggregates_and_hash_character_identity() {
         })
         .await
         .expect("create character for tag event proof");
-    store
+    let tag = store
         .tag_character(
             character.internal_id,
             "Sensitive Manual Tag",
@@ -560,10 +561,43 @@ async fn atelier_tag_events_use_ref_aggregates_and_hash_character_identity() {
         "tag events must not use character internal_id as aggregate_id"
     );
 
-    let tag_events: Vec<serde_json::Value> = database
-        .list_kernel_events_for_aggregate("atelier_character_tag", "bulk")
-        .await
-        .expect("read tag EventLedger events")
+    let mut canonical_tag_events = Vec::new();
+    for (aggregate_key, family) in [
+        (
+            format!("character-tag:{}:{}", character.internal_id, tag.tag_id),
+            search_event_family::CHARACTER_TAGGED,
+        ),
+        (
+            format!(
+                "character-untag:{}:sensitive manual tag",
+                character.internal_id
+            ),
+            search_event_family::CHARACTER_UNTAGGED,
+        ),
+        (
+            format!("character-derived-tags:{}", character.internal_id),
+            search_event_family::DERIVED_TAGS_RECOMPUTED,
+        ),
+    ] {
+        let aggregate_ref = format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(aggregate_key.as_bytes()))
+        );
+        let events = database
+            .list_kernel_events_for_aggregate("atelier_character_tag", &aggregate_ref)
+            .await
+            .expect("read tag EventLedger events");
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.payload["event_family"] == family)
+                .count(),
+            1,
+            "each tag mutation must have its canonical event family"
+        );
+        canonical_tag_events.extend(events);
+    }
+    let tag_events: Vec<serde_json::Value> = canonical_tag_events
         .into_iter()
         .filter(|event| {
             [

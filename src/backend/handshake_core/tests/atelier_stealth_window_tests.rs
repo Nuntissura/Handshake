@@ -575,8 +575,6 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
         "https://example.com/api-import/{}.png?token=api-secret#fragment",
         Uuid::new_v4()
     );
-    let before_url_rows = embedded_row_count(&count_storage, "atelier_image_import_request").await;
-
     let (base_url, server) = start_atelier_api_server(state).await?;
     let client = reqwest::Client::new();
 
@@ -606,6 +604,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
         "clipboard API response must expose the materialized media asset id"
     );
 
+    let before_url_rows = embedded_row_count(&count_storage, "atelier_image_import_request").await;
     let url_response = client
         .post(format!("{base_url}/atelier/image-import/url"))
         .header("x-hsk-actor-id", "operator-import-api")
@@ -756,8 +755,10 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
         .send()
         .await?;
 
-    assert_eq!(record_response.status(), reqwest::StatusCode::CREATED);
-    let recorded: serde_json::Value = record_response.json().await?;
+    let record_status = record_response.status();
+    let record_body = record_response.text().await?;
+    assert_eq!(record_status, reqwest::StatusCode::CREATED, "{record_body}");
+    let recorded: serde_json::Value = serde_json::from_str(&record_body)?;
     let suggestion_id = recorded
         .get("suggestion_id")
         .and_then(serde_json::Value::as_str)
