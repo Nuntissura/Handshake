@@ -461,6 +461,14 @@ async fn deletion_impact_preview_archive_and_restore_cover_media_and_sheet_versi
 
     let character = character(&store, "recoverable-delete").await;
     let asset_id = media_asset(&store, "recoverable-delete").await;
+    let content_hash = store
+        .list_media_gallery_assets(500)
+        .await
+        .expect("read media identity before archive")
+        .into_iter()
+        .find(|asset| asset.asset_id == asset_id)
+        .expect("created media asset exists")
+        .content_hash;
     let sheet = sheet(&store, character.internal_id, "recoverable-delete").await;
     let targets = vec![
         DeletionTargetRef {
@@ -528,11 +536,10 @@ async fn deletion_impact_preview_archive_and_restore_cover_media_and_sheet_versi
         .expect("sheet version marker after archive"));
     assert!(
         store
-            .list_media_gallery_assets(500)
+            .get_media_asset_by_hash(&content_hash)
             .await
-            .expect("list media assets after archive")
-            .iter()
-            .any(|asset| asset.asset_id == asset_id),
+            .expect("read persisted media asset after archive")
+            .is_some_and(|asset| asset.asset_id == asset_id),
         "archive must not physically delete media rows"
     );
     assert!(
