@@ -35,20 +35,10 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{atelier_event_sql, AtelierError, AtelierResult, AtelierStore};
-
-fn stable_stealth_uuid(kind: &str, natural_key: &str) -> Uuid {
-    let digest = Sha256::digest(format!("atelier.stealth:{kind}:{natural_key}").as_bytes());
-    let mut bytes = [0_u8; 16];
-    bytes.copy_from_slice(&digest[..16]);
-    bytes[6] = (bytes[6] & 0x0f) | 0x50;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    Uuid::from_bytes(bytes)
-}
 
 /// Stealth Reference Window event families (MT-205, MT-005).
 ///
@@ -632,7 +622,7 @@ impl From<CaptureRow> for StealthCaptureReceipt {
 }
 
 const CREATE_WINDOW_STATEMENT: &str = concat!(
-    "RETURN { LET $row = (CREATE $domain.record_id CONTENT { window_ref_id: $domain.window_ref_id, owner_actor: $domain.owner_actor, title: $domain.title, visibility: $domain.visibility, quiet_json: $domain.quiet_json, layout_json: $domain.layout_json, status: 'open', revision: 1 } RETURN AFTER)[0]; ",
+    "RETURN { IF array::len((SELECT VALUE id FROM atelier_stealth_window WHERE owner_actor = $domain.owner_actor AND title = $domain.title LIMIT 1)) > 0 { RETURN NONE; }; LET $row = (CREATE $domain.record_id CONTENT { window_ref_id: $domain.window_ref_id, owner_actor: $domain.owner_actor, title: $domain.title, visibility: $domain.visibility, quiet_json: $domain.quiet_json, layout_json: $domain.layout_json, status: 'open', revision: 1 } RETURN AFTER)[0]; ",
     atelier_event_sql!(),
     " RETURN $row; };"
 );
@@ -642,7 +632,7 @@ const ADD_REF_STATEMENT: &str = concat!(
     " RETURN (SELECT ref_id, record::id(window_ref_id) AS window_ref_id, seq, ref_kind, resolver, content_sha256, redaction_state, pinned_at_utc FROM $domain.ref_record)[0]; };"
 );
 const REMOVE_REF_STATEMENT: &str = concat!(
-    "RETURN { LET $window = (SELECT status, revision FROM ONLY $domain.window_record); IF $window = NONE OR $window.status = 'closed' OR $window.revision != $domain.expected_revision { THROW 'HSK-STEALTH-WINDOW-STALE-OR-CLOSED'; }; LET $row = (DELETE $domain.ref_record RETURN BEFORE)[0]; IF $row = NONE { RETURN false; }; UPDATE $domain.window_record SET revision += 1, updated_at_utc = time::now() RETURN NONE; ",
+    "RETURN { LET $window = (SELECT status, revision FROM ONLY $domain.window_record); IF $window = NONE OR $window.status = 'closed' OR $window.revision != $domain.expected_revision { THROW 'HSK-STEALTH-WINDOW-STALE-OR-CLOSED'; }; LET $row = (DELETE $domain.ref_record RETURN BEFORE)[0]; IF $row = NONE { RETURN NONE; }; UPDATE $domain.window_record SET revision += 1, updated_at_utc = time::now() RETURN NONE; ",
     atelier_event_sql!(),
     " RETURN true; };"
 );
@@ -652,7 +642,7 @@ const REORDER_REFS_STATEMENT: &str = concat!(
     " RETURN $row; };"
 );
 const WRITE_CAPTURE_STATEMENT: &str = concat!(
-    "RETURN { LET $window = (SELECT status, revision FROM ONLY $domain.window_record); IF $window = NONE OR $window.status = 'closed' OR $window.revision != $domain.expected_revision { THROW 'HSK-STEALTH-WINDOW-STALE-OR-CLOSED'; }; LET $existing = (SELECT VALUE id FROM atelier_stealth_capture WHERE window_ref_id = $domain.window_record AND artifact_manifest_id = $domain.artifact_manifest_id LIMIT 1)[0]; LET $target = IF $existing = NONE { $domain.capture_record } ELSE { $existing }; UPSERT $target CONTENT { capture_id: record::id($target), window_ref_id: $domain.window_record, artifact_manifest_id: $domain.artifact_manifest_id, content_sha256: $domain.content_sha256 } RETURN NONE; UPDATE $domain.window_record SET revision += 1, updated_at_utc = time::now() RETURN NONE; ",
+    "RETURN { LET $window = (SELECT status, revision FROM ONLY $domain.window_record); IF $window = NONE OR $window.status = 'closed' OR $window.revision != $domain.expected_revision { THROW 'HSK-STEALTH-WINDOW-STALE-OR-CLOSED'; }; LET $existing = (SELECT VALUE id FROM atelier_stealth_capture WHERE window_ref_id = $domain.window_record AND artifact_manifest_id = $domain.artifact_manifest_id LIMIT 1)[0]; LET $target = IF $existing = NONE { $domain.capture_record } ELSE { $existing }; UPSERT $target SET capture_id = record::id($target), window_ref_id = $domain.window_record, artifact_manifest_id = $domain.artifact_manifest_id, content_sha256 = $domain.content_sha256 RETURN NONE; UPDATE $domain.window_record SET revision += 1, updated_at_utc = time::now() RETURN NONE; ",
     atelier_event_sql!(),
     " RETURN (SELECT capture_id, record::id(window_ref_id) AS window_ref_id, artifact_manifest_id, content_sha256, captured_at_utc FROM $target)[0]; };"
 );
@@ -703,8 +693,7 @@ impl AtelierStore {
 
         let layout = new.layout.clone().unwrap_or_else(|| serde_json::json!({}));
 
-        let window_ref_id =
-            stable_stealth_uuid("window", &format!("{}:{}", new.owner_actor, new.title));
+        let window_ref_id = Uuid::now_v7();
         let row: Option<StealthWindowRow> = self
             .write_with_event(
                 CREATE_WINDOW_STATEMENT,
@@ -733,9 +722,14 @@ impl AtelierStore {
                 }),
             )
             .await?;
-        row.map(window_from_row).transpose()?.ok_or_else(|| {
-            AtelierError::Internal("stealth window create returned no row".to_owned())
-        })
+        if let Some(row) = row {
+            return window_from_row(row);
+        }
+        self.get_stealth_window_by_title(&new.owner_actor, &new.title)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::Internal("stealth window create returned no row".to_owned())
+            })
     }
 
     /// Fetch a window by `(owner_actor, title)`.
@@ -818,7 +812,7 @@ impl AtelierStore {
         }
         if !new.redaction_state {
             return Err(AtelierError::Validation(
-                "content ref must assert redaction_state = true; \
+                "content ref must be redacted and assert redaction_state = true; \
                  secrets/cookies/tokens MUST be scrubbed before pinning"
                     .into(),
             ));
@@ -1074,12 +1068,7 @@ impl AtelierStore {
             .into_iter()
             .find(|capture| capture.artifact_manifest_id == artifact_manifest_id)
             .map(|capture| capture.capture_id)
-            .unwrap_or_else(|| {
-                stable_stealth_uuid(
-                    "capture",
-                    &format!("{window_ref_id}:{artifact_manifest_id}"),
-                )
-            });
+            .unwrap_or_else(Uuid::now_v7);
         let row: Option<CaptureRow> = self
             .write_with_event(
                 WRITE_CAPTURE_STATEMENT,

@@ -329,7 +329,7 @@ impl SurrealTransactionContext<'_> {
         } else {
             query.bind(bindings).await?
         };
-        Ok(decode_query_values::<R>(response, 0)?.into_iter().next())
+        decode_first_value(decode_query_values(response, 0)?)
     }
 }
 
@@ -360,6 +360,54 @@ fn decode_query_values<R: surrealdb::types::SurrealValue>(
         return Err(errors.swap_remove(meaningful).1.into());
     }
     Ok(response.take(index)?)
+}
+
+fn decode_first_value<R: surrealdb::types::SurrealValue>(
+    values: Vec<surrealdb::types::Value>,
+) -> Result<Option<R>, SurrealStorageError> {
+    if matches!(values.as_slice(), [surrealdb::types::Value::None]) {
+        return Ok(None);
+    }
+    // Preserve validation of every returned row, even though this API returns
+    // only the first. Only the explicit singleton NONE denotes no result.
+    let rows = values
+        .into_iter()
+        .map(|value| {
+            R::from_value(value).map_err(|error| surrealdb::Error::internal(error.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows.into_iter().next())
+}
+
+#[cfg(test)]
+mod first_value_tests {
+    use super::decode_first_value;
+    use surrealdb::types::Value;
+
+    #[test]
+    fn empty_and_singleton_none_are_absent() {
+        assert_eq!(decode_first_value::<bool>(vec![]).unwrap(), None);
+        assert_eq!(decode_first_value::<bool>(vec![Value::None]).unwrap(), None);
+    }
+
+    #[test]
+    fn valid_rows_return_first_without_skipping_later_validation() {
+        assert_eq!(
+            decode_first_value::<bool>(vec![Value::Bool(true), Value::Bool(false)]).unwrap(),
+            Some(true)
+        );
+        assert!(decode_first_value::<bool>(vec![Value::Bool(true), Value::None]).is_err());
+        assert!(decode_first_value::<bool>(vec![
+            Value::Bool(true),
+            Value::String("malformed".into())
+        ])
+        .is_err());
+    }
+
+    #[test]
+    fn null_is_not_silently_absent() {
+        assert!(decode_first_value::<bool>(vec![Value::Null]).is_err());
+    }
 }
 
 impl SurrealDataContext<'_> {
@@ -522,11 +570,7 @@ impl SurrealDataContext<'_> {
         R: surrealdb::types::SurrealValue,
         B: surrealdb::types::SurrealValue + Send,
     {
-        Ok(self
-            .query_values::<R, B>(statement, bindings)
-            .await?
-            .into_iter()
-            .next())
+        decode_first_value(self.query_values(statement, bindings).await?)
     }
 
     /// Runs a parameterized statement for its effect and reports how many rows

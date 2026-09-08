@@ -1107,6 +1107,41 @@ async fn stealth_window_create_idempotent_and_quiet_default() {
         "idempotent create yields exactly one registry row for the owner"
     );
 
+    let concurrent_input = fresh_window_input();
+    let concurrent = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        futures::future::join_all((0..12).map(|_| store.create_stealth_window(&concurrent_input))),
+    )
+    .await
+    .expect("concurrent first creation is bounded");
+    let windows = concurrent
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .expect("every concurrent caller receives the canonical window");
+    let winner = windows[0].window_ref_id;
+    assert_uuid_v7(winner, "concurrent window winner");
+    assert!(windows.iter().all(|window| window.window_ref_id == winner));
+    assert_eq!(
+        store
+            .harness
+            .row_count_by_field(
+                "atelier_stealth_window",
+                "owner_actor",
+                &concurrent_input.owner_actor
+            )
+            .await,
+        1,
+        "concurrent first creation persists one physical window"
+    );
+    assert_eq!(
+        store
+            .harness
+            .row_count_by_field("kernel_event_ledger", "aggregate_id", &winner.to_string())
+            .await,
+        1,
+        "concurrent first creation persists one canonical event"
+    );
+
     // --- INVARIANT: non-quiet off-screen window is rejected (HBR-QUIET) ---
     let mut loud = fresh_window_input();
     loud.quiet = QuietFlags {

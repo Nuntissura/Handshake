@@ -1226,7 +1226,7 @@ struct DerivedTagsBindings {
 }
 
 macro_rules! saved_search_select { () => { "saved_search_id, name, include_tags_json, exclude_tags_json, min_rating, favorite, color_hex, scope_kind, scope_id, view_mode, created_by, created_at_utc, updated_at_utc" }; }
-macro_rules! ai_suggestion_select { () => { "suggestion_id, record::id(character_internal_id) AS character_internal_id, record::id(asset_id) AS asset_id, tag_text, confidence, model_receipt_ref, tool_receipt_ref, suggested_by, status, decided_by, decision_reason, record::id(applied_tag_id) AS applied_tag_id, created_at_utc, updated_at_utc" }; }
+macro_rules! ai_suggestion_select { () => { "suggestion_id, record::id(character_internal_id) AS character_internal_id, IF asset_id = NONE { NONE } ELSE { record::id(asset_id) } AS asset_id, tag_text, confidence, model_receipt_ref, tool_receipt_ref, suggested_by, status, decided_by, decision_reason, IF applied_tag_id = NONE { NONE } ELSE { record::id(applied_tag_id) } AS applied_tag_id, created_at_utc, updated_at_utc" }; }
 macro_rules! rule_select { () => { "rule_id, source_field_id, match_type, pattern, emit_tag, enabled, created_at_utc, updated_at_utc" }; }
 macro_rules! projection_select { () => { "record::id(asset_internal_id) AS asset_internal_id, dhash_hex, palette_json, updated_at_utc" }; }
 macro_rules! rebuild_select { () => { "job_id, record::id(asset_internal_id) AS asset_internal_id, status, requested_by, processed_count, failed_count, dhash_hex, palette_json, error_ref, created_at_utc, updated_at_utc" }; }
