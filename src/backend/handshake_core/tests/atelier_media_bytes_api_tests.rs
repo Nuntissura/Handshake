@@ -24,7 +24,7 @@ use async_trait::async_trait;
 use atelier_surreal_support::{
     write_native_media_artifact_in_workspace, AtelierSurrealHarness, NativeMediaArtifact,
 };
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
 use handshake_core::api::atelier as atelier_api;
 use handshake_core::atelier::{AtelierStore, MediaAssetBytesError, NewMediaAsset};
 use handshake_core::capabilities::CapabilityRegistry;
@@ -368,6 +368,166 @@ async fn read_tampered_payload_is_hard_error_never_tampered_bytes(ctx: &Ctx) {
     );
 }
 
+async fn concurrent_streaming_writers_preserve_first_published_artifact(ctx: &Ctx) {
+    use handshake_core::storage::artifacts::{
+        read_file_artifact, write_file_artifact, write_file_artifact_streaming,
+        ArtifactClassification, ArtifactError, ArtifactLayer, StreamingFileArtifactSpec,
+    };
+    use tokio::sync::oneshot;
+
+    let artifact_id = Uuid::now_v7();
+    let spec = StreamingFileArtifactSpec {
+        artifact_id,
+        layer: ArtifactLayer::L1,
+        mime: "application/octet-stream".to_owned(),
+        filename_hint: None,
+        created_by_job_id: None,
+        source_entity_refs: Vec::new(),
+        source_artifact_refs: Vec::new(),
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: None,
+        max_bytes: 1024,
+    };
+    let winner_bytes = pseudo_random_payload(0x576401, 128);
+    let loser_bytes = pseudo_random_payload(0x576402, 128);
+    let (a_entered_tx, a_entered_rx) = oneshot::channel();
+    let (b_entered_tx, b_entered_rx) = oneshot::channel();
+    let (a_release_tx, a_release_rx) = oneshot::channel();
+    let (b_release_tx, b_release_rx) = oneshot::channel();
+    let (a_finished_tx, a_finished_rx) = oneshot::channel();
+    let a_payload = winner_bytes.clone();
+    let a_stream = futures::stream::once(async move {
+        a_entered_tx
+            .send(())
+            .expect("signal writer A stream polled");
+        a_release_rx.await.expect("release writer A");
+        Ok::<_, std::io::Error>(a_payload)
+    })
+    .boxed();
+    let b_stream = futures::stream::once(async move {
+        b_entered_tx
+            .send(())
+            .expect("signal writer B stream polled");
+        b_release_rx.await.expect("release writer B");
+        Ok::<_, std::io::Error>(loser_bytes)
+    })
+    .boxed();
+    let artifact_root = l1_root(ctx).join(artifact_id.to_string());
+    let a_spec = spec.clone();
+    let writer_a = async {
+        let result = write_file_artifact_streaming(&ctx.workspace_root, a_spec, a_stream).await;
+        a_finished_tx.send(()).expect("signal writer A finished");
+        result
+    };
+    let writer_b = write_file_artifact_streaming(&ctx.workspace_root, spec, b_stream);
+    let coordinator = async {
+        // A first stream poll occurs after the writer's payload-existence preflight.
+        // Hold both writers there, then let A publish before B can supply any bytes.
+        a_entered_rx.await.expect("writer A passed preflight");
+        b_entered_rx.await.expect("writer B passed preflight");
+        a_release_tx.send(()).expect("let writer A publish");
+        a_finished_rx.await.expect("writer A publication finished");
+        let payload = fs::read(artifact_root.join("payload")).expect("snapshot winner payload");
+        let manifest =
+            fs::read(artifact_root.join("artifact.json")).expect("snapshot winner manifest");
+        b_release_tx
+            .send(())
+            .expect("let writer B attempt publication");
+        (payload, manifest)
+    };
+    let (winner, loser, (payload_before, manifest_before)) =
+        tokio::time::timeout(std::time::Duration::from_secs(120), async {
+            tokio::join!(writer_a, writer_b, coordinator)
+        })
+        .await
+        .expect("gated concurrent publication must finish");
+    let winner = winner.expect("first writer succeeds");
+    assert!(
+        matches!(loser, Err(ArtifactError::Io(ref error)) if error.kind() == std::io::ErrorKind::AlreadyExists),
+        "second writer must lose publication without replacing the winner: {loser:?}"
+    );
+    assert_eq!(payload_before, winner_bytes);
+    assert_eq!(winner.content_hash, sha256_hex(&winner_bytes));
+    assert_eq!(
+        fs::read(artifact_root.join("payload")).unwrap(),
+        payload_before
+    );
+    assert_eq!(
+        fs::read(artifact_root.join("artifact.json")).unwrap(),
+        manifest_before
+    );
+    assert_eq!(
+        read_file_artifact(&ctx.workspace_root, ArtifactLayer::L1, artifact_id)
+            .expect("winner remains readable through verified ArtifactStore read"),
+        winner_bytes
+    );
+
+    // Also pause a stream past preflight while the buffered API publishes the winner.
+    let mixed_id = Uuid::now_v7();
+    let mixed_root = l1_root(ctx).join(mixed_id.to_string());
+    let mut buffered_manifest = winner.clone();
+    buffered_manifest.artifact_id = mixed_id;
+    let mixed_spec = StreamingFileArtifactSpec {
+        artifact_id: mixed_id,
+        layer: winner.layer,
+        mime: winner.mime.clone(),
+        filename_hint: None,
+        created_by_job_id: None,
+        source_entity_refs: Vec::new(),
+        source_artifact_refs: Vec::new(),
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: None,
+        max_bytes: 1024,
+    };
+    let (entered_tx, entered_rx) = oneshot::channel();
+    let (release_tx, release_rx) = oneshot::channel();
+    let mixed_stream = futures::stream::once(async move {
+        entered_tx.send(()).expect("mixed stream passed preflight");
+        release_rx.await.expect("release mixed stream");
+        Ok::<_, std::io::Error>(pseudo_random_payload(0x576403, 128))
+    })
+    .boxed();
+    let mixed_writer = write_file_artifact_streaming(&ctx.workspace_root, mixed_spec, mixed_stream);
+    let buffered_writer = async {
+        entered_rx.await.expect("wait for mixed stream preflight");
+        write_file_artifact(&ctx.workspace_root, &buffered_manifest, &winner_bytes)
+            .expect("buffered writer publishes first");
+        let payload = fs::read(mixed_root.join("payload")).expect("snapshot buffered payload");
+        let manifest =
+            fs::read(mixed_root.join("artifact.json")).expect("snapshot buffered manifest");
+        release_tx.send(()).expect("resume losing mixed stream");
+        (payload, manifest)
+    };
+    let (mixed_loser, (mixed_payload_before, mixed_manifest_before)) =
+        tokio::time::timeout(std::time::Duration::from_secs(120), async {
+            tokio::join!(mixed_writer, buffered_writer)
+        })
+        .await
+        .expect("mixed publication must finish");
+    assert!(
+        matches!(mixed_loser, Err(ArtifactError::Io(ref error)) if error.kind() == std::io::ErrorKind::AlreadyExists),
+        "stream must not replace buffered winner: {mixed_loser:?}"
+    );
+    assert_eq!(mixed_payload_before, winner_bytes);
+    assert_eq!(
+        fs::read(mixed_root.join("payload")).unwrap(),
+        mixed_payload_before
+    );
+    assert_eq!(
+        fs::read(mixed_root.join("artifact.json")).unwrap(),
+        mixed_manifest_before
+    );
+    assert_eq!(
+        read_file_artifact(&ctx.workspace_root, ArtifactLayer::L1, mixed_id)
+            .expect("buffered winner remains readable through verified read"),
+        winner_bytes
+    );
+}
+
 // ---------------------------------------------------------------------------------------------
 // WRITE scenarios: POST /atelier/media-assets (raw body, streamed, size-capped)
 // ---------------------------------------------------------------------------------------------
@@ -632,6 +792,10 @@ async fn media_artifact_byte_read_and_streaming_ingest_proof_on_one_embedded_sto
     scenario!(
         "read_tampered_payload_is_hard_error_never_tampered_bytes",
         read_tampered_payload_is_hard_error_never_tampered_bytes(&ctx)
+    );
+    scenario!(
+        "concurrent_streaming_writers_preserve_first_published_artifact",
+        concurrent_streaming_writers_preserve_first_published_artifact(&ctx)
     );
     scenario!(
         "ingest_streams_raw_body_into_artifact_store_and_serves_it_back",

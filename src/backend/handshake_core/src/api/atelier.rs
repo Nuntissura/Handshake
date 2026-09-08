@@ -184,13 +184,13 @@ struct MediaAssetIngestResponse {
 ///
 /// Ordering and crash consistency (the Atelier pattern, made explicit): blob first, then verify,
 /// then catalog row. If the row write fails or dedups to an existing asset, the just-written
-/// artifact is removed (`remove_file_artifact`) so the blob tier never accumulates payloads with no
-/// catalog row. The reverse failure (row committed, blob missing) cannot happen on this path because
-/// `materialize_media_asset` re-verifies the ArtifactStore binding before it commits.
+/// artifact removal is attempted (`remove_file_artifact`); cleanup failure or a crash can leave
+/// an unreferenced L1 artifact. `materialize_media_asset` re-verifies the ArtifactStore binding
+/// before it commits the catalog row.
 ///
-/// A hard crash strictly between the payload rename and the row commit leaves an orphan L1 artifact
-/// directory. It is never served (serving always starts from a catalog row) and re-ingesting the
-/// same bytes dedups on `content_hash` rather than compounding, but it is NOT reclaimed
+/// A hard crash strictly between payload publication and the row commit leaves an orphan L1 artifact
+/// directory. It is never served (serving always starts from a catalog row). Re-ingest deduplicates
+/// catalogued hashes only, so orphan artifacts can accumulate. They are NOT reclaimed
 /// automatically: `storage::retention` scans only `ArtifactLayer::L3` and only prunes manifests
 /// that carry `retention_ttl_days`, and `atelier::filesystem_health` reports an
 /// `UntrackedOriginal` finding without ever deleting or repairing. Reclaiming orphan L1 payloads is
@@ -302,7 +302,7 @@ async fn ingest_media_asset_bytes(
                     target: "handshake_core::atelier",
                     %artifact_id,
                     error = %cleanup,
-                    "media ingest compensation failed: orphan artifact left for GC"
+                    "media ingest compensation failed: orphan artifact requires explicit cleanup"
                 );
             }
             return Err(atelier_error(err));
@@ -316,7 +316,7 @@ async fn ingest_media_asset_bytes(
                 target: "handshake_core::atelier",
                 %artifact_id,
                 error = %cleanup,
-                "media ingest dedup cleanup failed: duplicate artifact left for GC"
+                "media ingest dedup cleanup failed: duplicate artifact requires explicit cleanup"
             );
         }
     }

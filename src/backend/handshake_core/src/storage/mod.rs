@@ -873,7 +873,8 @@ pub mod artifacts {
         Ok(())
     }
 
-    /// Atomic file write (temp + fsync + rename) with best-effort parent dir fsync.
+    /// Atomic file write (temp + fsync + publication) with best-effort parent dir fsync.
+    /// Write-once publication uses a hard link so a concurrent winner is never replaced.
     pub fn write_file_atomic(
         root: &Path,
         target_path: &Path,
@@ -899,13 +900,6 @@ pub mod artifacts {
         tmp_file.sync_all()?;
         drop(tmp_file);
 
-        if !overwrite && target_path.exists() {
-            let _ = fs::remove_file(&tmp_path);
-            return Err(ArtifactError::Io(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "target already exists (overwrite=false)",
-            )));
-        }
         if overwrite && target_path.exists() {
             if target_path.is_dir() {
                 let _ = fs::remove_file(&tmp_path);
@@ -917,9 +911,17 @@ pub mod artifacts {
             fs::remove_file(target_path)?;
         }
 
-        if let Err(err) = fs::rename(&tmp_path, target_path) {
+        let publication = if overwrite {
+            fs::rename(&tmp_path, target_path)
+        } else {
+            fs::hard_link(&tmp_path, target_path)
+        };
+        if let Err(err) = publication {
             let _ = fs::remove_file(&tmp_path);
             return Err(ArtifactError::Io(err));
+        }
+        if !overwrite {
+            let _ = fs::remove_file(&tmp_path);
         }
 
         if let Ok(dir_handle) = fs::File::open(&parent_canon) {
@@ -1089,7 +1091,7 @@ pub mod artifacts {
         pub exportable: bool,
         pub retention_ttl_days: Option<u32>,
         pub pinned: Option<bool>,
-        /// Hard ceiling in bytes. The write aborts (and leaves nothing behind) the moment the
+        /// Hard ceiling in bytes. The write aborts and attempts temporary-file cleanup when the
         /// stream would exceed it; there is no unbounded-ingest path on this store.
         pub max_bytes: u64,
     }
@@ -1097,8 +1099,8 @@ pub mod artifacts {
     /// Streaming, size-capped counterpart of [`write_file_artifact`]: bytes are hashed and counted
     /// as they arrive and written to a temp file inside the artifact root, so peak memory is one
     /// chunk, not the payload. The manifest is written only after the payload is fsynced and
-    /// renamed into place, so an interrupted upload leaves at most a `.hsk_tmp_*` file that
-    /// [`remove_file_artifact`] / GC can sweep, never a manifest without bytes. The same
+    /// published. Cancellation or a crash can leave temporary files or a payload without a
+    /// manifest; cleanup is best effort and L1 has no automatic reclamation. The same
     /// write-once, hash-addressed contract as the buffered writer holds: an existing `payload` is
     /// never overwritten, and the returned manifest's `content_hash` is the sha256 of exactly the
     /// bytes on disk. This is the ingest primitive the Studio placed-asset binding needs for video
@@ -1189,11 +1191,14 @@ pub mod artifacts {
             return Err(err);
         }
 
-        if let Err(err) = fs::rename(&tmp_path, &payload_path) {
+        // The preflight exists check can become stale while reading the stream.
+        // Linking publishes only if the destination is still absent.
+        if let Err(err) = fs::hard_link(&tmp_path, &payload_path) {
             let _ = fs::remove_file(&tmp_path);
             let _ = fs::remove_dir(&artifact_root_canon);
             return Err(ArtifactError::Io(err));
         }
+        let _ = fs::remove_file(&tmp_path);
         if let Ok(dir_handle) = fs::File::open(&artifact_root_canon) {
             let _ = dir_handle.sync_all();
         }
@@ -1218,7 +1223,8 @@ pub mod artifacts {
             hash_exclude_paths: Vec::new(),
         };
         if let Err(err) = write_artifact_manifest_atomic(&artifact_root_canon, &manifest) {
-            // A payload without its manifest is not an artifact; do not leave a half-written one.
+            // Publication succeeded for this writer; a losing writer returns above
+            // and must never remove another writer's published payload.
             let _ = fs::remove_file(&payload_path);
             let _ = fs::remove_dir(&artifact_root_canon);
             return Err(err);
@@ -1228,8 +1234,8 @@ pub mod artifacts {
 
     /// Remove one artifact (payload + manifest + its directory). This is the compensating action a
     /// caller takes when the catalog write that should have referenced a freshly written artifact
-    /// fails or dedups to an existing row, so the blob tier never accumulates unreferenced
-    /// payloads from the blob-then-row ordering. Refuses anything outside the artifact store root.
+    /// fails or dedups to an existing row. It attempts to remove the unreferenced payload;
+    /// cleanup errors propagate to the caller. Refuses anything outside the artifact store root.
     pub fn remove_file_artifact(
         workspace_root: &Path,
         layer: ArtifactLayer,
@@ -1338,8 +1344,8 @@ pub mod artifacts {
         let payload_path = artifact_root.join("payload");
         let meta = fs::metadata(&payload_path)?;
         if !meta.is_file() {
-            // A directory (bundle) payload, symlink, or other non-file target is not a byte-servable
-            // single-file artifact. Fail closed rather than guessing a body.
+            // A directory (bundle) or other resolved non-file payload is not byte-servable.
+            // Metadata follows symlinks; the resolved file still requires size and hash checks.
             return Err(ArtifactError::InvalidRelPath {
                 path: payload_path.to_string_lossy().to_string(),
             });

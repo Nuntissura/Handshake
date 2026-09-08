@@ -21,10 +21,9 @@ use super::{
     AtelierStore, BulkOperationReceipt,
 };
 
-/// A media asset's catalog row together with its verified payload bytes and the ArtifactStore
-/// manifest the bytes were validated against. Produced only by
-/// [`AtelierStore::read_media_asset_bytes`]; a value of this type is proof that the catalog row,
-/// the manifest, and the on-disk payload all agree on content hash and size.
+/// A media asset's catalog row, payload bytes, and ArtifactStore manifest.
+/// [`AtelierStore::read_media_asset_bytes`] returns this value only after verifying that the
+/// catalog row, manifest, and on-disk payload agree on content hash and size.
 #[derive(Clone, Debug)]
 pub struct MediaAssetBytes {
     pub asset: MediaAsset,
