@@ -726,6 +726,10 @@ async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_roo
 #[tokio::test]
 async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter("off,handshake_core::atelier=error")
+        .with_test_writer()
+        .try_init();
     let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
