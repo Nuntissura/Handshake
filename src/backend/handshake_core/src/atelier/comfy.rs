@@ -2238,7 +2238,7 @@ const WRITE_WORKFLOW_RECEIPT_STATEMENT: &str = concat!(
     "RETURN { LET $rid = $domain.record_id; \
        UPSERT $rid MERGE { receipt_id: $domain.receipt_id, \
        system_id: $domain.data.system_id, workflow_run_id: type::uuid($domain.data.workflow_run_id), \
-       character_ref: $domain.data.character_ref, workflow_spec_ref: $domain.data.workflow_spec_ref, \
+       character_ref: IF $domain.data.character_ref IN [NONE, NULL] { NONE } ELSE { $domain.data.character_ref }, workflow_spec_ref: $domain.data.workflow_spec_ref, \
        workflow_json_ref: $domain.data.workflow_json_ref, prompt_ref: $domain.data.prompt_ref, \
        all_refs: $domain.data.all_refs, outputs: $domain.data.outputs, status: $domain.data.status, \
        error_ref: IF $domain.data.error_ref IN [NONE, NULL] { NONE } ELSE { $domain.data.error_ref }, evidence: $domain.data.evidence, \
