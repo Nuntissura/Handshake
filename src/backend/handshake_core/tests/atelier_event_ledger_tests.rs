@@ -844,7 +844,9 @@ async fn atelier_settings_set_appends_kernel_event_and_flight_recorder_mirror() 
 
 #[tokio::test]
 async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirrors() {
+    eprintln!("MT141_TRACE before_setup");
     let (store, database, flight_recorder, _harness) = connected_store_with_observability().await;
+    eprintln!("MT141_TRACE after_setup_before_create");
 
     let window = store
         .create_stealth_window(&NewStealthWindow {
@@ -856,6 +858,7 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         })
         .await
         .expect("create stealth window");
+    eprintln!("MT141_TRACE after_create_before_add_first");
     let ref0 = store
         .add_stealth_ref(
             window.window_ref_id,
@@ -868,6 +871,7 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         )
         .await
         .expect("add first content ref");
+    eprintln!("MT141_TRACE after_add_first_before_add_second");
     let ref1 = store
         .add_stealth_ref(
             window.window_ref_id,
@@ -880,14 +884,17 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         )
         .await
         .expect("add second content ref");
+    eprintln!("MT141_TRACE after_add_second_before_reorder");
     store
         .reorder_stealth_refs(window.window_ref_id, &[ref1.ref_id, ref0.ref_id], None)
         .await
         .expect("reorder stealth refs");
+    eprintln!("MT141_TRACE after_reorder_before_remove");
     store
         .remove_stealth_ref(window.window_ref_id, ref1.ref_id)
         .await
         .expect("remove stealth ref");
+    eprintln!("MT141_TRACE after_remove_before_capture");
     store
         .record_stealth_capture(
             window.window_ref_id,
@@ -896,10 +903,12 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         )
         .await
         .expect("record stealth capture");
+    eprintln!("MT141_TRACE after_capture_before_close");
     store
         .close_stealth_window(window.window_ref_id)
         .await
         .expect("close stealth window");
+    eprintln!("MT141_TRACE after_close_before_ledger_read");
 
     let aggregate_id = window.window_ref_id.to_string();
     let expected_families: HashSet<&str> = [
@@ -922,6 +931,7 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         .list_kernel_events_for_aggregate("atelier_stealth_window", &aggregate_id)
         .await
         .expect("list kernel events for stealth window");
+    eprintln!("MT141_TRACE after_ledger_read");
     assert_eq!(
         kernel_events.len(),
         7,
@@ -1008,6 +1018,7 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         .list_events(EventFilter::default())
         .await
         .expect("list flight recorder events");
+    eprintln!("MT141_TRACE after_flight_read");
     let flight_families: HashSet<&str> = flight_events
         .iter()
         .filter(|event| {
