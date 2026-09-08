@@ -16,7 +16,7 @@ use surrealdb::{
     Surreal,
 };
 use thiserror::Error;
-use tokio::sync::{watch, Mutex, RwLock};
+use tokio::sync::{oneshot, watch, Mutex, RwLock};
 
 use super::{DefaultStorageGuard, StorageGuard, StorageResult};
 
@@ -157,6 +157,16 @@ pub enum SurrealStorageError {
     },
     #[error("embedded database error: {0}")]
     Database(#[from] surrealdb::Error),
+    #[error("embedded transaction commit failed after its callback completed: {0}")]
+    TransactionCommit(surrealdb::Error),
+    #[error("embedded transaction cancellation failed: {0}")]
+    TransactionCancel(surrealdb::Error),
+    #[error("embedded transaction caller was cancelled")]
+    TransactionCancelled,
+    #[error("embedded transaction callback panicked")]
+    TransactionCallbackPanicked,
+    #[error("embedded transaction worker failed: {0}")]
+    TransactionWorker(String),
     #[error("embedded database is closed")]
     Closed,
     #[error("no platform-local application data directory is available")]
@@ -279,6 +289,8 @@ pub type SurrealOperation<'a, T> =
     Pin<Box<dyn Future<Output = Result<T, SurrealStorageError>> + Send + 'a>>;
 pub(crate) type SurrealStorageOperation<'a, T> =
     Pin<Box<dyn Future<Output = StorageResult<T>> + Send + 'a>>;
+pub(crate) type SurrealTransactionOperation<'a, T, E> =
+    Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'a>>;
 
 tokio::task_local! {
     static INSIDE_SURREAL_OPERATION: ();
@@ -293,6 +305,61 @@ tokio::task_local! {
 /// the lifecycle lease held by [`SurrealStorage::with_data_operation`].
 pub struct SurrealDataContext<'a> {
     client: &'a SurrealClient,
+}
+
+/// A borrowed query facade owned by the storage transaction controller.
+pub(crate) struct SurrealTransactionContext<'a> {
+    transaction: &'a surrealdb::method::Transaction<Db>,
+}
+
+impl SurrealTransactionContext<'_> {
+    pub(crate) async fn query_first<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: surrealdb::types::SurrealValue,
+        B: surrealdb::types::SurrealValue + Send,
+    {
+        let bindings = surrealdb::types::SurrealValue::into_value(bindings);
+        let query = self.transaction.query(statement);
+        let response = if matches!(bindings, surrealdb::types::Value::None) {
+            query.await?
+        } else {
+            query.bind(bindings).await?
+        };
+        Ok(decode_query_values::<R>(response, 0)?.into_iter().next())
+    }
+}
+
+#[cfg(test)]
+static_assertions::assert_not_impl_any!(SurrealTransactionContext<'static>:
+    Clone,
+    std::ops::Deref,
+    AsRef<SurrealClient>,
+    std::borrow::Borrow<SurrealClient>
+);
+
+fn decode_query_values<R: surrealdb::types::SurrealValue>(
+    mut response: surrealdb::IndexedResults,
+    index: usize,
+) -> Result<Vec<R>, SurrealStorageError> {
+    let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+    errors.sort_by_key(|(statement_index, _)| *statement_index);
+    if !errors.is_empty() {
+        let meaningful = errors
+            .iter()
+            .position(|(_, error)| {
+                !error
+                    .to_string()
+                    .to_ascii_lowercase()
+                    .contains("query was not executed due to a failed transaction")
+            })
+            .unwrap_or(0);
+        return Err(errors.swap_remove(meaningful).1.into());
+    }
+    Ok(response.take(index)?)
 }
 
 impl SurrealDataContext<'_> {
@@ -394,26 +461,12 @@ impl SurrealDataContext<'_> {
     {
         let bindings = surrealdb::types::SurrealValue::into_value(bindings);
         let query = self.client.query(statement);
-        let mut response = if matches!(bindings, surrealdb::types::Value::None) {
+        let response = if matches!(bindings, surrealdb::types::Value::None) {
             query.await?
         } else {
             query.bind(bindings).await?
         };
-        let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
-        errors.sort_by_key(|(statement_index, _)| *statement_index);
-        if !errors.is_empty() {
-            let meaningful = errors
-                .iter()
-                .position(|(_, error)| {
-                    !error
-                        .to_string()
-                        .to_ascii_lowercase()
-                        .contains("query was not executed due to a failed transaction")
-                })
-                .unwrap_or(0);
-            return Err(errors.swap_remove(meaningful).1.into());
-        }
-        Ok(response.take(index)?)
+        decode_query_values(response, index)
     }
 
     /// Runs one bound multi-statement query and decodes five result sets from
@@ -698,6 +751,104 @@ impl SurrealStorage {
     {
         self.with_lease(|client| operation(SurrealDataContext { client }))
             .await
+    }
+
+    /// Keeps the lifecycle lease until an explicit transaction is committed or
+    /// cancelled, including when its caller drops the awaiting future.
+    pub(crate) async fn with_transaction<T, E, F>(&self, operation: F) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send
+            + 'static,
+    {
+        use futures::FutureExt;
+
+        let storage = self.clone();
+        let (cancel_sender, mut cancelled) = oneshot::channel::<()>();
+        let worker = tokio::spawn(async move {
+            let result = storage
+                .with_lease(move |client| {
+                    Box::pin(async move {
+                        // Begin must complete even if the caller disappears before the
+                        // SDK has returned the transaction identifier needed to cancel.
+                        let transaction = (*client).clone().begin().await?;
+                        let outcome = {
+                            let context = SurrealTransactionContext {
+                                transaction: &transaction,
+                            };
+                            let callback =
+                                std::panic::AssertUnwindSafe(
+                                    async move { operation(context).await },
+                                )
+                                .catch_unwind();
+                            tokio::pin!(callback);
+                            tokio::select! {
+                                biased;
+                                _ = &mut cancelled => None,
+                                result = &mut callback => Some(result),
+                            }
+                        };
+                        match outcome {
+                            Some(Ok(Ok(value))) => {
+                                if !matches!(
+                                    cancelled.try_recv(),
+                                    Err(oneshot::error::TryRecvError::Empty)
+                                ) {
+                                    transaction
+                                        .cancel()
+                                        .await
+                                        .map_err(SurrealStorageError::TransactionCancel)?;
+                                    return Ok(Err(E::from(
+                                        SurrealStorageError::TransactionCancelled,
+                                    )));
+                                }
+                                // Once commit begins, await its outcome; an attached
+                                // external mirror cannot be undone or replayed safely.
+                                transaction
+                                    .commit()
+                                    .await
+                                    .map_err(SurrealStorageError::TransactionCommit)?;
+                                Ok(Ok(value))
+                            }
+                            Some(Ok(Err(error))) => {
+                                transaction
+                                    .cancel()
+                                    .await
+                                    .map_err(SurrealStorageError::TransactionCancel)?;
+                                Ok(Err(error))
+                            }
+                            Some(Err(_)) => {
+                                transaction
+                                    .cancel()
+                                    .await
+                                    .map_err(SurrealStorageError::TransactionCancel)?;
+                                Ok(Err(E::from(
+                                    SurrealStorageError::TransactionCallbackPanicked,
+                                )))
+                            }
+                            None => {
+                                transaction
+                                    .cancel()
+                                    .await
+                                    .map_err(SurrealStorageError::TransactionCancel)?;
+                                Ok(Err(E::from(SurrealStorageError::TransactionCancelled)))
+                            }
+                        }
+                    })
+                })
+                .await;
+            if let Err(error) = &result {
+                tracing::error!(error = %error, "embedded transaction controller failed");
+            }
+            result.map_err(E::from)?
+        });
+        let result = worker
+            .await
+            .map_err(|error| E::from(SurrealStorageError::TransactionWorker(error.to_string())))?;
+        drop(cancel_sender);
+        result
     }
 
     /// Runs a domain storage operation under the same lifecycle lease while

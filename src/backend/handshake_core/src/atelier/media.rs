@@ -656,7 +656,7 @@ struct BulkReviewBindings {
 }
 
 const MATERIALIZE_MEDIA_ASSET_STATEMENT: &str = concat!(
-    "RETURN { ",
+    "RETURN { IF array::len((SELECT VALUE id FROM atelier_media_asset WHERE content_hash = $domain.content_hash LIMIT 1)) > 0 { RETURN NONE; }; ",
     atelier_event_sql!(),
     " CREATE $domain.asset_rid CONTENT { asset_id: $domain.asset_id, \
        content_hash: $domain.content_hash, mime: $domain.mime, byte_len: $domain.byte_len, \
@@ -767,14 +767,14 @@ const RETRY_DERIVATIVE_STATEMENT: &str = concat!(
 
 const BULK_REVIEW_UPDATE_STATEMENT: &str = concat!(
     "RETURN { LET $existing = (SELECT VALUE id FROM atelier_media_asset \
-       WHERE id IN $domain.asset_refs); IF array::len($existing) != array::len($domain.asset_refs) \
-       { RETURN []; }; FOR $item IN $domain.updates { UPSERT $item.metadata_rid SET \
+       WHERE id IN $asset_refs); IF array::len($existing) != array::len($asset_refs) \
+       { RETURN []; }; FOR $item IN $updates { UPSERT $item.metadata_rid SET \
        asset_id = $item.asset_ref, favorite = $item.favorite, rating = $item.rating, \
        frontpage = $item.frontpage, carousel = $item.carousel, notes = $item.notes, \
-       review_status = $item.review_status, updated_by = $domain.requested_by, \
+       review_status = $item.review_status, updated_by = $requested_by, \
        updated_at_utc = time::now(); }; RETURN (SELECT ",
     review_metadata_select!(),
-    " FROM atelier_media_review_metadata WHERE asset_id IN $domain.asset_refs ORDER BY asset_id); };"
+    " FROM atelier_media_review_metadata WHERE asset_id IN $asset_refs ORDER BY asset_id); };"
 );
 
 fn validate_artifact_ref(artifact_ref: &str) -> AtelierResult<()> {
@@ -1411,9 +1411,13 @@ impl AtelierStore {
             }),
         )
         .await?;
-        row.map(MediaAsset::from).ok_or_else(|| {
+        if let Some(row) = row {
+            return Ok(row.into());
+        }
+        let existing = self.get_media_asset_by_hash(&content_hash).await?.ok_or_else(|| {
             AtelierError::Internal("materializing a media asset returned no row".to_owned())
-        })
+        })?;
+        self.repair_media_asset_manifest_if_needed(existing).await
     }
 
     pub async fn set_media_source_provenance_refs(

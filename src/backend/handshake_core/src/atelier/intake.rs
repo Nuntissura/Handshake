@@ -757,7 +757,7 @@ fn surreal_transaction_retry_delay(seed: Uuid, failed_attempt: usize) -> Duratio
     Duration::from_millis(mixed % (exponential_cap + 1))
 }
 
-async fn wait_before_surreal_transaction_retry(seed: Uuid, failed_attempt: usize) {
+pub(super) async fn wait_before_surreal_transaction_retry(seed: Uuid, failed_attempt: usize) {
     tokio::time::sleep(surreal_transaction_retry_delay(seed, failed_attempt)).await;
 }
 

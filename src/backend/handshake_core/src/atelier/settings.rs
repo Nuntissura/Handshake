@@ -600,8 +600,8 @@ fn preference_from_row(row: PreferenceRow) -> AtelierResult<Preference> {
     })
 }
 
-const GET_PREFERENCE_STATEMENT: &str = "SELECT preference_id, scope_kind, record::id(character_internal_id) AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM atelier_preference WHERE scope_kind = $scope_kind AND character_internal_id = $character_internal_id AND key = $key LIMIT 1;";
-const LIST_PREFERENCES_STATEMENT: &str = "SELECT preference_id, scope_kind, record::id(character_internal_id) AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM atelier_preference WHERE scope_kind = $scope_kind AND character_internal_id = $character_internal_id ORDER BY key ASC;";
+const GET_PREFERENCE_STATEMENT: &str = "SELECT preference_id, scope_kind, IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM atelier_preference WHERE scope_kind = $scope_kind AND character_internal_id = $character_internal_id AND key = $key LIMIT 1;";
+const LIST_PREFERENCES_STATEMENT: &str = "SELECT preference_id, scope_kind, IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM atelier_preference WHERE scope_kind = $scope_kind AND character_internal_id = $character_internal_id ORDER BY key ASC;";
 
 #[derive(Clone, SurrealValue)]
 struct PreferenceScopeKeyBindings {
@@ -649,7 +649,7 @@ const WRITE_PREFERENCE_STATEMENT: &str = concat!(
      LET $target = IF $existing = NONE { $domain.record_id } ELSE { $existing }; \
      IF $existing = NONE { CREATE $target CONTENT { preference_id: $domain.preference_id, scope_kind: $domain.scope_kind, character_internal_id: $domain.character_internal_id, key: $domain.key, namespace: $domain.namespace, name: $domain.name, value_type: $domain.value_type, value: $domain.value, redacted: $domain.redacted, default_value: $domain.default_value, source: $domain.source, updated_by: NONE, revision: $domain.revision, redaction_class: 'public' } RETURN NONE; } ELSE { UPDATE $target SET namespace = $domain.namespace, name = $domain.name, value_type = $domain.value_type, value = $domain.value, redacted = $domain.redacted, default_value = $domain.default_value, source = $domain.source, updated_by = NONE, revision = $domain.revision, redaction_class = 'public', updated_at_utc = time::now() RETURN NONE; }; ",
     atelier_event_sql!(),
-    " RETURN (SELECT preference_id, scope_kind, record::id(character_internal_id) AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM $target)[0]; };"
+    " RETURN (SELECT preference_id, scope_kind, IF character_internal_id = NONE { NONE } ELSE { record::id(character_internal_id) } AS character_internal_id, key, value_type, value, redacted, namespace, name, default_value, source, updated_by, revision, redaction_class, created_at_utc, updated_at_utc FROM $target)[0]; };"
 );
 
 const DELETE_PREFERENCE_STATEMENT: &str = concat!(

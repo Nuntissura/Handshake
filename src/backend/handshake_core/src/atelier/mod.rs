@@ -630,6 +630,7 @@ fn sanitize_atelier_event_payload(value: serde_json::Value) -> serde_json::Value
 
 /// The atelier half of one recorded domain event, carried from
 /// [`AtelierStore::prepare_event`] to [`AtelierStore::finish_event`].
+#[derive(Clone)]
 struct PreparedAtelierEvent {
     atelier_event_id: Uuid,
     event_family: String,
@@ -637,6 +638,13 @@ struct PreparedAtelierEvent {
     aggregate_id: String,
     safe_payload: serde_json::Value,
     bindings: RecordEventBindings,
+}
+
+fn is_retryable_event_transaction_conflict(error: &SurrealStorageError) -> bool {
+    matches!(error, SurrealStorageError::Database(source)
+        if matches!(source.details(), surrealdb::types::ErrorDetails::Query(
+            Some(surrealdb::types::QueryError::NotExecuted)
+        )) && source.message() == "Transaction conflict: Resource busy. This transaction can be retried")
 }
 
 /// Named parameters for [`atelier_event_sql!`].
@@ -1146,20 +1154,86 @@ impl AtelierStore {
         payload: serde_json::Value,
     ) -> AtelierResult<Option<R>>
     where
-        R: surrealdb::types::SurrealValue + Send,
+        R: surrealdb::types::SurrealValue + Send + 'static,
         D: SurrealValue + Send + 'static,
     {
         let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
-        let bindings = prepared.bindings.clone().with_domain(domain);
-        let written: Option<R> = self
-            .store
-            .with_data_operation(move |ctx| {
-                Box::pin(async move { ctx.query_first(statement, bindings).await })
-            })
-            .await?;
-        // The event committed with the row above; this only mirrors it onto the
-        // Flight Recorder, so the ledger identity is re-read rather than
-        // threaded back through the caller's return type.
+        let bindings = prepared.bindings.clone().with_domain(domain).into_value();
+        #[cfg(feature = "runtime-full")]
+        if self.flight_recorder.is_some() {
+            let mut failed_attempt = 0;
+            loop {
+                let store = self.clone();
+                let prepared_attempt = prepared.clone();
+                let attempt_bindings = bindings.clone();
+                let result = self
+                    .store
+                    .with_transaction::<Option<R>, AtelierError, _>(move |ctx| {
+                        Box::pin(async move {
+                            let written: Option<R> =
+                                ctx.query_first(statement, attempt_bindings).await?;
+                            let recorded: Option<RecordedLedgerRow> = ctx
+                                .query_first(
+                                    "SELECT event_id, event_sequence FROM kernel_event_ledger \
+                             WHERE idempotency_key = $idempotency_key LIMIT 1;",
+                                    IdempotencyKeyBinding {
+                                        idempotency_key: prepared_attempt
+                                            .bindings
+                                            .idempotency_key
+                                            .clone(),
+                                    },
+                                )
+                                .await?;
+                            if written.is_none() && recorded.is_none() {
+                                return Ok(None);
+                            }
+                            store.finish_event(prepared_attempt, recorded).await?;
+                            Ok(written)
+                        })
+                    })
+                    .await;
+                match result {
+                    Err(AtelierError::Database(error))
+                        if failed_attempt < 9
+                            && is_retryable_event_transaction_conflict(&error) =>
+                    {
+                        intake::wait_before_surreal_transaction_retry(
+                            prepared.atelier_event_id,
+                            failed_attempt,
+                        )
+                        .await;
+                        failed_attempt += 1;
+                    }
+                    result => return result,
+                }
+            }
+        }
+        let mut failed_attempt = 0;
+        let written: Option<R> = loop {
+            let attempt_bindings = bindings.clone();
+            match self
+                .store
+                .with_data_operation(move |ctx| {
+                    Box::pin(async move { ctx.query_first(statement, attempt_bindings).await })
+                })
+                .await
+            {
+                Ok(row) => break row,
+                Err(error)
+                    if failed_attempt < 9 && is_retryable_event_transaction_conflict(&error) =>
+                {
+                    intake::wait_before_surreal_transaction_retry(
+                        prepared.atelier_event_id,
+                        failed_attempt,
+                    )
+                    .await;
+                    failed_attempt += 1;
+                }
+                Err(error) => return Err(error.into()),
+            }
+        };
+        // Verify the committed ledger identity independently of the caller's
+        // domain projection, which may legitimately return no row.
         let recorded: Option<RecordedLedgerRow> = self
             .store
             .with_data_operation({
@@ -1178,6 +1252,9 @@ impl AtelierStore {
                 }
             })
             .await?;
+        if written.is_none() && recorded.is_none() {
+            return Ok(None);
+        }
         self.finish_event(prepared, recorded).await?;
         Ok(written)
     }
@@ -1263,9 +1340,9 @@ impl AtelierStore {
 
     /// Mirror a recorded event onto the Flight Recorder.
     ///
-    /// The store write is authority and has already committed by the time this
-    /// runs. A failure here is still returned rather than swallowed: a
-    /// diagnostic surface that silently drops events is worse than a loud one.
+    /// Validate the ledger identity and propagate required mirror failures.
+    /// Transactional callers retain responsibility for commit or cancellation;
+    /// this method also serves callers whose store write has already committed.
     async fn finish_event(
         &self,
         prepared: PreparedAtelierEvent,

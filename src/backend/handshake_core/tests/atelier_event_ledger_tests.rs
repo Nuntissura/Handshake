@@ -64,6 +64,41 @@ impl FlightRecorder for MemoryFlightRecorder {
 #[derive(Clone, Default)]
 struct FailingFlightRecorder;
 
+#[derive(Default)]
+struct BlockingFlightRecorder {
+    entered: tokio::sync::Notify,
+    cancelled: tokio::sync::Notify,
+}
+
+struct NotifyOnDrop<'a>(&'a tokio::sync::Notify);
+
+impl Drop for NotifyOnDrop<'_> {
+    fn drop(&mut self) {
+        self.0.notify_one();
+    }
+}
+
+#[async_trait::async_trait]
+impl FlightRecorder for BlockingFlightRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        event.validate()?;
+        let _cancelled = NotifyOnDrop(&self.cancelled);
+        self.entered.notify_one();
+        std::future::pending().await
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(vec![])
+    }
+}
+
 #[async_trait::async_trait]
 impl FlightRecorder for FailingFlightRecorder {
     async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
@@ -844,9 +879,7 @@ async fn atelier_settings_set_appends_kernel_event_and_flight_recorder_mirror() 
 
 #[tokio::test]
 async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirrors() {
-    eprintln!("MT141_TRACE before_setup");
     let (store, database, flight_recorder, _harness) = connected_store_with_observability().await;
-    eprintln!("MT141_TRACE after_setup_before_create");
 
     let window = store
         .create_stealth_window(&NewStealthWindow {
@@ -858,7 +891,6 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         })
         .await
         .expect("create stealth window");
-    eprintln!("MT141_TRACE after_create_before_add_first");
     let ref0 = store
         .add_stealth_ref(
             window.window_ref_id,
@@ -871,7 +903,6 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         )
         .await
         .expect("add first content ref");
-    eprintln!("MT141_TRACE after_add_first_before_add_second");
     let ref1 = store
         .add_stealth_ref(
             window.window_ref_id,
@@ -884,17 +915,14 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         )
         .await
         .expect("add second content ref");
-    eprintln!("MT141_TRACE after_add_second_before_reorder");
     store
         .reorder_stealth_refs(window.window_ref_id, &[ref1.ref_id, ref0.ref_id], None)
         .await
         .expect("reorder stealth refs");
-    eprintln!("MT141_TRACE after_reorder_before_remove");
     store
         .remove_stealth_ref(window.window_ref_id, ref1.ref_id)
         .await
         .expect("remove stealth ref");
-    eprintln!("MT141_TRACE after_remove_before_capture");
     store
         .record_stealth_capture(
             window.window_ref_id,
@@ -903,12 +931,10 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         )
         .await
         .expect("record stealth capture");
-    eprintln!("MT141_TRACE after_capture_before_close");
     store
         .close_stealth_window(window.window_ref_id)
         .await
         .expect("close stealth window");
-    eprintln!("MT141_TRACE after_close_before_ledger_read");
 
     let aggregate_id = window.window_ref_id.to_string();
     let expected_families: HashSet<&str> = [
@@ -931,7 +957,6 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         .list_kernel_events_for_aggregate("atelier_stealth_window", &aggregate_id)
         .await
         .expect("list kernel events for stealth window");
-    eprintln!("MT141_TRACE after_ledger_read");
     assert_eq!(
         kernel_events.len(),
         7,
@@ -1018,7 +1043,6 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         .list_events(EventFilter::default())
         .await
         .expect("list flight recorder events");
-    eprintln!("MT141_TRACE after_flight_read");
     let flight_families: HashSet<&str> = flight_events
         .iter()
         .filter(|event| {
@@ -1037,6 +1061,71 @@ async fn atelier_stealth_mutations_append_kernel_events_and_flight_recorder_mirr
         flight_families, expected_families,
         "Flight Recorder mirrors every stealth mutation/capture family"
     );
+}
+
+#[tokio::test]
+async fn atelier_aborted_mirror_cancels_transaction_before_shutdown_and_reopen() {
+    let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
+    let recorder = Arc::new(BlockingFlightRecorder::default());
+    let store = AtelierStore::with_observability(
+        harness.storage.clone(),
+        harness.database.clone(),
+        recorder.clone(),
+    );
+    let owner_actor = format!("aborted-mirror-{}", Uuid::new_v4());
+    let request = NewStealthWindow {
+        owner_actor: owner_actor.clone(),
+        title: "Abort while mirroring".to_owned(),
+        visibility: VisibilityFlag::OffScreenOnly,
+        quiet: QuietFlags::default(),
+        layout: None,
+    };
+    let caller = tokio::spawn(async move { store.create_stealth_window(&request).await });
+    let bound = std::time::Duration::from_secs(30);
+    tokio::time::timeout(bound, recorder.entered.notified())
+        .await
+        .expect("domain write reached the required mirror");
+    caller.abort();
+    assert!(caller.await.expect_err("caller was aborted").is_cancelled());
+    tokio::time::timeout(bound, recorder.cancelled.notified())
+        .await
+        .expect("owned controller dropped the pending mirror");
+    let data_dir = tokio::time::timeout(bound, harness.close_for_reopen())
+        .await
+        .expect("shutdown drains transaction cancellation");
+    let reopened = atelier_surreal_support::AtelierSurrealHarness::open_existing(data_dir).await;
+    assert!(reopened
+        .atelier
+        .list_stealth_windows(&owner_actor, None, 100)
+        .await
+        .expect("read reopened domain state")
+        .is_empty());
+    assert_eq!(
+        reopened
+            .row_count_by_field("atelier_stealth_window", "owner_actor", &owner_actor)
+            .await,
+        0,
+        "aborted mirror leaves no physical domain row"
+    );
+    assert_eq!(
+        reopened
+            .row_count_by_field(
+                "kernel_event_ledger",
+                "aggregate_type",
+                "atelier_stealth_window"
+            )
+            .await,
+        0,
+        "aborted mirror leaves no canonical ledger row"
+    );
+    assert_eq!(
+        reopened
+            .row_count_by_field("atelier_event", "event_family", STEALTH_REF_WINDOW_CREATED)
+            .await,
+        0,
+        "aborted mirror leaves no compatibility event row"
+    );
+    reopened.shutdown().await;
 }
 
 #[tokio::test]
