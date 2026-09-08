@@ -564,7 +564,7 @@ pub mod artifacts {
 
     const HANDSHAKE_DIR: &str = ".handshake";
     const ARTIFACTS_DIR: &str = "artifacts";
-    const ARTIFACT_MANIFEST_FILENAME: &str = "artifact.json";
+    pub(crate) const ARTIFACT_MANIFEST_FILENAME: &str = "artifact.json";
 
     #[derive(Debug, Error)]
     pub enum ArtifactError {
