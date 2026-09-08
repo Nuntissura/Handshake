@@ -2338,6 +2338,28 @@ pub trait Database: Send + Sync {
 
     // Loom (WP-1-Loom-MVP-v1)
     async fn create_asset(&self, ctx: &WriteContext, asset: NewAsset) -> StorageResult<Asset>;
+    async fn get_loom_artifact_binding(
+        &self,
+        _workspace_id: &str,
+        _asset_id: &str,
+    ) -> StorageResult<Option<LoomArtifactBinding>> {
+        Err(StorageError::NotImplemented("get_loom_artifact_binding"))
+    }
+    async fn reserve_loom_artifact_binding(
+        &self,
+        _ctx: &WriteContext,
+        _expected: &Asset,
+        _retention_ttl_days: Option<u32>,
+    ) -> StorageResult<LoomArtifactBinding> {
+        Err(StorageError::NotImplemented("reserve_loom_artifact_binding"))
+    }
+    async fn publish_loom_artifact_binding(
+        &self,
+        _ctx: &WriteContext,
+        _verified: VerifiedLoomArtifact,
+    ) -> StorageResult<LoomArtifactBinding> {
+        Err(StorageError::NotImplemented("publish_loom_artifact_binding"))
+    }
     async fn get_asset(&self, workspace_id: &str, asset_id: &str) -> StorageResult<Asset>;
     async fn find_asset_by_content_hash(
         &self,

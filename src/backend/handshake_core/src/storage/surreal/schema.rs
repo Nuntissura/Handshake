@@ -20,6 +20,8 @@ pub const SCHEMA_REVISION: i64 = 158;
 /// [`DECLARATIVE_SCHEMA_CATALOG_SHA256`] and [`GENERATED_SURREALQL_SHA256`].
 pub const SCHEMA_LINEAGE_SHA256: &str =
     "225ed19c0259ef121867ca5da1995813db0c48ee0cbfaded2d871e47b50f7fc1";
+// The registry-only predecessor upgrade belongs to the pre-CKC kernel schema.
+const SUPPORTED_PREDECESSOR_REVISION: i64 = 157;
 const PREDECESSOR_GENERATED_SURREALQL_SHA256: &str =
     "c21630b082cd8c505199cc54877d12edfbfcc6069e50f77d28e5b36cb5c8fac0";
 const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
@@ -27,15 +29,15 @@ const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
 const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
     "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4";
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "da18b19cc3b90d70d245de6aa4e430be8370f33de73eda7348ec9901a3dab2bb";
+    "898ad561351e53085a049de33ddd15e88cf7e15acd19ef2c078be8e7296e6054";
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "292f755c0a51de0f50e35f8ba4bdd02fb5177af13a4095ce27a5de4dd96949f5";
+    "a3fe1f37cea404808e257c39d7b07cef6c3383405034390f8e18bc51c2827f96";
 const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "f51ef10d8ebc0c728a075e7a5efe4a19503cd46dea2cfa0f1bfe59332f2e34fa";
 /// Fresh-engine STRUCTURE fingerprint captured with the product-locked SurrealDB 3.2.0
 /// engine family after applying the generated schema to an absent RocksDB path.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "c723e3043a04f06b7196cebab19154f88ea84ca13f78dd63060d6b6ac808d4ba";
+    "13476946d017b742e4df319e9ea7270063571b4804613c80e279b07f64cdc837";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "4b3b16a9a36476b1f448b913a37562d610757010b55a7e938f84f6d87b4bbae7";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -143,7 +145,7 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
     "users",
 ];
 const TABLE_DEFINITION_COUNT: usize = 293;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3219;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3223;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 249;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 180;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -1105,7 +1107,8 @@ impl SchemaState {
     }
 
     fn is_exact_supported_predecessor(&self) -> bool {
-        self.has_stable_v1_identity()
+        SCHEMA_REVISION == SUPPORTED_PREDECESSOR_REVISION
+            && self.has_stable_v1_identity()
             && self.generated_surql_sha256 == PREDECESSOR_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PREDECESSOR_SCHEMA_INFO_SHA256
@@ -1376,13 +1379,13 @@ async fn ensure_knowledge_schema_registry(
 
 /// Installs the sole declarative Surreal schema or verifies an exact-current schema.
 ///
-/// V1 fails closed for every lower, divergent, or unknown lineage. One exact allowlisted
-/// predecessor is upgraded transactionally from its retired registry field to the declarative
-/// `schema_source` field; no deleted migration file is read or executed. The sole resumable
-/// incomplete state is the exact-current `schema_applied` receipt written after committed DDL or
-/// predecessor upgrade. It is finalized only after complete live INFO matches the compiled
-/// fingerprint. A process-wide mutex serializes callers; each transaction rechecks durable state
-/// before mutation. Exact-current restarts return before executing any `OVERWRITE` statement.
+/// The CKC revision rejects pre-CKC, divergent, and unknown lineages without migration or reset.
+/// The retained registry-only predecessor upgrade is restricted to its original kernel revision;
+/// fresh CKC installation does not establish upgrade continuity. The sole resumable incomplete
+/// state is the exact-current `schema_applied` receipt written after committed DDL. It is finalized
+/// only after complete live INFO matches the compiled fingerprint. A process-wide mutex serializes
+/// callers; each transaction rechecks durable state before mutation. Exact-current restarts return
+/// before executing any `OVERWRITE` statement.
 pub async fn bootstrap_schema(
     storage: &SurrealStorage,
 ) -> Result<SchemaBootstrapReport, SurrealStorageError> {
@@ -3248,129 +3251,98 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current() {
-        const CURRENT_HEADER: &str =
-            "-- This transaction is the sole declarative schema authority. Rust bootstrap\n\
--- code verifies these exact bytes, parses every declared object into the pinned\n\
--- semantic catalog, and compares the applied live-engine catalog fail-closed.";
-        const PREDECESSOR_HEADER: &str =
-            "-- This transaction is the bounded Surreal-native projection of the source\n\
--- wave enumerated by `SOURCE_WAVE_FILES` in schema.rs (migrations 0001-0129\n\
--- plus the selected 0130-0365 bands). Every table created by a forward\n\
--- migration in that enumeration is defined here; the source enumeration is the\n\
--- only authority for which migrations are in the wave.";
-
-        let predecessor_schema = SCHEMA.replace(CURRENT_HEADER, PREDECESSOR_HEADER).replace(
-            "DEFINE FIELD OVERWRITE schema_source ON TABLE knowledge_schema_registry TYPE string;",
-            "DEFINE FIELD OVERWRITE migration_file ON TABLE knowledge_schema_registry TYPE string;",
-        );
-        assert_eq!(
-            sha256_hex(predecessor_schema.as_bytes()),
-            PREDECESSOR_GENERATED_SURREALQL_SHA256,
-            "predecessor allowlist must be derived from the exact preceding artifact"
-        );
-        let directory = tempfile::tempdir().expect("temporary predecessor store");
-        let storage = open_test_storage(&directory)
-            .await
-            .expect("open predecessor store");
-        storage
-            .with_admin_operation(|database| {
-                Box::pin(async move {
-                    database
-                        .query_bound(
-                            predecessor_schema.as_str(),
-                            BootstrapBindings {
-                                schema_version: SCHEMA_VERSION.to_owned(),
-                                schema_revision: SCHEMA_REVISION,
-                                namespace: DEFAULT_NAMESPACE.to_owned(),
-                                database: DEFAULT_DATABASE.to_owned(),
-                                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
-                                generated_surql_sha256: PREDECESSOR_GENERATED_SURREALQL_SHA256
-                                    .to_owned(),
-                            },
-                        )
-                        .await?;
-                    database
-                        .query(PREDECESSOR_KNOWLEDGE_SCHEMA_REGISTRY_SEED)
-                        .await?;
-                    ensure_supported_predecessor_registry(&database).await?;
-                    database
-                        .query(format!(
-                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET \
-                             info_fingerprint_sha256 = '{PREDECESSOR_SCHEMA_INFO_SHA256}', \
-                             apply_state = 'complete', updated_at = time::now(); \
-                             CREATE workspaces:mt139_predecessor CONTENT {{ name: 'sentinel' }};"
-                        ))
-                        .await?;
-                    Ok(())
+    async fn bootstrap_rejects_simulated_pre_ckc_predecessor_without_mutation() {
+        // These are deliberately simulated metadata markers, not a historical catalog fixture.
+        // Revision 158 with the old hashes must not enter the revision-157 registry upgrade.
+        async fn snapshot(
+            storage: &SurrealStorage,
+        ) -> Result<Vec<SurrealValueData>, SurrealStorageError> {
+            storage
+                .with_admin_operation(|database| {
+                    Box::pin(async move {
+                        let mut response = database
+                            .query(
+                                "INFO FOR DB STRUCTURE; \
+                                 SELECT * FROM ONLY handshake_schema_state:primary; \
+                                 INFO FOR TABLE knowledge_schema_registry STRUCTURE; \
+                                 SELECT * FROM knowledge_schema_registry ORDER BY id; \
+                                 SELECT * FROM ONLY preexisting:keep;",
+                            )
+                            .await?;
+                        let mut values = Vec::new();
+                        for index in 0..5 {
+                            let value: SurrealValueData = response.take(index)?;
+                            values.push(value);
+                        }
+                        Ok(values)
+                    })
                 })
-            })
-            .await
-            .expect("construct exact predecessor store");
-        storage.shutdown().await.expect("close predecessor store");
+                .await
+        }
 
-        let reopened = open_test_storage(&directory)
-            .await
-            .expect("reopen predecessor store");
-        let upgraded = bootstrap_schema(&reopened)
-            .await
-            .expect("upgrade exact predecessor");
-        assert!(upgraded.reused_existing_schema);
-        assert_eq!(
-            upgraded.outcome,
-            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
-        );
-        assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
-        assert_eq!(
-            upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
-        );
-        reopened
-            .with_admin_operation(|database| {
-                Box::pin(async move {
-                    let mut sentinel = database
-                        .query("RETURN workspaces:mt139_predecessor.name;")
-                        .await?;
-                    let name: Option<String> = sentinel.take(0)?;
-                    assert_eq!(name.as_deref(), Some("sentinel"));
-                    ensure_knowledge_schema_registry(&database).await?;
-                    let mut response = database
-                        .query("INFO FOR TABLE knowledge_schema_registry STRUCTURE;")
-                        .await?;
-                    let info: SurrealValueData = response.take(0)?;
-                    let fields = parse_named_array(&info, "fields")
-                        .unwrap_or_else(|reason| panic!("invalid registry INFO: {reason}"));
-                    assert!(fields.iter().any(|field| field == "schema_source"));
-                    assert!(!fields.iter().any(|field| field == "migration_file"));
-                    Ok(())
-                })
-            })
-            .await
-            .expect("verify upgraded data and registry");
-        reopened.shutdown().await.expect("close upgraded store");
-
-        let current = open_test_storage(&directory)
-            .await
-            .expect("reopen upgraded store");
-        current
-            .with_admin_operation(|database| {
-                Box::pin(async move {
-                    let state = read_context_and_state(&database)
-                        .await?
-                        .expect("upgraded state survives reopen");
-                    assert!(state.is_exact_current());
-                    ensure_knowledge_schema_registry(&database).await?;
-                    let mut sentinel = database
-                        .query("RETURN workspaces:mt139_predecessor.name;")
-                        .await?;
-                    let name: Option<String> = sentinel.take(0)?;
-                    assert_eq!(name.as_deref(), Some("sentinel"));
-                    Ok(())
-                })
-            })
-            .await
-            .expect("verify exact-current durable reopen after upgrade");
-        current.shutdown().await.expect("close current store");
+        for revision in [SUPPORTED_PREDECESSOR_REVISION, SCHEMA_REVISION] {
+            let directory = tempfile::tempdir().expect("temporary unsupported lineage store");
+            let mut original = None;
+            for reopen in 0..2 {
+                let storage = open_test_storage(&directory)
+                    .await
+                    .expect("open unsupported lineage store");
+                if reopen == 0 {
+                    storage
+                        .with_admin_operation(|database| {
+                            Box::pin(async move {
+                                database
+                                    .query(format!(
+                                        "DEFINE TABLE handshake_schema_state SCHEMALESS; \
+                                         CREATE handshake_schema_state:primary CONTENT {{ \
+                                           version: '{SCHEMA_VERSION}', revision: {revision}, \
+                                           namespace: '{DEFAULT_NAMESPACE}', database: '{DEFAULT_DATABASE}', \
+                                           source_manifest_sha256: '{SCHEMA_LINEAGE_SHA256}', \
+                                           generated_surql_sha256: '{PREDECESSOR_GENERATED_SURREALQL_SHA256}', \
+                                           info_fingerprint_sha256: '{PREDECESSOR_SCHEMA_INFO_SHA256}', \
+                                           apply_state: 'complete', target_revision: {revision} \
+                                         }}; \
+                                         DEFINE TABLE knowledge_schema_registry SCHEMAFULL; \
+                                         DEFINE FIELD migration_file ON TABLE knowledge_schema_registry TYPE string; \
+                                         CREATE knowledge_schema_registry:keep SET migration_file = 'retired-source'; \
+                                         CREATE preexisting:keep SET marker = 'untouched';"
+                                    ))
+                                    .await?;
+                                Ok(())
+                            })
+                        })
+                        .await
+                        .expect("seed explicitly simulated predecessor metadata and sentinels");
+                }
+                let before = snapshot(&storage).await.expect("snapshot before rejection");
+                let fields = parse_named_array(&before[2], "fields")
+                    .unwrap_or_else(|reason| panic!("invalid registry INFO: {reason}"));
+                assert!(fields.iter().any(|field| field == "migration_file"));
+                assert!(!fields.iter().any(|field| field == "schema_source"));
+                if let Some(original) = &original {
+                    assert_eq!(&before, original, "reopening must preserve the rejected store");
+                } else {
+                    original = Some(before.clone());
+                }
+                let error = bootstrap_schema(&storage)
+                    .await
+                    .expect_err("pre-CKC predecessor markers must fail before migration");
+                assert!(
+                    error
+                        .to_string()
+                        .contains("HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE"),
+                    "revision={revision}, reopen={reopen}: {error}"
+                );
+                let after = snapshot(&storage)
+                    .await
+                    .expect("canonical reread after rejection");
+                assert_eq!(
+                    after, before,
+                    "rejection must preserve catalog, state, registry, and data"
+                );
+                storage.shutdown().await.expect("close rejected store");
+            }
+        }
     }
 
     #[tokio::test]

@@ -3,6 +3,30 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use uuid::Uuid;
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoomArtifactBindingState {
+    Reserved,
+    Ready,
+}
+
+/// ArtifactStore location on the existing asset row; Asset/NewAsset remain unchanged.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomArtifactBinding {
+    pub asset_id: String,
+    pub workspace_id: String,
+    pub artifact_id: Uuid,
+    pub state: LoomArtifactBindingState,
+    pub retention_ttl_days: Option<u32>,
+}
+
+/// Publication proof constructed only after the Loom filesystem boundary verifies bytes.
+#[derive(Clone, Debug)]
+pub struct VerifiedLoomArtifact {
+    pub(crate) asset: Asset,
+    pub(crate) binding: LoomArtifactBinding,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Asset {
     pub asset_id: String,

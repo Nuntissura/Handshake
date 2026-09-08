@@ -19,21 +19,183 @@ use uuid::Uuid;
 use super::{event_ledger, SurrealDataContext, SurrealStorageError};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::{
-    Asset, LoomBacklink, LoomBlock, LoomBlockContentType, LoomBlockDerived,
-    LoomBlockMutationReceipt, LoomBlockSearchResult, LoomBlockUpdate, LoomCollection,
-    LoomCollectionMember, LoomCollectionWithMembers, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType,
-    LoomFolder, LoomFolderSortMode, LoomFolderUpdate, LoomGraph, LoomGraphEdge, LoomGraphNode,
-    LoomGraphSearchResult, LoomMutationEventReceipt, LoomSearchFilters, LoomSearchResultKind,
-    LoomSearchSourceKind, LoomSourceAnchor, LoomTagHub, LoomUnlinkedMention, LoomViewFilters,
-    LoomViewGroup, LoomViewResponse, LoomViewType, MediaAssetTier, MediaTier, MediaTierStatus,
-    MediaTierUpsert, MutationMetadata, NewAsset, NewLoomBlock, NewLoomEdge, NewLoomFolder,
-    PreviewStatus, StorageError, StorageResult,
+    Asset, LoomArtifactBinding, LoomArtifactBindingState, LoomBacklink, LoomBlock,
+    LoomBlockContentType, LoomBlockDerived, LoomBlockMutationReceipt, LoomBlockSearchResult,
+    LoomBlockUpdate, LoomCollection, LoomCollectionMember, LoomCollectionWithMembers, LoomEdge,
+    LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomFolderSortMode, LoomFolderUpdate, LoomGraph,
+    LoomGraphEdge, LoomGraphNode, LoomGraphSearchResult, LoomMutationEventReceipt,
+    LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSourceAnchor, LoomTagHub,
+    LoomUnlinkedMention, LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType,
+    MediaAssetTier, MediaTier, MediaTierStatus, MediaTierUpsert, MutationMetadata, NewAsset,
+    NewLoomBlock, NewLoomEdge, NewLoomFolder, PreviewStatus, StorageError, StorageResult,
+    VerifiedLoomArtifact,
 };
 
 const ASSETS_TABLE: &str = "assets";
 const BLOCKS_TABLE: &str = "loom_blocks";
 const EDGES_TABLE: &str = "loom_edges";
 const COLLECTIONS_TABLE: &str = "loom_collections";
+
+#[derive(SurrealValue)]
+struct LoomArtifactBindingRow {
+    asset_id: String,
+    workspace_id: RecordId,
+    artifact_id: Option<String>,
+    artifact_binding_state: Option<String>,
+    artifact_retention_ttl_days: Option<i64>,
+}
+
+fn artifact_binding(row: LoomArtifactBindingRow) -> StorageResult<Option<LoomArtifactBinding>> {
+    let Some(id) = row.artifact_id else {
+        if row.artifact_binding_state.is_some() || row.artifact_retention_ttl_days.is_some() {
+            return Err(StorageError::Validation("incomplete Loom artifact binding"));
+        }
+        return Ok(None);
+    };
+    Ok(Some(LoomArtifactBinding {
+        asset_id: row.asset_id,
+        workspace_id: record_key(row.workspace_id, "workspaces")?,
+        artifact_id: Uuid::parse_str(&id)
+            .map_err(|_| StorageError::Validation("invalid Loom artifact id"))?,
+        state: match row.artifact_binding_state.as_deref() {
+            Some("reserved") => LoomArtifactBindingState::Reserved,
+            Some("ready") => LoomArtifactBindingState::Ready,
+            _ => return Err(StorageError::Validation("invalid Loom artifact state")),
+        },
+        retention_ttl_days: row
+            .artifact_retention_ttl_days
+            .map(|n| {
+                u32::try_from(n).map_err(|_| StorageError::Validation("invalid Loom retention TTL"))
+            })
+            .transpose()?,
+    }))
+}
+
+pub(crate) async fn get_loom_artifact_binding(
+    db: &SurrealDataContext<'_>,
+    workspace_id: &str,
+    asset_id: &str,
+) -> StorageResult<Option<LoomArtifactBinding>> {
+    let row = db
+        .query_first::<LoomArtifactBindingRow, _>(
+            "SELECT * FROM $record WHERE workspace_id = $workspace LIMIT 1;",
+            WorkspaceRecordBinding {
+                workspace: thing("workspaces", workspace_id),
+                record: thing(ASSETS_TABLE, asset_id),
+            },
+        )
+        .await
+        .map_err(map_err)?
+        .ok_or(StorageError::NotFound("asset"))?;
+    artifact_binding(row)
+}
+
+#[derive(SurrealValue)]
+struct ArtifactBindingWrite {
+    original_filename: Option<String>,
+    width: Option<i64>,
+    height: Option<i64>,
+    created_at: Datetime,
+    is_proxy_of: Option<String>,
+    proxy_asset_id: Option<String>,
+    record: RecordId,
+    workspace: RecordId,
+    content_hash: String,
+    size_bytes: i64,
+    mime: String,
+    kind: String,
+    classification: String,
+    exportable: bool,
+    artifact_id: String,
+    ttl: Option<i64>,
+    publish: bool,
+    actor_kind: String,
+    actor_id: Option<String>,
+    job_id: Option<String>,
+    workflow_id: Option<String>,
+    edit_event_id: String,
+    ledger: event_ledger::LedgerWrite,
+}
+
+pub(crate) async fn reserve_loom_artifact_binding(
+    db: &SurrealDataContext<'_>,
+    expected: &Asset,
+    ttl: Option<u32>,
+    metadata: MutationMetadata,
+) -> StorageResult<LoomArtifactBinding> {
+    write_loom_artifact_binding(db, expected, None, ttl, metadata).await
+}
+
+pub(crate) async fn publish_loom_artifact_binding(
+    db: &SurrealDataContext<'_>,
+    verified: VerifiedLoomArtifact,
+    metadata: MutationMetadata,
+) -> StorageResult<LoomArtifactBinding> {
+    write_loom_artifact_binding(
+        db,
+        &verified.asset,
+        Some(verified.binding.artifact_id),
+        verified.binding.retention_ttl_days,
+        metadata,
+    )
+    .await
+}
+
+async fn write_loom_artifact_binding(
+    db: &SurrealDataContext<'_>,
+    expected: &Asset,
+    published_id: Option<Uuid>,
+    ttl: Option<u32>,
+    metadata: MutationMetadata,
+) -> StorageResult<LoomArtifactBinding> {
+    require_guarded_resource(&metadata, &expected.asset_id)?;
+    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let existing =
+        get_loom_artifact_binding(db, &expected.workspace_id, &expected.asset_id).await?;
+    let effective_ttl = existing.as_ref().and_then(|b| b.retention_ttl_days).or(ttl);
+    if !matches!(expected.classification.as_str(), "low" | "medium" | "high")
+        || effective_ttl == Some(0)
+        || expected.classification == "high" && effective_ttl.is_none()
+    {
+        return Err(StorageError::Validation(
+            "Loom classification requires an explicit valid retention policy",
+        ));
+    }
+    if let Some(binding) = &existing {
+        if ttl.is_some() && ttl != binding.retention_ttl_days {
+            return Err(StorageError::Conflict("loom_artifact_retention_policy"));
+        }
+    }
+    let publish = published_id.is_some();
+    let artifact_id = published_id
+        .or_else(|| existing.as_ref().map(|b| b.artifact_id))
+        .unwrap_or_else(Uuid::now_v7);
+    let operation = if publish { "ready" } else { "reserved" };
+    let run_id = format!("loom-artifact-{}", expected.workspace_id);
+    let event = NewKernelEvent::builder(run_id.clone(), run_id, if publish { KernelEventType::ArtifactStored } else { KernelEventType::ArtifactProposed }, KernelActor::System("loom-artifact-store".to_owned()))
+        .aggregate("loom_asset", expected.asset_id.clone())
+        .idempotency_key(format!("loom-artifact:{}:{}:{operation}", expected.asset_id, artifact_id))
+        .source_component("loom_artifact_store")
+        .payload(json!({"type":"loom_asset_artifact_binding","workspace_id":expected.workspace_id,"asset_id":expected.asset_id,"artifact_id":artifact_id,"state":operation,"content_hash":expected.content_hash,"size_bytes":expected.size_bytes,"actor_kind":metadata.actor_kind.as_str(),"actor_id":metadata.actor_id,"job_id":metadata.job_id,"workflow_id":metadata.workflow_id}))
+        .build().map_err(|_| StorageError::Validation("Loom artifact event invalid"))?;
+    let (_, ledger) = event_ledger::prepare_event(event)?;
+    let row = db.query_first::<LoomArtifactBindingRow, _>(
+        "IF (SELECT VALUE id FROM $record WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-ARTIFACT-NOT-FOUND'; } ELSE { \
+        LET $current = (SELECT * FROM $record)[0]; \
+        IF $current.content_hash != $content_hash OR $current.size_bytes != $size_bytes OR $current.mime != $mime OR $current.kind != $kind OR $current.classification != $classification OR $current.exportable != $exportable OR $current.original_filename != $original_filename OR $current.width != $width OR $current.height != $height OR $current.created_at != $created_at OR $current.is_proxy_of != $is_proxy_of OR $current.proxy_asset_id != $proxy_asset_id { THROW 'HSK-LOOM-ARTIFACT-STALE'; }; \
+        IF $current.artifact_id != NONE AND $current.artifact_id != $artifact_id { THROW 'HSK-LOOM-ARTIFACT-CONFLICT'; }; \
+        IF $publish AND $current.artifact_id = NONE { THROW 'HSK-LOOM-ARTIFACT-NOT-RESERVED'; }; \
+        IF $current.artifact_id = NONE OR ($publish AND $current.artifact_binding_state = 'reserved') { \
+          CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, created_at: $ledger.created_at }; \
+          UPDATE $record SET artifact_id = $artifact_id, artifact_binding_state = IF $publish { 'ready' } ELSE { 'reserved' }, artifact_retention_ttl_days = $ttl, artifact_binding_event_id = $ledger.record, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id; \
+        }; \
+        RETURN SELECT * FROM $record; };",
+        ArtifactBindingWrite { original_filename: expected.original_filename.clone(), width: expected.width, height: expected.height, created_at: expected.created_at.into(), is_proxy_of: expected.is_proxy_of.clone(), proxy_asset_id: expected.proxy_asset_id.clone(), record: thing(ASSETS_TABLE, &expected.asset_id), workspace: thing("workspaces", &expected.workspace_id), content_hash: expected.content_hash.clone(), size_bytes: expected.size_bytes, mime: expected.mime.clone(), kind: expected.kind.clone(), classification: expected.classification.clone(), exportable: expected.exportable, artifact_id: artifact_id.to_string(), ttl: effective_ttl.map(i64::from), publish, actor_kind: metadata.actor_kind.as_str().to_owned(), actor_id: metadata.actor_id, job_id: metadata.job_id.map(|id| id.to_string()), workflow_id: metadata.workflow_id.map(|id| id.to_string()), edit_event_id: metadata.edit_event_id.to_string(), ledger },
+    ).await.map_err(map_err)?.ok_or(StorageError::NotFound("asset"))?;
+    artifact_binding(row)?.ok_or(StorageError::Validation(
+        "Loom artifact reservation missing",
+    ))
+}
 
 /// The embedded database is single-process. Serializing Loom read-decide-write
 /// paths prevents unique-index losers and metric lost updates while retaining
@@ -3837,6 +3999,115 @@ mod tests {
     }
     use crate::storage::surreal::{SurrealStorage, SurrealStorageConfig};
     use crate::storage::WriteActorKind;
+
+    #[derive(SurrealValue)]
+    struct ArtifactFaultBindings {}
+
+    #[derive(SurrealValue)]
+    struct ArtifactEventState {
+        state: String,
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn loom_artifact_ready_event_failure_rolls_back_binding_and_retries() {
+        use crate::loom_fs::{loom_asset_blob_path, migrate_loom_asset, read_loom_asset_bytes};
+        use crate::storage::surreal::SurrealDatabase;
+        use crate::storage::{artifacts, Database, WriteContext};
+        let temp = tempfile::tempdir().unwrap();
+        let (_, store) = open_store(&temp).await;
+        let root = tempfile::tempdir().unwrap();
+        let workspace = Uuid::now_v7().to_string();
+        seed_workspace(&store, &workspace).await;
+        let db = SurrealDatabase::new(store.clone());
+        let ctx = WriteContext::human(None);
+        let bytes = b"mt068-atomic-ready-publication";
+        let mut input = new_asset(&workspace, &artifacts::sha256_hex(bytes));
+        input.size_bytes = bytes.len() as i64;
+        input.kind = "original".to_owned();
+        let asset = db.create_asset(&ctx, input).await.unwrap();
+        let source =
+            loom_asset_blob_path(root.path(), &workspace, &asset.kind, &asset.content_hash);
+        std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+        std::fs::write(&source, bytes).unwrap();
+        let reserved = db
+            .reserve_loom_artifact_binding(&ctx, &asset, None)
+            .await
+            .unwrap();
+        store.with_data_operation(|db| Box::pin(async move {
+            db.execute_returning("DEFINE EVENT mt068_reject_ready ON TABLE assets WHEN $event = 'UPDATE' AND $after.artifact_binding_state = 'ready' THEN { THROW 'mt068_ready_update_rejected'; };", ArtifactFaultBindings {}).await.map(|_| ())
+        })).await.unwrap();
+        let error = migrate_loom_asset(&db, &ctx, root.path(), &asset, None)
+            .await
+            .expect_err("late Ready update must roll back its earlier ledger CREATE");
+        assert!(
+            error.to_string().contains("mt068_ready_update_rejected"),
+            "actual late failure: {error}"
+        );
+        assert_eq!(
+            db.get_loom_artifact_binding(&workspace, &asset.asset_id)
+                .await
+                .unwrap(),
+            Some(reserved.clone())
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), bytes);
+        let manifest = artifacts::read_artifact_manifest(
+            root.path(),
+            artifacts::ArtifactLayer::L1,
+            reserved.artifact_id,
+        )
+        .unwrap();
+        assert_eq!(
+            artifacts::read_file_artifact_with_manifest(root.path(), &manifest).unwrap(),
+            bytes
+        );
+        async fn states(store: &SurrealStorage) -> Vec<String> {
+            let mut values = store.with_data_operation(|db| Box::pin(async move {
+                db.query_values::<ArtifactEventState, _>("SELECT payload.state AS state FROM kernel_event_ledger WHERE aggregate_type = 'loom_asset';", ArtifactFaultBindings {}).await
+            })).await.unwrap().into_iter().map(|row| row.state).collect::<Vec<_>>();
+            values.sort();
+            values
+        }
+        assert_eq!(states(&store).await, vec!["reserved"]);
+        store
+            .with_data_operation(|db| {
+                Box::pin(async move {
+                    db.execute_returning(
+                        "REMOVE EVENT mt068_reject_ready ON TABLE assets;",
+                        ArtifactFaultBindings {},
+                    )
+                    .await
+                    .map(|_| ())
+                })
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            migrate_loom_asset(&db, &ctx, root.path(), &asset, None)
+                .await
+                .unwrap(),
+            bytes
+        );
+        let ready = db
+            .get_loom_artifact_binding(&workspace, &asset.asset_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(ready.artifact_id, reserved.artifact_id);
+        assert_eq!(ready.state, LoomArtifactBindingState::Ready);
+        assert_eq!(states(&store).await, vec!["ready", "reserved"]);
+        assert!(
+            !source.exists(),
+            "legacy retires only after successful canonical reread"
+        );
+        assert_eq!(
+            read_loom_asset_bytes(&db, &ctx, root.path(), &asset)
+                .await
+                .unwrap(),
+            bytes
+        );
+        assert_eq!(states(&store).await, vec!["ready", "reserved"]);
+        store.shutdown().await.unwrap();
+    }
 
     #[derive(SurrealValue)]
     struct WorkspaceSeed {

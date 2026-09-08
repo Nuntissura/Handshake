@@ -765,3 +765,13 @@ required-features = ["surreal-test-support", "test-utils"]
 name = "atelier_media_bytes_api_tests"
 path = "tests/atelier_media_bytes_api_tests.rs"
 required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "loom_artifact_migration_tests"
+path = "tests/loom_artifact_migration_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "loom_media_tiers_tests"
+path = "tests/loom_media_tiers_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]

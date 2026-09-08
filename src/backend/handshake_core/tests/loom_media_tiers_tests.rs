@@ -35,17 +35,11 @@ use handshake_core::storage::{
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
-use knowledge_ingestion_support::{open_embedded_store, EmbeddedKnowledgeStore};
+use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};
 
-macro_rules! embedded_or_skip {
+macro_rules! required_embedded_store {
     ($name:expr) => {{
-        match open_embedded_store().await {
-            Some(store) => store,
-            None => {
-                eprintln!("SKIP MT-259 {}: embedded store unavailable", $name);
-                return;
-            }
-        }
+        open_embedded_store().await.expect(concat!("mandatory embedded store: ", $name))
     }};
 }
 
@@ -179,6 +173,18 @@ async fn make_original_asset(
     mime: &str,
     bytes: &[u8],
 ) -> (String, String, std::path::PathBuf) {
+    make_original_asset_with_policy(db, root, ws, mime, bytes, "low", true).await
+}
+
+async fn make_original_asset_with_policy(
+    db: &SurrealDatabase,
+    root: &std::path::Path,
+    ws: &str,
+    mime: &str,
+    bytes: &[u8],
+    classification: &str,
+    exportable: bool,
+) -> (String, String, std::path::PathBuf) {
     use sha2::{Digest, Sha256};
     let content_hash = {
         let mut h = Sha256::new();
@@ -198,8 +204,8 @@ async fn make_original_asset(
                 size_bytes: bytes.len() as i64,
                 width: None,
                 height: None,
-                classification: "low".to_string(),
-                exportable: true,
+                classification: classification.to_string(),
+                exportable,
                 is_proxy_of: None,
                 proxy_asset_id: None,
             },
@@ -224,7 +230,7 @@ async fn make_original_asset(
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_tier_rows_persist_and_delete_tiers_never_touches_original() {
-    let store = embedded_or_skip!("tier_rows_persist");
+    let store = required_embedded_store!("tier_rows_persist");
     let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
@@ -316,7 +322,7 @@ async fn mt259_tier_rows_persist_and_delete_tiers_never_touches_original() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
-    let store = embedded_or_skip!("failed_tier_retry");
+    let store = required_embedded_store!("failed_tier_retry");
     let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
@@ -411,7 +417,7 @@ async fn mt259_failed_tier_retry_bumps_attempt_count_and_is_in_failed_queue() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_collection_enumerates_ordered_members_from_backend() {
-    let store = embedded_or_skip!("collection_ordered");
+    let store = required_embedded_store!("collection_ordered");
     let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
@@ -483,14 +489,14 @@ async fn mt259_collection_enumerates_ordered_members_from_backend() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_range_endpoint_and_tier_serving_over_http() {
-    let store = embedded_or_skip!("range_endpoint");
+    let store = required_embedded_store!("range_endpoint");
     let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     // Original is a 1000-byte ramp so a Range slice is byte-checkable.
     let original_bytes: Vec<u8> = (0..1000u32).map(|i| (i % 256) as u8).collect();
-    let (asset_id, _hash, _blob) =
+    let (asset_id, _hash, legacy_blob) =
         make_original_asset(&store.db, tmp.path(), &ws, "video/mp4", &original_bytes).await;
 
     // A small derived thumb blob + tier row pointing at it.
@@ -530,6 +536,7 @@ async fn mt259_range_endpoint_and_tier_serving_over_http() {
     );
     let full = resp.bytes().await.expect("full bytes");
     assert_eq!(full.len(), 1000, "full body is the whole file");
+    assert_eq!(full.as_ref(), original_bytes.as_slice());
 
     // (b) Range bytes=100-199 -> 206 + correct Content-Range + correct slice.
     let resp = http
@@ -570,6 +577,27 @@ async fn mt259_range_endpoint_and_tier_serving_over_http() {
             .and_then(|v| v.to_str().ok()),
         Some("bytes 990-999/1000")
     );
+    assert_eq!(resp.bytes().await.unwrap().as_ref(), &original_bytes[990..]);
+
+    for (range, expected_start, expected_end) in [
+        ("bytes=950-", 950usize, 999usize),
+        ("bytes=950-5000", 950, 999),
+        ("bytes=-5000", 0, 999),
+    ] {
+        let response = http.get(&content_url).header("Range", range).send().await.unwrap();
+        assert_eq!(response.status(), 206, "{range}");
+        assert_eq!(response.headers()["content-type"], "video/mp4");
+        assert_eq!(response.headers()["accept-ranges"], "bytes");
+        assert_eq!(
+            response.headers()["content-range"].to_str().unwrap(),
+            format!("bytes {expected_start}-{expected_end}/1000")
+        );
+        assert_eq!(
+            response.headers()["content-length"].to_str().unwrap(),
+            (expected_end - expected_start + 1).to_string()
+        );
+        assert_eq!(response.bytes().await.unwrap().as_ref(), &original_bytes[expected_start..=expected_end]);
+    }
 
     // (d) Unsatisfiable bytes=5000-6000 -> 416 + Content-Range "*".
     let resp = http
@@ -614,6 +642,50 @@ async fn mt259_range_endpoint_and_tier_serving_over_http() {
     assert!(tiers
         .iter()
         .any(|t| t["tier"] == "thumb" && t["status"] == "ready"));
+
+    use handshake_core::storage::artifacts::{artifact_root_dir, ArtifactLayer};
+    let binding = store.db.get_loom_artifact_binding(&ws, &asset_id).await
+        .expect("read migrated original binding").expect("original migrated to ArtifactStore");
+    let payload_path = artifact_root_dir(tmp.path(), ArtifactLayer::L1, binding.artifact_id).join("payload");
+    assert!(!legacy_blob.exists(), "verified migration retires legacy input");
+    let mut corrupt = std::fs::read(&payload_path).unwrap();
+    corrupt[999] ^= 0xff;
+    std::fs::write(&payload_path, &corrupt).unwrap();
+    let response = http.get(&content_url).header("Range", "bytes=0-9").send().await.unwrap();
+    assert_eq!(response.status(), 500, "corruption outside requested range must fail whole-object verification");
+    assert_ne!(response.bytes().await.unwrap().as_ref(), &original_bytes[..10]);
+    std::fs::write(&payload_path, &original_bytes).unwrap();
+
+    // A new import must create only an ArtifactStore payload. Healthy dedup keeps IDs;
+    // the same request after corruption must not claim successful dedup.
+    use base64::Engine;
+    let imported_bytes: Vec<u8> = (0..128).map(|i| i ^ 0x5a).collect();
+    let request = serde_json::json!({
+        "bytes_b64": base64::engine::general_purpose::STANDARD.encode(&imported_bytes),
+        "original_filename": "mt068-import.bin", "mime": "application/octet-stream"
+    });
+    let import_url = format!("{base}/workspaces/{ws}/loom/import");
+    let response = http.post(&import_url).json(&request).send().await.unwrap();
+    assert!(response.status().is_success(), "new import must succeed");
+    let imported: serde_json::Value = response.json().await.unwrap();
+    let imported_id = imported["asset_id"].as_str().expect("new asset identity");
+    let duplicate_response = http.post(&import_url).json(&request).send().await.unwrap();
+    assert!(duplicate_response.status().is_success());
+    let duplicate: serde_json::Value = duplicate_response.json().await.unwrap();
+    assert_eq!(duplicate["asset_id"], imported["asset_id"]);
+    assert_eq!(duplicate["block_id"], imported["block_id"]);
+    assert_eq!(duplicate["dedup_hit"], true);
+    let imported_asset = store.db.get_asset(&ws, imported_id).await.unwrap();
+    let legacy_import = handshake_core::loom_fs::loom_asset_blob_path(
+        tmp.path(), &ws, &imported_asset.kind, &imported_asset.content_hash,
+    );
+    assert!(!legacy_import.exists(), "new import must not write the legacy blob tier");
+    let imported_binding = store.db.get_loom_artifact_binding(&ws, imported_id).await.unwrap().unwrap();
+    let imported_payload = artifact_root_dir(tmp.path(), ArtifactLayer::L1, imported_binding.artifact_id).join("payload");
+    assert_eq!(std::fs::read(&imported_payload).unwrap(), imported_bytes);
+    std::fs::write(&imported_payload, vec![0u8; imported_bytes.len()]).unwrap();
+    let corrupt_duplicate = http.post(&import_url).json(&request).send().await.unwrap();
+    assert_eq!(corrupt_duplicate.status(), 500, "corrupt dedup target cannot be returned as success");
 }
 
 /// Encode a real, decodable PNG of the given size so the generation job can
@@ -638,10 +710,23 @@ async fn make_image_block(
     db: &SurrealDatabase,
     root: &std::path::Path,
     ws: &str,
+    high: bool,
 ) -> (String, String, String) {
     let bytes = real_png(800, 600);
     let (asset_id, content_hash, _path) =
-        make_original_asset(db, root, ws, "image/png", &bytes).await;
+        make_original_asset_with_policy(
+            db, root, ws, "image/png", &bytes,
+            if high { "high" } else { "low" }, !high,
+        ).await;
+    if high {
+        let asset = db.get_asset(ws, &asset_id).await.expect("High source asset");
+        assert_eq!(
+            handshake_core::loom_fs::migrate_loom_asset(
+                db, &WriteContext::human(None), root, &asset, Some(30),
+            ).await.expect("High source migrated with explicit TTL"),
+            bytes,
+        );
+    }
     let ctx = WriteContext::human(None);
     let mut derived = LoomBlockDerived::default();
     derived.full_text_index = Some("media tiers fixture".to_string());
@@ -694,12 +779,12 @@ async fn wait_for_job_done(state: &AppState, job_id: &str) -> JobState {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
-    let store = embedded_or_skip!("preview_generate_job");
+    let store = required_embedded_store!("preview_generate_job");
     let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
-    let (block_id, asset_id, _hash) = make_image_block(&store.db, tmp.path(), &ws).await;
+    let (block_id, asset_id, _hash) = make_image_block(&store.db, tmp.path(), &ws, true).await;
 
     let (state, recorder) = loom_state(&store).await;
     // Dispatch the REAL job through the production protocol (create_job +
@@ -800,6 +885,28 @@ async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
         Some(asset_id.as_str()),
         "receipt asset_id is the original source asset"
     );
+    let original = store.db.get_asset(&ws, &asset_id).await.unwrap();
+    assert_eq!(original.classification, "high");
+    assert!(!original.exportable);
+    for tier in [MediaTier::Thumb, MediaTier::Preview, MediaTier::Full] {
+        let tier_id = by_tier[&tier].tier_asset_id.as_ref().unwrap();
+        let asset = store.db.get_asset(&ws, tier_id).await.unwrap();
+        assert_eq!(asset.classification, original.classification);
+        assert_eq!(asset.exportable, original.exportable);
+        let binding = store.db.get_loom_artifact_binding(&ws, tier_id).await.unwrap()
+            .expect("every production tier uses ArtifactStore");
+        assert_eq!(binding.state, handshake_core::storage::LoomArtifactBindingState::Ready);
+        assert_eq!(binding.retention_ttl_days, Some(30), "tier inherits source TTL");
+        let bytes = handshake_core::loom_fs::read_loom_asset_bytes(
+            &store.db, &WriteContext::human(None), tmp.path(), &asset,
+        ).await.expect("production tier has verified bytes");
+        assert_eq!(bytes.len() as i64, asset.size_bytes);
+        if tier != MediaTier::Full {
+            assert!(!handshake_core::loom_fs::loom_asset_blob_path(
+                tmp.path(), &ws, &asset.kind, &asset.content_hash,
+            ).exists(), "new derived tier must not write legacy storage");
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -809,14 +916,14 @@ async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
 // ---------------------------------------------------------------------------
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt259_http_retry_endpoint_requeues_failed_tier() {
-    let store = embedded_or_skip!("http_retry");
+    let store = required_embedded_store!("http_retry");
     let ws = store.create_workspace().await;
     let tmp = tempfile::tempdir().expect("tempdir");
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     // A real image block so find_loom_block_by_asset_id resolves (the retry
     // endpoint requeues the job keyed by the owning block).
-    let (_block_id, asset_id, _hash) = make_image_block(&store.db, tmp.path(), &ws).await;
+    let (_block_id, asset_id, _hash) = make_image_block(&store.db, tmp.path(), &ws, false).await;
 
     // Seed a FAILED poster tier (the honest video-poster failure shape).
     let ctx = WriteContext::human(None);

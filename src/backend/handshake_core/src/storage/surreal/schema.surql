@@ -401,6 +401,10 @@ DEFINE FIELD OVERWRITE classification ON TABLE assets TYPE 'low' | 'medium' | 'h
 DEFINE FIELD OVERWRITE exportable ON TABLE assets TYPE bool DEFAULT true;
 DEFINE FIELD OVERWRITE is_proxy_of ON TABLE assets TYPE option<string>;
 DEFINE FIELD OVERWRITE proxy_asset_id ON TABLE assets TYPE option<string>;
+DEFINE FIELD OVERWRITE artifact_id ON TABLE assets TYPE option<string>;
+DEFINE FIELD OVERWRITE artifact_binding_state ON TABLE assets TYPE option<'reserved' | 'ready'>;
+DEFINE FIELD OVERWRITE artifact_retention_ttl_days ON TABLE assets TYPE option<int> ASSERT $value = NONE OR $value > 0;
+DEFINE FIELD OVERWRITE artifact_binding_event_id ON TABLE assets TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value);
 DEFINE INDEX OVERWRITE pk_assets ON TABLE assets FIELDS asset_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_assets_workspace ON TABLE assets FIELDS workspace_id;
 DEFINE INDEX OVERWRITE idx_assets_workspace_content_hash ON TABLE assets FIELDS workspace_id, content_hash UNIQUE;

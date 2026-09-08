@@ -1,11 +1,11 @@
 use crate::flight_recorder::{
     EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
-use crate::loom_fs::{loom_asset_blob_path, resolve_handshake_root};
+use crate::loom_fs::{materialize_loom_asset, read_loom_asset_bytes, resolve_handshake_root};
 use crate::models::ErrorResponse;
 use crate::storage::block_view_outbox;
 use crate::storage::{
-    artifacts, Asset, BlockViewDefinition, BlockViewRecord, BlockViewResults,
+    Asset, BlockViewDefinition, BlockViewRecord, BlockViewResults,
     CompensateLoomCanvasStageCard, LoomBlock, LoomBlockContentType, LoomBlockDerived,
     LoomBlockMutationReceipt, LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView,
     LoomCanvasPlacement, LoomCanvasPlacementRemovalReceipt, LoomCanvasPlacementUpdate,
@@ -2235,6 +2235,8 @@ async fn import_loom_asset(
         return Err(bad_request("HSK-400-LOOM-EMPTY-PAYLOAD"));
     }
     let content_hash = sha256_hex(&bytes);
+    let handshake_root = resolve_handshake_root().map_err(internal_error)?;
+    let ctx = WriteContext::human(None);
 
     if let Some(existing) = state
         .storage
@@ -2242,6 +2244,16 @@ async fn import_loom_asset(
         .await
         .map_err(map_storage_error)?
     {
+        if let Some(asset_id) = &existing.asset_id {
+            let asset = state
+                .storage
+                .get_asset(&workspace_id, asset_id)
+                .await
+                .map_err(map_storage_error)?;
+            read_loom_asset_bytes(state.storage.as_ref(), &ctx, &handshake_root, &asset)
+                .await
+                .map_err(map_storage_error)?;
+        }
         let attempted_filename = payload
             .original_filename
             .clone()
@@ -2273,49 +2285,35 @@ async fn import_loom_asset(
         }));
     }
 
-    let handshake_root = resolve_handshake_root().map_err(internal_error)?;
-
     let mime = payload
         .mime
         .clone()
         .unwrap_or_else(|| "application/octet-stream".to_string());
     let kind = "original".to_string();
 
-    let ctx = WriteContext::human(None);
-
-    let asset = match state
-        .storage
-        .find_asset_by_content_hash(&workspace_id, &content_hash)
-        .await
-        .map_err(map_storage_error)?
-    {
-        Some(existing) => existing,
-        None => state
-            .storage
-            .create_asset(
-                &ctx,
-                NewAsset {
-                    workspace_id: workspace_id.clone(),
-                    kind: kind.clone(),
-                    mime: mime.clone(),
-                    original_filename: payload.original_filename.clone(),
-                    content_hash: content_hash.clone(),
-                    size_bytes: bytes.len() as i64,
-                    width: None,
-                    height: None,
-                    classification: "low".to_string(),
-                    exportable: true,
-                    is_proxy_of: None,
-                    proxy_asset_id: None,
-                },
-            )
-            .await
-            .map_err(map_storage_error)?,
-    };
-
-    let asset_path = loom_asset_blob_path(&handshake_root, &workspace_id, &kind, &content_hash);
-    artifacts::write_file_atomic(&handshake_root, &asset_path, &bytes, false)
-        .map_err(internal_error)?;
+    let asset = materialize_loom_asset(
+        state.storage.as_ref(),
+        &ctx,
+        &handshake_root,
+        NewAsset {
+            workspace_id: workspace_id.clone(),
+            kind: kind.clone(),
+            mime: mime.clone(),
+            original_filename: payload.original_filename.clone(),
+            content_hash: content_hash.clone(),
+            size_bytes: bytes.len() as i64,
+            width: None,
+            height: None,
+            classification: "low".to_string(),
+            exportable: true,
+            is_proxy_of: None,
+            proxy_asset_id: None,
+        },
+        &bytes,
+        None,
+    )
+    .await
+    .map_err(map_storage_error)?;
 
     let derived = LoomBlockDerived {
         preview_status: PreviewStatus::Pending,
@@ -2515,20 +2513,20 @@ async fn get_asset_content(
     };
 
     let handshake_root = resolve_handshake_root().map_err(internal_error)?;
-    let path = loom_asset_blob_path(
+    let bytes = read_loom_asset_bytes(
+        state.storage.as_ref(),
+        &WriteContext::human(None),
         &handshake_root,
-        &workspace_id,
-        &serve_asset.kind,
-        &serve_asset.content_hash,
-    );
-
-    let metadata = tokio::fs::metadata(&path).await.map_err(internal_error)?;
-    let total = metadata.len();
+        &serve_asset,
+    )
+    .await
+    .map_err(map_storage_error)?;
+    let total = bytes.len() as u64;
 
     let content_type = HeaderValue::from_str(serve_asset.mime.as_str())
         .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream"));
 
-    // GAP-LM-009b: honor HTTP Range so long-video seeking streams a slice.
+    // Verify the whole object before serving a Range, including bytes outside the slice.
     match parse_byte_range(&headers, total) {
         Err(()) => {
             // Syntactically present but unsatisfiable -> 416 + Content-Range *.
@@ -2545,16 +2543,9 @@ async fn get_asset_content(
             Ok(response)
         }
         Ok(Some((start, end))) => {
-            use tokio::io::{AsyncReadExt, AsyncSeekExt};
             let len = end - start + 1;
-            let mut file = tokio::fs::File::open(&path).await.map_err(internal_error)?;
-            file.seek(std::io::SeekFrom::Start(start))
-                .await
-                .map_err(internal_error)?;
-            let mut buf = vec![0u8; len as usize];
-            file.read_exact(&mut buf).await.map_err(internal_error)?;
-
-            let mut response = Response::new(axum::body::Body::from(buf));
+            let body = bytes::Bytes::from(bytes).slice(start as usize..=end as usize);
+            let mut response = Response::new(axum::body::Body::from(body));
             *response.status_mut() = StatusCode::PARTIAL_CONTENT;
             let h = response.headers_mut();
             h.insert(header::CONTENT_TYPE, content_type);
@@ -2572,7 +2563,6 @@ async fn get_asset_content(
             Ok(response)
         }
         Ok(None) => {
-            let bytes = tokio::fs::read(&path).await.map_err(internal_error)?;
             let mut response = Response::new(axum::body::Body::from(bytes));
             *response.status_mut() = StatusCode::OK;
             let h = response.headers_mut();
@@ -2615,13 +2605,14 @@ async fn get_asset_thumbnail(
         .map_err(map_storage_error)?;
 
     let handshake_root = resolve_handshake_root().map_err(internal_error)?;
-    let path = loom_asset_blob_path(
+    let bytes = read_loom_asset_bytes(
+        state.storage.as_ref(),
+        &WriteContext::human(None),
         &handshake_root,
-        &workspace_id,
-        &thumb.kind,
-        &thumb.content_hash,
-    );
-    let bytes = std::fs::read(&path).map_err(internal_error)?;
+        &thumb,
+    )
+    .await
+    .map_err(map_storage_error)?;
 
     let mut response = Response::new(axum::body::Body::from(bytes));
     *response.status_mut() = StatusCode::OK;

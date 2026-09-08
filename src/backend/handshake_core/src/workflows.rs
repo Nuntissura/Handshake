@@ -21030,18 +21030,21 @@ async fn run_loom_preview_generate_job(
     let asset = state.storage.get_asset(workspace_id, asset_id).await?;
     let handshake_root = crate::loom_fs::resolve_handshake_root()
         .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    let original_path = crate::loom_fs::loom_asset_blob_path(
-        &handshake_root,
-        workspace_id,
-        asset.kind.as_str(),
-        asset.content_hash.as_str(),
-    );
-
     // WAIVER [CX-573E]: timing-only instrumentation; no determinism impact
     let started = std::time::Instant::now();
-    let original_bytes = tokio::fs::read(&original_path)
-        .await
-        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let original_bytes = crate::loom_fs::read_loom_asset_bytes(
+        state.storage.as_ref(),
+        &ctx,
+        &handshake_root,
+        &asset,
+    )
+    .await?;
+    let retention_ttl_days = state
+        .storage
+        .get_loom_artifact_binding(workspace_id, asset_id)
+        .await?
+        .ok_or_else(|| WorkflowError::Terminal("Loom original artifact binding missing".to_owned()))?
+        .retention_ttl_days;
 
     if !asset.mime.starts_with("image/") {
         // MT-259 HONEST DEVIATION: no video decoder is bundled (Cargo.toml ships
@@ -21127,53 +21130,28 @@ async fn run_loom_preview_generate_job(
         hex::encode(h.finalize())
     };
 
-    let thumbnail_asset = match state
-        .storage
-        .find_asset_by_content_hash(workspace_id, &thumbnail_hash)
-        .await?
-    {
-        Some(existing) => existing,
-        None => {
-            state
-                .storage
-                .create_asset(
-                    &ctx,
-                    crate::storage::NewAsset {
-                        workspace_id: workspace_id.to_string(),
-                        kind: "thumbnail".to_string(),
-                        mime: "image/png".to_string(),
-                        original_filename: None,
-                        content_hash: thumbnail_hash.clone(),
-                        size_bytes: out.len() as i64,
-                        width: Some(thumb.width() as i64),
-                        height: Some(thumb.height() as i64),
-                        classification: "low".to_string(),
-                        exportable: true,
-                        is_proxy_of: Some(asset.asset_id.clone()),
-                        proxy_asset_id: None,
-                    },
-                )
-                .await?
-        }
-    };
-
-    let thumbnail_path = crate::loom_fs::loom_asset_blob_path(
+    let thumbnail_asset = crate::loom_fs::materialize_loom_asset(
+        state.storage.as_ref(),
+        &ctx,
         &handshake_root,
-        workspace_id,
-        "thumbnail",
-        thumbnail_hash.as_str(),
-    );
-    match crate::storage::artifacts::write_file_atomic(
-        &handshake_root,
-        &thumbnail_path,
+        crate::storage::NewAsset {
+            workspace_id: workspace_id.to_string(),
+            kind: "thumbnail".to_string(),
+            mime: "image/png".to_string(),
+            original_filename: None,
+            content_hash: thumbnail_hash.clone(),
+            size_bytes: out.len() as i64,
+            width: Some(thumb.width() as i64),
+            height: Some(thumb.height() as i64),
+            classification: asset.classification.clone(),
+            exportable: asset.exportable,
+            is_proxy_of: Some(asset.asset_id.clone()),
+            proxy_asset_id: None,
+        },
         &out,
-        false,
-    ) {
-        Ok(()) => {}
-        Err(crate::storage::artifacts::ArtifactError::Io(io_err))
-            if io_err.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(err) => return Err(WorkflowError::Terminal(err.to_string())),
-    }
+        retention_ttl_days,
+    )
+    .await?;
 
     let thumbnail_asset_id = thumbnail_asset.asset_id.clone();
 
@@ -21215,52 +21193,28 @@ async fn run_loom_preview_generate_job(
         h.update(&preview_out);
         hex::encode(h.finalize())
     };
-    let preview_asset = match state
-        .storage
-        .find_asset_by_content_hash(workspace_id, &preview_hash)
-        .await?
-    {
-        Some(existing) => existing,
-        None => {
-            state
-                .storage
-                .create_asset(
-                    &ctx,
-                    crate::storage::NewAsset {
-                        workspace_id: workspace_id.to_string(),
-                        kind: "preview".to_string(),
-                        mime: "image/png".to_string(),
-                        original_filename: None,
-                        content_hash: preview_hash.clone(),
-                        size_bytes: preview_out.len() as i64,
-                        width: Some(preview_img.width() as i64),
-                        height: Some(preview_img.height() as i64),
-                        classification: "low".to_string(),
-                        exportable: true,
-                        is_proxy_of: Some(asset.asset_id.clone()),
-                        proxy_asset_id: None,
-                    },
-                )
-                .await?
-        }
-    };
-    let preview_path = crate::loom_fs::loom_asset_blob_path(
+    let preview_asset = crate::loom_fs::materialize_loom_asset(
+        state.storage.as_ref(),
+        &ctx,
         &handshake_root,
-        workspace_id,
-        "preview",
-        preview_hash.as_str(),
-    );
-    match crate::storage::artifacts::write_file_atomic(
-        &handshake_root,
-        &preview_path,
+        crate::storage::NewAsset {
+            workspace_id: workspace_id.to_string(),
+            kind: "preview".to_string(),
+            mime: "image/png".to_string(),
+            original_filename: None,
+            content_hash: preview_hash.clone(),
+            size_bytes: preview_out.len() as i64,
+            width: Some(preview_img.width() as i64),
+            height: Some(preview_img.height() as i64),
+            classification: asset.classification.clone(),
+            exportable: asset.exportable,
+            is_proxy_of: Some(asset.asset_id.clone()),
+            proxy_asset_id: None,
+        },
         &preview_out,
-        false,
-    ) {
-        Ok(()) => {}
-        Err(crate::storage::artifacts::ArtifactError::Io(io_err))
-            if io_err.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(err) => return Err(WorkflowError::Terminal(err.to_string())),
-    }
+        retention_ttl_days,
+    )
+    .await?;
     state
         .storage
         .upsert_media_tier(
