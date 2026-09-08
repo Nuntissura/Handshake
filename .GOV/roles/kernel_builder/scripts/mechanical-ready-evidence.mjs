@@ -344,15 +344,103 @@ export function verifyComponentPair(beforeRef, afterRef, base, binding, { compil
   return result;
 }
 
+function verifyHistoricalComponentPair(beforeRef, afterRef, base, binding, original, changed, recovered, { compile = false } = {}) {
+  const cacheKey = canonicalJson(['historical', beforeRef, afterRef, binding.head, original.head, [...changed].sort(), [...recovered], compile]);
+  if (typeof base !== 'string' && base.pairs?.has(cacheKey)) return base.pairs.get(cacheKey);
+  const before = jsonRef(beforeRef, base), after = jsonRef(afterRef, base);
+  requireThat(samePath(before.product_root, binding.product) && samePath(after.product_root, binding.product), 'historical component root mismatch');
+  const files = componentRows(before), afterFiles = componentRows(after);
+  requireThat(canonicalJson([...files].sort()) === canonicalJson([...afterFiles].sort()) && canonicalJson(before.environment) === canonicalJson(after.environment) && before.fingerprint === after.fingerprint, 'historical inputs changed during proof');
+  if (compile) requireThat(canonicalJson(before.selection) === canonicalJson({ roots: ['.'], exclude: ['.GOV/'], enumerator: 'git ls-files --cached --others --exclude-standard' }), 'unsupported historical input selection');
+  const historicalNames = git(binding.product, ['ls-tree', '-r', '--name-only', '-z', original.head]).split('\0').filter(name => name && !name.startsWith('.GOV/'));
+  const productNames = [...files.keys()].filter(name => !path.isAbsolute(name) && !name.startsWith('.GOV/'));
+  requireThat(canonicalJson(historicalNames.sort()) === canonicalJson(productNames.sort()), 'historical product membership incomplete');
+  for (const [name, hash] of files) {
+    const filename = path.resolve(binding.product, name);
+    if (path.isAbsolute(name)) requireThat(!compile && !path.relative(path.join(binding.product, '.GOV'), filename).startsWith('..'), 'historical external component is not governance input');
+    else requireThat(!path.relative(binding.product, filename).startsWith('..'), 'historical component escapes product');
+    if (!path.isAbsolute(name) && changed.has(name)) {
+      if (recovered.has(name)) {
+        const bytes = verifiedFile(recovered.get(name), base).bytes;
+        requireThat(sha(bytes) === hash, `recovered historical source hash differs: ${name}`);
+        const cleanBlob = git(binding.product, ['hash-object', `--path=${name}`, '--stdin'], bytes).trim();
+        requireThat(cleanBlob === git(binding.product, ['rev-parse', `${original.head}:${name}`]).trim(), `recovered historical Git blob differs: ${name}`);
+        continue;
+      }
+      // A committed working copy may retain LF bytes until its next checkout.
+      // Accept only an exact original hash of the blob or checkout-filtered blob.
+      const readBlob = mode => execFileSync('git', ['-C', binding.product, 'cat-file', mode, `${original.head}:${name}`], { windowsHide: true, maxBuffer: 32 * 1024 * 1024 });
+      requireThat(sha(readBlob('blob')) === hash || sha(readBlob('--filters')) === hash, `historical source differs: ${name}`);
+    } else if (hash === 'missing') requireThat(!fs.existsSync(filename), `historical missing input appeared: ${name}`);
+    else requireThat(fs.existsSync(filename) && sha(fs.readFileSync(filename)) === hash, `historical unchanged input differs: ${name}`);
+  }
+  const result = { before, after, files };
+  if (typeof base !== 'string') base.pairs?.set(cacheKey, result);
+  return result;
+}
+
+function verifyComponentReuse(row, receipt, build, artifact, base, binding) {
+  const review = jsonRef(row.reuse_review, base);
+  requireThat(review.schema_id === 'hsk.component_reuse_review@1' && binding.claimant && review.reviewer_session && review.reviewer_session !== binding.claimant, 'component reuse needs independent reviewer');
+  requireThat(review.original_commit === build.source_binding.head && review.original_tree === build.source_binding.tree && review.product_commit === binding.head && review.product_tree === binding.tree, 'reuse review source binding differs');
+  requireThat(git(binding.product, ['rev-parse', `${review.original_commit}^{tree}`]).trim() === review.original_tree, 'historical tree differs');
+  requireThat(canonicalJson(review.original_receipt) === canonicalJson(row.receipt) && review.target?.kind === receipt.kind && review.target?.name === receipt.name, 'reuse review target or original receipt differs');
+  verifiedFile(review.original_receipt, base);
+  const delta = git(binding.product, ['diff', '--no-ext-diff', '--no-renames', '--binary', review.original_commit, binding.head, '--']);
+  const changed = git(binding.product, ['diff', '--no-renames', '--name-only', '-z', review.original_commit, binding.head, '--']).split('\0').filter(Boolean).sort();
+  requireThat(changed.length > 0 && sha(delta) === review.source_delta_sha256, 'reuse source delta changed');
+  requireThat(Array.isArray(review.source_findings) && canonicalJson(review.source_findings.map(value => value.path).sort()) === canonicalJson(changed)
+    && review.source_findings.every(value => value.status === 'not_a_dependency' && typeof value.reason === 'string' && value.reason.trim()), 'reuse contains unreviewed source delta');
+  requireThat(review.runtime_relevance === 'unchanged' && typeof review.runtime_reason === 'string' && review.runtime_reason.trim(), 'runtime dependency relevance not reviewed');
+  const recovered = new Map();
+  const originalFiles = componentRows(jsonRef(build.input_before, base));
+  for (const value of review.historical_source_artifacts || []) {
+    requireThat(changed.includes(value.source_path) && originalFiles.has(value.source_path) && !recovered.has(value.source_path) && typeof value.derivation === 'string' && value.derivation.trim(), 'invalid recovered historical source reference');
+    verifiedFile(value.artifact, base);
+    recovered.set(value.source_path, value.artifact);
+  }
+  const finalBuild = jsonRef(review.final_build_command, base);
+  requireThat(finalBuild.schema_id === 'hsk.build_command@1' && finalBuild.program === 'cargo' && finalBuild.exit_code === 0 && samePath(finalBuild.cwd, binding.product)
+    && finalBuild.source_binding?.head === binding.head && finalBuild.source_binding?.tree === binding.tree, 'reuse final build is not current');
+  const versionLine = value => typeof value === 'string' ? value.split(/\r?\n/)[0].trim() : '';
+  for (const tool of ['cargo_version', 'rustc_version']) requireThat(versionLine(build[tool]) && versionLine(build[tool]) === versionLine(finalBuild[tool]), `reuse ${tool} changed or missing`);
+  const finalPair = verifyComponentPair(finalBuild.input_before, finalBuild.input_after, base, binding, { compile: true });
+  const records = jsonLines(finalBuild.log, base);
+  requireThat(records.at(-1)?.reason === 'build-finished' && records.at(-1).success === true, 'reuse final build did not finish');
+  const inventory = jsonRef(review.final_inventory, base);
+  requireThat(canonicalJson(inventory) === canonicalJson(records.filter(value => value.reason === 'compiler-artifact' && value.profile?.test && value.executable)), 'reuse final inventory differs');
+  const current = inventory.find(value => value.target?.name === receipt.name && value.target.kind.join('-') === receipt.kind);
+  const identity = value => ({ package_id: value.package_id, target: value.target, features: value.features, profile: value.profile, executable: value.executable });
+  requireThat(current?.fresh === true && canonicalJson(identity(current)) === canonicalJson(identity(artifact)), 'reuse artifact is not fresh with identical compiler configuration');
+  requireThat(fs.existsSync(current.executable) && sha(fs.readFileSync(current.executable)) === receipt.binary_sha256_after.toLowerCase(), 'reuse executable hash changed');
+  const historicalCompile = verifyHistoricalComponentPair(build.input_before, build.input_after, base, binding, build.source_binding, new Set(changed), recovered, { compile: true });
+  const historicalRuntime = verifyHistoricalComponentPair(receipt.runtime_input_before, receipt.runtime_input_after, base, binding, build.source_binding, new Set(changed), recovered);
+  const finalRuntime = verifyComponentPair(review.final_runtime_input_before, review.final_runtime_input_after, base, binding);
+  for (const [oldSnapshot, newSnapshot, findings] of [
+    [historicalCompile.before, finalPair.before, review.compile_environment_findings],
+    [historicalRuntime.before, finalRuntime.before, review.environment_findings],
+  ]) {
+    const oldEnvironment = new Map(oldSnapshot.environment.map(value => [value.name, value.value_sha256]));
+    const newEnvironment = new Map(newSnapshot.environment.map(value => [value.name, value.value_sha256]));
+    const environmentDelta = [...new Set([...oldEnvironment.keys(), ...newEnvironment.keys()])].sort().filter(name => oldEnvironment.get(name) !== newEnvironment.get(name))
+      .map(name => ({ name, before: oldEnvironment.get(name) ?? null, after: newEnvironment.get(name) ?? null }));
+    requireThat(Array.isArray(findings) && canonicalJson(findings.map(({ reason, status, ...value }) => value)) === canonicalJson(environmentDelta)
+      && findings.every(value => value.status === 'not_a_dependency' && typeof value.reason === 'string' && value.reason.trim()), 'reuse contains unreviewed environment delta');
+  }
+  return { runtime: historicalRuntime, review: row.reuse_review, original_commit: review.original_commit, product_commit: binding.head };
+}
+
 export function verifyComponentRun(row, receipt, log, base, binding) {
   requireThat(receipt.exit === 0 && ['GREEN', 'COMPILED_EMPTY_HARNESS'].includes(receipt.status), 'component test failed');
   requireThat(/^[a-f0-9]{64}$/i.test(receipt.binary_sha256_before) && receipt.binary_sha256_before.toLowerCase() === String(receipt.binary_sha256_after).toLowerCase(), 'runtime binary changed or hash missing');
   const build = jsonRef(receipt.build_command, base);
   requireThat(build.schema_id === 'hsk.build_command@1' && build.program === 'cargo' && build.exit_code === 0 && samePath(build.cwd, binding.product), 'invalid original component build');
-  requireThat(build.source_binding?.head === binding.head && build.source_binding?.tree === binding.tree, 'component build commit is stale');
-  verifyComponentPair(build.input_before, build.input_after, base, binding, { compile: true });
-  const runtime = verifyComponentPair(receipt.runtime_input_before, receipt.runtime_input_after, base, binding);
-  requireThat(receipt.input_fingerprint === runtime.before.fingerprint, 'runtime fingerprint does not match original components');
+  let runtime, reuse;
+  if (!row.reuse_review) {
+    requireThat(build.source_binding?.head === binding.head && build.source_binding?.tree === binding.tree, 'component build commit is stale');
+    verifyComponentPair(build.input_before, build.input_after, base, binding, { compile: true });
+    runtime = verifyComponentPair(receipt.runtime_input_before, receipt.runtime_input_after, base, binding);
+  }
   const records = jsonLines(build.log, base);
   requireThat(records.at(-1)?.reason === 'build-finished' && records.at(-1).success === true, 'original build did not finish successfully');
   const inventory = jsonRef(receipt.inventory, base);
@@ -360,6 +448,8 @@ export function verifyComponentRun(row, receipt, log, base, binding) {
   requireThat(canonicalJson(inventory) === canonicalJson(artifacts), 'inventory differs from original Cargo output');
   const artifact = artifacts.find(value => value.target.name === receipt.name && value.target.kind.join('-') === receipt.kind && samePath(value.executable, receipt.binary));
   requireThat(artifact && Array.isArray(receipt.args), 'runtime executable is not in original compile inventory');
+  if (row.reuse_review) { reuse = verifyComponentReuse(row, receipt, build, artifact, base, binding); runtime = reuse.runtime; }
+  requireThat(receipt.input_fingerprint === runtime.before.fingerprint, 'runtime fingerprint does not match original components');
   requireThat(receipt.features.split(',').every(feature => artifact.features.includes(feature)), 'runtime features differ from compile artifact');
   if (fs.existsSync(receipt.binary)) requireThat(sha(fs.readFileSync(receipt.binary)) === receipt.binary_sha256_after.toLowerCase(), 'retained runtime binary changed');
   requireThat(samePath(receipt.log, verifiedFile(row.log, base).originalFilename), 'runtime log path differs');
@@ -390,7 +480,7 @@ export function verifyComponentRun(row, receipt, log, base, binding) {
   }
   return { args, passedTests, platform: /host: (\S+)/.exec(build.rustc_version || '')?.[1], ref: row.receipt.path,
     name: receipt.name, kind: receipt.kind, executed: receipt.executed, filtered: receipt.filtered, runtime_args: receipt.args, compiledEmpty, inventory_ref: receipt.inventory, artifact,
-    temporalBinding: { build_command: receipt.build_command, runtime_input_before: receipt.runtime_input_before, runtime_input_after: receipt.runtime_input_after }, runtimeDependencies: [{ path: receipt.binary, sha256: receipt.binary_sha256_after.toLowerCase() }] };
+    temporalBinding: { build_command: receipt.build_command, runtime_input_before: receipt.runtime_input_before, runtime_input_after: receipt.runtime_input_after, ...(reuse ? { historical_runtime_reuse: { review: reuse.review, original_commit: reuse.original_commit, product_commit: reuse.product_commit } } : {}) }, runtimeDependencies: [{ path: receipt.binary, sha256: receipt.binary_sha256_after.toLowerCase() }] };
 }
 
 // CI is a protocol-supported alternative to a local cross compilation. Query
@@ -503,6 +593,7 @@ export function deriveMechanicalReady({ contract, evidenceBase, productRoot, nat
   try { context = evidenceContext(input, evidenceBase); } catch (error) { errors.push(error.message); }
   const set = (id, ok, explanation, refs = []) => items.set(id, { answer: ok ? 'yes' : 'no', explanation, evidence_refs: refs });
   const claimed = String(contract?.lifecycle?.claimed_by || '').trim();
+  if (binding) binding.claimant = claimed;
   const completed = String(contract?.lifecycle?.completed_by || '').trim();
   set('RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING', Boolean(claimed && !completed), `Canonical lifecycle: claimed_by=${claimed || '<empty>'}; completed_by=${completed || '<unset>'}.`);
   const reviews = [], reviewErrors = [];

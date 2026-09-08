@@ -5,7 +5,7 @@
   "governance_item": "RGF-327",
   "owner": "KERNEL_BUILDER-20260908-031957",
   "status": "IMPLEMENTED_PENDING_FINAL_GATE",
-  "updated_at": "2026-09-08T03:43:27.6933355Z",
+  "updated_at": "2026-09-08T06:05:55.300441Z",
   "scope": [
     ".GOV/roles/kernel_builder/scripts/mechanical-ready-evidence.mjs",
     ".GOV/roles/kernel_builder/tests/mechanical-ready-evidence.test.mjs"
@@ -135,5 +135,21 @@
     "docs-check: exit0",
     "git diff --check on the two records: exit0",
     "JSON parsed after write; paths are relative to governance worktree root"
-  ]
+  ],
+  "proof_reuse_extension": {
+    "status": "IMPLEMENTED_PENDING_FINAL_RUNTIME_RECONCILIATION",
+    "scope": "Optional hsk.component_reuse_review@1 only; normal proof path remains strict",
+    "guards": [
+      "Independent exact original/final source delta review",
+      "Original historical component pair and Git membership/bytes closure",
+      "Final clean compile pair and original Cargo fresh artifact plus identical target/profile/features/package/executable SHA",
+      "Separate exact compile and runtime environment delta findings",
+      "Final runtime before/after strict current-source pair",
+      "Recovered historical sources require exact original snapshot SHA and clean-filter Git blob identity; explicit derivation retained",
+      "Cargo and rustc version first lines must match and be nonempty; short original rustc output reconciles with final verbose output."
+    ],
+    "tests": "Full helper suite19/19 passed before final scoped environment/recovered-source edits; final focused reuse regressions exercise fresh=false, binary mutation, source delta tampering, unreviewed files, runtime-only and compile-only environment changes, self-review, recovered byte/hash and Git blob mismatch; added independent cargo/rustc version mismatch negatives and short-versus-verbose rustc positive.",
+    "historical_sources": "../Handshake/_Artifacts/handshake-tool/m141-takeover/storage-recovered-source-refs.json",
+    "independent_check": "Root separately checked all3 recovered hashes and original Git blob identities; final runtime reuse record pending"
+  }
 }

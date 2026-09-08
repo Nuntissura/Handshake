@@ -90,6 +90,50 @@ test('component proof binds original build, source components, binary, inventory
   });
 });
 
+test('component reuse preserves historical proof and rejects unreviewed or changed inputs', () => {
+  for (const fault of [null, 'fresh', 'binary', 'delta', 'unreviewed', 'environment', 'compile-environment', 'self-review', 'recovered-bytes', 'recovered-blob', 'recovered-new-path', 'rustc-version', 'cargo-version']) fixture(f => {
+    fs.writeFileSync(path.join(f.product, 'support.rs'), 'pub fn support() {}');
+    f.git(['add', 'support.rs']);
+    f.git(['-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'support']);
+    const original = readSourceBinding(f.product);
+    const selection = { roots: ['.'], exclude: ['.GOV/'], enumerator: 'git ls-files --cached --others --exclude-standard' };
+    const snapshot = (names, environment = []) => ({ product_root: f.product, selection, environment, fingerprint: names.join(','), files: names.map(name => `${name}=${digest(fs.readFileSync(path.join(f.product, name)))}`) });
+    const oldSnapshot = snapshot(['wire.rs', 'support.rs']);
+    if (fault === 'recovered-blob') oldSnapshot.files[1] = `support.rs=${digest('mutated bytes')}`;
+    const oldInputs = f.file('old-inputs.json', oldSnapshot);
+    const binary = f.file('wire.exe', 'same compiled binary');
+    const artifact = { reason: 'compiler-artifact', package_id: 'fixture', profile: { test: true }, executable: binary.path, features: ['surreal-test-support'], fresh: false, target: { name: 'wire', kind: ['test'], src_path: path.join(f.product, 'wire.rs') } };
+    const logRef = value => f.file(value + '.jsonl', [value === 'old-build' ? artifact : { ...artifact, fresh: fault !== 'fresh' }, { reason: 'build-finished', success: true }].map(JSON.stringify).join('\n'));
+    const buildData = (binding, inputs, log) => ({ schema_id: 'hsk.build_command@1', program: 'cargo', cwd: f.product, exit_code: 0, source_binding: binding, input_before: inputs, input_after: inputs, log, args: ['test', '--manifest-path', 'Cargo.toml', '--no-run'], cargo_version: 'cargo fixture', rustc_version: 'rustc fixture' });
+    const oldBuild = f.file('old-build.json', buildData(original, oldInputs, logRef('old-build')));
+    const data = { schema_id: 'hsk.component_test_run@1', status: 'GREEN', exit: 0, build_command: oldBuild, runtime_input_before: oldInputs, runtime_input_after: oldInputs,
+      input_fingerprint: 'wire.rs,support.rs', inventory: f.file('old-inventory.json', [artifact]), name: 'wire', kind: 'test', binary: binary.path, binary_sha256_before: binary.sha256, binary_sha256_after: binary.sha256,
+      args: ['--test-threads=1'], features: 'surreal-test-support', log: f.log.path, passed: 1, failed: 0, ignored: 0, measured: 0, filtered: 0, executed: 1 };
+    const receipt = f.file('historical-receipt.json', data);
+    f.git(['mv', 'support.rs', 'support-module.rs']);
+    f.git(['-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'move unrelated support']);
+    const final = { ...readSourceBinding(f.product), claimant: 'implementer' };
+    const environment = [{ name: 'MODEL_FIXTURE', value_sha256: digest('fixture') }];
+    const newInputs = f.file('new-inputs.json', snapshot(['wire.rs', 'support-module.rs'], fault === 'compile-environment' ? environment : []));
+    const runtimeInputs = f.file('runtime-inputs.json', snapshot(['wire.rs', 'support-module.rs'], environment));
+    const finalBuild = f.file('final-build.json', { ...buildData(final, newInputs, logRef('final-build')),
+      cargo_version: fault === 'cargo-version' ? 'cargo changed' : 'cargo fixture', rustc_version: fault === 'rustc-version' ? 'rustc changed' : 'rustc fixture\nhost: fixture-host' });
+    const paths = f.git(['diff', '--no-renames', '--name-only', '-z', original.head, final.head, '--']).split('\0').filter(Boolean).sort();
+    const review = { schema_id: 'hsk.component_reuse_review@1', reviewer_session: fault === 'self-review' ? 'implementer' : 'independent', original_commit: original.head, original_tree: original.tree, product_commit: final.head, product_tree: final.tree,
+      original_receipt: receipt, target: { name: 'wire', kind: 'test' }, source_delta_sha256: fault === 'delta' ? '0'.repeat(64) : digest(f.git(['diff', '--no-ext-diff', '--no-renames', '--binary', original.head, final.head, '--'])),
+      source_findings: paths.slice(fault === 'unreviewed' ? 1 : 0).map(name => ({ path: name, status: 'not_a_dependency', reason: 'Support module is unrelated to wire target' })), runtime_relevance: 'unchanged', runtime_reason: 'wire runtime does not read support or MODEL_FIXTURE',
+      historical_source_artifacts: [{ source_path: fault === 'recovered-new-path' ? 'support-module.rs' : 'support.rs', artifact: f.file('recovered-support.rs', fault?.startsWith('recovered-') ? 'mutated bytes' : 'pub fn support() {}'), derivation: 'Recovered unchanged support bytes from renamed support-module.rs; not a fresh runtime or originally retained source copy' }],
+      final_build_command: finalBuild, final_runtime_input_before: runtimeInputs, final_runtime_input_after: runtimeInputs,
+      compile_environment_findings: [],
+      final_inventory: f.file('final-inventory.json', [{ ...artifact, fresh: fault !== 'fresh' }]),
+      environment_findings: fault === 'environment' ? [] : [{ name: 'MODEL_FIXTURE', before: null, after: environment[0].value_sha256, status: 'not_a_dependency', reason: 'wire does not read this fixture variable' }] };
+    if (fault === 'binary') fs.writeFileSync(binary.path, 'changed executable');
+    const action = () => verifyComponentRun({ receipt, log: f.log, reuse_review: f.file('reuse-review.json', review) }, data, fs.readFileSync(f.log.path, 'utf8'), f.root, final);
+    if (fault) assert.throws(action, undefined, fault);
+    else assert.equal(action().temporalBinding.historical_runtime_reuse.original_commit, original.head);
+  });
+});
+
 test('CI alternative checks provider commit, successful build steps, and non-native runner', () => {
   const ref = { provider: 'github_actions', repository: 'owner/repo', run_id: 12, job_id: 34, required_steps: ['Linux build check'] };
   const binding = { head: 'abc' };
