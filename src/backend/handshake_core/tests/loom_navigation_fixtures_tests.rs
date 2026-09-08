@@ -8,7 +8,7 @@
 //!
 //! This is the MT-192 fixture the contract names; it depends on MT-177..190.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::{

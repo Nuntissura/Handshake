@@ -7,7 +7,7 @@
 //! moves/deletes between passes, and drive the durable repair queue through
 //! failure -> queued -> retry -> resolved and through dead-letter exhaustion.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use std::path::Path;

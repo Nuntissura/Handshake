@@ -10,7 +10,7 @@
 //! projection does NOT mutate authority (negative), and proves crash recovery
 //! reconstructs the document after a real close/reopen.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::open_embedded_store;

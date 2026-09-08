@@ -7,7 +7,7 @@
 
 #![recursion_limit = "256"]
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use base64::Engine;

@@ -21,7 +21,7 @@
 //!   * MT-144: end-to-end — index -> plan in a mode -> assert trace + ranked
 //!     evidence + context bundle.
 
-#[path = "knowledge_memory_fixtures.rs"]
+#[path = "knowledge_memory_fixtures/mod.rs"]
 mod knowledge_memory_fixtures;
 
 use handshake_core::knowledge_memory::bridge::generate_bridge_edges;

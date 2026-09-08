@@ -33,7 +33,7 @@
 //!   the same source+reason instead of inserting a new one.
 //! * #10 (MT-091): .env / .pem paths are denied root registration.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use std::path::Path;

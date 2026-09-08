@@ -8,7 +8,7 @@
 //! the HTTP surface and retry a repair entry. Every mutation must leave
 //! EventLedger receipts carrying the actor/session/correlation headers.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use std::path::Path;

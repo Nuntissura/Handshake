@@ -16,7 +16,7 @@
 //! production Ollama/OpenAI-compat adapter uses — there is no separate test-only
 //! code path in the job runner). The no-model negative uses `DisabledLlmClient`
 //! (the real startup path when no provider is configured).
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 

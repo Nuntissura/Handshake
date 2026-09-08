@@ -5,7 +5,7 @@
 //! entries distinguish behavior that no longer exists from the active catalog
 //! and restart guarantees that supersede it.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::surreal::{

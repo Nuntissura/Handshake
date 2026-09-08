@@ -15,7 +15,7 @@ use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{Database, StorageError};
 use serde_json::json;
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_embedded_support;
 use knowledge_embedded_support::open_embedded_store as embedded_knowledge;
 

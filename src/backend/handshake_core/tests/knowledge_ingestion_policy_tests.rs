@@ -8,7 +8,7 @@
 //! store, drives the real ingestion engine, and asserts durable rows,
 //! EventLedger receipts, and typed boundary validation.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::{open_embedded_ingestion_fixture, register_root, test_ctx};

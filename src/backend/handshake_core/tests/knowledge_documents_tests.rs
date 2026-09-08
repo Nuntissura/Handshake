@@ -3,7 +3,7 @@
 //! MT-060 (ContextBundleTables + RetrievalTrace), and MT-061
 //! (EventLedgerEventFamilies on the real ledger).
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::open_embedded_store;

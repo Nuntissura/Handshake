@@ -6,7 +6,7 @@
 //! tagged with a tag, optionally including descendant sub-tags). Authority =
 //! loom_blocks + loom_edges. No parallel store.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::{

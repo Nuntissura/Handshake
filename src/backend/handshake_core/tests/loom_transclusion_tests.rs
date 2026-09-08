@@ -17,7 +17,7 @@
 //!      atom node (`attrs.refValue` = source block id) persists ONLY that atom
 //!      node on save/reload — the host never absorbs the source body.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use std::sync::Arc;

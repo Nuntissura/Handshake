@@ -10,7 +10,7 @@
 //! per anchor kind, redaction state, repair-queue population, and EventLedger
 //! run lifecycle events.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use std::path::{Path, PathBuf};

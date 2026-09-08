@@ -15,7 +15,7 @@
 //!  * calendar buckets by the real date field and a date filter;
 //!  * a re-sort persists into the view definition (saved-view reload proof).
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::knowledge::{KnowledgeEntityKind, KnowledgeStore};

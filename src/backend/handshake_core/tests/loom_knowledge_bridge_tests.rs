@@ -18,7 +18,7 @@
 //!  * the authority backend is embedded SurrealDB + EventLedger;
 //!  * fail-closed when bridging a non-existent / foreign block.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::open_embedded_store;

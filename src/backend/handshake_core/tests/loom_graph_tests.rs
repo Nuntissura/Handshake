@@ -7,7 +7,7 @@
 //! loom_edges + loom_blocks (+ the MT-177 bridge for citations). No parallel
 //! store: all reads resolve to the isolated migrated schema.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::{

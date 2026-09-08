@@ -7,7 +7,7 @@
 //! APIs. Unsupported row-mutation probes are explicitly dispositioned
 //! below with named superseding proof owners.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_embedded_support;
 
 use knowledge_embedded_support::open_embedded_store as embedded_knowledge;

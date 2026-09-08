@@ -19,7 +19,7 @@
 //! uses `DisabledLlmClient`, which declines the embedding call with a typed
 //! error exactly like a runtime with no embedding model configured.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::open_embedded_store;

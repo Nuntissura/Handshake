@@ -1,7 +1,7 @@
 //! WP-KERNEL-009 MT-257 DailyNotesJournal route-level proof against the real
 //! embedded store over a quiet loopback listener.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 #[allow(dead_code)]
 mod user_manual_support;

@@ -13,7 +13,7 @@
 //! `api::loom::routes` driven over a loopback listener (quiet — no foreground
 //! window).
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use std::sync::Arc;

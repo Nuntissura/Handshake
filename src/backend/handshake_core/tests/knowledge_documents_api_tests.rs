@@ -19,7 +19,7 @@
 //!   * MT-157: a move with an empty body does NOT clear project/folder
 //!     membership (absent != explicit null).
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use std::sync::Arc;

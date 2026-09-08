@@ -13,7 +13,7 @@
 //!     overlay never mutates the projection, and deleting the projection never
 //!     touches the source blocks.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::{

@@ -4,7 +4,7 @@
 //! ContextBundle, QueryPlan, selected evidence rows, source/span anchors, and
 //! EventLedger receipts from durable embedded state.
 
-#[path = "knowledge_memory_fixtures.rs"]
+#[path = "knowledge_memory_fixtures/mod.rs"]
 mod knowledge_memory_fixtures;
 
 use handshake_core::kernel::{KernelActor, KernelEventType, NewKernelEvent};

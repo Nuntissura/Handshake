@@ -6,7 +6,7 @@
 //! `/knowledge/crdt/conflict_state`, and repair by pull/merge/resubmit.
 
 #[allow(dead_code)]
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use std::{collections::BTreeSet, sync::Arc};

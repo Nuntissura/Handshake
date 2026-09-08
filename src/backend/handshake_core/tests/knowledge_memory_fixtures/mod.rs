@@ -9,7 +9,7 @@
 
 // `embedded_knowledge_support` is compiled into each integration-test binary that
 // declares it; this support file re-uses it as a sibling module path.
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "../knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 pub use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};

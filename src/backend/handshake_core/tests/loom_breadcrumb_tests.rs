@@ -4,7 +4,7 @@
 //! folder ancestry -> block -> ProjectKnowledgeIndex entity), reusing the
 //! MT-181 folder tree + MT-177 bridge. A read projection; no parallel store.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::open_embedded_store;

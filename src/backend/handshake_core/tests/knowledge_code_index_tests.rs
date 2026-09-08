@@ -21,7 +21,7 @@
 //!   * MT-110 the context bundle is bounded + cited;
 //!   * MT-112 a mixed rust/ts/js/config mini-tree indexes end to end.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};

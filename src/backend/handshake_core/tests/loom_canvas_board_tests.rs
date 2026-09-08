@@ -19,7 +19,7 @@
 //!  * compensation rollback and concurrency ordering use resettable embedded
 //!    failpoints/barriers at the production storage boundary.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::{open_embedded_store, EmbeddedKnowledgeStore};

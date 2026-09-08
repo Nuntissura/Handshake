@@ -6,7 +6,7 @@
 //! embedded-store test mutator, so the API still proves both source staleness
 //! and evidence deletion before repairing the durable bundle.
 
-#[path = "knowledge_memory_fixtures.rs"]
+#[path = "knowledge_memory_fixtures/mod.rs"]
 mod knowledge_memory_fixtures;
 
 use std::collections::BTreeSet;

@@ -4,7 +4,7 @@
 //! existing Loom authority tables. It exposes graph/backlink/folder/search
 //! navigation state without becoming a parallel store or a full-content export.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::{

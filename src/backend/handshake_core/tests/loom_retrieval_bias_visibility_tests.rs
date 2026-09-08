@@ -4,7 +4,7 @@
 //! retrieval order, so no-context models can see tag, backlink, and pin
 //! influence instead of guessing from opaque ranking.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::{

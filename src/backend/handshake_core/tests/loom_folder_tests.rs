@@ -5,7 +5,7 @@
 //! organizational overlay over LoomBlocks; never a second source of block
 //! truth. No parallel store.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::{

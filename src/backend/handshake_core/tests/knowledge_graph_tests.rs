@@ -5,7 +5,7 @@
 //! Spans are tested first: they are the minimum citeable evidence unit and
 //! both entities and edges carry REQUIRED span refs.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_surreal_support;
 
 use handshake_core::storage::knowledge::{

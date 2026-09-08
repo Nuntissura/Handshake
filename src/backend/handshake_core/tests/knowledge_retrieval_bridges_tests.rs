@@ -5,7 +5,7 @@
 //!
 //! Embedded SurrealDB + EventLedger authority only.
 
-#[path = "knowledge_memory_fixtures.rs"]
+#[path = "knowledge_memory_fixtures/mod.rs"]
 mod knowledge_memory_fixtures;
 
 use handshake_core::kernel::KernelActor;

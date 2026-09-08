@@ -10,7 +10,7 @@
 //!     conversion, and a block that IS linked is excluded;
 //!   * fail-closed on a missing viewed block.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
 use handshake_core::storage::{
