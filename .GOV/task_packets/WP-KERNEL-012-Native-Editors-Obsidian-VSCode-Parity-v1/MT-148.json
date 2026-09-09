@@ -40,17 +40,93 @@
     "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": "KERNEL_BUILDER-20260904-233444",
+    "claimed_by": "KERNEL_BUILDER-20260909-212427",
     "created_by": "KERNEL_BUILDER-20260903-213930",
     "created_at_utc": "2026-09-04T23:31:02.888Z",
     "creation_reason": "Two independent defects each make a freshly created worktree unable to do its job, and both were found the hard way during the MT-145 and MT-147 lanes rather than by anyone reading the code. Neither belongs to an existing microtask: MT-145's allowed paths are two cfg(test) modules, MT-147's is a workflow file, and MT-146's is the memory surface. They are grouped here because they share one acceptance surface -- can a new worktree build and test at all -- and because fixing one without the other still leaves a new worktree broken.",
     "relationship_to_mt_141": "Defect B lives in src/backend/handshake_core/tests/**, which MT-141 owns. This contract deliberately takes only the dependency-API repair that makes that tree COMPILE, and touches nothing else in it. MT-141's own scope is porting the suite off sqlx onto the embedded store; it is currently CLAIMED and blocked by exactly this compile failure, so repairing it here unblocks MT-141 rather than competing with it. If the Operator would rather MT-141 absorb this, close MT-148 and hand it over -- but it should not sit unowned, because it blocks every integration target in the crate.",
-    "claimed_at_utc": "2026-09-04T23:47:58.159Z",
+    "claimed_at_utc": "2026-09-09T21:49:19.771Z",
     "ac_148_3_correction_2026_09_05": {
       "at_utc": "2026-09-05T10:19:16.651Z",
       "by": "KERNEL_BUILDER-20260903-213930 (orchestrator, contract author)",
       "reason": "I wrote AC-148-3 as --all-targets --all-features. The implementer pointed out that llama-cpp-sys-2 is optional behind the llama-cpp-runtime-engine feature, so the literal --all-features form drags a native llama.cpp C++ build into a criterion whose actual purpose is that the tests tree compiles with no E0599. A third-party native build failing is neither proof nor blocker for this microtask. This is the same drafting error I have now made three times in this packet: writing a criterion broader than its intent and having the implementer find it unsatisfiable or irrelevant on the edge.",
       "also": "Accepted the implementer addition of PT-148-2b. The original PT-148-2 proves a store bootstraps in a fresh worktree, which is the D-148-1 proof, but it never exercises open_existing or close_for_reopen - the code D-148-2 actually rewrote. Without 2b the tempfile repair could be wrong and every declared proof would still pass. That gap was mine and the implementer found it."
+    },
+    "takeover_2026_09_09": {
+      "authority": "Operator instruction 2026-09-09: take over both MTs and drive them to finish as a dev sprint, delegating implementation to sub-agents under KERNEL_BUILDER steering.",
+      "previous_owner": "KERNEL_BUILDER-20260904-233444",
+      "previous_status": "CLAIMED",
+      "new_owner": "KERNEL_BUILDER-20260909-212427",
+      "at_utc": "2026-09-09T21:49:19.771Z",
+      "liveness_basis": "Prior claim sessions dated 2026-09-04 and 2026-09-06 were inactive: no cargo/rustc processes running, and repomem auto-closed stale session KERNEL_BUILDER-20260908-031957 at this session open.",
+      "preserved": "All prior implementation, contract history, blocker records, rulings and operator decisions are retained unchanged. This is a liveness action only and is not a judgement on prior work.",
+      "product_base": "2876bcf0d852f324b23ad9c9773df11c1e2c3d4d"
+    },
+    "acceptance_evidence_20260909": {
+      "recorded_by": "KERNEL_BUILDER-20260909-212427",
+      "at_utc": "2026-09-09T21:52:32.038Z",
+      "product_commit": "2876bcf0d852f324b23ad9c9773df11c1e2c3d4d",
+      "AC-148-1": {
+        "verdict": "MET",
+        "summary": "git check-attr text eol on schema.surql reports text=set, eol=lf. Committed blob bytes and worktree bytes both contain zero CR for both tracked .surql files. sha256 of each file equals its pinned constant exactly: schema.surql = b4bcdbd16ffbbb3d... (GENERATED_SURREALQL_SHA256); knowledge_schema_registry_seed.surql = f51ef10d8ebc0c72... (KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256).",
+        "correction_note": "An earlier measurement in this session using a grep-based CR count reported both files as CRLF. That was a false positive: the pattern degraded to empty and matched every line, so the reported counts were the files' total line counts. Re-measured at byte level and retracted."
+      },
+      "AC-148-4": {
+        "verdict": "MET",
+        "summary": "Fix commit 6d5d705f changed exactly 2 files: .gitattributes (+3) and src/backend/handshake_core/tests/atelier_surreal_support/mod.rs (+53/-6). Nothing under src/backend/handshake_core/src/** and no other file under tests/**."
+      },
+      "AC-148-3": {
+        "verdict": "IN_PROGRESS",
+        "note": "See contract_defect_20260909 below."
+      }
+    },
+    "contract_defect_20260909": {
+      "recorded_by": "KERNEL_BUILDER-20260909-212427",
+      "at_utc": "2026-09-09T21:52:32.038Z",
+      "severity": "BLOCKS_LITERAL_AC_SATISFACTION",
+      "finding": "AC-148-3 names `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets` with no --features. That command cannot compile this tree at any commit. At 2876bcf0d852f324b23ad9c9773df11c1e2c3d4d it fails 53 test targets with 13x E0599 + 7x E0432 + 6x E0433, and every missing symbol is feature-gated test support: test_inspector, test_mutator, SurrealTestInspector, RowFilter, ScalarValue, bootstrap_mt137_* (feature surreal-test-support) and InMemoryLlmClient (feature test-utils, gated cfg(any(test, feature = test-utils))).",
+      "not_a_code_defect": "Zero type, logic, borrow or trait errors were produced. The tree is not broken; the criterion omits the features its own test targets require.",
+      "manifest_observation": "Cargo.toml declares 89 [[test]] blocks, 88 carrying required-features, but only 15 mention surreal-test-support while 28 test files consume the gated API. Reconciling that is a Cargo.toml change, which lies outside the allowed_paths of MT-141 (tests/ only), MT-148 (2 files) and MT-149 (src/ plus 1 test file).",
+      "discriminating_run": "compile-gate-4 with --features surreal-test-support,test-utils determines whether this is contract wording only or also a manifest defect.",
+      "precedent": "The contract author already recorded ac_148_3_correction_2026_09_05 for the same class of drafting error on this same criterion."
+    },
+    "ac_148_3_correction_20260909": {
+      "at_utc": "2026-09-09T21:54:07.736Z",
+      "by": "KERNEL_BUILDER-20260909-212427 (current MT owner)",
+      "precedent": "Mirrors ac_148_3_correction_2026_09_05, in which the contract author corrected this same criterion after the implementer showed the literal --all-features form was unsatisfiable for reasons unrelated to this microtask.",
+      "problem": "As written, AC-148-3 is satisfied by `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets` with no --features. That command cannot compile this tree at any commit, because 28 test files consume APIs gated behind `surreal-test-support` (test_inspector, test_mutator, SurrealTestInspector, RowFilter, ScalarValue, bootstrap_mt137_*) and `test-utils` (InMemoryLlmClient). It is not a statement about whether the tests tree compiles.",
+      "measured_evidence": {
+        "without_features": {
+          "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --keep-going",
+          "cargo_exit": 101,
+          "failing_test_targets": 53,
+          "error_codes": {
+            "E0599": 13,
+            "E0432": 7,
+            "E0433": 6
+          },
+          "type_logic_borrow_errors": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/compile-gate-3.err.log"
+        },
+        "with_features": {
+          "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --keep-going --features surreal-test-support,test-utils",
+          "cargo_exit": 0,
+          "failing_test_targets": 0,
+          "rustc_errors": 0,
+          "warnings": 437,
+          "duration": "4m00s",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/compile-gate-4.err.log"
+        }
+      },
+      "correction": "AC-148-3 is satisfied by the --all-targets run with `--features surreal-test-support,test-utils` completing with no E0599 and no could-not-compile error originating in tests/**. The feature list is not a relaxation: it is the minimum set the crate's own test targets require. The `--all-features` variant remains SECONDARY and best-effort exactly as the original criterion says, because --all-features enables llama-cpp-runtime-engine and drags in the third-party llama-cpp-sys-2 native C++ build, whose failure says nothing about this microtask.",
+      "verdict_under_corrected_criterion": "MET",
+      "residual_debt_not_owned_by_this_mt": {
+        "observation": "Cargo.toml declares 89 [[test]] blocks, 88 carrying required-features, but only 15 mention surreal-test-support while 28 test files consume that gated API. Targets consuming the gated API without declaring required-features are why the default-feature build fails instead of cargo simply skipping them.",
+        "why_not_fixed_here": "Editing Cargo.toml is outside the allowed_paths of MT-141 (tests/ only), MT-148 (.gitattributes + one helper file) and MT-149 (src/ plus one test file). No currently open microtask owns Cargo.toml.",
+        "recommendation": "Route a follow-up microtask that owns src/backend/handshake_core/Cargo.toml to add required-features = [\"surreal-test-support\"] (and test-utils where needed) to the affected [[test]] blocks, so a bare `cargo check --all-targets` skips them cleanly instead of failing. Operator decision required; not silently absorbed here.",
+        "severity": "LOW_PRODUCT_RISK_MEDIUM_WORKFLOW_RISK",
+        "workflow_risk": "Any future contributor or CI job running a bare `cargo check --all-targets` sees 53 red targets and may misdiagnose the tree as broken, exactly as happened during this session before the cause was isolated."
+      }
     }
   },
   "scope": {
@@ -163,5 +239,5 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
-  "updated_at_utc": "2026-09-05T10:19:16.651Z"
+  "updated_at_utc": "2026-09-09T21:54:07.736Z"
 }
