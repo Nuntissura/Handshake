@@ -237,6 +237,67 @@
         "8. Memory-IPC items are blocked on new production code, not a straight port.",
         "9. Close the 3 BEHAVIOUR_REMOVED tests with stated justification."
       ]
+    },
+    "coverage_sweep_20260910": {
+      "recorded_by": "KERNEL_BUILDER-20260909-212427",
+      "at_utc": "2026-09-09T22:59:25.482Z",
+      "delegated_to": "LANE-E read-only coverage sweep across src/ AND tests/",
+      "reviewed_by": "KERNEL_BUILDER-20260909-212427",
+      "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-E-coverage-sweep.json",
+      "purpose": "Separates BEHAVIOUR_STILL_LIVE (the production behaviour exists) from IS_COVERED_ELSEWHERE (something already proves it). The earlier lanes answered only the first question, and did so against the tests/ tree alone.",
+      "totals": {
+        "evaluated": 54,
+        "covered_elsewhere": 6,
+        "partial": 14,
+        "genuinely_uncovered": 34
+      },
+      "scoping_result": "The AC-141-2 restoration set is 34 genuinely-uncovered tests plus 14 partials, not the 54 first reported. 6 are already covered and need documenting only.",
+      "security_regression_confirmed": {
+        "severity": "HIGH",
+        "headline": "A live privilege-escalation guard has zero test coverage at any layer, because the test that proved it was deleted by 4f92cc25 and never replaced.",
+        "guard_location": "src/backend/handshake_core/src/api/knowledge_documents.rs:467",
+        "guard_constant": "RESERVED_NATIVE_PRINCIPAL_PREFIX = \"handshake-native:\" (defined at :98)",
+        "what_it_protects": "The handshake-native: actor-id namespace is minted by stage::capture_context. The guard rejects any request declaring an id in that namespace unless it authenticated as exactly that principal. The in-source comment states the consequence of its absence verbatim: 'Without this an unauthenticated request forges the derived principal with a single header.'",
+        "kernel_builder_independent_verification": {
+          "note": "Not accepted on sub-agent report. Re-verified directly because the claim is security-critical.",
+          "reserved_prefix_sites": "Exactly 2 across src/ and tests/: the definition at :98 and the single use site at :467.",
+          "tests_in_owning_file": "0 occurrences of #[cfg(test)] and 0 of #[test]/#[tokio::test] in api/knowledge_documents.rs. The #[cfg(any(test, feature = surreal-test-support))] blocks at :100 are test-support pause-point helpers, not tests.",
+          "tests_tree_hits": "grep for 'handshake-native' across the entire tests/ tree returns 0 hits."
+        },
+        "deleted_tests_that_covered_it": [
+          "mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal",
+          "mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_identity",
+          "mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id"
+        ],
+        "recommendation": "Restore these three regardless of how the wider AC-141-2 gap is resolved. They are cheap relative to their risk and they guard an authentication boundary, not a convenience feature."
+      },
+      "other_security_relevant_uncovered": [
+        "derived_native_principal_from_stage_route",
+        "stage_capture_rejects_crash_stale_binding_without_residue",
+        "activity_span_write_is_event_and_workspace_scoped"
+      ],
+      "ranked_uncovered_head": [
+        "1-3. The three mt120 auth-boundary tests (see security_regression_confirmed).",
+        "4. derived_native_principal_from_stage_route",
+        "5. stage_capture_rejects_crash_stale_binding_without_residue",
+        "6. activity_span_write_is_event_and_workspace_scoped",
+        "7. durable_claim_and_lease - live scheduling state machine with no equivalent anywhere",
+        "8. route1_locus_work_packet_resolve / route1_locus_micro_task_resolve",
+        "9. mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_residue",
+        "10. Remaining Stage/Calendar routes, two mt164 HBR-gate tests, then the Loom atomic-receipt family (lowest urgency)."
+      ],
+      "corrections_to_earlier_lanes": [
+        "route3_calendar_events_returns_events_in_window is PARTIAL, not uncovered: tests/mex_tests.rs already drives the real windowed route.",
+        "mt045_code_nav_index_returns_symbol_count, the kernel_event_ledger migration/replay/idempotency trio, and both capsule_recorder_* tests are COVERED_ELSEWHERE. The capsule_recorder pair is covered by a real running #[tokio::test] inside storage/surreal/mt136_kernel_action_submitter_proof.rs, which the prior lane had left unresolved.",
+        "LANE-D mischaracterised mt125: its cited production symbols do not match the actual deleted test body."
+      ],
+      "reduced_confidence_items": {
+        "items": [
+          "mt123",
+          "mt125"
+        ],
+        "note": "Verified at reduced depth by LANE-E and flagged by it as needing a follow-up pass before their PARTIAL verdicts are treated as final. Recorded rather than silently promoted to final."
+      }
     }
   },
   "scope": {
@@ -372,7 +433,7 @@
       "product_worktree": "CLEAN"
     }
   },
-  "updated_at_utc": "2026-09-09T22:31:11.268Z",
+  "updated_at_utc": "2026-09-09T22:59:25.482Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
