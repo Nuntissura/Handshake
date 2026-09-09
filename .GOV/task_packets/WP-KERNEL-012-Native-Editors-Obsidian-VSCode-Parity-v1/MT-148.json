@@ -78,6 +78,24 @@
       "AC-148-3": {
         "verdict": "IN_PROGRESS",
         "note": "See contract_defect_20260909 below."
+      },
+      "AC-148-6": {
+        "verdict": "MET",
+        "finding": "BEHAVIOUR_IDENTICAL for the harness lifecycle, with one materially important qualification recorded below.",
+        "delegated_to": "LANE-C read-only analysis sub-agent",
+        "reviewed_by": "KERNEL_BUILDER-20260909-212427",
+        "review_basis": "KERNEL_BUILDER independently re-verified the central claim before accepting it: tempfile resolves to 3.27.0 in Cargo.lock, and `pub fn from_path` does not exist anywhere in the vendored tempfile-3.27.0 source. MT-141's own field_evidence_disclosure_2026_09_04 independently recorded the same fact.",
+        "summary": "create(), close_for_reopen(), shutdown() and the Drop impl behave exactly as the previous tempfile::TempDir-based code did: delete-on-drop unless released first. OwnedTempRoot::drop calls fs::remove_dir_all exactly once per lifecycle. No directory leak is introduced by this fix.",
+        "material_qualification": "The old call TempDir::from_path(data_dir) never compiled, because from_path has never existed on TempDir in any tempfile 3.x release (it belongs to TempPath, which is single-file, not a directory). There is therefore no working prior baseline for open_existing to have regressed from. OwnedTempRoot::adopt is the FIRST WORKING IMPLEMENTATION of a contract that close_for_reopen's doc comment already described before the fix.",
+        "consequence_for_proof": "Because open_existing never compiled, no close-and-reopen durability proof in this crate has ever executed. PT-148-2b is therefore the first-ever runtime execution of that path, not a confirmatory formality. A compile-only gate is explicitly insufficient for this microtask.",
+        "not_a_silent_fold_in": "The intent is stated in-source in OwnedTempRoot's own doc comment within the same diff, and in the commit body of 6d5d705f. AC-148-6's requirement that a behaviour change be stated explicitly rather than folded in silently is satisfied.",
+        "adjacent_finding_out_of_scope": "write_native_media_artifact() in the same file leaked a bare unguarded temp dir at 6d5d705f (tempdir().keep() with no owning guard). That leak is pre-existing and unchanged from the old into_path() behaviour, was not introduced by this fix, and was independently closed by the later commit 3bd7ad5c which bound it to resolve_workspace_root()/HANDSHAKE_WORKSPACE_ROOT.",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/LANE-C-behaviour-change.json"
+      },
+      "PT-148-4": {
+        "verdict": "MET",
+        "summary": "git show --numstat 6d5d705f confirms exactly two files changed: .gitattributes (+3/-0) and src/backend/handshake_core/tests/atelier_surreal_support/mod.rs (+47/-6). Both are inside MT-148 allowed_paths.",
+        "later_commit_note": "Commit 3bd7ad5c also touched the same helper file (+12/-4) but only inside write_native_media_artifact(). OwnedTempRoot, adopt, release, its Drop, open_existing, close_for_reopen, create and shutdown were confirmed byte-identical against HEAD."
       }
     },
     "contract_defect_20260909": {
@@ -239,5 +257,5 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
-  "updated_at_utc": "2026-09-09T21:54:07.736Z"
+  "updated_at_utc": "2026-09-09T21:57:34.222Z"
 }

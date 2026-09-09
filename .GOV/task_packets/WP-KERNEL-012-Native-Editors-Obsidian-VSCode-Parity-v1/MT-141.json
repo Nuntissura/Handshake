@@ -30,7 +30,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "BLOCKED_ON_ACCEPTANCE_GAP",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -118,6 +118,35 @@
         "verdict": "MET",
         "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/PT-141-1-forbidden-db-scan.json",
         "summary": "407 test files scanned. Cargo.toml declares no sqlx/postgres/sqlite dependency and Cargo.lock resolves no forbidden crate at all. All 22 token-matching files carry the tokens only inside string literals or raw-string fixtures; none appears in an import, dependency, feature gate, env var, or connection string, which is the AC-141-1 anti-laundering test. The heaviest matching files are the forbidden-technology detector tests themselves, exemption (a)."
+      },
+      "AC-141-3": {
+        "verdict": "MET",
+        "delegated_to": "LANE-A read-only audit sub-agent",
+        "reviewed_by": "KERNEL_BUILDER-20260909-212427",
+        "per_class": {
+          "process_ledger": "MET - process_ledger_tests.rs:236, mt137_restart_recovery_tests.rs:388, crash_recovery_e2e/runtime_chaos.rs:234 (includes a hard-kill-child-then-reopen proof).",
+          "session_checkpoint": "MET - mt137_restart_recovery_tests.rs:718 plus multiple real reopen tests in session_checkpoint_tests.rs.",
+          "crdt_persistence": "MET - knowledge_crdt_proof_tests.rs, kernel_crdt_promotion_bridge_tests.rs, knowledge_crdt_concurrency_tests.rs, knowledge_crdt_lease_recovery_tests.rs.",
+          "event_ledger": "MET - atelier_event_ledger_tests.rs:147, terminal_event_ledger_tests.rs:58, kernel_end_to_end_tests.rs:298 (restart_reconstruction_proof), crash_recovery_e2e/runtime_chaos.rs:273."
+        },
+        "naming_trap_recorded": "Three files are named for durability they do not prove. kernel_crdt_persistence_tests.rs:132 and kernel_crdt_snapshot_tests.rs:145 contain test names including 'after_surreal_reopen' and 'after_restart' but neither closes or reopens the store. kernel_event_ledger_tests.rs is taxonomy/serde only. A future reader auditing by filename would wrongly conclude these classes are covered here; the real coverage lives in the files named above.",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-A-durability-and-disposition.json"
+      },
+      "AC-141-2": {
+        "verdict": "NOT_MET",
+        "blocking": true,
+        "compile_half": "MET - compile-gate-4 at 2876bcf0 is exit 0 with zero errors across all targets using --features surreal-test-support,test-utils.",
+        "preservation_half": "NOT MET. Commit 4f92cc25 deleted 26 test files. A disposition audit produced 46 rows and found 49 deleted tests with no superseding proof named, spread across 12 files.",
+        "governing_rule_violated": "MT-141 scope: 'No assertion may be weakened or deleted to make a file compile; each file's proof intent is preserved at equivalent strength or the file's owning behavior is recorded as no-longer-existing with the superseding proof named.' AC-141-2 requires every retired test to name its superseding proof or the removed behaviour it covered. Neither was recorded for these 49.",
+        "kernel_builder_independent_confirmation": "The most severe cluster was re-verified directly rather than accepted from the sub-agent. wp_kernel_012_native_editor_routes_pg_tests.rs was a real HTTP integration suite (axum::Router harness, reqwest client, route tests such as route3_calendar_events_returns_events_in_window). Its routes resolve_work_packet and resolve_micro_task remain live in production at src/backend/handshake_core/src/api/locus.rs:96 and :126. The only surviving reference anywhere under tests/ is the unrelated string literal 'resolve_micro_task_blocker' in a command list in kernel_local_model_microtask_loop_tests.rs. Current route coverage is therefore genuinely zero.",
+        "clusters": [
+          "wp_kernel_012_native_editor_routes_pg_tests.rs - 18 tests. Locus resolve, Stage artifact, Calendar window, document soft-delete, native-principal auth. Routes still live, zero replacement.",
+          "loom_atomic_receipt_pg_tests.rs + loom_block_wiki_atomic_receipt_pg_tests.rs - 14 tests. Folder/tag/pin/favorite/wiki-overlay mutations with restart-survival and rollback-on-ledger-failure assertions. No superseding proof found anywhere in the current 407-file tree.",
+          "memory_capsule_e2e_postgres_tests.rs - 5 tests. ACE MemoryCapsule regressed from real-store proofs to pure synchronous in-memory logic tests."
+        ],
+        "adjacent_finding": "Production symbol PostgresControlPlaneResidualScopeV1 lost its only test coverage with no replacement and appears to be dead code.",
+        "next_step": "LANE-D classifies every deleted test as BEHAVIOUR_REMOVED (PostgreSQL-specific, retiring is correct, AC-141-2 satisfied by naming the removed behaviour) or BEHAVIOUR_STILL_LIVE (real coverage regression that must be ported onto the embedded store), with a port-difficulty estimate. Operator decision required on whether restoration happens inside MT-141 or in a new microtask in the same WP.",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-A-durability-and-disposition.json"
       }
     },
     "blocker_resolved_20260909": {
@@ -127,6 +156,14 @@
       "basis": "MT-149 (READY_FOR_VALIDATION, blocks MT-141) restored every dropped read-model accessor. Verified present in src at 2876bcf0d852f324b23ad9c9773df11c1e2c3d4d: get_open_knowledge_code_repair, list_knowledge_code_repairs, resolve_knowledge_code_repair, record_knowledge_scip_import, list_knowledge_scip_imports (storage/surreal/knowledge.rs); starvation_watermark_at_utc (mt_executor/job.rs:166); audit_reason (role_mailbox_v1/message.rs:92); load_run_for_replay (storage/kb003_storage.rs:337). InMemoryKb003Storage is now an un-gated pub struct (storage/kb003_storage.rs:205) and query_values is pub (storage/surreal.rs:484).",
       "mechanical_confirmation": "compile-gate-3 at 2876bcf0d852f324b23ad9c9773df11c1e2c3d4d produced zero E0599 for any of these symbols; the only remaining failures were feature-gated test-support symbols. See ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/compile-gate-3-result.json",
       "status": "STALE_BLOCKER_CLEARED - the routing request for an MT owning src/** was satisfied by MT-149."
+    },
+    "blocker": {
+      "schema_id": "hsk.mt_blocker@1",
+      "recorded_by": "KERNEL_BUILDER-20260909-212427",
+      "recorded_at_utc": "2026-09-09T22:07:03.320Z",
+      "summary": "AC-141-2 preservation half is not met: 49 tests deleted by 4f92cc25 have no superseding proof named, and at least one cluster covers production behaviour that is still live and now has zero coverage. MT-141 must not reach READY_FOR_VALIDATION in this state, because deleting tests to reach a green compile is the exact failure mode this microtask exists to prevent.",
+      "not_a_compile_problem": "The tree compiles clean. This is a proof-preservation gap, not a build defect.",
+      "awaiting": "LANE-D liveness classification, then Operator scope decision."
     }
   },
   "scope": {
@@ -262,7 +299,7 @@
       "product_worktree": "CLEAN"
     }
   },
-  "updated_at_utc": "2026-09-09T21:52:32.038Z",
+  "updated_at_utc": "2026-09-09T22:07:03.320Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
