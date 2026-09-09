@@ -14,7 +14,7 @@
   "title": "CKC media/search lane on SurrealDB: character-scoped albums, membership provenance/attribution, unlink receipts, reorder/link-edit, fuzzy+vector+combined search, tag notes",
   "status": "CLAIMED",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-06T16:37:12.635Z",
+  "updated_at_utc": "2026-09-06T21:48:13.498Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -50,8 +50,8 @@
       "skeleton": "09febeb8",
       "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
     },
-    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-    "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
+    "cargo_target_dir": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/target",
+    "hidden_runner": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/run-recovery-batch.ps1",
     "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`.",
     "resume_state": {
       "status": "SECOND_PARTIAL_CHECKPOINTED_UNCOMPILED_AS_WHOLE",
@@ -72,7 +72,15 @@
       "at_utc": "2026-09-06T16:48:27.565Z",
       "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
       "runner_pid": 13360
-    }
+    },
+    "artifact_path_history": [
+      {
+        "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+        "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
+        "status": "SUPERSEDED_INCORRECT_PATH",
+        "reason": "Operator-confirmed single directory Handshake_Artifacts with WP/MT/owner layout; current MT060 proof shares parent-coordinated MT058 owner."
+      }
+    ]
   },
   "scope": {
     "summary": "CKC media/search lane on SurrealDB: character-scoped albums, membership provenance/attribution, unlink receipts, reorder/link-edit, fuzzy+vector+combined search, tag notes",
@@ -84,7 +92,8 @@
       "source_evidence.rs",
       "src/backend/handshake_core/src/api/atelier_ckc_media.rs",
       "tests/atelier_core_data_tests.rs (delta)",
-      "tests/atelier_ckc_media_api_tests.rs"
+      "tests/atelier_ckc_media_api_tests.rs",
+      "src/backend/handshake_core/src/atelier/relationships.rs"
     ],
     "router_module": "src/backend/handshake_core/src/api/atelier_ckc_media.rs (skeleton exists, merged in api/mod.rs)",
     "proof_commands": [
@@ -95,7 +104,97 @@
       "editing api/atelier.rs, api/mod.rs, atelier/mod.rs, Cargo.toml, Cargo.lock, schema.surql, schema.rs, storage/mod.rs, model_manual/*, user_manual/*, src/frontend/*",
       "sqlx / PostgreSQL / SQLite / migrations",
       "git write operations; worktree creation; cargo build of binaries; whole-suite test runs"
-    ]
+    ],
+    "current_proof": {
+      "status": "MEDIA_API_NINE_CASES_PASSED_SAVED_SEARCH_FOLLOWUP_PENDING",
+      "product_checkpoint": "711dadbc8e09ad3ec14ff206ba85704b3b50bf1d",
+      "attempts": [
+        {
+          "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-backend.log",
+          "exit_code": 101,
+          "passed": 0,
+          "failed": 9,
+          "diagnosis": "Eight member reads failed required content_hash deserialization; event test used unsanitized actor key."
+        },
+        {
+          "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-media.log",
+          "exit_code": 101,
+          "passed": 1,
+          "failed": 8,
+          "ended_at_utc": "2026-09-06T21:19:49.0631626Z",
+          "diagnosis": "Moving projection order did not resolve content_hash none; this attempted fix is not proven. Sanitizer-aligned requested_by_ref assertion passed.",
+          "passed_tests": [
+            "atelier_ckc_media_notes_tags_commit_all_event_families"
+          ]
+        },
+        {
+          "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-media-retry.log",
+          "status": "FINISHED",
+          "scope": "Eight failed media tests; reuse unchanged passing event test.",
+          "repair": "Distinct private member_asset_id projection/row fields and pagination order key preserve public asset_id and avoid same-name projection alias.",
+          "exit_code": 101,
+          "passed": 6,
+          "failed": 2,
+          "filtered_out": 1,
+          "ended_at_utc": "2026-09-06T21:36:54Z",
+          "diagnosis": "Distinct member alias repaired collection read failures; two search tests reached a separate missing selected sort_order parser error."
+        },
+        {
+          "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-search-retry.log",
+          "status": "FINISHED",
+          "scope": "Two atelier_ckc_search_ tests; six collection tests and prior event test retained as unchanged-input passing proof.",
+          "repair": "Search collection-items SELECT now includes sort_order and distinct private member_asset_id; public identity and ordering preserved.",
+          "exit_code": 0,
+          "passed": 2,
+          "failed": 0,
+          "filtered_out": 7,
+          "ended_at_utc": "2026-09-06T21:47:00.7996995Z"
+        }
+      ],
+      "no_validator_pass_claim": true,
+      "saved_search_followup": {
+        "source": "src/backend/handshake_core/src/atelier/search.rs:1469",
+        "change": "Added created_at_utc to SELECT because it is the ORDER BY key.",
+        "required_test": "atelier_core_data_tests::atelier_saved_searches_reproduce_filters_and_retrieval_projection",
+        "status": "PENDING_REMAINING_TARGET_BATCH",
+        "no_skip_evidence": "tests/atelier_core_data_tests.rs77 always returns Some embedded marker; existing early skip branch is unreachable."
+      },
+      "proof_reuse": "Six collection cases passed at d4bbd2b7; subsequent search.rs-only edits do not change their collection operations. Event transaction case passed at c03c1c60; later collection/search projection and internal visibility changes do not change its notes/tags mutation, sanitizer or ledger assertions. Two affected search cases passed at711dadbc. Earlier aggregate exit101 logs remain failures; only named passed cases are reused."
+    },
+    "predecessor_repair_scope": {
+      "relationships": {
+        "file": "src/backend/handshake_core/src/atelier/relationships.rs",
+        "scope": "Select updated_at_utc in existing relationship graph projection to satisfy current Surreal ORDER BY requirement; no broader relationship integration."
+      },
+      "media": {
+        "file": "src/backend/handshake_core/src/atelier/media.rs",
+        "scope": "Repair bulk review domain binding and place metadata, per-item events and existing bulk receipt in one canonical transaction; supersedes prior +13 shorthand only for this required core-data failure."
+      },
+      "proof_status": "Source reviewed by parent; runtime pending after canonical schema repin. No validator verdict.",
+      "required_regression": "atelier::media::bulk_review_tests::bulk_review_later_event_failure_rolls_back_metadata_ledger_and_receipt",
+      "proof_mapping": {
+        "search": [
+          "atelier_ai_tag_suggestions_are_reviewable_proposals_not_auto_truth",
+          "mt070_ai_tag_suggestion_provenance_survives_reject",
+          "mt070_ai_tag_suggestion_status_graph_is_enforced",
+          "atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts",
+          "atelier_lens_search_filters_default_tier1_and_sfw_hard_drop_without_mutation",
+          "mt067_core_data_integration_smoke_path"
+        ],
+        "relationships": [
+          "atelier_character_relationships_crud_endpoint_validation_and_graph_projection"
+        ],
+        "media": [
+          "atelier_saved_searches_reproduce_filters_and_retrieval_projection",
+          "atelier::media::bulk_review_tests::bulk_review_later_event_failure_rolls_back_metadata_ledger_and_receipt"
+        ]
+      },
+      "compile_recovery": {
+        "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-pin-capture-attempt1-test-lifetime.log",
+        "result": "FAILED_E0597_NO_RUNTIME_PROOF",
+        "repair": "Test-only dynamic trigger replaced by static rating=4 rejection; first update rating3, second4 preserves late second-event failure. Retry pending."
+      }
+    }
   },
   "hbr_obligations": {
     "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",

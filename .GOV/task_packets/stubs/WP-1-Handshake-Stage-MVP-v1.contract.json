@@ -27,9 +27,10 @@
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.md",
-    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "status": "LEGACY_NON_AUTHORITATIVE_REFERENCE",
     "projection_sha256": "8498b5e3f39abe9fe00f3d5438a89c002c8c0ef06d3fbcbc7f65563ddba0c7aa",
-    "generated_by": "task-packet-stub-contracts.mjs"
+    "generated_by": "task-packet-stub-contracts.mjs",
+    "authority_note": "The JSON contract is primary. The retained legacy Markdown is reference-only and MUST NOT regenerate or overwrite this enriched folded Stage contract."
   },
   "consolidation": {
     "status": "FOLDED_UMBRELLA_STUB",
@@ -71,4 +72,89 @@
     "decision_id": "STAGE-DEC-023",
     "posture": "SURREALDB_EXCLUSIVE_AUTHORITY",
     "authority": "Handshake-managed embedded SurrealDB/EventLedger is the only Stage product, runtime, test, fixture, cache, recovery, and proof database authority.",
-    "runtime_i
+    "runtime_identity": "Stage uses the canonical application-bootstrap SurrealStorage handle through an injected typed StageRepository boundary; Stage MUST NOT open a feature-private database or call feature-local open_default() in production.",
+    "schema_ownership": "Stage owns typed SCHEMAFULL Stage tables, indexes, assertions, authenticated record-user permissions, and SurrealKit rollouts. Stage does not read or mutate another subsystem's private tables.",
+    "artifact_boundary": "ArtifactStore owns captured/downloaded bytes, manifests, hashes, retention, garbage collection, and materialization. Stage persists opaque ArtifactHandles, capture intent, source correlation, lineage, and workflow state in SurrealDB/EventLedger.",
+    "browser_profile_boundary": "Engine-native profile directories may hold cookies, cache, local storage, IndexedDB, service workers, DRM state, and other browser-engine materialization. Those files are isolated runtime state, not an alternative Stage product database or canonical backup authority.",
+    "forbidden": [
+      "Turso",
+      "libSQL",
+      "SQLite",
+      "PostgreSQL",
+      "feature-private database engines",
+      "database fallback or dual-write paths",
+      "mock-only or in-memory-only database proof"
+    ],
+    "required_proof": [
+      "official SurrealDB Rust SDK access through the typed storage boundary",
+      "SurrealKit SCHEMAFULL rollout with assertions, indexes, and authenticated record-user permissions",
+      "real embedded SurrealDB tests in a WP-scoped namespace/database",
+      "restart/reopen, concurrency, permission-isolation, rollout, backup/restore, and database-outage proof where the MT touches those behaviors",
+      "zero-match guards for forbidden database dependencies, URLs, drivers, migrations, fixtures, caches, fallbacks, and compatibility paths"
+    ]
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "HANDSHAKE_STAGE_BROWSER",
+    "tech_blocker": "RECONCILED_EMBEDDED_SURREALDB_BASELINE_AND_DECLARED_STAGE_DEPENDENCY_GATES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 (validated and merged shared embedded SurrealDB bootstrap/schema baseline)",
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 (validated and merged shared embedded SurrealDB/EventLedger orchestration baseline)"
+    ],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "Resolve current authority via .GOV/spec/SPEC_CURRENT.md; Stage master-spec topic rewrite is DEFERRED (STAGE-DEC-006/016) until planning concludes. Roadmap: Handshake Stage (governed high-volume browser + intake + Stage Apps), Phase 1/Week-5 track.",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: The single Handshake Stage umbrella WP: a Handshake-native, high-volume, low-CPU governed web browser surface with 3000+ durable tab records, bounded live renderers, project asset intake (download/capture -> ArtifactStore -> Lens/Atelier/CKC), native/local+cloud AI steering, capture/portability, ASR lineage, translation/export/search, and Stage Apps. Stage durable authority uses the shared embedded SurrealDB/EventLedger substrate through a typed StageRepository.\n- Why: A normal browser whose one defining requirement is holding 3000+ tabs without taxing CPU (STAGE-DEC-020), leaving headroom for Handshake heavy tools (ComfyUI, editor clones), while folding the older Stage-owned stubs into one direction without creating a second product database.",
+    "scope_sketch": "- Authority: the hardened planning corpus at .GOV/reference/stage_mvp_planning/ (index.yaml, 02-decision-register.md, requirements-and-traceability.yaml, acceptance-registry.yaml, 10-microtask-lane-and-dag-seed.md) is the scope source, NOT this summary.\n- IN_SCOPE: 23 lanes L00..L22 (topology/registries/kernel/diagnostics spine; native shell; history/bookmarks/import; high-volume scheduler; WebView2 production adapter; Servo strategic adapter; network/permissions/security; sessions/auth/secrets; agent control; Stage Apps; capture/archive; downloads/intake/ASR; Loom/search; translation/export; accessibility/localization/manual; legacy WP-12 Stage removal + active-WP integration; packaging/update/supply-chain; backup/support/recovery; integration/promotion/closure). Folds WP-1-Stage-Media-Artifact-Portability-v1 (L14) and WP-1-Stage-ASR-Transcript-Lineage-v1 (L15).\n- Locked direction: downloads never stopped/frozen/dormant by lifecycle machinery (STAGE-DEC-019); Servo strategic primary, WebView2 bootstrap conditioned on authenticated-YouTube session-import viability (STAGE-DEC-021, spike PASS 2026-07-20); STAGE-WP-COMPLETE (Chromium retired/demoted) is the only finished state (STAGE-DEC-022); Stage durable authority is embedded SurrealDB/EventLedger only, with no Turso/libSQL/SQLite/PostgreSQL or private feature database (STAGE-DEC-023).\n- OUT_OF_SCOPE: activation/implementation (prep only); adjacent WPs (Media Downloader, Artifact System, ASR Transcribe, Loom, Lens/Atelier/CKC, WP-1 orchestration, WP-12 editors) remain their own packets; Stage is their versioned consumer.",
+    "acceptance_criteria": "Stub-level only (not execution): every STAGE-REQ-* requirement has one tracked MT with lane + acceptance-row proof target; MT-125 establishes the cross-cutting SurrealDB storage foundation; every MT carries the Stage storage obligation; folded stubs are archived + superseded with no legacy authority; MT index provides status tracking + state recovery; WP remains non-executable until refinement + signature + official packet.",
+    "risks_unknowns": "- Durability of imported YouTube session over time under DBSC (STAGE-RW-021 open).\n- Load-storm CPU, GPU, and virtualized-sidebar per-frame cost not yet measured (STAGE-RW-022 increment 2).\n- Active-WP baselines (WP-1 orchestration, WP-12 editors, CKC) are dirty/in-progress; dependency gates fail-closed until validated baselines bind.\n- WP-KERNEL-012 and WP-1 Multi-Model Orchestration currently carry parallel SurrealDB remediation branches; Stage activation must bind their reconciled shared storage/bootstrap/schema baseline rather than copying either branch privately.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets.",
+      "A Stage-private Turso/libSQL/SQLite/PostgreSQL database would be harmless isolation."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration.",
+      "Require MT-125 and every data-bearing MT to prove SurrealDB-exclusive authority through the shared typed storage boundary."
+    ]
+  },
+  "updated_at_utc": "2026-09-01T00:00:00Z"
+}

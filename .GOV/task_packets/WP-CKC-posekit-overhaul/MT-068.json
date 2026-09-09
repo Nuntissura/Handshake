@@ -12,9 +12,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-068",
   "title": "Consolidate Loom original and derivative blob storage onto ArtifactStore with preserved identities and recoverable migration",
-  "status": "PENDING",
+  "status": "CLAIMED",
   "created_at_utc": "2026-09-06T14:45:21.358Z",
-  "updated_at_utc": "2026-09-06T14:45:21.358Z",
+  "updated_at_utc": "2026-09-06T21:29:03.335Z",
   "product_edit_allowed": true,
   "origin": "Preserves omitted explicit operator mission scope; no operator-authorized deferral to a migration WP exists.",
   "authority_files": {
@@ -24,15 +24,15 @@
     "refinement_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.json"
   },
   "lifecycle": {
-    "status": "PENDING",
-    "active": false,
+    "status": "CLAIMED",
+    "active": true,
     "depends_on": [
       "MT-057",
       "MT-058",
       "MT-064"
     ],
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260906-141914",
+    "claimed_at_utc": "2026-09-08T05:56:23.533Z",
     "completed_by": null
   },
   "state_recovery": {
@@ -41,13 +41,24 @@
     "base_commit": "1d47363fb171590f4eb05d4e5891b08aaec95552",
     "reference_worktree": "../wtc-ckc-posekit-overhaul",
     "reference_role": "READ_ONLY_NOT_MERGE_SOURCE",
-    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-    "recovery_rule": "Read this contract and refinement. Claim and append intent before edits. Wait for the active MT059/062 source-frozen Cargo batch and predecessor gates. One parent-owned build only; no foreign target cleanup.",
+    "cargo_target_dir": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-068/kernel-builder-session-20260906-141914/target",
+    "recovery_rule": "Read this contract and refinement. Claim and append intent before edits. Wait for predecessor gates and the parent-coordinated source-frozen Cargo batch. One parent-owned build only; no foreign target cleanup.",
     "artifact_path_correction": {
-      "at_utc": "2026-09-06T16:48:27.568Z",
-      "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
-      "runner_pid": 13360
-    }
+      "at_utc": "2026-09-06T21:29:03.335Z",
+      "reason": "Use verified single directory ../Handshake_Artifacts, then WP-CKC-posekit-overhaul/MT-068/kernel-builder-session-20260906-141914/target. Owner logs and temp remain under this same owner. This declares future placement only; no cache moved, directory created, or Cargo launched."
+    },
+    "artifact_path_history": [
+      {
+        "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+        "artifact_path_correction": {
+          "at_utc": "2026-09-06T16:48:27.568Z",
+          "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
+          "runner_pid": 13360
+        },
+        "status": "SUPERSEDED_INCORRECT_PATH",
+        "reason": "Prior correction invented a nested Handshake/_Artifacts directory. Operator-confirmed parent is the single sibling directory Handshake_Artifacts."
+      }
+    ]
   },
   "scope": {
     "summary": "Convert live Loom original and derivative writers/readers to ArtifactStore, preserving asset identities, references, routes, Range and recoverable migration. This is implementation scope, not a deferred separate WP.",
@@ -61,7 +72,9 @@
       "src/backend/handshake_core/src/storage/surreal/schema.rs",
       "src/backend/handshake_core/src/storage/mod.rs",
       "src/backend/handshake_core/tests/loom_media_tiers_tests.rs",
-      "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs"
+      "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs",
+      "src/backend/handshake_core/src/storage/surreal/database.rs",
+      "src/backend/handshake_core/Cargo.toml"
     ],
     "shared_file_merge_plan": "Parent edits shared storage/API/workflows/schema files only after MT064 is ready and the active Cargo batch ends; source stable during proof. Any additional integration file must be declared before editing.",
     "non_goals": [
@@ -97,9 +110,46 @@
       }
     ],
     "proof_commands": [
-      "cargo test -j 2 --offline --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test loom_artifact_migration_tests --test loom_media_tiers_tests -- --test-threads=1",
-      "Run owning schema pin tests if schema inputs change; rerun MT057 reader proof only if its asserted behavior or dependencies change."
-    ]
+      "cargo test -j 2 --offline --locked --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test loom_artifact_migration_tests --test loom_media_tiers_tests -- --test-threads=1",
+      "cargo test -j 2 --offline --locked --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --lib -- declarative_schema_catalog_is_complete_and_content_sensitive schema_contract_is_wave_scoped_and_identity_safe mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin mt139_current_schema_info_pin_matches_fresh_mem_catalog mt138_readiness_inventory_matches_canonical_surreal_schema mt138_rejects_full_count_schemaless_projection mt138_atelier_readiness_is_idempotent_across_embedded_restart not_implemented_surface_is_declared loom_artifact_ready_event_failure_rolls_back_binding_and_retries bootstrap_rejects_simulated_pre_ckc_predecessor_without_mutation --test-threads=1 --nocapture"
+    ],
+    "storage_ownership_extension": {
+      "file": "src/backend/handshake_core/src/storage/surreal/database.rs",
+      "reason": "Minimum MT068 ownership for existing Asset/NewAsset database storage bindings required by canonical Loom artifact migration; preserve public Asset/NewAsset shapes and existing media tier paths."
+    },
+    "public_api": {
+      "policy": "New Loom binding interfaces serve canonical ArtifactStore migration on existing asset rows; preserve Asset/NewAsset and existing HTTP interfaces.",
+      "review_status": "SOURCE_INSPECTED_RUNTIME_PROOF_PENDING",
+      "groups": [
+        {
+          "file": "src/backend/handshake_core/src/storage/loom.rs",
+          "symbols": [
+            "LoomArtifactBindingState",
+            "LoomArtifactBinding",
+            "VerifiedLoomArtifact"
+          ],
+          "basis": "Typed reservation/readiness and binding policy; VerifiedLoomArtifact fields are crate-visible only and constructed after actual filesystem verification."
+        },
+        {
+          "file": "src/backend/handshake_core/src/storage/mod.rs",
+          "symbols": [
+            "get_loom_artifact_binding",
+            "reserve_loom_artifact_binding",
+            "publish_loom_artifact_binding"
+          ],
+          "basis": "Database interface implemented by guarded SurrealDatabase and consumed by Loom byte migration helpers."
+        },
+        {
+          "file": "src/backend/handshake_core/src/loom_fs.rs",
+          "symbols": [
+            "materialize_loom_asset",
+            "migrate_loom_asset",
+            "read_loom_asset_bytes"
+          ],
+          "basis": "Used by production Loom import/content/thumbnail routes and preview workflow; explicit migration is tested with real embedded storage and disk."
+        }
+      ]
+    }
   },
   "research_basis": {
     "sources": [
@@ -159,7 +209,7 @@
     "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",
     "HBR-INT-008": "PROVE: Uuid::now_v7() at every new mint site",
     "HBR-INT-009": "DEFERRED-with-reason: Flight Recorder emit via AtelierStore observability is WIRED; internal_diagnostics and Palmistry are not in this base (WP-KERNEL-012 MT-127 lane), record DEFERRED per tier",
-    "HBR-SWARM-005": "PROVE: per-owner CARGO_TARGET_DIR wp-ckc-surreal[-lane]",
+    "HBR-SWARM-005": "PROVE: CARGO_TARGET_DIR uses ../Handshake_Artifacts/<WP>/<MT>/<unique-owner>/target; owner logs/temp use the same owner root; one parent-coordinated Cargo process.",
     "HBR-SWARM-006": "PROVE: owner cleans its scoped dir; KERNEL_BUILDER backstop",
     "HBR-VIS-004": "PROVE: non-UI lanes record TraceProjection/route evidence; UI proof belongs to MT-065",
     "HBR-MAN-004": "DEFERRED to MT-066 (UserManual same-change duty batched for the coherent lane batch; typed mapping required)",
@@ -200,9 +250,24 @@
     ]
   },
   "handoff": {
-    "status": "PENDING",
+    "status": "CLAIMED",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "note": "Kernel Builder implements only; no self-certification."
+    "note": "Kernel Builder implements only; no self-certification.",
+    "coder_session": "KERNEL_BUILDER-20260906-141914"
   },
-  "validator_verdict": "PENDING"
+  "validator_verdict": "PENDING",
+  "owned_files": [
+    "src/backend/handshake_core/src/loom_fs.rs",
+    "src/backend/handshake_core/src/api/loom.rs",
+    "src/backend/handshake_core/src/workflows.rs",
+    "src/backend/handshake_core/src/storage/loom.rs",
+    "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.surql",
+    "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "src/backend/handshake_core/src/storage/mod.rs",
+    "src/backend/handshake_core/tests/loom_media_tiers_tests.rs",
+    "src/backend/handshake_core/tests/loom_artifact_migration_tests.rs",
+    "src/backend/handshake_core/src/storage/surreal/database.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ]
 }

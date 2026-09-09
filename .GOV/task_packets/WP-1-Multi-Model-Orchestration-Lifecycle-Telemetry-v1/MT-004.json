@@ -33,15 +33,15 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "V6_REMEDIATION_IN_PROGRESS: delegated takeover of interrupted checkpoint; current proof pending.",
+    "proof_status": "V6_FOCUSED_RUNTIME_FAILED: focus4 exited 3221225725; CRDT advisory admission requires promotion_gate_ref and routing lifecycle overflows its stack. Repairs and required remaining promotion/routing proof are pending.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": "usermanual://model-lane-promotion#recovery",
-    "last_runtime_status_ref": "BLOCKED_ON_DEPENDENCY: incomplete embedded promotion provider/test seam; no Cargo command run in this lane",
+    "last_runtime_status_ref": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/promotion-crdt-routing-focus-4.direct.command.json",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "hbr_status": "PENDING_V6_CURRENT_CANDIDATE_RUNTIME_PROOF",
     "post_implementation_adversarial_review_status": "IN_PROGRESS_SOURCE_REVIEW_AND_REQUIRED_RUNTIME_PROOF",
-    "adversarial_findings_status": "REVIEWED_SOURCE_FINDINGS_FIXED; REQUIRED_RUNTIME_AND_HBR_BOUNDARY_PROOF_PENDING",
+    "adversarial_findings_status": "V6_SOURCE_REVIEW_CONTINUES; FOCUS4_CRDT_ADMISSION_AND_ROUTING_STACK_FAILURES_OPEN; REQUIRED_FINAL_RUNTIME_PROOF_PENDING",
     "validated_by": null,
     "validated_at_utc": null
   },
@@ -56,7 +56,10 @@
       "src/backend/handshake_core/src/kernel/promotion.rs",
       "src/backend/handshake_core/src/kernel/crdt/",
       "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
-      "src/backend/handshake_core/src/storage/"
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+      "src/backend/handshake_core/src/user_manual/mod.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs"
     ],
     "forbidden_paths": [
       "automatic code/contract promotion without explicit policy",
@@ -149,7 +152,40 @@
       "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_promotion_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact --nocapture",
       "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact --nocapture",
       "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_schema_surreal_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact --nocapture"
-    ]
+    ],
+    "v6_runtime_state": {
+      "remediation_version": "V6",
+      "last_tested_product_commit": "2cc1528b8a31e2d88314cc87ddc194534115c1a0",
+      "latest_focused_runtime": {
+        "receipt": {
+          "path": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/promotion-crdt-routing-focus-4.direct.command.json",
+          "sha256": "a042acbab056a6b80ade113bde48c11d1962ed99b2ccf963a2b8ab7e510f9fc6"
+        },
+        "log": {
+          "path": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/promotion-crdt-routing-focus-4.direct.log",
+          "sha256": "81fb92148424042e1f420cf5d2847c0dfc3c758d879dbaa38837368976949b45"
+        },
+        "exit_code": 3221225725,
+        "proof_valid": false,
+        "observed_failures": [
+          {
+            "test": "promotion_real_crdt_binding_denies_stale_base_and_vector_with_durable_recovery",
+            "cause": "InvalidInput(\"promotion_gate_ref is required\") at tests/model_lane_promotion_surreal_tests.rs:1286",
+            "repair_owner": "/root/mt024"
+          },
+          {
+            "test": "routing_lifecycle_bounds_backpressure_stalled_claim_cancellation_and_recovery",
+            "cause": "Stack overflow after execute_routing_lifecycle phase entry; no final harness result summary",
+            "repair_owner": "/root/mt004"
+          }
+        ]
+      },
+      "final_batch_proof_status": "PENDING; focused CRDT admission and routing stack repairs require runtime proof",
+      "validator_status": "PENDING",
+      "current_product_commit": "860aafc5adeb30a7f8f6e814a3c6ade9aa1450a8",
+      "current_product_tree": "d345a1708a4451342c6301a11e60a4fa245c5311",
+      "current_candidate_runtime_status": "PENDING; last tested predecessor was 2cc1528b8a31e2d88314cc87ddc194534115c1a0"
+    }
   },
   "red_team": {
     "required": true,
@@ -412,7 +448,17 @@
   },
   "owned_files": [
     "src/backend/handshake_core/tests/model_lane_promotion_surreal_tests.rs",
-    "src/backend/handshake_core/tests/routing_execution_surreal_tests.rs"
+    "src/backend/handshake_core/tests/routing_execution_surreal_tests.rs",
+    "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+    "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/promotion_lifecycle.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/routing_execution.rs",
+    "src/backend/handshake_core/src/user_manual/mod.rs",
+    "src/backend/handshake_core/src/user_manual/seed.rs",
+    "src/backend/handshake_core/tests/kernel_promotion_trace_tests.rs",
+    "src/backend/handshake_core/tests/user_manual_api_tests.rs"
   ],
   "v6_owned_files_basis_2026_09_06": {
     "recorded_by": "KERNEL_BUILDER-20260902-180244",
@@ -543,6 +589,27 @@
         "Real Candle default-load through cleanup with raw audit artifact",
         "Real native/Palmistry observation with exact child identities and canonical scoped tier reread"
       ]
+    },
+    "promotion_lifecycle_operator_decision": {
+      "id": "WP1-MT004-V6-PROMOTION-LIFECYCLE-20260906",
+      "recorded_at_utc": "2026-09-06T19:13:37Z",
+      "scope": "MT-004 acceptance criterion 4; missing expired, skipped and unsupported trigger semantics",
+      "question": "MT-004’s contract requires expired, skipped, and unsupported promotion states, but the spec and existing gate do not define their triggers. May I complete them using coordinator-recorded deadlines for expiry, an actual capability check for unsupported actions, and authenticated cancellation or a verified no-op for skipped actions—with durable gate records and restart/idempotency tests? Your authority-first rule requires this decision before introducing missing workflow semantics; the other fixes and tests will continue.",
+      "operator_answer": "Implement these lifecycle semantics",
+      "authority": "Explicit live Operator approval; execution semantics for existing AC-4, without weakening its acceptance or validation gates",
+      "implementation": "Linked durable request aggregate on existing scoped ModelLane/EventLedger authority; immutable decision compatibility; existing promotion entry point uses the request gate; coordinator deadline, actual artifact kind/schema dispatch and authenticated owner cancellation or canonical same-effect receipt establish terminal outcomes.",
+      "proof_required": "Real producer transitions, exact-scope canonical replay after reopen, stable idempotency, expiry/cancellation versus publication races, no partial authority grant and foreign/tampered authority denial. No PASS or READY claim follows from this decision record.",
+      "research_basis": {
+        "sources": [
+          "https://docs.temporal.io/encyclopedia/event-history/event-history-typescript",
+          "https://docs.temporal.io/activity-definition#idempotency",
+          "https://docs.temporal.io/activity-execution#cancellation",
+          "https://www.w3.org/TR/scxml/"
+        ],
+        "selected": "Reuse existing scoped atomic storage and guarded transitions, stable request/effect identity, persisted coordinator deadlines and explicit cancellation semantics.",
+        "rejected": "New workflow framework or database, caller-selected terminal state, synthetic history as execution proof, stale auto-rebase and unsupported-as-success.",
+        "risks_and_controls": "Request races recover only an independently validated same-intent canonical winner; cancellation and deadline admission conflict with atomic authority publication; failed transactions remain retryable without a fabricated completed effect."
+      }
     }
   }
 }

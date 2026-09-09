@@ -14,7 +14,7 @@
   "title": "Express CKC migrations 0337-0344 as schema.surql END STATE (revision 158) and re-pin the four schema hashes",
   "status": "CLAIMED",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-06T16:37:12.633Z",
+  "updated_at_utc": "2026-09-07T00:48:20.1822799Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -29,13 +29,14 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-058.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
     "depends_on": [],
     "claimed_by": "KERNEL_BUILDER-20260906-141914",
     "claimed_at_utc": "2026-09-05T01:05:00.438Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-09-05T19:59:27.765Z"
+    "ready_for_validation_at_utc": "2026-09-08T05:53:48.548Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260906-141914"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-surreal",
@@ -49,8 +50,8 @@
       "skeleton": "09febeb8",
       "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
     },
-    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-    "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
+    "cargo_target_dir": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/target",
+    "hidden_runner": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/run-recovery-batch.ps1",
     "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`.",
     "prior_lane_build": {
       "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
@@ -62,16 +63,32 @@
       "parallel_cargo": false
     },
     "artifact_path_correction": {
-      "at_utc": "2026-09-06T16:48:27.564Z",
-      "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
-      "runner_pid": 13360
-    }
+      "at_utc": "2026-09-06T17:47:19.436Z",
+      "reason": "Operator confirmed single directory Handshake_Artifacts; current authority requires WP/MT/owner. Parent relocated quiescent owned cache/tools/temp without deletion.",
+      "owner_mt_id": "MT-058",
+      "owner_session": "KERNEL_BUILDER-20260906-141914",
+      "tmp_dir": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/temp"
+    },
+    "artifact_path_history": [
+      {
+        "at_utc": "2026-09-06T17:47:19.436Z",
+        "previous_target": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+        "previous_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
+        "superseded_correction": {
+          "at_utc": "2026-09-06T16:48:27.564Z",
+          "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
+          "runner_pid": 13360
+        }
+      }
+    ]
   },
   "scope": {
     "summary": "Eleven new tables (atelier_tag_note, atelier_ckc_search_projection, atelier_sheet_field_value_projection, atelier_sheet_artifact_link, atelier_intake_item_metadata, atelier_prompt_feedback_{case,verdict,rule_pack,rewrite,export}, atelier_collection_item_unlink_receipt) plus in-place extensions of atelier_collection (created_by, updated_by, scoped_name_key stored discriminator replacing the global name UNIQUE), atelier_collection_item (source refs, linked_by, updated_by, updated_at_utc), atelier_action_receipt (thread_id, lease_claim_id). History (ALTER/backfill/DO) is not ported: bootstrap is fresh-only.",
     "owned_files": [
       "src/backend/handshake_core/src/storage/surreal/schema.surql",
-      "src/backend/handshake_core/src/storage/surreal/schema.rs"
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/atelier/mod.rs",
+      "src/backend/handshake_core/build.rs"
     ],
     "pg_to_surreal_deviations": [
       "pg_trgm / pgvector / atelier_trgm_similarity(): no schema counterpart; fuzzy and vector scoring move to Rust / SurrealQL string::similarity + vector::similarity::cosine (MT-060)",
@@ -81,9 +98,9 @@
       "atelier_is_native_portable_ref() SQL -> Rust validator (MT-059) with a structural floor in ASSERT"
     ],
     "counts_updated": {
-      "TABLE_DEFINITION_COUNT": 292,
-      "SOURCE_TABLE_COUNT": 289,
-      "SOURCE_FIELD_DEFINITION_COUNT": 3217,
+      "TABLE_DEFINITION_COUNT": 293,
+      "SOURCE_TABLE_COUNT": 290,
+      "SOURCE_FIELD_DEFINITION_COUNT": 3219,
       "FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT": 249,
       "FLEXIBLE_FIELD_DEFINITION_COUNT": 180,
       "ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT": 48,
@@ -91,17 +108,380 @@
       "SOURCE_NAMED_INDEX_COUNT": 563,
       "SURREAL_PRIMARY_KEY_INDEX_COUNT": 267
     },
-    "hash_pins_pending": [
-      "GENERATED_SURREALQL_SHA256",
-      "DECLARATIVE_SCHEMA_CATALOG_SHA256",
-      "EXPECTED_SCHEMA_INFO_SHA256",
-      "EXPECTED_ATELIER_CATALOG_SHA256"
-    ],
+    "hash_pins_pending": [],
     "proof_commands": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -- storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::schema_contract_is_wave_scoped_and_identity_safe storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin --nocapture"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -- storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::schema_contract_is_wave_scoped_and_identity_safe storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -- atelier::guard_tests::mt138_readiness_inventory_matches_canonical_surreal_schema atelier::guard_tests::mt138_rejects_full_count_schemaless_projection atelier::guard_tests::mt138_atelier_readiness_is_idempotent_across_embedded_restart --nocapture"
     ],
-    "proof_status": "PROVEN 2026-09-05: cargo test --lib --features surreal-test-support,test-utils over the four pin tests => test result: ok. 4 passed; 0 failed (log handshake-tool/wp-ckc-surreal/pins.log, preceded by cargo check --lib CARGO_EXIT 0 in check6.log). Applied values: SCHEMA_REVISION 158; GENERATED_SURREALQL_SHA256 9d3b830c78ffb4ac04b5af0cbdac510b29483decd076acb3e8ea81d194da4c8f; DECLARATIVE_SCHEMA_CATALOG_SHA256 8d72ae48dd23fab0d4f13a750da8daad46e156a276aca207bec665016163fb27; EXPECTED_SCHEMA_INFO_SHA256 047b1decfd076e9237d5aa5d6f8836801cbba38038ec9d84a278ebe5b69a275e; EXPECTED_ATELIER_CATALOG_SHA256 f14a7778809d15a07fbdeae930002637af15ea42d8945b6c9636dc2d15ff274c; TABLE_DEFINITION_COUNT 292; INDEX_DEFINITION_COUNT 831; REFERENCE_FIELD_COUNT 419; RECORD_ID_ALIAS_ASSERTION_COUNT 237. Fresh-engine INFO fingerprint and the canonical Atelier catalog fingerprint both regenerate to the pinned values, so an embedded store bootstraps the eleven new CKC tables without drift.",
-    "pre_existing_test_drift_fixed": "schema_contract_is_wave_scoped_and_identity_safe asserted the literal `record::exists(type::record(atelier_source_evidence_record, [$this.matrix_id, $value]))`, which is absent from schema.surql at the base commit 1d47363f and at the current feat/WP-KERNEL-012 HEAD (6d5d705f); the live line is `($value = type::record(atelier_source_evidence_record, [$this.matrix_id, record::id($value)[1]]))`. The assertion string was updated to the live form (same intent: anchor verification source_id bound to the same matrix). Not a regression of this port; recorded so the 012 lane can pick it up."
+    "proof_status": "Current c84ad67a required component runtime passed and independent aggregate audit PASS; source-bound Linux check passed. Mechanical readiness emission remains pending; no lifecycle or validator transition.",
+    "pre_existing_test_drift_fixed": "schema_contract_is_wave_scoped_and_identity_safe asserted the literal `record::exists(type::record(atelier_source_evidence_record, [$this.matrix_id, $value]))`, which is absent from schema.surql at the base commit 1d47363f and at the current feat/WP-KERNEL-012 HEAD (6d5d705f); the live line is `($value = type::record(atelier_source_evidence_record, [$this.matrix_id, record::id($value)[1]]))`. The assertion string was updated to the live form (same intent: anchor verification source_id bound to the same matrix). Not a regression of this port; recorded so the 012 lane can pick it up.",
+    "current_pin_repair": {
+      "status": "CURRENT_COMPONENT_PINS_GREEN",
+      "product_checkpoint": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+      "expected_schema_info_sha256": "c723e3043a04f06b7196cebab19154f88ea84ca13f78dd63060d6b6ac808d4ba",
+      "expected_atelier_catalog_sha256": "4b3b16a9a36476b1f448b913a37562d610757010b55a7e938f84f6d87b4bbae7",
+      "expected_schema_source_sha256": "da18b19cc3b90d70d245de6aa4e430be8370f33de73eda7348ec9901a3dab2bb",
+      "proof_exit": 0,
+      "proof_log": {
+        "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.log",
+        "sha256": "2961383796c137f6d37b05a41eef7e02d164c4fbc0a06969f63a42d46bf385ff"
+      },
+      "receipt": {
+        "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.command.json",
+        "sha256": "bd1bef0d07fdea34d38931945301a0c5dda2c53854d90f3a3fd55607e6c98a8e"
+      }
+    },
+    "readiness_repair": {
+      "surface": "src/backend/handshake_core/src/atelier/mod.rs",
+      "scope": "Reconcile ATELIER_TABLES with all canonical Atelier tables and update the three exact-count assertions; minimum MT-058 schema-readiness predecessor repair. General integration remains MT-066.",
+      "proof_status": "WINDOWS_READINESS_TESTS_GREEN",
+      "rc002_repair": {
+        "status": "REVIEWED_COMPILED_GUARDS_GREEN",
+        "scope": "Private internally-used schema hash helpers and seed constant; remove unused record_event_in_ctx and correct docs; preserve legacy-string rejection corpus as private cfg(test). No database path behavior change.",
+        "public_api_preserved": "AtelierSchemaBootstrapReport is the existing public return type of AtelierStore::bootstrap_schema; callers consume its fields through inferred type.",
+        "typed_boundary_evidence": [
+          "atelier/mod.rs constructors require concrete SurrealStorage",
+          "storage/surreal.rs opens Surreal::new::<RocksDb>(config.path())"
+        ],
+        "proof_reuse": "No schema bytes, hash, or executable bootstrap/mutation behavior changed. Existing runtime proof remains behavior-valid; compilation and unchanged legacy guard tests pending."
+      }
+    },
+    "current_proof": {
+      "status": "RUNTIME_AND_LINUX_GREEN_MECHANICAL_GATE_PENDING",
+      "product_checkpoint": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+      "product_tree": "59f5dd26605bc10bb9c07529a8434f28a3d14f43",
+      "results": [
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.command.json",
+            "sha256": "bd1bef0d07fdea34d38931945301a0c5dda2c53854d90f3a3fd55607e6c98a8e"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.log",
+            "sha256": "2961383796c137f6d37b05a41eef7e02d164c4fbc0a06969f63a42d46bf385ff"
+          },
+          "exit": 0,
+          "passed": 8,
+          "failed": 0,
+          "filtered": 2008,
+          "duration_seconds": 524.94,
+          "target": "handshake_core",
+          "kind": "lib"
+        },
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.provenance.command.json",
+            "sha256": "7daffea562e5ab1c49be777d7fb479b9420b7b6c4dfca586b473c95989f6a66c"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.provenance.log",
+            "sha256": "699b06050c0897d59e13315544e026960d55ec0a9d440b75bffb8138dfbbb093"
+          },
+          "exit": 0,
+          "passed": 2,
+          "failed": 0,
+          "filtered": 58,
+          "duration_seconds": 377.74,
+          "target": "atelier_core_data_tests",
+          "kind": "test"
+        },
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.bound.command.json",
+            "sha256": "292833a76d9ab2f532969b87209772fc668a80542a17f11cb669d50157a8999e"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.log",
+            "sha256": "d6c1ab555618f01172244a0ce59c49e28268630b67fe659ad7bc584359cff5d1"
+          },
+          "exit": 0,
+          "platform": "x86_64-unknown-linux-gnu",
+          "coverage": "Native Linux cargo check"
+        }
+      ],
+      "build_command": {
+        "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.build.command.json",
+        "sha256": "4f119ea310692721d914a9a0860e4d39c1e813f04cf51544b07d6fad2841c030"
+      },
+      "independent_audit": {
+        "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/component-prerequisite-proof-1-independent-audit.json",
+        "sha256": "271798644ce1a2372640dc59ddbb1bb7d3da18da6a87e8681deec98e2b189e7f"
+      },
+      "cross_platform_status": "CURRENT_LINUX_CHECK_GREEN",
+      "real_resource_status": "CURRENT_NAMED_RESOURCE_TEST_GREEN",
+      "checklist_status": "MECHANICAL_EMISSION_PENDING",
+      "validator_verdict": "PENDING"
+    },
+    "superseded_active_proof_history": [
+      {
+        "superseded_at_utc": "2026-09-07T02:45:55.543Z",
+        "reason": "Schema provenance assertion repair and mechanical evidence gate supersede prior active state; preserved verbatim as history.",
+        "proof_status": "Required Windows schema/readiness tests and Linux check green; canonical KB readiness receipt emitted and mt-board advanced READY_FOR_VALIDATION. Validator verdict remains PENDING.",
+        "current_pin_repair": {
+          "source_log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/recovery-pins.log",
+          "source_exit": 101,
+          "expected_schema_info_sha256": "8161b4e8e01d3ef6ec14886ac203878396435e58bf78cf6c28b60fe493403bab",
+          "expected_atelier_catalog_sha256": "6866764b478e2694d7c80e57d8fc5067c12f85db02ac67d63eb0a23edcb7475f",
+          "status": "FOCUSED_PINS_GREEN",
+          "implementing_subagent": "ckc_build_sprint",
+          "reviewer": "parent_kernel_builder",
+          "proof_log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-pins.log",
+          "proof_exit": 0
+        },
+        "current_proof": {
+          "status": "REQUIRED_TESTS_AND_CROSS_PLATFORM_CHECK_GREEN",
+          "product_checkpoint": "cf3128509317a2cdd130f609a75d495c71fb3e9f",
+          "results": [
+            {
+              "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-pins.log",
+              "exit": 0,
+              "passed": 4,
+              "failed": 0,
+              "finished_at_utc": "2026-09-06T18:00:23.269623Z",
+              "coverage": "four source/catalog/live-engine pins",
+              "reuse_basis": "Subsequent changes affect only readiness inventory and test fixtures; schema inputs and fingerprints unchanged."
+            },
+            {
+              "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-lib-regressions.log",
+              "exit": 101,
+              "coverage": "mt138_readiness_inventory_matches_canonical_surreal_schema",
+              "test_result": "passed",
+              "whole_run_status": "2 passed, 3 failed; failures recovered by later scoped runs",
+              "reuse_basis": "Exact inventory unchanged since passing run."
+            },
+            {
+              "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-readiness.log",
+              "exit": 0,
+              "passed": 2,
+              "failed": 0,
+              "finished_at_utc": "2026-09-06T18:41:19.6390683Z",
+              "coverage": "canonical malformed-projection rejection and restart/idempotency/adversarial catalog proof"
+            },
+            {
+              "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-linux-session-20260906-141914/tool/linux-check.log",
+              "exit": 0,
+              "coverage": "Linux x86_64 cargo check --lib --features surreal-test-support,test-utils, pinned1.97.1, actual commitcf312850",
+              "duration": "56m58s"
+            },
+            {
+              "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-legacy-guards.log",
+              "exit": 0,
+              "passed": 2,
+              "failed": 0,
+              "finished_at_utc": "2026-09-06T20:20:27.2461088Z",
+              "coverage": "historical legacy rejection guards after cfg(test) visibility cleanup"
+            }
+          ],
+          "cross_platform_status": "LINUX_CHECK_GREEN",
+          "checklist_status": "EMITTED_CANONICAL_HELPER_PASS",
+          "validator_verdict": "PENDING"
+        },
+        "kb_ready_checklist_evidence": {
+          "schema_id": "hsk.kb_ready_checklist_evidence@1",
+          "product_commit": "cf3128509317a2cdd130f609a75d495c71fb3e9f",
+          "actor_session": "KERNEL_BUILDER-20260906-141914",
+          "prepared_at_utc": "2026-09-06T20:21:31.198Z",
+          "summary": "MT058 required schema/readiness tests and Linux cross-platform check are green on cf312850; unchanged-input proof reuse explicitly recorded.",
+          "rubric_items": [
+            {
+              "rubric_item_id": "RC-001-NO-STALE-REASONS",
+              "answer": "yes",
+              "explanation": "Inspected current embedded-only constructor and fail-closed schema reasons. Rogue-catalog exact PARTIAL taxonomy now matches runtime. Failed logs and old artifact roots are explicitly historical; no current PostgreSQL runtime claim.",
+              "evidence_refs": [
+                "src/backend/handshake_core/src/atelier/mod.rs",
+                "src/backend/handshake_core/src/storage/surreal/schema.rs",
+                "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-readiness.log"
+              ],
+              "checked_at_utc": "2026-09-06T20:03:11.754Z"
+            },
+            {
+              "rubric_item_id": "RC-002-NO-DEAD-CODE",
+              "answer": "yes",
+              "explanation": "Three internally-used schema hash functions and seed constant are private; unused record_event_in_ctx removed; historical string guard is private cfg(test). Canonical helper now flags only existing public AtelierSchemaBootstrapReport: intentional return API of public AtelierStore::bootstrap_schema, consumed by callers through inferred return type; fields report applied/table_count. No speculative API exception.",
+              "evidence_refs": [
+                "src/backend/handshake_core/src/storage/surreal/schema.rs",
+                "src/backend/handshake_core/src/atelier/mod.rs"
+              ],
+              "checked_at_utc": "2026-09-06T20:03:11.754Z"
+            },
+            {
+              "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+              "answer": "yes",
+              "explanation": "Owned lib tests are schema::tests and atelier::guard_tests behind cfg(test), preserving non-platform-specific embedded assertions. Private historical guard also cfg(test), so rejection corpus remains available in test builds. No integration tests owned by MT058; the test-utils integration guard correction is MT061.",
+              "evidence_refs": [
+                "src/backend/handshake_core/src/atelier/mod.rs",
+                "src/backend/handshake_core/src/storage/surreal/schema.rs"
+              ],
+              "checked_at_utc": "2026-09-06T20:03:11.754Z"
+            },
+            {
+              "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+              "answer": "yes",
+              "explanation": "Inspected Linux log: actual cf312850 checkpoint, cargo/rustc1.97.1, cargo check -j2 --locked --features surreal-test-support,test-utils --lib finished56m58s, CARGO_EXIT0; separate scoped Linux owner preserves Windows cache.",
+              "evidence_refs": [
+                "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-linux-session-20260906-141914/tool/linux-check.log"
+              ],
+              "checked_at_utc": "2026-09-06T20:03:11.754Z"
+            },
+            {
+              "rubric_item_id": "RC-005-PROOF-COMMANDS",
+              "answer": "yes",
+              "explanation": "Four pins passed; exact137 inventory passed; two dependency-complete readiness/restart/adversarial tests passed; two legacy guard tests passed20:20:27UTC. Historical101 logs are cited only for individually passed unchanged tests; all failures recovered by subsequent focused0-exit runs. Final visibility/doc cleanup changes no schema bytes, pins, or executable bootstrap/mutation behavior, so prior behavior proof is reused per GLOBAL-VALIDATION-005 and CLOSURE-050. Real embedded RocksDB bootstrap/reopen/catalog rejection executed; Linux pinned check verifies final compilation.",
+              "evidence_refs": [
+                "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-pins.log",
+                "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-lib-regressions.log",
+                "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-readiness.log",
+                "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-legacy-guards.log"
+              ],
+              "checked_at_utc": "2026-09-06T20:21:31.198Z"
+            },
+            {
+              "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+              "answer": "yes",
+              "explanation": "lifecycle.claimed_by=KERNEL_BUILDER-20260906-141914; completed_by remainsnull. StatusCLAIMED, validatorPENDING. Only validator may complete.",
+              "evidence_refs": [
+                ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-058.json"
+              ],
+              "checked_at_utc": "2026-09-06T20:03:11.754Z"
+            }
+          ]
+        }
+      },
+      {
+        "superseded_at_utc": "2026-09-08T03:23:58.023Z",
+        "reason": "Current c84ad67a includes write-once publication and review corrections; prior command receipts remain historical and cannot prove this HEAD.",
+        "proof_status": "Current HEAD 4c4b8ec0 source-bound Windows schema/readiness and bulk rollback batch passed 8/8. Current Linux check and core-data real-resource proof remain pending; CLAIMED, no current readiness or validator verdict.",
+        "current_proof": {
+          "status": "WINDOWS_SCHEMA_BATCH_GREEN_LINUX_AND_CORE_DATA_PENDING",
+          "product_checkpoint": "4c4b8ec004a2c8f4ab212ed781aa0d12bb4b0ac9",
+          "product_tree": "f0aa1eb7172acb90976caebe4917dd451f0f2e99",
+          "results": [
+            {
+              "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-schema-proof-1.log",
+              "receipt": {
+                "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-schema-proof-1.bound.command.json",
+                "sha256": "4ae6329ba18869f9abad68235839f2891e233e8bd0860276388931cc313de84a"
+              },
+              "exit": 0,
+              "passed": 8,
+              "failed": 0,
+              "duration_seconds": 158.14,
+              "finished_at_utc": "2026-09-07T02:41:08.296Z",
+              "coverage": "Four schema/catalog pins, exact Atelier readiness inventory, two malformed/restart readiness proofs, and MT060 late bulk-review event rollback."
+            }
+          ],
+          "source_manifest_sha256": "bafd26820891cc1987c5c3eff753ee2d479d7a88db535278a18171f29e370be2",
+          "cross_platform_status": "CURRENT_LINUX_CHECK_PENDING",
+          "real_resource_status": "CORE_DATA_PROVENANCE_PROBE_PENDING",
+          "checklist_status": "MECHANICAL_EMISSION_PENDING",
+          "validator_verdict": "PENDING"
+        },
+        "current_pin_repair": {
+          "status": "SOURCE_BOUND_PINS_GREEN",
+          "product_checkpoint": "4c4b8ec004a2c8f4ab212ed781aa0d12bb4b0ac9",
+          "expected_schema_info_sha256": "c723e3043a04f06b7196cebab19154f88ea84ca13f78dd63060d6b6ac808d4ba",
+          "expected_atelier_catalog_sha256": "4b3b16a9a36476b1f448b913a37562d610757010b55a7e938f84f6d87b4bbae7",
+          "expected_schema_source_sha256": "da18b19cc3b90d70d245de6aa4e430be8370f33de73eda7348ec9901a3dab2bb",
+          "proof_log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-schema-proof-1.log",
+          "proof_exit": 0,
+          "receipt": {
+            "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-schema-proof-1.bound.command.json",
+            "sha256": "4ae6329ba18869f9abad68235839f2891e233e8bd0860276388931cc313de84a"
+          }
+        },
+        "kb_ready_checklist_evidence": {
+          "status": "LEGACY_AUTHORED_ANSWERS_SUPERSEDED",
+          "product_commit": "4c4b8ec004a2c8f4ab212ed781aa0d12bb4b0ac9",
+          "summary": "Prior authored rubric evidence preserved in scope.superseded_active_proof_history. Current emission derives only from ready_evidence_refs; Linux check and core-data real-resource runtime evidence remain pending."
+        },
+        "ready_evidence_refs": {
+          "source_reviews": [
+            {
+              "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/mt058-source-review-4c4b8ec0.json",
+              "sha256": "9e25e286f045c826c4b60c3e844000a7e5f1653c9ec7c2906f799819679fa182"
+            }
+          ],
+          "command_results": [
+            {
+              "receipt": {
+                "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-schema-proof-1.bound.command.json",
+                "sha256": "4ae6329ba18869f9abad68235839f2891e233e8bd0860276388931cc313de84a"
+              },
+              "log": {
+                "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-schema-proof-1.log",
+                "sha256": "47df9747a21f0cacddc6e77577afca0b01748d00f6a87541d8983046129dffea"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "superseded_at_utc": "2026-09-08T05:48:24.670Z",
+        "reason": "Prospective component runtime now independently audited; retain prior pending execution state.",
+        "proof_status": "Current c84ad67a source review referenced; source-bound runtime proof pending. Required sequence: media-byte umbrella including writer-race regression, two provenance tests, eight schema/readiness/rollback lib tests, and Linux check. No current readiness or validator verdict.",
+        "current_proof": {
+          "status": "CURRENT_HEAD_RUNTIME_PENDING",
+          "product_checkpoint": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+          "product_tree": "59f5dd26605bc10bb9c07529a8434f28a3d14f43",
+          "results": [],
+          "cross_platform_status": "CURRENT_LINUX_CHECK_PENDING",
+          "real_resource_status": "CORE_DATA_PROVENANCE_PROBE_PENDING",
+          "checklist_status": "MECHANICAL_EMISSION_PENDING",
+          "validator_verdict": "PENDING"
+        },
+        "kb_ready_checklist_evidence": {
+          "status": "MECHANICAL_EMISSION_PENDING",
+          "product_commit": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+          "summary": "Emission derives only from ready_evidence_refs. Current runtime and Linux proof pending; prior authored answers and command receipts are historical."
+        },
+        "ready_evidence_refs": {
+          "source_reviews": [
+            {
+              "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/mt058-source-review-c84ad67a.json",
+              "sha256": "3e99ed4b45a72064717fc2629f8f7645917a225528f36e185ea43f46f9ea1fd0"
+            }
+          ],
+          "command_results": [
+            {
+              "receipt": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.command.json",
+                "sha256": "bd1bef0d07fdea34d38931945301a0c5dda2c53854d90f3a3fd55607e6c98a8e"
+              },
+              "log": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.log",
+                "sha256": "2961383796c137f6d37b05a41eef7e02d164c4fbc0a06969f63a42d46bf385ff"
+              }
+            },
+            {
+              "receipt": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.provenance.command.json",
+                "sha256": "7daffea562e5ab1c49be777d7fb479b9420b7b6c4dfca586b473c95989f6a66c"
+              },
+              "log": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.provenance.log",
+                "sha256": "699b06050c0897d59e13315544e026960d55ec0a9d440b75bffb8138dfbbb093"
+              }
+            },
+            {
+              "receipt": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.bound.command.json",
+                "sha256": "292833a76d9ab2f532969b87209772fc668a80542a17f11cb669d50157a8999e"
+              },
+              "log": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.log",
+                "sha256": "d6c1ab555618f01172244a0ce59c49e28268630b67fe659ad7bc584359cff5d1"
+              }
+            }
+          ],
+          "independent_audits": [
+            {
+              "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/component-prerequisite-proof-1-independent-audit.json",
+              "sha256": "271798644ce1a2372640dc59ddbb1bb7d3da18da6a87e8681deec98e2b189e7f"
+            }
+          ]
+        }
+      }
+    ]
   },
   "hbr_obligations": {
     "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",
@@ -140,7 +520,58 @@
     "status": "CLAIMED",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "note": "Blocking predecessor for MT-059..MT-063 tests.",
-    "coder_session": "KERNEL_BUILDER-20260906-141914"
+    "coder_session": "KERNEL_BUILDER-20260906-141914",
+    "kb_ready_checklist_evidence": {
+      "status": "MECHANICAL_EMISSION_PENDING",
+      "product_commit": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+      "summary": "Current runtime and Linux evidence attached as hashed ready_evidence_refs; independent runtime audit PASS. Authored answers are not emission proof; canonical readiness gate has not been run."
+    },
+    "ready_evidence_refs": {
+      "source_reviews": [
+        {
+          "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/mt058-source-review-c84ad67a.json",
+          "sha256": "3e99ed4b45a72064717fc2629f8f7645917a225528f36e185ea43f46f9ea1fd0"
+        }
+      ],
+      "command_results": [
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.command.json",
+            "sha256": "bd1bef0d07fdea34d38931945301a0c5dda2c53854d90f3a3fd55607e6c98a8e"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.log",
+            "sha256": "2961383796c137f6d37b05a41eef7e02d164c4fbc0a06969f63a42d46bf385ff"
+          }
+        },
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.provenance.command.json",
+            "sha256": "7daffea562e5ab1c49be777d7fb479b9420b7b6c4dfca586b473c95989f6a66c"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.provenance.log",
+            "sha256": "699b06050c0897d59e13315544e026960d55ec0a9d440b75bffb8138dfbbb093"
+          }
+        },
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.bound.command.json",
+            "sha256": "292833a76d9ab2f532969b87209772fc668a80542a17f11cb669d50157a8999e"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.log",
+            "sha256": "d6c1ab555618f01172244a0ce59c49e28268630b67fe659ad7bc584359cff5d1"
+          }
+        }
+      ],
+      "independent_audits": [
+        {
+          "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/component-prerequisite-proof-1-independent-audit.json",
+          "sha256": "271798644ce1a2372640dc59ddbb1bb7d3da18da6a87e8681deec98e2b189e7f"
+        }
+      ]
+    }
   },
   "validator_verdict": "PENDING",
   "pending_schema_change_requests": [
@@ -152,5 +583,121 @@
       "cost": "schema.surql edit forces a recompute of the four hash pins",
       "status": "BATCHED - apply with any other lane schema requests in one pass"
     }
-  ]
+  ],
+  "owned_files": [
+    "src/backend/handshake_core/src/storage/surreal/schema.surql",
+    "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "src/backend/handshake_core/src/atelier/mod.rs",
+    "src/backend/handshake_core/build.rs"
+  ],
+  "schema_rework": {
+    "at_utc": "2026-09-07T00:48:20.1822799Z",
+    "reason": "Live core-data provenance direct-row probe accepted six NONE references. Move presence ASSERT from optional run_ref to required updated_by; preserve fresh-store fail-closed schema pins and rerun owning proof.",
+    "prior_lifecycle": {
+      "status": "READY_FOR_VALIDATION",
+      "active": false,
+      "depends_on": [],
+      "claimed_by": "KERNEL_BUILDER-20260906-141914",
+      "claimed_at_utc": "2026-09-05T01:05:00.438Z",
+      "completed_by": null,
+      "ready_for_validation_at_utc": "2026-09-06T20:22:00.392Z",
+      "ready_for_validation_by": "KERNEL_BUILDER-20260906-141914"
+    },
+    "prior_handoff": {
+      "status": "READY_FOR_VALIDATION",
+      "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+      "note": "Blocking predecessor for MT-059..MT-063 tests.",
+      "coder_session": "KERNEL_BUILDER-20260906-141914",
+      "kb_ready_checklist_evidence": {
+        "schema_id": "hsk.kb_ready_checklist_evidence@1",
+        "product_commit": "cf3128509317a2cdd130f609a75d495c71fb3e9f",
+        "actor_session": "KERNEL_BUILDER-20260906-141914",
+        "prepared_at_utc": "2026-09-06T20:21:31.198Z",
+        "summary": "MT058 required schema/readiness tests and Linux cross-platform check are green on cf312850; unchanged-input proof reuse explicitly recorded.",
+        "rubric_items": [
+          {
+            "rubric_item_id": "RC-001-NO-STALE-REASONS",
+            "answer": "yes",
+            "explanation": "Inspected current embedded-only constructor and fail-closed schema reasons. Rogue-catalog exact PARTIAL taxonomy now matches runtime. Failed logs and old artifact roots are explicitly historical; no current PostgreSQL runtime claim.",
+            "evidence_refs": [
+              "src/backend/handshake_core/src/atelier/mod.rs",
+              "src/backend/handshake_core/src/storage/surreal/schema.rs",
+              "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-readiness.log"
+            ],
+            "checked_at_utc": "2026-09-06T20:03:11.754Z"
+          },
+          {
+            "rubric_item_id": "RC-002-NO-DEAD-CODE",
+            "answer": "yes",
+            "explanation": "Three internally-used schema hash functions and seed constant are private; unused record_event_in_ctx removed; historical string guard is private cfg(test). Canonical helper now flags only existing public AtelierSchemaBootstrapReport: intentional return API of public AtelierStore::bootstrap_schema, consumed by callers through inferred return type; fields report applied/table_count. No speculative API exception.",
+            "evidence_refs": [
+              "src/backend/handshake_core/src/storage/surreal/schema.rs",
+              "src/backend/handshake_core/src/atelier/mod.rs"
+            ],
+            "checked_at_utc": "2026-09-06T20:03:11.754Z"
+          },
+          {
+            "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+            "answer": "yes",
+            "explanation": "Owned lib tests are schema::tests and atelier::guard_tests behind cfg(test), preserving non-platform-specific embedded assertions. Private historical guard also cfg(test), so rejection corpus remains available in test builds. No integration tests owned by MT058; the test-utils integration guard correction is MT061.",
+            "evidence_refs": [
+              "src/backend/handshake_core/src/atelier/mod.rs",
+              "src/backend/handshake_core/src/storage/surreal/schema.rs"
+            ],
+            "checked_at_utc": "2026-09-06T20:03:11.754Z"
+          },
+          {
+            "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+            "answer": "yes",
+            "explanation": "Inspected Linux log: actual cf312850 checkpoint, cargo/rustc1.97.1, cargo check -j2 --locked --features surreal-test-support,test-utils --lib finished56m58s, CARGO_EXIT0; separate scoped Linux owner preserves Windows cache.",
+            "evidence_refs": [
+              "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-linux-session-20260906-141914/tool/linux-check.log"
+            ],
+            "checked_at_utc": "2026-09-06T20:03:11.754Z"
+          },
+          {
+            "rubric_item_id": "RC-005-PROOF-COMMANDS",
+            "answer": "yes",
+            "explanation": "Four pins passed; exact137 inventory passed; two dependency-complete readiness/restart/adversarial tests passed; two legacy guard tests passed20:20:27UTC. Historical101 logs are cited only for individually passed unchanged tests; all failures recovered by subsequent focused0-exit runs. Final visibility/doc cleanup changes no schema bytes, pins, or executable bootstrap/mutation behavior, so prior behavior proof is reused per GLOBAL-VALIDATION-005 and CLOSURE-050. Real embedded RocksDB bootstrap/reopen/catalog rejection executed; Linux pinned check verifies final compilation.",
+            "evidence_refs": [
+              "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-pins.log",
+              "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-lib-regressions.log",
+              "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-readiness.log",
+              "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-legacy-guards.log"
+            ],
+            "checked_at_utc": "2026-09-06T20:21:31.198Z"
+          },
+          {
+            "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+            "answer": "yes",
+            "explanation": "lifecycle.claimed_by=KERNEL_BUILDER-20260906-141914; completed_by remainsnull. StatusCLAIMED, validatorPENDING. Only validator may complete.",
+            "evidence_refs": [
+              ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-058.json"
+            ],
+            "checked_at_utc": "2026-09-06T20:03:11.754Z"
+          }
+        ]
+      }
+    },
+    "prior_proof_disposition": "Historical green receipt retained; schema-dependent proof invalidated by pending correction. No downstream readiness until new pins/readiness/runtime proof.",
+    "research_sources": [
+      "https://surrealdb.com/docs/reference/query-language/statements/define/field",
+      "https://surrealdb.com/learn/book/chapter-05"
+    ],
+    "selected_pattern": "Required-field ASSERT enforces at least one of six optional source references, retaining the original API/domain condition."
+  },
+  "mechanical_proof_dependency": {
+    "reason": "Current canonical ready helper requires genuine pre/compiled/post source manifests; CKC build.rs lacked producer.",
+    "source": "Read-only generic v2 manifest producer from wtc-multi-model-orchestration-v1; excludes SQLX/migrations directives.",
+    "owned_file": "src/backend/handshake_core/build.rs",
+    "validation": "Compare actual compiled manifest byte-for-byte with prospective and post-run canonical bindings; independent original log/toolchain audit; Windows tests and Linux check.",
+    "status": "IMPLEMENTING",
+    "prior_runtime_proof": {
+      "passed": 8,
+      "gate_binding": "UNBOUND_RUNTIME_ONLY",
+      "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/sprint-schema-proof.log",
+      "failed": 0,
+      "commit": "2b501c09768723e51dc65270ada37a57c1e363e9"
+    }
+  }
 }

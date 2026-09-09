@@ -153,7 +153,13 @@
       "app/src-tauri/src/commands/swarm_schedule.rs",
       "app/src-tauri/src/commands/swarm_schedule_store.rs",
       "app/src-tauri/src/lib.rs",
-      "src/backend/handshake_core/src/kernel/mod.rs"
+      "src/backend/handshake_core/src/kernel/mod.rs",
+      "src/backend/handshake_core/src/api/diagnostics.rs",
+      "src/backend/handshake_core/src/api/model_lane_navigation.rs",
+      "src/backend/handshake_core/src/api/palmistry.rs",
+      "src/backend/handshake_core/src/distillation/parallel_distill/tests.rs",
+      "src/backend/handshake_core/src/operator_foreground/focus_audit.rs",
+      "src/backend/handshake_core/src/test_harness/crdt_workspace.rs"
     ],
     "forbidden_paths": [
       "unrelated repo-governance refactors",

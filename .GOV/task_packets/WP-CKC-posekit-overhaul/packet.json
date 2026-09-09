@@ -148,8 +148,8 @@
       "Ensure options/settings carries the correct features for this WP (-> MT-042).",
       "No scaffolding, no vibecoding: everything must work at runtime (Spec-Realism Gate).",
       "Unexpected gaps: address in the same MT or defer to a future MT in this WP so nothing is forgotten.",
-      "Artifacts root: ../Handshake/_Artifacts (D:); scope cargo target dirs there; clean after use; PC under heavy parallel load -> minimal/sequential builds; never close processes not started by this session; close sub-agents when idle.",
-      "Open Handshake internal PostgreSQL when tests/proofs require it.",
+      "Artifacts root: ../Handshake_Artifacts (one directory name); Cargo builds and tests use <WP_ID>/<MT_ID>/<OWNER_SLUG>/ beneath it. Verify runner target/log/temp paths before launch; reuse compatible builds and bundle tests; clean only no-longer-needed owned output. PC under heavy parallel load: minimal/sequential builds; never stop foreign processes without exact operator approval.",
+      "Use Handshake embedded SurrealDB for current CKC tests/proofs. PostgreSQL/sqlx worktree is read-only reference, not a test runtime or merge source.",
       "Repo governance minimal except state recovery + MT status."
     ]
   },
@@ -441,11 +441,147 @@
       "recheck": "Kernel head is moving; reread it at integration."
     },
     "cargo_next": {
-      "runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
-      "phase": "pins",
-      "status": "RUNNING_SCHEMA_PINS",
-      "target": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-      "runner_pid": 13360
+      "runner": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/run-component-proof.mjs",
+      "config": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/component-prerequisite-proof-1.config.json",
+      "phase": "component-prerequisite-proof-1",
+      "status": "FINISHED_COMPONENT_RUNTIME_GREEN_MECHANICAL_GATE_PENDING",
+      "target": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/target",
+      "runner_pid": 55700,
+      "started_at_utc": "2026-09-08T04:29:10.9231770Z",
+      "owning_mt": "MT-058",
+      "covered_mts": [
+        "MT-057",
+        "MT-058",
+        "MT-060",
+        "MT-064"
+      ],
+      "product_commit": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+      "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/component-prerequisite-proof-1.build.jsonl",
+      "stderr_log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/component-prerequisite-proof-1.build.stderr.log",
+      "runner_stdout": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/component-prerequisite-proof-1.runner.stdout.log",
+      "runner_stderr": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/component-prerequisite-proof-1.runner.stderr.log",
+      "runtime_plan": [
+        "media-byte umbrella: 1 test",
+        "schema/readiness/bulk-rollback: 8 tests",
+        "provenance: 2 tests"
+      ],
+      "proof_status": "Compile succeeded; media1/schema8/provenance2 passed, zero failures. Independent aggregate audit PASS; Linux bound check passed. MT readiness gates remain pending.",
+      "linux_current_proof": {
+        "status": "SOURCE_BOUND_CHECK_GREEN",
+        "product_commit": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+        "platform": "x86_64-unknown-linux-gnu",
+        "receipt": {
+          "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.bound.command.json",
+          "sha256": "292833a76d9ab2f532969b87209772fc668a80542a17f11cb669d50157a8999e"
+        },
+        "log": {
+          "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.log",
+          "sha256": "d6c1ab555618f01172244a0ce59c49e28268630b67fe659ad7bc584359cff5d1"
+        }
+      },
+      "history": [
+        {
+          "previous_cargo_next": {
+            "runner": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/run-source-bound-cargo.mjs",
+            "phase": "bound-media-bytes-proof-1",
+            "status": "RUNNING_SOURCE_BOUND_WRITE_ONCE_RACE_AND_MEDIA_BYTES_PROOF",
+            "target": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/target",
+            "runner_pid": 42404,
+            "owning_mt": "MT-058",
+            "covered_mts": [
+              "MT-057",
+              "MT-058",
+              "MT-059",
+              "MT-060",
+              "MT-061",
+              "MT-062",
+              "MT-063",
+              "MT-064"
+            ],
+            "product_commit": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+            "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-media-bytes-proof-1.log",
+            "interruption": {
+              "reason": "MT057 review found inaccurate symlink-rejection comment; corrected comment only before final source binding.",
+              "stopped_owned_rustc": 39496,
+              "original_cargo_exit": 101,
+              "proof_valid": false
+            }
+          },
+          "final_observation": {
+            "runtime_exit": 0,
+            "passed": 1,
+            "failed": 0,
+            "duration_seconds": 516.37,
+            "log": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-media-bytes-proof-1.log",
+            "runner_error": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/bound-media-bytes-proof-1.runner.stderr.log",
+            "proof_binding": "INVALID_NO_BOUND_RECEIPT",
+            "reason": "Before/compiled match but after differs in two shared governance-junction records; runtime success is historical only, not current bound proof.",
+            "changed_manifest_rows": [
+              ".GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md",
+              ".GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md"
+            ]
+          }
+        }
+      ],
+      "results": {
+        "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/component-prerequisite-proof-1.results.json",
+        "sha256": "6f818b8c499eae6091dc51a3c39f06bfb59b79968580554974200ead5f6cbd51"
+      },
+      "independent_audit": {
+        "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/component-prerequisite-proof-1-independent-audit.json",
+        "sha256": "271798644ce1a2372640dc59ddbb1bb7d3da18da6a87e8681deec98e2b189e7f"
+      },
+      "passed": 11,
+      "failed": 0,
+      "build_exit": 0,
+      "results_written_at_utc": "2026-09-08T05:45:03.041Z",
+      "runtime_results": [
+        {
+          "name": "atelier_media_bytes_api_tests",
+          "kind": "test",
+          "passed": 1,
+          "failed": 0,
+          "duration_seconds": 305.6,
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.media.command.json",
+            "sha256": "a81d0237ad4bedf6b8a8c2ab29991c26553011964c741f4de8d43d398ca85507"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.media.log",
+            "sha256": "80a9c98d5a329740cfda884f66a340b51ac8a010232f88cf562054e321cbb72c"
+          }
+        },
+        {
+          "name": "handshake_core",
+          "kind": "lib",
+          "passed": 8,
+          "failed": 0,
+          "duration_seconds": 524.94,
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.command.json",
+            "sha256": "bd1bef0d07fdea34d38931945301a0c5dda2c53854d90f3a3fd55607e6c98a8e"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.schema.log",
+            "sha256": "2961383796c137f6d37b05a41eef7e02d164c4fbc0a06969f63a42d46bf385ff"
+          }
+        },
+        {
+          "name": "atelier_core_data_tests",
+          "kind": "test",
+          "passed": 2,
+          "failed": 0,
+          "duration_seconds": 377.74,
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.provenance.command.json",
+            "sha256": "7daffea562e5ab1c49be777d7fb479b9420b7b6c4dfca586b473c95989f6a66c"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.provenance.log",
+            "sha256": "699b06050c0897d59e13315544e026960d55ec0a9d440b75bffb8138dfbbb093"
+          }
+        }
+      ]
     }
   },
   "wp_validation_v1": {

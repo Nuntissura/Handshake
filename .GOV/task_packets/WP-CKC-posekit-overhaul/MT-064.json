@@ -14,7 +14,7 @@
   "title": "Fix-while-in-there: runtime workspace-root resolver, canonical sha256 helpers + sweep, streaming size-capped ingest, Loom base64 cap",
   "status": "CLAIMED",
   "created_at_utc": "2026-09-05T01:05:00.438Z",
-  "updated_at_utc": "2026-09-06T16:37:12.636Z",
+  "updated_at_utc": "2026-09-06T20:26:03.922Z",
   "product_edit_allowed": true,
   "origin": "Created by KERNEL_BUILDER on 2026-09-05 for the Operator-directed SurrealDB port of the CKC work (mission: bring CKC onto the current SurrealDB codebase; land the artifact READ path first; specify the Studio storage/viewport binding). The reference branch feat/WP-CKC-posekit-overhaul (327 commits behind feat/WP-KERNEL-012, sqlx/PostgreSQL storage) is a REFERENCE IMPLEMENTATION, never a merge source. Preserves the Operator's added scope so it survives session loss.",
   "authority_files": {
@@ -29,12 +29,14 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-064.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
     "depends_on": [],
     "claimed_by": "KERNEL_BUILDER-20260906-141914",
     "claimed_at_utc": "2026-09-05T01:05:00.438Z",
-    "completed_by": null
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-09-08T05:55:14.358Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260906-141914"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-surreal",
@@ -48,8 +50,8 @@
       "skeleton": "09febeb8",
       "lane_wip": "see git log on the branch: wip(CKC lanes): recovery checkpoint"
     },
-    "cargo_target_dir": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
-    "hidden_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
+    "cargo_target_dir": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/target",
+    "hidden_runner": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/tool/run-recovery-batch.ps1",
     "recovery_rule": "A no-context KERNEL_BUILDER resumes from this contract + the branch + `implementation_brief`. Never edit the reference worktree. Never cherry-pick. Build only in `cargo_target_dir`.",
     "prior_lane_build": {
       "cargo_target_dir": "../Handshake_Artifacts/handshake-cargo-target/wp-ckc-surreal",
@@ -57,28 +59,528 @@
     },
     "build_coordination": {
       "session": "KERNEL_BUILDER-20260906-141914",
-      "reason": "Operator-directed serialized parent batch and dependency-cache reuse after parallel lane source edits.",
-      "parallel_cargo": false
+      "owner_mt": "MT-058",
+      "covered_mts": [
+        "MT-057",
+        "MT-059",
+        "MT-060",
+        "MT-061",
+        "MT-062",
+        "MT-063",
+        "MT-064"
+      ],
+      "parallel_cargo": false,
+      "tmp_dir": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/kernel-builder-session-20260906-141914/temp",
+      "reason": "Parent-owned compatible backend batch; one Cargo process and existing cache."
     },
-    "artifact_path_correction": {
-      "at_utc": "2026-09-06T16:48:27.568Z",
-      "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
-      "runner_pid": 13360
-    }
+    "artifact_path_history": [
+      {
+        "superseded_target": "../Handshake/_Artifacts/handshake-cargo-target/wp-ckc-surreal",
+        "superseded_runner": "../Handshake/_Artifacts/handshake-tool/wp-ckc-surreal/run-recovery-batch.ps1",
+        "superseded_correction": {
+          "at_utc": "2026-09-06T16:48:27.568Z",
+          "reason": "Literal operator-required root is ../Handshake/_Artifacts; sibling root was incorrect. Parent main target/tools/tmp relocated after stopping only own runner tree; historical records remain historical.",
+          "runner_pid": 13360
+        },
+        "reason": "Incorrect nested root superseded by verified shared MT058 owner; retained only as history."
+      }
+    ]
   },
   "scope": {
-    "summary": "Operator-listed fixes. (a) storage::artifacts::resolve_workspace_root no longer falls back to the compile-time CARGO_MANIFEST_DIR; order is HANDSHAKE_WORKSPACE_ROOT -> nearest ancestor with .handshake/ -> nearest git checkout root -> hard error (disk-agnostic, CX-109B). (b) storage::artifacts::sha256_hex is the single crate helper; normalize_sha256_hex_ref / format_sha256_ref / sha256_refs_match handle the three spellings (bare, sha256:, sha256-, artifact://sha256/). Sweep of the ~40 private fn sha256_hex copies: DONE for api/loom.rs; REMAINING for the non-lane files (workflows.rs, flight_recorder/mod.rs, kernel/*, knowledge_*, memory/injection.rs, mex/supply_chain.rs, role_mailbox.rs, governance_pack.rs, capability_registry_workflow.rs, bundles/zip.rs, ai_ready_data/*, loom_ai/mod.rs, inspector_read/trace_projection.rs, swarm_orchestration/state_recovery.rs, user_manual/store.rs, storage/surreal/kernel_crdt_store.rs) and, AFTER the lanes land, the atelier files (exports.rs, intake.rs, moodboards.rs, sheet.rs, sourcing.rs, editable_surface_authority.rs) and the frontend copies. (c) storage::artifacts::write_file_artifact_streaming + StreamingFileArtifactSpec + remove_file_artifact; POST /atelier/media-assets raw-body ingest with HANDSHAKE_MEDIA_INGEST_MAX_BYTES (default 4 GiB) enforced while streaming; blob -> verify -> row with compensating remove on row failure / dedup. (d) Loom JSON+base64 import: explicit decoded-size cap + empty-payload rejection; documented as not a bulk-binary path.",
+    "summary": "Operator-listed fixes. (a) storage::artifacts::resolve_workspace_root no longer falls back to the compile-time CARGO_MANIFEST_DIR; order is HANDSHAKE_WORKSPACE_ROOT -> nearest ancestor with .handshake/ -> nearest git checkout root -> hard error (disk-agnostic, CX-109B). (b) storage::artifacts::sha256_hex is the single crate helper; normalize_sha256_hex_ref / format_sha256_ref / sha256_refs_match handle the three spellings (bare, sha256:, sha256-, artifact://sha256/). The23-file sweep in0b17acad and eight Atelier consumers are integrated. String-typed variants remain intentionally preserved; frontend copies belong to MT065. (c) storage::artifacts::write_file_artifact_streaming + StreamingFileArtifactSpec + remove_file_artifact; POST /atelier/media-assets raw-body ingest with HANDSHAKE_MEDIA_INGEST_MAX_BYTES (default 4 GiB) enforced while streaming; blob -> verify -> row with compensating remove on row failure / dedup. (d) Loom JSON+base64 import: explicit decoded-size cap + empty-payload rejection; documented as not a bulk-binary path.",
     "owned_files": [
       "src/backend/handshake_core/src/storage/mod.rs",
       "src/backend/handshake_core/src/api/atelier.rs",
       "src/backend/handshake_core/src/api/loom.rs",
       "src/backend/handshake_core/tests/atelier_media_bytes_api_tests.rs",
-      "(sweep) the non-lane files listed in summary"
+      "src/backend/handshake_core/src/ace/validators/atelier_scope.rs",
+      "src/backend/handshake_core/src/ai_ready_data/chunking.rs",
+      "src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+      "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+      "src/backend/handshake_core/src/bundles/zip.rs",
+      "src/backend/handshake_core/src/capability_registry_workflow.rs",
+      "src/backend/handshake_core/src/flight_recorder/mod.rs",
+      "src/backend/handshake_core/src/governance_pack.rs",
+      "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/kernel/crdt/persistence.rs",
+      "src/backend/handshake_core/src/kernel/validation/diff_capture.rs",
+      "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+      "src/backend/handshake_core/src/knowledge_wiki/mod.rs",
+      "src/backend/handshake_core/src/llm/mod.rs",
+      "src/backend/handshake_core/src/loom_ai/mod.rs",
+      "src/backend/handshake_core/src/memory/injection.rs",
+      "src/backend/handshake_core/src/mex/supply_chain.rs",
+      "src/backend/handshake_core/src/role_mailbox.rs",
+      "src/backend/handshake_core/src/storage/surreal/kernel_crdt_store.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/atelier/contact_sheet.rs",
+      "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+      "src/backend/handshake_core/src/atelier/exports.rs",
+      "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+      "src/backend/handshake_core/src/atelier/intake.rs",
+      "src/backend/handshake_core/src/atelier/moodboards.rs",
+      "src/backend/handshake_core/src/atelier/sourcing.rs"
     ],
     "remaining_compile_time_root_users": [
       "capability_registry_workflow::repo_root_from_manifest_dir still used by dependency_policy/{mod.rs,cui_gate.rs,manifest_tripwires.rs} and bin/capability_registry_workflow.rs (repo-governance tooling paths, not the artifact tier) - recorded as debt, not changed here"
     ],
-    "proof_status": "Compiled: cargo check --lib --features surreal-test-support,test-utils exit 0 on the tree containing resolver + helpers + streaming write + ingest route + Loom cap + sha256 sweep (log handshake-tool/wp-ckc-surreal/check4.log). Sweep applied to 23 backend files (list in commit refactor(core): fold 23 private sha256_hex copies). Remaining: atelier lane files (contact_sheet, editable_surface_authority, exports, facial, facial_native/review, intake, moodboards, sourcing) after lanes land; string-typed variants (sheet.rs text, user_manual/store.rs, role_mailbox sha256_hex_utf8, workflows sha256_hex_str, pose sha256_hex_joined, product_screenshot_capture sha256_hex_raw) intentionally kept; 5 frontend copies belong to MT-065. Ingest integration tests written, NOT yet executed."
+    "proof_status": "Current c84ad67a required component runtime passed and independent aggregate audit PASS; source-bound Linux check passed. Mechanical readiness emission remains pending; no lifecycle or validator transition.",
+    "hash_sweep_evidence": {
+      "commit": "0b17acad",
+      "files": [
+        "src/backend/handshake_core/src/ace/validators/atelier_scope.rs",
+        "src/backend/handshake_core/src/ai_ready_data/chunking.rs",
+        "src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+        "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+        "src/backend/handshake_core/src/bundles/zip.rs",
+        "src/backend/handshake_core/src/capability_registry_workflow.rs",
+        "src/backend/handshake_core/src/flight_recorder/mod.rs",
+        "src/backend/handshake_core/src/governance_pack.rs",
+        "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+        "src/backend/handshake_core/src/kernel/context_bundle.rs",
+        "src/backend/handshake_core/src/kernel/crdt/persistence.rs",
+        "src/backend/handshake_core/src/kernel/validation/diff_capture.rs",
+        "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+        "src/backend/handshake_core/src/knowledge_wiki/mod.rs",
+        "src/backend/handshake_core/src/llm/mod.rs",
+        "src/backend/handshake_core/src/loom_ai/mod.rs",
+        "src/backend/handshake_core/src/memory/injection.rs",
+        "src/backend/handshake_core/src/mex/supply_chain.rs",
+        "src/backend/handshake_core/src/role_mailbox.rs",
+        "src/backend/handshake_core/src/storage/surreal/kernel_crdt_store.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
+        "src/backend/handshake_core/src/workflows.rs"
+      ],
+      "atelier_consumers": [
+        "src/backend/handshake_core/src/atelier/contact_sheet.rs",
+        "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+        "src/backend/handshake_core/src/atelier/exports.rs",
+        "src/backend/handshake_core/src/atelier/facial.rs",
+        "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+        "src/backend/handshake_core/src/atelier/intake.rs",
+        "src/backend/handshake_core/src/atelier/moodboards.rs",
+        "src/backend/handshake_core/src/atelier/sourcing.rs"
+      ],
+      "preserved_variants": "sheet text; user_manual; role_mailbox utf8; workflows str; pose joined; screenshot raw; frontend scope MT065"
+    },
+    "prior_summary_superseded": "Operator-listed fixes. (a) storage::artifacts::resolve_workspace_root no longer falls back to the compile-time CARGO_MANIFEST_DIR; order is HANDSHAKE_WORKSPACE_ROOT -> nearest ancestor with .handshake/ -> nearest git checkout root -> hard error (disk-agnostic, CX-109B). (b) storage::artifacts::sha256_hex is the single crate helper; normalize_sha256_hex_ref / format_sha256_ref / sha256_refs_match handle the three spellings (bare, sha256:, sha256-, artifact://sha256/). Sweep of the ~40 private fn sha256_hex copies: DONE for api/loom.rs; REMAINING for the non-lane files (workflows.rs, flight_recorder/mod.rs, kernel/*, knowledge_*, memory/injection.rs, mex/supply_chain.rs, role_mailbox.rs, governance_pack.rs, capability_registry_workflow.rs, bundles/zip.rs, ai_ready_data/*, loom_ai/mod.rs, inspector_read/trace_projection.rs, swarm_orchestration/state_recovery.rs, user_manual/store.rs, storage/surreal/kernel_crdt_store.rs) and, AFTER the lanes land, the atelier files (exports.rs, intake.rs, moodboards.rs, sheet.rs, sourcing.rs, editable_surface_authority.rs) and the frontend copies. (c) storage::artifacts::write_file_artifact_streaming + StreamingFileArtifactSpec + remove_file_artifact; POST /atelier/media-assets raw-body ingest with HANDSHAKE_MEDIA_INGEST_MAX_BYTES (default 4 GiB) enforced while streaming; blob -> verify -> row with compensating remove on row failure / dedup. (d) Loom JSON+base64 import: explicit decoded-size cap + empty-payload rejection; documented as not a bulk-binary path.",
+    "proof_commands": [
+      "cargo test -j 2 --offline --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test atelier_media_bytes_api_tests -- --test-threads=1"
+    ],
+    "public_api": {
+      "policy": "Preserve the inspected existing exported library interfaces during the operator-authorized refactor for mergeability. These records distinguish actual calls/containment from retained exports; they add no new runtime wiring or feature scope.",
+      "review_status": "SOURCE_INSPECTED_RUNTIME_PROOF_PENDING",
+      "groups": [
+        {
+          "file": "src/backend/handshake_core/src/storage/mod.rs",
+          "symbols": [
+            "surreal_config",
+            "default_log",
+            "default_cache",
+            "discover_workspace_root_from",
+            "normalize_sha256_hex_ref",
+            "canonical_bundle_index",
+            "init_storage_with_config",
+            "HANDSHAKE_WORKSPACE_ROOT_ENV"
+          ],
+          "basis": "Preserve existing public storage initialization, retention, workspace discovery and artifacts APIs; normalize_sha256_hex_ref is explicitly MT064 scope. Actual same-file calls: surreal_config3880, discover_workspace_root_from714, canonical_bundle_index956/993, init_storage_with_config3854. Default retention constructors516/534 and environment-name constant remain exported configuration API; no invented external consumer."
+        },
+        {
+          "file": "src/backend/handshake_core/src/atelier/sourcing.rs",
+          "symbols": [
+            "HandlerVersionMatrixEntry",
+            "BindingDecision",
+            "VersionMismatchReceipt",
+            "requires_key",
+            "list_handler_versions",
+            "get_ingestion_receipt_by_key"
+          ],
+          "basis": "Public sourcing result APIs1131/1189/1253/1410/1494. list_handler_versions production call1261; get_ingestion_receipt_by_key1562. IdempotencyClass::requires_key140 is documented S6.12.5 public dedupe-key API retained without a current caller claim."
+        },
+        {
+          "file": "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
+          "symbols": [
+            "WorkClaimRecord",
+            "WorkClaimOutcome",
+            "SwarmDashboardProjectionFilters",
+            "SwarmDashboardProjectionContractV1",
+            "SwarmDashboardSourceWatermarkV1",
+            "SwarmDashboardEventRefV1",
+            "SwarmDashboardAggregateCountV1",
+            "SwarmDashboardTotalsV1",
+            "SwarmDashboardLaneRowV1",
+            "SwarmDashboardSourceRefV1",
+            "SwarmDashboardClaimRowV1",
+            "SwarmDashboardHandoffRowV1",
+            "SwarmDashboardCheckpointRowV1",
+            "SwarmDashboardRecoveryReceiptRowV1",
+            "SwarmDashboardIndexingLeaseRowV1",
+            "SwarmDashboardQuietWorkRowV1",
+            "SwarmDashboardWarningV1",
+            "CloudFallbackBasisReceiptV1",
+            "RoleMailboxHandoffRecord",
+            "NavigationCommandSpec",
+            "ResolvedNavigationCommand",
+            "QuietResolvedNavigationCommand",
+            "RecoveryCheckpointRecord",
+            "RecoveredCheckpoint",
+            "HandoffCompressionSourceRefV1",
+            "HandoffCompressionTemplateV1",
+            "list_active_claims",
+            "active_index_writer_for_scope",
+            "PARALLEL_SWARM_DASHBOARD_SCHEMA_ID",
+            "PARALLEL_SWARM_CLOUD_ASSISTANCE_SCHEMA_ID",
+            "PARALLEL_SWARM_CLOUD_FALLBACK_BASIS_SCHEMA_ID",
+            "PARALLEL_SWARM_HANDOFF_COMPRESSION_SCHEMA_ID",
+            "StateRecoveryResult"
+          ],
+          "basis": "Preserve public store result/error and projection API. Dashboard DTO fields514-530 and nested fields expose row types; api/kernel.rs221 returns the dashboard. Public navigation returns1095/1103/2751; recovery returns3559/3653; handoff source refs1298. Schema IDs emitted2316/2976/3110/3682. active_index_writer_for_scope called3717/3739/3768/3928. list_active_claims1979 retained as existing public store API without claiming a current outside caller."
+        },
+        {
+          "file": "src/backend/handshake_core/src/flight_recorder/mod.rs",
+          "symbols": [
+            "FrEvt001System",
+            "FrEvt004CapabilityAction",
+            "FrEvtGovCheckStarted",
+            "FrEvtGovCheckCompleted",
+            "FrEvtGovCheckBlocked",
+            "with_activity_span_id",
+            "with_session_span_id"
+          ],
+          "basis": "Root independently inspected public module export lib.rs159; five Serialize/Deserialize wire payload schemas5979/6016/6130/6137/6146 are preserved existing exported types, not proof of current runtime emission. Builder aliases548/557 forward the actual activity/session builders."
+        },
+        {
+          "file": "src/backend/handshake_core/src/workflows.rs",
+          "symbols": [
+            "SessionSpawnResponse",
+            "SpawnLimits",
+            "MultiModelSession",
+            "RateLimitReservation",
+            "ModelSwapRequesterV0_4",
+            "CandidateAttempt",
+            "RoutingStrategy",
+            "RateLimitOutcome",
+            "ModelSwapRole",
+            "ModelSwapPriority",
+            "ModelSwapRequesterSubsystem",
+            "validate_spawn_request",
+            "new_from_env",
+            "scheduler_config",
+            "set_scheduler_config",
+            "spawn_limits",
+            "register_session_worktree_allocation",
+            "snapshot_worktree_registry",
+            "clear_session_worktree_allocation",
+            "try_acquire_rate_limit",
+            "refund_rate_limit",
+            "reset_startup_recovery_gate_for_test",
+            "work_packet_workflow_state_with_mailbox",
+            "handle_security_violation",
+            "is_poisonable_violation",
+            "get_violation_type",
+            "recover_session_from_checkpoint",
+            "distillation_candidate_to_log_entry",
+            "has_errors"
+          ],
+          "basis": "Root independently inspected public module lib.rs277. Runtime calls validate_spawn_request8292; worktree APIs6555/8217/9205/9408; rate APIs8453/8636; workflow state4250/6293/6323/6377; security9995-10003; recovery7561; has_errors16405. SpawnLimits and RoutingPolicy/RoutingStrategy are public MultiModelSession fields501-507, snapshot return604. SessionSpawnResponse returns433; RateLimitReservation nested Allowed753. ModelSwap request/result public field chains1958/1975-2010. CandidateAttempt nested DistillationCandidate12231; converter documented12251. SessionRegistry configuration APIs552-573 preserved. reset_startup_recovery_gate_for_test is cfg(test)1033, used tests30070/30093, not runtime proof."
+        },
+        {
+          "file": "src/backend/handshake_core/src/role_mailbox.rs",
+          "symbols": [
+            "SpecSessionLogEntry",
+            "RoleMailboxExportSummary",
+            "RoleMailboxError",
+            "requires_transcription_links"
+          ],
+          "basis": "Public mailbox method error/result returns922/977/1569; requires_transcription_links production call601. Existing public module lib.rs244. Unused ROLE_MAILBOX_EXPORT_ROOT is excluded from retained API and removed."
+        },
+        {
+          "file": "src/backend/handshake_core/src/governance_pack.rs",
+          "symbols": [
+            "GovernancePackInvariants",
+            "GovernancePackExportOutcome",
+            "GovernancePackExportError"
+          ],
+          "basis": "Invariants exposed by public request field39; outcome/error are public export function result186. Public module lib.rs165. Internal GovernancePackTemplate is excluded and made private."
+        },
+        {
+          "file": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+          "symbols": [
+            "CodeFileIndexOutcome",
+            "QuietCodeIndexRun",
+            "record_read_failure"
+          ],
+          "basis": "Public engine results827/1289/1386/1430/2090/2191; record_read_failure has actual production callers2563/2579."
+        },
+        {
+          "file": "src/backend/handshake_core/src/capability_registry_workflow.rs",
+          "symbols": [
+            "CapabilityRegistryWorkflowArtifacts",
+            "CapabilityRegistryWorkflowResult"
+          ],
+          "basis": "Public workflow artifact return548 and allocation649; public result alias used public operations176/188 and following."
+        },
+        {
+          "file": "src/backend/handshake_core/src/atelier/facial.rs",
+          "symbols": [
+            "FacialCapabilityMapRow"
+          ],
+          "basis": "Nested public capability_map field179, built810-813."
+        },
+        {
+          "file": "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+          "symbols": [
+            "ModelManualSectionRecord",
+            "RetrievalPolicyValueRecord",
+            "upsert_retrieval_policy_value"
+          ],
+          "basis": "Public return surfaces175/199/259/290; upsert called461 by bound model-manual flow documented424."
+        },
+        {
+          "file": "src/backend/handshake_core/src/atelier/intake.rs",
+          "symbols": [
+            "IntakeItemRejectionAudit",
+            "IntakeBatchClassificationApplyResult",
+            "IntakeItemMetadata",
+            "OrphanManifestItem",
+            "InboxFolderScanResult",
+            "IntakeClassificationTestPlan",
+            "ORPHAN_MANIFEST_SCHEMA_ID"
+          ],
+          "basis": "Public result returns1914/2480/2728/2764/3060/3182/3482/3617/3858; OrphanManifestItem nested public field546; schema ID emitted3556/3604. Test plan is cfg(test-utils) result3985 consumed3994/4003 and integration tests through inferred type; not production API proof."
+        },
+        {
+          "file": "src/backend/handshake_core/src/atelier/exports.rs",
+          "symbols": [
+            "ExportResult",
+            "WebPortfolioExportResult",
+            "ExportIntakeLink",
+            "get_export_request",
+            "get_export_result",
+            "get_web_portfolio_export_request"
+          ],
+          "basis": "Public result surfaces1767/1810/2107/2209/2401. Request/result getters actually called1775/1853/1933/1936/2114/2402."
+        },
+        {
+          "file": "src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+          "symbols": [
+            "GoldenQuerySpec",
+            "DocIngestResult",
+            "AI_READY_PROCESSING_PIPELINE_VERSION",
+            "AI_READY_CHUNKING_VERSION"
+          ],
+          "basis": "GoldenQuerySpec nested public request field54; DocIngestResult public return116. Public version constants are emitted in stored processing/chunking metadata372/420/705/706."
+        },
+        {
+          "file": "src/backend/handshake_core/src/kernel/crdt/persistence.rs",
+          "symbols": [
+            "CrdtReplayPlanV1",
+            "CrdtSurrealUpdateLogContractV1",
+            "CRDT_UPDATE_RECORD_SCHEMA_ID",
+            "CRDT_REPLAY_PLAN_SCHEMA_ID",
+            "CRDT_SURREAL_UPDATE_LOG_CONTRACT_SCHEMA_ID"
+          ],
+          "basis": "Public contract/replay results160/289; stable schema IDs emitted133/162/348 and validated249."
+        },
+        {
+          "file": "src/backend/handshake_core/src/atelier/moodboards.rs",
+          "symbols": [
+            "MoodboardOperationReceipt",
+            "MoodboardPoint",
+            "MoodboardSize",
+            "MoodboardLayer",
+            "MoodboardImageElement",
+            "MoodboardTextElement",
+            "MoodboardShapeElement",
+            "MoodboardConnector",
+            "MoodboardFolder",
+            "MoodboardGuide",
+            "MoodboardFlags",
+            "MoodboardStyle",
+            "MoodboardHistoryEntry"
+          ],
+          "basis": "Public MoodboardDocument nested field types201-218; HTTP consumer api/atelier_ckc_sheets.rs41/397. Operation receipt public return1420/1490."
+        },
+        {
+          "file": "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+          "symbols": [
+            "FacialReviewItem",
+            "FacialReviewShardStatus",
+            "FacialReviewMontageTile",
+            "FacialReviewMontageArtifact",
+            "FacialReviewExportedFile",
+            "FacialReviewExportProblem"
+          ],
+          "basis": "Public result/field chains: items60/86, per_shard151, tiles200, exported_files/problems250/251, montage public return573."
+        },
+        {
+          "file": "src/backend/handshake_core/src/loom_ai/mod.rs",
+          "symbols": [
+            "LoomAiJobResult"
+          ],
+          "basis": "Public Loom AI job result226, produced340."
+        },
+        {
+          "file": "src/backend/handshake_core/src/mex/supply_chain.rs",
+          "symbols": [
+            "SUPPLY_CHAIN_ALLOWLISTS_VERSION"
+          ],
+          "basis": "Existing exported schema version emitted in allowlist metadata83."
+        },
+        {
+          "file": "src/backend/handshake_core/src/knowledge_wiki/mod.rs",
+          "symbols": [
+            "WIKI_STAMP_VERSION"
+          ],
+          "basis": "Existing exported stamp schema version documented178 and emitted198."
+        },
+        {
+          "file": "src/backend/handshake_core/src/kernel/validation/diff_capture.rs",
+          "symbols": [
+            "DiffArtifact"
+          ],
+          "basis": "Preserve explicitly documented MT033 serializable public diff capture API1-8/15/23, exposed by public validation::diff_capture module43; local deterministic tests42-52. No current production consumer claimed."
+        },
+        {
+          "file": "src/backend/handshake_core/src/bundles/zip.rs",
+          "symbols": [
+            "write_deterministic_zip"
+          ],
+          "basis": "Preserve documented deterministic ZIP public API20 in public bundles::zip module6; local determinism proof127/129. No current outside caller claimed."
+        }
+      ],
+      "internal_cleanup": {
+        "files": [
+          "src/backend/handshake_core/src/governance_pack.rs",
+          "src/backend/handshake_core/src/role_mailbox.rs",
+          "src/backend/handshake_core/src/llm/mod.rs"
+        ],
+        "changes": [
+          "GovernancePackTemplate and its fields made private; only private parser consumes it.",
+          "Unused ROLE_MAILBOX_EXPORT_ROOT removed; runtime uses RuntimeGovernancePaths.",
+          "openai_compat_chat_completion_body_json made private; sole caller is same-file canonicalization469."
+        ],
+        "proof_status": "Source independently reviewed and checkpointed by parent; runtime proof pending.",
+        "product_checkpoint": "d4bbd2b796486e7ebee1d2caa75f450baa2dd9f5"
+      }
+    },
+    "superseded_active_proof_history": [
+      {
+        "superseded_at_utc": "2026-09-08T03:23:58.031Z",
+        "reason": "Current c84ad67a includes write-once publication and review corrections; prior command receipts remain historical and cannot prove this HEAD.",
+        "proof_status": "Current backend runtime proof pending in shared MT058 batch. Prior compile evidence is historical; current Linux cf312850 check passed. No READY_FOR_VALIDATION claim."
+      },
+      {
+        "superseded_at_utc": "2026-09-08T05:48:24.672Z",
+        "reason": "Prospective component runtime now independently audited; retain prior pending execution state.",
+        "proof_status": "Current c84ad67a source review referenced; source-bound runtime proof pending. Required sequence: media-byte umbrella including writer-race regression, two provenance tests, eight schema/readiness/rollback lib tests, and Linux check. No current readiness or validator verdict.",
+        "current_proof": {
+          "status": "CURRENT_HEAD_RUNTIME_PENDING",
+          "product_checkpoint": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+          "product_tree": "59f5dd26605bc10bb9c07529a8434f28a3d14f43",
+          "results": [],
+          "cross_platform_status": "CURRENT_LINUX_CHECK_PENDING",
+          "real_resource_status": "MEDIA_BYTE_UMBRELLA_PENDING",
+          "checklist_status": "MECHANICAL_EMISSION_PENDING",
+          "validator_verdict": "PENDING"
+        },
+        "kb_ready_checklist_evidence": {
+          "status": "MECHANICAL_EMISSION_PENDING",
+          "product_commit": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+          "summary": "Emission derives only from ready_evidence_refs. Current runtime and Linux proof pending; prior authored answers and command receipts are historical."
+        },
+        "ready_evidence_refs": {
+          "source_reviews": [
+            {
+              "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-064/ckc-studio-contract-independent-20260908/tool/independent-source-review.json",
+              "sha256": "d3e84598139a14838c778e9ca6c34d4414c4f91f65d921f417c521513f360f60"
+            }
+          ],
+          "command_results": [
+            {
+              "receipt": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.media.command.json",
+                "sha256": "a81d0237ad4bedf6b8a8c2ab29991c26553011964c741f4de8d43d398ca85507"
+              },
+              "log": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.media.log",
+                "sha256": "80a9c98d5a329740cfda884f66a340b51ac8a010232f88cf562054e321cbb72c"
+              }
+            },
+            {
+              "receipt": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.bound.command.json",
+                "sha256": "292833a76d9ab2f532969b87209772fc668a80542a17f11cb669d50157a8999e"
+              },
+              "log": {
+                "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.log",
+                "sha256": "d6c1ab555618f01172244a0ce59c49e28268630b67fe659ad7bc584359cff5d1"
+              }
+            }
+          ],
+          "independent_audits": [
+            {
+              "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/component-prerequisite-proof-1-independent-audit.json",
+              "sha256": "271798644ce1a2372640dc59ddbb1bb7d3da18da6a87e8681deec98e2b189e7f"
+            }
+          ]
+        }
+      }
+    ],
+    "current_proof": {
+      "status": "RUNTIME_AND_LINUX_GREEN_MECHANICAL_GATE_PENDING",
+      "product_checkpoint": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+      "product_tree": "59f5dd26605bc10bb9c07529a8434f28a3d14f43",
+      "results": [
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.media.command.json",
+            "sha256": "a81d0237ad4bedf6b8a8c2ab29991c26553011964c741f4de8d43d398ca85507"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.media.log",
+            "sha256": "80a9c98d5a329740cfda884f66a340b51ac8a010232f88cf562054e321cbb72c"
+          },
+          "exit": 0,
+          "passed": 1,
+          "failed": 0,
+          "filtered": 0,
+          "duration_seconds": 305.6,
+          "target": "atelier_media_bytes_api_tests",
+          "kind": "test"
+        },
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.bound.command.json",
+            "sha256": "292833a76d9ab2f532969b87209772fc668a80542a17f11cb669d50157a8999e"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.log",
+            "sha256": "d6c1ab555618f01172244a0ce59c49e28268630b67fe659ad7bc584359cff5d1"
+          },
+          "exit": 0,
+          "platform": "x86_64-unknown-linux-gnu",
+          "coverage": "Native Linux cargo check"
+        }
+      ],
+      "build_command": {
+        "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.build.command.json",
+        "sha256": "4f119ea310692721d914a9a0860e4d39c1e813f04cf51544b07d6fad2841c030"
+      },
+      "independent_audit": {
+        "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/component-prerequisite-proof-1-independent-audit.json",
+        "sha256": "271798644ce1a2372640dc59ddbb1bb7d3da18da6a87e8681deec98e2b189e7f"
+      },
+      "cross_platform_status": "CURRENT_LINUX_CHECK_GREEN",
+      "real_resource_status": "CURRENT_NAMED_RESOURCE_TEST_GREEN",
+      "checklist_status": "MECHANICAL_EMISSION_PENDING",
+      "validator_verdict": "PENDING"
+    }
   },
   "hbr_obligations": {
     "HBR-INT-001": "PROVE: every mutation emits its atelier event in the same transaction (write_with_event / BEGIN..COMMIT)",
@@ -105,7 +607,7 @@
       "CKC catalog tables listed in scope"
     ],
     "expected_evidence": [
-      "DEFERRED-with-reason: ResourceBroker / LocalAccount / Principal / AccessSpace do not exist in the WP-KERNEL-012 base (verified 2026-09-05 by grep: no ResourceBroker symbol). Reads and writes are attributed via x-hsk-actor-id and the KernelActor on events; default-deny enforcement is WP-KERNEL-006/007 scope. Record the STU-ASSET-007 `unauthorized` state as not yet producible."
+      "DEFERRED-with-reason: ResourceBroker / LocalAccount / Principal / AccessSpace do not exist in the WP-KERNEL-012 base (verified 2026-09-05 by grep: no ResourceBroker symbol). Ingest requires x-hsk-actor-id and logs the actor; GET bytes has no actor-header extraction or actor-attributed read event; default-deny enforcement is WP-KERNEL-006/007 scope. Record the STU-ASSET-007 `unauthorized` state as not yet producible."
     ],
     "not_applicable_reason": null
   },
@@ -117,7 +619,85 @@
     "status": "CLAIMED",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "note": "Kernel Builder implements; Integration Validator batch review after the declared lane batch. No self-certification.",
-    "coder_session": "KERNEL_BUILDER-20260906-141914"
+    "coder_session": "KERNEL_BUILDER-20260906-141914",
+    "kb_ready_checklist_evidence": {
+      "status": "MECHANICAL_EMISSION_PENDING",
+      "product_commit": "c84ad67a1715d142745166125d5891fcdadeb6c1",
+      "summary": "Current runtime and Linux evidence attached as hashed ready_evidence_refs; independent runtime audit PASS. Authored answers are not emission proof; canonical readiness gate has not been run."
+    },
+    "ready_evidence_refs": {
+      "source_reviews": [
+        {
+          "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-064/ckc-studio-contract-independent-20260908/tool/independent-source-review.json",
+          "sha256": "d3e84598139a14838c778e9ca6c34d4414c4f91f65d921f417c521513f360f60"
+        }
+      ],
+      "command_results": [
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.media.command.json",
+            "sha256": "a81d0237ad4bedf6b8a8c2ab29991c26553011964c741f4de8d43d398ca85507"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-session-20260906-141914\\tool\\component-prerequisite-proof-1.media.log",
+            "sha256": "80a9c98d5a329740cfda884f66a340b51ac8a010232f88cf562054e321cbb72c"
+          }
+        },
+        {
+          "receipt": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.bound.command.json",
+            "sha256": "292833a76d9ab2f532969b87209772fc668a80542a17f11cb669d50157a8999e"
+          },
+          "log": {
+            "path": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-CKC-posekit-overhaul\\MT-058\\kernel-builder-linux-session-20260906-141914\\tool\\bound-linux-check-1.log",
+            "sha256": "d6c1ab555618f01172244a0ce59c49e28268630b67fe659ad7bc584359cff5d1"
+          }
+        }
+      ],
+      "independent_audits": [
+        {
+          "path": "../Handshake_Artifacts/WP-CKC-posekit-overhaul/MT-058/ckc-core-fixtures/tool/component-prerequisite-proof-1-independent-audit.json",
+          "sha256": "271798644ce1a2372640dc59ddbb1bb7d3da18da6a87e8681deec98e2b189e7f"
+        }
+      ]
+    }
   },
-  "validator_verdict": "PENDING"
+  "validator_verdict": "PENDING",
+  "owned_files": [
+    "src/backend/handshake_core/src/storage/mod.rs",
+    "src/backend/handshake_core/src/api/atelier.rs",
+    "src/backend/handshake_core/src/api/loom.rs",
+    "src/backend/handshake_core/tests/atelier_media_bytes_api_tests.rs",
+    "src/backend/handshake_core/src/ace/validators/atelier_scope.rs",
+    "src/backend/handshake_core/src/ai_ready_data/chunking.rs",
+    "src/backend/handshake_core/src/ai_ready_data/pipeline.rs",
+    "src/backend/handshake_core/src/bin/mt249_code_intelligence_fixture.rs",
+    "src/backend/handshake_core/src/bundles/zip.rs",
+    "src/backend/handshake_core/src/capability_registry_workflow.rs",
+    "src/backend/handshake_core/src/flight_recorder/mod.rs",
+    "src/backend/handshake_core/src/governance_pack.rs",
+    "src/backend/handshake_core/src/inspector_read/trace_projection.rs",
+    "src/backend/handshake_core/src/kernel/context_bundle.rs",
+    "src/backend/handshake_core/src/kernel/crdt/persistence.rs",
+    "src/backend/handshake_core/src/kernel/validation/diff_capture.rs",
+    "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+    "src/backend/handshake_core/src/knowledge_wiki/mod.rs",
+    "src/backend/handshake_core/src/llm/mod.rs",
+    "src/backend/handshake_core/src/loom_ai/mod.rs",
+    "src/backend/handshake_core/src/memory/injection.rs",
+    "src/backend/handshake_core/src/mex/supply_chain.rs",
+    "src/backend/handshake_core/src/role_mailbox.rs",
+    "src/backend/handshake_core/src/storage/surreal/kernel_crdt_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
+    "src/backend/handshake_core/src/workflows.rs",
+    "src/backend/handshake_core/src/atelier/contact_sheet.rs",
+    "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+    "src/backend/handshake_core/src/atelier/exports.rs",
+    "src/backend/handshake_core/src/atelier/facial.rs",
+    "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+    "src/backend/handshake_core/src/atelier/intake.rs",
+    "src/backend/handshake_core/src/atelier/moodboards.rs",
+    "src/backend/handshake_core/src/atelier/sourcing.rs"
+  ]
 }

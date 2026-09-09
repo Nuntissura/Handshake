@@ -89,6 +89,12 @@ function stubMarkdownPathFor(stubContractAbsPath = "") {
   return stubContractAbsPath.replace(/\.contract\.json$/i, ".md");
 }
 
+function isJsonPrimaryWithLegacyReference(contract = {}) {
+  return contract?.contract_authority === "PRIMARY_MACHINE_READABLE_STUB"
+    && contract?.artifact_policy?.authority_surface === "MACHINE_CONTRACT"
+    && contract?.markdown_projection?.status === "LEGACY_NON_AUTHORITATIVE_REFERENCE";
+}
+
 export function stubContractPathFromMarkdownPath(stubMdPath = "") {
   return String(stubMdPath || "").replace(/\.md$/i, ".contract.json");
 }
@@ -327,8 +333,13 @@ export async function writeAllStubContracts() {
   for (const contractAbsPath of contractFiles) {
     const mdAbsPath = stubMarkdownPathFor(contractAbsPath);
     if (await exists(mdAbsPath)) {
-      const contract = await writeStubContractForPath(mdAbsPath);
-      contracts.push(contract);
+      const existingContract = JSON.parse(await fs.readFile(contractAbsPath, "utf8"));
+      if (isJsonPrimaryWithLegacyReference(existingContract)) {
+        contracts.push(existingContract);
+      } else {
+        const contract = await writeStubContractForPath(mdAbsPath);
+        contracts.push(contract);
+      }
     } else {
       // Hand-authored .json-only stub. Read and return as-is so callers see it
       // in the count, but don't overwrite.
@@ -369,6 +380,22 @@ export async function checkAllStubContracts() {
     seenContractPaths.add(contractAbsPath);
     const mdAbsPath = stubMarkdownPathFor(contractAbsPath);
     if (await exists(mdAbsPath)) {
+      let existingContract;
+      try {
+        existingContract = JSON.parse(await fs.readFile(contractAbsPath, "utf8"));
+      } catch (error) {
+        failures.push(`${normalizeRepoPath(contractAbsPath)} unreadable: ${error.message}`);
+        continue;
+      }
+      if (isJsonPrimaryWithLegacyReference(existingContract)) {
+        const schemaFailures = validateHandAuthoredStubContract(
+          existingContract,
+          normalizeRepoPath(contractAbsPath),
+        );
+        for (const failure of schemaFailures) failures.push(failure);
+        checkedCount += 1;
+        continue;
+      }
       const expected = stableJson(buildStubContract({
         wpId: path.basename(mdAbsPath).replace(/\.md$/i, ""),
         stubText: await fs.readFile(mdAbsPath, "utf8"),

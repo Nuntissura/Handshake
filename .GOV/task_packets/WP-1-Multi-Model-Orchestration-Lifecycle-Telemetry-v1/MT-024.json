@@ -83,14 +83,14 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "V6_REMEDIATION_IN_PROGRESS: delegated takeover of interrupted checkpoint; current proof pending.",
+    "proof_status": "V6_REQUIRED_RUNTIME_PROOF_PENDING: full process_ledger_surreal_tests and process_reclaim_real_lifecycle_surreal_tests plus exact post-exit scope audit remain required; historical PostgreSQL leak counts do not prove current embedded cleanup.",
     "pre_implementation_adversarial_review_status": "REQUIRED",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
-    "last_runtime_status_ref": "DISCOVERED_AFTER_MT019_FULL_SUITES_2026-08-14; 27 captured leaks, 13 independently present, exact cleanup completed, canonical count zero",
+    "last_runtime_status_ref": "../Handshake/_Artifacts/mt003-004-024-v6-20260906/logs/promotion-crdt-routing-focus-4.direct.command.json",
     "hbr_status": "PENDING_V6_CURRENT_CANDIDATE_RUNTIME_PROOF",
     "post_implementation_adversarial_review_status": "IN_PROGRESS_SOURCE_REVIEW_AND_REQUIRED_RUNTIME_PROOF",
-    "adversarial_findings_status": "REVIEWED_SOURCE_FINDINGS_FIXED; REQUIRED_RUNTIME_AND_HBR_BOUNDARY_PROOF_PENDING",
+    "adversarial_findings_status": "V6_SOURCE_REVIEW_CONTINUES; OWN_REQUIRED_RUNTIME_PROOF_PENDING",
     "validated_by": null,
     "validated_at_utc": null
   },
@@ -101,7 +101,16 @@
       "cargo test --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test process_ledger_surreal_tests --test process_reclaim_real_lifecycle_surreal_tests -- --nocapture --test-threads=1",
       "cargo check --locked -j 2 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --all-targets",
       "git diff --check"
-    ]
+    ],
+    "v6_runtime_state": {
+      "remediation_version": "V6",
+      "final_batch_proof_status": "PENDING; clean current candidate has no required final runtime proof",
+      "shared_focus_ref": "MT-004.json#/handoff/v6_runtime_state/latest_focused_runtime",
+      "validator_status": "PENDING",
+      "current_product_commit": "860aafc5adeb30a7f8f6e814a3c6ade9aa1450a8",
+      "current_product_tree": "d345a1708a4451342c6301a11e60a4fa245c5311",
+      "current_candidate_runtime_status": "PENDING; last tested predecessor was 2cc1528b8a31e2d88314cc87ddc194534115c1a0"
+    }
   },
   "v6_remediation_2026_09_02": {
     "authority": "OPERATOR_DIRECTIVE_2026_09_02_WP1_V6_REMEDIATION_KERNEL_BUILDER_SUBAGENT_LANES",
@@ -148,7 +157,8 @@
   },
   "owned_files": [
     "src/backend/handshake_core/tests/mt024_surreal_scope_cleanup_tests.rs",
-    "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs"
+    "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs",
+    "src/backend/handshake_core/tests/process_reclaim_real_lifecycle_surreal_tests.rs"
   ],
   "v6_owned_files_basis_2026_09_06": {
     "recorded_by": "KERNEL_BUILDER-20260902-180244",
