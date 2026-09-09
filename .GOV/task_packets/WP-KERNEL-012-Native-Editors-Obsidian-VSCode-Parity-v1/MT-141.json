@@ -146,7 +146,22 @@
         ],
         "adjacent_finding": "Production symbol PostgresControlPlaneResidualScopeV1 lost its only test coverage with no replacement and appears to be dead code.",
         "next_step": "LANE-D classifies every deleted test as BEHAVIOUR_REMOVED (PostgreSQL-specific, retiring is correct, AC-141-2 satisfied by naming the removed behaviour) or BEHAVIOUR_STILL_LIVE (real coverage regression that must be ported onto the embedded store), with a port-difficulty estimate. Operator decision required on whether restoration happens inside MT-141 or in a new microtask in the same WP.",
-        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-A-durability-and-disposition.json"
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-A-durability-and-disposition.json",
+        "magnitude_correction_20260910": {
+          "recorded_by": "KERNEL_BUILDER-20260909-212427",
+          "at_utc": "2026-09-09T22:31:11.268Z",
+          "correction": "The earlier phrasing of this gap was measured against an incomplete surface and overstated its magnitude.",
+          "what_was_wrong": "The audit chain, including this KERNEL_BUILDER, scoped coverage discovery to the 407-file tests/ tree. This repo also keeps real embedded-store proofs INSIDE src/ as in-source modules.",
+          "measured_surface": "src/ contains 2117 #[test]/#[tokio::test] functions across 342 files carrying #[cfg(test)], including dedicated proof modules storage/surreal/mt136_database_surface_proof_{a,b,c}.rs, mt136_adversarial_regression_proof.rs, mt136_kernel_action_submitter_proof.rs, and an in-source mod tests in storage/surreal/loom_store.rs that opens a real SurrealStorage.",
+          "consequence": "Any tests/-only audit under-reports coverage systematically. The Loom atomic-receipt cluster in particular is NOT at zero coverage as first reported.",
+          "what_still_holds": "The gap is real but smaller than first stated. BEHAVIOUR_STILL_LIVE (the production behaviour exists) is a different question from IS_COVERED_ELSEWHERE, and LANE-D answered the former for all 57 tests while answering the latter only in part.",
+          "confirmed_uncovered_after_full_surface_recheck": [
+            "Locus routes resolve_work_packet and resolve_micro_task. Re-verified across BOTH src/ and tests/: src/api/locus.rs contains zero test functions; the only other src/ matches are the unrelated symbols resolve_work_packet_profile_boundary (workflows.rs) and resolve_micro_task_blocker (kernel/local_model_microtask_loop.rs). Coverage is genuinely zero.",
+            "mt120 native-principal / session-token auth boundary - privilege-escalation guard reported by LANE-D as uncovered tree-wide. Security-critical; pending independent recheck against src/."
+          ],
+          "required_before_ac_141_2_can_be_closed": "A coverage sweep over src/ PLUS tests/ for each BEHAVIOUR_STILL_LIVE test, to separate genuinely-uncovered behaviour from behaviour already proven by an in-source module. Only the genuinely-uncovered set needs porting or governed debt.",
+          "status_unchanged": "AC-141-2 remains NOT_MET and MT-141 remains BLOCKED_ON_ACCEPTANCE_GAP: at least the Locus route cluster is confirmed uncovered, which is sufficient on its own to block."
+        }
       }
     },
     "blocker_resolved_20260909": {
@@ -164,6 +179,64 @@
       "summary": "AC-141-2 preservation half is not met: 49 tests deleted by 4f92cc25 have no superseding proof named, and at least one cluster covers production behaviour that is still live and now has zero coverage. MT-141 must not reach READY_FOR_VALIDATION in this state, because deleting tests to reach a green compile is the exact failure mode this microtask exists to prevent.",
       "not_a_compile_problem": "The tree compiles clean. This is a proof-preservation gap, not a build defect.",
       "awaiting": "LANE-D liveness classification, then Operator scope decision."
+    },
+    "deleted_test_liveness_classification_20260909": {
+      "recorded_by": "KERNEL_BUILDER-20260909-212427",
+      "at_utc": "2026-09-09T22:29:57.577Z",
+      "delegated_to": "LANE-D read-only classification sub-agent",
+      "reviewed_by": "KERNEL_BUILDER-20260909-212427",
+      "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-D-behaviour-liveness.json",
+      "totals": {
+        "files": 12,
+        "tests": 56,
+        "behaviour_removed": 3,
+        "behaviour_still_live": 53,
+        "port_difficulty": {
+          "EASY": 6,
+          "MEDIUM": 30,
+          "HARD": 17
+        }
+      },
+      "meaning_for_ac_141_2": "Only 3 of 56 deleted tests are correctly retired as BEHAVIOUR_REMOVED. The other 53 cover production behaviour that is still live at HEAD, so their deletion is a real coverage regression rather than a legitimate retirement.",
+      "kernel_builder_adjudications": [
+        {
+          "dispute": "PostgresControlPlaneResidualScopeV1",
+          "lane_a_claim": "Dead production code that lost its only test coverage.",
+          "lane_d_claim": "Fully absent from src/; only a schema-id string literal survives.",
+          "adjudication": "LANE-D CORRECT, LANE-A WRONG.",
+          "verification": "grep -rn PostgresControlPlaneResidualScopeV1 over src/ returns 0 occurrences, and 0 matches for any struct/enum/fn/impl/type declaration of that name. It is not dead code; it is gone. The tests covering it are therefore correctly classified BEHAVIOUR_REMOVED and AC-141-2 is satisfied for them by naming the removed behaviour."
+        },
+        {
+          "dispute": "Two route tests (route6, mt045) said by LANE-A to have no superseding proof",
+          "lane_d_claim": "Both have genuine superseding tests elsewhere.",
+          "adjudication": "LANE-D accepted; reduces the unreplaced set and is the safer direction of error to accept, since it removes work rather than inventing it. Flagged for validator spot-check."
+        },
+        {
+          "dispute": "hbr_build_rules_read_evidence_pg_tests.rs test count",
+          "lane_a_claim": "2 tests",
+          "lane_d_claim": "3 tests (LANE-A undercount)",
+          "adjudication": "LANE-D accepted."
+        }
+      ],
+      "product_gap_found_not_a_test_gap": {
+        "severity": "HIGH",
+        "symbol": "MemoryCapsuleIpcStore",
+        "finding": "The trait is declared at src/memory/ipc.rs:37 and consumed by MemoryIpcService, with four IPC commands registered (kernel.memory_capsule.list_recent / .get / .suppress_item / .suppress_capsule). It has ZERO production implementors. The only two implementors in the entire repo are InMemoryCapsuleStore in tests/memory_capsule_e2e_tests.rs:336 and tests/memory_ipc_tests.rs:43.",
+        "verification": "grep -rn 'impl.*MemoryCapsuleIpcStore for' over src/ returns nothing; over src/ plus tests/ it returns only the two test doubles.",
+        "consequence": "The memory-capsule IPC surface cannot be constructed in production with any real store. This is shipped scaffold and an independent Spec-Realism Gate sub-rule 2 concern (a trait abstraction with no executable production consumer). The memory-IPC tests cannot be ported by swapping a store handle, because no production store exists to swap to. Restoring them requires new production code.",
+        "routing": "Out of scope for MT-141, which owns tests/ only. Needs its own microtask and an Operator decision. Recorded here rather than absorbed silently."
+      },
+      "recommended_port_order": [
+        "1. mt120_* native-principal / session-token auth-boundary tests - security-critical, currently zero coverage.",
+        "2. Remaining stage/locus HTTP route tests.",
+        "3. Kernel session-run claim/lease/retry/backpressure/deadletter state machine - no real-store coverage today.",
+        "4. The 14-test Loom atomic-receipt-and-rollback class.",
+        "5. The 6 EASY quick wins.",
+        "6. Atelier / HBR / memory-persistence MEDIUM items.",
+        "7. Document-only for the two already-superseded route tests.",
+        "8. Memory-IPC items are blocked on new production code, not a straight port.",
+        "9. Close the 3 BEHAVIOUR_REMOVED tests with stated justification."
+      ]
     }
   },
   "scope": {
@@ -299,7 +372,7 @@
       "product_worktree": "CLEAN"
     }
   },
-  "updated_at_utc": "2026-09-09T22:07:03.320Z",
+  "updated_at_utc": "2026-09-09T22:31:11.268Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
