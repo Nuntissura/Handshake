@@ -100,6 +100,67 @@
           "items": "6 manual_rows PARTIALs (assert_schema_fields_are_real cross-check); 2 capsule_recorder; mt130 PARTIAL; 3 memory-IPC as BLOCKED_ON_PRODUCT_DEFECT dispositions"
         }
       ]
+    },
+    "progress_20260910_lanes_landed": {
+      "recorded_by": "KERNEL_BUILDER-20260910-073935",
+      "at_utc": "2026-09-10T08:23:53.360Z",
+      "product_commit_base": "0513d99bf0dc110c4a933938d4eb3afc871f55f4",
+      "lanes": {
+        "K": {
+          "status": "REVIEWED_COMPILED_RUN",
+          "files": 3,
+          "ported": 8,
+          "retired_inexpressible": 2,
+          "review": "PASS (mechanical) + one trim reversed on KERNEL_BUILDER instruction (cited coverage had a SKIP branch)",
+          "compile": "exit 0, 1m15s, 3 executables",
+          "run": "kernel_action_catalog_residual_tests 1/1; kernel_session_run_ledger_tests 4/4 (259.45s, real store); hbr_build_rules_read_evidence_tests: killed by a 280s runner timeout before reporting - re-run pending",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-K-kernel.json"
+        },
+        "L": {
+          "status": "REVIEWED_COMPILE_PENDING",
+          "files": 1,
+          "ported": 9,
+          "blocked_on_product_seam": 5,
+          "review": "PASS",
+          "fault_injection_seam": "FOUND: temporary DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger ... ASSERT false via the public SurrealStorage::with_data_operation + query_values surface, restored to the schema.surql:789 definition afterward; no src/ edit",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-L-loom.json"
+        },
+        "R": {
+          "status": "REVIEWED_COMPILE_PENDING",
+          "files": 1,
+          "ported": 13,
+          "review": "PASS (an initial #[ignore] flag was a doc-comment mention; the file uses the current_exe --exact subprocess-helper pattern)",
+          "deviations": "derived_native_principal_from_stage_route was a helper in the original, restored as the test document_save_authenticates_same_native_principal_as_independent_stage_route; locus status literals corrected to the lowercase canonical storage form verified against locus_store.rs",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-R-routes.json"
+        },
+        "M": {
+          "status": "REVIEWED_COMPILE_PENDING",
+          "files": 2,
+          "ported": 9,
+          "blocked_on_product_defect": 3,
+          "review": "PASS",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-M-manual-rows-capsule.json"
+        }
+      },
+      "totals_so_far": {
+        "ported": 39,
+        "retired_inexpressible": 2,
+        "blocked_on_product_seam": 5,
+        "blocked_on_product_defect": 3,
+        "of": 47
+      },
+      "cargo_target_override": {
+        "rule": "CX-984-010 verified scoped override, reported not hidden",
+        "what": "MT-150 compile artifacts are produced into the warm MT-141 owner target (D:/hs12 -> ../Handshake_Artifacts/<WP>/MT-141/kb01/target). MT-150 logs, per-run HANDSHAKE_WORKSPACE_ROOT dirs and TMP stay under the MT-150 owner dir (D:/hs50 -> .../MT-150/kb01).",
+        "why": "Seeding an MT-150-owned target by robocopy reached 300 of 6167 deps entries in ~10 minutes and was abandoned; a cold build is ~85 minutes. Both owner dirs are cleaned at WP closeout."
+      },
+      "runner_environment": {
+        "HANDSHAKE_WORKSPACE_ROOT": "isolated per-run dir under D:/hs50/workspace",
+        "HANDSHAKE_ARTIFACTS_ROOT": "absolute CX-984 root",
+        "features": "surreal-test-support,test-utils",
+        "jobs": 4,
+        "single_cargo_lane": true
+      }
     }
   },
   "scope": {
@@ -637,12 +698,23 @@
       {
         "id": "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
         "summary": "MemoryCapsuleIpcStore (src/memory/ipc.rs:37) has zero production implementors; only InMemoryCapsuleStore test doubles exist. Three restoration items cannot be ported until a real store implements the trait. Needs its own src/-owning microtask.",
-        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-D-behaviour-liveness.json"
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-D-behaviour-liveness.json",
+        "provenance": "A PostgresMemoryCapsuleStore implementor existed at src/memory/persistence_postgres.rs:673 before 4f92cc25 and was deleted with it; no Surreal-backed replacement was written. LANE-M documents what a SurrealMemoryCapsuleStore needs."
       },
       {
         "id": "DEF-SYSTEMIC-UPSERT-IDEMPOTENCY",
         "summary": "Re-applying an identical write inserts a duplicate and trips a UNIQUE index, observed across atelier_command_corpus_entry, atelier_command_corpus_blocked, atelier_export_result and atelier_story_card. Check-then-act SurrealQL replaced atomic PostgreSQL ON CONFLICT. Mechanism undetermined. Any restored idempotency test will hit this until it is fixed in src/. Needs its own src/-owning microtask.",
         "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/defect-systemic-upsert-idempotency.json"
+      },
+      {
+        "id": "DEF-LOOM-EDGE-NO-LEDGER-RECEIPT",
+        "severity": "HIGH",
+        "summary": "Loom edge creation and block updates are not ledger-backed. src/storage/surreal/loom_store.rs create_loom_edge (lines 1193-1388, 195 lines) contains no kernel_event_ledger / append_kernel_event / NewKernelEvent reference; update_loom_block (964-977) likewise. The event type KNOWLEDGE_LOOM_TAG_MUTATED exists only as a stringified variant (src/kernel/mod.rs:395) and is never emitted by any code path.",
+        "manual_drift": "src/user_manual/seed.rs:1117 documents KNOWLEDGE_LOOM_TAG_MUTATED as emitted with aggregate_type=loom_edge, aggregate_id=edge_id. The in-product manual promises an event the product does not produce (HBR-MAN currency defect in addition to the missing receipt).",
+        "consequence": "Five restoration items cannot be ported: there is no receipt to assert and nothing to roll back. mt023_tag_edge_create_appends_atomic_receipt_and_survives_restart, mt023_tag_edge_create_rolls_back_when_ledger_append_fails, mt024_favorite_mutation_appends_atomic_receipt_and_survives_restart, mt024_favorite_mutation_rolls_back_when_ledger_append_fails, mt024_mention_edge_backlink_is_atomic_and_survives_restart.",
+        "verified_by": "KERNEL_BUILDER-20260910-073935 (fn-body extraction at the implementation layer, not the database.rs trait wrappers)",
+        "routing": "src/ defect; needs its own microtask. The five tests should be restored by that microtask once the edge/favorite paths append their receipts atomically.",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-L-loom.json"
       }
     ]
   },
@@ -706,7 +778,7 @@
     ],
     "next_actor": "ORCHESTRATOR"
   },
-  "updated_at_utc": "2026-09-10T07:40:42Z",
+  "updated_at_utc": "2026-09-10T08:23:53.360Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
