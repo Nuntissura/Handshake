@@ -1,0 +1,674 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-150",
+  "title": "B14-MT-150-Restore-The-Deleted-Test-Coverage-The-SurrealDB-Port-Did-Not-Carry-Over",
+  "group": "B14",
+  "created_at_utc": "2026-09-10T00:18:07.212Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [
+      "MT-141"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": null,
+    "created_by": "KERNEL_BUILDER-20260909-212427",
+    "created_at_utc": "2026-09-10T00:18:07.212Z",
+    "creation_reason": "Commit 4f92cc25 (the src-side PostgreSQL removal, MT-136/137/138 territory) deleted 26 test files. MT-141 inherited a tree with those tests already gone. A coverage sweep across BOTH src/ and tests/ found that of 57 deleted tests, 3 covered removed behaviour and 4 are covered elsewhere, but 47 cover production behaviour that is still live and either has no proof anywhere (33) or only partial proof (14). Deleting a test to reach a green compile is the exact failure MT-141 exists to prevent, so this coverage cannot be silently dropped. Under Operator decision 2026-09-10 (fast close), MT-141 closes on a complete disposition and this microtask carries the restoration as tracked, non-silent debt.",
+    "why_a_separate_microtask": "Three reasons. (1) A predecessor microtask deleted them, not MT-141. (2) Seventeen items need an axum+reqwest HTTP harness and the whole set is 47 tests; folding that into MT-141 would hold MT-148 and the WP hostage. (3) Three items are blocked on a PRODUCT defect (no production store implements MemoryCapsuleIpcStore) and cannot be ported by any tests/-only microtask. Operator chose the fast path explicitly.",
+    "operator_decision_2026_09_10": {
+      "authority": "Operator reply: 'fast, close 141 with your exceptions implemented.'",
+      "exceptions_implemented_in_mt_141": [
+        "mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal",
+        "mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_identity",
+        "mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id"
+      ],
+      "why_those_three": "They guard a live privilege-escalation check at src/api/knowledge_documents.rs:467 that had zero coverage at any layer. Restored into tests/knowledge_documents_api_tests.rs reusing its existing doc_server harness."
+    },
+    "urgency": "HIGH for the three security-relevant items and the Loom rollback variants; MEDIUM otherwise."
+  },
+  "scope": {
+    "summary": "Port the 47 deleted tests listed in restoration_set onto the embedded SurrealDB store, preserving every original assertion at equivalent strength. For PARTIAL items, add only the assertions the existing partial coverage does not already make; do not duplicate. Recover each original body with `git show 4f92cc25^:<origin_file>`.",
+    "restoration_set": [
+      {
+        "test": "stage_capture_rejects_crash_stale_binding_without_residue",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": true,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "derived_native_principal_from_stage_route",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": true,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "activity_span_write_is_event_and_workspace_scoped",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": true,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "route1_locus_work_packet_resolve",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "route1_locus_micro_task_resolve",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "route2_stage_artifact_create_and_resolve",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "stage_flight_projection_failure_returns_500_and_retry_heals_once",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt067_calendar_event_populates_daily_note_doc_id",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt067_activity_span_create_and_query_round_trip",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_residue",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "HARD",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "durable_claim_and_lease",
+        "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt022_folder_create_appends_atomic_receipt_and_survives_restart",
+        "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt022_folder_update_delete_member_are_atomic_with_receipts",
+        "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt022_folder_create_rolls_back_when_ledger_append_fails",
+        "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": true,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt023_tag_edge_create_appends_atomic_receipt_and_survives_restart",
+        "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt023_tag_edge_create_rolls_back_when_ledger_append_fails",
+        "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": true,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt024_pin_order_set_appends_atomic_receipt_and_survives_restart",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt024_pin_order_set_rolls_back_when_ledger_append_fails",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": true,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt024_favorite_mutation_appends_atomic_receipt_and_survives_restart",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt024_favorite_mutation_rolls_back_when_ledger_append_fails",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": true,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt024_pin_removal_rolls_back_and_leaves_no_partial_state",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": true,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt024_mention_edge_backlink_is_atomic_and_survives_restart",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt025_wiki_overlay_appends_atomic_receipt_and_survives_restart",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt025_wiki_overlay_rolls_back_when_ledger_append_fails",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": true,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt164_build_rule_read_evidence_passes_gate_and_persists_ledger_row",
+        "origin_file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt164_unacknowledged_build_rule_blocks_gate_with_durable_block_row",
+        "origin_file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "mt164_manual_hbr_rows_are_wired_with_concrete_routes",
+        "origin_file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_pg_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "EASY",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": null
+      },
+      {
+        "test": "kernel_action_catalog_exposes_postgres_residual_projection_action",
+        "origin_file": "src/backend/handshake_core/tests/kernel_postgres_control_plane_residual_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "EASY",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": "Catalog registration still live although the projection implementation is gone; restoring this test also surfaces that the catalog advertises an action with no implementation."
+      },
+      {
+        "test": "memory_ipc_list_and_get_round_trips_via_postgres_store",
+        "origin_file": "src/backend/handshake_core/tests/memory_ipc_postgres_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
+        "note": null
+      },
+      {
+        "test": "memory_ipc_suppression_persists_through_postgres_store_durably",
+        "origin_file": "src/backend/handshake_core/tests/memory_ipc_postgres_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
+        "note": null
+      },
+      {
+        "test": "capsule_builder_injector_recorder_and_ipc_compose_over_real_postgres",
+        "origin_file": "src/backend/handshake_core/tests/memory_capsule_e2e_postgres_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
+        "note": null
+      },
+      {
+        "test": "capsule_recorder_persists_via_kernel_action_catalog_against_postgres",
+        "origin_file": "src/backend/handshake_core/tests/memory_persistence_postgres_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": "Was marked COVERED_ELSEWHERE by src/storage/surreal/mt136_kernel_action_submitter_proof.rs, but that proof FAILS in suite-run-1. Coverage cannot be claimed from a red test."
+      },
+      {
+        "test": "capsule_recorder_postgres_dedup_collapses_duplicate_submissions",
+        "origin_file": "src/backend/handshake_core/tests/memory_persistence_postgres_tests.rs",
+        "class": "GENUINELY_UNCOVERED",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "rollback_variant": false,
+        "blocked_by": null,
+        "note": "Same: cited covering proof is red."
+      },
+      {
+        "test": "stage_denial_limits_and_attribution_apply_at_the_authentication_boundary",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "HARD",
+        "security_relevant": true,
+        "existing_partial_coverage": "src/api/stage.rs:1337 rate_limit_accepts_thirty_and_rejects_*",
+        "family": null,
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "route3_calendar_events_returns_events_in_window",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "HARD",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/mex_tests.rs:910 calendar_sync_workflow_imports_read_only_*",
+        "family": null,
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "route6_document_soft_delete_tombstones_and_receipts",
+        "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "HARD",
+        "security_relevant": true,
+        "existing_partial_coverage": "tests/knowledge_documents_api_tests.rs:1568 mt032_delete_is_*",
+        "family": null,
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "mt024_pin_removal_is_atomic_and_survives_restart",
+        "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "src/storage/surreal/loom_store.rs:4016 concurrent_pin_removal_*",
+        "family": null,
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "kernel_event_ledger_contract_metadata_idempotency_and_sequence",
+        "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/knowledge_code_index_tests.rs:91 event_ledger_idempotency_*",
+        "family": null,
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "kernel_event_ledger_api_appends_and_lists_kernel_events_for_session",
+        "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/kernel_end_to_end_tests.rs:298 restart_reconstruction_proof",
+        "family": null,
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "durable_claim_matches_retry_backpressure_and_deadletter_state_table",
+        "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/kernel_runtime_tests.rs:49 broker_cancellation_backpressure_*",
+        "family": null,
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "mt074_llm_evidence_pack_manual_row_documents_live_export_surface",
+        "origin_file": "src/backend/handshake_core/tests/atelier_manual_source_rows_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/atelier_core_data_tests.rs:6314",
+        "family": "manual_rows",
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "mt075_backup_manual_rows_document_live_backup_and_preflight_surface",
+        "origin_file": "src/backend/handshake_core/tests/atelier_manual_source_rows_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/atelier_core_data_tests.rs:6663",
+        "family": "manual_rows",
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "mt122_pose_context_and_rig_manual_rows_document_live_pg_surface",
+        "origin_file": "src/backend/handshake_core/tests/atelier_pose_comfy_manual_rows_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/atelier_pose_tests.rs:~1070-1165",
+        "family": "manual_rows",
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "mt123_pose_sidecar_and_identity_manual_rows_document_live_pg_surface",
+        "origin_file": "src/backend/handshake_core/tests/atelier_pose_comfy_manual_rows_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/atelier_pose_tests.rs:1964",
+        "family": "manual_rows",
+        "reduced_confidence": true,
+        "note": null
+      },
+      {
+        "test": "mt124_comfy_workflow_receipt_manual_rows_document_live_pg_surface",
+        "origin_file": "src/backend/handshake_core/tests/atelier_pose_comfy_manual_rows_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/atelier_comfy_tests.rs:873",
+        "family": "manual_rows",
+        "reduced_confidence": false,
+        "note": null
+      },
+      {
+        "test": "mt125_deferred_boundary_manual_rows_document_live_pg_surface",
+        "origin_file": "src/backend/handshake_core/tests/atelier_pose_comfy_manual_rows_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/atelier_comfy_intake_routing_tests.rs (register_bridge_capability)",
+        "family": "manual_rows",
+        "reduced_confidence": true,
+        "note": "Prior lane mischaracterised its production symbols; real symbols are register_bridge_capability / list_capability_rejects, record_url_image_import, set_calibration / get_calibration. Re-scope around those."
+      },
+      {
+        "test": "mt130_job_lifecycle_and_registration_recovery_event_families_land_in_ledger",
+        "origin_file": "src/backend/handshake_core/tests/atelier_comfy_job_registration_event_families_pg_tests.rs",
+        "class": "PARTIAL",
+        "port_difficulty": "MEDIUM",
+        "security_relevant": false,
+        "existing_partial_coverage": "tests/atelier_comfy_job_tests.rs (JOB_ENQUEUED/JOB_RUNNING/...)",
+        "family": null,
+        "reduced_confidence": false,
+        "note": null
+      }
+    ],
+    "totals": {
+      "genuinely_uncovered": 33,
+      "partial": 14,
+      "total": 47,
+      "security_relevant": 5,
+      "blocked_on_product_defect": 3
+    },
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/backend/handshake_core/src/**",
+      "src/frontend/**",
+      "app/**",
+      ".github/workflows/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "embedded_mode_boundary": "SurrealDB and EventLedger only. No SQLite or PostgreSQL may be added, restored, imported or referenced as a live backend. Original test names containing 'postgres' or '_pg_' MUST be renamed on port; the name is not the proof intent.",
+    "harness_reuse_required": [
+      "HTTP route tests: reuse route_server / doc_server / identity_headers in tests/knowledge_documents_api_tests.rs, or the serve() idiom in tests/atelier_loom_projection_api_tests.rs. Do NOT author a new HTTP harness.",
+      "Embedded store tests: reuse tests/surreal_test_store_support/ and tests/atelier_surreal_support/ (note: atelier_surreal_support requires HANDSHAKE_WORKSPACE_ROOT to be set, hard assert at mod.rs:42).",
+      "Loom rollback variants (rollback_variant=true): the PostgreSQL originals injected a trigger to force ledger-append failure. SurrealDB has no equivalent; solve the injection ONCE centrally (a test-support fault-injection seam) and reuse it for all six, rather than six ad-hoc mechanisms."
+    ],
+    "acceptance_criteria": [
+      "AC-150-1: every item in restoration_set is either ported with all original assertions preserved, or carries a typed disposition of BLOCKED_ON_PRODUCT_DEFECT naming the defect id. No item may be silently dropped or weakened.",
+      "AC-150-2: no ported test depends on sqlx, PostgreSQL, psql, PG DSN env vars, SQLite or PL/pgSQL (same anti-laundering test as AC-141-1).",
+      "AC-150-3: ported durability tests (survives_restart, rolls_back) prove behaviour across a real store close-and-reopen, not against mocks.",
+      "AC-150-4: every ported test runs green on the pinned toolchain with per-run isolation, with HANDSHAKE_WORKSPACE_ROOT set to an isolated per-run directory.",
+      "AC-150-5: the six manual_rows-family PARTIAL items restore the distinguishing assert_schema_fields_are_real cross-check (model_manual() CommandReference schema_fields vs real runtime struct fields), which is the one guarantee the existing partial coverage does not make.",
+      "AC-150-6: the two reduced_confidence items (mt123, mt125) receive a full assertion-by-assertion diff against the recovered deleted body before their port is designed."
+    ],
+    "proof_targets": [
+      "PT-150-1: per-test disposition table (PORTED | BLOCKED_ON_PRODUCT_DEFECT) with the new test path for each PORTED item.",
+      "PT-150-2: cargo test output for every new/changed target with zero failures and nonzero executed count, run with HANDSHAKE_WORKSPACE_ROOT set and no concurrent cargo lane.",
+      "PT-150-3: the repo-wide forbidden-database scan (AC-141-1 method) over the changed files."
+    ],
+    "execution_constraints": [
+      "One cargo process per lane. Do not run a second cargo lane concurrently on this host; suite-run-1 under MT-141 recorded three timeout-shaped false failures from exactly that.",
+      "Use --features surreal-test-support,test-utils; the tests tree does not compile without them.",
+      "Owner-scoped CARGO_TARGET_DIR under ../Handshake_Artifacts/<WP>/MT-150/<owner>/ reached through a short junction; this WP id exceeds Windows MAX_PATH otherwise (link.exe LNK1104)."
+    ],
+    "risk_if_missed": "Live production routes and a scheduling state machine stay untested; the Loom atomic-receipt contract has no rollback proof; security-relevant stage/activity-span boundaries stay uncovered.",
+    "blocked_by_product_defects": [
+      {
+        "id": "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
+        "summary": "MemoryCapsuleIpcStore (src/memory/ipc.rs:37) has zero production implementors; only InMemoryCapsuleStore test doubles exist. Three restoration items cannot be ported until a real store implements the trait. Needs its own src/-owning microtask.",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-D-behaviour-liveness.json"
+      },
+      {
+        "id": "DEF-SYSTEMIC-UPSERT-IDEMPOTENCY",
+        "summary": "Re-applying an identical write inserts a duplicate and trips a UNIQUE index, observed across atelier_command_corpus_entry, atelier_command_corpus_blocked, atelier_export_result and atelier_story_card. Check-then-act SurrealQL replaced atomic PostgreSQL ON CONFLICT. Mechanism undetermined. Any restored idempotency test will hit this until it is fixed in src/. Needs its own src/-owning microtask.",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/defect-systemic-upsert-idempotency.json"
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "surfaces": [],
+    "expected_evidence": [
+      "cargo test output"
+    ],
+    "not_applicable_reason": "Backend test restoration only; no GUI, operator, diagnostic or frontend surface is created or changed."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Restores test coverage for existing behaviour; no product behaviour, command, IPC channel, config key or navigation path is created, changed, exposed, deprecated or removed. The manual_rows-family items ASSERT manual parity but do not change the manual."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "RESTORATION_WITHOUT_WEAKENING",
+    "risks": [
+      "Porting the test name but weakening the assertion so it passes against SurrealDB. AC-150-1 exists for this.",
+      "Marking a PARTIAL item as done because the existing partial coverage 'is close enough'. AC-150-5 names the exact missing guarantee for the manual_rows family.",
+      "Solving the Loom rollback fault injection six different ways.",
+      "Silently skipping the three memory-IPC items instead of dispositioning them BLOCKED_ON_PRODUCT_DEFECT.",
+      "Running two cargo lanes concurrently and producing timeout-shaped false failures."
+    ],
+    "minimum_controls": [
+      "AC-150-1 disposition table with no gaps",
+      "AC-150-3 real close-and-reopen",
+      "one central fault-injection seam",
+      "single-lane cargo execution"
+    ],
+    "adversarial_validation_lenses": [
+      "assertion-strength diff vs recovered original",
+      "anti-scaffold: every ported test touches the real embedded store",
+      "forbidden-database scan"
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "NOT_APPLICABLE: no observable runtime behaviour is created or changed; tests only.",
+    "VIS": "NOT_APPLICABLE: no GUI, operator, diagnostic or frontend surface.",
+    "MAN": "NOT_APPLICABLE: no manual-bearing surface changes; see user_manual_obligation.",
+    "QUIET": "PASS required: headless cargo only, owner-scoped target and temp paths, no foreground process.",
+    "STOP": "No capacity, token or throughput reasoning may be used as a stop reason. Dependency blockers (the two product defects) are dispositioned, not used as grounds to stop the rest."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "unblocks": null,
+    "open_blockers": [
+      "DEF-MEMORY-IPC-NO-PRODUCTION-STORE (3 items)",
+      "DEF-SYSTEMIC-UPSERT-IDEMPOTENCY (affects any restored idempotency assertion)"
+    ],
+    "next_actor": "ORCHESTRATOR"
+  },
+  "updated_at_utc": "2026-09-10T00:18:07.212Z",
+  "owned_files": [
+    "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+    "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
+    "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs",
+    "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs"
+  ],
+  "owned_files_note": "Initial set: the harnesses to extend. The implementer adds the new/renamed test files it creates to this list on claim.",
+  "proof_commands": [
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test <each new or changed target> --features surreal-test-support,test-utils -j 4 --no-fail-fast",
+    "grep -rn --include=*.rs -E '^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://' src/backend/handshake_core/tests/<changed files>"
+  ]
+}
