@@ -20,26 +20,65 @@ pub const SCHEMA_REVISION: i64 = 157;
 /// [`DECLARATIVE_SCHEMA_CATALOG_SHA256`] and [`GENERATED_SURREALQL_SHA256`].
 pub const SCHEMA_LINEAGE_SHA256: &str =
     "225ed19c0259ef121867ca5da1995813db0c48ee0cbfaded2d871e47b50f7fc1";
+// MT-142 re-pin: the predecessor artifact is derived from the current schema.surql
+// (see `mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current`), so it
+// moves with the knowledge_rich_document_title_anchors block.
 const PREDECESSOR_GENERATED_SURREALQL_SHA256: &str =
-    "c21630b082cd8c505199cc54877d12edfbfcc6069e50f77d28e5b36cb5c8fac0";
+    "2eebaba8db142637d0a3d5f7ec2c59b9776139508412bd6cb43da81b1e283bf4";
 const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
     "6b4e5a157a3ce6ceaee9ded4d04843fc0387be1fb1fefc69a2203262cd8a1938";
 const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
     "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4";
+// MT-142 re-pin: schema.surql gained knowledge_rich_document_title_anchors.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "b4bcdbd16ffbbb3d9543f164f4226d3d952c841e80a7bd9c302b82cb15e3d4f9";
+    "ecfdca9826223629277a218c7f22a3d6aaabf0714274cf0358cc0ab5a8d562a0";
+// MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "565bfab7128401b822ce2465e2c70d803be65bec951be2537d202fbdd9fae153";
+    "1358f301139d229061037b00305b5577edeed9f5394591d5428096054c7ca87c";
+// MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
-    "f51ef10d8ebc0c728a075e7a5efe4a19503cd46dea2cfa0f1bfe59332f2e34fa";
+    "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
 /// Fresh-engine STRUCTURE fingerprint captured with the product-locked SurrealDB 3.2.0
 /// engine family after applying the generated schema to an absent RocksDB path.
+// MT-142 re-pin: live STRUCTURE fingerprint with knowledge_rich_document_title_anchors applied.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "685bc539ddd8864c773bb8bb599768570faa66a4ff17ee7ab24e10d6e2b2db41";
+    "e117afdb9a7ff9ded218b29a5741b5fbf2541170f0772e475475114fca42a994";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "e44e7cceecf2c0d980999e4b66391c2459512a3f3f07155e5cf68d48dedd553e";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
+/// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
+/// `knowledge_rich_document_title_anchors` existed. These are the exact pre-MT-142 pins of
+/// [`GENERATED_SURREALQL_SHA256`] and [`EXPECTED_SCHEMA_INFO_SHA256`]; such stores are upgraded
+/// in place by `upgrade_pre_mt142_current` instead of failing closed.
+const PRE_MT142_GENERATED_SURREALQL_SHA256: &str =
+    "b4bcdbd16ffbbb3d9543f164f4226d3d952c841e80a7bd9c302b82cb15e3d4f9";
+const PRE_MT142_SCHEMA_INFO_SHA256: &str =
+    "685bc539ddd8864c773bb8bb599768570faa66a4ff17ee7ab24e10d6e2b2db41";
+/// DDL and registry row MT-142 adds on top of both allowlisted predecessor lineages. Every DDL
+/// line must stay byte-identical to the `knowledge_rich_document_title_anchors` block in
+/// `schema.surql` (proven by `mt142_title_anchor_upgrade_statements_match_schema`).
+const MT142_TITLE_ANCHOR_UPGRADE_STATEMENTS: &str = "\
+DEFINE TABLE OVERWRITE knowledge_rich_document_title_anchors SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE anchor_key ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_rich_document_title_anchors TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE title_key ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE last_rich_document_id ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE claim_nonce ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_rich_document_title_anchors TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_rich_document_title_anchors TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_rich_document_title_anchors ON TABLE knowledge_rich_document_title_anchors FIELDS anchor_key UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_rich_document_title_anchors_identity ON TABLE knowledge_rich_document_title_anchors FIELDS workspace_id, title_key UNIQUE;
+CREATE ONLY knowledge_schema_registry:rich_document_title_anchors CONTENT {
+    family_key: 'rich_document_title_anchors',
+    table_name: 'knowledge_rich_document_title_anchors',
+    record_family: 'Support',
+    authority_class: 'support',
+    schema_source: $schema_source,
+    wp_id: 'WP-KERNEL-012',
+    mt_id: 'MT-142'
+};
+";
 
 const SCHEMA: &str = include_str!("schema.surql");
 const KNOWLEDGE_SCHEMA_REGISTRY_SEED: &str = include_str!("knowledge_schema_registry_seed.surql");
@@ -142,8 +181,10 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
     "tables",
     "users",
 ];
-const TABLE_DEFINITION_COUNT: usize = 281;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3075;
+// MT-142 re-pin: +1 table (knowledge_rich_document_title_anchors), +7 fields,
+// +2 indexes (pk + uq), +1 REFERENCE field, +1 record-id alias assertion.
+const TABLE_DEFINITION_COUNT: usize = 282;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3082;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 238;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -158,18 +199,18 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 47;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 793;
+const INDEX_DEFINITION_COUNT: usize = 795;
 const EVENT_DEFINITION_COUNT: usize = 19;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
-const SOURCE_TABLE_COUNT: usize = 278;
+const SOURCE_TABLE_COUNT: usize = 279;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 536;
-const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 256;
+const SOURCE_NAMED_INDEX_COUNT: usize = 537;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 257;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
-const REFERENCE_FIELD_COUNT: usize = 404;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 225;
+const REFERENCE_FIELD_COUNT: usize = 405;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 226;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -897,6 +938,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "knowledge_passage_evidence",
     "knowledge_wiki_projections",
     "knowledge_rich_documents",
+    "knowledge_rich_document_title_anchors",
     "knowledge_rich_document_versions",
     "knowledge_editor_code_nodes",
     "knowledge_context_bundles",
@@ -1098,6 +1140,14 @@ impl SchemaState {
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PREDECESSOR_SCHEMA_INFO_SHA256
     }
+
+    /// Exact pre-MT-142 current lineage (revision 157 without the title-anchor table).
+    fn is_exact_pre_mt142_current(&self) -> bool {
+        self.has_stable_v1_identity()
+            && self.generated_surql_sha256 == PRE_MT142_GENERATED_SURREALQL_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_MT142_SCHEMA_INFO_SHA256
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1209,9 +1259,10 @@ fn expected_knowledge_schema_registry_metadata(
         });
     }
     rows.sort_by(|left, right| left.family_key.cmp(&right.family_key));
-    if rows.len() != 62 {
+    // MT-142 re-pin: 61 historical rows + 0343 state row + rich_document_title_anchors row.
+    if rows.len() != 63 {
         return Err(format!(
-            "HANDSHAKE_SURREAL_KNOWLEDGE_REGISTRY_SEED_COUNT: expected=62 observed={}",
+            "HANDSHAKE_SURREAL_KNOWLEDGE_REGISTRY_SEED_COUNT: expected=63 observed={}",
             rows.len()
         ));
     }
@@ -1448,6 +1499,11 @@ pub async fn bootstrap_schema(
                     Some(state) if state.is_exact_supported_predecessor() => {
                         verified_observed =
                             Some(upgrade_supported_predecessor(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
+                    Some(state) if state.is_exact_pre_mt142_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_mt142_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) => {
@@ -1816,6 +1872,25 @@ CREATE ONLY knowledge_schema_registry:rich_document_loom_projection_0343_state C
     wp_id: 'WP-KERNEL-012',
     mt_id: 'MT-032'
 };
+DEFINE TABLE OVERWRITE knowledge_rich_document_title_anchors SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE anchor_key ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_rich_document_title_anchors TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE title_key ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE last_rich_document_id ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE claim_nonce ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_rich_document_title_anchors TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_rich_document_title_anchors TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_rich_document_title_anchors ON TABLE knowledge_rich_document_title_anchors FIELDS anchor_key UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_rich_document_title_anchors_identity ON TABLE knowledge_rich_document_title_anchors FIELDS workspace_id, title_key UNIQUE;
+CREATE ONLY knowledge_schema_registry:rich_document_title_anchors CONTENT {
+    family_key: 'rich_document_title_anchors',
+    table_name: 'knowledge_rich_document_title_anchors',
+    record_family: 'Support',
+    authority_class: 'support',
+    schema_source: $schema_source,
+    wp_id: 'WP-KERNEL-012',
+    mt_id: 'MT-142'
+};
 UPDATE ONLY handshake_schema_state:primary SET
     generated_surql_sha256 = $generated_surql_sha256,
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,
@@ -1873,6 +1948,104 @@ COMMIT TRANSACTION;
             fail_closed(
                 database,
                 "HANDSHAKE_SURREAL_PREDECESSOR_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// MT-142: upgrades an exact pre-MT-142 current store in place by adding only the
+/// `knowledge_rich_document_title_anchors` table and its registry row inside one transaction
+/// guarded by the exact prior state, then finalizes through the same fingerprint gate as every
+/// other lineage. Application records are untouched.
+async fn upgrade_pre_mt142_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_mt142_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $schema_revision\n\
+    OR $current.target_revision != $schema_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_STATE_CHANGED';\n\
+}};\n\
+{MT142_TITLE_ANCHOR_UPGRADE_STATEMENTS}\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT142_GENERATED_SURREALQL_SHA256
+                    .to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_MT142_SCHEMA_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_FINAL_STATE_MISSING".to_owned(),
             )
             .await
         }
@@ -2977,6 +3150,25 @@ mod tests {
             canonicalize_info(left.into_value()),
             canonicalize_info(changed_index_order.into_value())
         );
+    }
+
+    /// MT-142: the upgrade statements duplicate the schema.surql block on purpose (the fresh
+    /// script is fresh-only); this pins them byte-for-byte to the declarative authority.
+    #[test]
+    fn mt142_title_anchor_upgrade_statements_match_schema() {
+        let ddl_lines: Vec<&str> = MT142_TITLE_ANCHOR_UPGRADE_STATEMENTS
+            .lines()
+            .filter(|line| line.starts_with("DEFINE "))
+            .collect();
+        assert_eq!(ddl_lines.len(), 10);
+        for line in ddl_lines {
+            assert!(
+                SCHEMA.lines().any(|schema_line| schema_line == line),
+                "MT-142 upgrade DDL drifted from schema.surql: {line}"
+            );
+        }
+        assert!(KNOWLEDGE_SCHEMA_REGISTRY_SEED
+            .contains("family_key: 'rich_document_title_anchors', table_name: 'knowledge_rich_document_title_anchors'"));
     }
 
     #[test]

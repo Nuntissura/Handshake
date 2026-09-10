@@ -6,17 +6,19 @@ use std::{
     pin::Pin,
     sync::{
         atomic::{AtomicU8, Ordering},
-        Arc,
+        Arc, Mutex as StdMutex,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use surrealdb::{
     engine::local::{Db, RocksDb},
+    opt::Config as EngineConfig,
     Surreal,
 };
 use thiserror::Error;
-use tokio::sync::{oneshot, watch, Mutex, RwLock};
+use tokio::sync::{oneshot, watch, Mutex, RwLock, RwLockWriteGuard};
+use tokio_util::sync::CancellationToken;
 
 use super::{DefaultStorageGuard, StorageGuard, StorageResult};
 
@@ -143,6 +145,24 @@ pub const DEFAULT_NAMESPACE: &str = "handshake";
 pub const DEFAULT_DATABASE: &str = "primary";
 pub const DEFAULT_STORE_DIRECTORY: &str = "handshake-surreal";
 pub const DEFAULT_SHUTDOWN_WAIT: Duration = Duration::from_secs(30);
+/// MT-142 AC-142-7: how long shutdown waits for in-flight leases before it
+/// cancels cooperative work (retry loops, keyed-lock waits).
+pub const DEFAULT_DRAIN_GRACE: Duration = Duration::from_secs(5);
+/// MT-142: caller-side bound on one storage-layer statement attempt.
+pub const DEFAULT_STATEMENT_TIMEOUT: Duration = Duration::from_secs(30);
+/// MT-142: recommended engine-level query deadline when a caller opts in via
+/// [`SurrealStorageConfig::with_engine_timeouts`]. NOT applied by default: the
+/// deadlines are per engine open and cannot exclude the fresh schema bootstrap
+/// (one ~4,500-statement transaction), which exceeds 60 s on a loaded HDD
+/// (MT-141 baseline `suite-run-1.out.log`: the bootstrap tests report "running
+/// for over 60 seconds"); the executor would cancel that transaction
+/// (`surrealdb-core-3.2.0/src/dbs/executor.rs:1034-1049`) and fail startup
+/// closed. The caller-side [`DEFAULT_STATEMENT_TIMEOUT`] bounds knowledge
+/// statements instead.
+pub const DEFAULT_ENGINE_QUERY_TIMEOUT: Duration = Duration::from_secs(30);
+/// MT-142: recommended engine-level write-transaction deadline for opt-in use
+/// (see [`DEFAULT_ENGINE_QUERY_TIMEOUT`] for why it is not the default).
+pub const DEFAULT_ENGINE_TRANSACTION_TIMEOUT: Duration = Duration::from_secs(60);
 
 pub(crate) type SurrealClient = Surreal<Db>;
 
@@ -199,6 +219,15 @@ pub enum SurrealStorageError {
     ShutdownStillInProgress { waited_ms: u128 },
     #[error("embedded database shutdown wait timeout must be greater than zero")]
     InvalidShutdownWaitTimeout,
+    #[error("embedded storage timeout `{setting}` must be greater than zero")]
+    InvalidTimeout { setting: &'static str },
+    /// The caller stopped waiting for one statement attempt (MT-142). Terminal
+    /// by contract: the engine may still apply the statement, so it is never
+    /// retried.
+    #[error(
+        "embedded statement attempt exceeded the {waited_ms} ms statement timeout; the engine may still apply it"
+    )]
+    StatementTimeout { waited_ms: u128 },
     #[error("embedded workspace record has an invalid shape: {reason}")]
     InvalidWorkspaceRecord { reason: &'static str },
     #[error("embedded document record has an invalid shape: {reason}")]
@@ -215,6 +244,10 @@ pub struct SurrealStorageConfig {
     namespace: String,
     database: String,
     shutdown_wait: Duration,
+    drain_grace: Duration,
+    statement_timeout: Duration,
+    engine_query_timeout: Option<Duration>,
+    engine_transaction_timeout: Option<Duration>,
 }
 
 impl SurrealStorageConfig {
@@ -252,6 +285,11 @@ impl SurrealStorageConfig {
             namespace: DEFAULT_NAMESPACE.to_owned(),
             database: DEFAULT_DATABASE.to_owned(),
             shutdown_wait: DEFAULT_SHUTDOWN_WAIT,
+            drain_grace: DEFAULT_DRAIN_GRACE,
+            statement_timeout: DEFAULT_STATEMENT_TIMEOUT,
+            // Off by default; see DEFAULT_ENGINE_QUERY_TIMEOUT for the evidence.
+            engine_query_timeout: None,
+            engine_transaction_timeout: None,
         })
     }
 
@@ -270,8 +308,75 @@ impl SurrealStorageConfig {
         Ok(self)
     }
 
+    /// Sets how long shutdown waits for in-flight leases before cancelling
+    /// cooperative work (MT-142 AC-142-7). Zero cancels immediately.
+    pub fn with_drain_grace(mut self, grace: Duration) -> Self {
+        self.drain_grace = grace;
+        self
+    }
+
+    /// Sets the caller-side bound on one statement attempt (MT-142). A timed
+    /// out attempt is terminal and never retried. Zero is rejected.
+    pub fn with_statement_timeout(
+        mut self,
+        timeout: Duration,
+    ) -> Result<Self, SurrealStorageError> {
+        if timeout.is_zero() {
+            return Err(SurrealStorageError::InvalidTimeout {
+                setting: "statement_timeout",
+            });
+        }
+        self.statement_timeout = timeout;
+        Ok(self)
+    }
+
+    /// Sets the engine-level query and write-transaction deadlines handed to
+    /// the embedded datastore at open (`None` disables one; both are `None`
+    /// by default, see [`DEFAULT_ENGINE_QUERY_TIMEOUT`]). They apply to every
+    /// statement including schema bootstrap, so enable them only on stores
+    /// whose bootstrap is known to fit. Zero is rejected.
+    pub fn with_engine_timeouts(
+        mut self,
+        query_timeout: Option<Duration>,
+        transaction_timeout: Option<Duration>,
+    ) -> Result<Self, SurrealStorageError> {
+        if query_timeout.is_some_and(|timeout| timeout.is_zero()) {
+            return Err(SurrealStorageError::InvalidTimeout {
+                setting: "engine_query_timeout",
+            });
+        }
+        if transaction_timeout.is_some_and(|timeout| timeout.is_zero()) {
+            return Err(SurrealStorageError::InvalidTimeout {
+                setting: "engine_transaction_timeout",
+            });
+        }
+        self.engine_query_timeout = query_timeout;
+        self.engine_transaction_timeout = transaction_timeout;
+        Ok(self)
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub fn shutdown_wait(&self) -> Duration {
+        self.shutdown_wait
+    }
+
+    pub fn drain_grace(&self) -> Duration {
+        self.drain_grace
+    }
+
+    pub fn statement_timeout(&self) -> Duration {
+        self.statement_timeout
+    }
+
+    pub fn engine_query_timeout(&self) -> Option<Duration> {
+        self.engine_query_timeout
+    }
+
+    pub fn engine_transaction_timeout(&self) -> Option<Duration> {
+        self.engine_transaction_timeout
     }
 
     pub fn namespace(&self) -> &str {
@@ -699,12 +804,67 @@ enum ShutdownAttemptError {
     Terminal(SurrealStorageError),
 }
 
+/// Outcome of one embedded-store shutdown (MT-142 AC-142-7).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ShutdownReport {
+    /// Every in-flight lease drained within `drain_grace`.
+    pub drained: bool,
+    /// The grace expired, so the cooperative cancellation token was fired
+    /// before the remaining engine-bound leases were awaited.
+    pub cancelled: bool,
+    /// Wall time from the close attempt start to engine release.
+    pub elapsed: Duration,
+}
+
 struct SurrealStorageInner {
     config: SurrealStorageConfig,
     client: RwLock<Option<SurrealClient>>,
     guard: Arc<dyn StorageGuard>,
     lifecycle: AtomicU8,
     shutdown: Mutex<ShutdownCoordinatorState>,
+    /// Cooperative cancellation for retry loops and keyed-lock waits; child
+    /// tokens are handed out by [`SurrealStorage::cancellation_token`].
+    cancel: StdMutex<CancellationToken>,
+    shutdown_report: StdMutex<Option<ShutdownReport>>,
+}
+
+impl SurrealStorageInner {
+    fn cancel_operations(&self) {
+        self.cancel
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .cancel();
+    }
+
+    /// Installs a fresh token after a retryable shutdown failure reopened
+    /// admission, so later operations are not born cancelled.
+    fn reset_cancellation(&self) {
+        *self
+            .cancel
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = CancellationToken::new();
+    }
+
+    fn child_cancellation_token(&self) -> CancellationToken {
+        self.cancel
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .child_token()
+    }
+
+    fn record_shutdown_report(&self, report: ShutdownReport) {
+        *self
+            .shutdown_report
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(report);
+    }
+
+    fn shutdown_report(&self) -> Option<ShutdownReport> {
+        *self
+            .shutdown_report
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
 }
 
 impl SurrealStorage {
@@ -744,7 +904,20 @@ impl SurrealStorage {
             })?;
         validate_supported_storage_path(config.path())?;
 
-        let client = Surreal::new::<RocksDb>(config.path()).await?;
+        // Engine-level deadlines (MT-142 AC-142-7). The pinned SDK forwards
+        // `Config::query_timeout`/`transaction_timeout` to the datastore builder
+        // (`surrealdb-3.2.0/src/engine/local/native.rs:131-133`, fields at
+        // `surrealdb-3.2.0/src/opt/config.rs:16-17,53-61`); the executor wraps
+        // every write transaction in `tokio::time::timeout` and cancels it on
+        // expiry (`surrealdb-core-3.2.0/src/dbs/executor.rs:1034-1049`), and the
+        // query timeout becomes the context deadline of every query
+        // (`surrealdb-core-3.2.0/src/kvs/ds.rs:3951-3953`). The `(PathBuf, Config)`
+        // endpoint form is `surrealdb-3.2.0/src/opt/endpoint/rocksdb.rs:27-36`.
+        let engine_config = EngineConfig::new()
+            .query_timeout(config.engine_query_timeout())
+            .transaction_timeout(config.engine_transaction_timeout());
+        let client =
+            Surreal::new::<RocksDb>((config.path().to_path_buf(), engine_config)).await?;
         client
             .use_ns(config.namespace())
             .use_db(config.database())
@@ -774,6 +947,8 @@ impl SurrealStorage {
                 guard,
                 lifecycle: AtomicU8::new(LIFECYCLE_OPEN),
                 shutdown: Mutex::new(ShutdownCoordinatorState::Open),
+                cancel: StdMutex::new(CancellationToken::new()),
+                shutdown_report: StdMutex::new(None),
             }),
         })
     }
@@ -950,6 +1125,28 @@ impl SurrealStorage {
         self.inner.lifecycle.load(Ordering::Acquire) == LIFECYCLE_OPEN
     }
 
+    /// Child token that fires once shutdown's drain grace expires (MT-142
+    /// AC-142-7). Retry loops and keyed-lock waits observe it; work already
+    /// blocked inside the engine is not interruptible and is drained instead.
+    pub fn cancellation_token(&self) -> CancellationToken {
+        self.inner.child_cancellation_token()
+    }
+
+    /// Report of the most recent shutdown attempt, if one ran.
+    pub fn last_shutdown_report(&self) -> Option<ShutdownReport> {
+        self.inner.shutdown_report()
+    }
+
+    /// [`Self::shutdown`] plus the typed report of the completed close.
+    pub async fn shutdown_with_report(&self) -> Result<ShutdownReport, SurrealStorageError> {
+        self.shutdown().await?;
+        self.last_shutdown_report().ok_or_else(|| {
+            SurrealStorageError::Shutdown(Arc::from(
+                "shutdown completed without recording a report",
+            ))
+        })
+    }
+
     /// Flushes prior work through a query barrier and closes every wrapper clone.
     ///
     /// SurrealDB 3.2 exposes no explicit embedded-engine close method. This type
@@ -1043,6 +1240,7 @@ impl SurrealStorage {
             Err(_) => {
                 // The flush barrier failed before the sole client was taken, so
                 // the wrapper still owns a usable client and shutdown may retry.
+                inner.reset_cancellation();
                 inner.lifecycle.store(LIFECYCLE_OPEN, Ordering::Release);
                 *coordinator = ShutdownCoordinatorState::Open;
             }
@@ -1050,8 +1248,47 @@ impl SurrealStorage {
         let _ = sender.send(Some(result));
     }
 
+    /// MT-142 AC-142-7 close sequence: admission already stopped (`CLOSING`);
+    /// wait up to `drain_grace` for every lease; on expiry fire the cooperative
+    /// cancellation token so retry loops and lock waits return `Closed`, then
+    /// wait for the remaining engine-bound leases (a blocking RocksDB call
+    /// cannot be interrupted; the caller's `shutdown_wait` bounds its own wait
+    /// via `ShutdownStillInProgress`); flush, drop the sole handle, and prove
+    /// the engine released the store.
     async fn perform_shutdown(inner: &SurrealStorageInner) -> Result<(), ShutdownAttemptError> {
-        let mut guard = inner.client.write().await;
+        let started = Instant::now();
+        let mut report = ShutdownReport {
+            drained: true,
+            cancelled: false,
+            elapsed: Duration::ZERO,
+        };
+        let guard = match tokio::time::timeout(inner.config.drain_grace, inner.client.write())
+            .await
+        {
+            Ok(guard) => guard,
+            Err(_) => {
+                report.drained = false;
+                report.cancelled = true;
+                inner.cancel_operations();
+                tracing::warn!(
+                    target: "handshake_core::storage::surreal",
+                    drain_grace_ms = u64::try_from(inner.config.drain_grace.as_millis())
+                        .unwrap_or(u64::MAX),
+                    "embedded store drain grace expired; cooperative work cancelled, waiting for engine-bound leases"
+                );
+                inner.client.write().await
+            }
+        };
+        let outcome = SurrealStorage::close_client(inner, guard).await;
+        report.elapsed = started.elapsed();
+        inner.record_shutdown_report(report);
+        outcome
+    }
+
+    async fn close_client(
+        inner: &SurrealStorageInner,
+        mut guard: RwLockWriteGuard<'_, Option<SurrealClient>>,
+    ) -> Result<(), ShutdownAttemptError> {
         let Some(client) = guard.as_ref() else {
             return Ok(());
         };
@@ -1061,9 +1298,9 @@ impl SurrealStorage {
             .map_err(SurrealStorageError::from)
             .and_then(|response| response.check().map_err(SurrealStorageError::from))
             .map_err(ShutdownAttemptError::Retryable)?;
-        let client = guard
-            .take()
-            .expect("the client was checked while holding the write lease");
+        let Some(client) = guard.take() else {
+            return Ok(());
+        };
         drop(guard);
         drop(client);
         wait_for_engine_release(&inner.config.path)

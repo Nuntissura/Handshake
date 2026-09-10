@@ -183,6 +183,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_failure_modes_and_recovery(),
         page_repair_queues_and_staleness(),
         page_embedded_store_recovery(),
+        page_surreal_swarm_concurrency_and_load(),
         page_state_recovery_guide(),
         page_kernel_write_governance(),
         page_legacy_bridge(),
@@ -209,6 +210,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "failure-modes-and-recovery",
         "repair-queues-and-staleness",
         "embedded-store-recovery",
+        "surreal-swarm-concurrency-and-load",
         "state-recovery-guide",
         "kernel-write-governance",
         "legacy-model-manual-bridge",
@@ -671,17 +673,18 @@ fn page_atelier_storage_authority() -> NewUserManualPage {
                 "Where the SurrealDB schema comes from",
                 "`storage/surreal/schema.surql` is the sole declarative schema authority. Startup \
                  proves its exact bytes against a pinned SHA-256, parses the same source into a \
-                 sorted semantic catalog, and verifies exact identities and counts for 281 tables, \
-                 3,313 authored fields, 793 indexes, 19 events, two views, and two sequences. The \
+                 sorted semantic catalog, and verifies exact identities and counts for 282 tables, \
+                 3,320 authored fields, 795 indexes, 19 events, two views, and two sequences. The \
                  live catalog is then read from the pinned SurrealDB 3.2 engine and compared with an \
                  exact structured fingerprint. A fresh embedded RocksDB bootstrap, adversarial \
                  catalog mutations, shutdown, reopen, and unchanged-fingerprint checks prove that \
                  source, applied state, and restarted state agree. Unknown, missing, or redefined \
                  objects fail closed; startup never substitutes another database or prunes ordinary \
-                 application records. The only mutating reuse path is one exact hash-allowlisted \
-                 predecessor: startup transactionally rewrites the 61 historically registered rows \
+                 application records. The only mutating reuse paths are two exact hash-allowlisted \
+                 predecessors. For the retired-registry lineage, startup transactionally rewrites the 61 historically registered rows \
                  from the retired `migration_file` field to `schema_source`, adds the current-only \
-                 0343 support-table registry row for a final exact 62-row registry, removes the \
+                 0343 support-table registry row and the MT-142 `knowledge_rich_document_title_anchors` \
+                 table with its registry row for a final exact 63-row registry, removes the \
                  retired field, preserves \
                  application records, and reports `upgraded_supported_predecessor`. Every other \
                  predecessor or divergent lineage is rejected. Registry value \
@@ -698,7 +701,8 @@ fn page_atelier_storage_authority() -> NewUserManualPage {
                     "schema_source_repo_path": "src/backend/handshake_core/src/storage/surreal/schema.surql",
                     "supported_predecessor_transition": {
                         "allowlist": "exact_state_schema_info_and_61_row_predecessor_registry_sha256",
-                        "registry_rewrite": "61_historical_migration_file_rows_to_62_current_schema_source_rows",
+                        "registry_rewrite": "61_historical_migration_file_rows_to_63_current_schema_source_rows",
+                        "pre_mt142_lineage": "revision_157_stores_gain_knowledge_rich_document_title_anchors_in_place",
                         "ordinary_application_records": "preserved",
                         "reported_outcome": "upgraded_supported_predecessor",
                         "all_other_lineages": "rejected"
@@ -709,9 +713,9 @@ fn page_atelier_storage_authority() -> NewUserManualPage {
                         "live_engine_catalog_sha256"
                     ],
                     "catalog_counts": {
-                        "tables": 281,
-                        "authored_fields": 3313,
-                        "indexes": 793,
+                        "tables": 282,
+                        "authored_fields": 3320,
+                        "indexes": 795,
                         "events": 19,
                         "views": 2,
                         "sequences": 2
@@ -1591,6 +1595,565 @@ fn page_embedded_store_recovery() -> NewUserManualPage {
             ),
         ],
         anchors: vec![
+            page_link("startup-and-run-commands"),
+            page_link("state-recovery-guide"),
+        ],
+    }
+}
+
+/// Slug of the MT-142 swarm page; shared with the in-crate consistency tests.
+const SURREAL_SWARM_PAGE_SLUG: &str = "surreal-swarm-concurrency-and-load";
+
+/// WP-KERNEL-012 MT-142 (AC-142-11, PT-142-10): embedded single-owner SurrealDB
+/// topology, safe parallel swarm use, retry / retry-exhaustion / shutdown
+/// behaviour, both load-profile runbooks, how to read
+/// `hsk.surreal_swarm_load_report@1`, and the embedded-vs-remote proof
+/// boundary. Every file:line cites the product tree or the pinned surrealdb
+/// 3.2.0 sources recorded in the MT-142 research basis; the in-crate tests
+/// `mt142_manual_covers_surreal_swarm_concurrency_and_load` and
+/// `mt142_manual_runbook_targets_and_env_vars_exist` pin the page to the code.
+fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
+    const LOAD_TARGET: &str = "surreal_swarm_load_tests";
+    const CI_TEST: &str = "ci_profile_16_workers_2000_operations_is_correct_and_bounded";
+    const EXTENDED_TEST: &str = "extended_profile_64_workers_50000_operations";
+    const SEMANTICS_TARGET: &str = "surreal_swarm_semantics_tests";
+    const LIFECYCLE_TARGET: &str = "surreal_swarm_lifecycle_tests";
+    let cargo_test = |target: &str, filter: &str| {
+        let filter = if filter.is_empty() {
+            String::new()
+        } else {
+            format!(" {filter}")
+        };
+        format!(
+            "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test {target} \
+             --features surreal-test-support,test-utils{filter} -- --nocapture"
+        )
+    };
+    let ci_command = cargo_test(LOAD_TARGET, CI_TEST);
+    let extended_command = cargo_test(LOAD_TARGET, EXTENDED_TEST);
+    let semantics_command = cargo_test(SEMANTICS_TARGET, "");
+    let lifecycle_command = cargo_test(LIFECYCLE_TARGET, "");
+    let load_profiles_md = format!(
+        "Both profiles are integration targets under `src/backend/handshake_core/tests/` and need the real \
+         embedded engine: cargo features `surreal-test-support,test-utils`; `HANDSHAKE_ARTIFACTS_ROOT` set to \
+         an ABSOLUTE `_Artifacts` root (the fixture refuses relative paths and never falls back, \
+         `storage/tests.rs:42-60`); `HANDSHAKE_WORKSPACE_ROOT` set to a run-scoped directory so artifact-writing \
+         code never resolves the repo root from the manifest dir (`storage/mod.rs:687-696`); `CARGO_TARGET_DIR` \
+         at the operator-designated shared target. Never run two cargo commands against that target at once. \
+         Env assignments below are POSIX shell; in PowerShell write `$env:NAME='value';` before `cargo`.\n\n\
+         CI deterministic profile (16 workers, 2000 operations, fixed seed; per-operation 5000 ms, per-worker \
+         60000 ms, whole test 180000 ms; a timeout is a test failure, never an ignored test):\n\n\
+         ```\n\
+         HANDSHAKE_ARTIFACTS_ROOT=<absolute-artifacts-root> HANDSHAKE_WORKSPACE_ROOT=<run-dir> HANDSHAKE_SWARM_LOAD_REPORT_DIR=<report-dir> \\\n\
+         {ci_command}\n\
+         ```\n\n\
+         It prints `SWARM_LOAD_REPORT=<path>`; the file is `swarm-load-<profile>-<run_id>.json` with profile \
+         `ci`, i.e. `swarm-load-ci-<run_id>.json` (`tests/surreal_swarm_load_tests.rs:79`, `:1143`), under \
+         `HANDSHAKE_SWARM_LOAD_REPORT_DIR` (fallback `<HANDSHAKE_ARTIFACTS_ROOT>/handshake-test/swarm-load/`, \
+         `tests/swarm_support/mod.rs:666-681`).\n\n\
+         Extended local profile (at least 64 workers, at least 50000 operations, at least 5000 dataset records, \
+         seeded and repeatable, whole test 1800000 ms; runs only when `HANDSHAKE_SWARM_EXTENDED=1`, otherwise \
+         the test prints `SWARM_EXTENDED=NOT_RUN_UNCONFIGURED` and passes without proving anything):\n\n\
+         ```\n\
+         HANDSHAKE_SWARM_EXTENDED=1 HANDSHAKE_SWARM_SEED=<u64> HANDSHAKE_ARTIFACTS_ROOT=<absolute-artifacts-root> HANDSHAKE_WORKSPACE_ROOT=<run-dir> HANDSHAKE_SWARM_LOAD_REPORT_DIR=<report-dir> \\\n\
+         {extended_command}\n\
+         ```\n\n\
+         It writes `swarm-load-extended-<run_id>.json` plus an RSS record \
+         `swarm-load-extended-<run_id>-memory.json` to the same directory (`:98`, `:1143`, `:1285`). \
+         `HANDSHAKE_SWARM_SEED` (u64) \
+         overrides the fixed workload seed for either profile; the seed used is printed and stored in \
+         `workload_seed`. Companion proofs in the same tree:\n\
+         - `{semantics_command}` - same-record expected-version race, idempotency convergence, \
+         disjoint-record overlap, independent clients without a shared registry, opposite-order deadlock \
+         freedom, registry reclamation.\n\
+         - `{lifecycle_command}` - shutdown under load, reopen, acknowledged-write reconciliation.\n\n\
+         Run-scoped stores live under `HANDSHAKE_ARTIFACTS_ROOT` and are removed by the fixture; keep only \
+         the JSON reports."
+    );
+    NewUserManualPage {
+        slug: SURREAL_SWARM_PAGE_SLUG.into(),
+        title: "SurrealDB — Embedded Single-Owner Topology, Parallel Swarm Use, Retry, Shutdown, and Load Proof"
+            .into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["2.3.13.0".into(), "2.3.13.11".into()],
+        sections: vec![
+            section_with_json(
+                "purpose",
+                "Embedded single-owner topology",
+                "One `SurrealStorage` owns one embedded SurrealDB engine over one RocksDB store path: \
+                 `SurrealStorage::open` calls `Surreal::new::<RocksDb>((path, engine_config))` exactly once and \
+                 keeps that sole `Surreal<Db>` handle inside the wrapper (`storage/surreal.rs:874-941`, \
+                 `:906-907`, `:158`, `:806-816`). The store path is `HANDSHAKE_DATA_DIR` (or the platform-local \
+                 data dir) joined with `handshake-surreal` (`surreal.rs:143-146`, `:245-262`).\n\n\
+                 Parallelism unit: clone the wrapper, never the engine. `SurrealStorage` and `SurrealDatabase` \
+                 are cheap `Clone` values over one shared `Arc` (`surreal.rs:378-381`, \
+                 `storage/surreal/database.rs:30-34`); every clone in every tokio task runs its operation under \
+                 a shared lifecycle lease (`with_data_operation`/`with_lease`, `surreal.rs:951-963`, \
+                 `:1091-1105`) against the same engine. The wrapper hands out no cloned SDK handle \
+                 (`surreal.rs:1139-1141`). At the SDK level a cloned `Surreal<Db>` is a separate session over the \
+                 same `Datastore` (surrealdb 3.2.0 `src/lib.rs:336-347`, `engine/local/native.rs:240`), which is \
+                 why in-process sharing of cloned handles is the supported topology.\n\n\
+                 A second process on the same store path is NOT supported, and a second embedded engine on \
+                 the same path inside this process is NOT supported either: RocksDB takes an exclusive \
+                 `<store>/LOCK` file at open and the second open fails with `IO error: Failed to create lock \
+                 file` instead of becoming a second writer (RocksDB 11.0.0 `db/db_impl/db_impl_open.cc:439-442`, \
+                 `port/win/env_win.cc:952-982`; RocksDB FAQ: multiple processes may not write to one RocksDB). \
+                 Two wrappers over one engine are in-process sharing; never describe them, or any same-path \
+                 second engine, as distributed concurrency or as a distributed proof.\n\n\
+                 Engine guarantees this page relies on (surrealdb 3.2.0 pinned; research basis \
+                 `MT-142/kb01/research/research_basis.json`):\n\
+                 - Snapshot isolation per transaction with write-write conflict detection at commit: RocksDB \
+                 `OptimisticTransactionDB` (`surrealdb-core-3.2.0/src/kvs/rocksdb/mod.rs:462-470`), snapshot \
+                 pinned at transaction start (`mod.rs:757-766`), writes only buffered until commit \
+                 (`mod.rs:2133-2138`; `optimistic_transaction.cc:365-368`).\n\
+                 - Only WRITTEN keys are validated at commit; a plain read is not (no `SELECT ... FOR UPDATE` \
+                 before SurrealDB 3.3.0). Every guard that decides on a record it read therefore also writes \
+                 that record.\n\
+                 - The engine never retries a user transaction (`dbs/executor.rs` has no retry loop; \
+                 `kvs/ds.rs:1632-1681` wraps bootstrap only). Retry is Handshake's job: see the retry section.\n\
+                 - A commit conflict renders as `Transaction conflict: ... This transaction can be retried` \
+                 (`kvs/err.rs:47-49`; retryable predicate `:85-87`; RocksDB Busy/TryAgain mapping `:124-135`) \
+                 and the losing transaction wrote nothing.\n\
+                 - Every commit waits for a grouped WAL fsync (`SyncMode::Every`, `kvs/rocksdb/cnf.rs:598`; \
+                 `commit_coordinator.rs:15-47`): an acknowledged `Ok` is durable; an unacknowledged in-flight \
+                 commit is not.",
+                json!({
+                    "engine": "surrealdb 3.2.0 embedded kv-rocksdb (RocksDB OptimisticTransactionDB)",
+                    "owner": "SurrealStorage::open -> Surreal::new::<RocksDb>((path, engine_config)); one engine per store path",
+                    "parallelism_unit": "clone SurrealStorage / SurrealDatabase (Arc-shared); operations run under with_data_operation leases",
+                    "second_process_same_path": "unsupported: RocksDB LOCK file; the second open fails",
+                    "second_engine_same_path_same_process": "unsupported: same LOCK file",
+                    "distributed_proof": "never claimed from same-path engines or in-process clones",
+                    "isolation": "snapshot per transaction; write-write conflict detection at commit on written keys only",
+                    "engine_internal_retry": false,
+                    "durability": "acknowledged commit = grouped WAL fsync completed"
+                }),
+            ),
+            section_with_json(
+                "workflows",
+                "Safe parallel swarm use",
+                "Issue these concurrently from any number of tasks or model sessions. Each write is one \
+                 `BEGIN TRANSACTION ... COMMIT TRANSACTION` query string with bound parameters and `THROW` \
+                 guards, so a document save writes the document, its Loom projection, its search projection, \
+                 its version row, its draft delete and (optionally) its idempotency claim atomically \
+                 (`storage/surreal/knowledge.rs:2400-2410`):\n\
+                 - Point reads and range/search queries: never wait on any lock; they read the transaction \
+                 snapshot.\n\
+                 - Creates on distinct records, deletes, and multi-record projection/ledger transactions on \
+                 disjoint records: commit concurrently. RocksDB detects conflicts only between transactions \
+                 that wrote an overlapping key, so disjoint records and different workspaces show at least two \
+                 simultaneous in-flight writes (AC-142-2). MT-142 removed the process-global \
+                 `RICH_DOCUMENT_MUTATION_LOCK` and `KNOWLEDGE_UPSERT_LOCK`; nothing serializes unrelated \
+                 writes.\n\
+                 - Same-record optimistic versioned update (expected-version race): the guarded \
+                 `UPDATE ... WHERE doc_version = $expected_version` runs inside the transaction and otherwise \
+                 executes `THROW 'HSK-KRD-SAVE-STALE'` (`knowledge.rs:2402`). Exactly one caller wins; every \
+                 other caller gets the typed stale outcome `StorageError::Conflict(\"knowledge rich document \
+                 version conflict: expected_version is stale\")` (`knowledge.rs:2383-2387`, `:2467-2490`), \
+                 surfaced over HTTP as `409 {\"error\":\"conflict\",\"detail\":...}` \
+                 (`api/knowledge_documents.rs:388-401`). There is no last-writer-wins. If two writers both pass \
+                 the guard before either commits, the engine aborts one at commit with a retryable conflict; \
+                 the CAS save is re-run only because the expected_version makes the re-run safe: the live read, \
+                 the stale pre-check and the compare-and-set all repeat, so the re-run succeeds once or reports \
+                 stale (`knowledge.rs:2351-2357`). A stale outcome is terminal and is never retried.\n\
+                 - Identical idempotency-key replays: the claim statement creates the \
+                 `knowledge_idempotency_keys` record in the same transaction or executes \
+                 `THROW 'HSK-KIDEM-RACE'` (`knowledge.rs:2319`); the losing transaction aborts having written \
+                 nothing and the caller re-reads the winner's committed result (`knowledge.rs:2351-2354`, \
+                 `:2464-2466`). A replay with the same request hash returns the stored result reference; a \
+                 different payload under the same key is a typed conflict (`knowledge.rs:2500-2501`). One key \
+                 converges to exactly one durable effect.\n\
+                 - `create_knowledge_rich_document_if_title_absent`: the transaction UPSERTs one \
+                 `knowledge_rich_document_title_anchors` row per (workspace, normalized title) with a fresh \
+                 claim nonce (`knowledge.rs:198-230`), so two concurrent creators write the same key and RocksDB \
+                 admits exactly one commit; the loser's retry re-reads and returns the winner as the existing \
+                 document. The anchor is a serialization device, not a uniqueness rule: duplicate titles created \
+                 through the plain path stay legal.\n\
+                 - Natural-key upserts (`upsert_knowledge_*`): IF-exists-UPDATE-ELSE-CREATE inside one \
+                 transaction under `guarded_mutation` (`knowledge.rs:159-196`); a unique-index violation on the \
+                 statement's OWN natural-key index is classified `RetryableSnapshotChange` and the re-run takes \
+                 the UPDATE branch, while a violation on any other index is terminal \
+                 (`classify_knowledge_error`, `knowledge.rs:111-128`).\n\n\
+                 Keyed locks are optional contention shaping, never correctness. `KeyedLockRegistry` \
+                 (`storage/surreal/keyed_lock.rs`) serializes only callers that hold the same `LockKey` \
+                 (`Record { table, id }`, `NaturalKey { workspace_id, kind, key }`, `Workspace { workspace_id }`, \
+                 `keyed_lock.rs:55-67`); `LockMode::Disabled` hands out no-op guards (`:97-102`, `:196-205`). One \
+                 registry lives per `SurrealDatabase` value (`storage/surreal/database.rs:21-57`): \
+                 `SurrealDatabase::new` creates a fresh `KeyedLockRegistry::keyed()`, \
+                 `SurrealDatabase::with_lock_registry(storage, registry)` attaches an explicit one (pass \
+                 `KeyedLockRegistry::disabled()` for the no-lock proof), `SurrealDatabase::lock_registry()` \
+                 exposes it for measurement, and `Clone` shares it (clones are one logical wrapper). Knowledge \
+                 writers take their keys through `guarded_mutation` (`knowledge.rs:159-196`): \
+                 `acquire_many_with_deadline` with the statement timeout as deadline, then the bounded retry; a \
+                 lock wait that outlives the statement timeout returns \
+                 `StorageError::ConflictDetails { code: \"HSK-STORAGE-LOCK-WAIT-TIMEOUT\" }` \
+                 (`LOCK_WAIT_TIMEOUT_CONFLICT_CODE`, `knowledge.rs:96-98`, `:152-157`, `:178-183`) instead of \
+                 hanging. Multi-key acquisition sorts and \
+                 dedups keys so opposite-order callers cannot deadlock (`:241-262`, `:281-285`); \
+                 `acquire_with_deadline` returns a typed `LockWaitTimeout` instead of hanging (`:104-110`, \
+                 `:209-239`); the registry reclaims every entry when its last guard drops, so its idle bound is \
+                 0 entries (`:181-194`, `:287-305`); read paths never take a key (`:36-39`); the guard's \
+                 `lock_wait()` feeds the report's `lock_wait_ms_p50_p95_p99` (`:329-333`). The \
+                 independent-client proof runs two wrappers over one engine that share no registry (one in \
+                 `LockMode::Disabled`) and every same-record, uniqueness, idempotency and ledger invariant \
+                 holds identically, proving that the transactions own correctness (AC-142-8).\n\n\
+                 Rules for a model driving parallel work:\n\
+                 1. Take `expected_version` from your own last successful response; on `409` stale, re-read the \
+                 document and rebase.\n\
+                 2. Send an idempotency key when a request may be retried by the caller; identical replays are \
+                 safe, divergent payloads under one key are rejected.\n\
+                 3. Never start a second backend, test, or engine on the same `HANDSHAKE_DATA_DIR`; share the \
+                 running backend's HTTP API instead.\n\
+                 4. Treat `HSK-STORAGE-RETRY-EXHAUSTED` (next section) as contention to back off from, not as \
+                 data loss.",
+                json!({
+                    "concurrent_safe": {
+                        "point_read": "no lock; snapshot read",
+                        "range_or_search_query": "no lock; snapshot read",
+                        "create_disjoint": "commits concurrently",
+                        "delete_disjoint": "commits concurrently",
+                        "multi_record_transaction_disjoint": "one BEGIN..COMMIT; commits concurrently",
+                        "same_record_expected_version": "one winner; losers HSK-KRD-SAVE-STALE -> StorageError::Conflict -> 409; never retried",
+                        "same_idempotency_key": "one effect; losers HSK-KIDEM-RACE -> re-read winner; divergent payload -> conflict",
+                        "natural_key_upsert": "UNIQUE index + IF-exists guard; index race replayed as RetryableSnapshotChange"
+                    },
+                    "removed_global_locks": ["RICH_DOCUMENT_MUTATION_LOCK", "KNOWLEDGE_UPSERT_LOCK"],
+                    "keyed_lock": {
+                        "registry": "KeyedLockRegistry per SurrealDatabase",
+                        "modes": ["Keyed", "Disabled"],
+                        "keys": ["Record", "NaturalKey", "Workspace"],
+                        "multi_key_order": "sorted and deduplicated",
+                        "idle_entry_bound": 0,
+                        "read_paths_take_keys": false,
+                        "lock_wait_deadline": "SurrealStorageConfig::statement_timeout",
+                        "lock_wait_timeout_code": "HSK-STORAGE-LOCK-WAIT-TIMEOUT",
+                        "correctness_dependency": "none; transactions and guards own correctness"
+                    }
+                }),
+            ),
+            section_with_json(
+                "failure_modes",
+                "Contention, retry, and retry exhaustion",
+                "Retry lives in `storage/surreal/retry.rs` and wraps only replay-safe operations.\n\n\
+                 Policy `RetryPolicy::CONTRACT` (`retry.rs:97-103`): 5 ms base delay, 250 ms cap, 8 attempts \
+                 (the first attempt included), 2000 ms maximum elapsed, full jitter \
+                 `sleep = random(0, min(cap, base * 2^n))` (`retry.rs:28-29`, `:524-525`). The 7 sleep upper \
+                 bounds are 5, 10, 20, 40, 80, 160, 250 ms (worst case 565 ms of sleep, `retry.rs:1146-1150`). \
+                 The effective deadline is the earlier of start + 2000 ms and the caller deadline (`:556-562`); \
+                 no sleep starts that would end after it (`:568-575`); cancellation is observed before every \
+                 attempt and during every sleep (`:489-495`, `:543-552`); an attempt already in flight is never \
+                 abandoned, because dropping an acknowledged commit would misreport a durable write \
+                 (`:31-38`).\n\n\
+                 Retried (only under `Replay::Idempotent { key }`, `retry.rs:295-327`):\n\
+                 - `RetryClass::RetryableTransient`: an engine commit conflict (`KvsError::TransactionConflict`) \
+                 in any SDK-visible shape: typed `QueryError::TransactionConflict`, or a `NotExecuted`/`Internal` \
+                 error whose message carries both `Transaction conflict:` and `This transaction can be retried`, \
+                 or an unwrapped raw `Resource busy` / `Operation failed. Try again.` status (`retry.rs:608-673`).\n\
+                 - `RetryClass::RetryableSnapshotChange`: a unique-index or IF-EXISTS race on an idempotent \
+                 upsert; the integrating store decides it, `is_unique_index_violation` alone never does \
+                 (`:336-339`, `:701-716`).\n\n\
+                 Never retried: any operation declared `Replay::NotIdempotent` (its first error is returned \
+                 as-is, `:321-326`, `:1070-1092`); every `RetryClass::Terminal` error: thrown guard codes such as \
+                 `HSK-KRD-SAVE-STALE` and `HSK-KIDEM-RACE`, `AlreadyExists`, `TimedOut`, `Cancelled`, \
+                 `NotExecuted` without the conflict markers, `Internal` without them (IO, corruption, `LOCK`, \
+                 router closed), `Validation`, `NotAllowed`, `NotFound` (`:624-626`, `:1421-1444`). An \
+                 expected-version mismatch is never a retry. A statement attempt that outlives the caller-side \
+                 statement timeout (`SurrealStorageConfig::statement_timeout`, default 30 s) returns the terminal \
+                 `SurrealStorageError::StatementTimeout { waited_ms }` and is never retried: dropping the SDK \
+                 future does not abort the engine-side statement, so its outcome is unknown \
+                 (`knowledge.rs:1282-1297`).\n\n\
+                 Knowledge writes run under `RetryPolicy::CONTRACT` with `TokioClock`, one process-wide \
+                 `SystemJitter` and the store's shutdown cancellation token \
+                 (`RetryContext::unbounded().with_cancel(storage.cancellation_token())`, `knowledge.rs:101`, \
+                 `:184-195`).\n\n\
+                 Exhaustion and its code: when every attempt failed retryably and a bound is hit, `retry` returns \
+                 `RetryError::Exhausted { attempts, elapsed, last, bound }` with `bound` = `max_attempts` or \
+                 `max_elapsed` (`retry.rs:355-390`) and emits exactly one `warn` diagnostic \
+                 `surreal retry exhausted` carrying `attempts`, `elapsed_ms`, `bound`, `replay_key` and \
+                 `last_error` (`:584-606`). Store callers see \
+                 `StorageError::ConflictDetails { code: \"HSK-STORAGE-RETRY-EXHAUSTED\", detail: \"attempts=.. \
+                 elapsed_ms=.. bound=.. last=..\" }` (`RETRY_EXHAUSTED_CONFLICT_CODE`, `knowledge.rs:95`; \
+                 `retry_error_to_storage`, `:130-150`), which the knowledge API maps to `409` with the code as \
+                 `detail` (`api/knowledge_documents.rs:399-401`). Nothing was written by the exhausted attempts. \
+                 Cancellation before an attempt or during a sleep returns \
+                 `RetryError::Cancelled { attempts, elapsed }` and reaches callers as the closed-store error \
+                 (`SurrealStorageError::Closed`, `embedded database is closed`; `knowledge.rs:107-109`, \
+                 `:146-148`; `surreal.rs:184-185`). In the load report these appear as `conflict_count`, \
+                 `retry_count`, `retry_exhaustion_count` and `failed_by_operation_and_class[..][retry_exhausted]`.",
+                json!({
+                    "retry_policy": {
+                        "base_delay_ms": 5,
+                        "maximum_delay_ms": 250,
+                        "maximum_attempts": 8,
+                        "maximum_elapsed_ms": 2000,
+                        "jitter": "full",
+                        "sleep_upper_bounds_ms": [5, 10, 20, 40, 80, 160, 250],
+                        "worst_case_sleep_sum_ms": 565
+                    },
+                    "retried": ["RetryableTransient (engine commit conflict)", "RetryableSnapshotChange (idempotent upsert index race)"],
+                    "retried_only_when": "Replay::Idempotent { key }",
+                    "never_retried": ["Replay::NotIdempotent", "Terminal: thrown guard codes, AlreadyExists, TimedOut, Cancelled, NotExecuted/Internal without conflict markers, Validation, NotAllowed, NotFound", "expected-version mismatch (HSK-KRD-SAVE-STALE)", "SurrealStorageError::StatementTimeout (outcome unknown)"],
+                    "exhaustion": {
+                        "error": "RetryError::Exhausted { attempts, elapsed, last, bound }",
+                        "bounds": ["max_attempts", "max_elapsed"],
+                        "diagnostic": "warn `surreal retry exhausted` once per exhaustion",
+                        "storage_error": "StorageError::ConflictDetails { code: HSK-STORAGE-RETRY-EXHAUSTED, detail: attempts=.. elapsed_ms=.. bound=.. last=.. }",
+                        "http_status": 409
+                    },
+                    "cancellation": {
+                        "error": "RetryError::Cancelled { attempts, elapsed }",
+                        "storage_error": "SurrealStorageError::Closed"
+                    }
+                }),
+            ),
+            section_with_json(
+                "workflows",
+                "Shutdown under load and the ShutdownReport",
+                "`SurrealStorage::shutdown` (`surreal.rs:1146-1194`) is idempotent across repeated and \
+                 concurrent callers and is rejected with `ReentrantShutdown` from inside an operation \
+                 (`:1147-1149`). Phases (`perform_shutdown`, `:1238-1273`):\n\
+                 1. Admission stops: the lifecycle flips to CLOSING (`:1164-1166`) and every new `with_lease` \
+                 call returns `SurrealStorageError::Closed` (`:1096-1102`, `embedded database is closed`), \
+                 never a hang.\n\
+                 2. Drain: the close waits up to `SurrealStorageConfig::drain_grace` (`DEFAULT_DRAIN_GRACE` \
+                 5 s, `:148-150`; `with_drain_grace`, zero cancels immediately, `:301-306`) for every in-flight \
+                 lease to finish (`:1252-1255`).\n\
+                 3. Cancel: if the grace expires, the store-wide `CancellationToken` fires \
+                 (`cancel_operations`, `:1256-1267`); `retry` sleeps and keyed-lock waits hold child tokens \
+                 from `SurrealStorage::cancellation_token()` (`:1115-1120`) and return the closed-store error. \
+                 Work already blocked inside the engine is not interruptible and is awaited instead \
+                 (`:1238-1244`); the engine transaction timeout below caps that wait.\n\
+                 4. Close: `close_client` runs a `RETURN true;` barrier under the client write lease, takes and \
+                 drops the sole engine handle (`:1275-1297`), then on Windows proves RocksDB `LOCK` release by \
+                 an exclusive-open probe with 5 ms to 250 ms doubling backoff (`:1300-1347`); non-Windows \
+                 builds yield without that stronger proof (`:1349-1356`). Each caller waits at most \
+                 `shutdown_wait` (`DEFAULT_SHUTDOWN_WAIT` 30 s, `:147`; `with_shutdown_wait_timeout`, zero \
+                 rejected, `:286-299`) and otherwise gets `ShutdownStillInProgress { waited_ms }` while the \
+                 close continues (`:1188-1193`). A retryable barrier failure reinstalls a fresh cancellation \
+                 token and reopens the wrapper for another attempt; a terminal failure after the handle was \
+                 dropped leaves it CLOSED and reports `Shutdown(error)` on every later call (`:1196-1236`).\n\
+                 5. No single statement can hold a lease forever: \
+                 `SurrealStorageConfig::with_engine_timeouts(query, transaction)` \
+                 (`DEFAULT_ENGINE_QUERY_TIMEOUT` 30 s, `DEFAULT_ENGINE_TRANSACTION_TIMEOUT` 60 s, `:153-156`, \
+                 `:323-343`; `None` disables one, zero is rejected) is handed to the embedded datastore at open \
+                 through the SDK `Config::query_timeout`/`transaction_timeout` (`:894-907`; surrealdb-3.2.0 \
+                 `engine/local/native.rs:131-133`, `opt/config.rs:16-17,53-61`; surrealdb-core-3.2.0 \
+                 `dbs/executor.rs:1034-1049` cancels an expired write transaction and `kvs/ds.rs:3951-3953` \
+                 makes the query timeout every query's context deadline). The caller-side `statement_timeout` \
+                 (`DEFAULT_STATEMENT_TIMEOUT` 30 s, `:151-152`; `with_statement_timeout`, `:308-321`) bounds \
+                 one statement attempt and every keyed-lock wait.\n\n\
+                 Reading a `ShutdownReport { drained, cancelled, elapsed }` (`:794-804`; returned by \
+                 `SurrealStorage::shutdown_with_report()`, `:1127-1135`, or read later with \
+                 `last_shutdown_report()`, `:1122-1125`): `drained: bool` = every in-flight lease finished \
+                 within the grace; `cancelled: bool` = the grace expired and the cancellation token fired before \
+                 the remaining engine-bound leases were awaited; `elapsed: Duration` = wall time from the close \
+                 attempt to engine release (the load report copies it to `shutdown_elapsed_ms`). \
+                 `cancelled == true` is not an integrity failure: every acknowledged commit had already \
+                 completed its grouped fsync and is present after reopen; every cancelled or unacknowledged \
+                 transaction is absent as a whole (no partial document/version/projection/ledger state). \
+                 `elapsed` far above `drain_grace`, or a `ShutdownStillInProgress` result, means engine-bound \
+                 statements were still running: report it as a bound finding, do not retry blindly. After \
+                 shutdown, reopen with `SurrealStorage::open` on the same data dir; the lifecycle proof \
+                 (`surreal_swarm_lifecycle_tests`) reconciles acknowledged writes against the reopened store.",
+                json!({
+                    "phases": ["admission_stop", "drain_within_drain_grace", "cancel_cooperative_work", "barrier_drop_handle_prove_lock_release", "close"],
+                    "shutdown_wait_default_ms": 30000,
+                    "drain_grace_default_ms": 5000,
+                    "statement_timeout_default_ms": 30000,
+                    "engine_query_timeout_default_ms": 30000,
+                    "engine_transaction_timeout_default_ms": 60000,
+                    "report": {
+                        "type": "ShutdownReport",
+                        "fields": ["drained", "cancelled", "elapsed"],
+                        "field_types": {"drained": "bool", "cancelled": "bool", "elapsed": "Duration"},
+                        "accessors": ["SurrealStorage::shutdown_with_report", "SurrealStorage::last_shutdown_report"]
+                    },
+                    "post_shutdown_operation_error": "SurrealStorageError::Closed",
+                    "runtime_symbols": [
+                        "SurrealStorage::shutdown",
+                        "SurrealStorage::shutdown_with_report",
+                        "SurrealStorage::last_shutdown_report",
+                        "SurrealStorage::cancellation_token",
+                        "SurrealStorageError::Closed",
+                        "SurrealStorageError::ReentrantShutdown",
+                        "SurrealStorageError::ShutdownStillInProgress",
+                        "SurrealStorageError::StatementTimeout",
+                        "SurrealStorageConfig::with_shutdown_wait_timeout",
+                        "SurrealStorageConfig::with_drain_grace",
+                        "SurrealStorageConfig::with_statement_timeout",
+                        "SurrealStorageConfig::with_engine_timeouts",
+                        "DEFAULT_SHUTDOWN_WAIT",
+                        "DEFAULT_DRAIN_GRACE",
+                        "DEFAULT_STATEMENT_TIMEOUT",
+                        "DEFAULT_ENGINE_QUERY_TIMEOUT",
+                        "DEFAULT_ENGINE_TRANSACTION_TIMEOUT",
+                        "ShutdownReport",
+                        "SurrealDatabase::with_lock_registry",
+                        "SurrealDatabase::lock_registry",
+                        "RETRY_EXHAUSTED_CONFLICT_CODE",
+                        "LOCK_WAIT_TIMEOUT_CONFLICT_CODE"
+                    ]
+                }),
+            ),
+            section_with_json(
+                "workflows",
+                "Running the deterministic CI profile and the extended local profile",
+                &load_profiles_md,
+                json!({
+                    "features": "surreal-test-support,test-utils",
+                    "commands": [
+                        {"profile": "ci_deterministic", "target": LOAD_TARGET, "test_filter": CI_TEST, "command": ci_command,
+                         "workers": 16, "operations": 2000, "timeouts_ms": {"per_operation": 5000, "per_worker": 60000, "whole_test": 180000},
+                         "report_file": "swarm-load-ci-<run_id>.json"},
+                        {"profile": "extended_local", "target": LOAD_TARGET, "test_filter": EXTENDED_TEST, "command": extended_command,
+                         "workers_min": 64, "operations_min": 50000, "dataset_records_min": 5000, "timeouts_ms": {"whole_test": 1800000},
+                         "gate": "HANDSHAKE_SWARM_EXTENDED=1", "not_run_marker": "SWARM_EXTENDED=NOT_RUN_UNCONFIGURED",
+                         "report_file": "swarm-load-extended-<run_id>.json", "memory_file": "swarm-load-extended-<run_id>-memory.json"},
+                        {"profile": "semantics", "target": SEMANTICS_TARGET, "test_filter": null, "command": semantics_command},
+                        {"profile": "lifecycle", "target": LIFECYCLE_TARGET, "test_filter": null, "command": lifecycle_command}
+                    ],
+                    "env_vars": [
+                        {"name": "HANDSHAKE_ARTIFACTS_ROOT", "value": "absolute _Artifacts root", "read_by_swarm_tests": true, "consumer": "src/storage/tests.rs"},
+                        {"name": "HANDSHAKE_WORKSPACE_ROOT", "value": "run-scoped directory", "read_by_swarm_tests": false, "consumer": "src/storage/mod.rs"},
+                        {"name": "HANDSHAKE_SWARM_LOAD_REPORT_DIR", "value": "report directory", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_SEED", "value": "u64 workload seed", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_EXTENDED", "value": "1 enables the extended profile", "read_by_swarm_tests": true}
+                    ],
+                    "printed_markers": ["SWARM_LOAD_REPORT=", "SWARM_EXTENDED=NOT_RUN_UNCONFIGURED", "swarm-load-", "swarm-load-extended-", "-memory.json"],
+                    "report_dir_fallback": "<HANDSHAKE_ARTIFACTS_ROOT>/handshake-test/swarm-load/"
+                }),
+            ),
+            section_with_json(
+                "schema",
+                "Reading hsk.surreal_swarm_load_report@1",
+                "The report is the JSON serialization of `SwarmLoadReport` \
+                 (`storage/surreal/swarm_load_report.rs:181-216`). First run `SwarmLoadReport::validate` \
+                 (`:218-262`) or apply the same rules by hand; a report that fails them is not evidence. Then \
+                 read the fields in this order:\n\
+                 - `schema_id` must equal `hsk.surreal_swarm_load_report@1` (`:28`).\n\
+                 - `integrity_verdict`: `pass` (valid only with non-empty `reopen_integrity_counts_and_hashes`, \
+                 `:290-297`); `lost_write`, `duplicate_effect`, `partial_commit`, `dirty_read` (correctness \
+                 failures); `retry_exhausted`, `timeout`, `cancelled` (bound failures); `not_run` (`:85-95`). \
+                 Anything but `pass` is a failed proof.\n\
+                 - `reopen_integrity_counts_and_hashes`: per table `{ row_count, content_hash }` measured after \
+                 real shutdown and reopen (`:165-169`, `:211-212`).\n\
+                 - `retry_exhaustion_count`, `timeout_count`, `cancellation_count`: non-zero values classify the \
+                 run as retry-exhausted, timed out or cancelled even when the integrity counts reconcile; in the \
+                 CI profile a timeout fails the test (contract `load_profiles.ci_deterministic.hard_bound`). \
+                 Report them with their class counts; never fold them into a pass.\n\
+                 - `failed_by_operation_and_class`: failures per operation class split into `terminal`, \
+                 `retry_exhausted`, `timeout`, `cancelled`, `lock_wait_timeout` (`:57-65`).\n\
+                 - `operation_mix`: every required class (`point_read`, `range_or_search_query`, `create`, \
+                 `idempotent_upsert`, `optimistic_versioned_update`, `delete`, \
+                 `multi_record_projection_or_ledger_transaction`, `:30-40`) with its `share` and `status` \
+                 `run`/`not_run`; a class marked `run` must have `attempted_by_operation > 0` (`:264-287`). A \
+                 class silently missing or at zero is a defective run, not a pass.\n\
+                 - `attempted_by_operation`, `succeeded_by_operation`: counts per class; succeeded can never \
+                 exceed attempted.\n\
+                 - `conflict_count`, `conflict_rate`, `retry_count`, `retry_rate`: every rate is \
+                 `{ numerator, denominator, rate }` with `denominator > 0` and `rate = numerator / denominator` \
+                 (`:130-150`, `:331-343`); never read `rate` without its numerator and denominator.\n\
+                 - `lock_wait_ms_p50_p95_p99` and `latency_ms_p50_p95_p99_by_operation`: either \
+                 `{ \"status\": \"measured\", p50_ms, p95_ms, p99_ms, sample_count }` with `sample_count > 0`, or \
+                 `{ \"status\": \"not_run\" }` (`:113-128`, `:317-329`). `not_run` means no samples; it is NOT a \
+                 zero-latency pass, and `measured` with `sample_count` 0 is invalid. Percentiles are \
+                 nearest-rank (`:383-403`).\n\
+                 - `maximum_concurrent_operations`: in-flight high-water mark; a value below 2 means the \
+                 workers were globally serialized and the run proves nothing about parallelism.\n\
+                 - `throughput_operations_per_second`, `shutdown_elapsed_ms`: record; compare only against runs \
+                 with the same `machine_context` and `engine_mode`.\n\
+                 - `engine_mode`: `embedded_rocks_db` (the only shipped mode) or `remote` (`:67-74`).\n\
+                 - `remote_proof_status`: `not_run_unconfigured`, `pass`, `fail` (`:97-103`). \
+                 `not_run_unconfigured` is never a PASS and never counts as remote evidence; `pass` is valid \
+                 only with `engine_mode` `remote` (`:298-302`).\n\
+                 - `run_id`, `source_commit`, `surrealdb_version`, `sdk_version`, `workload_seed`, \
+                 `worker_count`, `operation_count`, `dataset_cardinality` `{ records, workspaces }`, \
+                 `contention_ratio` (0..=1): identify and reproduce the run.\n\
+                 - `machine_context` `{ cpu_model, logical_cpus, total_memory_bytes, store_drive_kind \
+                 (hdd|ssd|unknown), os }`: absolute latency is meaningful only on the same machine class.\n\
+                 - No string may contain `C:\\Users`, `C:/Users`, `/home/`, `/Users/`, `password` or `token=`; \
+                 validation rejects the report otherwise (`:42-43`, `:305-381`).\n\n\
+                 Decision procedure for a no-context model: (1) validate; (2) `integrity_verdict == pass`; \
+                 (3) read `retry_exhaustion_count`, `timeout_count`, `cancellation_count` and the \
+                 `failed_by_operation_and_class` classes; (4) every required class attempted > 0 and no \
+                 `not_run` percentile for a class that ran; (5) `maximum_concurrent_operations >= 2`; \
+                 (6) `remote_proof_status` is `not_run_unconfigured` for every embedded run - report it as such, \
+                 never as pass.",
+                json!({
+                    "schema_id": "hsk.surreal_swarm_load_report@1",
+                    "validator": "SwarmLoadReport::validate",
+                    "fields": [
+                        "schema_id", "run_id", "source_commit", "surrealdb_version", "sdk_version", "engine_mode",
+                        "workload_seed", "worker_count", "operation_count", "dataset_cardinality", "operation_mix",
+                        "contention_ratio", "attempted_by_operation", "succeeded_by_operation",
+                        "failed_by_operation_and_class", "conflict_count", "conflict_rate", "retry_count", "retry_rate",
+                        "retry_exhaustion_count", "lock_wait_ms_p50_p95_p99", "latency_ms_p50_p95_p99_by_operation",
+                        "throughput_operations_per_second", "maximum_concurrent_operations", "timeout_count",
+                        "cancellation_count", "shutdown_elapsed_ms", "reopen_integrity_counts_and_hashes",
+                        "integrity_verdict", "remote_proof_status", "machine_context"
+                    ],
+                    "integrity_verdict": ["pass", "lost_write", "duplicate_effect", "partial_commit", "dirty_read", "retry_exhausted", "timeout", "cancelled", "not_run"],
+                    "remote_proof_status": ["not_run_unconfigured", "pass", "fail"],
+                    "failure_classes": ["terminal", "retry_exhausted", "timeout", "cancelled", "lock_wait_timeout"],
+                    "engine_mode": ["embedded_rocks_db", "remote"],
+                    "percentile_status": ["measured", "not_run"],
+                    "rules": [
+                        "not_run percentile is not a zero-latency pass",
+                        "rates carry numerator and denominator",
+                        "not_run_unconfigured is never a PASS",
+                        "no user-profile paths or credential-looking strings"
+                    ]
+                }),
+            ),
+            section_with_json(
+                "purpose",
+                "Current embedded proof versus future configured remote proof",
+                "Current proof (every MT-142 run): `engine_mode` `embedded_rocks_db`, one in-process engine, \
+                 workers are cloned wrappers, independent clients are two wrappers over that one engine \
+                 without a shared keyed-lock registry. It proves transaction-owned correctness, bounded retry \
+                 and bounded shutdown for the embedded single-owner topology and nothing about network \
+                 clients, multiple processes or multiple nodes; `remote_proof_status` is \
+                 `not_run_unconfigured`.\n\n\
+                 Future remote proof (not run, not configured, no default): a configured remote WS/HTTP \
+                 endpoint would receive the typed `QueryError::TransactionConflict` (wire code -32009) for \
+                 commit conflicts, client-side transactions are unavailable over HTTP, and the \
+                 `BEGIN ... COMMIT` query-string pattern and the typed-first classifier work unchanged \
+                 (research basis `validation_plan.future_remote_behavior_distinguished`, labelled ASSUMPTION \
+                 until a configured endpoint run exists). Only such a run may set `remote_proof_status` to \
+                 `pass` or `fail`, and only with `engine_mode` `remote`. Do not derive any remote claim from an \
+                 embedded report, and do not simulate a remote topology by opening the same store path twice.",
+                json!({
+                    "current": {"engine_mode": "embedded_rocks_db", "remote_proof_status": "not_run_unconfigured", "independent_clients": "two wrappers over one engine, no shared registry"},
+                    "future_remote": {"engine_mode": "remote", "status_values": ["pass", "fail"], "requires": "configured endpoint run", "label": "ASSUMPTION until run"},
+                    "forbidden": ["deriving remote claims from embedded reports", "opening the same store path twice as a remote simulation"]
+                }),
+            ),
+            section(
+                "recovery",
+                "Recovery",
+                "1. `409` with `detail` `HSK-STORAGE-RETRY-EXHAUSTED`: the write was not applied; read the \
+                 record, back off, and retry from the caller with the same idempotency key or a fresh \
+                 `expected_version`.\n\
+                 2. `409` with `detail` `HSK-STORAGE-LOCK-WAIT-TIMEOUT`: a keyed-lock wait outlived the \
+                 statement timeout; nothing was written; retry from the caller once the holder finishes.\n\
+                 3. `StatementTimeout`: the attempt's outcome is unknown; read the record before deciding to \
+                 resend.\n\
+                 4. `409` `expected_version is stale`: re-read, rebase, resend; never loop without re-reading.\n\
+                 5. `embedded database is closed`: the backend is shutting down or closed; wait for the \
+                 restart, then re-issue.\n\
+                 6. `ShutdownStillInProgress`: the close continues in the background; do not start another \
+                 backend on the same `HANDSHAKE_DATA_DIR` until `SurrealStorage::open` succeeds on it.\n\
+                 7. `IO error: Failed to create lock file`: another engine holds `<store>/LOCK`; stop that \
+                 process instead of deleting the store or the `LOCK` file.\n\
+                 8. `integrity_verdict` other than `pass`: preserve the run's store and report, record \
+                 `run_id`, `workload_seed`, `source_commit`, and reproduce with the same `HANDSHAKE_SWARM_SEED` \
+                 before changing code.",
+            ),
+        ],
+        anchors: vec![
+            page_link("embedded-store-recovery"),
+            page_link("atelier-storage-authority"),
             page_link("startup-and-run-commands"),
             page_link("state-recovery-guide"),
         ],
@@ -2576,16 +3139,18 @@ mod tests {
         );
         assert_eq!(
             predecessor_transition["registry_rewrite"].as_str(),
-            Some("61_historical_migration_file_rows_to_62_current_schema_source_rows")
+            // MT-142 re-pin: the title-anchor registry row makes the current registry 63 rows.
+            Some("61_historical_migration_file_rows_to_63_current_schema_source_rows")
         );
         for required in [
             "schema.surql",
             "exact_source_bytes_sha256",
             "parsed_declarative_catalog_sha256",
             "live_engine_catalog_sha256",
-            "281 tables",
-            "3,313 authored fields",
-            "793 indexes",
+            // MT-142 re-pin: knowledge_rich_document_title_anchors (+1 table, +7 fields, +2 indexes).
+            "282 tables",
+            "3,320 authored fields",
+            "795 indexes",
             "19 events",
             "surrealdb_3_2_0",
             "close/reopen",
@@ -2594,6 +3159,553 @@ mod tests {
             assert!(
                 body.contains(required),
                 "missing MT-139 manual text: {required}"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // MT-142 (AC-142-11, PT-142-10): the swarm page is pinned to the code.
+    // -----------------------------------------------------------------------
+
+    fn mt142_page() -> NewUserManualPage {
+        seed_corpus()
+            .pages
+            .into_iter()
+            .find(|page| page.slug == SURREAL_SWARM_PAGE_SLUG)
+            .expect("MT-142 swarm concurrency page")
+    }
+
+    fn mt142_body(page: &NewUserManualPage) -> String {
+        page.sections
+            .iter()
+            .map(|section| section.body_md.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn mt142_section_json<'a>(page: &'a NewUserManualPage, title: &str) -> &'a serde_json::Value {
+        page.sections
+            .iter()
+            .find(|section| section.title == title)
+            .and_then(|section| section.body_json.as_ref())
+            .unwrap_or_else(|| panic!("MT-142 section '{title}' must carry body_json"))
+    }
+
+    fn mt142_crate_root() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    }
+
+    fn mt142_read(path: &std::path::Path) -> String {
+        std::fs::read_to_string(path)
+            .unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
+    }
+
+    /// `pub <name>:` fields of the struct whose declaration line is `header`.
+    fn mt142_struct_fields(source: &str, header: &str) -> Vec<String> {
+        let mut fields = Vec::new();
+        let mut inside = false;
+        for line in source.lines() {
+            let trimmed = line.trim();
+            if !inside {
+                inside = trimmed == header;
+                continue;
+            }
+            if trimmed == "}" {
+                break;
+            }
+            if let Some((name, _)) = trimmed
+                .strip_prefix("pub ")
+                .and_then(|rest| rest.split_once(':'))
+            {
+                fields.push(name.trim().to_string());
+            }
+        }
+        assert!(!fields.is_empty(), "no fields parsed under `{header}`");
+        fields
+    }
+
+    /// Variant names of the enum whose declaration line is `header`.
+    fn mt142_enum_variants(source: &str, header: &str) -> Vec<String> {
+        let mut variants = Vec::new();
+        let mut inside = false;
+        for line in source.lines() {
+            let trimmed = line.trim();
+            if !inside {
+                inside = trimmed == header;
+                continue;
+            }
+            if trimmed == "}" {
+                break;
+            }
+            if trimmed.is_empty() || trimmed.starts_with("//") || trimmed.starts_with("#[") {
+                continue;
+            }
+            let name: String = trimmed
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !name.is_empty() {
+                variants.push(name);
+            }
+        }
+        assert!(!variants.is_empty(), "no variants parsed under `{header}`");
+        variants
+    }
+
+    /// serde `rename_all = "snake_case"` spelling of a CamelCase variant name.
+    fn mt142_snake(name: &str) -> String {
+        let mut out = String::new();
+        for (index, ch) in name.chars().enumerate() {
+            if ch.is_ascii_uppercase() {
+                if index > 0 {
+                    out.push('_');
+                }
+                out.push(ch.to_ascii_lowercase());
+            } else {
+                out.push(ch);
+            }
+        }
+        out
+    }
+
+    /// Lane B swarm test sources: `tests/surreal_swarm_*.rs`, everything under
+    /// `tests/swarm_support/`, the modules those files include through
+    /// `mod x;` / `#[path = ".."] mod x;` (transitively), and the canonical
+    /// embedded fixture `src/storage/tests.rs` when the corpus opens it through
+    /// `embedded_test_backend`.
+    fn mt142_swarm_test_corpus() -> (Vec<std::path::PathBuf>, String) {
+        fn canonical(path: &std::path::Path) -> std::path::PathBuf {
+            dunce::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+        }
+        fn push_rs_files(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+            let Ok(entries) = std::fs::read_dir(dir) else {
+                return;
+            };
+            let mut paths: Vec<_> = entries.flatten().map(|entry| entry.path()).collect();
+            paths.sort();
+            for path in paths {
+                if path.is_dir() {
+                    push_rs_files(&path, files);
+                } else if path.extension().is_some_and(|ext| ext == "rs") {
+                    let path = canonical(&path);
+                    if !files.contains(&path) {
+                        files.push(path);
+                    }
+                }
+            }
+        }
+
+        let crate_root = mt142_crate_root();
+        let tests_dir = crate_root.join("tests");
+        let mut files: Vec<std::path::PathBuf> = Vec::new();
+        let mut roots: Vec<_> = std::fs::read_dir(&tests_dir)
+            .expect("read tests/")
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.is_file()
+                    && path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .is_some_and(|name| {
+                            name.starts_with("surreal_swarm_") && name.ends_with(".rs")
+                        })
+            })
+            .collect();
+        roots.sort();
+        for root in roots {
+            files.push(canonical(&root));
+        }
+        push_rs_files(&tests_dir.join("swarm_support"), &mut files);
+
+        let mut index = 0;
+        while index < files.len() {
+            let file = files[index].clone();
+            let dir = file.parent().expect("test file parent").to_path_buf();
+            let source = mt142_read(&file);
+            let mut pending_path: Option<String> = None;
+            for line in source.lines() {
+                let trimmed = line.trim();
+                if let Some(rest) = trimmed.strip_prefix("#[path = \"") {
+                    pending_path = rest.split('"').next().map(str::to_string);
+                    continue;
+                }
+                if trimmed.starts_with("#[") || trimmed.starts_with("#![") {
+                    continue;
+                }
+                let declaration = trimmed.strip_prefix("pub ").unwrap_or(trimmed);
+                let Some(rest) = declaration.strip_prefix("mod ") else {
+                    pending_path = None;
+                    continue;
+                };
+                let name = rest.trim_end_matches(';').trim();
+                if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                    pending_path = None;
+                    continue;
+                }
+                let candidates = match pending_path.take() {
+                    Some(relative) => vec![dir.join(relative)],
+                    None => vec![dir.join(format!("{name}.rs")), dir.join(name).join("mod.rs")],
+                };
+                for candidate in candidates {
+                    if candidate.is_file() {
+                        let candidate = canonical(&candidate);
+                        if !files.contains(&candidate) {
+                            files.push(candidate);
+                        }
+                    }
+                }
+            }
+            index += 1;
+        }
+
+        let mut text = files
+            .iter()
+            .map(|file| mt142_read(file))
+            .collect::<Vec<_>>()
+            .join("\n");
+        if text.contains("embedded_test_backend") {
+            let fixture = canonical(&crate_root.join("src/storage/tests.rs"));
+            text.push('\n');
+            text.push_str(&mt142_read(&fixture));
+            files.push(fixture);
+        }
+        (files, text)
+    }
+
+    /// MT-142 (AC-142-11, PT-142-10) self-consistency: the swarm page exists
+    /// under its slug, names every `SwarmLoadReport` field and verdict
+    /// vocabulary read from `storage/surreal/swarm_load_report.rs` (never a
+    /// copied list), states `RetryPolicy::CONTRACT` and its schedule, both
+    /// load-profile commands, the retry-exhaustion conflict code, the
+    /// multi-process prohibition, and the shutdown defaults from the code.
+    #[test]
+    fn mt142_manual_covers_surreal_swarm_concurrency_and_load() {
+        use crate::storage::surreal::keyed_lock::KeyedLockRegistry;
+        use crate::storage::surreal::retry::RetryPolicy;
+        use crate::storage::surreal::swarm_load_report::{
+            EngineMode, RemoteProofStatus, REQUIRED_OPERATION_CLASSES, SWARM_LOAD_REPORT_SCHEMA_ID,
+        };
+        use crate::storage::surreal::{
+            DEFAULT_DRAIN_GRACE, DEFAULT_ENGINE_QUERY_TIMEOUT, DEFAULT_ENGINE_TRANSACTION_TIMEOUT,
+            DEFAULT_SHUTDOWN_WAIT, DEFAULT_STATEMENT_TIMEOUT,
+        };
+
+        let corpus = seed_corpus();
+        let toc = corpus
+            .pages
+            .iter()
+            .find(|page| page.slug == "manual-toc")
+            .expect("manual-toc");
+        assert!(
+            toc.anchors.iter().any(|anchor| {
+                anchor.anchor_kind == "page_link" && anchor.anchor_value == SURREAL_SWARM_PAGE_SLUG
+            }),
+            "manual-toc must link {SURREAL_SWARM_PAGE_SLUG}"
+        );
+        let page = mt142_page();
+        assert_eq!(page.page_kind, "surface_guide");
+        let body = mt142_body(&page);
+
+        // Report fields come from the schema source so a field added, renamed
+        // or removed by the storage lane fails this test.
+        let report_source = mt142_read(&mt142_crate_root().join("src/storage/surreal/swarm_load_report.rs"));
+        let fields = mt142_struct_fields(&report_source, "pub struct SwarmLoadReport {");
+        assert!(
+            fields.len() >= 31,
+            "SwarmLoadReport has {} fields; the contract lists 30 plus machine_context",
+            fields.len()
+        );
+        let report_json = mt142_section_json(&page, "Reading hsk.surreal_swarm_load_report@1");
+        let documented: Vec<&str> = report_json["fields"]
+            .as_array()
+            .expect("fields array")
+            .iter()
+            .map(|value| value.as_str().expect("field name"))
+            .collect();
+        for field in &fields {
+            assert!(
+                body.contains(&format!("`{field}`")),
+                "missing MT-142 manual text for report field: {field}"
+            );
+            assert!(
+                documented.contains(&field.as_str()),
+                "body_json fields list lacks report field {field}"
+            );
+        }
+        for field in &documented {
+            assert!(
+                fields.iter().any(|actual| actual == field),
+                "page documents phantom report field {field}"
+            );
+        }
+        assert!(body.contains(SWARM_LOAD_REPORT_SCHEMA_ID));
+        assert_eq!(report_json["schema_id"], SWARM_LOAD_REPORT_SCHEMA_ID);
+
+        // Verdict vocabularies come from the enum sources; the snake_case
+        // converter is pinned to serde's own rendering first.
+        assert_eq!(
+            serde_json::to_value(RemoteProofStatus::NotRunUnconfigured).expect("serializes"),
+            mt142_snake("NotRunUnconfigured")
+        );
+        assert_eq!(
+            serde_json::to_value(EngineMode::EmbeddedRocksDb).expect("serializes"),
+            mt142_snake("EmbeddedRocksDb")
+        );
+        for (header, json_key) in [
+            ("pub enum IntegrityVerdict {", "integrity_verdict"),
+            ("pub enum RemoteProofStatus {", "remote_proof_status"),
+            ("pub enum FailureClass {", "failure_classes"),
+            ("pub enum EngineMode {", "engine_mode"),
+        ] {
+            let variants = mt142_enum_variants(&report_source, header);
+            let listed = report_json[json_key].as_array().expect(json_key);
+            assert_eq!(
+                listed.len(),
+                variants.len(),
+                "body_json {json_key} drifted from `{header}`"
+            );
+            for variant in variants {
+                let snake = mt142_snake(&variant);
+                assert!(
+                    body.contains(&format!("`{snake}`")),
+                    "missing MT-142 manual text for {json_key} value: {snake}"
+                );
+                assert!(
+                    listed.iter().any(|value| value.as_str() == Some(snake.as_str())),
+                    "body_json {json_key} lacks {snake}"
+                );
+            }
+        }
+        for class in REQUIRED_OPERATION_CLASSES {
+            let name = serde_json::to_value(class).expect("serializes");
+            let name = name.as_str().expect("snake_case class name");
+            assert!(
+                body.contains(&format!("`{name}`")),
+                "missing MT-142 manual text for required operation class: {name}"
+            );
+        }
+
+        // Retry policy numbers and schedule come from the code constant.
+        let policy = RetryPolicy::CONTRACT;
+        let retry_json = &mt142_section_json(&page, "Contention, retry, and retry exhaustion")["retry_policy"];
+        let millis = |duration: std::time::Duration| u64::try_from(duration.as_millis()).expect("fits u64");
+        assert_eq!(retry_json["base_delay_ms"].as_u64(), Some(millis(policy.base_delay)));
+        assert_eq!(retry_json["maximum_delay_ms"].as_u64(), Some(millis(policy.maximum_delay)));
+        assert_eq!(retry_json["maximum_attempts"].as_u64(), Some(u64::from(policy.maximum_attempts)));
+        assert_eq!(retry_json["maximum_elapsed_ms"].as_u64(), Some(millis(policy.maximum_elapsed)));
+        let schedule: Vec<u64> = (0..policy.effective_maximum_attempts().saturating_sub(1))
+            .map(|retry_index| millis(policy.backoff_upper_bound(retry_index)))
+            .collect();
+        let documented_schedule: Vec<u64> = retry_json["sleep_upper_bounds_ms"]
+            .as_array()
+            .expect("sleep_upper_bounds_ms")
+            .iter()
+            .map(|value| value.as_u64().expect("ms"))
+            .collect();
+        assert_eq!(documented_schedule, schedule, "documented sleep schedule drifted");
+        assert_eq!(
+            retry_json["worst_case_sleep_sum_ms"].as_u64(),
+            Some(schedule.iter().sum::<u64>())
+        );
+        let schedule_text = schedule
+            .iter()
+            .map(u64::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        for required in [
+            format!("{} ms base delay", millis(policy.base_delay)),
+            format!("{} ms cap", millis(policy.maximum_delay)),
+            format!("{} attempts", policy.maximum_attempts),
+            format!("{} ms maximum elapsed", millis(policy.maximum_elapsed)),
+            format!("{schedule_text} ms"),
+            format!("worst case {} ms of sleep", schedule.iter().sum::<u64>()),
+            "full jitter".to_string(),
+        ] {
+            assert!(body.contains(&required), "missing MT-142 manual text: {required}");
+        }
+
+        // Codes, commands, prohibitions, report rules, shutdown symbols.
+        for required in [
+            "HSK-STORAGE-RETRY-EXHAUSTED",
+            "HSK-KRD-SAVE-STALE",
+            "HSK-KIDEM-RACE",
+            "HSK-STORAGE-LOCK-WAIT-TIMEOUT",
+            "StatementTimeout",
+            "knowledge_rich_document_title_anchors",
+            "surrealdb 3.2.0",
+            "A second process on the same store path is NOT supported",
+            "a second embedded engine on the same path inside this process is NOT supported",
+            "never describe them, or any same-path second engine, as distributed concurrency or as a distributed proof",
+            "do not simulate a remote topology by opening the same store path twice",
+            "`not_run` means no samples; it is NOT a zero-latency pass",
+            "`{ numerator, denominator, rate }`",
+            "never read `rate` without its numerator and denominator",
+            "`not_run_unconfigured` is never a PASS",
+            "`measured`",
+            "ShutdownReport { drained, cancelled, elapsed }",
+            "RICH_DOCUMENT_MUTATION_LOCK",
+            "KNOWLEDGE_UPSERT_LOCK",
+            "HANDSHAKE_SWARM_EXTENDED=1",
+            "HANDSHAKE_SWARM_SEED",
+            "HANDSHAKE_SWARM_LOAD_REPORT_DIR",
+            "HANDSHAKE_ARTIFACTS_ROOT",
+            "HANDSHAKE_WORKSPACE_ROOT",
+        ] {
+            assert!(body.contains(required), "missing MT-142 manual text: {required}");
+        }
+        let runbook = mt142_section_json(
+            &page,
+            "Running the deterministic CI profile and the extended local profile",
+        );
+        let commands = runbook["commands"].as_array().expect("commands");
+        for profile in ["ci_deterministic", "extended_local"] {
+            assert!(
+                commands.iter().any(|command| command["profile"] == profile),
+                "missing MT-142 load-profile command: {profile}"
+            );
+        }
+        for command in commands {
+            let text = command["command"].as_str().expect("command string");
+            assert!(text.starts_with("cargo test "), "{text}");
+            assert!(text.contains("--features surreal-test-support,test-utils"), "{text}");
+            assert!(body.contains(text), "command not in the page text verbatim: {text}");
+        }
+        // Shutdown defaults, the ShutdownReport shape and every runtime symbol the
+        // page names come from the storage sources.
+        let shutdown_json = mt142_section_json(&page, "Shutdown under load and the ShutdownReport");
+        for (key, default, symbol) in [
+            ("shutdown_wait_default_ms", DEFAULT_SHUTDOWN_WAIT, "DEFAULT_SHUTDOWN_WAIT"),
+            ("drain_grace_default_ms", DEFAULT_DRAIN_GRACE, "DEFAULT_DRAIN_GRACE"),
+            ("statement_timeout_default_ms", DEFAULT_STATEMENT_TIMEOUT, "DEFAULT_STATEMENT_TIMEOUT"),
+            ("engine_query_timeout_default_ms", DEFAULT_ENGINE_QUERY_TIMEOUT, "DEFAULT_ENGINE_QUERY_TIMEOUT"),
+            (
+                "engine_transaction_timeout_default_ms",
+                DEFAULT_ENGINE_TRANSACTION_TIMEOUT,
+                "DEFAULT_ENGINE_TRANSACTION_TIMEOUT",
+            ),
+        ] {
+            assert_eq!(shutdown_json[key].as_u64(), Some(millis(default)), "body_json {key} drifted");
+            let required = format!("`{symbol}` {} s", default.as_secs());
+            assert!(body.contains(&required), "missing MT-142 manual text: {required}");
+        }
+        let crate_root = mt142_crate_root();
+        let surreal_source = mt142_read(&crate_root.join("src/storage/surreal.rs"));
+        let report_fields = mt142_struct_fields(&surreal_source, "pub struct ShutdownReport {");
+        let documented_report_fields: Vec<&str> = shutdown_json["report"]["fields"]
+            .as_array()
+            .expect("report fields")
+            .iter()
+            .map(|value| value.as_str().expect("field name"))
+            .collect();
+        assert_eq!(documented_report_fields, report_fields, "ShutdownReport fields drifted");
+        for field in &report_fields {
+            assert!(
+                body.contains(&format!("`{field}")),
+                "missing MT-142 manual text for ShutdownReport field: {field}"
+            );
+        }
+        let storage_sources = [
+            surreal_source,
+            mt142_read(&crate_root.join("src/storage/surreal/database.rs")),
+            mt142_read(&crate_root.join("src/storage/surreal/knowledge.rs")),
+        ]
+        .join("\n");
+        for symbol in shutdown_json["runtime_symbols"].as_array().expect("runtime_symbols") {
+            let symbol = symbol.as_str().expect("symbol");
+            let leaf = symbol.rsplit("::").next().expect("symbol leaf");
+            assert!(
+                storage_sources.contains(leaf),
+                "storage sources no longer define {symbol}; update the MT-142 manual"
+            );
+            assert!(body.contains(leaf), "manual text does not name runtime symbol {symbol}");
+        }
+        for code in ["HSK-STORAGE-RETRY-EXHAUSTED", "HSK-STORAGE-LOCK-WAIT-TIMEOUT"] {
+            assert!(
+                storage_sources.contains(&format!("\"{code}\"")),
+                "storage sources no longer define conflict code {code}"
+            );
+        }
+        let swarm_json = mt142_section_json(&page, "Safe parallel swarm use");
+        assert_eq!(
+            swarm_json["keyed_lock"]["idle_entry_bound"].as_u64(),
+            Some(u64::try_from(KeyedLockRegistry::keyed().entry_count()).expect("fits u64"))
+        );
+    }
+
+    /// MT-142 no-context runbook: every command the page documents names a
+    /// `tests/<target>.rs` that exists (and, when it names a test, that test
+    /// fn is defined there); every env var the page names is read by the swarm
+    /// test sources (`read_by_swarm_tests`) or by its declared consumer file;
+    /// every printed marker the page teaches a model to look for is emitted by
+    /// those sources.
+    #[test]
+    fn mt142_manual_runbook_targets_and_env_vars_exist() {
+        let page = mt142_page();
+        let body = mt142_body(&page);
+        let runbook = mt142_section_json(
+            &page,
+            "Running the deterministic CI profile and the extended local profile",
+        );
+        let crate_root = mt142_crate_root();
+        let tests_dir = crate_root.join("tests");
+        let (files, corpus) = mt142_swarm_test_corpus();
+        assert!(
+            !files.is_empty(),
+            "no tests/surreal_swarm_*.rs target exists; the runbook documents nothing real"
+        );
+
+        for command in runbook["commands"].as_array().expect("commands") {
+            let target = command["target"].as_str().expect("target");
+            let text = command["command"].as_str().expect("command string");
+            let target_file = tests_dir.join(format!("{target}.rs"));
+            assert!(
+                target_file.is_file(),
+                "documented target {target} has no {}",
+                target_file.display()
+            );
+            assert!(
+                text.contains(&format!("--test {target} ")),
+                "command does not run --test {target}: {text}"
+            );
+            assert!(body.contains(text), "command not in the page text verbatim: {text}");
+            if let Some(filter) = command["test_filter"].as_str() {
+                let source = mt142_read(&target_file);
+                assert!(
+                    source.contains(&format!("fn {filter}(")),
+                    "{target}.rs defines no test fn {filter}"
+                );
+                assert!(
+                    text.contains(&format!(" {filter} ")),
+                    "command does not select {filter}: {text}"
+                );
+            }
+        }
+
+        for env in runbook["env_vars"].as_array().expect("env_vars") {
+            let name = env["name"].as_str().expect("env var name");
+            assert!(body.contains(name), "env var {name} not named in the page text");
+            if env["read_by_swarm_tests"].as_bool() == Some(true) {
+                assert!(
+                    corpus.contains(name),
+                    "{name} is documented as swarm-test input but no swarm test source reads it; sources: {files:?}"
+                );
+            }
+            if let Some(consumer) = env["consumer"].as_str() {
+                let consumer_source = mt142_read(&crate_root.join(consumer));
+                assert!(
+                    consumer_source.contains(name),
+                    "documented consumer {consumer} does not read {name}"
+                );
+            }
+        }
+
+        for marker in runbook["printed_markers"].as_array().expect("printed_markers") {
+            let marker = marker.as_str().expect("marker");
+            assert!(body.contains(marker), "marker {marker} not in the page text");
+            assert!(
+                corpus.contains(marker),
+                "swarm test sources neither print nor write documented marker {marker}; sources: {files:?}"
             );
         }
     }

@@ -10,24 +10,35 @@
 //!    they stay crash-atomic. Conditional guards inside those transactions
 //!    `THROW` module-scoped `HSK-…` codes which map to typed [`StorageError`]
 //!    values.
-//! 2. The embedded RocksDB store is single-process by construction (the
-//!    engine's `LOCK` file enforces it), so a process-local async mutex
-//!    ([`RICH_DOCUMENT_MUTATION_LOCK`]) serializes rich-document mutation
-//!    paths.
+//! 2. Concurrency is owned by the committing transaction (MT-142 AC-142-2):
+//!    RocksDB optimistic transactions detect every write-write race at commit
+//!    and the guards above revalidate each decision inside the write set, so
+//!    no process-local mutex serializes writers. Same-key writers are shaped
+//!    by the optional per-[`SurrealDatabase`] keyed-lock registry
+//!    (`storage::surreal::keyed_lock`) and engine commit conflicts are absorbed
+//!    by the bounded full-jitter retry in `storage::surreal::retry`; a wrapper
+//!    whose registry is disabled stays correct.
 //! 3. Affected-row detection uses `RETURN AFTER` row counts: a conditional
 //!    `UPDATE` that matched nothing yields zero rows, which is the lost-race
 //!    signal (mirrors `rows_affected`).
 
-use std::collections::{BTreeSet, HashMap, HashSet};
 #[cfg(any(test, feature = "surreal-test-support"))]
-use std::{cell::Cell, future::Future};
+use std::cell::Cell;
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::future::Future;
+use std::sync::LazyLock;
+use std::time::Instant;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::Value as JsonValue;
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue, Value as SurrealValueData};
-use tokio::sync::Mutex;
 
+use super::keyed_lock::{LockKey, LockWaitTimeout};
+use super::retry::{
+    classify_storage_error, is_unique_index_violation, retry, Replay, RetryClass, RetryContext,
+    RetryError, RetryPolicy, SystemJitter, TokioClock,
+};
 use super::{schema::parse_named_array, SurrealDatabase, SurrealStorage, SurrealStorageError};
 use crate::kernel::{KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
@@ -77,18 +88,147 @@ const KNOWLEDGE_ENTITY_SPANS_TABLE: &str = "knowledge_entity_spans";
 const KNOWLEDGE_EDGES_TABLE: &str = "knowledge_edges";
 const KNOWLEDGE_WIKI_PROJECTIONS_TABLE: &str = "knowledge_wiki_projections";
 
-/// Serializes rich-document read-decide-write mutation paths inside the
-/// single-process embedded store. One process-local mutex provides the needed
-/// serialization guarantee (coarser, and therefore strictly safe).
-static RICH_DOCUMENT_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
-/// Serializes identity-based knowledge upserts whose unique key is discovered
-/// before creating a generated record id. This closes the select/create race
-/// between parallel in-process agents while retaining the existing ids and
-/// update semantics.
-static KNOWLEDGE_UPSERT_LOCK: Mutex<()> = Mutex::const_new(());
+/// Typed 409-class code returned when engine-level conflicts exhausted the
+/// bounded MT-142 retry budget (research basis
+/// `selected_design.retry_policy.exhaustion`; D-142-2 keeps `StorageError`
+/// unchanged, so the existing `ConflictDetails` variant carries it).
+pub const RETRY_EXHAUSTED_CONFLICT_CODE: &str = "HSK-STORAGE-RETRY-EXHAUSTED";
+/// Typed 409-class code returned when an optional keyed-lock wait exceeded the
+/// configured statement timeout instead of hanging.
+pub const LOCK_WAIT_TIMEOUT_CONFLICT_CODE: &str = "HSK-STORAGE-LOCK-WAIT-TIMEOUT";
+const TITLE_ANCHOR_LOCK_KIND: &str = "rich_document_title";
+
+static RETRY_JITTER: LazyLock<SystemJitter> = LazyLock::new(SystemJitter::new);
 
 fn map_err(error: SurrealStorageError) -> StorageError {
     StorageError::Database(error.to_string())
+}
+
+fn closed_store_error() -> StorageError {
+    map_err(SurrealStorageError::Closed)
+}
+
+/// MT-142 classifier for knowledge writes: engine transaction conflicts are
+/// transient; a unique-index violation on the statement's OWN natural-key
+/// index is a benign snapshot change for an idempotent IF-exists upsert (the
+/// re-run takes the UPDATE branch); everything else, including a violation on
+/// any other index and a statement timeout, is terminal.
+fn classify_knowledge_error(error: &StorageError, own_index: Option<&str>) -> RetryClass {
+    match classify_storage_error(error) {
+        RetryClass::Terminal => match (error, own_index) {
+            (StorageError::Database(message), Some(index))
+                if is_unique_index_violation(message).as_deref() == Some(index) =>
+            {
+                RetryClass::RetryableSnapshotChange
+            }
+            _ => RetryClass::Terminal,
+        },
+        class => class,
+    }
+}
+
+fn retry_error_to_storage(error: RetryError<StorageError>) -> StorageError {
+    match error {
+        RetryError::Terminal { error, .. } => error,
+        RetryError::Exhausted {
+            attempts,
+            elapsed,
+            last,
+            bound,
+        } => StorageError::ConflictDetails {
+            code: RETRY_EXHAUSTED_CONFLICT_CODE,
+            detail: format!(
+                "attempts={attempts} elapsed_ms={} bound={} last={last}",
+                elapsed.as_millis(),
+                bound.as_str()
+            ),
+        },
+        // The store's cancellation token fires only from shutdown, so callers
+        // see the same closed-store error the lease path returns.
+        RetryError::Cancelled { .. } => closed_store_error(),
+    }
+}
+
+fn lock_wait_error(error: LockWaitTimeout) -> StorageError {
+    StorageError::ConflictDetails {
+        code: LOCK_WAIT_TIMEOUT_CONFLICT_CODE,
+        detail: error.to_string(),
+    }
+}
+
+/// Runs one replay-safe mutation under the optional keyed locks and the
+/// bounded MT-142 retry. `op` must contain every pre-read the decision depends
+/// on so a retried attempt observes the state the winning writer committed;
+/// the transaction it executes wrote nothing when a commit conflict is
+/// reported (`surrealdb-core-3.2.0/src/kvs/rocksdb/mod.rs:2133-2138`), which
+/// is what makes the re-run safe. Lock waits are bounded by the statement
+/// timeout and the retry observes the store's shutdown cancellation token.
+async fn guarded_mutation<T, F, Fut>(
+    database: &SurrealDatabase,
+    keys: Vec<LockKey>,
+    replay_key: String,
+    own_index: Option<&'static str>,
+    mut op: F,
+) -> StorageResult<T>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = StorageResult<T>>,
+{
+    let storage = database.storage();
+    let lock_deadline = Instant::now().checked_add(storage.config().statement_timeout());
+    let _guards = database
+        .lock_registry()
+        .acquire_many_with_deadline(keys, lock_deadline)
+        .await
+        .map_err(lock_wait_error)?;
+    let context = RetryContext::unbounded().with_cancel(storage.cancellation_token());
+    retry(
+        &RetryPolicy::CONTRACT,
+        &context,
+        Replay::idempotent(replay_key),
+        &TokioClock,
+        &*RETRY_JITTER,
+        |error| classify_knowledge_error(error, own_index),
+        |_attempt| op(),
+    )
+    .await
+    .map_err(retry_error_to_storage)
+}
+
+/// Per-(workspace, normalized title) write anchor UPSERTed inside the
+/// create-if-title-absent transaction (MT-142). Two concurrent creators of one
+/// normalized title write the same anchor key, so RocksDB commit-time conflict
+/// detection admits exactly one commit; the loser's retry re-reads and returns
+/// the winner. The anchor is a serialization device, not a uniqueness rule:
+/// duplicate titles created through the plain path stay legal and still
+/// surface `knowledge_rich_document_title_ambiguous`. `claim_nonce` changes on
+/// every attempt because the engine skips unchanged documents
+/// (`surrealdb-core-3.2.0/src/doc/store.rs:15-18`).
+struct TitleAnchor {
+    anchor_key: String,
+    title_key: String,
+}
+
+fn title_anchor(workspace_id: &str, title: &str) -> TitleAnchor {
+    let title_key = normalize_rich_document_title(title);
+    let anchor_key = format!(
+        "{workspace_id}:{}",
+        crate::kernel::context_bundle::sha256_hex(title_key.as_bytes())
+    );
+    TitleAnchor {
+        anchor_key,
+        title_key,
+    }
+}
+
+const TITLE_ANCHOR_STATEMENT: &str = "UPSERT type::record('knowledge_rich_document_title_anchors', $anchor_key) SET anchor_key = $anchor_key, workspace_id = $workspace, title_key = $anchor_title_key, last_rich_document_id = $doc_id, claim_nonce = $anchor_nonce, updated_at = time::now() RETURN NONE;";
+
+fn title_anchor_binds(anchor: &TitleAnchor) -> Binds {
+    vec![
+        b("anchor_key", anchor.anchor_key.clone()),
+        b("anchor_title_key", anchor.title_key.clone()),
+        b("anchor_nonce", uuid::Uuid::now_v7().to_string()),
+    ]
 }
 
 /// Maps a transaction aborted by one of this module's `THROW` guard codes to
@@ -1096,18 +1236,64 @@ where
     let statement = statement.into();
     #[cfg(any(test, feature = "surreal-test-support"))]
     let _ = KNOWLEDGE_QUERY_COUNT.try_with(|count| count.set(count.get() + 1));
-    storage
-        .with_data_operation(move |database| {
-            Box::pin(async move {
-                let mut query = database.client.query(statement);
-                for (name, value) in binds {
-                    query = query.bind((name, value));
-                }
-                let mut response = query.await?.check()?;
-                Ok(response.take(index)?)
+    bounded_statement(storage, async move {
+        storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    let mut query = database.client.query(statement);
+                    for (name, value) in binds {
+                        query = query.bind((name, value));
+                    }
+                    let mut response = query.await?.check()?;
+                    Ok(response.take(index)?)
+                })
             })
-        })
-        .await
+            .await
+    })
+    .await
+}
+
+/// Runs one statement that returns no rows, under the same lease and bound.
+async fn raw_execute(
+    storage: &SurrealStorage,
+    statement: impl Into<String>,
+    binds: Binds,
+) -> Result<(), SurrealStorageError> {
+    let statement = statement.into();
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    let _ = KNOWLEDGE_QUERY_COUNT.try_with(|count| count.set(count.get() + 1));
+    bounded_statement(storage, async move {
+        storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    let mut query = database.client.query(statement);
+                    for (name, value) in binds {
+                        query = query.bind((name, value));
+                    }
+                    query.await?.check()?;
+                    Ok(())
+                })
+            })
+            .await
+    })
+    .await
+}
+
+/// MT-142 per-attempt bound: the caller stops waiting after the configured
+/// statement timeout and reports a terminal `StatementTimeout`. Dropping the
+/// SDK future does not abort the engine-side statement, so the outcome is
+/// unknown and the attempt must never be retried.
+async fn bounded_statement<T>(
+    storage: &SurrealStorage,
+    operation: impl Future<Output = Result<T, SurrealStorageError>>,
+) -> Result<T, SurrealStorageError> {
+    let timeout = storage.config().statement_timeout();
+    match tokio::time::timeout(timeout, operation).await {
+        Ok(result) => result,
+        Err(_elapsed) => Err(SurrealStorageError::StatementTimeout {
+            waited_ms: timeout.as_millis(),
+        }),
+    }
 }
 
 async fn query_rows<R>(
@@ -1191,7 +1377,7 @@ fn loom_projection_inputs(
 }
 
 // ---------------------------------------------------------------------------
-// MT-032 backlink rebuild: read + resolve under RICH_DOCUMENT_MUTATION_LOCK,
+// MT-032 backlink rebuild: read + resolve inside the retried attempt (MT-142),
 // then apply every write in ONE transaction so the rebuild stays crash-atomic.
 // ---------------------------------------------------------------------------
 
@@ -1651,7 +1837,26 @@ impl SurrealDatabase {
         }
 
         let (_, event) = super::event_ledger::prepare_event(event)?;
-        let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
+        let keys = vec![LockKey::record(
+            KNOWLEDGE_RICH_DOCUMENTS_TABLE,
+            expected.rich_document_id.clone(),
+        )];
+        let replay_key = format!("krd-delete:{}", event.idempotency_key);
+        guarded_mutation(self, keys, replay_key, None, || {
+            let event = event.clone();
+            async move { self.delete_rich_document_attempt(expected, event).await }
+        })
+        .await
+    }
+
+    /// One attempt of the atomic delete: replay preflight, live compare, the
+    /// guarded transaction and the receipt reconciliation all run inside the
+    /// retried closure so a re-run observes what the winning writer committed.
+    async fn delete_rich_document_attempt(
+        &self,
+        expected: &KnowledgeRichDocument,
+        event: super::event_ledger::LedgerWrite,
+    ) -> StorageResult<KnowledgeRichDocumentDeleteOutcome> {
         if let Some(outcome) =
             read_rich_document_delete_replay(self.storage(), &expected.rich_document_id, &event)
                 .await?
@@ -1801,19 +2006,8 @@ impl SurrealDatabase {
         ];
 
         let replay_event = event;
-        let result: Result<(), SurrealStorageError> = self
-            .storage()
-            .with_data_operation(move |database| {
-                Box::pin(async move {
-                    let mut query = database.client.query(statement);
-                    for (name, value) in binds {
-                        query = query.bind((name, value));
-                    }
-                    query.await?.check()?;
-                    Ok(())
-                })
-            })
-            .await;
+        let result: Result<(), SurrealStorageError> =
+            raw_execute(self.storage(), statement, binds).await;
         if let Err(error) = result {
             // A second process can commit the exact operation between this
             // process's replay preflight and BEGIN. Reconcile every failure
@@ -1923,12 +2117,18 @@ fn extract_backlink_upserts(
         .collect())
 }
 
-/// MT-032 create closure: authority row, version 1, same-id Loom projection,
-/// search projection, and initial backlinks become durable in one
-/// transaction. Callers must hold [`RICH_DOCUMENT_MUTATION_LOCK`].
-async fn create_rich_document_locked(
+/// MT-032 create transaction: authority row, version 1, same-id Loom
+/// projection, search projection, and initial backlinks become durable in one
+/// transaction. `title_anchor` appends the MT-142 title write anchor for the
+/// create-if-title-absent path. Runs inside a retried attempt, so the backlink
+/// target resolution below is re-read on every attempt. Target liveness is not
+/// revalidated inside the transaction: a target deleted between resolution
+/// and commit leaves derived backlink data that the next save rebuilds
+/// (MT-142 decision Q4, accepted derived-data staleness).
+async fn create_rich_document_transaction(
     storage: &SurrealStorage,
     new_document: &NewKnowledgeRichDocument,
+    title_anchor: Option<&TitleAnchor>,
 ) -> StorageResult<KnowledgeRichDocument> {
     if new_document.title.trim() != new_document.title || new_document.title.is_empty() {
         return Err(StorageError::Validation(
@@ -2009,7 +2209,12 @@ async fn create_rich_document_locked(
         .collect();
 
     // Statements: BEGIN(0) CREATE doc(1) loom(2) search(3) version(4)
-    // backlink writes(5..9) COMMIT.
+    // backlink writes(5..9) [title anchor(10)] COMMIT.
+    let anchor_statement = if title_anchor.is_some() {
+        TITLE_ANCHOR_STATEMENT
+    } else {
+        ""
+    };
     let statement = format!(
         "BEGIN TRANSACTION;\n\
          CREATE type::record('knowledge_rich_documents', $doc_id) CONTENT {{ rich_document_id: $doc_id, workspace_id: $workspace, document_id: $legacy_document_id, title: $doc_title, schema_version: $schema_version, content_json: $content_json, content_sha256: $doc_content_sha256, crdt_document_id: $crdt_document_id, crdt_snapshot_id: $crdt_snapshot_id, promotion_receipt_event_id: $promotion_receipt, project_ref: $project_ref, folder_ref: $folder_ref, authority_label: $authority_label, owner_actor_kind: $owner_actor_kind, owner_actor_id: $owner_actor_id }} RETURN AFTER;\n\
@@ -2017,6 +2222,7 @@ async fn create_rich_document_locked(
          {SEARCH_PROJECTION_STATEMENT}\n\
          CREATE knowledge_rich_document_versions CONTENT {{ rich_document_id: type::record('knowledge_rich_documents', $doc_id), doc_version: 1, schema_version: $schema_version, content_json: $content_json, content_sha256: $doc_content_sha256, crdt_snapshot_id: $crdt_snapshot_id, promotion_receipt_event_id: $promotion_receipt }} RETURN NONE;\n\
          {BACKLINK_WRITE_STATEMENTS}\n\
+         {anchor_statement}\n\
          COMMIT TRANSACTION;"
     );
     let mut binds = vec![
@@ -2058,6 +2264,9 @@ async fn create_rich_document_locked(
         &resolved,
         &affected_blocks,
     ));
+    if let Some(anchor) = title_anchor {
+        binds.extend(title_anchor_binds(anchor));
+    }
     // `projection_binds` and `backlink_write_binds` both carry `workspace`;
     // duplicate bind names would overwrite with the identical value, which is
     // harmless, but deduplicate for determinism.
@@ -2142,9 +2351,12 @@ fn idempotency_claim_binds(
 /// Optimistic-concurrency save shared by the plain and idempotent paths.
 /// Returns `Ok(None)` when the appended idempotency-key claim lost its race:
 /// the transaction aborted, so nothing was written (the caller re-reads the
-/// winner's committed result). Callers hold [`RICH_DOCUMENT_MUTATION_LOCK`].
+/// winner's committed result). Runs inside a retried attempt: the live read,
+/// the stale pre-check and the compare-and-set transaction all repeat, so a
+/// re-run after an engine commit conflict either succeeds once or reports the
+/// typed stale outcome (MT-142 item 4).
 #[allow(clippy::too_many_arguments)]
-async fn save_rich_document_version_locked(
+async fn save_rich_document_version_transaction(
     storage: &SurrealStorage,
     rich_document_id: &str,
     expected_version: i64,
@@ -2253,9 +2465,10 @@ async fn save_rich_document_version_locked(
                 return Ok(None);
             }
             if rendered.contains("HSK-KRD-SAVE-STALE") {
-                // Serialized by the mutation lock, so a surprise here means the
-                // row changed through a non-knowledge path; classify exactly
-                // like the removed backend did after its failed UPDATE.
+                // A concurrent writer committed between the live read and the
+                // compare-and-set (the engine validated the written row);
+                // classify exactly like the removed backend did after its
+                // failed UPDATE.
                 return Err(
                     match read_live_rich_document(storage, rich_document_id).await? {
                         Some(current)
@@ -2480,23 +2693,38 @@ impl KnowledgeStore for SurrealDatabase {
             ));
         }
         let repo_relative_path = normalize_repo_relative_path(&new_root.repo_relative_path)?;
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let root_id = new_knowledge_id("KSR");
-        let rows: Vec<RootRecord> = query_rows(
-            self.storage(),
-            "IF (SELECT VALUE id FROM knowledge_source_roots WHERE workspace_id = $workspace AND repo_relative_path = $path LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_source_roots SET display_name = $display_name, root_kind = $root_kind, allowlist_policy = $allowlist_policy, indexing_eligibility = $indexing_eligibility, updated_at = time::now() WHERE workspace_id = $workspace AND repo_relative_path = $path RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_source_roots', $root_id) CONTENT { root_id: $root_id, workspace_id: $workspace, display_name: $display_name, root_kind: $root_kind, repo_relative_path: $path, allowlist_policy: $allowlist_policy, indexing_eligibility: $indexing_eligibility } RETURN AFTER; };",
-            vec![
-                b("workspace", thing(WORKSPACES_TABLE, &new_root.workspace_id)),
-                b("path", repo_relative_path),
-                b("root_id", root_id),
-                b("display_name", new_root.display_name.clone()),
-                b("root_kind", new_root.root_kind.as_str().to_owned()),
-                b("allowlist_policy", new_root.allowlist_policy.clone()),
-                b(
-                    "indexing_eligibility",
-                    new_root.indexing_eligibility.as_str().to_owned(),
-                ),
-            ],
+        let keys = vec![LockKey::natural_key(
+            new_root.workspace_id.clone(),
+            "knowledge_source_root_path",
+            repo_relative_path.clone(),
+        )];
+        let replay_key = format!("ksr:{}:{repo_relative_path}", new_root.workspace_id);
+        let new_root = &new_root;
+        let repo_relative_path = &repo_relative_path;
+        let rows: Vec<RootRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_source_roots_workspace_path"),
+            || {
+                let root_id = new_knowledge_id("KSR");
+                query_rows(
+                    self.storage(),
+                    "IF (SELECT VALUE id FROM knowledge_source_roots WHERE workspace_id = $workspace AND repo_relative_path = $path LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_source_roots SET display_name = $display_name, root_kind = $root_kind, allowlist_policy = $allowlist_policy, indexing_eligibility = $indexing_eligibility, updated_at = time::now() WHERE workspace_id = $workspace AND repo_relative_path = $path RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_source_roots', $root_id) CONTENT { root_id: $root_id, workspace_id: $workspace, display_name: $display_name, root_kind: $root_kind, repo_relative_path: $path, allowlist_policy: $allowlist_policy, indexing_eligibility: $indexing_eligibility } RETURN AFTER; };",
+                    vec![
+                        b("workspace", thing(WORKSPACES_TABLE, &new_root.workspace_id)),
+                        b("path", repo_relative_path.clone()),
+                        b("root_id", root_id),
+                        b("display_name", new_root.display_name.clone()),
+                        b("root_kind", new_root.root_kind.as_str().to_owned()),
+                        b("allowlist_policy", new_root.allowlist_policy.clone()),
+                        b(
+                            "indexing_eligibility",
+                            new_root.indexing_eligibility.as_str().to_owned(),
+                        ),
+                    ],
+                )
+            },
         )
         .await?;
         rows.into_iter()
@@ -2575,45 +2803,71 @@ impl KnowledgeStore for SurrealDatabase {
                 "file-kind knowledge sources require root_id and relative_path",
             ));
         }
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let source_id = new_knowledge_id("KSRC");
-        let rows: Vec<SourceRecord> = query_rows(
-            self.storage(),
-            "IF $relative_path != NONE AND (SELECT VALUE id FROM knowledge_sources WHERE root_id = $root_id AND relative_path = $relative_path LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_sources SET content_hash = $content_hash, size_bytes = $size_bytes, provenance = $provenance, permission_scope = $permission_scope, redaction_state = $redaction_state, source_modified_at = $source_modified_at, parser_status = 'pending', extraction_status = 'pending', stale = false, updated_at = time::now() WHERE root_id = $root_id AND relative_path = $relative_path RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_sources', $source_id) CONTENT { source_id: $source_id, workspace_id: $workspace, root_id: $root_id, source_kind: $source_kind, relative_path: $relative_path, asset_id: $asset_id, loom_block_id: $loom_block_id, document_id: $document_id, content_hash: $content_hash, size_bytes: $size_bytes, provenance: $provenance, permission_scope: $permission_scope, redaction_state: $redaction_state, source_modified_at: $source_modified_at } RETURN AFTER; };",
-            vec![
-                b("source_id", source_id),
-                b("workspace", thing(WORKSPACES_TABLE, &new_source.workspace_id)),
-                b(
-                    "root_id",
-                    opt_thing(KNOWLEDGE_SOURCE_ROOTS_TABLE, new_source.root_id.as_deref()),
-                ),
-                b("source_kind", new_source.source_kind.as_str().to_owned()),
-                b("relative_path", relative_path),
-                b("asset_id", opt_thing(ASSETS_TABLE, new_source.asset_id.as_deref())),
-                b(
-                    "loom_block_id",
-                    opt_thing(LOOM_BLOCKS_TABLE, new_source.loom_block_id.as_deref()),
-                ),
-                b(
-                    "document_id",
-                    opt_thing(DOCUMENTS_TABLE, new_source.document_id.as_deref()),
-                ),
-                b("content_hash", new_source.content_hash.clone()),
-                b("size_bytes", new_source.size_bytes),
-                b("provenance", new_source.provenance.clone()),
-                b(
-                    "permission_scope",
-                    new_source.permission_scope.as_str().to_owned(),
-                ),
-                b(
-                    "redaction_state",
-                    new_source.redaction_state.as_str().to_owned(),
-                ),
-                b(
-                    "source_modified_at",
-                    new_source.source_modified_at.map(Datetime::from),
-                ),
-            ],
+        // Only file sources carry a natural key; other kinds always CREATE.
+        let keys = relative_path
+            .as_ref()
+            .map(|path| {
+                vec![LockKey::natural_key(
+                    new_source.workspace_id.clone(),
+                    "knowledge_source_root_path",
+                    format!("{}|{path}", new_source.root_id.as_deref().unwrap_or("")),
+                )]
+            })
+            .unwrap_or_default();
+        let replay_key = format!(
+            "ksrc:{}:{}:{}",
+            new_source.workspace_id,
+            new_source.root_id.as_deref().unwrap_or(""),
+            relative_path.as_deref().unwrap_or(&new_source.content_hash)
+        );
+        let new_source = &new_source;
+        let relative_path = &relative_path;
+        let rows: Vec<SourceRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_sources_root_path"),
+            || {
+                let source_id = new_knowledge_id("KSRC");
+                query_rows(
+                    self.storage(),
+                    "IF $relative_path != NONE AND (SELECT VALUE id FROM knowledge_sources WHERE root_id = $root_id AND relative_path = $relative_path LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_sources SET content_hash = $content_hash, size_bytes = $size_bytes, provenance = $provenance, permission_scope = $permission_scope, redaction_state = $redaction_state, source_modified_at = $source_modified_at, parser_status = 'pending', extraction_status = 'pending', stale = false, updated_at = time::now() WHERE root_id = $root_id AND relative_path = $relative_path RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_sources', $source_id) CONTENT { source_id: $source_id, workspace_id: $workspace, root_id: $root_id, source_kind: $source_kind, relative_path: $relative_path, asset_id: $asset_id, loom_block_id: $loom_block_id, document_id: $document_id, content_hash: $content_hash, size_bytes: $size_bytes, provenance: $provenance, permission_scope: $permission_scope, redaction_state: $redaction_state, source_modified_at: $source_modified_at } RETURN AFTER; };",
+                    vec![
+                        b("source_id", source_id),
+                        b("workspace", thing(WORKSPACES_TABLE, &new_source.workspace_id)),
+                        b(
+                            "root_id",
+                            opt_thing(KNOWLEDGE_SOURCE_ROOTS_TABLE, new_source.root_id.as_deref()),
+                        ),
+                        b("source_kind", new_source.source_kind.as_str().to_owned()),
+                        b("relative_path", relative_path.clone()),
+                        b("asset_id", opt_thing(ASSETS_TABLE, new_source.asset_id.as_deref())),
+                        b(
+                            "loom_block_id",
+                            opt_thing(LOOM_BLOCKS_TABLE, new_source.loom_block_id.as_deref()),
+                        ),
+                        b(
+                            "document_id",
+                            opt_thing(DOCUMENTS_TABLE, new_source.document_id.as_deref()),
+                        ),
+                        b("content_hash", new_source.content_hash.clone()),
+                        b("size_bytes", new_source.size_bytes),
+                        b("provenance", new_source.provenance.clone()),
+                        b(
+                            "permission_scope",
+                            new_source.permission_scope.as_str().to_owned(),
+                        ),
+                        b(
+                            "redaction_state",
+                            new_source.redaction_state.as_str().to_owned(),
+                        ),
+                        b(
+                            "source_modified_at",
+                            new_source.source_modified_at.map(Datetime::from),
+                        ),
+                    ],
+                )
+            },
         )
         .await?;
         rows.into_iter()
@@ -2932,46 +3186,72 @@ impl KnowledgeStore for SurrealDatabase {
                 "knowledge entity display_name is required",
             ));
         }
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let entity_id = new_knowledge_id("KEN");
+        let keys = vec![LockKey::natural_key(
+            new_entity.workspace_id.clone(),
+            "knowledge_entity_identity",
+            format!(
+                "{}|{}",
+                new_entity.entity_kind.as_str(),
+                new_entity.entity_key
+            ),
+        )];
+        let replay_key = format!(
+            "ken:{}:{}:{}",
+            new_entity.workspace_id,
+            new_entity.entity_kind.as_str(),
+            new_entity.entity_key
+        );
+        let new_entity = &new_entity;
         // Statements: BEGIN(0) upsert(1) evidence-loop(2) select(3) COMMIT.
-        let rows: Vec<EntityRecord> = raw_rows_at(
-            self.storage(),
-            "BEGIN TRANSACTION;\n\
-             IF (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = $entity_kind AND entity_key = $entity_key LIMIT 1)[0] != NONE { UPDATE knowledge_entities SET display_name = $display_name, detection_provenance = $detection_provenance, primary_source_id = $primary_source_id ?? primary_source_id, last_detected_in_run = $detected_in_run ?? last_detected_in_run, lifecycle_state = 'active', updated_at = time::now() WHERE workspace_id = $workspace AND entity_kind = $entity_kind AND entity_key = $entity_key RETURN NONE; } ELSE { CREATE type::record('knowledge_entities', $entity_id) CONTENT { entity_id: $entity_id, workspace_id: $workspace, entity_kind: $entity_kind, entity_key: $entity_key, display_name: $display_name, detection_provenance: $detection_provenance, primary_source_id: $primary_source_id, first_detected_in_run: $detected_in_run, last_detected_in_run: $detected_in_run } RETURN NONE; };\n\
-             FOR $span_id IN $evidence_span_ids { LET $entity = (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = $entity_kind AND entity_key = $entity_key LIMIT 1)[0]; IF (SELECT VALUE id FROM knowledge_entity_spans WHERE entity_id = $entity AND span_id = type::record('knowledge_spans', $span_id) LIMIT 1)[0] = NONE { CREATE knowledge_entity_spans CONTENT { entity_id: $entity, span_id: type::record('knowledge_spans', $span_id), detected_in_run: $detected_in_run } RETURN NONE; }; };\n\
-             SELECT * FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = $entity_kind AND entity_key = $entity_key LIMIT 1;\n\
-             COMMIT TRANSACTION;",
-            vec![
-                b("entity_id", entity_id),
-                b("workspace", thing(WORKSPACES_TABLE, &new_entity.workspace_id)),
-                b("entity_kind", new_entity.entity_kind.as_str().to_owned()),
-                b("entity_key", new_entity.entity_key.clone()),
-                b("display_name", new_entity.display_name.clone()),
-                b(
-                    "detection_provenance",
-                    new_entity.detection_provenance.clone(),
-                ),
-                b(
-                    "primary_source_id",
-                    opt_thing(
-                        KNOWLEDGE_SOURCES_TABLE,
-                        new_entity.primary_source_id.as_deref(),
-                    ),
-                ),
-                b(
-                    "detected_in_run",
-                    opt_thing(
-                        KNOWLEDGE_INDEX_RUNS_TABLE,
-                        new_entity.detected_in_run.as_deref(),
-                    ),
-                ),
-                b("evidence_span_ids", new_entity.evidence_span_ids.clone()),
-            ],
-            3,
+        let rows: Vec<EntityRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_entities_identity"),
+            || {
+                let entity_id = new_knowledge_id("KEN");
+                async move {
+                    raw_rows_at(
+                        self.storage(),
+                        "BEGIN TRANSACTION;\n\
+                         IF (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = $entity_kind AND entity_key = $entity_key LIMIT 1)[0] != NONE { UPDATE knowledge_entities SET display_name = $display_name, detection_provenance = $detection_provenance, primary_source_id = $primary_source_id ?? primary_source_id, last_detected_in_run = $detected_in_run ?? last_detected_in_run, lifecycle_state = 'active', updated_at = time::now() WHERE workspace_id = $workspace AND entity_kind = $entity_kind AND entity_key = $entity_key RETURN NONE; } ELSE { CREATE type::record('knowledge_entities', $entity_id) CONTENT { entity_id: $entity_id, workspace_id: $workspace, entity_kind: $entity_kind, entity_key: $entity_key, display_name: $display_name, detection_provenance: $detection_provenance, primary_source_id: $primary_source_id, first_detected_in_run: $detected_in_run, last_detected_in_run: $detected_in_run } RETURN NONE; };\n\
+                         FOR $span_id IN $evidence_span_ids { LET $entity = (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = $entity_kind AND entity_key = $entity_key LIMIT 1)[0]; IF (SELECT VALUE id FROM knowledge_entity_spans WHERE entity_id = $entity AND span_id = type::record('knowledge_spans', $span_id) LIMIT 1)[0] = NONE { CREATE knowledge_entity_spans CONTENT { entity_id: $entity, span_id: type::record('knowledge_spans', $span_id), detected_in_run: $detected_in_run } RETURN NONE; }; };\n\
+                         SELECT * FROM knowledge_entities WHERE workspace_id = $workspace AND entity_kind = $entity_kind AND entity_key = $entity_key LIMIT 1;\n\
+                         COMMIT TRANSACTION;",
+                        vec![
+                            b("entity_id", entity_id),
+                            b("workspace", thing(WORKSPACES_TABLE, &new_entity.workspace_id)),
+                            b("entity_kind", new_entity.entity_kind.as_str().to_owned()),
+                            b("entity_key", new_entity.entity_key.clone()),
+                            b("display_name", new_entity.display_name.clone()),
+                            b(
+                                "detection_provenance",
+                                new_entity.detection_provenance.clone(),
+                            ),
+                            b(
+                                "primary_source_id",
+                                opt_thing(
+                                    KNOWLEDGE_SOURCES_TABLE,
+                                    new_entity.primary_source_id.as_deref(),
+                                ),
+                            ),
+                            b(
+                                "detected_in_run",
+                                opt_thing(
+                                    KNOWLEDGE_INDEX_RUNS_TABLE,
+                                    new_entity.detected_in_run.as_deref(),
+                                ),
+                            ),
+                            b("evidence_span_ids", new_entity.evidence_span_ids.clone()),
+                        ],
+                        3,
+                    )
+                    .await
+                    .map_err(map_err)
+                }
+            },
         )
-        .await
-        .map_err(map_err)?;
+        .await?;
         rows.into_iter()
             .next()
             .ok_or(StorageError::Database(
@@ -3133,60 +3413,89 @@ impl KnowledgeStore for SurrealDatabase {
                 "knowledge edge extractor_version is required",
             ));
         }
-        let source = self
-            .get_knowledge_entity(&new_edge.source_entity_id)
-            .await?
-            .ok_or(StorageError::NotFound("knowledge edge source entity"))?;
-        let target = self
-            .get_knowledge_entity(&new_edge.target_entity_id)
-            .await?
-            .ok_or(StorageError::NotFound("knowledge edge target entity"))?;
-        if source.workspace_id != new_edge.workspace_id
-            || target.workspace_id != new_edge.workspace_id
-        {
-            return Err(StorageError::Validation(
-                "knowledge edge entities must belong to the edge workspace",
-            ));
-        }
-        let relationship_id = derive_knowledge_relationship_id(
-            new_edge.edge_type,
-            source.entity_kind,
-            &source.entity_key,
-            target.entity_kind,
-            &target.entity_key,
+        // The natural key is derived from the entity identities, which are
+        // stable for the given entity ids; the entity reads themselves happen
+        // inside the retried attempt (MT-142 pre-reads stay in the closure).
+        let keys = vec![LockKey::natural_key(
+            new_edge.workspace_id.clone(),
+            "knowledge_edge_identity",
+            format!(
+                "{}:{}->{}",
+                new_edge.edge_type.as_str(),
+                new_edge.source_entity_id,
+                new_edge.target_entity_id
+            ),
+        )];
+        let replay_key = format!(
+            "ked:{}:{}:{}->{}",
+            new_edge.workspace_id,
+            new_edge.edge_type.as_str(),
+            new_edge.source_entity_id,
+            new_edge.target_entity_id
         );
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let edge_id = new_knowledge_id("KED");
-        // Statements: BEGIN(0) upsert(1) evidence-loop(2) select(3) COMMIT.
-        let rows: Vec<EdgeRecord> = raw_rows_at(
-            self.storage(),
-            "BEGIN TRANSACTION;\n\
-             IF (SELECT VALUE id FROM knowledge_edges WHERE workspace_id = $workspace AND relationship_id = $relationship_id LIMIT 1)[0] != NONE { UPDATE knowledge_edges SET confidence = $confidence, extractor_version = $extractor_version, last_seen_in_run = $detected_in_run ?? last_seen_in_run, updated_at = time::now() WHERE workspace_id = $workspace AND relationship_id = $relationship_id RETURN NONE; } ELSE { CREATE type::record('knowledge_edges', $edge_id) CONTENT { edge_id: $edge_id, workspace_id: $workspace, relationship_id: $relationship_id, edge_type: $edge_type, source_entity_id: type::record('knowledge_entities', $source_entity_id), target_entity_id: type::record('knowledge_entities', $target_entity_id), extractor_version: $extractor_version, confidence: $confidence, created_in_run: $detected_in_run, last_seen_in_run: $detected_in_run } RETURN NONE; };\n\
-             FOR $span_id IN $evidence_span_ids { LET $edge = (SELECT VALUE id FROM knowledge_edges WHERE workspace_id = $workspace AND relationship_id = $relationship_id LIMIT 1)[0]; IF (SELECT VALUE id FROM knowledge_edge_spans WHERE edge_id = $edge AND span_id = type::record('knowledge_spans', $span_id) LIMIT 1)[0] = NONE { CREATE knowledge_edge_spans CONTENT { edge_id: $edge, span_id: type::record('knowledge_spans', $span_id), recorded_in_run: $detected_in_run } RETURN NONE; }; };\n\
-             SELECT * FROM knowledge_edges WHERE workspace_id = $workspace AND relationship_id = $relationship_id LIMIT 1;\n\
-             COMMIT TRANSACTION;",
-            vec![
-                b("edge_id", edge_id),
-                b("workspace", thing(WORKSPACES_TABLE, &new_edge.workspace_id)),
-                b("relationship_id", relationship_id),
-                b("edge_type", new_edge.edge_type.as_str().to_owned()),
-                b("source_entity_id", new_edge.source_entity_id.clone()),
-                b("target_entity_id", new_edge.target_entity_id.clone()),
-                b("extractor_version", new_edge.extractor_version.clone()),
-                b("confidence", new_edge.confidence),
-                b(
-                    "detected_in_run",
-                    opt_thing(
-                        KNOWLEDGE_INDEX_RUNS_TABLE,
-                        new_edge.detected_in_run.as_deref(),
-                    ),
-                ),
-                b("evidence_span_ids", new_edge.evidence_span_ids.clone()),
-            ],
-            3,
+        let new_edge = &new_edge;
+        let rows: Vec<EdgeRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_edges_relationship"),
+            || async move {
+                let source = self
+                    .get_knowledge_entity(&new_edge.source_entity_id)
+                    .await?
+                    .ok_or(StorageError::NotFound("knowledge edge source entity"))?;
+                let target = self
+                    .get_knowledge_entity(&new_edge.target_entity_id)
+                    .await?
+                    .ok_or(StorageError::NotFound("knowledge edge target entity"))?;
+                if source.workspace_id != new_edge.workspace_id
+                    || target.workspace_id != new_edge.workspace_id
+                {
+                    return Err(StorageError::Validation(
+                        "knowledge edge entities must belong to the edge workspace",
+                    ));
+                }
+                let relationship_id = derive_knowledge_relationship_id(
+                    new_edge.edge_type,
+                    source.entity_kind,
+                    &source.entity_key,
+                    target.entity_kind,
+                    &target.entity_key,
+                );
+                let edge_id = new_knowledge_id("KED");
+                // Statements: BEGIN(0) upsert(1) evidence-loop(2) select(3) COMMIT.
+                raw_rows_at(
+                    self.storage(),
+                    "BEGIN TRANSACTION;\n\
+                     IF (SELECT VALUE id FROM knowledge_edges WHERE workspace_id = $workspace AND relationship_id = $relationship_id LIMIT 1)[0] != NONE { UPDATE knowledge_edges SET confidence = $confidence, extractor_version = $extractor_version, last_seen_in_run = $detected_in_run ?? last_seen_in_run, updated_at = time::now() WHERE workspace_id = $workspace AND relationship_id = $relationship_id RETURN NONE; } ELSE { CREATE type::record('knowledge_edges', $edge_id) CONTENT { edge_id: $edge_id, workspace_id: $workspace, relationship_id: $relationship_id, edge_type: $edge_type, source_entity_id: type::record('knowledge_entities', $source_entity_id), target_entity_id: type::record('knowledge_entities', $target_entity_id), extractor_version: $extractor_version, confidence: $confidence, created_in_run: $detected_in_run, last_seen_in_run: $detected_in_run } RETURN NONE; };\n\
+                     FOR $span_id IN $evidence_span_ids { LET $edge = (SELECT VALUE id FROM knowledge_edges WHERE workspace_id = $workspace AND relationship_id = $relationship_id LIMIT 1)[0]; IF (SELECT VALUE id FROM knowledge_edge_spans WHERE edge_id = $edge AND span_id = type::record('knowledge_spans', $span_id) LIMIT 1)[0] = NONE { CREATE knowledge_edge_spans CONTENT { edge_id: $edge, span_id: type::record('knowledge_spans', $span_id), recorded_in_run: $detected_in_run } RETURN NONE; }; };\n\
+                     SELECT * FROM knowledge_edges WHERE workspace_id = $workspace AND relationship_id = $relationship_id LIMIT 1;\n\
+                     COMMIT TRANSACTION;",
+                    vec![
+                        b("edge_id", edge_id),
+                        b("workspace", thing(WORKSPACES_TABLE, &new_edge.workspace_id)),
+                        b("relationship_id", relationship_id),
+                        b("edge_type", new_edge.edge_type.as_str().to_owned()),
+                        b("source_entity_id", new_edge.source_entity_id.clone()),
+                        b("target_entity_id", new_edge.target_entity_id.clone()),
+                        b("extractor_version", new_edge.extractor_version.clone()),
+                        b("confidence", new_edge.confidence),
+                        b(
+                            "detected_in_run",
+                            opt_thing(
+                                KNOWLEDGE_INDEX_RUNS_TABLE,
+                                new_edge.detected_in_run.as_deref(),
+                            ),
+                        ),
+                        b("evidence_span_ids", new_edge.evidence_span_ids.clone()),
+                    ],
+                    3,
+                )
+                .await
+                .map_err(map_err)
+            },
         )
-        .await
-        .map_err(map_err)?;
+        .await?;
         rows.into_iter()
             .next()
             .ok_or(StorageError::Database(
@@ -3729,26 +4038,49 @@ impl KnowledgeStore for SurrealDatabase {
                 "knowledge projection staleness_hash must be lowercase sha256 hex",
             ));
         }
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let projection_id = new_knowledge_id("KWP");
-        let rows: Vec<ProjectionRecord> = query_rows(
-            self.storage(),
-            "IF (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_kind = $projection_kind AND title = $title LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_wiki_projections SET source_records = $source_records, rendered_content = $rendered_content, rebuild_status = 'stale', staleness_hash = $staleness_hash, updated_at = time::now() WHERE workspace_id = $workspace AND projection_kind = $projection_kind AND title = $title RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_wiki_projections', $projection_id) CONTENT { projection_id: $projection_id, workspace_id: $workspace, projection_kind: $projection_kind, title: $title, source_records: $source_records, rendered_content: $rendered_content, rebuild_status: 'stale', staleness_hash: $staleness_hash } RETURN AFTER; };",
-            vec![
-                b("projection_id", projection_id),
-                b(
-                    "workspace",
-                    thing(WORKSPACES_TABLE, &new_projection.workspace_id),
-                ),
-                b(
-                    "projection_kind",
-                    new_projection.projection_kind.as_str().to_owned(),
-                ),
-                b("title", new_projection.title.clone()),
-                b("source_records", new_projection.source_records.clone()),
-                b("rendered_content", new_projection.rendered_content.clone()),
-                b("staleness_hash", new_projection.staleness_hash.clone()),
-            ],
+        let keys = vec![LockKey::natural_key(
+            new_projection.workspace_id.clone(),
+            "knowledge_wiki_projection_identity",
+            format!(
+                "{}|{}",
+                new_projection.projection_kind.as_str(),
+                new_projection.title
+            ),
+        )];
+        let replay_key = format!(
+            "kwp:{}:{}:{}",
+            new_projection.workspace_id,
+            new_projection.projection_kind.as_str(),
+            new_projection.title
+        );
+        let new_projection = &new_projection;
+        let rows: Vec<ProjectionRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_wiki_projections_identity"),
+            || {
+                let projection_id = new_knowledge_id("KWP");
+                query_rows(
+                    self.storage(),
+                    "IF (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_kind = $projection_kind AND title = $title LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_wiki_projections SET source_records = $source_records, rendered_content = $rendered_content, rebuild_status = 'stale', staleness_hash = $staleness_hash, updated_at = time::now() WHERE workspace_id = $workspace AND projection_kind = $projection_kind AND title = $title RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_wiki_projections', $projection_id) CONTENT { projection_id: $projection_id, workspace_id: $workspace, projection_kind: $projection_kind, title: $title, source_records: $source_records, rendered_content: $rendered_content, rebuild_status: 'stale', staleness_hash: $staleness_hash } RETURN AFTER; };",
+                    vec![
+                        b("projection_id", projection_id),
+                        b(
+                            "workspace",
+                            thing(WORKSPACES_TABLE, &new_projection.workspace_id),
+                        ),
+                        b(
+                            "projection_kind",
+                            new_projection.projection_kind.as_str().to_owned(),
+                        ),
+                        b("title", new_projection.title.clone()),
+                        b("source_records", new_projection.source_records.clone()),
+                        b("rendered_content", new_projection.rendered_content.clone()),
+                        b("staleness_hash", new_projection.staleness_hash.clone()),
+                    ],
+                )
+            },
         )
         .await?;
         rows.into_iter()
@@ -3842,8 +4174,19 @@ impl KnowledgeStore for SurrealDatabase {
         &self,
         new_document: NewKnowledgeRichDocument,
     ) -> StorageResult<KnowledgeRichDocument> {
-        let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
-        create_rich_document_locked(self.storage(), &new_document).await
+        // No natural key: a fresh KRD id is generated per attempt and a commit
+        // conflict (shared backlink-target counts) wrote nothing, so the
+        // re-run creates exactly one document.
+        let replay_key = format!(
+            "krd-create:{}:{}",
+            new_document.workspace_id,
+            knowledge_canonical_json_sha256(&new_document.content_json)
+        );
+        let new_document = &new_document;
+        guarded_mutation(self, Vec::new(), replay_key, None, || {
+            create_rich_document_transaction(self.storage(), new_document, None)
+        })
+        .await
     }
 
     async fn create_knowledge_rich_document_if_title_absent(
@@ -3855,46 +4198,22 @@ impl KnowledgeStore for SurrealDatabase {
                 "knowledge rich document title must be non-empty and trimmed",
             ));
         }
-        // The mutation lock serializes independent creators of the same title
-        // exactly as the removed backend's per-title advisory lock did (the
-        // embedded store is single-process, so process-local is sufficient).
-        let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
-        let normalized_title = normalize_rich_document_title(&new_document.title);
-        let candidates: Vec<DocTitleRecord> = query_rows(
-            self.storage(),
-            "SELECT rich_document_id, title, updated_at FROM knowledge_rich_documents WHERE workspace_id = $workspace AND deleted_at = NONE;",
-            vec![b(
-                "workspace",
-                thing(WORKSPACES_TABLE, &new_document.workspace_id),
-            )],
-        )
-        .await?;
-        let mut matches: Vec<DocTitleRecord> = candidates
-            .into_iter()
-            .filter(|row| normalize_rich_document_title(&row.title) == normalized_title)
-            .collect();
-        matches.sort_by(|left, right| {
-            right
-                .updated_at
-                .cmp(&left.updated_at)
-                .then_with(|| left.rich_document_id.cmp(&right.rich_document_id))
-        });
-        match matches.len() {
-            0 => {
-                let document = create_rich_document_locked(self.storage(), &new_document).await?;
-                Ok((document, true))
-            }
-            1 => {
-                let document =
-                    read_live_rich_document(self.storage(), &matches[0].rich_document_id)
-                        .await?
-                        .ok_or(StorageError::NotFound("knowledge rich document"))?;
-                Ok((document, false))
-            }
-            _ => Err(StorageError::Conflict(
-                "knowledge_rich_document_title_ambiguous",
-            )),
-        }
+        // Independent creators of one normalized title are serialized by the
+        // title write anchor inside the create transaction; the keyed lock only
+        // shapes local contention (MT-142 AC-142-8).
+        let anchor = title_anchor(&new_document.workspace_id, &new_document.title);
+        let keys = vec![LockKey::natural_key(
+            new_document.workspace_id.clone(),
+            TITLE_ANCHOR_LOCK_KIND,
+            anchor.title_key.clone(),
+        )];
+        let replay_key = format!("krd-title:{}", anchor.anchor_key);
+        let new_document = &new_document;
+        let anchor = &anchor;
+        guarded_mutation(self, keys, replay_key, None, || {
+            create_if_title_absent_attempt(self, new_document, anchor)
+        })
+        .await
     }
 
     async fn get_knowledge_rich_document(
@@ -3972,61 +4291,85 @@ impl KnowledgeStore for SurrealDatabase {
         }
         let draft_content_sha256 = knowledge_canonical_json_sha256(&upsert.content_json);
 
-        let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
-        let document = read_live_rich_document(self.storage(), &upsert.rich_document_id)
-            .await?
-            .ok_or(StorageError::NotFound("knowledge rich document"))?;
-        // Statements: BEGIN(0) live-guard(1) upsert(2) COMMIT.
-        let result: Result<Vec<DraftRecord>, SurrealStorageError> = raw_rows_at(
-            self.storage(),
-            "BEGIN TRANSACTION;\n\
-             IF (SELECT VALUE id FROM knowledge_rich_documents WHERE rich_document_id = $doc_id AND deleted_at = NONE LIMIT 1)[0] = NONE { THROW 'HSK-KRD-NOT-FOUND'; };\n\
-             UPSERT type::record('knowledge_rich_document_drafts', type::record('knowledge_rich_documents', $doc_id)) SET rich_document_id = type::record('knowledge_rich_documents', $doc_id), workspace_id = $workspace, base_doc_version = $base_doc_version, base_content_sha256 = $base_content_sha256, draft_content_json = $draft_content_json, draft_content_sha256 = $draft_content_sha256, actor_kind = $actor_kind, actor_id = $actor_id, kernel_task_run_id = $kernel_task_run_id, session_run_id = $session_run_id, updated_at = time::now() RETURN AFTER;\n\
-             COMMIT TRANSACTION;",
-            vec![
-                b("doc_id", upsert.rich_document_id.clone()),
-                b("workspace", thing(WORKSPACES_TABLE, &document.workspace_id)),
-                b("base_doc_version", upsert.base_doc_version),
-                b("base_content_sha256", upsert.base_content_sha256.clone()),
-                b("draft_content_json", upsert.content_json.clone()),
-                b("draft_content_sha256", draft_content_sha256),
-                b("actor_kind", upsert.actor_kind.clone()),
-                b("actor_id", upsert.actor_id.clone()),
-                b("kernel_task_run_id", upsert.kernel_task_run_id.clone()),
-                b("session_run_id", upsert.session_run_id.clone()),
-            ],
-            2,
-        )
-        .await;
-        let rows = result.map_err(|error| {
-            map_guarded_err(
-                error,
-                &[("HSK-KRD-NOT-FOUND", || {
-                    StorageError::NotFound("knowledge rich document")
-                })],
+        // The live-document guard runs inside the transaction (THROW
+        // HSK-KRD-NOT-FOUND) and the UPSERT is keyed by the document id, so
+        // the invariant holds without any lock; the keyed lock only orders
+        // same-document drafts locally.
+        let keys = vec![LockKey::record(
+            KNOWLEDGE_RICH_DOCUMENTS_TABLE,
+            upsert.rich_document_id.clone(),
+        )];
+        let replay_key = format!(
+            "krd-draft:{}:{draft_content_sha256}",
+            upsert.rich_document_id
+        );
+        let upsert = &upsert;
+        let draft_content_sha256 = &draft_content_sha256;
+        guarded_mutation(self, keys, replay_key, None, || async move {
+            let document = read_live_rich_document(self.storage(), &upsert.rich_document_id)
+                .await?
+                .ok_or(StorageError::NotFound("knowledge rich document"))?;
+            // Statements: BEGIN(0) live-guard(1) upsert(2) COMMIT.
+            let result: Result<Vec<DraftRecord>, SurrealStorageError> = raw_rows_at(
+                self.storage(),
+                "BEGIN TRANSACTION;\n\
+                 IF (SELECT VALUE id FROM knowledge_rich_documents WHERE rich_document_id = $doc_id AND deleted_at = NONE LIMIT 1)[0] = NONE { THROW 'HSK-KRD-NOT-FOUND'; };\n\
+                 UPSERT type::record('knowledge_rich_document_drafts', type::record('knowledge_rich_documents', $doc_id)) SET rich_document_id = type::record('knowledge_rich_documents', $doc_id), workspace_id = $workspace, base_doc_version = $base_doc_version, base_content_sha256 = $base_content_sha256, draft_content_json = $draft_content_json, draft_content_sha256 = $draft_content_sha256, actor_kind = $actor_kind, actor_id = $actor_id, kernel_task_run_id = $kernel_task_run_id, session_run_id = $session_run_id, updated_at = time::now() RETURN AFTER;\n\
+                 COMMIT TRANSACTION;",
+                vec![
+                    b("doc_id", upsert.rich_document_id.clone()),
+                    b("workspace", thing(WORKSPACES_TABLE, &document.workspace_id)),
+                    b("base_doc_version", upsert.base_doc_version),
+                    b("base_content_sha256", upsert.base_content_sha256.clone()),
+                    b("draft_content_json", upsert.content_json.clone()),
+                    b("draft_content_sha256", draft_content_sha256.clone()),
+                    b("actor_kind", upsert.actor_kind.clone()),
+                    b("actor_id", upsert.actor_id.clone()),
+                    b("kernel_task_run_id", upsert.kernel_task_run_id.clone()),
+                    b("session_run_id", upsert.session_run_id.clone()),
+                ],
+                2,
             )
-        })?;
-        rows.into_iter()
-            .next()
-            .ok_or(StorageError::NotFound("knowledge rich document"))
-            .and_then(draft_to_domain)
+            .await;
+            let rows = result.map_err(|error| {
+                map_guarded_err(
+                    error,
+                    &[("HSK-KRD-NOT-FOUND", || {
+                        StorageError::NotFound("knowledge rich document")
+                    })],
+                )
+            })?;
+            rows.into_iter()
+                .next()
+                .ok_or(StorageError::NotFound("knowledge rich document"))
+                .and_then(draft_to_domain)
+        })
+        .await
     }
 
     async fn clear_knowledge_rich_document_draft(
         &self,
         rich_document_id: &str,
     ) -> StorageResult<bool> {
-        let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
-        read_live_rich_document(self.storage(), rich_document_id)
-            .await?
-            .ok_or(StorageError::NotFound("knowledge rich document"))?;
-        let deleted: Vec<SurrealValueData> = query_rows(
-            self.storage(),
-            "DELETE knowledge_rich_document_drafts WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) RETURN BEFORE;",
-            vec![b("doc_id", rich_document_id.to_owned())],
-        )
-        .await?;
-        Ok(!deleted.is_empty())
+        // DELETE is idempotent; only the returned bool can differ under a race.
+        let keys = vec![LockKey::record(
+            KNOWLEDGE_RICH_DOCUMENTS_TABLE,
+            rich_document_id.to_owned(),
+        )];
+        let replay_key = format!("krd-draft-clear:{rich_document_id}");
+        guarded_mutation(self, keys, replay_key, None, || async move {
+            read_live_rich_document(self.storage(), rich_document_id)
+                .await?
+                .ok_or(StorageError::NotFound("knowledge rich document"))?;
+            let deleted: Vec<SurrealValueData> = query_rows(
+                self.storage(),
+                "DELETE knowledge_rich_document_drafts WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) RETURN BEFORE;",
+                vec![b("doc_id", rich_document_id.to_owned())],
+            )
+            .await?;
+            Ok(!deleted.is_empty())
+        })
+        .await
     }
 
     async fn save_knowledge_rich_document_version(
@@ -4039,18 +4382,27 @@ impl KnowledgeStore for SurrealDatabase {
         promotion_receipt_event_id: Option<&str>,
     ) -> StorageResult<KnowledgeRichDocument> {
         let next_version = checked_next_rich_document_version(expected_version)?;
-        let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
-        save_rich_document_version_locked(
-            self.storage(),
-            rich_document_id,
-            expected_version,
-            next_version,
-            &content_json,
-            crdt_document_id,
-            crdt_snapshot_id,
-            promotion_receipt_event_id,
-            None,
-        )
+        // Replay-safe in the API's sense: `expected_version` makes a re-run
+        // succeed once or report the typed stale outcome (MT-142 item 4).
+        let keys = vec![LockKey::record(
+            KNOWLEDGE_RICH_DOCUMENTS_TABLE,
+            rich_document_id.to_owned(),
+        )];
+        let replay_key = format!("krd-save:{rich_document_id}:{expected_version}");
+        let content_json = &content_json;
+        guarded_mutation(self, keys, replay_key, None, || {
+            save_rich_document_version_transaction(
+                self.storage(),
+                rich_document_id,
+                expected_version,
+                next_version,
+                content_json,
+                crdt_document_id,
+                crdt_snapshot_id,
+                promotion_receipt_event_id,
+                None,
+            )
+        })
         .await?
         .ok_or(StorageError::Database(
             "knowledge rich document save without an idempotency claim cannot lose a key race"
@@ -4134,65 +4486,75 @@ impl KnowledgeStore for SurrealDatabase {
                 "knowledge rich document title must be non-empty and trimmed",
             ));
         }
-        let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
-        let current = read_live_rich_document(self.storage(), rich_document_id)
-            .await?
-            .ok_or(StorageError::NotFound("knowledge rich document"))?;
-        if let Some(expected) = expected_updated_at {
-            if current.updated_at != expected {
-                return Err(StorageError::Conflict(
-                    "knowledge_rich_document_stale_updated_at",
-                ));
+        // The updated_at compare-and-set is inside the transaction (the
+        // UPDATE writes the row, so the engine validates it at commit); with
+        // `None` the contract is last-writer-wins and a re-run is idempotent.
+        let keys = vec![LockKey::record(
+            KNOWLEDGE_RICH_DOCUMENTS_TABLE,
+            rich_document_id.to_owned(),
+        )];
+        let replay_key = format!("krd-rename:{rich_document_id}:{title}");
+        guarded_mutation(self, keys, replay_key, None, || async move {
+            let current = read_live_rich_document(self.storage(), rich_document_id)
+                .await?
+                .ok_or(StorageError::NotFound("knowledge rich document"))?;
+            if let Some(expected) = expected_updated_at {
+                if current.updated_at != expected {
+                    return Err(StorageError::Conflict(
+                        "knowledge_rich_document_stale_updated_at",
+                    ));
+                }
             }
-        }
-        let (_, search_text) = loom_projection_inputs(title, &current.content_json)?;
-        // Statements: BEGIN(0) guarded-rename(1) loom-title(2) search(3)
-        // final-select(4) COMMIT.
-        let statement = format!(
-            "BEGIN TRANSACTION;\n\
-             IF array::len((UPDATE knowledge_rich_documents SET title = $doc_title, updated_at = time::now() WHERE rich_document_id = $doc_id AND deleted_at = NONE AND ($expected_updated_at = NONE OR updated_at = $expected_updated_at) RETURN AFTER)) != 1 {{ THROW 'HSK-KRD-RENAME-STALE'; }};\n\
-             IF array::len((UPDATE loom_blocks SET title = $doc_title, updated_at = time::now() WHERE block_id = $doc_id AND workspace_id = $workspace AND content_type = 'note' RETURN AFTER)) != 1 {{ THROW 'HSK-KRD-RENAME-LOOM-MISSING'; }};\n\
-             {SEARCH_PROJECTION_STATEMENT}\n\
-             SELECT * FROM knowledge_rich_documents WHERE rich_document_id = $doc_id;\n\
-             COMMIT TRANSACTION;"
-        );
-        let result: Result<Vec<RichDocRecord>, SurrealStorageError> = raw_rows_at(
-            self.storage(),
-            statement,
-            vec![
-                b("doc_id", rich_document_id.to_owned()),
-                b("doc_title", title.to_owned()),
-                b(
-                    "expected_updated_at",
-                    expected_updated_at.map(Datetime::from),
-                ),
-                b("workspace", thing(WORKSPACES_TABLE, &current.workspace_id)),
-                b("doc_block_id", rich_document_id.to_owned()),
-                b("doc_search_text", search_text),
-            ],
-            4,
-        )
-        .await;
-        let rows = result.map_err(|error| {
-            map_guarded_err(
-                error,
-                &[
-                    ("HSK-KRD-RENAME-STALE", || {
-                        StorageError::Conflict("knowledge_rich_document_stale_updated_at")
-                    }),
-                    ("HSK-KRD-RENAME-LOOM-MISSING", || {
-                        StorageError::Conflict(
-                            "rich document LoomBlock projection missing during rename",
-                        )
-                    }),
-                    LOOM_IDENTITY_GUARDS[1],
+            let (_, search_text) = loom_projection_inputs(title, &current.content_json)?;
+            // Statements: BEGIN(0) guarded-rename(1) loom-title(2) search(3)
+            // final-select(4) COMMIT.
+            let statement = format!(
+                "BEGIN TRANSACTION;\n\
+                 IF array::len((UPDATE knowledge_rich_documents SET title = $doc_title, updated_at = time::now() WHERE rich_document_id = $doc_id AND deleted_at = NONE AND ($expected_updated_at = NONE OR updated_at = $expected_updated_at) RETURN AFTER)) != 1 {{ THROW 'HSK-KRD-RENAME-STALE'; }};\n\
+                 IF array::len((UPDATE loom_blocks SET title = $doc_title, updated_at = time::now() WHERE block_id = $doc_id AND workspace_id = $workspace AND content_type = 'note' RETURN AFTER)) != 1 {{ THROW 'HSK-KRD-RENAME-LOOM-MISSING'; }};\n\
+                 {SEARCH_PROJECTION_STATEMENT}\n\
+                 SELECT * FROM knowledge_rich_documents WHERE rich_document_id = $doc_id;\n\
+                 COMMIT TRANSACTION;"
+            );
+            let result: Result<Vec<RichDocRecord>, SurrealStorageError> = raw_rows_at(
+                self.storage(),
+                statement,
+                vec![
+                    b("doc_id", rich_document_id.to_owned()),
+                    b("doc_title", title.to_owned()),
+                    b(
+                        "expected_updated_at",
+                        expected_updated_at.map(Datetime::from),
+                    ),
+                    b("workspace", thing(WORKSPACES_TABLE, &current.workspace_id)),
+                    b("doc_block_id", rich_document_id.to_owned()),
+                    b("doc_search_text", search_text),
                 ],
+                4,
             )
-        })?;
-        rows.into_iter()
-            .next()
-            .ok_or(StorageError::NotFound("knowledge rich document"))
-            .and_then(rich_document_to_domain)
+            .await;
+            let rows = result.map_err(|error| {
+                map_guarded_err(
+                    error,
+                    &[
+                        ("HSK-KRD-RENAME-STALE", || {
+                            StorageError::Conflict("knowledge_rich_document_stale_updated_at")
+                        }),
+                        ("HSK-KRD-RENAME-LOOM-MISSING", || {
+                            StorageError::Conflict(
+                                "rich document LoomBlock projection missing during rename",
+                            )
+                        }),
+                        LOOM_IDENTITY_GUARDS[1],
+                    ],
+                )
+            })?;
+            rows.into_iter()
+                .next()
+                .ok_or(StorageError::NotFound("knowledge rich document"))
+                .and_then(rich_document_to_domain)
+        })
+        .await
     }
 
     async fn move_knowledge_rich_document(
@@ -4275,24 +4637,41 @@ impl KnowledgeStore for SurrealDatabase {
                 "knowledge editor code node language_id must be non-empty and trimmed",
             ));
         }
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let code_node_id = new_knowledge_id("KCN");
+        // Document-scoped natural key: the scope field carries the owning
+        // rich document id instead of a workspace id.
+        let keys = vec![LockKey::natural_key(
+            upsert.rich_document_id.clone(),
+            "knowledge_editor_code_node_path",
+            upsert.node_path.clone(),
+        )];
+        let replay_key = format!("kcn:{}:{}", upsert.rich_document_id, upsert.node_path);
         let round_trip_sha256 =
             crate::kernel::context_bundle::sha256_hex(upsert.code_text.as_bytes());
-        let rows: Vec<CodeNodeRecord> = query_rows(
-            self.storage(),
-            "IF (SELECT VALUE id FROM knowledge_editor_code_nodes WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND node_path = $node_path LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_editor_code_nodes SET language_id = $language_id, code_text = $code_text, round_trip_sha256 = $round_trip_sha256, worker_requirements = $worker_requirements, source_mapping = $source_mapping, lint_diagnostics = $lint_diagnostics, updated_at = time::now() WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND node_path = $node_path RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_editor_code_nodes', $code_node_id) CONTENT { code_node_id: $code_node_id, rich_document_id: type::record('knowledge_rich_documents', $doc_id), node_path: $node_path, language_id: $language_id, code_text: $code_text, round_trip_sha256: $round_trip_sha256, worker_requirements: $worker_requirements, source_mapping: $source_mapping, lint_diagnostics: $lint_diagnostics } RETURN AFTER; };",
-            vec![
-                b("code_node_id", code_node_id),
-                b("doc_id", upsert.rich_document_id.clone()),
-                b("node_path", upsert.node_path.clone()),
-                b("language_id", upsert.language_id.clone()),
-                b("code_text", upsert.code_text.clone()),
-                b("round_trip_sha256", round_trip_sha256),
-                b("worker_requirements", upsert.worker_requirements.clone()),
-                b("source_mapping", upsert.source_mapping.clone()),
-                b("lint_diagnostics", upsert.lint_diagnostics.clone()),
-            ],
+        let upsert = &upsert;
+        let round_trip_sha256 = &round_trip_sha256;
+        let rows: Vec<CodeNodeRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_editor_code_nodes_path"),
+            || {
+                let code_node_id = new_knowledge_id("KCN");
+                query_rows(
+                    self.storage(),
+                    "IF (SELECT VALUE id FROM knowledge_editor_code_nodes WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND node_path = $node_path LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_editor_code_nodes SET language_id = $language_id, code_text = $code_text, round_trip_sha256 = $round_trip_sha256, worker_requirements = $worker_requirements, source_mapping = $source_mapping, lint_diagnostics = $lint_diagnostics, updated_at = time::now() WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND node_path = $node_path RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_editor_code_nodes', $code_node_id) CONTENT { code_node_id: $code_node_id, rich_document_id: type::record('knowledge_rich_documents', $doc_id), node_path: $node_path, language_id: $language_id, code_text: $code_text, round_trip_sha256: $round_trip_sha256, worker_requirements: $worker_requirements, source_mapping: $source_mapping, lint_diagnostics: $lint_diagnostics } RETURN AFTER; };",
+                    vec![
+                        b("code_node_id", code_node_id),
+                        b("doc_id", upsert.rich_document_id.clone()),
+                        b("node_path", upsert.node_path.clone()),
+                        b("language_id", upsert.language_id.clone()),
+                        b("code_text", upsert.code_text.clone()),
+                        b("round_trip_sha256", round_trip_sha256.clone()),
+                        b("worker_requirements", upsert.worker_requirements.clone()),
+                        b("source_mapping", upsert.source_mapping.clone()),
+                        b("lint_diagnostics", upsert.lint_diagnostics.clone()),
+                    ],
+                )
+            },
         )
         .await?;
         rows.into_iter()
@@ -4333,21 +4712,36 @@ impl KnowledgeStore for SurrealDatabase {
                 "knowledge document embed ref_kind must be artifact|media|source|url",
             ));
         }
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let embed_id = new_knowledge_id("KEMB");
+        // Document-scoped natural key (scope field = owning rich document id).
+        let keys = vec![LockKey::natural_key(
+            upsert.rich_document_id.clone(),
+            "knowledge_document_embed_block",
+            upsert.block_id.clone(),
+        )];
+        let replay_key = format!("kemb:{}:{}", upsert.rich_document_id, upsert.block_id);
+        let upsert = &upsert;
         // An upsert re-points the embed; resolution is fresh, so the update
         // branch resets the repair state to ok (MT-153 repair through relink).
-        let rows: Vec<EmbedRecord> = query_rows(
-            self.storage(),
-            "IF (SELECT VALUE id FROM knowledge_document_embeds WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND block_id = $block_id LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_document_embeds SET ref_kind = $ref_kind, ref_value = $ref_value, caption = $caption, repair_state = 'ok', repair_reason = NONE, updated_at = time::now() WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND block_id = $block_id RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_document_embeds', $embed_id) CONTENT { embed_id: $embed_id, rich_document_id: type::record('knowledge_rich_documents', $doc_id), block_id: $block_id, ref_kind: $ref_kind, ref_value: $ref_value, caption: $caption } RETURN AFTER; };",
-            vec![
-                b("embed_id", embed_id),
-                b("doc_id", upsert.rich_document_id.clone()),
-                b("block_id", upsert.block_id.clone()),
-                b("ref_kind", upsert.ref_kind.clone()),
-                b("ref_value", upsert.ref_value.clone()),
-                b("caption", upsert.caption.clone()),
-            ],
+        let rows: Vec<EmbedRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_document_embeds_block"),
+            || {
+                let embed_id = new_knowledge_id("KEMB");
+                query_rows(
+                    self.storage(),
+                    "IF (SELECT VALUE id FROM knowledge_document_embeds WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND block_id = $block_id LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_document_embeds SET ref_kind = $ref_kind, ref_value = $ref_value, caption = $caption, repair_state = 'ok', repair_reason = NONE, updated_at = time::now() WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND block_id = $block_id RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_document_embeds', $embed_id) CONTENT { embed_id: $embed_id, rich_document_id: type::record('knowledge_rich_documents', $doc_id), block_id: $block_id, ref_kind: $ref_kind, ref_value: $ref_value, caption: $caption } RETURN AFTER; };",
+                    vec![
+                        b("embed_id", embed_id),
+                        b("doc_id", upsert.rich_document_id.clone()),
+                        b("block_id", upsert.block_id.clone()),
+                        b("ref_kind", upsert.ref_kind.clone()),
+                        b("ref_value", upsert.ref_value.clone()),
+                        b("caption", upsert.caption.clone()),
+                    ],
+                )
+            },
         )
         .await?;
         rows.into_iter()
@@ -4488,20 +4882,34 @@ impl KnowledgeStore for SurrealDatabase {
         &self,
         upsert: UpsertKnowledgeDocumentBacklink,
     ) -> StorageResult<KnowledgeDocumentBacklink> {
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let backlink_id = new_knowledge_id("KDBL");
-        let rows: Vec<BacklinkRecord> = query_rows(
-            self.storage(),
-            "IF (SELECT VALUE id FROM knowledge_document_backlinks WHERE workspace_id = $workspace AND relationship_id = $relationship_id LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_document_backlinks SET source_document_id = type::record('knowledge_rich_documents', $source_key), link_kind = $link_kind, target = $target, block_id = $block_id, updated_at = time::now() WHERE workspace_id = $workspace AND relationship_id = $relationship_id RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_document_backlinks', $backlink_id) CONTENT { backlink_id: $backlink_id, workspace_id: $workspace, relationship_id: $relationship_id, source_document_id: type::record('knowledge_rich_documents', $source_key), link_kind: $link_kind, target: $target, block_id: $block_id } RETURN AFTER; };",
-            vec![
-                b("backlink_id", backlink_id),
-                b("workspace", thing(WORKSPACES_TABLE, &upsert.workspace_id)),
-                b("relationship_id", upsert.relationship_id.clone()),
-                b("source_key", upsert.source_document_id.clone()),
-                b("link_kind", upsert.link_kind.clone()),
-                b("target", upsert.target.clone()),
-                b("block_id", upsert.block_id.clone()),
-            ],
+        let keys = vec![LockKey::natural_key(
+            upsert.workspace_id.clone(),
+            "knowledge_document_backlink_relationship",
+            upsert.relationship_id.clone(),
+        )];
+        let replay_key = format!("kdbl:{}:{}", upsert.workspace_id, upsert.relationship_id);
+        let upsert = &upsert;
+        let rows: Vec<BacklinkRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_document_backlinks_relationship"),
+            || {
+                let backlink_id = new_knowledge_id("KDBL");
+                query_rows(
+                    self.storage(),
+                    "IF (SELECT VALUE id FROM knowledge_document_backlinks WHERE workspace_id = $workspace AND relationship_id = $relationship_id LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_document_backlinks SET source_document_id = type::record('knowledge_rich_documents', $source_key), link_kind = $link_kind, target = $target, block_id = $block_id, updated_at = time::now() WHERE workspace_id = $workspace AND relationship_id = $relationship_id RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_document_backlinks', $backlink_id) CONTENT { backlink_id: $backlink_id, workspace_id: $workspace, relationship_id: $relationship_id, source_document_id: type::record('knowledge_rich_documents', $source_key), link_kind: $link_kind, target: $target, block_id: $block_id } RETURN AFTER; };",
+                    vec![
+                        b("backlink_id", backlink_id),
+                        b("workspace", thing(WORKSPACES_TABLE, &upsert.workspace_id)),
+                        b("relationship_id", upsert.relationship_id.clone()),
+                        b("source_key", upsert.source_document_id.clone()),
+                        b("link_kind", upsert.link_kind.clone()),
+                        b("target", upsert.target.clone()),
+                        b("block_id", upsert.block_id.clone()),
+                    ],
+                )
+            },
         )
         .await?;
         rows.into_iter()
@@ -4517,78 +4925,20 @@ impl KnowledgeStore for SurrealDatabase {
         source_document_id: &str,
         upserts: Vec<UpsertKnowledgeDocumentBacklink>,
     ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
-        let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
-        let source = read_live_rich_document(self.storage(), source_document_id)
-            .await?
-            .ok_or(StorageError::NotFound("knowledge rich document"))?;
-        if upserts.iter().any(|upsert| {
-            upsert.source_document_id != source_document_id
-                || upsert.workspace_id != source.workspace_id
-        }) {
-            return Err(StorageError::Validation(
-                "knowledge backlink rebuild source/workspace mismatch",
-            ));
-        }
-        let (prior_by_relationship, prior_loom_targets) =
-            read_prior_backlink_state(self.storage(), &source.workspace_id, source_document_id)
-                .await?;
-        let resolved = resolve_backlink_rows(
-            self.storage(),
-            &source.workspace_id,
-            source_document_id,
-            upserts,
-            &prior_by_relationship,
-            &prior_loom_targets,
-        )
-        .await?;
-        let insertion_order: HashMap<String, usize> = resolved
-            .iter()
-            .enumerate()
-            .map(|(index, row)| (row.relationship_id.clone(), index))
-            .collect();
-        let affected_blocks: BTreeSet<String> = prior_loom_targets
-            .iter()
-            .cloned()
-            .chain(
-                resolved
-                    .iter()
-                    .filter(|row| row.project_to_loom)
-                    .map(|row| row.target.clone()),
-            )
-            .chain(std::iter::once(source_document_id.to_owned()))
-            .collect();
-        // Statements: BEGIN(0) backlink-writes(1..5) final-select(6) COMMIT.
-        let statement = format!(
-            "BEGIN TRANSACTION;\n\
-             {BACKLINK_WRITE_STATEMENTS}\n\
-             SELECT * FROM knowledge_document_backlinks WHERE source_document_id = type::record('knowledge_rich_documents', $source_key);\n\
-             COMMIT TRANSACTION;"
-        );
-        let binds = backlink_write_binds(
-            thing(WORKSPACES_TABLE, &source.workspace_id),
-            source_document_id,
-            &resolved,
-            &affected_blocks,
-        );
-        let rows: Vec<BacklinkRecord> = raw_rows_at(
-            self.storage(),
-            statement,
-            binds,
-            1 + BACKLINK_WRITE_STATEMENT_COUNT,
-        )
+        // Content-derived, idempotent rebuild: the prior-state read, target
+        // resolution and the atomic rewrite all run inside the retried attempt.
+        // Target liveness is not revalidated in the transaction (MT-142 Q4:
+        // accepted derived-data staleness, rebuilt on the next save).
+        let keys = vec![LockKey::record(
+            KNOWLEDGE_RICH_DOCUMENTS_TABLE,
+            source_document_id.to_owned(),
+        )];
+        let replay_key = format!("krd-backlinks:{source_document_id}");
+        let upserts = &upserts;
+        guarded_mutation(self, keys, replay_key, None, || async move {
+            replace_backlinks_attempt(self, source_document_id, upserts).await
+        })
         .await
-        .map_err(|error| map_guarded_err(error, &[BACKLINK_GUARDS[0]]))?;
-        let mut out = rows
-            .into_iter()
-            .map(backlink_to_domain)
-            .collect::<StorageResult<Vec<_>>>()?;
-        out.sort_by_key(|backlink| {
-            insertion_order
-                .get(&backlink.relationship_id)
-                .copied()
-                .unwrap_or(usize::MAX)
-        });
-        Ok(out)
     }
 
     async fn list_knowledge_document_backlinks_from(
@@ -4936,36 +5286,47 @@ impl KnowledgeStore for SurrealDatabase {
             });
         }
 
-        let claim = IdempotentSaveClaim {
-            idempotency_key: idempotency_key.to_owned(),
-            workspace_key: String::new(),
-            request_hash: request_hash.clone(),
-            result_ref_id: rich_document_version_result_ref_id(rich_document_id, next_version),
-        };
-        let save_result = {
-            let _serialize = RICH_DOCUMENT_MUTATION_LOCK.lock().await;
-            // The claim row needs the document's workspace; read it under the
-            // lock so the id cannot change between the read and the write.
-            let current = read_live_rich_document(self.storage(), rich_document_id)
-                .await?
-                .ok_or(StorageError::NotFound("knowledge rich document"))?;
-            let claim = IdempotentSaveClaim {
-                workspace_key: current.workspace_id.clone(),
-                ..claim
-            };
-            save_rich_document_version_locked(
-                self.storage(),
-                rich_document_id,
-                expected_version,
-                next_version,
-                &content_json,
-                crdt_document_id,
-                crdt_snapshot_id,
-                promotion_receipt_event_id,
-                Some(claim),
-            )
-            .await
-        };
+        let keys = vec![LockKey::record(
+            KNOWLEDGE_RICH_DOCUMENTS_TABLE,
+            rich_document_id.to_owned(),
+        )];
+        let content_json = &content_json;
+        let request_hash = &request_hash;
+        let save_result = guarded_mutation(
+            self,
+            keys,
+            idempotency_key.to_owned(),
+            None,
+            || async move {
+                // The claim row needs the document's workspace; read it inside
+                // the attempt so a retried attempt sees the committed state.
+                let current = read_live_rich_document(self.storage(), rich_document_id)
+                    .await?
+                    .ok_or(StorageError::NotFound("knowledge rich document"))?;
+                let claim = IdempotentSaveClaim {
+                    idempotency_key: idempotency_key.to_owned(),
+                    workspace_key: current.workspace_id.clone(),
+                    request_hash: request_hash.clone(),
+                    result_ref_id: rich_document_version_result_ref_id(
+                        rich_document_id,
+                        next_version,
+                    ),
+                };
+                save_rich_document_version_transaction(
+                    self.storage(),
+                    rich_document_id,
+                    expected_version,
+                    next_version,
+                    content_json,
+                    crdt_document_id,
+                    crdt_snapshot_id,
+                    promotion_receipt_event_id,
+                    Some(claim),
+                )
+                .await
+            },
+        )
+        .await;
         match save_result {
             Ok(Some(document)) => Ok(KnowledgeIdempotentWrite {
                 value: document,
@@ -5017,6 +5378,132 @@ impl KnowledgeStore for SurrealDatabase {
     }
 }
 
+/// One attempt of create-if-title-absent: the live-title scan and the create
+/// transaction (which UPSERTs the title anchor) run together inside the
+/// retried closure, so an attempt that lost a commit conflict re-reads and
+/// returns the winner as `(existing, false)`.
+async fn create_if_title_absent_attempt(
+    database: &SurrealDatabase,
+    new_document: &NewKnowledgeRichDocument,
+    anchor: &TitleAnchor,
+) -> StorageResult<(KnowledgeRichDocument, bool)> {
+    let storage = database.storage();
+    let candidates: Vec<DocTitleRecord> = query_rows(
+        storage,
+        "SELECT rich_document_id, title, updated_at FROM knowledge_rich_documents WHERE workspace_id = $workspace AND deleted_at = NONE;",
+        vec![b(
+            "workspace",
+            thing(WORKSPACES_TABLE, &new_document.workspace_id),
+        )],
+    )
+    .await?;
+    let mut matches: Vec<DocTitleRecord> = candidates
+        .into_iter()
+        .filter(|row| normalize_rich_document_title(&row.title) == anchor.title_key)
+        .collect();
+    matches.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.rich_document_id.cmp(&right.rich_document_id))
+    });
+    match matches.len() {
+        0 => {
+            let document =
+                create_rich_document_transaction(storage, new_document, Some(anchor)).await?;
+            Ok((document, true))
+        }
+        1 => {
+            let document = read_live_rich_document(storage, &matches[0].rich_document_id)
+                .await?
+                .ok_or(StorageError::NotFound("knowledge rich document"))?;
+            Ok((document, false))
+        }
+        _ => Err(StorageError::Conflict(
+            "knowledge_rich_document_title_ambiguous",
+        )),
+    }
+}
+
+/// One attempt of the backlink rebuild (see `replace_knowledge_document_backlinks`).
+async fn replace_backlinks_attempt(
+    database: &SurrealDatabase,
+    source_document_id: &str,
+    upserts: &[UpsertKnowledgeDocumentBacklink],
+) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+    let storage = database.storage();
+    let source = read_live_rich_document(storage, source_document_id)
+        .await?
+        .ok_or(StorageError::NotFound("knowledge rich document"))?;
+    if upserts.iter().any(|upsert| {
+        upsert.source_document_id != source_document_id
+            || upsert.workspace_id != source.workspace_id
+    }) {
+        return Err(StorageError::Validation(
+            "knowledge backlink rebuild source/workspace mismatch",
+        ));
+    }
+    let (prior_by_relationship, prior_loom_targets) =
+        read_prior_backlink_state(storage, &source.workspace_id, source_document_id).await?;
+    let resolved = resolve_backlink_rows(
+        storage,
+        &source.workspace_id,
+        source_document_id,
+        upserts.to_vec(),
+        &prior_by_relationship,
+        &prior_loom_targets,
+    )
+    .await?;
+    let insertion_order: HashMap<String, usize> = resolved
+        .iter()
+        .enumerate()
+        .map(|(index, row)| (row.relationship_id.clone(), index))
+        .collect();
+    let affected_blocks: BTreeSet<String> = prior_loom_targets
+        .iter()
+        .cloned()
+        .chain(
+            resolved
+                .iter()
+                .filter(|row| row.project_to_loom)
+                .map(|row| row.target.clone()),
+        )
+        .chain(std::iter::once(source_document_id.to_owned()))
+        .collect();
+    // Statements: BEGIN(0) backlink-writes(1..5) final-select(6) COMMIT.
+    let statement = format!(
+        "BEGIN TRANSACTION;\n\
+         {BACKLINK_WRITE_STATEMENTS}\n\
+         SELECT * FROM knowledge_document_backlinks WHERE source_document_id = type::record('knowledge_rich_documents', $source_key);\n\
+         COMMIT TRANSACTION;"
+    );
+    let binds = backlink_write_binds(
+        thing(WORKSPACES_TABLE, &source.workspace_id),
+        source_document_id,
+        &resolved,
+        &affected_blocks,
+    );
+    let rows: Vec<BacklinkRecord> = raw_rows_at(
+        storage,
+        statement,
+        binds,
+        1 + BACKLINK_WRITE_STATEMENT_COUNT,
+    )
+    .await
+    .map_err(|error| map_guarded_err(error, &[BACKLINK_GUARDS[0]]))?;
+    let mut out = rows
+        .into_iter()
+        .map(backlink_to_domain)
+        .collect::<StorageResult<Vec<_>>>()?;
+    out.sort_by_key(|backlink| {
+        insertion_order
+            .get(&backlink.relationship_id)
+            .copied()
+            .unwrap_or(usize::MAX)
+    });
+    Ok(out)
+}
+
 const WIKI_PAGE_TYPES: [&str; 6] = ["module", "concept", "flow", "entity", "decision", "index"];
 
 fn validate_wiki_page(page: &NewKnowledgeWikiPage) -> StorageResult<()> {
@@ -5062,30 +5549,44 @@ impl SurrealDatabase {
         page: NewKnowledgeWikiPage,
     ) -> StorageResult<KnowledgeWikiProjection> {
         validate_wiki_page(&page)?;
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let projection_id = new_knowledge_id("KWP");
-        let rows: Vec<ProjectionRecord> = query_rows(
-            self.storage(),
-            "IF (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_wiki_projections SET source_records = $source_records, rendered_content = $rendered_content, rebuild_status = 'fresh', staleness_hash = $staleness_hash, rebuild_receipt_event_id = $receipt, last_rebuilt_at = time::now(), page_type = $page_type, compile_stamp = $compile_stamp, compile_recipe = $compile_recipe, page_links = $page_links, updated_at = time::now() WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_wiki_projections', $projection_id) CONTENT { projection_id: $projection_id, workspace_id: $workspace, projection_kind: 'wiki_page', title: $title, source_records: $source_records, rendered_content: $rendered_content, rebuild_status: 'fresh', staleness_hash: $staleness_hash, rebuild_receipt_event_id: $receipt, last_rebuilt_at: time::now(), page_type: $page_type, compile_stamp: $compile_stamp, compile_recipe: $compile_recipe, page_links: $page_links } RETURN AFTER; };",
-            vec![
-                b("projection_id", projection_id),
-                b("workspace", thing(WORKSPACES_TABLE, &page.workspace_id)),
-                b("title", page.title),
-                b("source_records", page.source_records),
-                b("rendered_content", page.rendered_content),
-                b("staleness_hash", page.staleness_hash),
-                b(
-                    "receipt",
-                    opt_thing(
-                        KERNEL_EVENT_LEDGER_TABLE,
-                        page.rebuild_receipt_event_id.as_deref(),
-                    ),
-                ),
-                b("page_type", page.page_type),
-                b("compile_stamp", page.compile_stamp),
-                b("compile_recipe", page.compile_recipe),
-                b("page_links", page.page_links),
-            ],
+        let keys = vec![LockKey::natural_key(
+            page.workspace_id.clone(),
+            "knowledge_wiki_projection_identity",
+            format!("wiki_page|{}", page.title),
+        )];
+        let replay_key = format!("kwp:{}:wiki_page:{}", page.workspace_id, page.title);
+        let page = &page;
+        let rows: Vec<ProjectionRecord> = guarded_mutation(
+            self,
+            keys,
+            replay_key,
+            Some("uq_knowledge_wiki_projections_identity"),
+            || {
+                let projection_id = new_knowledge_id("KWP");
+                query_rows(
+                    self.storage(),
+                    "IF (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_wiki_projections SET source_records = $source_records, rendered_content = $rendered_content, rebuild_status = 'fresh', staleness_hash = $staleness_hash, rebuild_receipt_event_id = $receipt, last_rebuilt_at = time::now(), page_type = $page_type, compile_stamp = $compile_stamp, compile_recipe = $compile_recipe, page_links = $page_links, updated_at = time::now() WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_wiki_projections', $projection_id) CONTENT { projection_id: $projection_id, workspace_id: $workspace, projection_kind: 'wiki_page', title: $title, source_records: $source_records, rendered_content: $rendered_content, rebuild_status: 'fresh', staleness_hash: $staleness_hash, rebuild_receipt_event_id: $receipt, last_rebuilt_at: time::now(), page_type: $page_type, compile_stamp: $compile_stamp, compile_recipe: $compile_recipe, page_links: $page_links } RETURN AFTER; };",
+                    vec![
+                        b("projection_id", projection_id),
+                        b("workspace", thing(WORKSPACES_TABLE, &page.workspace_id)),
+                        b("title", page.title.clone()),
+                        b("source_records", page.source_records.clone()),
+                        b("rendered_content", page.rendered_content.clone()),
+                        b("staleness_hash", page.staleness_hash.clone()),
+                        b(
+                            "receipt",
+                            opt_thing(
+                                KERNEL_EVENT_LEDGER_TABLE,
+                                page.rebuild_receipt_event_id.as_deref(),
+                            ),
+                        ),
+                        b("page_type", page.page_type.clone()),
+                        b("compile_stamp", page.compile_stamp.clone()),
+                        b("compile_recipe", page.compile_recipe.clone()),
+                        b("page_links", page.page_links.clone()),
+                    ],
+                )
+            },
         )
         .await?;
         rows.into_iter()
@@ -5104,30 +5605,42 @@ impl SurrealDatabase {
         page: NewKnowledgeWikiPage,
     ) -> StorageResult<KnowledgeWikiProjection> {
         validate_wiki_page(&page)?;
-        let _serialize = KNOWLEDGE_UPSERT_LOCK.lock().await;
-        let rows: Vec<ProjectionRecord> = query_rows(
-            self.storage(),
-            "UPDATE knowledge_wiki_projections SET title = $title, source_records = $source_records, rendered_content = $rendered_content, rebuild_status = 'fresh', staleness_hash = $staleness_hash, rebuild_receipt_event_id = $receipt, last_rebuilt_at = time::now(), page_type = $page_type, compile_stamp = $compile_stamp, compile_recipe = $compile_recipe, page_links = $page_links, updated_at = time::now() WHERE projection_id = $projection_id AND workspace_id = $workspace AND projection_kind = 'wiki_page' RETURN AFTER;",
-            vec![
-                b("projection_id", projection_id.to_owned()),
-                b("workspace", thing(WORKSPACES_TABLE, &page.workspace_id)),
-                b("title", page.title),
-                b("source_records", page.source_records),
-                b("rendered_content", page.rendered_content),
-                b("staleness_hash", page.staleness_hash),
-                b(
-                    "receipt",
-                    opt_thing(
-                        KERNEL_EVENT_LEDGER_TABLE,
-                        page.rebuild_receipt_event_id.as_deref(),
+        // Keyed by projection id (idempotent UPDATE); a title collision with a
+        // concurrent upsert is a genuine unique-index violation and stays
+        // terminal (no own_index), so the lock only orders it against the
+        // same-title upsert path.
+        let keys = vec![LockKey::natural_key(
+            page.workspace_id.clone(),
+            "knowledge_wiki_projection_identity",
+            format!("wiki_page|{}", page.title),
+        )];
+        let replay_key = format!("kwp-replace:{}:{projection_id}", page.workspace_id);
+        let page = &page;
+        let rows: Vec<ProjectionRecord> = guarded_mutation(self, keys, replay_key, None, || {
+            query_rows(
+                self.storage(),
+                "UPDATE knowledge_wiki_projections SET title = $title, source_records = $source_records, rendered_content = $rendered_content, rebuild_status = 'fresh', staleness_hash = $staleness_hash, rebuild_receipt_event_id = $receipt, last_rebuilt_at = time::now(), page_type = $page_type, compile_stamp = $compile_stamp, compile_recipe = $compile_recipe, page_links = $page_links, updated_at = time::now() WHERE projection_id = $projection_id AND workspace_id = $workspace AND projection_kind = 'wiki_page' RETURN AFTER;",
+                vec![
+                    b("projection_id", projection_id.to_owned()),
+                    b("workspace", thing(WORKSPACES_TABLE, &page.workspace_id)),
+                    b("title", page.title.clone()),
+                    b("source_records", page.source_records.clone()),
+                    b("rendered_content", page.rendered_content.clone()),
+                    b("staleness_hash", page.staleness_hash.clone()),
+                    b(
+                        "receipt",
+                        opt_thing(
+                            KERNEL_EVENT_LEDGER_TABLE,
+                            page.rebuild_receipt_event_id.as_deref(),
+                        ),
                     ),
-                ),
-                b("page_type", page.page_type),
-                b("compile_stamp", page.compile_stamp),
-                b("compile_recipe", page.compile_recipe),
-                b("page_links", page.page_links),
-            ],
-        )
+                    b("page_type", page.page_type.clone()),
+                    b("compile_stamp", page.compile_stamp.clone()),
+                    b("compile_recipe", page.compile_recipe.clone()),
+                    b("page_links", page.page_links.clone()),
+                ],
+            )
+        })
         .await?;
         rows.into_iter()
             .next()

@@ -3515,6 +3515,22 @@ DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_rich_documents TYPE datetim
 DEFINE INDEX OVERWRITE pk_knowledge_rich_documents ON TABLE knowledge_rich_documents FIELDS rich_document_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_knowledge_rich_documents_workspace ON TABLE knowledge_rich_documents FIELDS workspace_id;
 
+-- MT-142 knowledge_rich_document_title_anchors: per-(workspace, normalized title)
+-- write anchor UPSERTed inside the create-if-title-absent transaction so
+-- concurrent creators of one normalized title write the same key and RocksDB
+-- commit-time conflict detection admits exactly one. A serialization device,
+-- not a uniqueness rule: duplicate titles remain legal on the plain create path.
+DEFINE TABLE OVERWRITE knowledge_rich_document_title_anchors SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE anchor_key ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_rich_document_title_anchors TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE title_key ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE last_rich_document_id ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE claim_nonce ON TABLE knowledge_rich_document_title_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_rich_document_title_anchors TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE updated_at ON TABLE knowledge_rich_document_title_anchors TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_knowledge_rich_document_title_anchors ON TABLE knowledge_rich_document_title_anchors FIELDS anchor_key UNIQUE;
+DEFINE INDEX OVERWRITE uq_knowledge_rich_document_title_anchors_identity ON TABLE knowledge_rich_document_title_anchors FIELDS workspace_id, title_key UNIQUE;
+
 DEFINE TABLE OVERWRITE knowledge_rich_document_versions SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE rich_document_id ON TABLE knowledge_rich_document_versions TYPE record<knowledge_rich_documents> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE doc_version ON TABLE knowledge_rich_document_versions TYPE int ASSERT $value >= 1;

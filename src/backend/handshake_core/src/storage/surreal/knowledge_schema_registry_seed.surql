@@ -63,7 +63,8 @@ FOR $registry IN [
     { family_key: 'rich_document_drafts', table_name: 'knowledge_rich_document_drafts', record_family: 'RichDocumentDraftRecovery', authority_class: 'support', schema_source: 'storage/surreal/schema.surql', wp_id: 'WP-KERNEL-009', mt_id: 'MT-255' },
     { family_key: 'workspace_search_bookmark_state', table_name: 'knowledge_workspace_search_bookmark_states', record_family: 'WorkspaceSearchBookmarkState', authority_class: 'support', schema_source: 'storage/surreal/schema.surql', wp_id: 'WP-KERNEL-009', mt_id: 'MT-258' },
     { family_key: 'debug_breakpoints', table_name: 'knowledge_debug_breakpoints', record_family: 'DebugBreakpoints', authority_class: 'support', schema_source: 'storage/surreal/schema.surql', wp_id: 'WP-KERNEL-009', mt_id: 'MT-254' },
-    { family_key: 'rich_document_loom_projection_0343_state', table_name: 'knowledge_rich_document_loom_projection_0343_state', record_family: 'Support', authority_class: 'support', schema_source: 'storage/surreal/schema.surql', wp_id: 'WP-KERNEL-012', mt_id: 'MT-032' }
+    { family_key: 'rich_document_loom_projection_0343_state', table_name: 'knowledge_rich_document_loom_projection_0343_state', record_family: 'Support', authority_class: 'support', schema_source: 'storage/surreal/schema.surql', wp_id: 'WP-KERNEL-012', mt_id: 'MT-032' },
+    { family_key: 'rich_document_title_anchors', table_name: 'knowledge_rich_document_title_anchors', record_family: 'Support', authority_class: 'support', schema_source: 'storage/surreal/schema.surql', wp_id: 'WP-KERNEL-012', mt_id: 'MT-142' }
 ] {
     CREATE type::record('knowledge_schema_registry', $registry.family_key) CONTENT $registry;
 };

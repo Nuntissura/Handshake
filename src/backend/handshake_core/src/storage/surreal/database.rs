@@ -11,6 +11,7 @@
 
 use async_trait::async_trait;
 
+use super::keyed_lock::KeyedLockRegistry;
 use super::SurrealStorage;
 use crate::storage::{Database, StorageError};
 
@@ -18,14 +19,41 @@ use crate::storage::{Database, StorageError};
 use crate::storage::*;
 
 /// Embedded-SurrealDB control-plane database.
+///
+/// Every value owns a [`KeyedLockRegistry`] used only as optional contention
+/// shaping for knowledge writers (MT-142 D-142-3): correctness is owned by the
+/// committing SurrealDB transaction, never by these locks. `Clone` shares the
+/// registry (clones are one logical wrapper), whereas [`Self::new`] and
+/// [`Self::with_lock_registry`] each create a wrapper with its own registry, so
+/// two independent wrappers over one engine never coordinate through
+/// process-local locks (AC-142-8).
 #[derive(Clone)]
 pub struct SurrealDatabase {
     storage: SurrealStorage,
+    lock_registry: KeyedLockRegistry,
 }
 
 impl SurrealDatabase {
+    /// Wrapper with a fresh keyed registry in [`super::keyed_lock::LockMode::Keyed`]
+    /// (today's contention-shaping behaviour).
     pub fn new(storage: SurrealStorage) -> Self {
-        Self { storage }
+        Self::with_lock_registry(storage, KeyedLockRegistry::keyed())
+    }
+
+    /// Wrapper over `storage` using the given registry; pass
+    /// `KeyedLockRegistry::disabled()` to prove the database transactions own
+    /// correctness without any process-local lock.
+    pub fn with_lock_registry(storage: SurrealStorage, lock_registry: KeyedLockRegistry) -> Self {
+        Self {
+            storage,
+            lock_registry,
+        }
+    }
+
+    /// The registry this wrapper shapes same-key writers with (AC-142-10
+    /// measurements read its entry counts).
+    pub fn lock_registry(&self) -> &KeyedLockRegistry {
+        &self.lock_registry
     }
 
     /// Borrow the embedded store for domain implementations.
