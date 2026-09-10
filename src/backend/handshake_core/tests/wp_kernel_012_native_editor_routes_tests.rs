@@ -416,6 +416,26 @@ fn scalar(tagged: &Value) -> Value {
             let (tag, inner) = map.iter().next().expect("single-entry tagged object");
             if is_absent_tag(tag) {
                 Value::Null
+            } else if tag == "RecordId" {
+                // A record LINK field (e.g. schema.surql:4821
+                // `event_ledger_event_id ON TABLE stage_capture_artifacts TYPE
+                // option<record<kernel_event_ledger>>`) projects as
+                // `{"RecordId": {"table": "<table>", "key": <tagged key>}}` --
+                // `RecordId` is a plain `{table, key}` struct and `Table` is a
+                // transparent newtype so it serializes as a bare string, but
+                // `RecordIdKey` is itself a tagged enum, so a string-keyed
+                // record's `key` sub-value is `{"String": "<id>"}` (every
+                // `kernel_event_ledger` row's own key IS its `event_id`, per
+                // schema.surql:789 `event_id TYPE string ASSERT $value =
+                // record::id($this.id)`). Recurse through the same
+                // single-entry-tag unwrap on the `key` sub-value so this
+                // collapses straight to the bare id string -- the exact shape
+                // `storage/stage_artifacts.rs:491-498` (`record_key`) extracts
+                // for the product's own `StageCaptureArtifact.event_ledger_event_id:
+                // Option<String>` -- so any future `project_one_row` read of a
+                // `record<...>` field gets the same treatment without a second
+                // helper.
+                inner.get("key").map_or_else(|| inner.clone(), scalar)
             } else {
                 inner.clone()
             }
