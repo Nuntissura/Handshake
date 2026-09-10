@@ -241,7 +241,20 @@
         "storage::surreal::schema::tests::record_references_reject_orphans_and_preserve_identity_semantics",
         "knowledge_documents_api_tests::mt032_delete_is_atomic_and_removes_canvas_references",
         "knowledge_claims_tests: 5 tests (see baseline_run.result)"
-      ]
+      ],
+      "interruption_2_20260910": {
+        "at_utc": "2026-09-10T19:15Z",
+        "cause": "API session rate limit terminated all four running agents (A2, B, C, reviewer lens 1); reset 22:10Z",
+        "resumed_at_utc": "2026-09-10T22:13:44.284Z",
+        "tree_state": "uncommitted on top of 26731c56: surreal.rs +196, keyed_lock.rs +242, knowledge.rs +87, swarm_load_report.rs +205, seed.rs +274, load tests +40, semantics +4, plus reviewer probe tests/swarm_review_probe_1.rs (untracked)",
+        "compile_state": "BROKEN mid-edit: surreal.rs:1630 calls wait_for_engine_release(&store_path) after A2 added a second parameter budget: Duration at :1433 (E0061) - routed to A2",
+        "green_before_the_break": {
+          "surreal_swarm_semantics_tests": "ok. 6 passed; 0 failed (T185436Z) - includes keyed_lock_registry_reclaims_after_high_cardinality_churn, so the reclamation regression is FIXED",
+          "surreal_swarm_load_tests": "ok. 2 passed; 0 failed (T185857Z)",
+          "surreal_swarm_lifecycle_tests": "ok. 1 passed; 0 failed (T191259Z)"
+        },
+        "keyed_lock_root_cause": "a strong-count snapshot taken by the releasing guard let two guards of one key release in parallel, each observing the other reference and skipping removal; the fix removes the map entry when the LAST strong reference to the LockCell drops, whichever party drops it"
+      }
     },
     "phase_3_reviews_20260910": {
       "round_1": {
@@ -267,7 +280,9 @@
           "dispatched_at_utc": "2026-09-10T18:55:55.374Z"
         },
         "lens_1": {
-          "status": "RUNNING"
+          "status": "INTERRUPTED_BY_RATE_LIMIT",
+          "probe_file": "src/backend/handshake_core/tests/swarm_review_probe_1.rs (untracked, 267 lines): Probe A the keyed-lock reclamation race - CONFIRMED REAL and since fixed, so the probe is kept as a regression test; Probe B independent clients racing natural-key upsert families - unfinished",
+          "no_report_written": true
         }
       },
       "regression_found_after_26731c56": "keyed_lock_registry_reclaims_after_high_cardinality_churn: entry_count 1 after concurrent churn (Lane B semantics run T184953Z) -> A2 root-causing with a deterministic unit test"
@@ -560,5 +575,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T18:55:55.374Z"
+  "updated_at_utc": "2026-09-10T22:13:44.284Z"
 }
