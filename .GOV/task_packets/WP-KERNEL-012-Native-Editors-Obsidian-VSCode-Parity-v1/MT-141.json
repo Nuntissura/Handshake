@@ -133,7 +133,7 @@
         "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-A-durability-and-disposition.json"
       },
       "AC-141-2": {
-        "verdict": "MET_BY_DISPOSITION_PENDING_MT120_PROOF",
+        "verdict": "MET",
         "blocking": false,
         "compile_half": "MET - compile-gate-4 at 2876bcf0 is exit 0 with zero errors across all targets using --features surreal-test-support,test-utils.",
         "preservation_half": "NOT MET. Commit 4f92cc25 deleted 26 test files. A disposition audit produced 46 rows and found 49 deleted tests with no superseding proof named, spread across 12 files.",
@@ -162,17 +162,31 @@
           "required_before_ac_141_2_can_be_closed": "A coverage sweep over src/ PLUS tests/ for each BEHAVIOUR_STILL_LIVE test, to separate genuinely-uncovered behaviour from behaviour already proven by an in-source module. Only the genuinely-uncovered set needs porting or governed debt.",
           "status_unchanged": "AC-141-2 remains NOT_MET and MT-141 remains BLOCKED_ON_ACCEPTANCE_GAP: at least the Locus route cluster is confirmed uncovered, which is sufficient on its own to block."
         },
-        "resolution_2026_09_10": "Under Operator Option A, AC-141-2's preservation clause ('every retired test names the superseding proof or the removed behaviour it covered') is satisfied by the typed PT-141-3 table: 3 name the removed behaviour, 4 cite an existing superseding proof, 3 are restored in this microtask, and 47 name MT-150 as their superseding-proof route with the restoration set enumerated there test-by-test. Nothing is silently dropped. The compile clause was already MET (compile-gate-4). The only remaining condition is that the three restored mt120 tests compile and pass; until then this row stays PENDING."
+        "resolution_2026_09_10": "Under Operator Option A, AC-141-2's preservation clause ('every retired test names the superseding proof or the removed behaviour it covered') is satisfied by the typed PT-141-3 table: 3 name the removed behaviour, 4 cite an existing superseding proof, 3 are restored in this microtask, and 47 name MT-150 as their superseding-proof route with the restoration set enumerated there test-by-test. Nothing is silently dropped. The compile clause was already MET (compile-gate-4). The only remaining condition is that the three restored mt120 tests compile and pass; until then this row stays PENDING.",
+        "mt120_proof_2026_09_10": {
+          "run": "mt120b-20260910T002357Z",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_documents_api_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast mt120 -- --nocapture",
+          "env": {
+            "HANDSHAKE_WORKSPACE_ROOT": "isolated per-run dir under D:/hs12/workspace/",
+            "HANDSHAKE_ARTIFACTS_ROOT": "absolute CX-984 root"
+          },
+          "result": "test result: ok. 3 passed; 0 failed; 0 ignored; finished in 68.85s; CARGO_EXIT=0",
+          "product_commit": "0513d99b",
+          "product_commit_note": "0513d99b - the checkpoint commit; no edits after it, so the proven tree is the pushed tree.",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/mt120b-20260910T002357Z.out.log",
+          "first_run_note": "The first attempt failed all three at knowledge_ingestion_support/mod.rs:85 because HANDSHAKE_ARTIFACTS_ROOT was unset; the pre-existing mt158 tests in the same binary failed identically, proving the cause was harness env, not the restored tests. See ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/suite-run-1-integration-misconfiguration.json"
+        }
       },
       "AC-141-4": {
-        "verdict": "NOT_MET_PENDING_SUITE_COMPLETION",
+        "verdict": "NOT_MET",
         "blocking_for_ready_for_validation": false,
         "note": "Truthful state, not a pass. suite-run-1 --lib: 1936 passed / 36 failed / 3 ignored. Integration targets still executing at time of writing. Classification so far: 2 host-environment-gated, 3 caused by this session running a concurrent cargo lane, 31+ undetermined/apparently genuine, plus 3 integration failures caused by this session omitting HANDSHAKE_WORKSPACE_ROOT (invalidated; corrected re-run staged). The apparently-genuine failures are src/ defects (missing tables, schema drift, DEF-SYSTEMIC-UPSERT-IDEMPOTENCY, SurrealQL signature/parse errors) that a tests/-only microtask cannot fix. This row will be finalised from the completed run and handed to the validator as-is; Kernel Builder does not self-certify it.",
         "evidence": [
           "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/suite-run-1-lib-classification.json",
           "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/suite-run-1-integration-misconfiguration.json",
           "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/defect-systemic-upsert-idempotency.json"
-        ]
+        ],
+        "final_2026_09_10": "suite-run-1 was stopped at 20 of 89 binaries under Operator fast-path authority (see ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/suite-run-1-stopped.json). Lib binary: 1936 passed / 36 failed / 3 ignored, classified in suite-run-1-lib-classification.json. The integration phase was additionally invalidated for every target using knowledge_ingestion_support or atelier_surreal_support by two env variables this session omitted (HANDSHAKE_WORKSPACE_ROOT, HANDSHAKE_ARTIFACTS_ROOT). Genuine src/ defects found: DEF-SYSTEMIC-UPSERT-IDEMPOTENCY (4 tables) plus SurrealQL signature/parse and schema-drift failures; none is fixable from tests/. Handed to the validator as-is; the corrected full run is staged in rerun-corrected.sh (now needing both env vars) for the validator or MT-150."
       }
     },
     "blocker_resolved_20260909": {
@@ -186,9 +200,8 @@
     "blocker": {
       "schema_id": "hsk.mt_blocker@1",
       "recorded_by": "KERNEL_BUILDER-20260909-212427",
-      "recorded_at_utc": "2026-09-10T00:18:07.958Z",
-      "summary": "Awaiting (1) compile-and-run of the three restored mt120 tests and (2) completion of suite-run-1 for the final AC-141-4 record. Both need the shared target lock currently held by suite-run-1. The former acceptance-gap blocker is resolved by Operator Option A and the PT-141-3 disposition.",
-      "not_a_scope_problem": "Nothing further is scope-blocked. The remaining items are proof execution only."
+      "recorded_at_utc": "2026-09-10T00:26:19Z",
+      "summary": "None remaining for the fast-path close. Awaiting kb-ready-checklist and handoff emission only."
     },
     "deleted_test_liveness_classification_20260909": {
       "recorded_by": "KERNEL_BUILDER-20260909-212427",
@@ -864,9 +877,24 @@
       "product_commit": "44e2e3587c3cbfee124a7ee81e7900156095b7b3",
       "backup_push": "origin/feat/WP-KERNEL-012 verified",
       "product_worktree": "CLEAN"
-    }
+    },
+    "proof_results": [
+      {
+        "mode": "mt120-restoration",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_documents_api_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast mt120 -- --nocapture",
+        "exit_code": 0,
+        "result_lines": [
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 68.85s",
+          "CARGO_EXIT=0"
+        ],
+        "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/mt120b-20260910T002357Z.out.log",
+        "product_commit": "0513d99b",
+        "reuse_basis": null
+      }
+    ],
+    "lane_f_review_rf5": "SETTLED by green compile-and-run; see ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-kernel-builder-review.json"
   },
-  "updated_at_utc": "2026-09-10T00:18:07.958Z",
+  "updated_at_utc": "2026-09-10T00:26:19Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
