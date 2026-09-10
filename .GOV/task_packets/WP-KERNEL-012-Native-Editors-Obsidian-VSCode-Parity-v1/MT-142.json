@@ -157,16 +157,33 @@
         ]
       },
       "A2": {
-        "status": "RUNNING",
+        "status": "RESUMED",
         "started_at_utc": "2026-09-10T10:31:00.612Z",
-        "brief": "scratchpad mt142-laneA2-brief.md plus 8 addenda: pre-reads inside the retried closure; unique-index violation -> RetryableSnapshotChange only at the upsert sites; title discriminator + UNIQUE index + LockKey::NaturalKey; Exhausted -> StorageError::ConflictDetails HSK-STORAGE-RETRY-EXHAUSTED; registry per SurrealDatabase::new with with_lock_registry/lock_registry; per-attempt statement_timeout; mutex runner in the foreground; tree left uncommitted"
+        "brief": "scratchpad mt142-laneA2-brief.md plus 8 addenda: pre-reads inside the retried closure; unique-index violation -> RetryableSnapshotChange only at the upsert sites; title discriminator + UNIQUE index + LockKey::NaturalKey; Exhausted -> StorageError::ConflictDetails HSK-STORAGE-RETRY-EXHAUSTED; registry per SurrealDatabase::new with with_lock_registry/lock_registry; per-attempt statement_timeout; mutex runner in the foreground; tree left uncommitted",
+        "last_schema_run": "mt142-LIB-20260910T112134Z: 18 passed / 3 failed (2 pre-existing at MT-141 baseline suite-run-1; mt139_exact_predecessor_upgrade caused); registry seed count pin 62 not re-pinned -> every fresh store open fails (blocks Lane B)"
       },
       "B": {
-        "status": "RUNNING",
+        "status": "RESUMED",
         "started_at_utc": "2026-09-10T10:31:00.612Z",
-        "brief": "scratchpad mt142-laneB-brief.md; files tests/surreal_swarm_semantics_tests.rs, tests/surreal_swarm_load_tests.rs, tests/surreal_swarm_lifecycle_tests.rs, tests/swarm_support/mod.rs; cargo go-ahead given after A1 released the lane"
+        "brief": "scratchpad mt142-laneB-brief.md; files tests/surreal_swarm_semantics_tests.rs, tests/surreal_swarm_load_tests.rs, tests/surreal_swarm_lifecycle_tests.rs, tests/swarm_support/mod.rs; cargo go-ahead given after A1 released the lane",
+        "last_run": "mt142-surreal_swarm_semantics_tests-20260910T111830Z: compiles; 0 passed / 6 failed, all at store open on the A2 seed-count pin"
       },
-      "cargo_lane": "scratchpad mt142-run.sh serialises lanes with an atomic mkdir lock at D:/hs42/cargo-lane.lock.d; CARGO_TARGET_DIR=D:/hs12/target (CX-984-010 override)"
+      "cargo_lane": "scratchpad mt142-run.sh serialises lanes with an atomic mkdir lock at D:/hs42/cargo-lane.lock.d; CARGO_TARGET_DIR=D:/hs12/target (CX-984-010 override)",
+      "interruption_20260910": {
+        "at_utc": "2026-09-10T11:22Z",
+        "cause": "API rate limit (session limit) terminated lanes A2 and B mid-run; resumed at 15:14Z after reset",
+        "state_recovery_commit": "448338d4 (WIP, not green)"
+      },
+      "C": {
+        "status": "LANDED_UNCOMMITTED_IN_WIP",
+        "page": "surreal-swarm-concurrency-and-load (page_surreal_swarm_concurrency_and_load)",
+        "tests": [
+          "mt142_manual_covers_surreal_swarm_concurrency_and_load",
+          "mt142_manual_runbook_targets_and_env_vars_exist"
+        ],
+        "proof": "user_manual filter ok. 25 passed; 0 failed (mt142-LIB-20260910T110436Z)",
+        "manual_version": "unchanged 2.0.4"
+      }
     }
   },
   "scope": {
@@ -456,5 +473,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T10:31:00.612Z"
+  "updated_at_utc": "2026-09-10T17:14:58.414Z"
 }
