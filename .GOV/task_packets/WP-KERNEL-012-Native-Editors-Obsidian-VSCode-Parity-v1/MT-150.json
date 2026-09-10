@@ -199,25 +199,62 @@
           "run": "(see logs/mt150-memory_capsule_recorder_surreal_tests-*)"
         },
         "wp_kernel_012_native_editor_routes_tests": {
-          "result": "COMPILE_AND_RUN_IN_PROGRESS after import fix (round 1 compile: 5x E0599 missing StructuredCollaborationStore trait import; fixed by lane)",
-          "secs": null,
-          "run": "(pending)"
+          "result": "FAILED. 11 passed; 3 failed (round 1)",
+          "secs": 261.78,
+          "run": "(see logs/mt150-wp_kernel_012_native_editor_routes_tests-*)",
+          "round_1_compile": "5x E0599 (StructuredCollaborationStore trait not in scope) -> fixed by lane, recompiled clean in 22.99s",
+          "round_1_failures": {
+            "shared_root_cause": "The surreal-test-support inspector's project() returns ProjectedRow.values as TAGGED serde_json values (e.g. Object {String: completed}; an unset option field is a tagged None, not JSON null). The lane's project_one_row assertions compared raw JSON / used .is_null() / .as_str() against that representation. Test-representation defect; NOT product behaviour.",
+            "tests": [
+              {
+                "test": "route6_document_soft_delete_tombstones_and_receipts",
+                "line": 2880,
+                "product_verified": "delete_document (src/api/knowledge_documents.rs:1110) runs doc_context(&headers)? and ctx.require(DocumentAction::Write)? before any read or write; the 403 assertion passed; deleted_at is NONE (never set). Deny-before-write holds."
+              },
+              {
+                "test": "route2_stage_artifact_create_and_resolve",
+                "line": 1891,
+                "product_verified": "panic payload shows left: Object {String: completed}; the job status IS completed. Shape mismatch only."
+              },
+              {
+                "test": "stage_flight_projection_failure_returns_500_and_retry_heals_once",
+                "line": 2006,
+                "product_verified": "persisted[artifact_id].as_str() is None on the tagged object although the artifact is persisted (row was found by idempotency_key)."
+              }
+            ],
+            "fix_in_progress": "Lane R round 2: one unwrap helper (or the ScalarValue accessor) applied at every project_one_row consumer; no assertion weakened. Recompile + rerun pending."
+          },
+          "passing_round_1": [
+            "stage_binding_owned_subprocess_helper",
+            "route1_locus_micro_task_resolve",
+            "route1_locus_work_packet_resolve",
+            "activity_span_write_is_event_and_workspace_scoped",
+            "route3_calendar_events_returns_events_in_window",
+            "mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_residue",
+            "mt067_calendar_event_populates_daily_note_doc_id",
+            "mt067_activity_span_create_and_query_round_trip",
+            "stage_capture_rejects_crash_stale_binding_without_residue",
+            "document_save_authenticates_same_native_principal_as_independent_stage_route",
+            "stage_denial_limits_and_attribution_apply_at_the_authentication_boundary"
+          ]
         }
       },
       "totals": {
         "targets": 7,
         "green": 5,
-        "red": 1,
-        "pending": 1,
-        "tests_green": 24,
-        "tests_red": 1
+        "red_on_product_defect": 1,
+        "red_on_test_representation_fix_pending": 1,
+        "tests_green": 35,
+        "tests_red_product": 1,
+        "tests_red_representation": 3
       },
       "red_test": {
         "test": "capsule_recorder_dedup_collapses_duplicate_submissions",
         "file": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:124",
         "disposition": "PORTED_RED_ON_PRODUCT_DEFECT - assertion is faithful to the deleted original; do NOT weaken",
         "defect": "DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE"
-      }
+      },
+      "recorded_at_utc": "2026-09-10T08:40:36.152Z"
     }
   },
   "scope": {
@@ -846,7 +883,7 @@
     ],
     "next_actor": "ORCHESTRATOR"
   },
-  "updated_at_utc": "2026-09-10T08:36:01.679Z",
+  "updated_at_utc": "2026-09-10T08:40:36.152Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
