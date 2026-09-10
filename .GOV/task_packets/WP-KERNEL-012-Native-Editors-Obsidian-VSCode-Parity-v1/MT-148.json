@@ -372,9 +372,18 @@
       "job_status_final": "success",
       "concluded_at_utc": "2026-09-10T01:08:47Z",
       "job_url": "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863"
+    },
+    "kb_ready_checklist_contract_evidence_validation": {
+      "mode": "--contract-evidence",
+      "overall_verdict": "PASS",
+      "blockers": [],
+      "validated_at_utc": "2026-09-10T01:09:30Z",
+      "product_commit": "0513d99bf0dc110c4a933938d4eb3afc871f55f4",
+      "all_six_rubric_items": "yes (RC-003 n/a for MT-148: no tests added)",
+      "note": "This mode validates the typed rubric evidence against the script auto-findings and does not persist a receipt; the persisted --emit receipt remains BLOCKED for the helper-drift reason in lifecycle.blocker. Both signals are on record for the Integration Validator."
     }
   },
-  "updated_at_utc": "2026-09-10T01:08:47Z",
+  "updated_at_utc": "2026-09-10T01:09:30Z",
   "owned_files": [
     ".gitattributes",
     "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs"

@@ -980,9 +980,18 @@
     },
     "open_blockers": [
       "GOVERNANCE_HELPER_DRIFT: persisted kb-ready receipt cannot be produced by any in-repo emitter (see lifecycle.blocker)"
-    ]
+    ],
+    "kb_ready_checklist_contract_evidence_validation": {
+      "mode": "--contract-evidence",
+      "overall_verdict": "PASS",
+      "blockers": [],
+      "validated_at_utc": "2026-09-10T01:09:30Z",
+      "product_commit": "0513d99bf0dc110c4a933938d4eb3afc871f55f4",
+      "all_six_rubric_items": "yes (RC-003 n/a for MT-148: no tests added)",
+      "note": "This mode validates the typed rubric evidence against the script auto-findings and does not persist a receipt; the persisted --emit receipt remains BLOCKED for the helper-drift reason in lifecycle.blocker. Both signals are on record for the Integration Validator."
+    }
   },
-  "updated_at_utc": "2026-09-10T01:08:47Z",
+  "updated_at_utc": "2026-09-10T01:09:30Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
