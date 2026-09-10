@@ -242,6 +242,35 @@
         "knowledge_documents_api_tests::mt032_delete_is_atomic_and_removes_canvas_references",
         "knowledge_claims_tests: 5 tests (see baseline_run.result)"
       ]
+    },
+    "phase_3_reviews_20260910": {
+      "round_1": {
+        "lens_2": {
+          "verdict": "REJECT",
+          "file": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-2-round-1.json",
+          "product_commit": "26731c56",
+          "blockers": [
+            "R2-1-1 manual drift: statement_timeout 30 s vs code 300 s; engine timeouts presented as applied defaults; child-token claim false; manual self-consistency test FAILS at HEAD -> Lane C",
+            "R2-1-2 load report verdict ignores unexpected terminal errors / untyped conflicts / lock-wait timeouts / class coverage; a Pass artifact was written for a failed run -> Lane B"
+          ],
+          "majors": [
+            "R2-1-3 maximum_concurrent_operations is a call-boundary gauge -> add effective_parallelism (A2 schema, B fill, C manual)",
+            "R2-1-4 shutdown second client.write() unbounded after drain grace; LOCK probe loop without deadline; bounded_statement only at two sites -> A2",
+            "R2-1-5 lifecycle cancel branch never exercised -> B",
+            "R2-1-6 extended harness hard-codes dataset/mix/skew/contention; RSS rule missing -> B",
+            "R2-1-7 no numeric budgets in report -> A2 schema + B fill",
+            "R2-1-8 expected CAS losers reported as terminal -> A2 enum + B classify",
+            "R2-1-9 delete route uses a per-request registry (API, outside allowed paths); false test comment; manual silent -> B comment, C manual, follow-on stands",
+            "R2-1-10 statement_timeout 300 s derived from a test batch -> ACCEPTED with written reason (D-142-4 stands; doc comment on the constants)"
+          ],
+          "minors": 7,
+          "dispatched_at_utc": "2026-09-10T18:55:55.374Z"
+        },
+        "lens_1": {
+          "status": "RUNNING"
+        }
+      },
+      "regression_found_after_26731c56": "keyed_lock_registry_reclaims_after_high_cardinality_churn: entry_count 1 after concurrent churn (Lane B semantics run T184953Z) -> A2 root-causing with a deterministic unit test"
     }
   },
   "scope": {
@@ -531,5 +560,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T18:50:10.714Z"
+  "updated_at_utc": "2026-09-10T18:55:55.374Z"
 }
