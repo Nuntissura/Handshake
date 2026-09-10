@@ -157,10 +157,27 @@
         ]
       },
       "A2": {
-        "status": "RUNNING (schema accepted 19/21 with 2 pre-existing; fixing raw_rows_at + lock-wait hook; knowledge proofs pending)",
-        "started_at_utc": "2026-09-10T10:31:00.612Z",
-        "brief": "scratchpad mt142-laneA2-brief.md plus 8 addenda: pre-reads inside the retried closure; unique-index violation -> RetryableSnapshotChange only at the upsert sites; title discriminator + UNIQUE index + LockKey::NaturalKey; Exhausted -> StorageError::ConflictDetails HSK-STORAGE-RETRY-EXHAUSTED; registry per SurrealDatabase::new with with_lock_registry/lock_registry; per-attempt statement_timeout; mutex runner in the foreground; tree left uncommitted",
-        "last_schema_run": "mt142-LIB-20260910T112134Z: 18 passed / 3 failed (2 pre-existing at MT-141 baseline suite-run-1; mt139_exact_predecessor_upgrade caused); registry seed count pin 62 not re-pinned -> every fresh store open fails (blocks Lane B)"
+        "status": "LANDED",
+        "product_commit": "26731c56",
+        "at_utc": "2026-09-10T18:33:56.318Z",
+        "summary": "both locks removed from src/storage (0 occurrences); per-site guard table in the lane report; title uniqueness via knowledge_rich_document_title_anchors (UNIQUE workspace_id+title_key, per-attempt claim nonce inside the create-if-absent transaction) because duplicate document titles are a modelled state; schema lineage gains an allowlisted pre-MT-142 -> current hop, all pins re-set (registry rows 62->63); raw_rows_at/raw_execute decode the meaningful row (fixes DEF-KNOWLEDGE-RAW-ROWS-UNTYPED-TRANSACTION-FAILURE); upsert sites retry RetryableSnapshotChange on their own UNIQUE index; shutdown CLOSING -> drain_grace 5 s -> cancel -> bounded drain -> close with ShutdownReport; SurrealStorageConfig drain_grace/statement_timeout (300 s, evidence: a save statement exceeded 30 s under the 4-way HDD batch)/engine timeouts (wired, default None: fresh bootstrap exceeds 60 s under load); KeyedLockRegistry lock-wait samples (cap 65536)",
+        "proofs": {
+          "storage::surreal::schema": "19 passed / 2 failed (both pre-existing, verified at HEAD)",
+          "storage::surreal::knowledge": "ok. 1 passed",
+          "storage::surreal::keyed_lock": "ok. 11 passed",
+          "knowledge_parallel_write_conflict_fixture_tests": "ok. 1 passed (29.8 s)",
+          "knowledge_documents_api_tests": "27 passed / 1 failed: mt032_delete_is_atomic_and_removes_canvas_references SUSPECTED_PRE_EXISTING (delete_loom_edge keys by record id while the projector creates edges with random record ids; none of the three surfaces changed in MT-142) - baseline run at 67ce701c launched",
+          "knowledge_claims_tests": "2 passed / 5 failed SUSPECTED_PRE_EXISTING (outside the diff: engine field ASSERT errors surfacing as Database(..) and tagged inspector projections) - baseline run at 67ce701c launched",
+          "surreal_swarm_semantics_tests": "5 passed / 1 failed (Lane B fixture minted 70-char-violating KDLNK ids; fix routed to B)"
+        },
+        "decisions": [
+          "D-142-4: statement_timeout default 300 s and engine timeouts default None, accepted on A2 evidence (fresh bootstrap > 60 s under load; a save statement > 30 s under the 4-way HDD batch); reviewers may challenge",
+          "D-142-5: title uniqueness implemented as an anchor table rather than a UNIQUE index on knowledge_rich_documents because duplicate titles are a modelled state (tests/knowledge_documents_api_tests.rs:484, storage/knowledge.rs:2721)"
+        ],
+        "follow_ons_reported": [
+          "API constructs SurrealDatabase::new per request (src/api/knowledge_documents.rs:291 and 11 other sites, outside allowed paths) so the keyed registry never shapes API contention; correctness holds via the database; app state should own one SurrealDatabase",
+          "process_ledger/reclaim.rs retry loop is outside storage/surreal/ and not migrated"
+        ]
       },
       "B": {
         "status": "LANDED",
@@ -201,6 +218,16 @@
         ],
         "proof": "user_manual filter ok. 25 passed; 0 failed (mt142-LIB-20260910T110436Z)",
         "manual_version": "unchanged 2.0.4"
+      },
+      "baseline_run": {
+        "launched_at_utc": "2026-09-10T18:33:56.318Z",
+        "commit": "67ce701c",
+        "worktree": "wtc-k12-mt148-fresh (detached checkout, restored to 6d5d705f afterwards)",
+        "targets": [
+          "knowledge_claims_tests",
+          "knowledge_documents_api_tests mt032_delete_is_atomic_and_removes_canvas_references"
+        ],
+        "logs": "D:/hs42/logs/baseline-67ce701c-*"
       }
     }
   },
@@ -491,5 +518,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T17:52:35.053Z"
+  "updated_at_utc": "2026-09-10T18:33:56.318Z"
 }
