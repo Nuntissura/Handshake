@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -41,14 +41,35 @@
       "MT-141"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260910-073935",
     "origin": "Created 2026-08-23 by an Operator-requested governance subagent. The Operator expects large SurrealDB datasets with parallel model swarms reading, writing, querying and mutating concurrently, and explicitly requested a dedicated concurrency/load MT to test, harden and expand that capability after the PostgreSQL-to-SurrealDB port lanes complete. Canonical ID evidence: the packet's MT-*.json discovery glob and direct file census contain contiguous MT-001 through MT-141 and no MT-142, making MT-142 the next valid WP-scoped ID.",
     "operator_scope_authorization_2026_08_23": {
       "basis": "The Operator explicitly instructed a subagent to add this concurrency/load MT, after explicitly directing WP-KERNEL-012 to complete the PostgreSQL-to-SurrealDB replacement and granting the required narrow out-of-scope waiver. This is the same authorized backend SurrealDB remediation expansion already recorded by MT-136 through MT-141; it does not alter or silently broaden any unrelated editor lane.",
       "effect": "The backend paths in this MT are authorized despite the original packet's pre-pivot frontend-only scope. Product implementation remains limited to this MT's allowed_paths, and the governance-only authoring change remains limited to MT-142.json plus the packet authored-count projection."
+    },
+    "claimed_at_utc": "2026-09-10T09:33:19.755Z",
+    "claim_authority": "Operator 2026-09-10: spin up a new agent and tackle 142 until it is ready for validation. Same sprint direction as MT-150 (delegate implementation to sub-agents; KERNEL_BUILDER steers, reviews and owns the single cargo lane).",
+    "session_mt_batch": [
+      "MT-150",
+      "MT-142"
+    ],
+    "dependency_note_20260910": "depends_on MT-136..MT-141 are all READY_FOR_VALIDATION (MT-141/148/149/150 batched to INTEGRATION_VALIDATOR under waiver WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910), none COMPLETED. Claim proceeds on explicit Operator direction; MT-142 builds on the MT-141 product branch head 67ce701c and inherits any validator findings against that base as rework risk.",
+    "plan_20260910": {
+      "phase_0": "claim, artifact dir ../Handshake_Artifacts/<WP>/MT-142/kb01 (junction D:\\hs42 for MAX_PATH), cargo target override to the warm MT-141 owner target D:/hs12/target per CX-984-010 (recorded, not hidden)",
+      "phase_1_parallel": [
+        "RESEARCH lane: AC-142-1 pinned-version research basis, machine-readable, recorded BEFORE any src change",
+        "RECON lane (read-only): inventory of the two named locks, every other process-global storage/surreal lock, their invariants and call sites, existing transaction/guard/idempotency primitives, test harness and user-manual seeding patterns"
+      ],
+      "phase_2_sequenced": [
+        "Lane A src: keyed-lock registry, bounded backoff/full-jitter retry with injectable clock/jitter, replace RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK with atomic Surreal transactions + in-transaction guards",
+        "Lane B tests: hsk.surreal_swarm_load_report@1 emitter, deterministic CI profile (>=16 workers, >=2000 ops), same-record/disjoint/independent-client/retry/lock-registry/deadlock/shutdown-reopen proofs, extended profile env-gated",
+        "Lane C: UserManual entries + self-consistency test"
+      ],
+      "phase_3": "two independent adversarial review agents (concurrency lens; load/lifecycle lens) -> remediation -> re-review (AC-142-12)",
+      "phase_4": "extended local profile run on this machine (>=64 workers, >=50000 ops), PT-142 evidence, handoff"
     }
   },
   "scope": {
@@ -332,9 +353,11 @@
   },
   "handoff": {
     "validation_topology": "TWO_LENS_ADVERSARIAL_THEN_INTEGRATION_VALIDATOR_V4",
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260910-073935",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
-  }
+  },
+  "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
+  "updated_at_utc": "2026-09-10T09:33:19.755Z"
 }
