@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-141"
     ],
@@ -199,7 +199,7 @@
           "run": "(see logs/mt150-memory_capsule_recorder_surreal_tests-*)"
         },
         "wp_kernel_012_native_editor_routes_tests": {
-          "result": "FAILED. 11 passed; 3 failed (round 1)",
+          "result": "ok. 14 passed; 0 failed",
           "secs": 261.78,
           "run": "(see logs/mt150-wp_kernel_012_native_editor_routes_tests-*)",
           "round_1_compile": "5x E0599 (StructuredCollaborationStore trait not in scope) -> fixed by lane, recompiled clean in 22.99s",
@@ -236,17 +236,29 @@
             "stage_capture_rejects_crash_stale_binding_without_residue",
             "document_save_authenticates_same_native_principal_as_independent_stage_route",
             "stage_denial_limits_and_attribution_apply_at_the_authentication_boundary"
-          ]
+          ],
+          "round_2": {
+            "result": "FAILED. 13 passed; 1 failed",
+            "secs": 265.26,
+            "run": "mt150-wp_kernel_012_native_editor_routes_tests-20260910T084339Z",
+            "fix": "scalar() helper unwraps the inspector's externally tagged projected values ({String: ..}, bare None/Null) at every project_one_row consumer; no assertion weakened. route2 and route6 turned green; stage_flight_projection_failure_returns_500_and_retry_heals_once still panicked at :2051 because event_ledger_event_id is a record<kernel_event_ledger> link (schema.surql:4821) projected as {RecordId: {table, key: {String}}}."
+          },
+          "round_3": {
+            "result": "ok. 14 passed; 0 failed",
+            "secs": 258.75,
+            "product_commit": "67ce701c38e0fd8d440442d89e4d872dcad88559",
+            "fix": "scalar() additionally collapses a RecordId-tagged value to its string key (kernel_event_ledger keys are strings, schema.surql:789), mirroring Lane L's record_key_string; no assertion weakened"
+          }
         }
       },
       "totals": {
         "targets": 7,
-        "green": 5,
+        "green": 6,
         "red_on_product_defect": 1,
-        "red_on_test_representation_fix_pending": 1,
-        "tests_green": 35,
+        "tests_executed": 40,
+        "tests_green": 39,
         "tests_red_product": 1,
-        "tests_red_representation": 3
+        "note": "capsule_recorder_dedup_collapses_duplicate_submissions stays red as the acceptance proof for DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE"
       },
       "red_test": {
         "test": "capsule_recorder_dedup_collapses_duplicate_submissions",
@@ -254,7 +266,458 @@
         "disposition": "PORTED_RED_ON_PRODUCT_DEFECT - assertion is faithful to the deleted original; do NOT weaken",
         "defect": "DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE"
       },
-      "recorded_at_utc": "2026-09-10T08:40:36.152Z"
+      "recorded_at_utc": "2026-09-10T08:57:52.432Z"
+    },
+    "pt_150_1_disposition_table": {
+      "recorded_by": "KERNEL_BUILDER-20260910-073935",
+      "at_utc": "2026-09-10T08:57:52.432Z",
+      "product_commit": "67ce701c38e0fd8d440442d89e4d872dcad88559",
+      "rows": [
+        {
+          "test": "stage_capture_rejects_crash_stale_binding_without_residue",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "stage_capture_rejects_crash_stale_binding_without_residue",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "derived_native_principal_from_stage_route",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "document_save_authenticates_same_native_principal_as_independent_stage_route",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "activity_span_write_is_event_and_workspace_scoped",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "activity_span_write_is_event_and_workspace_scoped",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "route1_locus_work_packet_resolve",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "route1_locus_work_packet_resolve",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "route1_locus_micro_task_resolve",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "route1_locus_micro_task_resolve",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "route2_stage_artifact_create_and_resolve",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "route2_stage_artifact_create_and_resolve",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "stage_flight_projection_failure_returns_500_and_retry_heals_once",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "stage_flight_projection_failure_returns_500_and_retry_heals_once",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "mt067_calendar_event_populates_daily_note_doc_id",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt067_calendar_event_populates_daily_note_doc_id",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "mt067_activity_span_create_and_query_round_trip",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt067_activity_span_create_and_query_round_trip",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_residue",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_residue",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "durable_claim_and_lease",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "K",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "durable_claim_and_lease",
+          "file": "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs"
+        },
+        {
+          "test": "mt022_folder_create_appends_atomic_receipt_and_survives_restart",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt022_folder_create_appends_atomic_receipt_and_survives_restart",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt022_folder_update_delete_member_are_atomic_with_receipts",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt022_folder_update_delete_member_are_atomic_with_receipts",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt022_folder_create_rolls_back_when_ledger_append_fails",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt022_folder_create_rolls_back_when_ledger_append_fails",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt023_tag_edge_create_appends_atomic_receipt_and_survives_restart",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "BLOCKED_ON_PRODUCT_SEAM",
+          "defect": "DEF-LOOM-EDGE-NO-LEDGER-RECEIPT",
+          "restored_as": null,
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt023_tag_edge_create_rolls_back_when_ledger_append_fails",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "BLOCKED_ON_PRODUCT_SEAM",
+          "defect": "DEF-LOOM-EDGE-NO-LEDGER-RECEIPT",
+          "restored_as": null,
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt024_pin_order_set_appends_atomic_receipt_and_survives_restart",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt024_pin_order_set_appends_atomic_receipt_and_survives_restart",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt024_pin_order_set_rolls_back_when_ledger_append_fails",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt024_pin_order_set_rolls_back_when_ledger_append_fails",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt024_favorite_mutation_appends_atomic_receipt_and_survives_restart",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "BLOCKED_ON_PRODUCT_SEAM",
+          "defect": "DEF-LOOM-EDGE-NO-LEDGER-RECEIPT",
+          "restored_as": null,
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt024_favorite_mutation_rolls_back_when_ledger_append_fails",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "BLOCKED_ON_PRODUCT_SEAM",
+          "defect": "DEF-LOOM-EDGE-NO-LEDGER-RECEIPT",
+          "restored_as": null,
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt024_pin_removal_rolls_back_and_leaves_no_partial_state",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt024_pin_removal_rolls_back_and_leaves_no_partial_state",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt024_mention_edge_backlink_is_atomic_and_survives_restart",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "BLOCKED_ON_PRODUCT_SEAM",
+          "defect": "DEF-LOOM-EDGE-NO-LEDGER-RECEIPT",
+          "restored_as": null,
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt025_wiki_overlay_appends_atomic_receipt_and_survives_restart",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt025_wiki_overlay_appends_atomic_receipt_and_survives_restart",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt025_wiki_overlay_rolls_back_when_ledger_append_fails",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt025_wiki_overlay_rolls_back_when_ledger_append_fails",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "mt164_build_rule_read_evidence_passes_gate_and_persists_ledger_row",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "K",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt164_build_rule_read_evidence_passes_gate_and_persists_ledger_row",
+          "file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs"
+        },
+        {
+          "test": "mt164_unacknowledged_build_rule_blocks_gate_with_durable_block_row",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "K",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt164_unacknowledged_build_rule_blocks_gate_with_durable_block_row",
+          "file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs"
+        },
+        {
+          "test": "mt164_manual_hbr_rows_are_wired_with_concrete_routes",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "K",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt164_manual_hbr_rows_are_wired_with_concrete_routes",
+          "file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs"
+        },
+        {
+          "test": "kernel_action_catalog_exposes_postgres_residual_projection_action",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "K",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "kernel_action_catalog_exposes_residual_projection_action",
+          "file": "src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs"
+        },
+        {
+          "test": "memory_ipc_list_and_get_round_trips_via_postgres_store",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "M",
+          "disposition": "BLOCKED_ON_PRODUCT_DEFECT",
+          "defect": "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
+          "restored_as": null,
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "memory_ipc_suppression_persists_through_postgres_store_durably",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "M",
+          "disposition": "BLOCKED_ON_PRODUCT_DEFECT",
+          "defect": "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
+          "restored_as": null,
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "capsule_builder_injector_recorder_and_ipc_compose_over_real_postgres",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "M",
+          "disposition": "BLOCKED_ON_PRODUCT_DEFECT",
+          "defect": "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
+          "restored_as": null,
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "capsule_recorder_persists_via_kernel_action_catalog_against_postgres",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "M",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "capsule_recorder_persists_via_kernel_action_catalog_against_embedded_store",
+          "file": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs"
+        },
+        {
+          "test": "capsule_recorder_postgres_dedup_collapses_duplicate_submissions",
+          "class": "GENUINELY_UNCOVERED",
+          "lane": "M",
+          "disposition": "PORTED_RED_ON_PRODUCT_DEFECT:DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE",
+          "defect": "DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE",
+          "restored_as": "capsule_recorder_dedup_collapses_duplicate_submissions",
+          "file": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs"
+        },
+        {
+          "test": "stage_denial_limits_and_attribution_apply_at_the_authentication_boundary",
+          "class": "PARTIAL",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "stage_denial_limits_and_attribution_apply_at_the_authentication_boundary",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "route3_calendar_events_returns_events_in_window",
+          "class": "PARTIAL",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "route3_calendar_events_returns_events_in_window",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "route6_document_soft_delete_tombstones_and_receipts",
+          "class": "PARTIAL",
+          "lane": "R",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "route6_document_soft_delete_tombstones_and_receipts",
+          "file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+        },
+        {
+          "test": "mt024_pin_removal_is_atomic_and_survives_restart",
+          "class": "PARTIAL",
+          "lane": "L",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt024_pin_removal_is_atomic_and_survives_restart",
+          "file": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+        },
+        {
+          "test": "kernel_event_ledger_contract_metadata_idempotency_and_sequence",
+          "class": "PARTIAL",
+          "lane": "K",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "kernel_event_ledger_contract_metadata_idempotency_and_sequence",
+          "file": "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs"
+        },
+        {
+          "test": "kernel_event_ledger_api_appends_and_lists_kernel_events_for_session",
+          "class": "PARTIAL",
+          "lane": "K",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "kernel_event_ledger_api_appends_and_lists_kernel_events_for_session",
+          "file": "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs"
+        },
+        {
+          "test": "durable_claim_matches_retry_backpressure_and_deadletter_state_table",
+          "class": "PARTIAL",
+          "lane": "K",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "durable_claim_matches_retry_backpressure_and_deadletter_state_table",
+          "file": "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs"
+        },
+        {
+          "test": "mt074_llm_evidence_pack_manual_row_documents_live_export_surface",
+          "class": "PARTIAL",
+          "lane": "M",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt074_llm_evidence_pack_manual_row_documents_live_export_surface",
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "mt075_backup_manual_rows_document_live_backup_and_preflight_surface",
+          "class": "PARTIAL",
+          "lane": "M",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt075_backup_manual_rows_document_live_backup_and_preflight_surface",
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "mt122_pose_context_and_rig_manual_rows_document_live_pg_surface",
+          "class": "PARTIAL",
+          "lane": "M",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt122_pose_context_and_rig_manual_rows_document_live_surface",
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "mt123_pose_sidecar_and_identity_manual_rows_document_live_pg_surface",
+          "class": "PARTIAL",
+          "lane": "M",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt123_pose_sidecar_and_identity_manual_rows_document_live_surface",
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "mt124_comfy_workflow_receipt_manual_rows_document_live_pg_surface",
+          "class": "PARTIAL",
+          "lane": "M",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt124_comfy_workflow_receipt_manual_rows_document_live_surface",
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "mt125_deferred_boundary_manual_rows_document_live_pg_surface",
+          "class": "PARTIAL",
+          "lane": "M",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt125_deferred_boundary_manual_rows_document_live_surface",
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        },
+        {
+          "test": "mt130_job_lifecycle_and_registration_recovery_event_families_land_in_ledger",
+          "class": "PARTIAL",
+          "lane": "M",
+          "disposition": "PORTED_GREEN",
+          "defect": null,
+          "restored_as": "mt130_job_lifecycle_and_registration_recovery_event_families_land_in_ledger",
+          "file": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs"
+        }
+      ],
+      "unresolved": []
+    },
+    "acceptance_status_20260910": {
+      "recorded_by": "KERNEL_BUILDER-20260910-073935",
+      "at_utc": "2026-09-10T08:57:52.432Z",
+      "product_commit": "67ce701c38e0fd8d440442d89e4d872dcad88559",
+      "AC-150-1": "MET - every restoration_set item carries PORTED / BLOCKED_ON_PRODUCT_SEAM / BLOCKED_ON_PRODUCT_DEFECT / INEXPRESSIBLE in lifecycle.pt_150_1_disposition_table; no assertion weakened (lane reports assertions_preserved; round-2 fix was representation-only)",
+      "AC-150-2": "MET - PT-150-3 scan over the seven files: zero matches (grep exit 1); mechanical lane review forbidden-token check: none in all four lanes",
+      "AC-150-3": "MET - survives_restart / rolls_back items in loom_atomic_receipt_tests.rs and kernel_session_run_ledger_tests.rs close and reopen the embedded store (LANE-L, LANE-K reports); the 5 Loom edge/favorite items are BLOCKED_ON_PRODUCT_SEAM (DEF-LOOM-EDGE-NO-LEDGER-RECEIPT) because there is no receipt to assert",
+      "AC-150-4": "MET - all ported tests green with HANDSHAKE_WORKSPACE_ROOT isolated per run, single cargo lane, except capsule_recorder_dedup_collapses_duplicate_submissions which is intentionally red on DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE",
+      "AC-150-5": "MET - assert_schema_fields_are_real defined once in atelier_manual_rows_parity_tests.rs and applied to 14 of 16 manual-row schema checks; the 2 remaining rows plus the tuple-shaped atelier_list_capability_rejects replicate the recovered original's own hybrid check (LANE-M schema_fields_helper)",
+      "AC-150-6": "MET - mt123 and mt125 were diffed assertion-by-assertion against the recovered deleted bodies before porting; both PORTED with the missing guarantee added (LANE-M entries for mt123_/mt125_)",
+      "PT-150-1": "lifecycle.pt_150_1_disposition_table",
+      "PT-150-2": "lifecycle.progress_20260910_proofs.per_target (logs under ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/)",
+      "PT-150-3": "zero matches over the seven files (this session, product commit 67ce701c)"
+    },
+    "ready_for_validation_at_utc": "2026-09-10T08:57:52.432Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260910-073935",
+    "operator_waiver_20260910": {
+      "waiver_id": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "applied_to": "MT-150 by extension: same helper drift, same batch, same Operator direction (paperwork not of essence; state recovery and status only)."
     }
   },
   "scope": {
@@ -872,18 +1335,120 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260910-073935",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "unblocks": null,
     "open_blockers": [
+      "DEF-LOOM-EDGE-NO-LEDGER-RECEIPT (5 items)",
       "DEF-MEMORY-IPC-NO-PRODUCTION-STORE (3 items)",
-      "DEF-SYSTEMIC-UPSERT-IDEMPOTENCY (affects any restored idempotency assertion)"
+      "DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE (1 red test)"
     ],
-    "next_actor": "ORCHESTRATOR"
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "67ce701c38e0fd8d440442d89e4d872dcad88559",
+      "actor_session": "KERNEL_BUILDER-20260910-073935",
+      "prepared_at_utc": "2026-09-10T08:57:52.432Z",
+      "summary": "MT-150: 47 restoration items resolved test-by-test (39 ported, 8 typed blocked/retired); 6 of 7 new targets green on the real embedded store; one restored test intentionally red as the acceptance proof for a recorded product defect. Independent validator verdict pending.",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "Seven new test files; each carries a provenance header naming the deleting commit 4f92cc25 and MT-150; no prior MT id, remediator session or superseded approval is referenced as current state. Lifecycle reason fields were authored in this session.",
+          "evidence_refs": [
+            "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+            "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
+            "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs",
+            "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+            "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs",
+            "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs",
+            "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs",
+            "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs",
+            "src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs",
+            "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs",
+            "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "All seven files are integration test targets declaring no pub API; helpers are private to their file and each is used by at least one test in that file (lane reports enumerate helpers).",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-R-routes.json",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-L-loom.json",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-K-kernel.json",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-M-manual-rows-capsule.json"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "Every file is gated at crate level with #![cfg(all(feature = surreal-test-support, feature = test-utils))] so default-feature builds compile it to an empty target; inside, no #[ignore] and no per-assertion platform gating (verified by the mechanical review script; the only cfg in-file mirrors OS variants of a process-identity helper).",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "no",
+          "explanation": "Not yet evaluated for the MT-150 checkpoint commits; branch CI runs on push and the cross-platform-build job for the final product commit should be read from GitHub Actions before merge. The last evaluated job (0513d99b) was success.",
+          "evidence_refs": [
+            "https://github.com/Nuntissura/Handshake/actions?query=branch%3Afeat%2FWP-KERNEL-012"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "Every proof_commands entry executed on the product worktree with HANDSHAKE_WORKSPACE_ROOT (isolated per run) and HANDSHAKE_ARTIFACTS_ROOT (absolute) set, single cargo lane: catalog 1/1, kernel ledger 4/4 (259s), HBR 3/3, Loom 9/9 (167s, incl. 6 rollback variants through a schema-assert fault seam), manual-rows 7/7, capsule recorder 1/2 (the red test is the acceptance proof for a recorded product defect), routes round 2: ok. 14 passed; 0 failed (258.75s). All against real embedded SurrealDB stores over live axum listeners where routes are involved.",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by is KERNEL_BUILDER-20260910-073935; completed_by and validator_verdict are null. Only READY_FOR_VALIDATION is requested.",
+          "evidence_refs": [
+            "lifecycle"
+          ]
+        }
+      ]
+    },
+    "kb_ready_checklist_receipt": {
+      "overall_verdict": "WAIVED_BY_OPERATOR",
+      "waiver": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "note": "Same helper drift as MT-141/MT-148: no in-repo emitter for the direct-receipt schemas; typed evidence stands in. "
+    },
+    "coder_handoff": {
+      "receipt_kind": "CODER_HANDOFF",
+      "timestamp_utc": "2026-09-10T08:57:52.432Z",
+      "correlation_id": "review:mt150-restoration-20260910",
+      "target_role": "INTEGRATION_VALIDATOR",
+      "target_session": "PENDING",
+      "receipts_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/RECEIPTS.jsonl",
+      "batch": [
+        "MT-141",
+        "MT-148",
+        "MT-149",
+        "MT-150"
+      ]
+    },
+    "state_recovery": {
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_commit": "67ce701c38e0fd8d440442d89e4d872dcad88559",
+      "product_worktree": "wtc-native-editors-v1",
+      "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/",
+      "cargo_target_override": "D:/hs12 (MT-141 owner target) per CX-984-010, recorded in lifecycle.progress_20260910_lanes_landed",
+      "junctions_to_remove_at_wp_cleanup": [
+        "D:\\hs12",
+        "D:\\hs48",
+        "D:\\hs50"
+      ]
+    }
   },
-  "updated_at_utc": "2026-09-10T08:40:36.152Z",
+  "updated_at_utc": "2026-09-10T08:57:52.432Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
@@ -899,7 +1464,22 @@
   ],
   "owned_files_note": "Initial set: the harnesses to extend. The implementer adds the new/renamed test files it creates to this list on claim.",
   "proof_commands": [
-    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test <each new or changed target> --features surreal-test-support,test-utils -j 4 --no-fail-fast",
-    "grep -rn --include=*.rs -E '^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://' src/backend/handshake_core/tests/<changed files>"
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test wp_kernel_012_native_editor_routes_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test loom_atomic_receipt_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kernel_session_run_ledger_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test hbr_build_rules_read_evidence_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kernel_action_catalog_residual_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_manual_rows_parity_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test memory_capsule_recorder_surreal_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "grep -rn --include=*.rs -E '^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://' src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs   # PT-150-3: expect no matches (exit 1)"
+  ],
+  "files_changed_by_mt150": [
+    "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs",
+    "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs",
+    "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs",
+    "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs",
+    "src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs",
+    "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs",
+    "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs"
   ]
 }
