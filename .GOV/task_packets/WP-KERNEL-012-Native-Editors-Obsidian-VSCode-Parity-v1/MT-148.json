@@ -76,7 +76,7 @@
         "summary": "Fix commit 6d5d705f changed exactly 2 files: .gitattributes (+3) and src/backend/handshake_core/tests/atelier_surreal_support/mod.rs (+53/-6). Nothing under src/backend/handshake_core/src/** and no other file under tests/**."
       },
       "AC-148-3": {
-        "verdict": "IN_PROGRESS",
+        "verdict": "MET",
         "note": "See contract_defect_20260909 below."
       },
       "AC-148-6": {
@@ -96,6 +96,36 @@
         "verdict": "MET",
         "summary": "git show --numstat 6d5d705f confirms exactly two files changed: .gitattributes (+3/-0) and src/backend/handshake_core/tests/atelier_surreal_support/mod.rs (+47/-6). Both are inside MT-148 allowed_paths.",
         "later_commit_note": "Commit 3bd7ad5c also touched the same helper file (+12/-4) but only inside write_native_media_artifact(). OwnedTempRoot, adopt, release, its Drop, open_existing, close_for_reopen, create and shutdown were confirmed byte-identical against HEAD."
+      },
+      "AC-148-2": {
+        "verdict": "MET",
+        "summary": "A fresh worktree (wtc-k12-mt148-fresh, branch tmp/mt148-freshcheck at 6d5d705f, the MT-148 fix commit; created after the fix and not the worktree the work was done in) compiled the lib test binary and ran five embedded-store tests: storage::surreal::event_ledger::tests, all opening a real embedded store via tempfile::tempdir + SurrealStorageConfig::for_data_dir. Result: ok, 5 passed / 0 failed, 11.71s. Bootstrapping the store passes verify_compiled_manifest at runtime, which is exactly where D-148-1 failed on a fresh CRLF checkout; the static precondition (both .surql files CR=0, sha256 equal to the pinned constants in that worktree) was verified before the run.",
+        "run": "ac148-2-lib-20260910T002535Z",
+        "evidence": [
+          "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/ac148-2-lib-20260910T002535Z.out.log",
+          "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/ac148-2-lib-20260910T002535Z.exit",
+          "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/proof-context.json"
+        ],
+        "why_lib_not_integration": "atelier_core_data_tests does not compile at 6d5d705f (6 errors: payload out of scope, artifact_id missing on NativeMediaArtifact) because that commit predates MT-149 restoring the accessors; effectively no integration target builds there. The lib compiled cleanly, so a --lib storage test is the valid fresh-worktree proof. Recorded in ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/lane-b-freshworktree.err.log."
+      },
+      "PT-148-2": {
+        "verdict": "MET",
+        "note": "Same run as AC-148-2: one storage-touching test green in a FRESH worktree created after the fix."
+      },
+      "PT-148-2b": {
+        "verdict": "PARTIAL",
+        "what_was_asked": "A runtime proof of D-148-2 specifically: an integration target exercising the open_existing / close_for_reopen path that OwnedTempRoot rewrote, e.g. atelier_core_data_tests.",
+        "what_was_proven": "(1) The rewritten helper compiles at HEAD 2876bcf0 in the working worktree (compile-gate-4, --all-targets, exit 0). (2) A lib-level close-and-reopen path ran green in the fresh worktree: event_ledger_round_trip_survives_shutdown_and_reopen. (3) In suite-run-1 at HEAD, atelier_core_data_tests executed 16 passing tests and atelier_bulk_operations_tests 4 passing tests through the atelier_surreal_support harness, so its create/open path executed; but that run omitted HANDSHAKE_WORKSPACE_ROOT and HANDSHAKE_ARTIFACTS_ROOT, so the specific open_existing/close_for_reopen tests are not individually confirmed green.",
+        "what_is_not_proven": "A named integration test that calls open_existing/close_for_reopen, run green with the corrected environment. atelier_core_data_tests cannot compile in the fresh worktree at 6d5d705f, and at HEAD it needs the corrected env re-run staged in rerun-corrected.sh.",
+        "honest_status": "Left PARTIAL for the validator rather than claimed. The corrected re-run of atelier_core_data_tests at HEAD is the single command that closes it."
+      },
+      "AC-148-5": {
+        "verdict": "MET",
+        "summary": "Compiled-manifest hashes match after renormalisation: both .surql files hash exactly to GENERATED_SURREALQL_SHA256 and KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256 in the working worktree and in the fresh worktree, and an embedded store bootstrapped at runtime in the fresh worktree (AC-148-2 run). No schema-reason failure was observed in any store bootstrap during suite-run-1 or the AC-148-2 run; the observed schema-assertion failures in suite-run-1 (schema_contract_is_wave_scoped_and_identity_safe, record_references_reject_orphans) are content-contract drift unrelated to line endings and predate this fix."
+      },
+      "PT-148-3": {
+        "verdict": "MET_PRIMARY_FORM",
+        "note": "cargo check --all-targets with --features surreal-test-support,test-utils: exit 0, 0 errors (compile-gate-4). The --all-features variant was not run; per AC-148-3 it is secondary and best-effort because it drags in the llama-cpp-sys-2 native build."
       }
     },
     "contract_defect_20260909": {
@@ -145,6 +175,17 @@
         "severity": "LOW_PRODUCT_RISK_MEDIUM_WORKFLOW_RISK",
         "workflow_risk": "Any future contributor or CI job running a bare `cargo check --all-targets` sees 53 red targets and may misdiagnose the tree as broken, exactly as happened during this session before the cause was isolated."
       }
+    },
+    "blocker": {
+      "schema_id": "hsk.mt_blocker@1",
+      "recorded_by": "KERNEL_BUILDER-20260909-212427",
+      "recorded_at_utc": "2026-09-10T00:43:41Z",
+      "class": "GOVERNANCE_HELPER_DRIFT",
+      "summary": "kb-ready-checklist has two modes. --contract-evidence validates the typed handoff.kb_ready_checklist_evidence block and returned overall_verdict PASS with zero blockers for MT-141, but persists no receipt. --emit persists a receipt but derives evidence only from handshake.direct_test_run@1 receipts, a direct_test_registry@2, direct_test_prepare@2 and local_cargo_run@1 provenance, hash-bound compiled-worktree manifests and independent hsk.source_review_findings@1 records. No emitter for any of those schemas exists in the repository; the only file naming them is the verifier .GOV/roles/kernel_builder/scripts/mechanical-ready-evidence.mjs. The persisted receipts for MT-141 and MT-148 are therefore BLOCKED on RC-001/002/003/005 (unreviewed owned files; no direct receipts) regardless of the work state.",
+      "precedent_checked": "MT-149 recorded a persisted PASS with a proof.ps1 harness kept outside governance under ../Handshake/_Artifacts/handshake-tool/m149-takeover. That directory exists today and holds run logs (compile.log, knowledge.log, ledger.log, linux-final-cross-platform.log, ...). A grep of that directory for direct_test_run / direct.command.json / direct_test_registry / local_cargo_run found NO file, so whatever produced MT-149 direct receipts is not there either. A cross-root crawl of both artifact roots was started and deliberately aborted as too disk-heavy; treat the emitter as NOT LOCATED, not proven absent.",
+      "protocol_route": "KERNEL_BUILDER_PROTOCOL, Ready-for-Validation Self-Review: if the helper cannot derive a required item from canonical typed evidence it must report it missing/blocked; route the implementer-owned helper drift instead of duplicating evidence manually. Hand-authoring hash-bound direct receipts is forbidden and would be dishonest.",
+      "effect": "lifecycle.status stays CLAIMED for both MTs. All acceptance evidence, the typed rubric answers and the emitted BLOCKED receipts are on record for the validator. READY_FOR_VALIDATION is not set until the Operator chooses one of: (a) locate/commit the direct-runner emitter into governance and re-execute the proofs through it; (b) waive the persisted mechanical receipt for this batch on the strength of the typed evidence and validator review; (c) fund an in-repo emitter as governance work.",
+      "not_a_product_blocker": "Fast-close product work is complete and proven (mt120 3/3; MT-148 fresh-worktree 5/0). This blocks only the governance handoff mechanics."
     }
   },
   "scope": {
@@ -252,10 +293,91 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": "KERNEL_BUILDER-20260904-233444",
+    "coder_session": "KERNEL_BUILDER-20260909-212427",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": null,
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "0513d99bf0dc110c4a933938d4eb3afc871f55f4",
+      "actor_session": "KERNEL_BUILDER-20260909-212427",
+      "summary": "MT-148: AC-148-1/3/4/5/6 MET, AC-148-2 MET (fresh-worktree embedded-store bootstrap green), PT-148-2b PARTIAL and stated as such. Both owned files unchanged since the fix commit 6d5d705f; the branch head 0513d99b carries them byte-identical.",
+      "prepared_at_utc": "2026-09-10T00:37:44.353Z",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "Owned files are .gitattributes (one rule added) and the test-support helper. The helper's doc comments describe the current OwnedTempRoot contract and cite tempfile 3.27; no prior MT id, remediator session or superseded approval is referenced as current. lifecycle reason fields were reviewed on takeover 2026-09-09.",
+          "evidence_refs": [
+            "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/LANE-C-behaviour-change.json"
+          ],
+          "checked_at_utc": "2026-09-10T00:37:44.353Z"
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "OwnedTempRoot and its adopt/release/Drop are consumed by open_existing, create, close_for_reopen and shutdown in the same module, which every atelier_* integration target links. The dead-code warnings the compiler emits for this shared test-support module are the expected per-binary false positives of a helper module included by many targets, not unreferenced items.",
+          "evidence_refs": [
+            "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/compile-gate-4.err.log"
+          ],
+          "checked_at_utc": "2026-09-10T00:37:44.353Z"
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "n/a",
+          "explanation": "MT-148 adds no tests; it repairs a helper and a git attribute. No #[test] gating was introduced or changed.",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/LANE-C-behaviour-change.json"
+          ],
+          "checked_at_utc": "2026-09-10T00:37:44.353Z"
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "no",
+          "explanation": "Branch CI cross-platform-build for 0513d99b was in_progress when prepared; the owned files are byte-identical between 6d5d705f and 0513d99b, so that job covers them. To be re-evaluated from the run URL.",
+          "evidence_refs": [
+            "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863"
+          ],
+          "checked_at_utc": "2026-09-10T00:37:44.353Z"
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "proof_commands[0] executed in the fresh worktree with HANDSHAKE_WORKSPACE_ROOT set: ok 5/0, 11.71s, CARGO_EXIT=0, real embedded store (tempfile + for_data_dir) including a shutdown-and-reopen. proof_commands[1] executed at HEAD: exit 0, 0 errors. proof_commands[2]: text=set eol=lf. PT-148-2b remains PARTIAL and is stated so in acceptance evidence rather than answered yes.",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/ac148-2-lib-20260910T002535Z.out.log",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/compile-gate-4.err.log",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/logs/proof-context.json"
+          ],
+          "checked_at_utc": "2026-09-10T00:37:44.353Z"
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by is KERNEL_BUILDER-20260909-212427; completed_by and validator_verdict are null.",
+          "evidence_refs": [
+            "lifecycle"
+          ],
+          "checked_at_utc": "2026-09-10T00:37:44.353Z"
+        }
+      ]
+    },
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "open_blockers": [
+      "GOVERNANCE_HELPER_DRIFT: persisted kb-ready receipt cannot be produced by any in-repo emitter (see lifecycle.blocker)",
+      "RC-004 pending CI job for 0513d99b"
+    ]
   },
-  "updated_at_utc": "2026-09-09T21:57:34.222Z"
+  "updated_at_utc": "2026-09-10T00:43:41Z",
+  "owned_files": [
+    ".gitattributes",
+    "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs"
+  ],
+  "proof_commands": [
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -j 4 --no-fail-fast storage::surreal::event_ledger::tests -- --nocapture",
+    "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --keep-going --features surreal-test-support,test-utils",
+    "git check-attr text eol -- src/backend/handshake_core/src/storage/surreal/schema.surql"
+  ]
 }

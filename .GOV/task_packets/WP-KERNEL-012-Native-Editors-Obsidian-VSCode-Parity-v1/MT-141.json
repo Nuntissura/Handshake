@@ -200,8 +200,13 @@
     "blocker": {
       "schema_id": "hsk.mt_blocker@1",
       "recorded_by": "KERNEL_BUILDER-20260909-212427",
-      "recorded_at_utc": "2026-09-10T00:26:19Z",
-      "summary": "None remaining for the fast-path close. Awaiting kb-ready-checklist and handoff emission only."
+      "recorded_at_utc": "2026-09-10T00:43:41Z",
+      "class": "GOVERNANCE_HELPER_DRIFT",
+      "summary": "kb-ready-checklist has two modes. --contract-evidence validates the typed handoff.kb_ready_checklist_evidence block and returned overall_verdict PASS with zero blockers for MT-141, but persists no receipt. --emit persists a receipt but derives evidence only from handshake.direct_test_run@1 receipts, a direct_test_registry@2, direct_test_prepare@2 and local_cargo_run@1 provenance, hash-bound compiled-worktree manifests and independent hsk.source_review_findings@1 records. No emitter for any of those schemas exists in the repository; the only file naming them is the verifier .GOV/roles/kernel_builder/scripts/mechanical-ready-evidence.mjs. The persisted receipts for MT-141 and MT-148 are therefore BLOCKED on RC-001/002/003/005 (unreviewed owned files; no direct receipts) regardless of the work state.",
+      "precedent_checked": "MT-149 recorded a persisted PASS with a proof.ps1 harness kept outside governance under ../Handshake/_Artifacts/handshake-tool/m149-takeover. That directory exists today and holds run logs (compile.log, knowledge.log, ledger.log, linux-final-cross-platform.log, ...). A grep of that directory for direct_test_run / direct.command.json / direct_test_registry / local_cargo_run found NO file, so whatever produced MT-149 direct receipts is not there either. A cross-root crawl of both artifact roots was started and deliberately aborted as too disk-heavy; treat the emitter as NOT LOCATED, not proven absent.",
+      "protocol_route": "KERNEL_BUILDER_PROTOCOL, Ready-for-Validation Self-Review: if the helper cannot derive a required item from canonical typed evidence it must report it missing/blocked; route the implementer-owned helper drift instead of duplicating evidence manually. Hand-authoring hash-bound direct receipts is forbidden and would be dishonest.",
+      "effect": "lifecycle.status stays CLAIMED for both MTs. All acceptance evidence, the typed rubric answers and the emitted BLOCKED receipts are on record for the validator. READY_FOR_VALIDATION is not set until the Operator chooses one of: (a) locate/commit the direct-runner emitter into governance and re-execute the proofs through it; (b) waive the persisted mechanical receipt for this batch on the strength of the typed evidence and validator review; (c) fund an in-repo emitter as governance work.",
+      "not_a_product_blocker": "Fast-close product work is complete and proven (mt120 3/3; MT-148 fresh-worktree 5/0). This blocks only the governance handoff mechanics."
     },
     "deleted_test_liveness_classification_20260909": {
       "recorded_by": "KERNEL_BUILDER-20260909-212427",
@@ -970,9 +975,13 @@
       "job": "cross-platform-build",
       "job_status_when_recorded": "in_progress",
       "note": "Every prior commit on this branch shows overall CI conclusion=failure; MT-149 satisfied RC-004 via the passing cross-platform-build job inside a failing run. Evaluate the job, not the run."
-    }
+    },
+    "open_blockers": [
+      "GOVERNANCE_HELPER_DRIFT: persisted kb-ready receipt cannot be produced by any in-repo emitter (see lifecycle.blocker)",
+      "RC-004 pending CI job for 0513d99b"
+    ]
   },
-  "updated_at_utc": "2026-09-10T00:30:47.474Z",
+  "updated_at_utc": "2026-09-10T00:43:41Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
