@@ -166,6 +166,11 @@ serde_yaml = { package = "yaml_serde", version = "0.10" }
 dirs = "5"
 dunce = "=1.0.5"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util"] }
+# MT-142: awaitable `CancellationToken` for the embedded SurrealDB retry loop
+# (storage/surreal/retry.rs). Already pinned transitively at 0.7.19 in
+# Cargo.lock; declared directly so product code can name it. tokio-util 0.7 has
+# no `sync` cargo feature (the sync module is unconditional), so none is listed.
+tokio-util = "0.7"
 tower-http = { version = "0.6", features = ["cors"] }
 surrealdb = { version = "=3.2.0", default-features = false, features = ["kv-rocksdb"] }
 uuid = { version = "1", features = ["v4", "v7", "fast-rng", "serde"] }

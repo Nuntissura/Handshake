@@ -2878,6 +2878,7 @@ dependencies = [
  "tokio",
  "tokio-cron-scheduler",
  "tokio-tungstenite 0.26.2",
+ "tokio-util",
  "tower-http",
  "tracing",
  "tracing-appender",
