@@ -391,6 +391,39 @@ async fn project_one_row(
     rows.remove(0).values
 }
 
+/// `SurrealTestInspector::project` (used by `project_one_row`) serializes each projected
+/// `surrealdb::types::Value` (`surrealdb-types` 3.2.0, `#[derive(Serialize)]`, no `#[serde]`
+/// container attribute -- i.e. default EXTERNALLY TAGGED enum representation) rather than a
+/// plain serde_json scalar: a data-carrying variant like `String("completed")` becomes the
+/// JSON object `{"String": "completed"}`, and the two no-data variants `None` (absent field)
+/// and `Null` (explicit SQL NULL) become either the bare JSON string `"None"` / `"Null"` or,
+/// depending on the exact projection path, a single-key tagged object `{"None": null}` /
+/// `{"Null": null}` -- this helper does not assume which of those two encodings a given field
+/// uses and matches both. Unwrap that tagged shape into an ordinary serde_json::Value so
+/// `project_one_row` results can be compared/accessed with `json!(...)`, `.as_str()`,
+/// `.as_i64()`, `.is_null()`, etc. exactly as if they came from a plain JSON response. `None`
+/// and `Null` both collapse to `Value::Null` ("absent"), matching the product's own treatment
+/// of an unset `Option<_>` column. MUST be applied to every `project_one_row(...)` field access
+/// in this file (see LANE-R-routes.json compile_risk_notes "RESOLVED (round 2)" / "(round 3)"
+/// for the audited call-site list).
+fn scalar(tagged: &Value) -> Value {
+    fn is_absent_tag(tag: &str) -> bool {
+        tag == "None" || tag == "Null"
+    }
+    match tagged {
+        Value::String(tag) if is_absent_tag(tag) => Value::Null,
+        Value::Object(map) if map.len() == 1 => {
+            let (tag, inner) = map.iter().next().expect("single-entry tagged object");
+            if is_absent_tag(tag) {
+                Value::Null
+            } else {
+                inner.clone()
+            }
+        }
+        other => other.clone(),
+    }
+}
+
 async fn kernel_events_for(
     state: &AppState,
     aggregate_type: &str,
@@ -1888,7 +1921,7 @@ async fn route2_stage_artifact_create_and_resolve() {
         RowFilter::IdEquals(job_id.clone()),
     )
     .await;
-    assert_eq!(job_status["status"], json!("completed"));
+    assert_eq!(scalar(&job_status["status"]), json!("completed"));
 
     let artifact_events = kernel_events_for(&state, "stage_capture_artifact", &artifact_id).await;
     let artifact_event = artifact_events
@@ -2001,19 +2034,19 @@ async fn stage_flight_projection_failure_returns_500_and_retry_heals_once() {
         },
     )
     .await;
-    let artifact_id = persisted["artifact_id"]
+    let artifact_id = scalar(&persisted["artifact_id"])
         .as_str()
         .expect("artifact committed before projection failure")
         .to_string();
-    let original_actor = persisted["actor_id"]
+    let original_actor = scalar(&persisted["actor_id"])
         .as_str()
         .expect("persisted actor before retry")
         .to_string();
-    let job_id = persisted["job_id"]
+    let job_id = scalar(&persisted["job_id"])
         .as_str()
         .expect("committed Stage artifact has Job History id before retry")
         .to_string();
-    let stored_event_id = persisted["event_ledger_event_id"]
+    let stored_event_id = scalar(&persisted["event_ledger_event_id"])
         .as_str()
         .expect("committed Stage artifact has ArtifactStored ledger id before retry")
         .to_string();
@@ -2046,7 +2079,7 @@ async fn stage_flight_projection_failure_returns_500_and_retry_heals_once() {
         RowFilter::IdEquals(job_id.clone()),
     )
     .await;
-    assert_eq!(job_status["status"], json!("completed"));
+    assert_eq!(scalar(&job_status["status"]), json!("completed"));
 
     let durable_count = field_equals_count(
         &store,
@@ -2878,7 +2911,7 @@ async fn route6_document_soft_delete_tombstones_and_receipts() {
     )
     .await;
     assert!(
-        not_yet_deleted["deleted_at"].is_null(),
+        scalar(&not_yet_deleted["deleted_at"]).is_null(),
         "a denied delete request must never tombstone the document"
     );
 
