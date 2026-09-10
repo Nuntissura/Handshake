@@ -38,13 +38,22 @@
 //! `selected_design.keyed_lock_registry.key_taxonomy`). Nothing in this module
 //! touches the database.
 //!
+//! Lock-wait samples: every keyed acquire that obtains its permit records its
+//! wait in an always-on bounded sink ([`LOCK_WAIT_SAMPLE_CAP`] most recent
+//! samples, oldest dropped) so the swarm report can fill
+//! `lock_wait_ms_p50_p95_p99`; [`KeyedLockRegistry::take_lock_wait_samples`]
+//! drains it. Disabled mode records nothing.
+//!
 //! Visibility: `pub` because the MT-142 `tests/` swarm target (validation plan
 //! `lock_registry_tests`, `how_independent_clients_are_modelled`) constructs
 //! registries and asserts the idle bound from outside the crate.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex as StdMutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
+
+/// Maximum retained lock-wait samples per registry; older samples are dropped.
+pub const LOCK_WAIT_SAMPLE_CAP: usize = 65_536;
 
 use thiserror::Error;
 use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
@@ -115,6 +124,7 @@ type LockCell = Arc<AsyncMutex<()>>;
 struct RegistryInner {
     mode: LockMode,
     entries: StdMutex<HashMap<LockKey, Weak<AsyncMutex<()>>>>,
+    wait_samples: StdMutex<VecDeque<Duration>>,
 }
 
 impl RegistryInner {
@@ -122,6 +132,20 @@ impl RegistryInner {
         self.entries
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn lock_samples(&self) -> MutexGuard<'_, VecDeque<Duration>> {
+        self.wait_samples
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn record_wait(&self, wait: Duration) {
+        let mut samples = self.lock_samples();
+        if samples.len() >= LOCK_WAIT_SAMPLE_CAP {
+            samples.pop_front();
+        }
+        samples.push_back(wait);
     }
 
     /// Upgrades the existing cell or inserts a fresh one.
@@ -162,8 +186,20 @@ impl KeyedLockRegistry {
             inner: Arc::new(RegistryInner {
                 mode,
                 entries: StdMutex::new(HashMap::new()),
+                wait_samples: StdMutex::new(VecDeque::new()),
             }),
         }
+    }
+
+    /// Drains the recorded lock-wait samples (most recent
+    /// [`LOCK_WAIT_SAMPLE_CAP`] keyed acquires), oldest first.
+    pub fn take_lock_wait_samples(&self) -> Vec<Duration> {
+        self.inner.lock_samples().drain(..).collect()
+    }
+
+    /// Number of lock-wait samples currently retained.
+    pub fn lock_wait_sample_count(&self) -> usize {
+        self.inner.lock_samples().len()
     }
 
     pub fn keyed() -> Self {
@@ -201,7 +237,9 @@ impl KeyedLockRegistry {
         let started = Instant::now();
         let permit = cell.lock_owned().await;
         held.permit = Some(permit);
-        KeyedLockGuard::held(held, started.elapsed())
+        let lock_wait = started.elapsed();
+        self.inner.record_wait(lock_wait);
+        KeyedLockGuard::held(held, lock_wait)
     }
 
     /// Like [`Self::acquire`] but returns [`LockWaitTimeout`] once `deadline`
@@ -229,7 +267,9 @@ impl KeyedLockRegistry {
         match outcome {
             Ok(permit) => {
                 held.permit = Some(permit);
-                Ok(KeyedLockGuard::held(held, started.elapsed()))
+                let lock_wait = started.elapsed();
+                self.inner.record_wait(lock_wait);
+                Ok(KeyedLockGuard::held(held, lock_wait))
             }
             Err(_elapsed) => Err(LockWaitTimeout {
                 key: held.key.clone(),
@@ -559,6 +599,40 @@ mod tests {
             .await
             .expect("acquires after the holder releases");
         assert!(guard.lock_wait() >= ms(15), "lock_wait {:?}", guard.lock_wait());
+    }
+
+    #[tokio::test]
+    async fn lock_wait_samples_are_recorded_bounded_and_drained() {
+        let registry = KeyedLockRegistry::keyed();
+        for i in 0..3u32 {
+            drop(registry.acquire(LockKey::record("t", i.to_string())).await);
+        }
+        let holder = registry.acquire(LockKey::record("t", "held")).await;
+        let with_deadline = registry
+            .acquire_with_deadline(LockKey::record("t", "free"), Some(Instant::now() + ms(50)))
+            .await
+            .expect("free key acquires");
+        drop(with_deadline);
+        let timed_out = registry
+            .acquire_with_deadline(LockKey::record("t", "held"), Some(Instant::now() + ms(10)))
+            .await;
+        assert!(timed_out.is_err(), "held key must time out");
+        drop(holder);
+        assert_eq!(registry.lock_wait_sample_count(), 5, "timeouts record no sample");
+        let samples = registry.take_lock_wait_samples();
+        assert_eq!(samples.len(), 5);
+        assert_eq!(registry.lock_wait_sample_count(), 0);
+
+        for i in 0..(LOCK_WAIT_SAMPLE_CAP + 10) {
+            drop(registry.acquire(LockKey::record("cap", i.to_string())).await);
+        }
+        assert_eq!(registry.lock_wait_sample_count(), LOCK_WAIT_SAMPLE_CAP);
+        assert_eq!(registry.take_lock_wait_samples().len(), LOCK_WAIT_SAMPLE_CAP);
+
+        let disabled = KeyedLockRegistry::disabled();
+        drop(disabled.acquire(LockKey::record("t", "1")).await);
+        assert_eq!(disabled.lock_wait_sample_count(), 0);
+        assert!(disabled.take_lock_wait_samples().is_empty());
     }
 
     #[test]

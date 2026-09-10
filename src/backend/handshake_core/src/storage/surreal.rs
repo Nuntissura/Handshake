@@ -148,8 +148,16 @@ pub const DEFAULT_SHUTDOWN_WAIT: Duration = Duration::from_secs(30);
 /// MT-142 AC-142-7: how long shutdown waits for in-flight leases before it
 /// cancels cooperative work (retry loops, keyed-lock waits).
 pub const DEFAULT_DRAIN_GRACE: Duration = Duration::from_secs(5);
-/// MT-142: caller-side bound on one storage-layer statement attempt.
-pub const DEFAULT_STATEMENT_TIMEOUT: Duration = Duration::from_secs(30);
+/// MT-142: caller-side bound on one storage-layer statement attempt. 300 s
+/// rather than the 30 s first proposed: in the 4-way parallel
+/// `knowledge_documents_api_tests` batch on the HDD (concurrent fresh
+/// bootstraps, `sync=every` fsync), a single save statement exceeded 30 s and
+/// the engine still held it 35 s later at teardown
+/// (`mt142-knowledge_documents_api_tests-20260910T173440Z.err.log`,
+/// `ShutdownStillInProgress`), while the same test passes alone in 87 s; a
+/// too-tight bound turns disk load into terminal 500s. Tighten per store via
+/// [`SurrealStorageConfig::with_statement_timeout`].
+pub const DEFAULT_STATEMENT_TIMEOUT: Duration = Duration::from_secs(300);
 /// MT-142: recommended engine-level query deadline when a caller opts in via
 /// [`SurrealStorageConfig::with_engine_timeouts`]. NOT applied by default: the
 /// deadlines are per engine open and cannot exclude the fresh schema bootstrap

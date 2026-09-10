@@ -25,8 +25,10 @@ pub const SCHEMA_LINEAGE_SHA256: &str =
 // moves with the knowledge_rich_document_title_anchors block.
 const PREDECESSOR_GENERATED_SURREALQL_SHA256: &str =
     "2eebaba8db142637d0a3d5f7ec2c59b9776139508412bd6cb43da81b1e283bf4";
+// MT-142 re-pin: the synthesized predecessor store (derived from the current schema.surql
+// with the retired registry field) now carries knowledge_rich_document_title_anchors.
 const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
-    "6b4e5a157a3ce6ceaee9ded4d04843fc0387be1fb1fefc69a2203262cd8a1938";
+    "14f93f13b45eb9e52b677aac2d92372e48c83cc826c29b4bd7c64306415d90b3";
 const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
     "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4";
 // MT-142 re-pin: schema.surql gained knowledge_rich_document_title_anchors.

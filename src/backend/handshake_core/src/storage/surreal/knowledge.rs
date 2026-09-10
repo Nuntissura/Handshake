@@ -1244,13 +1244,43 @@ where
                     for (name, value) in binds {
                         query = query.bind((name, value));
                     }
-                    let mut response = query.await?.check()?;
+                    let mut response = meaningful_check(query.await?)?;
                     Ok(response.take(index)?)
                 })
             })
             .await
     })
     .await
+}
+
+/// Surfaces the meaningful statement error of a failed multi-statement query.
+///
+/// When `COMMIT` fails the executor rewrites every prior result slot to the
+/// generic `The query was not executed due to a failed transaction` text and
+/// pushes the real cause on a trailing COMMIT row (`Cannot COMMIT: Transaction
+/// conflict: ...`, `surrealdb-core-3.2.0/src/dbs/executor.rs:1476-1492`), so
+/// the SDK's `check()` (first slot wins, `surrealdb-3.2.0/src/method/query.rs:496-509`)
+/// would hide every engine conflict from the MT-142 retry classifier and every
+/// guard code from `map_guarded_err`. Mirrors `decode_query_values` in
+/// `storage/surreal.rs`.
+fn meaningful_check(
+    mut response: surrealdb::IndexedResults,
+) -> Result<surrealdb::IndexedResults, SurrealStorageError> {
+    let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+    if errors.is_empty() {
+        return Ok(response);
+    }
+    errors.sort_by_key(|(statement_index, _)| *statement_index);
+    let meaningful = errors
+        .iter()
+        .position(|(_, error)| {
+            !error
+                .to_string()
+                .to_ascii_lowercase()
+                .contains("query was not executed due to a failed transaction")
+        })
+        .unwrap_or(0);
+    Err(errors.swap_remove(meaningful).1.into())
 }
 
 /// Runs one statement that returns no rows, under the same lease and bound.
@@ -1270,7 +1300,7 @@ async fn raw_execute(
                     for (name, value) in binds {
                         query = query.bind((name, value));
                     }
-                    query.await?.check()?;
+                    meaningful_check(query.await?)?;
                     Ok(())
                 })
             })
