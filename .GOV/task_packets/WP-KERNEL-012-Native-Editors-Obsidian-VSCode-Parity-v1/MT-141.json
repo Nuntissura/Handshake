@@ -30,7 +30,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -196,17 +196,6 @@
       "basis": "MT-149 (READY_FOR_VALIDATION, blocks MT-141) restored every dropped read-model accessor. Verified present in src at 2876bcf0d852f324b23ad9c9773df11c1e2c3d4d: get_open_knowledge_code_repair, list_knowledge_code_repairs, resolve_knowledge_code_repair, record_knowledge_scip_import, list_knowledge_scip_imports (storage/surreal/knowledge.rs); starvation_watermark_at_utc (mt_executor/job.rs:166); audit_reason (role_mailbox_v1/message.rs:92); load_run_for_replay (storage/kb003_storage.rs:337). InMemoryKb003Storage is now an un-gated pub struct (storage/kb003_storage.rs:205) and query_values is pub (storage/surreal.rs:484).",
       "mechanical_confirmation": "compile-gate-3 at 2876bcf0d852f324b23ad9c9773df11c1e2c3d4d produced zero E0599 for any of these symbols; the only remaining failures were feature-gated test-support symbols. See ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/compile-gate-3-result.json",
       "status": "STALE_BLOCKER_CLEARED - the routing request for an MT owning src/** was satisfied by MT-149."
-    },
-    "blocker": {
-      "schema_id": "hsk.mt_blocker@1",
-      "recorded_by": "KERNEL_BUILDER-20260909-212427",
-      "recorded_at_utc": "2026-09-10T00:43:41Z",
-      "class": "GOVERNANCE_HELPER_DRIFT",
-      "summary": "kb-ready-checklist has two modes. --contract-evidence validates the typed handoff.kb_ready_checklist_evidence block and returned overall_verdict PASS with zero blockers for MT-141, but persists no receipt. --emit persists a receipt but derives evidence only from handshake.direct_test_run@1 receipts, a direct_test_registry@2, direct_test_prepare@2 and local_cargo_run@1 provenance, hash-bound compiled-worktree manifests and independent hsk.source_review_findings@1 records. No emitter for any of those schemas exists in the repository; the only file naming them is the verifier .GOV/roles/kernel_builder/scripts/mechanical-ready-evidence.mjs. The persisted receipts for MT-141 and MT-148 are therefore BLOCKED on RC-001/002/003/005 (unreviewed owned files; no direct receipts) regardless of the work state.",
-      "precedent_checked": "MT-149 recorded a persisted PASS with a proof.ps1 harness kept outside governance under ../Handshake/_Artifacts/handshake-tool/m149-takeover. That directory exists today and holds run logs (compile.log, knowledge.log, ledger.log, linux-final-cross-platform.log, ...). A grep of that directory for direct_test_run / direct.command.json / direct_test_registry / local_cargo_run found NO file, so whatever produced MT-149 direct receipts is not there either. A cross-root crawl of both artifact roots was started and deliberately aborted as too disk-heavy; treat the emitter as NOT LOCATED, not proven absent.",
-      "protocol_route": "KERNEL_BUILDER_PROTOCOL, Ready-for-Validation Self-Review: if the helper cannot derive a required item from canonical typed evidence it must report it missing/blocked; route the implementer-owned helper drift instead of duplicating evidence manually. Hand-authoring hash-bound direct receipts is forbidden and would be dishonest.",
-      "effect": "lifecycle.status stays CLAIMED for both MTs. All acceptance evidence, the typed rubric answers and the emitted BLOCKED receipts are on record for the validator. READY_FOR_VALIDATION is not set until the Operator chooses one of: (a) locate/commit the direct-runner emitter into governance and re-execute the proofs through it; (b) waive the persisted mechanical receipt for this batch on the strength of the typed evidence and validator review; (c) fund an in-repo emitter as governance work.",
-      "not_a_product_blocker": "Fast-close product work is complete and proven (mt120 3/3; MT-148 fresh-worktree 5/0). This blocks only the governance handoff mechanics."
     },
     "deleted_test_liveness_classification_20260909": {
       "recorded_by": "KERNEL_BUILDER-20260909-212427",
@@ -749,6 +738,31 @@
         "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-D-behaviour-liveness.json",
         "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-E-coverage-sweep.json"
       ]
+    },
+    "ready_for_validation_at_utc": "2026-09-10T01:45:58.115Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260909-212427",
+    "operator_waiver_20260910": {
+      "waiver_id": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "granted_by": "OPERATOR",
+      "granted_at_utc": "2026-09-10T01:45:58.115Z",
+      "operator_reply_verbatim": "yes paperwork is not of essence, only state recovery and status. we will be abandoning this repo governance soon, waiver granted",
+      "scope": "The persisted KB_READY_CHECKLIST_RECEIPT (--emit mechanical mode) is waived for MT-141 and MT-148 in this batch. Basis: the in-repo verifier requires direct_test_run / direct_test_registry / local_cargo_run / source_review_findings records for which no emitter exists in the repository; the typed rubric evidence validates PASS 6/6 with zero blockers in --contract-evidence mode for both MTs; product proofs and the Linux cross-platform CI job are green on 0513d99b.",
+      "what_is_not_waived": "Independent validator review. Acceptance-row truth (AC-141-4 NOT_MET, PT-148-2b PARTIAL) stands as recorded. Nothing product-facing is waived.",
+      "operator_direction_recorded": "Operator states repo governance will be abandoned soon and that only state recovery and status matter. Consequence for follow-ups: do not build the missing receipt emitter as governance work; MT-150 and the two routed product defects are state-recovery debt to carry into whatever replaces repo governance, not rituals to complete here.",
+      "recorded_by": "KERNEL_BUILDER-20260909-212427"
+    },
+    "blocker_waived": {
+      "schema_id": "hsk.mt_blocker@1",
+      "recorded_by": "KERNEL_BUILDER-20260909-212427",
+      "recorded_at_utc": "2026-09-10T00:43:41Z",
+      "class": "GOVERNANCE_HELPER_DRIFT",
+      "summary": "kb-ready-checklist has two modes. --contract-evidence validates the typed handoff.kb_ready_checklist_evidence block and returned overall_verdict PASS with zero blockers for MT-141, but persists no receipt. --emit persists a receipt but derives evidence only from handshake.direct_test_run@1 receipts, a direct_test_registry@2, direct_test_prepare@2 and local_cargo_run@1 provenance, hash-bound compiled-worktree manifests and independent hsk.source_review_findings@1 records. No emitter for any of those schemas exists in the repository; the only file naming them is the verifier .GOV/roles/kernel_builder/scripts/mechanical-ready-evidence.mjs. The persisted receipts for MT-141 and MT-148 are therefore BLOCKED on RC-001/002/003/005 (unreviewed owned files; no direct receipts) regardless of the work state.",
+      "precedent_checked": "MT-149 recorded a persisted PASS with a proof.ps1 harness kept outside governance under ../Handshake/_Artifacts/handshake-tool/m149-takeover. That directory exists today and holds run logs (compile.log, knowledge.log, ledger.log, linux-final-cross-platform.log, ...). A grep of that directory for direct_test_run / direct.command.json / direct_test_registry / local_cargo_run found NO file, so whatever produced MT-149 direct receipts is not there either. A cross-root crawl of both artifact roots was started and deliberately aborted as too disk-heavy; treat the emitter as NOT LOCATED, not proven absent.",
+      "protocol_route": "KERNEL_BUILDER_PROTOCOL, Ready-for-Validation Self-Review: if the helper cannot derive a required item from canonical typed evidence it must report it missing/blocked; route the implementer-owned helper drift instead of duplicating evidence manually. Hand-authoring hash-bound direct receipts is forbidden and would be dishonest.",
+      "effect": "lifecycle.status stays CLAIMED for both MTs. All acceptance evidence, the typed rubric answers and the emitted BLOCKED receipts are on record for the validator. READY_FOR_VALIDATION is not set until the Operator chooses one of: (a) locate/commit the direct-runner emitter into governance and re-execute the proofs through it; (b) waive the persisted mechanical receipt for this batch on the strength of the typed evidence and validator review; (c) fund an in-repo emitter as governance work.",
+      "not_a_product_blocker": "Fast-close product work is complete and proven (mt120 3/3; MT-148 fresh-worktree 5/0). This blocks only the governance handoff mechanics.",
+      "waived_by": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "waived_at_utc": "2026-09-10T01:45:58.115Z"
     }
   },
   "scope": {
@@ -825,7 +839,7 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "coder_session": "KERNEL_BUILDER-20260906-210447",
+    "coder_session": "KERNEL_BUILDER-20260909-212427",
     "session_mt_batch": [
       "MT-141"
     ],
@@ -978,9 +992,7 @@
       "concluded_at_utc": "2026-09-10T01:08:47Z",
       "job_url": "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863"
     },
-    "open_blockers": [
-      "GOVERNANCE_HELPER_DRIFT: persisted kb-ready receipt cannot be produced by any in-repo emitter (see lifecycle.blocker)"
-    ],
+    "open_blockers": [],
     "kb_ready_checklist_contract_evidence_validation": {
       "mode": "--contract-evidence",
       "overall_verdict": "PASS",
@@ -989,9 +1001,54 @@
       "product_commit": "0513d99bf0dc110c4a933938d4eb3afc871f55f4",
       "all_six_rubric_items": "yes (RC-003 n/a for MT-148: no tests added)",
       "note": "This mode validates the typed rubric evidence against the script auto-findings and does not persist a receipt; the persisted --emit receipt remains BLOCKED for the helper-drift reason in lifecycle.blocker. Both signals are on record for the Integration Validator."
+    },
+    "kb_ready_checklist_receipt": {
+      "overall_verdict": "WAIVED_BY_OPERATOR",
+      "contract_evidence_validation": "PASS 6/6, zero blockers (--contract-evidence)",
+      "persisted_emit_receipt": "BLOCKED (helper drift: no in-repo emitter for the direct-receipt schemas)",
+      "waiver": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
+    },
+    "coder_handoff": {
+      "receipt_kind": "CODER_HANDOFF",
+      "timestamp_utc": "2026-09-10T01:45:58.115Z",
+      "correlation_id": "review:mt141-fastclose-20260910",
+      "target_role": "INTEGRATION_VALIDATOR",
+      "target_session": "PENDING",
+      "receipts_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/RECEIPTS.jsonl",
+      "batch": [
+        "MT-141",
+        "MT-148",
+        "MT-149"
+      ]
+    },
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "state_recovery": {
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_commit": "0513d99bf0dc110c4a933938d4eb3afc871f55f4",
+      "product_worktree": "wtc-native-editors-v1",
+      "fresh_worktree_used_for_mt148_proof": "wtc-k12-mt148-fresh @ 6d5d705f (tmp/mt148-freshcheck)",
+      "artifact_dirs": [
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-148/kb01/"
+      ],
+      "junctions_to_remove_at_wp_cleanup": [
+        "D:\\hs12 -> MT-141/kb01",
+        "D:\\hs48 -> MT-148/kb01"
+      ],
+      "corrected_full_suite_rerun": "scratchpad rerun-corrected.sh content is mirrored in MT-141 acceptance evidence: set HANDSHAKE_WORKSPACE_ROOT (isolated per-run) and HANDSHAKE_ARTIFACTS_ROOT (absolute), single cargo lane, --features surreal-test-support,test-utils.",
+      "follow_ups_carried_as_debt": [
+        "MT-150 (47 tests to restore)",
+        "DEF-SYSTEMIC-UPSERT-IDEMPOTENCY",
+        "DEF-MEMORY-IPC-NO-PRODUCTION-STORE",
+        "process_birth_identity private -> test mirrors it (RF-2)",
+        "Cargo.toml required-features for surreal-test-support consumers",
+        "CX-984 hierarchy vs Windows MAX_PATH",
+        "kb-ready-checklist auto-discovery misses non-WP-stem worktree names"
+      ]
     }
   },
-  "updated_at_utc": "2026-09-10T01:09:30Z",
+  "updated_at_utc": "2026-09-10T01:45:58.115Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",

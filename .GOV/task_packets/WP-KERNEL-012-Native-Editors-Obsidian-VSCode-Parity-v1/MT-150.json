@@ -53,7 +53,11 @@
       ],
       "why_those_three": "They guard a live privilege-escalation check at src/api/knowledge_documents.rs:467 that had zero coverage at any layer. Restored into tests/knowledge_documents_api_tests.rs reusing its existing doc_server harness."
     },
-    "urgency": "HIGH for the three security-relevant items and the Loom rollback variants; MEDIUM otherwise."
+    "urgency": "HIGH for the three security-relevant items and the Loom rollback variants; MEDIUM otherwise.",
+    "operator_direction_2026_09_10": {
+      "source": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "note": "Operator states repo governance will be abandoned soon and that only state recovery and status matter. Consequence for follow-ups: do not build the missing receipt emitter as governance work; MT-150 and the two routed product defects are state-recovery debt to carry into whatever replaces repo governance, not rituals to complete here."
+    }
   },
   "scope": {
     "summary": "Port the 47 deleted tests listed in restoration_set onto the embedded SurrealDB store, preserving every original assertion at equivalent strength. For PARTIAL items, add only the assertions the existing partial coverage does not already make; do not duplicate. Recover each original body with `git show 4f92cc25^:<origin_file>`.",
@@ -659,7 +663,7 @@
     ],
     "next_actor": "ORCHESTRATOR"
   },
-  "updated_at_utc": "2026-09-10T00:18:07.212Z",
+  "updated_at_utc": "2026-09-10T01:45:58.115Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
