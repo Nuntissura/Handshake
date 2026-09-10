@@ -177,7 +177,23 @@
         "follow_ons_reported": [
           "API constructs SurrealDatabase::new per request (src/api/knowledge_documents.rs:291 and 11 other sites, outside allowed paths) so the keyed registry never shapes API contention; correctness holds via the database; app state should own one SurrealDatabase",
           "process_ledger/reclaim.rs retry loop is outside storage/surreal/ and not migrated"
-        ]
+        ],
+        "r2_items_closed": [
+          "R2-1-4 (i) post-grace client.write() bounded by the remaining shutdown_wait, typed ShutdownStillInProgress with drained=false",
+          "R2-1-4 (ii) wait_for_engine_release takes a budget and returns typed EngineReleaseUnproven",
+          "R2-1-4 (iii) the per-statement bound moved into SurrealStorage::with_data_operation so every data operation of every store is bounded; unbounded by design: with_admin_operation (bootstrap) and with_transaction (no product callers)",
+          "R2-1-10 written reason as doc comments on DEFAULT_STATEMENT_TIMEOUT and DEFAULT_ENGINE_QUERY_TIMEOUT",
+          "R2-1-3/R2-1-7 report schema confirmed and covered; product gauge SurrealStorage::lease_high_water added as the engine-window measure",
+          "R2-1-8 FailureClass::ExpectedStaleOrConflict confirmed",
+          "R2-1-14 lock_wait_samples_dropped counter",
+          "keyed-lock leak fixed and proven by two new deterministic tests plus both probes"
+        ],
+        "proofs_20260910_2210": {
+          "storage::surreal::keyed_lock": "ok. 13 passed",
+          "storage::surreal::swarm_load_report": "ok. 10 passed",
+          "storage::surreal::knowledge": "ok. 1 passed",
+          "storage::surreal::schema": "FAILED. 19 passed; 2 failed (pre-existing pair only)"
+        }
       },
       "B": {
         "status": "LANDED",
@@ -280,13 +296,49 @@
           "dispatched_at_utc": "2026-09-10T18:55:55.374Z"
         },
         "lens_1": {
-          "status": "INTERRUPTED_BY_RATE_LIMIT",
-          "probe_file": "src/backend/handshake_core/tests/swarm_review_probe_1.rs (untracked, 267 lines): Probe A the keyed-lock reclamation race - CONFIRMED REAL and since fixed, so the probe is kept as a regression test; Probe B independent clients racing natural-key upsert families - unfinished",
-          "no_report_written": true
+          "verdict": "REJECT",
+          "file": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-1-round-1.json",
+          "product_commit": "26731c56 plus uncommitted remediation",
+          "blockers": [],
+          "majors": [
+            "R1-1-1 keyed-lock reclamation race (strong-count snapshot) - CONFIRMED by probe, FIXED by A2 (last-strong-reference removal in LockCell::drop); probe kept as the regression test",
+            "R1-1-2 delete transaction decides backlink scope from a title-uniqueness read outside its write set and stamps it into the durable tombstone - OPEN, routed to A2 as a FIX (not accepted)",
+            "R1-1-3 the atomicity carve-out cited in code as 'MT-142 decision Q4' exists in no authority artifact - CLOSED by recording D-142-6 / MT-142-D-006-DERIVED-BACKLINK-STALENESS; A2 updates the citations",
+            "R1-1-4 no lane target drives a real engine commit conflict through the retry loop (every load run reports retry_count = 0); classification rests on untested SDK message text - routed to B (disabled-registry contention lane asserting retry_count > 0) and A2 (classifier unit test pinning the captured COMMIT rendering)"
+          ],
+          "minors": [
+            "R1-1-5 LockKey::NaturalKey kind aliasing between knowledge.rs:2713 and :2827 - routed to A2"
+          ],
+          "probes": "tests/swarm_review_probe_1.rs kept: Probe A reproduced the leak (entry_count 3 at 26731c56, 0 after the fix); Probe B is the first end-to-end proof of the engine-conflict retry path (103 scheduled retries, 24 engine-conflict-only, 0 exhausted) and the only AC-142-8 attack run against natural-key upsert families",
+          "baseline_classification": "attacked and confirmed correct: the five knowledge_claims_tests failures and mt032 reproduce verbatim at 67ce701c",
+          "recorded_at_utc": "2026-09-10T22:44:54.375Z"
         }
       },
       "regression_found_after_26731c56": "keyed_lock_registry_reclaims_after_high_cardinality_churn: entry_count 1 after concurrent churn (Lane B semantics run T184953Z) -> A2 root-causing with a deterministic unit test"
-    }
+    },
+    "decisions_20260910": [
+      {
+        "id": "MT-142-D-006-DERIVED-BACKLINK-STALENESS",
+        "short_id": "D-142-6",
+        "recorded_by": "KERNEL_BUILDER-20260910-073935",
+        "at_utc": "2026-09-10T22:44:54.375Z",
+        "raised_by": "adversarial review lens 1 round 1, finding R1-1-3 (../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-1-round-1.json)",
+        "decision": "ACCEPTED IN WRITING: an explicit, bounded carve-out from AC-142-3's zero-partial-projection requirement for DERIVED backlink and Loom-edge rows only.",
+        "what_is_read_outside_the_write_set": "create_rich_document_transaction (knowledge.rs:2139-2142) and replace_knowledge_document_backlinks (knowledge.rs:4945) resolve backlink TARGET LIVENESS with a read that the committing transaction never writes. On the pinned engine (surrealdb 3.2.0 kv-rocksdb, conflict detection on written keys only, kvs/rocksdb/mod.rs:2133-2138; no SELECT ... FOR UPDATE before 3.3.0) that read cannot be conflict-checked at commit.",
+        "rows_that_can_go_stale": [
+          "knowledge_document_backlinks rows whose target document is deleted between resolution and commit",
+          "the loom_edges rows projected from them",
+          "the loom_blocks backlink counts derived from those edges"
+        ],
+        "why_acceptable": "These rows are DERIVED: they carry no authority, are never read as the source of truth for document content, permissions or ledger receipts, and are fully rebuilt from the source document's content by the next save (replace_knowledge_document_backlinks is an idempotent content-derived rebuild). No acknowledged write is lost, no ledger receipt is partial, no uniqueness or version invariant depends on them.",
+        "which_write_rebuilds_them": "replace_knowledge_document_backlinks on the next save of the SOURCE document (api/knowledge_documents.rs save composition), or any explicit backlink rebuild.",
+        "blast_radius": "A dangling derived row pointing at a tombstoned document until the source document is next saved. Visible in backlink panes and Loom edge counts; not visible in document content, versions, drafts, ledger receipts or search authority.",
+        "what_it_does_NOT_cover": "It does NOT cover R1-1-2 (the delete transaction deciding backlink scope from a title-uniqueness read outside its write set, and stamping that decision into a durable tombstone). That is a correctness defect being FIXED in MT-142, not accepted: a durable receipt derived from an unconflictable read is authority, not derived data.",
+        "test_obligation": "The swarm integrity oracle must not count this class as a lost write, but MUST assert the rebuild converges (save the source document and verify the derived rows agree) rather than ignoring the class (routed to Lane B).",
+        "code_citation_required": "src/storage/surreal/knowledge.rs:2139-2142 and :4945 must cite MT-142-D-006-DERIVED-BACKLINK-STALENESS and this file, replacing the earlier bare 'MT-142 decision Q4' reference, which pointed at a recon open question that was never promoted to authority.",
+        "follow_on": "A future MT may close the window by resolving title-targeted backlinks to record ids at write time, or by writing the target's anchor row so deletion conflicts with backlink creation."
+      }
+    ]
   },
   "scope": {
     "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
@@ -575,5 +627,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T22:13:44.284Z"
+  "updated_at_utc": "2026-09-10T22:44:54.375Z"
 }
