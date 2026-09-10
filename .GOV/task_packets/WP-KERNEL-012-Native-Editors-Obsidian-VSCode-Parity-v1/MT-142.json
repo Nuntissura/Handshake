@@ -70,6 +70,65 @@
       ],
       "phase_3": "two independent adversarial review agents (concurrency lens; load/lifecycle lens) -> remediation -> re-review (AC-142-12)",
       "phase_4": "extended local profile run on this machine (>=64 workers, >=50000 ops), PT-142 evidence, handoff"
+    },
+    "phase_1_20260910": {
+      "recorded_by": "KERNEL_BUILDER-20260910-073935",
+      "at_utc": "2026-09-10T09:57:21.111Z",
+      "research_basis": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/research/research_basis.json",
+        "schema": "hsk.mt142_research_basis@1",
+        "status": "RECORDED_BEFORE_ANY_SRC_CHANGE (AC-142-1)",
+        "pinned": {
+          "surrealdb": "3.2.0",
+          "surrealdb_core": "3.2.0",
+          "surrealdb_types": "3.2.0",
+          "surrealdb_rocksdb": "0.24.0-surreal.5",
+          "rocksdb": "11.0.0",
+          "tokio": "1.52.3",
+          "features": "kv-rocksdb (kv-mem dev-only)"
+        },
+        "consequential_facts": [
+          "Snapshot isolation on OptimisticTransactionDB; conflicts detected only at commit and only on WRITTEN keys (surrealdb-core-3.2.0 kvs/rocksdb/mod.rs:757-766, 2133-2138); SELECT FOR UPDATE absent in 3.2.0 -> write-skew undetected unless every decision-read record is also written",
+          "The only retryable engine variant is kvs::err::Error::TransactionConflict (kvs/err.rs:85-87) from rocksdb Busy|TryAgain; in pinned 3.2.0 it does NOT reach SDK callers typed on any commit path (executor.rs:1062-1066, 1474-1492; engine/local/mod.rs:774-782; issue #7472) -> classifier is typed-first with message fallback",
+          "No engine-side retry of user transactions and no engine deadline unless Config timeouts are set -> Handshake owns retries and deadlines",
+          "SyncMode::Every: every commit waits on a grouped fsync; D: is a SATA HDD -> latency budgets are ASSUMPTION until measured"
+        ]
+      },
+      "recon": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/recon/lock_inventory.json",
+        "schema": "hsk.mt142_recon@1",
+        "findings": [
+          "RICH_DOCUMENT_MUTATION_LOCK (knowledge.rs:83): 9 sites; 8 already run BEGIN/COMMIT transactions whose in-transaction guards hold without the lock; the ONLY lock-only invariant is normalized-title uniqueness in create_knowledge_rich_document_if_title_absent (3849-3898) - no DB index -> needs stored title key + UNIQUE index (precedent knowledge_sources.root_path_key schema.surql:3255-3264) and fingerprint/manual-count re-pin",
+          "KNOWLEDGE_UPSERT_LOCK (knowledge.rs:88): 10 sites; every natural key already has a UNIQUE index; the lock only hides the loser conflict -> removal = bounded retry of the idempotent IF-exists-UPDATE-ELSE-CREATE statement",
+          "Other product-data global locks: LOOM_MUTATION_LOCK (loom_store.rs:41, 15 sites), CANVAS_MUTATION_LOCK (loom_canvas_store.rs:51, 9), OVERLAY/MARKDOWN_IMPORT/WIKI_COMPILE (wiki_store.rs:40-42), BLOCK_VIEW_MUTATION_LOCK (block_view_store.rs:38), BRIDGE_MUTATION_LOCK (bridge_store.rs:23), DEPENDENCY_MUTATION_LOCK (locus_store.rs:30). Lifecycle-only retain: BOOTSTRAP_MUTEX (schema.rs:174), per-instance client RwLock/shutdown coordinator (surreal.rs:699-705)",
+          "No shared retry module; three ad-hoc loops (atelier/intake.rs:730-762, atelier/mod.rs:643-648, process_ledger/reclaim.rs:30-65); no RetryExhausted/retryable-conflict StorageError variant (storage/mod.rs:271-293, outside allowed_paths)",
+          "SurrealStorage::shutdown (surreal.rs:959-1007) stops admission and waits for in-flight read leases with no cancellation bound"
+        ]
+      },
+      "decisions": [
+        {
+          "id": "D-142-1",
+          "decision": "The eight other product-data global locks are ROUTED TO A FOLLOW-ON microtask; MT-142 delivers the shared primitives (retry, keyed-lock registry, conflict classification, report schema) they will migrate onto, and removes only the two named locks.",
+          "basis": "contract contention_control_requirements[6] allows routing when the locks are not on the same test surface; keeping MT-142 to the knowledge surface bounds the schema/fingerprint churn"
+        },
+        {
+          "id": "D-142-2",
+          "decision": "StorageError (storage/mod.rs) is outside allowed_paths and is NOT edited; typed retry/conflict errors live under storage/surreal and are mapped into existing StorageError variants at the boundary, preserving the API 409 mapping for stale versions.",
+          "basis": "allowed_paths"
+        },
+        {
+          "id": "D-142-3",
+          "decision": "Keyed-lock registry is per SurrealDatabase instance (injectable, LockMode::Disabled available), never static, so AC-142-8 can prove two wrappers over one engine stay correct without a shared registry.",
+          "basis": "recon client_handle_model"
+        }
+      ],
+      "lanes": {
+        "A1": "primitives (retry.rs, keyed_lock.rs, swarm_load_report.rs + unit tests) - RUNNING, holds the cargo lane",
+        "A2": "knowledge.rs integration + title UNIQUE index + bounded shutdown drain - after A1",
+        "B": "tests: surreal_swarm_load_tests (CI + extended env-gated + report), surreal_swarm_semantics_tests, surreal_swarm_lifecycle_tests - after A1, parallel with A2",
+        "C": "user_manual page + self-consistency test - after A2",
+        "reviews": "two adversarial agents (concurrency; load/lifecycle) after C"
+      }
     }
   },
   "scope": {
@@ -359,5 +418,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T09:33:19.755Z"
+  "updated_at_utc": "2026-09-10T09:57:21.111Z"
 }
