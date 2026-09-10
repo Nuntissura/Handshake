@@ -31,15 +31,15 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "depends_on": [
       "MT-141"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": null,
     "completed_by": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260910-073935",
     "created_by": "KERNEL_BUILDER-20260909-212427",
     "created_at_utc": "2026-09-10T00:18:07.212Z",
     "creation_reason": "Commit 4f92cc25 (the src-side PostgreSQL removal, MT-136/137/138 territory) deleted 26 test files. MT-141 inherited a tree with those tests already gone. A coverage sweep across BOTH src/ and tests/ found that of 57 deleted tests, 3 covered removed behaviour and 4 are covered elsewhere, but 47 cover production behaviour that is still live and either has no proof anywhere (33) or only partial proof (14). Deleting a test to reach a green compile is the exact failure MT-141 exists to prevent, so this coverage cannot be silently dropped. Under Operator decision 2026-09-10 (fast close), MT-141 closes on a complete disposition and this microtask carries the restoration as tracked, non-silent debt.",
@@ -57,6 +57,49 @@
     "operator_direction_2026_09_10": {
       "source": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
       "note": "Operator states repo governance will be abandoned soon and that only state recovery and status matter. Consequence for follow-ups: do not build the missing receipt emitter as governance work; MT-150 and the two routed product defects are state-recovery debt to carry into whatever replaces repo governance, not rituals to complete here."
+    },
+    "claimed_at_utc": "2026-09-10T07:40:42Z",
+    "claim_authority": "Operator 2026-09-10: spin up, delegate and steer sub-agents to do the remaining MT.",
+    "session_mt_batch": [
+      "MT-150"
+    ],
+    "lane_plan_20260910": {
+      "principle": "Disjoint file ownership per lane; lanes author only and run NO cargo; KERNEL_BUILDER owns the single cargo lane on the warm target and feeds compile/test results back. New test files are auto-discovered (no autotests=false in Cargo.toml) and each starts with #![cfg(all(feature = \"surreal-test-support\", feature = \"test-utils\"))] so default-feature builds are not worsened.",
+      "lanes": [
+        {
+          "lane": "R",
+          "owns": [
+            "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs"
+          ],
+          "items": "13 HTTP route tests (3 security-relevant) incl. the 3 route PARTIALs",
+          "harness": "route_server idiom from tests/knowledge_documents_api_tests.rs; stage_api/locus_api/calendar_api routers"
+        },
+        {
+          "lane": "L",
+          "owns": [
+            "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs"
+          ],
+          "items": "14 Loom atomic-receipt tests incl. 6 rollback variants and the pin-removal PARTIAL",
+          "harness": "surreal_test_store_support; one central fault-injection seam via test_mutator or a BLOCKED_ON_PRODUCT_SEAM disposition"
+        },
+        {
+          "lane": "K",
+          "owns": [
+            "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs",
+            "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs",
+            "src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs"
+          ],
+          "items": "durable_claim_and_lease + 3 ledger PARTIALs; 3 HBR read-evidence; residual catalog EASY"
+        },
+        {
+          "lane": "M",
+          "owns": [
+            "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs",
+            "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs"
+          ],
+          "items": "6 manual_rows PARTIALs (assert_schema_fields_are_real cross-check); 2 capsule_recorder; mt130 PARTIAL; 3 memory-IPC as BLOCKED_ON_PRODUCT_DEFECT dispositions"
+        }
+      ]
     }
   },
   "scope": {
@@ -663,12 +706,19 @@
     ],
     "next_actor": "ORCHESTRATOR"
   },
-  "updated_at_utc": "2026-09-10T01:45:58.115Z",
+  "updated_at_utc": "2026-09-10T07:40:42Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
     "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs",
-    "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs"
+    "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+    "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs",
+    "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs",
+    "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs",
+    "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs",
+    "src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs",
+    "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs",
+    "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs"
   ],
   "owned_files_note": "Initial set: the harnesses to extend. The implementer adds the new/renamed test files it creates to this list on claim.",
   "proof_commands": [
