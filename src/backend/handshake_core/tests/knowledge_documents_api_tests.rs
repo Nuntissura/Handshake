@@ -3122,3 +3122,501 @@ async fn mt255_backend_draft_recovery_roundtrips_and_clears_on_save_or_discard()
         .await
         .expect("cleanup embedded knowledge test store");
 }
+
+// ---------------------------------------------------------------------------
+// WP-KERNEL-012 MT-120: `handshake-native:` reserved-principal spoof guard.
+//
+// These three tests were deleted (commit 4f92cc25) from the PostgreSQL-backed
+// suite `wp_kernel_012_native_editor_routes_pg_tests.rs` and are restored here
+// against the embedded SurrealDB store so the guard at
+// `api::knowledge_documents.rs:463-471` (constant `RESERVED_NATIVE_PRINCIPAL_PREFIX`
+// at :98) keeps test coverage. Without this guard an unauthenticated caller
+// forges the server-derived native principal with a single header.
+// ---------------------------------------------------------------------------
+
+use sha2::{Digest, Sha256};
+
+/// Process-global guard: `HANDSHAKE_STAGE_BINDING_FILE` is read by
+/// `api::stage::capture_context` (used by every document route's optional
+/// `x-hsk-session-token` check) and is process-wide env state. Every test in
+/// this binary that installs a native-MCP binding MUST hold this while it
+/// runs, or two `#[tokio::test]` bodies executing concurrently in the same
+/// process would race each other's binding file.
+static MT120_NATIVE_BINDING_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// A live `handshake-native:` session binding for THIS test process. Mirrors
+/// `api::stage::capture_context`'s on-disk contract (`token`/`pid`/
+/// `process_birth`) so a presented `x-hsk-session-token` genuinely
+/// authenticates. Must be installed only while holding
+/// `MT120_NATIVE_BINDING_LOCK`.
+struct Mt120NativeBinding {
+    path: std::path::PathBuf,
+    previous: Option<std::ffi::OsString>,
+    token: String,
+}
+
+impl Mt120NativeBinding {
+    fn install() -> Self {
+        let token = hex::encode(Sha256::digest(uuid::Uuid::now_v7().as_bytes()));
+        let pid = std::process::id();
+        let process_birth = mt120_process_birth_identity(pid)
+            .expect("MT-120 test process must have a verifiable live birth identity");
+        let path = std::env::temp_dir().join(format!(
+            "handshake-stage-binding-mt120-{}.json",
+            uuid::Uuid::now_v7()
+        ));
+        let bytes = serde_json::to_vec(&json!({
+            "token": token,
+            "pid": pid,
+            "process_birth": process_birth,
+        }))
+        .expect("serialize MT-120 native binding");
+        std::fs::write(&path, &bytes).expect("write MT-120 native binding");
+        let previous = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
+        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &path);
+        Self {
+            path,
+            previous,
+            token,
+        }
+    }
+
+    fn headers(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        request.header("x-hsk-session-token", &self.token)
+    }
+}
+
+impl Drop for Mt120NativeBinding {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(value) => std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", value),
+            None => std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE"),
+        }
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+/// Mirrors `api::stage::process_birth_identity` (Windows branch) so the
+/// binding this test writes independently re-derives to the SAME
+/// `ProcessBirthIdentity` the real guard computes for this live process.
+#[cfg(windows)]
+fn mt120_process_birth_identity(pid: u32) -> Option<Value> {
+    use windows_sys::Win32::Foundation::{CloseHandle, FILETIME, WAIT_TIMEOUT};
+    use windows_sys::Win32::System::Threading::{
+        GetProcessTimes, OpenProcess, WaitForSingleObject, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    const SYNCHRONIZE_RIGHT: u32 = 0x0010_0000;
+    if pid == 0 {
+        return None;
+    }
+    // SAFETY: mirrors `api::stage::process_birth_identity` (Windows branch): the PID is this
+    // test's own live process id, the access mask is query/synchronize only, the handle is
+    // checked before use and closed exactly once after the zero-timeout wait.
+    let handle = unsafe {
+        OpenProcess(
+            SYNCHRONIZE_RIGHT | PROCESS_QUERY_LIMITED_INFORMATION,
+            0,
+            pid,
+        )
+    };
+    if handle.is_null() {
+        return None;
+    }
+    let live = unsafe { WaitForSingleObject(handle, 0) } == WAIT_TIMEOUT;
+    let mut creation = FILETIME::default();
+    let mut exit = FILETIME::default();
+    let mut kernel = FILETIME::default();
+    let mut user = FILETIME::default();
+    let queried = live
+        && unsafe { GetProcessTimes(handle, &mut creation, &mut exit, &mut kernel, &mut user) }
+            != 0;
+    unsafe {
+        let _ = CloseHandle(handle);
+    }
+    queried.then(|| {
+        json!({
+            "kind": "windows",
+            "creation_time_100ns": (u64::from(creation.dwHighDateTime) << 32)
+                | u64::from(creation.dwLowDateTime),
+        })
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn mt120_process_birth_identity(pid: u32) -> Option<Value> {
+    if pid == 0 {
+        return None;
+    }
+    let boot_id = std::fs::read_to_string("/proc/sys/kernel/random/boot_id")
+        .ok()?
+        .trim()
+        .to_owned();
+    if boot_id.is_empty() {
+        return None;
+    }
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let (_, tail) = stat.rsplit_once(") ")?;
+    let fields: Vec<&str> = tail.split_whitespace().collect();
+    let state = fields.first()?.as_bytes().first().copied()?;
+    if matches!(state, b'Z' | b'X' | b'x') {
+        return None;
+    }
+    Some(json!({
+        "kind": "linux",
+        "boot_id": boot_id,
+        "start_time_ticks": fields.get(19)?.parse::<u64>().ok()?,
+    }))
+}
+
+#[cfg(target_os = "macos")]
+fn mt120_process_birth_identity(pid: u32) -> Option<Value> {
+    use std::ffi::c_void;
+
+    #[repr(C)]
+    #[derive(Default)]
+    struct ProcBsdInfo {
+        pbi_flags: u32,
+        pbi_status: u32,
+        pbi_xstatus: u32,
+        pbi_pid: u32,
+        pbi_ppid: u32,
+        pbi_uid: u32,
+        pbi_gid: u32,
+        pbi_ruid: u32,
+        pbi_rgid: u32,
+        pbi_svuid: u32,
+        pbi_svgid: u32,
+        pbi_reserved: u32,
+        pbi_comm: [u8; 16],
+        pbi_name: [u8; 32],
+        pbi_nfiles: u32,
+        pbi_pgid: u32,
+        pbi_pjobc: u32,
+        e_tdev: u32,
+        e_tpgid: u32,
+        pbi_nice: i32,
+        pbi_start_tvsec: u64,
+        pbi_start_tvusec: u64,
+    }
+
+    #[link(name = "proc")]
+    extern "C" {
+        fn proc_pidinfo(
+            pid: i32,
+            flavor: i32,
+            arg: u64,
+            buffer: *mut c_void,
+            buffer_size: i32,
+        ) -> i32;
+    }
+
+    const PROC_PIDTBSDINFO: i32 = 3;
+    const SZOMB: u32 = 5;
+    const PROC_FLAG_INEXIT: u32 = 4;
+    if pid == 0 {
+        return None;
+    }
+    let mut info = ProcBsdInfo::default();
+    let expected_size = std::mem::size_of::<ProcBsdInfo>();
+    // SAFETY: mirrors `api::stage::process_birth_identity` (macOS branch).
+    let queried = unsafe {
+        proc_pidinfo(
+            i32::try_from(pid).ok()?,
+            PROC_PIDTBSDINFO,
+            0,
+            std::ptr::from_mut(&mut info).cast::<c_void>(),
+            i32::try_from(expected_size).ok()?,
+        )
+    };
+    if queried != i32::try_from(expected_size).ok()?
+        || info.pbi_pid != pid
+        || info.pbi_status == SZOMB
+        || info.pbi_flags & PROC_FLAG_INEXIT != 0
+        || info.pbi_start_tvsec == 0
+        || info.pbi_start_tvusec >= 1_000_000
+    {
+        return None;
+    }
+    Some(json!({
+        "kind": "mac_os",
+        "start_time_seconds": info.pbi_start_tvsec,
+        "start_time_microseconds": info.pbi_start_tvusec,
+    }))
+}
+
+#[cfg(any(
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+))]
+fn mt120_process_birth_identity(_pid: u32) -> Option<Value> {
+    None
+}
+
+#[cfg(all(
+    unix,
+    not(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "netbsd",
+        target_os = "dragonfly"
+    ))
+))]
+fn mt120_process_birth_identity(_pid: u32) -> Option<Value> {
+    None
+}
+
+#[cfg(not(any(unix, windows)))]
+fn mt120_process_birth_identity(_pid: u32) -> Option<Value> {
+    None
+}
+
+/// Create a document and return `(rich_document_id, doc_version)` so saves carry the REAL
+/// optimistic-concurrency token instead of a guessed one. Reuses the shared `create_doc` harness.
+async fn mt120_seed_document(
+    base: &str,
+    http: &reqwest::Client,
+    workspace_id: &str,
+    title: &str,
+) -> (String, i64) {
+    let created = create_doc(base, http, workspace_id, title).await;
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("mt120 rich_document_id")
+        .to_string();
+    let doc_version = created["document"]["doc_version"]
+        .as_i64()
+        .expect("mt120 doc_version");
+    (doc_id, doc_version)
+}
+
+fn mt120_save_body(expected_version: i64, text: &str) -> Value {
+    json!({
+        "expected_version": expected_version,
+        "content_json": {
+            "type": "doc",
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": text }] }]
+        }
+    })
+}
+
+/// Read back the `KNOWLEDGE_RICH_DOCUMENT_SAVED` receipts recorded for `document_id`, in ledger
+/// order, straight from the embedded store `Database` (the same table `record_receipt` in
+/// `api::knowledge_documents.rs` writes to via `append_kernel_event`).
+async fn mt120_save_receipts(
+    store: &EmbeddedKnowledgeStore,
+    document_id: &str,
+) -> Vec<handshake_core::kernel::KernelEvent> {
+    store
+        .db
+        .list_kernel_events_for_aggregate("knowledge_rich_document", document_id)
+        .await
+        .expect("mt120 read save receipts")
+        .into_iter()
+        .filter(|event| event.event_type.as_str() == "KNOWLEDGE_RICH_DOCUMENT_SAVED")
+        .collect()
+}
+
+/// WP-KERNEL-012 MT-120 (restored): an unauthenticated caller — NO `x-hsk-session-token` at all —
+/// cannot forge the reserved `handshake-native:` principal namespace by declaring it in
+/// `x-hsk-actor-id`. Guards `api::knowledge_documents.rs:467-471`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal() {
+    let store = open_embedded_store()
+        .await
+        .expect("MT-120 forgery-denial proof requires an isolated embedded store");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let (doc_id, doc_version) =
+        mt120_seed_document(&base, &http, &workspace_id, "MT120 Forgery Denial").await;
+
+    let forged = "handshake-native:1:deadbeef";
+    // NO session token at all — the exact positive control from the original MT-120 contract: an
+    // unauthenticated caller declares an actor id inside the reserved namespace.
+    let response = http
+        .put(format!("{base}/knowledge/documents/{doc_id}/save"))
+        .header("x-hsk-actor-id", forged)
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-FORGE")
+        .header("x-hsk-session-run-id", "SR-MT120-FORGE")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mt120_save_body(doc_version, "forged"))
+        .send()
+        .await
+        .expect("mt120 forged save request");
+    assert_eq!(response.status(), 403);
+    let body: Value = response.json().await.expect("mt120 forged save body");
+    assert_eq!(body["error"], "HSK-403-DOC-ACTOR-SPOOF");
+
+    // The guard sits on the shared identity path, so a READ route forges nothing either.
+    let read = http
+        .get(format!("{base}/knowledge/documents/{doc_id}"))
+        .header("x-hsk-actor-id", forged)
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-FORGE")
+        .header("x-hsk-session-run-id", "SR-MT120-FORGE")
+        .send()
+        .await
+        .expect("mt120 forged read request");
+    assert_eq!(read.status(), 403);
+
+    // Confirm no document mutation occurred.
+    let unchanged = store
+        .db
+        .get_knowledge_rich_document(&doc_id)
+        .await
+        .expect("mt120 read document after forgery attempt")
+        .expect("mt120 document remains live");
+    assert_eq!(
+        unchanged.doc_version, doc_version,
+        "a denied forged save must not mutate the document"
+    );
+
+    // Confirm no ledger row exists for the forged principal on this document.
+    let events = mt120_save_receipts(&store, &doc_id).await;
+    assert!(
+        events.iter().all(|event| event.actor.actor_id() != forged),
+        "a forged principal must leave no ledger row"
+    );
+    server.shutdown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
+}
+
+/// WP-KERNEL-012 MT-120 (restored): a PRESENTED-but-invalid `x-hsk-session-token` must fail closed
+/// as 401 and must NEVER be silently laundered into the header-declared actor identity. Guards
+/// `api::knowledge_documents.rs:436-444` (`authenticated_native_principal`).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_identity() {
+    let _binding_test_guard = MT120_NATIVE_BINDING_LOCK.lock().await;
+    let _binding = Mt120NativeBinding::install();
+    let store = open_embedded_store()
+        .await
+        .expect("MT-120 invalid-session proof requires an isolated embedded store");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let (doc_id, doc_version) =
+        mt120_seed_document(&base, &http, &workspace_id, "MT120 Invalid Session").await;
+
+    let before = mt120_save_receipts(&store, &doc_id).await.len();
+
+    // Well-formed but WRONG token: a live binding is installed above, this credential is not its
+    // token, so `capture_context` fails — the stale/forged-credential case.
+    let stale_token = "b".repeat(64);
+    let response = http
+        .put(format!("{base}/knowledge/documents/{doc_id}/save"))
+        .header("x-hsk-session-token", &stale_token)
+        .header("x-hsk-actor-id", "mt120-agent-stale")
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-STALE")
+        .header("x-hsk-session-run-id", "SR-MT120-STALE")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mt120_save_body(doc_version, "stale"))
+        .send()
+        .await
+        .expect("mt120 stale-token save request");
+    assert_eq!(
+        response.status(),
+        401,
+        "a presented-but-invalid token must fail closed, not fall back"
+    );
+    let body: Value = response.json().await.expect("mt120 stale-token body");
+    assert_eq!(body["error"], "HSK-401-DOC-SESSION");
+
+    // Proof it did NOT silently continue as the header identity: no save happened at all.
+    let after = mt120_save_receipts(&store, &doc_id).await;
+    assert_eq!(after.len(), before, "a rejected credential must not save");
+    assert!(
+        after
+            .iter()
+            .all(|event| event.actor.actor_id() != "mt120-agent-stale"),
+        "a rejected credential must never be laundered into the header identity"
+    );
+    server.shutdown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
+}
+
+/// WP-KERNEL-012 MT-120 (restored): an authenticated save (valid `x-hsk-session-token`) stamps the
+/// server-derived principal into the receipt's `minted_by_principal` field WITHOUT rebinding the
+/// client-declared per-agent `actor_id` — and the authenticated owner of that derived principal may
+/// declare its own id without tripping the spoof guard. Guards `api::knowledge_documents.rs:1405-1412`
+/// and the `SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD` contract at :94.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id() {
+    let _binding_test_guard = MT120_NATIVE_BINDING_LOCK.lock().await;
+    let binding = Mt120NativeBinding::install();
+    let store = open_embedded_store()
+        .await
+        .expect("MT-120 authenticated-save proof requires an isolated embedded store");
+    let workspace_id = store.create_workspace().await;
+    let (base, http, server) = doc_server(&store).await;
+    let (doc_id, doc_version) =
+        mt120_seed_document(&base, &http, &workspace_id, "MT120 Save Attribution").await;
+
+    // A per-agent save actor that is NOT the derived principal — exactly what the product sends.
+    let agent_actor = "mt120-agent-a";
+    let saved = binding
+        .headers(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
+        .header("x-hsk-actor-id", agent_actor)
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-A")
+        .header("x-hsk-session-run-id", "SR-MT120-A")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mt120_save_body(doc_version, "after"))
+        .send()
+        .await
+        .expect("mt120 authenticated save");
+    assert_eq!(saved.status(), 200, "authenticated save must succeed");
+    let saved: Value = saved.json().await.expect("mt120 save json");
+    let receipt_id = saved["save_receipt_event_id"]
+        .as_str()
+        .expect("mt120 save receipt id")
+        .to_string();
+
+    let events = mt120_save_receipts(&store, &doc_id).await;
+    let receipt = events
+        .iter()
+        .find(|event| event.event_id == receipt_id)
+        .expect("mt120 save receipt readback");
+    // AC-120-2: per-agent attribution SURVIVES in the actor_id column. Rebinding it would destroy
+    // swarm attribution (two agents saving the same document must remain individually attributable).
+    assert_eq!(receipt.actor.actor_id(), agent_actor);
+    // AC-120-1: the ownership anchor is server-written and IS the Flight Recorder's derived
+    // principal — never equal to the client-declared per-agent actor.
+    let derived = receipt.payload["minted_by_principal"]
+        .as_str()
+        .expect("mt120 minted_by_principal present")
+        .to_string();
+    assert_ne!(derived, agent_actor);
+    assert!(
+        derived.starts_with("handshake-native:"),
+        "the server-derived principal must be in the reserved namespace: {derived}"
+    );
+
+    // The owner of the reserved namespace may declare its own id; the guard permits exactly that.
+    let owner_save = binding
+        .headers(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
+        .header("x-hsk-actor-id", &derived)
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-OWNER")
+        .header("x-hsk-session-run-id", "SR-MT120-OWNER")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mt120_save_body(doc_version + 1, "owner"))
+        .send()
+        .await
+        .expect("mt120 owner save");
+    assert_eq!(
+        owner_save.status(),
+        200,
+        "the authenticated owner of the reserved namespace is not a spoofer"
+    );
+    server.shutdown().await;
+    store
+        .close_and_remove()
+        .await
+        .expect("cleanup embedded knowledge test store");
+}
