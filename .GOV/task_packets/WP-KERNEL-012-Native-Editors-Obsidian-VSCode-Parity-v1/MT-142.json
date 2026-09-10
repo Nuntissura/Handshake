@@ -157,16 +157,34 @@
         ]
       },
       "A2": {
-        "status": "RESUMED",
+        "status": "RUNNING (schema accepted 19/21 with 2 pre-existing; fixing raw_rows_at + lock-wait hook; knowledge proofs pending)",
         "started_at_utc": "2026-09-10T10:31:00.612Z",
         "brief": "scratchpad mt142-laneA2-brief.md plus 8 addenda: pre-reads inside the retried closure; unique-index violation -> RetryableSnapshotChange only at the upsert sites; title discriminator + UNIQUE index + LockKey::NaturalKey; Exhausted -> StorageError::ConflictDetails HSK-STORAGE-RETRY-EXHAUSTED; registry per SurrealDatabase::new with with_lock_registry/lock_registry; per-attempt statement_timeout; mutex runner in the foreground; tree left uncommitted",
         "last_schema_run": "mt142-LIB-20260910T112134Z: 18 passed / 3 failed (2 pre-existing at MT-141 baseline suite-run-1; mt139_exact_predecessor_upgrade caused); registry seed count pin 62 not re-pinned -> every fresh store open fails (blocks Lane B)"
       },
       "B": {
-        "status": "RESUMED",
-        "started_at_utc": "2026-09-10T10:31:00.612Z",
-        "brief": "scratchpad mt142-laneB-brief.md; files tests/surreal_swarm_semantics_tests.rs, tests/surreal_swarm_load_tests.rs, tests/surreal_swarm_lifecycle_tests.rs, tests/swarm_support/mod.rs; cargo go-ahead given after A1 released the lane",
-        "last_run": "mt142-surreal_swarm_semantics_tests-20260910T111830Z: compiles; 0 passed / 6 failed, all at store open on the A2 seed-count pin"
+        "status": "LANDED",
+        "product_commit": "f3a97e2f",
+        "at_utc": "2026-09-10T17:52:35.053Z",
+        "files": [
+          "tests/swarm_support/mod.rs (1763)",
+          "tests/surreal_swarm_semantics_tests.rs (1010)",
+          "tests/surreal_swarm_load_tests.rs (1323)",
+          "tests/surreal_swarm_lifecycle_tests.rs (498)"
+        ],
+        "results_on_448338d4": {
+          "semantics": "FAILED. 4 passed; 2 failed (independent_clients..., opposite_order... red on the raw_rows_at defect)",
+          "load": "FAILED. 1 passed; 1 failed (CI profile ran end to end; assert_profile tripped on 2 untyped terminal errors, same defect)",
+          "lifecycle": "ok. 1 passed (212 acks; ShutdownReport drained in 127 ms; reopen 86 ms; integrity PASS 32 docs / 244 versions)"
+        },
+        "ci_report": "D:/hs42/reports/swarm-load-ci-mt142-ci-01a08c6d80787f138930553d03f0c1e4.json (16 workers / 2037 ops / 615 docs / 4 workspaces; integrity pass; conflict_rate 88/2037; retry 0; max_concurrent 16; 135.5 ops/s; HDD)",
+        "defect_found": {
+          "id": "DEF-KNOWLEDGE-RAW-ROWS-UNTYPED-TRANSACTION-FAILURE",
+          "summary": "knowledge.rs:1227 raw_rows_at uses .check() which returns the first statement slot generic not-executed error, so THROW codes (HSK-KRD-SAVE-STALE) and the Transaction conflict marker never reach callers; losers get untyped StorageError::Database, retries never trigger",
+          "routing": "FIXED IN THIS MT by Lane A2 (decode the meaningful row as surreal.rs decode_query_values does)",
+          "evidence": "D:/hs42/logs/mt142-surreal_swarm_semantics_tests-20260910T174802Z.*"
+        },
+        "missing_hook": "lock-wait samples export (KeyedLockRegistry::take_lock_wait_samples) - added to A2 scope"
       },
       "cargo_lane": "scratchpad mt142-run.sh serialises lanes with an atomic mkdir lock at D:/hs42/cargo-lane.lock.d; CARGO_TARGET_DIR=D:/hs12/target (CX-984-010 override)",
       "interruption_20260910": {
@@ -473,5 +491,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T17:14:58.414Z"
+  "updated_at_utc": "2026-09-10T17:52:35.053Z"
 }
