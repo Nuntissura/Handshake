@@ -335,12 +335,12 @@
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
-          "answer": "no",
-          "explanation": "Branch CI cross-platform-build for 0513d99b was in_progress when prepared; the owned files are byte-identical between 6d5d705f and 0513d99b, so that job covers them. To be re-evaluated from the run URL.",
+          "answer": "yes",
+          "explanation": "Branch CI job cross-platform-build concluded success for the proven commit 0513d99bf0dc110c4a933938d4eb3afc871f55f4 (Linux; cargo check --lib --bins --all-features and cargo test --lib --all-features --no-run per the MT-147 pipeline). The overall run is a separate signal; RC-004 asks for a non-target platform build, which this job is.",
           "evidence_refs": [
             "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863"
           ],
-          "checked_at_utc": "2026-09-10T00:37:44.353Z"
+          "checked_at_utc": "2026-09-10T01:08:47Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
@@ -366,11 +366,15 @@
     },
     "next_actor": "INTEGRATION_VALIDATOR",
     "open_blockers": [
-      "GOVERNANCE_HELPER_DRIFT: persisted kb-ready receipt cannot be produced by any in-repo emitter (see lifecycle.blocker)",
-      "RC-004 pending CI job for 0513d99b"
-    ]
+      "GOVERNANCE_HELPER_DRIFT: persisted kb-ready receipt cannot be produced by any in-repo emitter (see lifecycle.blocker)"
+    ],
+    "ci_observation_2026_09_10": {
+      "job_status_final": "success",
+      "concluded_at_utc": "2026-09-10T01:08:47Z",
+      "job_url": "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863"
+    }
   },
-  "updated_at_utc": "2026-09-10T00:43:41Z",
+  "updated_at_utc": "2026-09-10T01:08:47Z",
   "owned_files": [
     ".gitattributes",
     "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs"

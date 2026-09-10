@@ -938,13 +938,12 @@
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
-          "answer": "no",
-          "explanation": "Branch CI for 0513d99bf0dc110c4a933938d4eb3afc871f55f4 was in_progress for job cross-platform-build at the time this evidence was prepared. No local non-target build was run (only one cargo lane is permitted on this host and it is held by the MT-148 proof). This item is answered no until the job concludes; re-evaluate from the run URL.",
+          "answer": "yes",
+          "explanation": "Branch CI job cross-platform-build concluded success for the proven commit 0513d99bf0dc110c4a933938d4eb3afc871f55f4 (Linux; cargo check --lib --bins --all-features and cargo test --lib --all-features --no-run per the MT-147 pipeline). The overall run is a separate signal; RC-004 asks for a non-target platform build, which this job is.",
           "evidence_refs": [
-            "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863",
-            "https://github.com/Nuntissura/Handshake/actions/runs/34420964806"
+            "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863"
           ],
-          "checked_at_utc": "2026-09-10T00:30:47.474Z"
+          "checked_at_utc": "2026-09-10T01:08:47Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
@@ -974,14 +973,16 @@
       "run": "https://github.com/Nuntissura/Handshake/actions/runs/34420964806",
       "job": "cross-platform-build",
       "job_status_when_recorded": "in_progress",
-      "note": "Every prior commit on this branch shows overall CI conclusion=failure; MT-149 satisfied RC-004 via the passing cross-platform-build job inside a failing run. Evaluate the job, not the run."
+      "note": "Every prior commit on this branch shows overall CI conclusion=failure; MT-149 satisfied RC-004 via the passing cross-platform-build job inside a failing run. Evaluate the job, not the run.",
+      "job_status_final": "success",
+      "concluded_at_utc": "2026-09-10T01:08:47Z",
+      "job_url": "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863"
     },
     "open_blockers": [
-      "GOVERNANCE_HELPER_DRIFT: persisted kb-ready receipt cannot be produced by any in-repo emitter (see lifecycle.blocker)",
-      "RC-004 pending CI job for 0513d99b"
+      "GOVERNANCE_HELPER_DRIFT: persisted kb-ready receipt cannot be produced by any in-repo emitter (see lifecycle.blocker)"
     ]
   },
-  "updated_at_utc": "2026-09-10T00:43:41Z",
+  "updated_at_utc": "2026-09-10T01:08:47Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
