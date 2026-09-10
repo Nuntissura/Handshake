@@ -227,8 +227,21 @@
           "knowledge_claims_tests",
           "knowledge_documents_api_tests mt032_delete_is_atomic_and_removes_canvas_references"
         ],
-        "logs": "D:/hs42/logs/baseline-67ce701c-*"
-      }
+        "logs": "D:/hs42/logs/baseline-67ce701c-*",
+        "result": {
+          "completed_at_utc": "2026-09-10T18:50:10.714Z",
+          "knowledge_claims_tests": "FAILED. 2 passed; 5 failed at 67ce701c - the same five names (mt_057_passages::passage_creation_rejects_missing_or_ghost_lineage_without_persisting, mt_056_claims::claim_creation_and_retirement_reject_invalid_shapes_without_persisting, mt_056_claims::conflict_detection_and_receipt_backed_resolution, mt_056_claims::mt231_contradictory_claims_stay_conflicted_until_resolution_receipt, mt_056_claims::claim_lifecycle_rejects_backward_and_terminal_transitions_without_mutation) -> PRE-EXISTING, not caused by MT-142",
+          "mt032_delete_is_atomic_and_removes_canvas_references": "FAILED at 67ce701c (0 passed; 1 failed) -> PRE-EXISTING, not caused by MT-142 (delete_loom_edge keys by record id while the backlink projector creates edges with random record ids; A2 diff analysis)",
+          "logs": "D:/hs42/logs/baseline-67ce701c-20260910T183337Z.{claims,mt032}.{out,err}.log",
+          "worktree_restored": "wtc-k12-mt148-fresh back at 6d5d705f, clean"
+        }
+      },
+      "pre_existing_failures_carried": [
+        "storage::surreal::schema::tests::schema_contract_is_wave_scoped_and_identity_safe",
+        "storage::surreal::schema::tests::record_references_reject_orphans_and_preserve_identity_semantics",
+        "knowledge_documents_api_tests::mt032_delete_is_atomic_and_removes_canvas_references",
+        "knowledge_claims_tests: 5 tests (see baseline_run.result)"
+      ]
     }
   },
   "scope": {
@@ -518,5 +531,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T18:33:56.318Z"
+  "updated_at_utc": "2026-09-10T18:50:10.714Z"
 }
