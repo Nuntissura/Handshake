@@ -454,10 +454,30 @@ impl SwarmMetrics {
 
 const RETRY_TARGET: &str = "handshake_core::storage::surreal::retry";
 const KEYED_LOCK_TARGET: &str = "handshake_core::storage::surreal::keyed_lock";
+/// Product warn/error events under this prefix are captured verbatim
+/// (bounded) so an HTTP 500 or an untyped store error keeps its cause.
+const PRODUCT_TARGET_PREFIX: &str = "handshake_core::";
+const PRODUCT_EVENT_CAPACITY: usize = 200;
 
 static RETRY_SCHEDULED: AtomicU64 = AtomicU64::new(0);
 static RETRY_EXHAUSTED: AtomicU64 = AtomicU64::new(0);
 static RETRY_DIAGNOSTICS_INSTALLED: OnceLock<bool> = OnceLock::new();
+static PRODUCT_EVENTS: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// Product warn/error events captured since the layer was installed.
+pub fn captured_product_events() -> Vec<String> {
+    PRODUCT_EVENTS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone()
+}
+
+pub fn clear_captured_product_events() {
+    PRODUCT_EVENTS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clear();
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RetryDiagnosticsSnapshot {
@@ -479,18 +499,23 @@ struct RetryEventLayer;
 #[derive(Default)]
 struct MessageVisitor {
     message: String,
+    fields: Vec<String>,
 }
 
 impl Visit for MessageVisitor {
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
         if field.name() == "message" {
             self.message = format!("{value:?}");
+        } else {
+            self.fields.push(format!("{}={value:?}", field.name()));
         }
     }
 
     fn record_str(&mut self, field: &Field, value: &str) {
         if field.name() == "message" {
             self.message = value.to_owned();
+        } else {
+            self.fields.push(format!("{}={value}", field.name()));
         }
     }
 }
@@ -499,9 +524,14 @@ fn is_swarm_diagnostic_target(target: &str) -> bool {
     target.starts_with(RETRY_TARGET) || target.starts_with(KEYED_LOCK_TARGET)
 }
 
+fn is_product_error_callsite(metadata: &Metadata<'_>) -> bool {
+    metadata.target().starts_with(PRODUCT_TARGET_PREFIX)
+        && *metadata.level() <= tracing::Level::WARN
+}
+
 impl<S: Subscriber> Layer<S> for RetryEventLayer {
     fn register_callsite(&self, metadata: &'static Metadata<'static>) -> Interest {
-        if is_swarm_diagnostic_target(metadata.target()) {
+        if is_swarm_diagnostic_target(metadata.target()) || is_product_error_callsite(metadata) {
             Interest::always()
         } else {
             Interest::never()
@@ -509,19 +539,33 @@ impl<S: Subscriber> Layer<S> for RetryEventLayer {
     }
 
     fn enabled(&self, metadata: &Metadata<'_>, _ctx: Context<'_, S>) -> bool {
-        is_swarm_diagnostic_target(metadata.target())
+        is_swarm_diagnostic_target(metadata.target()) || is_product_error_callsite(metadata)
     }
 
     fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
-        if !event.metadata().target().starts_with(RETRY_TARGET) {
-            return;
-        }
+        let metadata = event.metadata();
         let mut visitor = MessageVisitor::default();
         event.record(&mut visitor);
-        if visitor.message.contains("retry scheduled") {
-            RETRY_SCHEDULED.fetch_add(1, Ordering::SeqCst);
-        } else if visitor.message.contains("retry exhausted") {
-            RETRY_EXHAUSTED.fetch_add(1, Ordering::SeqCst);
+        if metadata.target().starts_with(RETRY_TARGET) {
+            if visitor.message.contains("retry scheduled") {
+                RETRY_SCHEDULED.fetch_add(1, Ordering::SeqCst);
+            } else if visitor.message.contains("retry exhausted") {
+                RETRY_EXHAUSTED.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+        if is_product_error_callsite(metadata) {
+            let mut events = PRODUCT_EVENTS
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if events.len() < PRODUCT_EVENT_CAPACITY {
+                events.push(format!(
+                    "{} {}: {} {}",
+                    metadata.level(),
+                    metadata.target(),
+                    visitor.message,
+                    visitor.fields.join(" ")
+                ));
+            }
         }
     }
 }

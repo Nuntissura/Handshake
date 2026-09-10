@@ -859,6 +859,7 @@ async fn seed_documents(
 
 async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
     let diagnostics_owned = install_retry_diagnostics();
+    clear_captured_product_events();
     let retry_before = retry_diagnostics_snapshot();
     let run_id = new_run_id(&format!("mt142-{}", config.profile));
     println!(
@@ -1141,6 +1142,7 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
         "timed_out_operations": metrics.timed_out_classes.clone(),
         "worker_timeouts": worker_timeouts.clone(),
         "lock_wait_timeouts": metrics.lock_wait_timeouts.clone(),
+        "product_warn_error_events": captured_product_events(),
         "shutdown_report": {
             "drained": shutdown_report.drained,
             "cancelled": shutdown_report.cancelled,
@@ -1217,8 +1219,9 @@ fn assert_profile(outcome: &ProfileOutcome, config: &WorkloadConfig) {
     );
     assert!(
         outcome.metrics.unexpected_terminal.is_empty(),
-        "unexpected terminal errors during the workload: {:?}",
-        outcome.metrics.unexpected_terminal
+        "unexpected terminal errors during the workload: {:?}; product warn/error events: {:?}",
+        outcome.metrics.unexpected_terminal,
+        captured_product_events()
     );
     assert!(
         outcome.metrics.retry_exhausted_errors.is_empty(),

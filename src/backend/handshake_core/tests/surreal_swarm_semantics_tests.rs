@@ -584,11 +584,23 @@ async fn disjoint_records_commit_concurrently_without_unrelated_waiting() {
         "a disabled registry never holds entries (lock_wait == 0 for every operation)"
     );
 
-    // The same cross-workspace set again through the keyed wrapper: disjoint
-    // keys never wait on each other, so the overlap must be identical in kind.
+    // The same cross-workspace set again (at its new heads) through the keyed
+    // wrapper: disjoint keys never wait on each other, so the overlap must be
+    // identical in kind.
+    let mut cross_workspace_heads = Vec::with_capacity(cross_workspace.len());
+    for document in &cross_workspace {
+        cross_workspace_heads.push(
+            store
+                .db
+                .get_knowledge_rich_document(&document.rich_document_id)
+                .await
+                .expect("re-read cross-workspace document")
+                .expect("cross-workspace document is live"),
+        );
+    }
     let windows = timeout(
         RACE_BOUND,
-        barrier_aligned_saves(&store.db, &cross_workspace, &gauge),
+        barrier_aligned_saves(&store.db, &cross_workspace_heads, &gauge),
     )
     .await
     .expect("keyed cross-workspace disjoint saves must finish inside their bound");
