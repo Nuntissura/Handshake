@@ -58,7 +58,7 @@ use handshake_core::storage::surreal::{RowFilter, ScalarValue, TestFieldMutation
 use handshake_core::storage::{
     CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
     CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
-    CalendarSourceWritePolicy, StageArtifactStore, WriteContext,
+    CalendarSourceWritePolicy, StageArtifactStore, StructuredCollaborationStore, WriteContext,
 };
 use handshake_core::workflows::locus::types as locus_types;
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
