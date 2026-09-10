@@ -892,9 +892,87 @@
         "reuse_basis": null
       }
     ],
-    "lane_f_review_rf5": "SETTLED by green compile-and-run; see ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-kernel-builder-review.json"
+    "lane_f_review_rf5": "SETTLED by green compile-and-run; see ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-kernel-builder-review.json",
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "0513d99b",
+      "actor_session": "KERNEL_BUILDER-20260909-212427",
+      "summary": "MT-141 fast close (Operator Option A): AC-141-1 MET, AC-141-2 MET by typed disposition plus the restored mt120 auth-boundary tests (3/3 pass on real embedded store), AC-141-3 MET, AC-141-4 NOT_MET and recorded truthfully with classification; 47 tests routed to MT-150. Independent validator verdict pending.",
+      "prepared_at_utc": "2026-09-10T00:30:22.351Z",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "Only owned file is the mt120 restoration. Its error codes (HSK-403-DOC-ACTOR-SPOOF, HSK-401-DOC-SESSION) and provenance comments name the current guard at src/api/knowledge_documents.rs:467 and the deleting commit 4f92cc25; no prior MT id, prior remediator session, or superseded approval is referenced as current state. The stale MT-141 lifecycle.blocker recorded 2026-09-05 was removed on 2026-09-09 once MT-149 restored the accessors it named.",
+          "evidence_refs": [
+            "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+            "lifecycle.blocker_resolved_20260909",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-kernel-builder-review.json"
+          ],
+          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "The owned file is an integration test target; it declares no pub API. Its added helpers (Mt120NativeBinding, mt120_process_birth_identity, mt120_seed_document, mt120_save_body, mt120_save_receipts, MT120_NATIVE_BINDING_LOCK) are private to the target and each is used by at least one of the three restored tests. No pub item was added.",
+          "evidence_refs": [
+            "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-mt120-restoration.json"
+          ],
+          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "All three restored tests are #[tokio::test(flavor = multi_thread, worker_threads = 2)] with no #[ignore] and no PostgreSQL skip branch; they run in default CI. The only cfg gating in the additions is on mt120_process_birth_identity, which mirrors the production function OS variants (windows / linux / macos / bsd / fallback) so the derivation compiles on every platform; the assertions themselves are not platform-gated.",
+          "evidence_refs": [
+            "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-kernel-builder-review.json"
+          ],
+          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "no",
+          "explanation": "Branch CI for 0513d99b was in_progress for job cross-platform-build at the time this evidence was prepared. No local non-target build was run (only one cargo lane is permitted on this host and it is held by the MT-148 proof). This item is answered no until the job concludes; re-evaluate from the run URL.",
+          "evidence_refs": [
+            "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863",
+            "https://github.com/Nuntissura/Handshake/actions/runs/34420964806"
+          ],
+          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "proof_commands[0] executed on 0513d99b with HANDSHAKE_WORKSPACE_ROOT (isolated per-run dir) and HANDSHAKE_ARTIFACTS_ROOT (absolute CX-984 root): test result ok, 3 passed / 0 failed / 25 filtered, 68.85s, CARGO_EXIT=0, against a real EmbeddedKnowledgeStore over a live axum listener (real-resource touch per Spec-Realism sub-rule 2). proof_commands[1] and [2] are the AC-141-1 forbidden-database scans: zero dependency-class hits, manifest and lockfile clean. Legacy broad suite: suite-run-1 lib phase executed (1936/36/3) and classified; integration phase stopped at 20/89 under Operator fast-path authority and recorded as NOT_MET, not deferred as if it had run.",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/mt120b-20260910T002357Z.out.log",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/mt120b-20260910T002357Z.exit",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/PT-141-1-forbidden-db-scan.json",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/suite-run-1-lib-classification.json",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/suite-run-1-stopped.json"
+          ],
+          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by is KERNEL_BUILDER-20260909-212427; lifecycle.completed_by is null and validator_verdict is null. Only READY_FOR_VALIDATION is requested; the validator writes completed_by.",
+          "evidence_refs": [
+            "lifecycle"
+          ],
+          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+        }
+      ]
+    },
+    "ci_observation_2026_09_10": {
+      "run": "https://github.com/Nuntissura/Handshake/actions/runs/34420964806",
+      "job": "cross-platform-build",
+      "job_status_when_recorded": "in_progress",
+      "note": "Every prior commit on this branch shows overall CI conclusion=failure; MT-149 satisfied RC-004 via the passing cross-platform-build job inside a failing run. Evaluate the job, not the run."
+    }
   },
-  "updated_at_utc": "2026-09-10T00:26:19Z",
+  "updated_at_utc": "2026-09-10T00:30:22.351Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -1014,5 +1092,14 @@
         "evidence": "Post-reopen calls now target the reopened handle, which is what a close-and-reopen proof requires; this strengthens rather than weakens the assertion."
       }
     ]
-  }
+  },
+  "owned_files": [
+    "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs"
+  ],
+  "owned_files_note": "Fast-close scope (Operator 2026-09-10): the only product file MT-141 changed is the mt120 restoration. The wider tests/ port inherited from predecessors is dispositioned in lifecycle.pt_141_3_disposition_table and routed to MT-150.",
+  "proof_commands": [
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_documents_api_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast mt120 -- --nocapture",
+    "grep -rn --include=*.rs -E \"^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://\" src/backend/handshake_core/tests/",
+    "grep -n -i -E \"sqlx|postgres|sqlite|rusqlite|diesel|tokio-postgres\" src/backend/handshake_core/Cargo.toml"
+  ]
 }
