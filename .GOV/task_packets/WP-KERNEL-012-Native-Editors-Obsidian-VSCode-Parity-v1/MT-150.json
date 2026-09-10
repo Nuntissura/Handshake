@@ -161,6 +161,63 @@
         "jobs": 4,
         "single_cargo_lane": true
       }
+    },
+    "progress_20260910_proofs": {
+      "recorded_by": "KERNEL_BUILDER-20260910-073935",
+      "at_utc": "2026-09-10T08:36:01.679Z",
+      "product_commit_base": "8641a562",
+      "environment": "CARGO_TARGET_DIR=D:/hs12/target (recorded CX-984-010 override), HANDSHAKE_WORKSPACE_ROOT isolated per run under D:/hs50/workspace, HANDSHAKE_ARTIFACTS_ROOT absolute, --features surreal-test-support,test-utils, -j 4, single cargo lane, sequential runs",
+      "per_target": {
+        "kernel_action_catalog_residual_tests": {
+          "result": "ok. 1 passed; 0 failed",
+          "secs": 0,
+          "run": "mt150-kernel_action_catalog_residual_tests-20260910T080133Z"
+        },
+        "kernel_session_run_ledger_tests": {
+          "result": "ok. 4 passed; 0 failed",
+          "secs": 259.45,
+          "run": "mt150-kernel_session_run_ledger_tests-20260910T080616Z"
+        },
+        "hbr_build_rules_read_evidence_tests": {
+          "result": "ok. 3 passed; 0 failed",
+          "secs": 37.08,
+          "run": "mt150-hbr_build_rules_read_evidence_tests-20260910T082732Z"
+        },
+        "loom_atomic_receipt_tests": {
+          "result": "ok. 9 passed; 0 failed",
+          "secs": 167.46,
+          "run": "(see logs/mt150-loom_atomic_receipt_tests-*)"
+        },
+        "atelier_manual_rows_parity_tests": {
+          "result": "ok. 7 passed; 0 failed",
+          "secs": 113.54,
+          "run": "(see logs/mt150-atelier_manual_rows_parity_tests-*)"
+        },
+        "memory_capsule_recorder_surreal_tests": {
+          "result": "FAILED. 1 passed; 1 failed",
+          "secs": 38.08,
+          "run": "(see logs/mt150-memory_capsule_recorder_surreal_tests-*)"
+        },
+        "wp_kernel_012_native_editor_routes_tests": {
+          "result": "COMPILE_AND_RUN_IN_PROGRESS after import fix (round 1 compile: 5x E0599 missing StructuredCollaborationStore trait import; fixed by lane)",
+          "secs": null,
+          "run": "(pending)"
+        }
+      },
+      "totals": {
+        "targets": 7,
+        "green": 5,
+        "red": 1,
+        "pending": 1,
+        "tests_green": 24,
+        "tests_red": 1
+      },
+      "red_test": {
+        "test": "capsule_recorder_dedup_collapses_duplicate_submissions",
+        "file": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:124",
+        "disposition": "PORTED_RED_ON_PRODUCT_DEFECT - assertion is faithful to the deleted original; do NOT weaken",
+        "defect": "DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE"
+      }
     }
   },
   "scope": {
@@ -715,6 +772,17 @@
         "verified_by": "KERNEL_BUILDER-20260910-073935 (fn-body extraction at the implementation layer, not the database.rs trait wrappers)",
         "routing": "src/ defect; needs its own microtask. The five tests should be restored by that microtask once the edge/favorite paths append their receipts atomically.",
         "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/LANE-L-loom.json"
+      },
+      {
+        "id": "DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE",
+        "severity": "HIGH",
+        "summary": "Submitting the identical memory-capsule record twice through SurrealKernelActionSubmitter is REJECTED by the EventLedger rather than collapsed: the recorder reuses the same idempotency key but produces a different payload hash on the second submission, so the ledger's fail-closed divergence guard fires. Identical input must yield an identical idempotent payload; something non-deterministic (timestamp, fresh id, or ordering) is being folded into the payload the recorder declares idempotent.",
+        "ledger_error_verbatim": "Rejected(KernelActionRejection { code: kernel_event_ledger_append_failed, reason: appending memory action to EventLedger failed: conflict: kernel event idempotency key was reused with different event content; idempotency_key=memory_capsule_record:<capsule_id>:<sha256>; existing_payload_hash=bb501fd6...; new_payload_hash=321b9571...; existing_aggregate_type=memory_capsule; new_aggregate_type=memory_capsule; same aggregate_id })",
+        "distinct_from": "DEF-SYSTEMIC-UPSERT-IDEMPOTENCY (check-then-act creates duplicates). Here the ledger correctly refuses; the defect is upstream in the recorder's payload construction.",
+        "corroboration": "src/storage/surreal/mt136_kernel_action_submitter_proof.rs, the in-source proof of this same submitter, is RED in suite-run-1 (MT-141 evidence).",
+        "exact_field_not_traced": "The non-deterministic field was not isolated in this session (action definition at src/kernel/action_catalog.rs:398; submitter path under src/storage/surreal/). Left for the owning src/ microtask.",
+        "routing": "src/ defect; needs its own microtask. The restored test stays in place and red as the acceptance proof for that fix.",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-150/kb01/logs/mt150-memory_capsule_recorder_surreal_tests-*.err.log"
       }
     ]
   },
@@ -778,7 +846,7 @@
     ],
     "next_actor": "ORCHESTRATOR"
   },
-  "updated_at_utc": "2026-09-10T08:23:53.360Z",
+  "updated_at_utc": "2026-09-10T08:36:01.679Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
