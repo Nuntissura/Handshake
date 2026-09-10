@@ -1392,11 +1392,12 @@
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
-          "answer": "no",
-          "explanation": "Not yet evaluated for the MT-150 checkpoint commits; branch CI runs on push and the cross-platform-build job for the final product commit should be read from GitHub Actions before merge. The last evaluated job (0513d99b) was success.",
+          "answer": "yes",
+          "explanation": "Branch CI run 34458055264 on product commit 67ce701c: cross-platform-build SUCCESS and backend-storage SUCCESS (the jobs that compile and run handshake_core on Linux). The run as a whole is failure because validate, governance (ubuntu/windows), traceability, secret_scan and dependency_audit fail - the same governance/scan job set that already failed on 0513d99b before MT-150; NOT_INSPECTED by this session and not product-build failures.",
           "evidence_refs": [
-            "https://github.com/Nuntissura/Handshake/actions?query=branch%3Afeat%2FWP-KERNEL-012"
-          ]
+            "https://github.com/Nuntissura/Handshake/actions/runs/34458055264"
+          ],
+          "checked_at_utc": "2026-09-10T09:49:18.678Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
@@ -1448,7 +1449,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-10T08:57:52.432Z",
+  "updated_at_utc": "2026-09-10T09:49:18.678Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
