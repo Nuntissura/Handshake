@@ -895,10 +895,10 @@
     "lane_f_review_rf5": "SETTLED by green compile-and-run; see ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-kernel-builder-review.json",
     "kb_ready_checklist_evidence": {
       "schema_id": "hsk.kb_ready_checklist_evidence@1",
-      "product_commit": "0513d99b",
+      "product_commit": "0513d99bf0dc110c4a933938d4eb3afc871f55f4",
       "actor_session": "KERNEL_BUILDER-20260909-212427",
       "summary": "MT-141 fast close (Operator Option A): AC-141-1 MET, AC-141-2 MET by typed disposition plus the restored mt120 auth-boundary tests (3/3 pass on real embedded store), AC-141-3 MET, AC-141-4 NOT_MET and recorded truthfully with classification; 47 tests routed to MT-150. Independent validator verdict pending.",
-      "prepared_at_utc": "2026-09-10T00:30:22.351Z",
+      "prepared_at_utc": "2026-09-10T00:30:47.474Z",
       "rubric_items": [
         {
           "rubric_item_id": "RC-001-NO-STALE-REASONS",
@@ -909,7 +909,7 @@
             "lifecycle.blocker_resolved_20260909",
             "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-kernel-builder-review.json"
           ],
-          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+          "checked_at_utc": "2026-09-10T00:30:47.474Z"
         },
         {
           "rubric_item_id": "RC-002-NO-DEAD-CODE",
@@ -919,7 +919,7 @@
             "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
             "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-mt120-restoration.json"
           ],
-          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+          "checked_at_utc": "2026-09-10T00:30:47.474Z"
         },
         {
           "rubric_item_id": "RC-003-CFG-GATED-TESTS",
@@ -929,22 +929,22 @@
             "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
             "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-F-kernel-builder-review.json"
           ],
-          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+          "checked_at_utc": "2026-09-10T00:30:47.474Z"
         },
         {
           "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
           "answer": "no",
-          "explanation": "Branch CI for 0513d99b was in_progress for job cross-platform-build at the time this evidence was prepared. No local non-target build was run (only one cargo lane is permitted on this host and it is held by the MT-148 proof). This item is answered no until the job concludes; re-evaluate from the run URL.",
+          "explanation": "Branch CI for 0513d99bf0dc110c4a933938d4eb3afc871f55f4 was in_progress for job cross-platform-build at the time this evidence was prepared. No local non-target build was run (only one cargo lane is permitted on this host and it is held by the MT-148 proof). This item is answered no until the job concludes; re-evaluate from the run URL.",
           "evidence_refs": [
             "https://github.com/Nuntissura/Handshake/actions/runs/34420964806/job/102696073863",
             "https://github.com/Nuntissura/Handshake/actions/runs/34420964806"
           ],
-          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+          "checked_at_utc": "2026-09-10T00:30:47.474Z"
         },
         {
           "rubric_item_id": "RC-005-PROOF-COMMANDS",
           "answer": "yes",
-          "explanation": "proof_commands[0] executed on 0513d99b with HANDSHAKE_WORKSPACE_ROOT (isolated per-run dir) and HANDSHAKE_ARTIFACTS_ROOT (absolute CX-984 root): test result ok, 3 passed / 0 failed / 25 filtered, 68.85s, CARGO_EXIT=0, against a real EmbeddedKnowledgeStore over a live axum listener (real-resource touch per Spec-Realism sub-rule 2). proof_commands[1] and [2] are the AC-141-1 forbidden-database scans: zero dependency-class hits, manifest and lockfile clean. Legacy broad suite: suite-run-1 lib phase executed (1936/36/3) and classified; integration phase stopped at 20/89 under Operator fast-path authority and recorded as NOT_MET, not deferred as if it had run.",
+          "explanation": "proof_commands[0] executed on 0513d99bf0dc110c4a933938d4eb3afc871f55f4 with HANDSHAKE_WORKSPACE_ROOT (isolated per-run dir) and HANDSHAKE_ARTIFACTS_ROOT (absolute CX-984 root): test result ok, 3 passed / 0 failed / 25 filtered, 68.85s, CARGO_EXIT=0, against a real EmbeddedKnowledgeStore over a live axum listener (real-resource touch per Spec-Realism sub-rule 2). proof_commands[1] and [2] are the AC-141-1 forbidden-database scans: zero dependency-class hits, manifest and lockfile clean. Legacy broad suite: suite-run-1 lib phase executed (1936/36/3) and classified; integration phase stopped at 20/89 under Operator fast-path authority and recorded as NOT_MET, not deferred as if it had run.",
           "evidence_refs": [
             "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/mt120b-20260910T002357Z.out.log",
             "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/mt120b-20260910T002357Z.exit",
@@ -952,7 +952,7 @@
             "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/suite-run-1-lib-classification.json",
             "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/suite-run-1-stopped.json"
           ],
-          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+          "checked_at_utc": "2026-09-10T00:30:47.474Z"
         },
         {
           "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
@@ -961,7 +961,7 @@
           "evidence_refs": [
             "lifecycle"
           ],
-          "checked_at_utc": "2026-09-10T00:30:22.351Z"
+          "checked_at_utc": "2026-09-10T00:30:47.474Z"
         }
       ]
     },
@@ -972,7 +972,7 @@
       "note": "Every prior commit on this branch shows overall CI conclusion=failure; MT-149 satisfied RC-004 via the passing cross-platform-build job inside a failing run. Evaluate the job, not the run."
     }
   },
-  "updated_at_utc": "2026-09-10T00:30:22.351Z",
+  "updated_at_utc": "2026-09-10T00:30:47.474Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
