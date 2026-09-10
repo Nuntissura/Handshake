@@ -129,6 +129,44 @@
         "C": "user_manual page + self-consistency test - after A2",
         "reviews": "two adversarial agents (concurrency; load/lifecycle) after C"
       }
+    },
+    "phase_2_20260910": {
+      "A1": {
+        "status": "LANDED",
+        "product_commit": "41bfbb77",
+        "at_utc": "2026-09-10T10:31:00.612Z",
+        "files": [
+          "src/backend/handshake_core/src/storage/surreal/retry.rs (1487 lines)",
+          "src/backend/handshake_core/src/storage/surreal/keyed_lock.rs (585)",
+          "src/backend/handshake_core/src/storage/surreal/swarm_load_report.rs (692)",
+          "src/backend/handshake_core/src/storage/surreal.rs (+3 pub mod)",
+          "src/backend/handshake_core/Cargo.toml (+tokio-util 0.7; already pinned transitively at 0.7.19)"
+        ],
+        "proofs": {
+          "storage::surreal::retry": "ok. 22 passed; 0 failed (mt142-LIB-20260910T101858Z)",
+          "storage::surreal::keyed_lock": "ok. 10 passed; 0 failed (mt142-LIB-20260910T102536Z)",
+          "storage::surreal::swarm_load_report": "ok. 8 passed; 0 failed (mt142-LIB-20260910T102756Z)",
+          "warnings_in_new_files": 0
+        },
+        "classifier_evidence": "typed-first QueryError::TransactionConflict (surrealdb-types-3.2.0/src/error.rs:869-884); message fallback requires both markers Transaction conflict: and This transaction can be retried (surrealdb-core-3.2.0/src/kvs/err.rs:47-49; erasure paths dbs/executor.rs:1062-1066 and 1485-1492; surrealdb-3.2.0/src/engine/local/mod.rs:774-782); unique-index violation parsed from err/mod.rs:541 and never transient by itself",
+        "deviations_accepted": [
+          "pub rather than pub(crate): the tests/ swarm target drives the modules",
+          "SystemJitter getrandom-seeded SplitMix64 instead of a rand thread-rng (rand is not a direct dependency)",
+          "an in-flight attempt is not raced against deadline/cancel (dropping an acknowledged commit would misreport durability); per-attempt timeout is the caller's job",
+          "machine_context added as a 31st report field"
+        ]
+      },
+      "A2": {
+        "status": "RUNNING",
+        "started_at_utc": "2026-09-10T10:31:00.612Z",
+        "brief": "scratchpad mt142-laneA2-brief.md plus 8 addenda: pre-reads inside the retried closure; unique-index violation -> RetryableSnapshotChange only at the upsert sites; title discriminator + UNIQUE index + LockKey::NaturalKey; Exhausted -> StorageError::ConflictDetails HSK-STORAGE-RETRY-EXHAUSTED; registry per SurrealDatabase::new with with_lock_registry/lock_registry; per-attempt statement_timeout; mutex runner in the foreground; tree left uncommitted"
+      },
+      "B": {
+        "status": "RUNNING",
+        "started_at_utc": "2026-09-10T10:31:00.612Z",
+        "brief": "scratchpad mt142-laneB-brief.md; files tests/surreal_swarm_semantics_tests.rs, tests/surreal_swarm_load_tests.rs, tests/surreal_swarm_lifecycle_tests.rs, tests/swarm_support/mod.rs; cargo go-ahead given after A1 released the lane"
+      },
+      "cargo_lane": "scratchpad mt142-run.sh serialises lanes with an atomic mkdir lock at D:/hs42/cargo-lane.lock.d; CARGO_TARGET_DIR=D:/hs12/target (CX-984-010 override)"
     }
   },
   "scope": {
@@ -418,5 +456,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T09:57:21.111Z"
+  "updated_at_utc": "2026-09-10T10:31:00.612Z"
 }
