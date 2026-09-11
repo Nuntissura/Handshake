@@ -32,7 +32,7 @@ const REOPEN_BOUND: Duration = Duration::from_millis(60_000);
 /// heavy save cannot finish inside it (review R2-1-5).
 const CANCEL_DRAIN_GRACE: Duration = Duration::from_millis(100);
 /// Bound for opening/closing an embedded store (schema bootstrap, teardown).
-const STORE_LIFECYCLE_BOUND: Duration = Duration::from_millis(600_000);
+const STORE_LIFECYCLE_BOUND: Duration = Duration::from_millis(720_000);
 /// Bound for sequential setup writes.
 const SETUP_BOUND: Duration = Duration::from_millis(300_000);
 /// Acknowledged writes before shutdown is triggered mid-flight.
@@ -214,6 +214,7 @@ async fn run_worker(
 async fn shutdown_under_load_then_reopen_is_durable() {
     let seed = workload_seed();
     println!("SWARM_SEED={seed}");
+    let _lane = serial_lane().await;
     timeout(LIFECYCLE_BOUND, lifecycle_proof(seed))
         .await
         .unwrap_or_else(|_| {
@@ -546,6 +547,7 @@ fn heavy_content(text: &str) -> serde_json::Value {
 async fn shutdown_cancel_path_under_load_is_bounded_and_durable() {
     let seed = workload_seed();
     println!("SWARM_SEED={seed}");
+    let _lane = serial_lane().await;
     timeout(LIFECYCLE_BOUND, cancel_path_proof(seed))
         .await
         .unwrap_or_else(|_| {

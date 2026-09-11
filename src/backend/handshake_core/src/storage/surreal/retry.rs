@@ -356,8 +356,17 @@ pub struct RetryAttempt {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ExhaustionBound {
     MaxAttempts,
-    /// `maximum_elapsed` or the caller deadline (whichever is earlier).
+    /// The wall-clock bound (the caller deadline, else `maximum_elapsed`) or
+    /// the accumulated-backoff budget ended AFTER at least one replay ran.
     MaxElapsed,
+    /// The budget ended BEFORE any replay could be scheduled: the first
+    /// attempt failed retryably and there was no room even for the shortest
+    /// backoff. Distinct from [`Self::MaxElapsed`] because "no retry window"
+    /// and "retried until the budget ran out" are different operational
+    /// states - the first says the caller budget was too small for the
+    /// observed attempt latency (a load-budget signal), the second says
+    /// replays genuinely did not converge.
+    NoRetryWindow,
 }
 
 impl ExhaustionBound {
@@ -365,7 +374,13 @@ impl ExhaustionBound {
         match self {
             Self::MaxAttempts => "max_attempts",
             Self::MaxElapsed => "max_elapsed",
+            Self::NoRetryWindow => "no_retry_window",
         }
+    }
+
+    /// True when the operation stopped without ever scheduling a replay.
+    pub const fn is_no_retry_window(&self) -> bool {
+        matches!(self, Self::NoRetryWindow)
     }
 }
 
@@ -485,6 +500,9 @@ where
     let started = clock.now();
     let deadline = effective_deadline(policy, ctx, started);
     let maximum_attempts = policy.effective_maximum_attempts();
+    // Accumulated backoff, bounded separately from wall clock (see
+    // [`effective_deadline`]).
+    let mut slept = Duration::ZERO;
     let mut attempts = 0u32;
     loop {
         if ctx.is_cancelled() {
@@ -523,15 +541,23 @@ where
         }
         let upper = policy.backoff_upper_bound(attempts - 1);
         let sleep = jitter.full_jitter(upper).min(upper);
-        if !sleep_fits(clock.now(), sleep, deadline) {
-            return Err(exhausted(
-                &replay,
-                attempts,
-                elapsed,
-                error,
-                ExhaustionBound::MaxElapsed,
-            ));
+        // Two independent bounds: the wall clock (caller deadline, else
+        // `maximum_elapsed`) and the accumulated backoff budget. Stopping
+        // before the FIRST replay is reported as its own bound so a caller
+        // budget too small for the observed attempt latency is never filed as
+        // "retried until exhausted".
+        let backoff_exhausted = slept
+            .checked_add(sleep)
+            .is_none_or(|total| total > policy.maximum_elapsed);
+        if backoff_exhausted || !sleep_fits(clock.now(), sleep, deadline) {
+            let bound = if attempts <= 1 {
+                ExhaustionBound::NoRetryWindow
+            } else {
+                ExhaustionBound::MaxElapsed
+            };
+            return Err(exhausted(&replay, attempts, elapsed, error, bound));
         }
+        slept = slept.saturating_add(sleep);
         tracing::debug!(
             target: TARGET,
             attempt = attempts,
@@ -556,23 +582,40 @@ where
         // attempt is what bounds the whole loop; the caller's per-statement
         // bound, clamped to the remaining budget, bounds the attempt itself.
         if deadline.is_some_and(|deadline| clock.now() >= deadline) {
+            let bound = if attempts <= 1 {
+                ExhaustionBound::NoRetryWindow
+            } else {
+                ExhaustionBound::MaxElapsed
+            };
             return Err(exhausted(
                 &replay,
                 attempts,
                 elapsed_since(clock, started),
                 error,
-                ExhaustionBound::MaxElapsed,
+                bound,
             ));
         }
     }
 }
 
+/// Wall-clock bound for the whole loop, DERIVED (never a silent edit of
+/// [`RetryPolicy::CONTRACT`], whose documented 5 ms / 250 ms / 8 / 2000 ms stay
+/// exactly as the contract pins them):
+///
+/// * with a caller deadline (the whole-operation budget, e.g. one
+///   `statement_timeout`), THAT is the wall-clock bound and
+///   `maximum_elapsed` governs only the accumulated backoff. Taking the
+///   earlier of the two instead would switch retrying OFF exactly under
+///   saturation: one attempt may take a full `statement_timeout` (300 s
+///   default) while `maximum_elapsed` is 2000 ms, i.e. 0.67% of a single
+///   attempt's allowance, so the first conflict would end the loop with
+///   `attempts = 1` and no replay ever scheduled.
+/// * with no caller deadline, `maximum_elapsed` remains the wall-clock bound,
+///   so an unbounded caller can never run `maximum_attempts` slow attempts
+///   back to back.
 fn effective_deadline(policy: &RetryPolicy, ctx: &RetryContext, started: Instant) -> Option<Instant> {
-    let elapsed_bound = started.checked_add(policy.maximum_elapsed);
-    match (elapsed_bound, ctx.deadline) {
-        (Some(elapsed_bound), Some(deadline)) => Some(elapsed_bound.min(deadline)),
-        (elapsed_bound, deadline) => elapsed_bound.or(deadline),
-    }
+    ctx.deadline
+        .or_else(|| started.checked_add(policy.maximum_elapsed))
 }
 
 fn elapsed_since<C: RetryClock>(clock: &C, started: Instant) -> Duration {
@@ -1303,11 +1346,13 @@ mod tests {
             },
         )
         .await;
+        // One attempt ran and no replay ever did, so this is the distinct
+        // no-retry-window bound, not retry exhaustion.
         assert!(
             matches!(
                 result,
                 Err(RetryError::Exhausted {
-                    bound: ExhaustionBound::MaxElapsed,
+                    bound: ExhaustionBound::NoRetryWindow,
                     attempts: 1,
                     ..
                 })
@@ -1316,6 +1361,137 @@ mod tests {
         );
         assert_eq!(starts, vec![Duration::ZERO]);
         assert_eq!(clock.elapsed(), ms(100), "the loop stops exactly at the deadline");
+    }
+
+    /// Regression guard for the review's open MAJOR: an attempt may legitimately
+    /// take far longer than `maximum_elapsed` (one `statement_timeout` is 300 s
+    /// against a 2000 ms backoff budget). The replay must still be scheduled,
+    /// because the caller deadline - not the backoff budget - is the wall-clock
+    /// bound. Under the previous `min(start + maximum_elapsed, caller)`
+    /// derivation this returned `attempts = 1` with no replay at all.
+    #[tokio::test]
+    async fn a_slow_attempt_still_gets_its_replay_under_a_caller_budget() {
+        let clock = VirtualClock::new();
+        let jitter = ScriptedJitter::upper_bound();
+        let ctx = RetryContext::unbounded().with_deadline(clock.now() + ms(10_000));
+        let mut attempts_seen = 0u32;
+        let result = retry(
+            &RetryPolicy::CONTRACT,
+            &ctx,
+            Replay::idempotent("slow-but-retryable"),
+            &clock,
+            &jitter,
+            classify_fake,
+            |attempt| {
+                attempts_seen = attempt.number;
+                // 5 s per attempt: 2500x the 2000 ms backoff budget.
+                clock.advance(ms(5_000));
+                ready(if attempt.number >= 2 {
+                    Ok(7)
+                } else {
+                    Err(FakeError::Transient)
+                })
+            },
+        )
+        .await;
+        assert!(matches!(result, Ok(7)), "{result:?}");
+        assert_eq!(attempts_seen, 2, "the conflict must get its replay");
+        assert_eq!(clock.recorded_sleeps(), ms_list(&[5]));
+    }
+
+    /// The two budget outcomes are distinguishable in the typed error and in
+    /// the diagnostic field, so a no-context model can tell "the budget was
+    /// too small to retry at all" from "replays ran and did not converge".
+    #[tokio::test]
+    async fn no_retry_window_is_reported_separately_from_exhaustion() {
+        // Budget smaller than the shortest backoff: no replay is possible.
+        let clock = VirtualClock::new();
+        let jitter = ScriptedJitter::upper_bound();
+        let ctx = RetryContext::unbounded().with_deadline(clock.now() + ms(1));
+        let result = retry(
+            &RetryPolicy::CONTRACT,
+            &ctx,
+            Replay::idempotent("tiny-budget"),
+            &clock,
+            &jitter,
+            classify_fake,
+            |_attempt| ready(Err::<u32, _>(FakeError::Transient)),
+        )
+        .await;
+        match result {
+            Err(RetryError::Exhausted {
+                bound, attempts, ..
+            }) => {
+                assert_eq!(bound, ExhaustionBound::NoRetryWindow);
+                assert!(bound.is_no_retry_window());
+                assert_eq!(bound.as_str(), "no_retry_window");
+                assert_eq!(attempts, 1);
+            }
+            other => panic!("expected NoRetryWindow, got {other:?}"),
+        }
+        assert!(clock.recorded_sleeps().is_empty(), "no replay was scheduled");
+
+        // A budget that admits replays reports genuine exhaustion instead.
+        let clock = VirtualClock::new();
+        let jitter = ScriptedJitter::upper_bound();
+        let ctx = RetryContext::unbounded().with_deadline(clock.now() + ms(30));
+        let result = retry(
+            &RetryPolicy::CONTRACT,
+            &ctx,
+            Replay::idempotent("small-budget"),
+            &clock,
+            &jitter,
+            classify_fake,
+            |_attempt| ready(Err::<u32, _>(FakeError::Transient)),
+        )
+        .await;
+        match result {
+            Err(RetryError::Exhausted {
+                bound, attempts, ..
+            }) => {
+                assert_eq!(bound, ExhaustionBound::MaxElapsed);
+                assert!(!bound.is_no_retry_window());
+                assert!(attempts > 1, "replays ran before the budget ended");
+            }
+            other => panic!("expected MaxElapsed, got {other:?}"),
+        }
+    }
+
+    /// `maximum_elapsed` still caps the ACCUMULATED backoff even when the
+    /// caller budget is large, so the schedule cannot grow without bound.
+    #[tokio::test]
+    async fn accumulated_backoff_stays_within_maximum_elapsed() {
+        let clock = VirtualClock::new();
+        let jitter = ScriptedJitter::upper_bound();
+        let policy = RetryPolicy::CONTRACT
+            .with_maximum_attempts(64)
+            .with_maximum_elapsed(ms(100));
+        let ctx = RetryContext::unbounded().with_deadline(clock.now() + ms(600_000));
+        let result = retry(
+            &policy,
+            &ctx,
+            Replay::idempotent("backoff-budget"),
+            &clock,
+            &jitter,
+            classify_fake,
+            |_attempt| ready(Err::<u32, _>(FakeError::Transient)),
+        )
+        .await;
+        assert!(
+            matches!(
+                result,
+                Err(RetryError::Exhausted {
+                    bound: ExhaustionBound::MaxElapsed,
+                    ..
+                })
+            ),
+            "{result:?}"
+        );
+        let total: Duration = clock.recorded_sleeps().into_iter().sum();
+        assert!(
+            total <= ms(100),
+            "accumulated backoff {total:?} must stay within maximum_elapsed"
+        );
     }
 
     #[tokio::test]

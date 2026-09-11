@@ -96,6 +96,12 @@ pub const RETRY_EXHAUSTED_CONFLICT_CODE: &str = "HSK-STORAGE-RETRY-EXHAUSTED";
 /// Typed 409-class code returned when an optional keyed-lock wait exceeded the
 /// configured statement timeout instead of hanging.
 pub const LOCK_WAIT_TIMEOUT_CONFLICT_CODE: &str = "HSK-STORAGE-LOCK-WAIT-TIMEOUT";
+/// Typed 409-class code for a retryable conflict whose operation budget ended
+/// BEFORE any replay could be scheduled - the attempt itself consumed the
+/// budget. Distinct from [`RETRY_EXHAUSTED_CONFLICT_CODE`] so a no-context
+/// model can tell a load-budget problem (raise the budget, or reduce
+/// contention) from replays that genuinely did not converge.
+pub const NO_RETRY_WINDOW_CONFLICT_CODE: &str = "HSK-STORAGE-NO-RETRY-WINDOW";
 const TITLE_ANCHOR_LOCK_KIND: &str = "rich_document_title";
 
 static RETRY_JITTER: LazyLock<SystemJitter> = LazyLock::new(SystemJitter::new);
@@ -136,7 +142,11 @@ fn retry_error_to_storage(error: RetryError<StorageError>) -> StorageError {
             last,
             bound,
         } => StorageError::ConflictDetails {
-            code: RETRY_EXHAUSTED_CONFLICT_CODE,
+            code: if bound.is_no_retry_window() {
+                NO_RETRY_WINDOW_CONFLICT_CODE
+            } else {
+                RETRY_EXHAUSTED_CONFLICT_CODE
+            },
             detail: format!(
                 "attempts={attempts} elapsed_ms={} bound={} last={last}",
                 elapsed.as_millis(),

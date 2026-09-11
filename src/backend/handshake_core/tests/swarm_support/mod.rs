@@ -794,12 +794,44 @@ impl Drop for SwarmStore {
     }
 }
 
+/// Review R2-2-1: swarm proofs must never run concurrently with each other -
+/// each drives its own embedded store and 12-64 racing workers, and several on
+/// one spindle saturate the disk until unrelated statements hit their timeout.
+/// `RUST_TEST_THREADS=1` achieves that, but an environment variable is an
+/// optimisation, never a correctness dependency: this process-global mutex
+/// enforces it in code even under a parallel libtest harness.
+static SWARM_SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Bound on waiting for the serial lane (the wait is not the test's own time,
+/// so it is bounded separately and generously).
+pub const SERIAL_LANE_BOUND: Duration = Duration::from_millis(3_600_000);
+
+/// Acquires the serial lane; hold the guard for the whole test body.
+pub async fn serial_lane() -> tokio::sync::MutexGuard<'static, ()> {
+    match tokio::time::timeout(SERIAL_LANE_BOUND, SWARM_SERIAL.lock()).await {
+        Ok(guard) => guard,
+        Err(_) => panic!(
+            "waiting for the swarm serial lane exceeded {} ms",
+            SERIAL_LANE_BOUND.as_millis()
+        ),
+    }
+}
+
 /// Bound for opening or closing an embedded store. A fresh bootstrap is
 /// ~4,500 DDL statements with `SyncMode::Every` on a 7200-rpm disk that other
 /// lanes and the harness's background store-cleanup threads share, so this is
 /// deliberately generous: it exists to turn a HANG into a named failure, not
 /// to police setup latency. The racing per-operation bound stays tight.
-pub const STORE_OPEN_BOUND: Duration = Duration::from_millis(600_000);
+/// Derived the same way as every other bound here (review R2-2-5): worst
+/// observed cold apply x 2. Five measured samples on this machine, in ms:
+/// 184,977 / 185,910 / 213,624 / 267,586 / 330,079 - a 1.78x spread, so a
+/// 600,000 ms bound left the worst sample at 55% of it, thin for a gate that
+/// must never flake. 330,079 x 2 = 660,158, rounded up to 720,000.
+pub const STORE_OPEN_BOUND: Duration = Duration::from_millis(720_000);
+
+/// The cold-apply samples [`STORE_OPEN_BOUND`] was derived from, recorded so a
+/// reader can audit the bound instead of trusting a round number.
+pub const COLD_APPLY_SAMPLES_MS: [u64; 5] = [184_977, 185_910, 213_624, 267_586, 330_079];
 
 /// Opens this test's own real embedded store (a clone of the process
 /// template) under [`STORE_OPEN_BOUND`], printing the measured duration as
@@ -977,7 +1009,9 @@ pub fn source_commit() -> String {
     }
 }
 
-/// Total size of the files under `path`, or `None` when it cannot be walked.
+/// Total size of the files under `path`, or `None` when it cannot be walked
+/// (for example because the store has already been removed - review R2-2-2
+/// requires the measurement to happen BEFORE teardown).
 pub fn directory_size_bytes(path: &Path) -> Option<u64> {
     fn walk(path: &Path, total: &mut u64) -> std::io::Result<()> {
         for entry in std::fs::read_dir(path)? {
@@ -1333,9 +1367,23 @@ pub struct DocOracle {
     pub delete_pending: bool,
     pub deleted: bool,
     pub deleted_receipt_event_id: Option<String>,
+    /// Review R2-2-10: saves whose outcome is UNKNOWN because the harness
+    /// abandoned them (per-operation timeout / cancellation). The engine may
+    /// still have committed each one, so the store may legitimately hold up
+    /// to this many versions beyond the acknowledged head. An abandoned
+    /// operation is in-doubt, NOT data loss: reporting it as `LostWrite`
+    /// would make a genuine lost write indistinguishable from a timeout
+    /// artefact.
+    pub in_doubt_saves: u32,
 }
 
 impl DocOracle {
+    /// Highest doc_version the store may legitimately hold: the acknowledged
+    /// head plus one per abandoned (in-doubt) save.
+    pub fn maximum_possible_version(&self) -> i64 {
+        self.versions.keys().next_back().copied().unwrap_or(0) + i64::from(self.in_doubt_saves)
+    }
+
     pub fn head_version(&self) -> Option<(i64, &str)> {
         self.versions
             .iter()
@@ -1361,6 +1409,14 @@ pub struct Oracle {
     pub violations: Vec<Violation>,
     pub acknowledged_writes: u64,
     pub dirty_read_checks: u64,
+    /// Abandoned creates: the store may hold a document this oracle never saw.
+    pub in_doubt_creates: u32,
+    /// Abandoned saves across all documents (sum of `DocOracle::in_doubt_saves`).
+    pub in_doubt_saves: u32,
+    /// In-doubt operations the reconciliation resolved as committed.
+    pub in_doubt_resolved_committed: u32,
+    /// In-doubt operations the reconciliation resolved as not committed.
+    pub in_doubt_resolved_absent: u32,
 }
 
 impl Oracle {
@@ -1489,6 +1545,21 @@ impl Oracle {
                 }
             }
         }
+    }
+
+    /// Records that a save on `rich_document_id` was abandoned with an unknown
+    /// outcome (review R2-2-10).
+    pub fn note_save_in_doubt(&mut self, rich_document_id: &str) {
+        self.in_doubt_saves += 1;
+        if let Some(entry) = self.docs.get_mut(rich_document_id) {
+            entry.in_doubt_saves += 1;
+        }
+    }
+
+    /// Records that a create was abandoned with an unknown outcome, so the
+    /// store may hold one document more than this oracle knows about.
+    pub fn note_create_in_doubt(&mut self) {
+        self.in_doubt_creates += 1;
     }
 
     pub fn mark_delete_pending(&mut self, rich_document_id: &str) {
@@ -1622,6 +1693,11 @@ pub struct IntegrityOutcome {
     pub documents_checked: u64,
     pub versions_checked: u64,
     pub live_documents_observed: u64,
+    /// Review R2-2-10: abandoned operations whose effect canonical state shows
+    /// WAS committed, and version rows they explain. Reported, never a
+    /// violation - an unknown outcome is in-doubt, not data loss.
+    pub in_doubt_resolved_committed: u32,
+    pub in_doubt_rows_explained: u32,
 }
 
 impl IntegrityOutcome {
@@ -1724,6 +1800,9 @@ pub async fn reconcile(
     let mut documents_checked = 0u64;
     let mut versions_checked = 0u64;
     let mut live_observed = 0u64;
+    // Review R2-2-10: abandoned operations resolved by reading canonical state.
+    let mut in_doubt_committed = 0u32;
+    let mut unacknowledged_rows_explained = 0u32;
 
     for (id, expected) in &oracle.docs {
         documents_checked += 1;
@@ -1771,11 +1850,20 @@ pub async fn reconcile(
             live_observed += 1;
             match expected.head_version() {
                 Some((version, sha)) if version == doc.doc_version && sha == doc.content_sha256 => {}
+                // Review R2-2-10: the harness abandoned one or more saves on
+                // this document, so the engine may have committed up to that
+                // many versions past the acknowledged head. A head inside that
+                // window is IN-DOUBT RESOLVED AS COMMITTED, not data loss.
+                Some((version, _)) if doc.doc_version > version
+                    && doc.doc_version <= expected.maximum_possible_version() =>
+                {
+                    in_doubt_committed += (doc.doc_version - version) as u32;
+                }
                 Some((version, sha)) => push(
                     IntegrityVerdict::LostWrite,
                     format!(
-                        "document {id} head is version {} ({}) but the oracle acknowledged version {version} ({sha})",
-                        doc.doc_version, doc.content_sha256
+                        "document {id} head is version {} ({}) but the oracle acknowledged version {version} ({sha}) and only {} save(s) were abandoned in doubt",
+                        doc.doc_version, doc.content_sha256, expected.in_doubt_saves
                     ),
                 ),
                 None => push(
@@ -1870,12 +1958,19 @@ pub async fn reconcile(
         }
         for (version, sha) in &stored {
             if !expected.versions.contains_key(version) {
-                push(
-                    IntegrityVerdict::PartialCommit,
-                    format!(
-                        "document {id} has version row {version} ({sha}) that was never acknowledged"
-                    ),
-                );
+                if *version <= expected.maximum_possible_version() {
+                    // The row an abandoned save left behind: in doubt,
+                    // resolved as committed (review R2-2-10).
+                    unacknowledged_rows_explained += 1;
+                } else {
+                    push(
+                        IntegrityVerdict::PartialCommit,
+                        format!(
+                            "document {id} has version row {version} ({sha}) that was never acknowledged and cannot be explained by an abandoned save (at most version {} was possible)",
+                            expected.maximum_possible_version()
+                        ),
+                    );
+                }
             }
             version_tuples.push(format!("{id}|{version}|{sha}"));
         }
@@ -1970,46 +2065,69 @@ pub async fn reconcile(
         }
     }
 
-    // Exact table counts relative to the baseline.
+    // Table counts relative to the baseline. An operation the harness
+    // abandoned may or may not have committed, so each affected table is
+    // bounded by [acknowledged, acknowledged + in-doubt] instead of an exact
+    // figure (review R2-2-10). With zero abandoned operations - every passing
+    // CI run - both ends collapse and the check stays exact.
     let counts = table_counts(inspector).await;
     let base = |table: &str| baseline.get(table).copied().unwrap_or(0);
-    let expect_exact = |table: &str, expected: u64, push: &mut dyn FnMut(IntegrityVerdict, String)| {
+    let in_doubt_creates = u64::from(oracle.in_doubt_creates);
+    let in_doubt_saves = u64::from(oracle.in_doubt_saves);
+    let mut expect_within = |table: &str,
+                             low: u64,
+                             in_doubt: u64,
+                             push: &mut dyn FnMut(IntegrityVerdict, String)| {
         let actual = counts.get(table).copied().unwrap_or(0);
-        if actual != expected {
+        let high = low + in_doubt;
+        if actual < low {
+            push(
+                IntegrityVerdict::LostWrite,
+                format!("table {table} has {actual} rows, below the {low} acknowledged"),
+            );
+        } else if actual > high {
             push(
                 IntegrityVerdict::PartialCommit,
-                format!("table {table} has {actual} rows, expected exactly {expected}"),
+                format!(
+                    "table {table} has {actual} rows, above the {high} explainable ({low} acknowledged + {in_doubt} in doubt)"
+                ),
             );
         }
     };
-    expect_exact(
+    expect_within(
         "knowledge_rich_documents",
         base("knowledge_rich_documents") + oracle.docs.len() as u64,
+        in_doubt_creates,
         &mut push,
     );
-    expect_exact(
+    expect_within(
         "knowledge_rich_document_versions",
         base("knowledge_rich_document_versions") + oracle.version_row_count(),
+        in_doubt_saves + in_doubt_creates,
         &mut push,
     );
-    expect_exact(
+    expect_within(
         "loom_blocks",
         base("loom_blocks") + live_observed,
+        in_doubt_creates,
         &mut push,
     );
-    expect_exact(
+    expect_within(
         "knowledge_idempotency_keys",
         base("knowledge_idempotency_keys") + oracle.idempotency.len() as u64,
+        in_doubt_saves,
         &mut push,
     );
-    expect_exact(
+    expect_within(
         "knowledge_entities",
         base("knowledge_entities") + oracle.entity_key_count(),
+        in_doubt_saves,
         &mut push,
     );
-    expect_exact(
+    expect_within(
         "kernel_event_ledger",
         base("kernel_event_ledger") + oracle.acknowledged_delete_count(),
+        in_doubt_saves,
         &mut push,
     );
     {
@@ -2017,7 +2135,7 @@ pub async fn reconcile(
         // document, so the exact bound is [live, all documents].
         let actual = counts.get("loom_block_search_index").copied().unwrap_or(0);
         let low = base("loom_block_search_index") + live_observed;
-        let high = base("loom_block_search_index") + oracle.docs.len() as u64;
+        let high = base("loom_block_search_index") + oracle.docs.len() as u64 + in_doubt_creates;
         if actual < low || actual > high {
             push(
                 IntegrityVerdict::PartialCommit,
@@ -2028,7 +2146,8 @@ pub async fn reconcile(
 
     let documents_hash = hash_sorted_tuples(document_tuples);
     let versions_hash = hash_sorted_tuples(version_tuples);
-    if versions_hash != oracle.expected_versions_hash() {
+    let in_doubt_pending = in_doubt_saves + in_doubt_creates > 0;
+    if !in_doubt_pending && versions_hash != oracle.expected_versions_hash() {
         push(
             IntegrityVerdict::LostWrite,
             format!(
@@ -2037,7 +2156,8 @@ pub async fn reconcile(
             ),
         );
     }
-    if oracle.docs.values().all(|entry| !entry.delete_pending)
+    if !in_doubt_pending
+        && oracle.docs.values().all(|entry| !entry.delete_pending)
         && documents_hash != oracle.expected_documents_hash()
     {
         push(
@@ -2099,6 +2219,8 @@ pub async fn reconcile(
         documents_checked,
         versions_checked,
         live_documents_observed: live_observed,
+        in_doubt_resolved_committed: in_doubt_committed,
+        in_doubt_rows_explained: unacknowledged_rows_explained,
     }
 }
 

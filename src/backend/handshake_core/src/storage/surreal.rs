@@ -256,6 +256,14 @@ pub enum SurrealStorageError {
         "embedded statement attempt exceeded the {waited_ms} ms statement timeout; the engine may still apply it"
     )]
     StatementTimeout { waited_ms: u128 },
+    /// The enclosing operation's budget was already spent, so the statement was
+    /// NEVER dispatched. Distinct from [`Self::StatementTimeout`], which leaves
+    /// the outcome unknown: here the engine never saw the statement, so no
+    /// effect can have been applied.
+    #[error(
+        "embedded statement was not dispatched: the {budget_ms} ms operation budget was already spent"
+    )]
+    StatementBudgetExhausted { budget_ms: u128 },
     #[error("embedded workspace record has an invalid shape: {reason}")]
     InvalidWorkspaceRecord { reason: &'static str },
     #[error("embedded document record has an invalid shape: {reason}")]
@@ -1042,6 +1050,14 @@ impl SurrealStorage {
         F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealOperation<'a, T>,
     {
         let timeout = self.effective_statement_timeout();
+        if timeout.is_zero() {
+            // Never dispatch with a zero budget: a `timeout(0, ..)` would report
+            // `StatementTimeout { waited_ms: 0 }`, which claims the engine may
+            // have applied a statement it never received.
+            return Err(SurrealStorageError::StatementBudgetExhausted {
+                budget_ms: self.inner.config.statement_timeout.as_millis(),
+            });
+        }
         match tokio::time::timeout(
             timeout,
             self.with_lease(|client| operation(SurrealDataContext { client })),

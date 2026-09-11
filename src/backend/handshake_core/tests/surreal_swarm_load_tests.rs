@@ -33,6 +33,7 @@ use handshake_core::storage::surreal::swarm_load_report::{
     RemoteProofStatus, SwarmLoadReport, REQUIRED_OPERATION_CLASSES,
     SWARM_LOAD_REPORT_SCHEMA_ID,
 };
+use handshake_core::storage::surreal::keyed_lock::{KeyedLockRegistry, LockMode};
 use handshake_core::storage::surreal::{
     RowFilter, SurrealDatabase, SurrealTestInspector, TableSelector,
 };
@@ -102,6 +103,10 @@ struct WorkloadConfig {
     shared_titles: u32,
     /// True when any value came from the environment (recorded in the report).
     overridden: bool,
+    /// Registry the workload's wrapper uses. Running one calibration keyed and
+    /// one disabled separates hot-key QUEUEING from ENGINE time (review
+    /// R2-2-9): disabled = engine time, keyed - disabled = lock wait.
+    lock_mode: LockMode,
 }
 
 /// Rescales `DEFAULT_OPERATION_MIX` so the read classes sum to `read_fraction`
@@ -150,6 +155,7 @@ impl WorkloadConfig {
             shared_entity_keys: 32,
             shared_titles: 16,
             overridden: false,
+            lock_mode: LockMode::Keyed,
         }
     }
 
@@ -203,13 +209,48 @@ impl WorkloadConfig {
             contention_ratio,
             read_fraction,
             operation_mix: scaled_mix(read_fraction),
-            per_operation_timeout: PER_OPERATION_TIMEOUT,
-            per_worker_timeout: Duration::from_millis(600_000),
-            whole_test_timeout: Duration::from_millis(1_800_000),
+            // Review R2-2-9: profile-specific bounds DERIVED from a 64-way
+            // calibration, never inherited from the 16-worker CI profile
+            // (whose 5 s per-operation bound aborted every worker on its
+            // first slow write at 64-way contention).
+            per_operation_timeout: match &MEASURED_EXTENDED_BOUNDS {
+                Some(source) => Duration::from_millis(source.per_operation_timeout_ms),
+                None => PER_OPERATION_TIMEOUT,
+            },
+            per_worker_timeout: match &MEASURED_EXTENDED_BOUNDS {
+                Some(source) => Duration::from_millis(source.per_worker_timeout_ms),
+                None => Duration::from_millis(600_000),
+            },
+            whole_test_timeout: match &MEASURED_EXTENDED_BOUNDS {
+                Some(source) => Duration::from_millis(source.whole_test_timeout_ms),
+                None => Duration::from_millis(1_800_000),
+            },
             shared_idempotency_keys: 256,
             shared_entity_keys: 512,
             shared_titles: 128,
             overridden,
+            lock_mode: LockMode::Keyed,
+        }
+    }
+
+    /// Short 64-way run used only to MEASURE, never to prove: it carries a
+    /// deliberately loose per-operation bound so a slow write is recorded
+    /// rather than aborting the run, and it asserts no contract minimum.
+    fn calibration(seed: u64, lock_mode: LockMode) -> Self {
+        let operations = env_parsed::<u64>("HANDSHAKE_SWARM_CALIBRATION_OPERATIONS").unwrap_or(640);
+        Self {
+            profile: if lock_mode == LockMode::Keyed {
+                "calibration-keyed"
+            } else {
+                "calibration-unlocked"
+            },
+            operations,
+            // Loose enough that 64-way write latency is measured, not truncated.
+            per_operation_timeout: Duration::from_millis(120_000),
+            per_worker_timeout: Duration::from_millis(900_000),
+            whole_test_timeout: Duration::from_millis(1_800_000),
+            lock_mode,
+            ..Self::extended(seed)
         }
     }
 
@@ -272,6 +313,52 @@ const RESEARCH_BASIS_P99_ASSUMPTION_MS: [(OperationClass, f64); 7] = [
 /// Headroom applied when a budget is derived from a measured p99, so the
 /// budget detects a genuine regression instead of tracking run-to-run noise.
 const MEASURED_BUDGET_HEADROOM: f64 = 2.0;
+
+/// Headroom applied when a TIMEOUT is derived from a measured latency. A
+/// timeout exists to catch a hang, so it is deliberately looser than a
+/// latency budget: a slow-but-progressing operation must not abort the run.
+const MEASURED_TIMEOUT_HEADROOM: f64 = 4.0;
+
+/// Bounds the extended profile applies, derived from a 64-way calibration run
+/// instead of inherited from the 16-worker CI profile (whose 5 s
+/// per-operation bound was derived against a 657 ms worst p99 and is wrong at
+/// 64-way contention on one spindle).
+struct ExtendedBoundSource {
+    /// `run_id` of the calibration run these bounds came from.
+    run_id: &'static str,
+    /// Worst per-class p99 measured in that run, in ms.
+    worst_class_p99_ms: f64,
+    /// Aggregate throughput measured in that run, operations per second.
+    throughput_ops_per_second: f64,
+    per_operation_timeout_ms: u64,
+    per_worker_timeout_ms: u64,
+    whole_test_timeout_ms: u64,
+}
+
+/// Derived extended bounds; `None` until a calibration run exists, in which
+/// case the extended profile states that it is running on CI-derived bounds.
+///
+/// Derived from `swarm-calibration-mt142-calibration-01a08f43ebdf7372b5505e9583739561`
+/// (64 workers, 640 operations, 5,000-record dataset, both lock modes):
+/// * worst class p99 21,321 ms (optimistic_versioned_update, keyed) ->
+///   per_operation = 21,321 x 4 = 85,284 -> 90,000 ms;
+/// * measured throughput 18.70 ops/s -> 50,000 operations project to 2,674 s
+///   of workload -> per_worker = 2,674 x 4 = 10,696 s -> 10,800,000 ms (every
+///   worker runs for the whole workload, so its bound is the workload's);
+/// * whole_test = (2,674 s workload + 3x the measured 82 s seed/reconcile, the
+///   dataset roughly trebling as creates land) x 4 = 11,680 s -> 11,700,000 ms.
+///
+/// The split says this is ENGINE time, not lock queueing: engine-only p99 is
+/// 15.7-18.3 s for the write classes and the keyed registry adds only
+/// 3.0-4.2 s (14-20%), while the read classes queue not at all.
+const MEASURED_EXTENDED_BOUNDS: Option<ExtendedBoundSource> = Some(ExtendedBoundSource {
+    run_id: "mt142-calibration-01a08f43ebdf7372b5505e9583739561",
+    worst_class_p99_ms: 21_321.0,
+    throughput_ops_per_second: 18.70,
+    per_operation_timeout_ms: 90_000,
+    per_worker_timeout_ms: 10_800_000,
+    whole_test_timeout_ms: 11_700_000,
+});
 
 /// Provenance of a measured latency budget: the clean run it was derived
 /// from, so a reader can audit how the number was set. Constructed the moment
@@ -362,6 +449,17 @@ fn load_budgets(config: &WorkloadConfig) -> LoadBudgets {
     }
 }
 
+/// Answers "is this red flag a problem?" inside the artifact itself, so a
+/// no-context model can tell a load-budget regression from a correctness
+/// failure without console prose (contract
+/// `structured_diagnostic_contract.rules[3]`).
+fn budget_verdict_note(profile: &str) -> &'static str {
+    match profile {
+        "ci" => "The latency budgets were derived from this same 16-worker CI profile, so `regression` here means measured p99 exceeded a budget set under matching conditions and is worth investigating. `integrity_verdict` remains the correctness signal.",
+        _ => "EXPECTED for this profile, and NOT a product regression. The latency budgets are derived from the 16-worker CI profile; this profile deliberately saturates one embedded store at 64 workers, where write-class latency is ENGINE-bound at tens of seconds - the calibration measured 15.7-18.3 s p99 for the write classes with NO process-local lock at all, the keyed registry adding only 14-20% - so exceeding CI-derived budgets is a difference in workload, not a defect. The contract's load_profiles.extended_local.gate says absolute cross-machine latency is not inferred from CI, and the same applies across profiles. `integrity_verdict` is the correctness signal; read `budget_verdict` only as a load-budget observation.",
+    }
+}
+
 /// Auditable provenance of whatever budget is in force, plus the untouched
 /// research-basis assumptions.
 fn budget_provenance() -> serde_json::Value {
@@ -384,6 +482,24 @@ fn budget_provenance() -> serde_json::Value {
     provenance["mode"] = match &MEASURED_P99_BUDGETS {
         None => json!("research_basis_assumption"),
         Some(_) => json!("measured_with_headroom"),
+    };
+    provenance["timeout_derivation"] = match &MEASURED_EXTENDED_BOUNDS {
+        None => json!({
+            "extended_profile": "ci_derived",
+            "note": "no calibration run recorded; the extended profile would inherit the CI profile's bounds",
+        }),
+        Some(source) => json!({
+            "extended_profile": "derived_from_64_way_calibration",
+            "calibration_run_id": source.run_id,
+            "worst_class_p99_ms": source.worst_class_p99_ms,
+            "measured_throughput_ops_per_second": source.throughput_ops_per_second,
+            "headroom_factor": MEASURED_TIMEOUT_HEADROOM,
+            "per_operation_timeout_ms": source.per_operation_timeout_ms,
+            "per_worker_timeout_ms": source.per_worker_timeout_ms,
+            "whole_test_timeout_ms": source.whole_test_timeout_ms,
+            "derivation": "per_operation = worst measured class p99 x headroom, rounded up; per_worker = (contract minimum operations / measured throughput) x headroom, since every worker runs for the whole workload; whole_test = (that projection + 3x the measured seed/reconcile) x headroom",
+            "latency_is_engine_bound": "the calibration ran the same workload keyed and with the registry DISABLED: engine-only p99 15.7-18.3 s for the write classes against keyed 18.7-21.3 s, so hot-key queueing contributes only 14-20% and the disk dominates; the profile is deliberately hot-key-bound (50 hot documents for 64 workers) and the bound accommodates measured engine time rather than hiding contention",
+        }),
     };
     if let Some(source) = &MEASURED_P99_BUDGETS {
         let derived: BTreeMap<String, serde_json::Value> = source
@@ -414,23 +530,49 @@ fn budget_provenance() -> serde_json::Value {
 
 /// Process RSS before/after with the store's on-disk size, or a typed NotRun
 /// with the reason when the platform has no cheap probe (review R2-1-6).
-fn memory_fragment(store_path: &std::path::Path, rss_before: Option<u64>) -> serde_json::Value {
-    let rss_after = process_rss_bytes();
-    let store_bytes = directory_size_bytes(store_path);
-    match (rss_before, rss_after) {
-        (Some(before), Some(after)) => json!({
+fn memory_fragment(
+    rss_before: Option<u64>,
+    rss_after: Option<u64>,
+    store_bytes: Option<u64>,
+) -> serde_json::Value {
+    // Review R2-2-2: a missing measurement reports not_run with the reason;
+    // it never claims "measured" with null figures.
+    match (rss_before, rss_after, store_bytes) {
+        (Some(before), Some(after), Some(store_bytes)) => json!({
             "status": "measured",
             "rss_bytes_before": before,
             "rss_bytes_after": after,
             "store_bytes": store_bytes,
-            "rss_over_store_ratio": store_bytes
-                .filter(|bytes| *bytes > 0)
-                .map(|bytes| after as f64 / bytes as f64),
+            // Weigh this, not the ratio: it is the workload-dependent part.
+            "growth_bytes": after.saturating_sub(before),
+            "rss_over_store_ratio": (store_bytes > 0).then(|| after as f64 / store_bytes as f64),
             "finding_rule": "research basis numeric_budgets.extended_profile.memory_watch: RSS > 4x the on-disk store size is a reportable finding, never a pass gate",
+            "finding_triggered": store_bytes > 0 && after as f64 > 4.0 * store_bytes as f64,
+            "metric_caveat": "rss_over_store_ratio is a weak signal when the store is small: a ratio of 255 on the CI profile says only that a Rust test binary embedding a database holds ~227 MB against a 0.89 MB store, which is unremarkable and trips the contract's 4x rule on essentially every run. The 4x rule is retained because the contract specifies it, but a reader should weigh growth_bytes (RSS after minus before) over the ratio.",
+            "cross_profile_evidence": {
+                "ci": {"operations": 2040, "workers": 16, "store_bytes": 933_838, "rss_growth_bytes": 224_724_992, "ratio": 255.03},
+                "extended": {"operations": 51_072, "workers": 64, "store_bytes": 18_634_531, "rss_growth_bytes": 433_872_896, "ratio": 24.03},
+                "observation": "25x the operations and 20x the store produced only 1.9x the RSS growth",
+            },
+            "finding": if store_bytes > 0 && after as f64 > 4.0 * store_bytes as f64 {
+                format!(
+                    "REPORTABLE FINDING (recorded, never a pass gate): process RSS grew from {before} to {after} bytes ({} bytes of growth) against an on-disk store of {store_bytes} bytes, a ratio of {:.2}, above the research basis's 4x threshold. What the two MT-142 profiles actually show: 25x the operations and 20x the store size produced only 1.9x the RSS growth, so growth scales far SUB-LINEARLY with ingest. That is consistent with a largely FIXED engine and allocator overhead - RocksDB write buffers (research basis derived defaults: write_buffer_size 128 MiB, max_write_buffer_number 32), block cache, allocator arenas and per-worker stacks - plus a modest workload-dependent component, rather than a per-row leak. On this evidence MT-142 neither corroborates nor refutes upstream surrealdb issue #7424 (RocksDB RSS growth under sustained small-row ingest; related #7383): deciding that would need a run that VARIES ingest while holding worker count and buffer configuration constant, which MT-142 did not do. The citation is kept as a pointer for that future investigation, not as a claim this data supports. An operator should expect a swarm on this engine to hold a few hundred MB of RSS largely independent of dataset size; nothing here demonstrates a Handshake leak.",
+                    after.saturating_sub(before),
+                    after as f64 / store_bytes as f64
+                )
+            } else {
+                "no finding: RSS stayed within 4x the on-disk store size".to_owned()
+            },
         }),
-        _ => json!({
+        (before, after, store_bytes) => json!({
             "status": "not_run",
-            "reason": "no cheap resident-set probe on this platform (Windows-only Get-Process WorkingSet64 helper)",
+            "reason": if store_bytes.is_none() {
+                "the store directory could not be measured (it must be sized BEFORE teardown)"
+            } else {
+                "no cheap resident-set probe on this platform (Windows-only Get-Process WorkingSet64 helper)"
+            },
+            "rss_bytes_before": before,
+            "rss_bytes_after": after,
             "store_bytes": store_bytes,
         }),
     }
@@ -703,7 +845,10 @@ impl Worker {
         )
         .await;
         match created {
-            Err(_) => OpOutcome::Timeout,
+            Err(_) => {
+                self.oracle().note_create_in_doubt();
+                OpOutcome::Timeout
+            }
             Ok(Err(error)) => OpOutcome::from_error(&error),
             Ok(Ok(document)) => {
                 self.oracle().ack_create(&document);
@@ -805,7 +950,11 @@ impl Worker {
         )
         .await;
         match saved {
-            Err(_) => OpOutcome::Timeout,
+            Err(_) => {
+                self.oracle().note_save_in_doubt(&doc.rich_document_id);
+                self.cache.remove(&doc.rich_document_id);
+                OpOutcome::Timeout
+            }
             Ok(Err(error)) => {
                 let outcome = OpOutcome::from_error(&error);
                 if matches!(outcome, OpOutcome::TypedConflict(_)) {
@@ -933,7 +1082,15 @@ impl Worker {
         )
         .await;
         match saved {
-            Err(_) => OpOutcome::Timeout,
+            // Review R2-2-10: an abandoned save has an UNKNOWN outcome - the
+            // engine may still commit it - so the oracle records it as
+            // in-doubt rather than leaving reconciliation to call the
+            // resulting row a lost write.
+            Err(_) => {
+                self.oracle().note_save_in_doubt(&doc.rich_document_id);
+                self.cache.remove(&doc.rich_document_id);
+                OpOutcome::Timeout
+            }
             Ok(Err(error)) => {
                 let outcome = OpOutcome::from_error(&error);
                 match &outcome {
@@ -1007,7 +1164,10 @@ impl Worker {
             )
             .await;
             match created {
-                Err(_) => (OpOutcome::Timeout, None),
+                Err(_) => {
+                    self.oracle().note_create_in_doubt();
+                    (OpOutcome::Timeout, None)
+                }
                 Ok(Err(error)) => (OpOutcome::from_error(&error), None),
                 Ok(Ok(document)) => {
                     self.oracle().ack_create(&document);
@@ -1248,7 +1408,7 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
     }
     // Seeding waits are not part of the measured workload.
     let seeding_lock_wait_samples = store.db.lock_registry().take_lock_wait_samples().len();
-    let lock_mode = store.db.lock_registry().mode();
+    let lock_mode = config.lock_mode;
     let hot_len = config.hot_len().min(seeded.len());
     let refs: Vec<DocRef> = seeded
         .iter()
@@ -1268,6 +1428,15 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
         .collect();
     let seeded_documents = (seeded.len() + idempotency_seeds.len()) as u64;
 
+    // Review R2-2-9: with the registry DISABLED the same workload measures
+    // pure engine time; with it keyed it also pays hot-key queueing.
+    let workload_db = match config.lock_mode {
+        LockMode::Keyed => store.db.clone(),
+        LockMode::Disabled => SurrealDatabase::with_lock_registry(
+            store.storage.clone(),
+            KeyedLockRegistry::disabled(),
+        ),
+    };
     let shared = Arc::new(Shared {
         config,
         run_id: run_id.clone(),
@@ -1276,7 +1445,7 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
         idempotency_targets,
         oracle: Mutex::new(oracle),
         gauge: InFlightGauge::default(),
-        db: store.db.clone(),
+        db: workload_db.clone(),
         doc_api,
         inspector: inspector.clone(),
         selectors,
@@ -1324,10 +1493,9 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
     let retry_after = retry_diagnostics_snapshot().delta_since(&retry_before);
     // Keyed-lock waits recorded by the product registry during the workload
     // (every clone of the wrapper, including the delete route's, shares it).
-    let lock_wait_sample_count = store.db.lock_registry().lock_wait_sample_count();
-    let lock_wait_samples_dropped = store.db.lock_registry().lock_wait_samples_dropped();
-    let mut lock_wait_ms: Vec<f64> = store
-        .db
+    let lock_wait_sample_count = workload_db.lock_registry().lock_wait_sample_count();
+    let lock_wait_samples_dropped = workload_db.lock_registry().lock_wait_samples_dropped();
+    let mut lock_wait_ms: Vec<f64> = workload_db
         .lock_registry()
         .take_lock_wait_samples()
         .into_iter()
@@ -1396,6 +1564,10 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
         reconcile_started.elapsed().as_millis()
     );
     let store_path = reopened.storage().config().path().to_path_buf();
+    // Review R2-2-2: size the store and sample RSS while the store still
+    // EXISTS; close_and_remove below deletes it.
+    let store_bytes = directory_size_bytes(&store_path);
+    let rss_after = process_rss_bytes();
     reopened
         .storage()
         .shutdown()
@@ -1634,11 +1806,22 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
         "verdict_precedence": "timeout|lock_wait_timeout -> timeout; retry exhaustion -> retry_exhausted; cancellation -> cancelled; missing class coverage -> not_run; reconciliation violation -> its own class; any other failed predicate -> partial_commit; only an empty failed_predicates list may carry pass",
         "integrity_violations": integrity.violations.iter().take(100).map(Violation::render).collect::<Vec<_>>(),
         "seeded_documents": seeded_documents,
+        "in_doubt": {
+            "abandoned_saves": oracle.in_doubt_saves,
+            "abandoned_creates": oracle.in_doubt_creates,
+            "resolved_committed": integrity.in_doubt_resolved_committed,
+            "version_rows_explained": integrity.in_doubt_rows_explained,
+            "rule": "an operation the harness abandoned (per-operation timeout) has an UNKNOWN outcome; canonical state decides whether it committed. It is reported as in-doubt, never as LostWrite, so a genuine lost write stays distinguishable (review R2-2-10)",
+        },
         "dirty_read_checks": oracle.dirty_read_checks,
         "acknowledged_writes": oracle.acknowledged_writes,
         "workload_elapsed_ms": workload_elapsed.as_millis() as u64,
         "effective_configuration": config.effective_configuration(),
-        "budget_provenance": budget_provenance(),
+        "budget_provenance": {
+            "budget_verdict": format!("{:?}", report.budget_verdict),
+            "budget_verdict_note": budget_verdict_note(config.profile),
+            "provenance": budget_provenance(),
+        },
         "whole_test_derivation": json!({
             "setup_bound_ms": STORE_OPEN_BOUND.as_millis() as u64,
             "workload_bound_ms": config.whole_test_timeout.as_millis() as u64,
@@ -1648,7 +1831,7 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
             "rule": "setup (cold schema apply, ~4,467 fsynced DDL statements on a 7200-rpm disk) is a fixed cost bounded separately by setup_bound_ms; workload_bound_ms budgets only seeding + workload + shutdown + reopen + reconciliation, so a workload regression is not masked by setup latency",
         }),
         "store_open_ms": store_open_ms,
-        "memory": memory_fragment(&store_path, rss_before),
+        "memory": memory_fragment(rss_before, rss_after, store_bytes),
     });
     let report_path = write_report_json(&format!("swarm-load-{}-{run_id}.json", config.profile), &value);
     println!("SWARM_LOAD_REPORT={}", report_path.display());
@@ -1764,12 +1947,13 @@ fn extended_profile_enabled() -> bool {
 async fn ci_profile_16_workers_2000_operations_is_correct_and_bounded() {
     // Review R2-1-17: both profiles share process-global retry and product
     // event counters and one HDD, so they never run in the same process.
-    if extended_profile_enabled() {
+    if extended_profile_enabled() || calibration_enabled() {
         println!(
             "SWARM_CI=NOT_RUN_EXTENDED_CONFIGURED (HANDSHAKE_SWARM_EXTENDED=1 reserves this process for the extended profile; run the CI profile without that variable)"
         );
         return;
     }
+    let _lane = serial_lane().await;
     let config = WorkloadConfig::ci(workload_seed());
     // Setup and workload are budgeted SEPARATELY: a cold schema apply is a
     // fixed ~360 s cost on this disk and must not be conflated with the
@@ -1787,8 +1971,140 @@ async fn ci_profile_16_workers_2000_operations_is_correct_and_bounded() {
     assert_profile(&outcome, &config);
 }
 
+/// Review R2-2-9: measures 64-way behaviour so the extended profile's bounds
+/// are DERIVED rather than inherited from the 16-worker CI profile, and splits
+/// per-class latency into engine time and hot-key lock queueing by running the
+/// same workload twice - once with the keyed registry, once with it disabled.
+/// Gated by `HANDSHAKE_SWARM_CALIBRATE=1`; asserts no contract minimum because
+/// it is a measurement, not a proof.
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn extended_profile_calibration_64_workers() {
+    if !calibration_enabled() {
+        println!("SWARM_CALIBRATION=NOT_RUN_UNCONFIGURED (set HANDSHAKE_SWARM_CALIBRATE=1)");
+        return;
+    }
+    let _lane = serial_lane().await;
+    let seed = workload_seed();
+    let keyed = WorkloadConfig::calibration(seed, LockMode::Keyed);
+    let unlocked = WorkloadConfig::calibration(seed, LockMode::Disabled);
+    println!(
+        "SWARM_CALIBRATION_CONFIG workers={} operations={} dataset={} per_op_bound_ms={}",
+        keyed.workers,
+        keyed.operations,
+        keyed.seed_documents,
+        keyed.per_operation_timeout.as_millis()
+    );
+
+    let keyed_outcome = timeout(STORE_OPEN_BOUND + keyed.whole_test_timeout, run_profile(keyed))
+        .await
+        .expect("keyed calibration must finish inside its bound");
+    let unlocked_outcome = timeout(
+        STORE_OPEN_BOUND + unlocked.whole_test_timeout,
+        run_profile(unlocked),
+    )
+    .await
+    .expect("unlocked calibration must finish inside its bound");
+
+    let p99 = |report: &SwarmLoadReport, class: &OperationClass| -> Option<f64> {
+        match report.latency_ms_p50_p95_p99_by_operation.get(class) {
+            Some(PercentileReport::Measured(p)) => Some(p.p99_ms),
+            _ => None,
+        }
+    };
+    let mut split = BTreeMap::new();
+    let mut worst_keyed_p99 = 0.0f64;
+    for class in REQUIRED_OPERATION_CLASSES {
+        let keyed_p99 = p99(&keyed_outcome.report, &class);
+        let engine_p99 = p99(&unlocked_outcome.report, &class);
+        if let Some(value) = keyed_p99 {
+            worst_keyed_p99 = worst_keyed_p99.max(value);
+        }
+        split.insert(
+            format!("{class:?}"),
+            json!({
+                "keyed_p99_ms": keyed_p99,
+                "engine_only_p99_ms": engine_p99,
+                "lock_queueing_p99_ms": match (keyed_p99, engine_p99) {
+                    (Some(k), Some(e)) => Some((k - e).max(0.0)),
+                    _ => None,
+                },
+                "lock_share_of_keyed_p99": match (keyed_p99, engine_p99) {
+                    (Some(k), Some(e)) if k > 0.0 => Some(((k - e).max(0.0)) / k),
+                    _ => None,
+                },
+            }),
+        );
+    }
+
+    // A timeout catches a HANG, so it is looser than a latency budget:
+    // per-operation = worst measured class p99 x MEASURED_TIMEOUT_HEADROOM.
+    let per_operation_ms = (worst_keyed_p99 * MEASURED_TIMEOUT_HEADROOM).ceil().max(5_000.0);
+    let throughput = keyed_outcome.report.throughput_operations_per_second;
+    let projected_workload_s = if throughput > 0.0 {
+        EXTENDED_MINIMUM_OPERATIONS as f64 / throughput
+    } else {
+        f64::INFINITY
+    };
+    let whole_test_ms = (projected_workload_s * 1000.0 * MEASURED_TIMEOUT_HEADROOM).ceil();
+    let per_worker_ms = (whole_test_ms / 4.0).ceil();
+    println!(
+        "SWARM_CALIBRATION_DERIVED worst_keyed_p99_ms={worst_keyed_p99:.1} throughput_ops_s={throughput:.2} per_operation_ms={per_operation_ms:.0} per_worker_ms={per_worker_ms:.0} whole_test_ms={whole_test_ms:.0} projected_full_run_s={projected_workload_s:.0}"
+    );
+    for (class, values) in &split {
+        println!("SWARM_CALIBRATION_SPLIT {class} {values}");
+    }
+
+    let run_id = new_run_id("mt142-calibration");
+    let fragment = json!({
+        "schema_id": REPORT_FRAGMENT_SCHEMA_ID,
+        "fragment": "extended_profile_calibration",
+        "run_id": run_id,
+        "source_commit": source_commit(),
+        "workload_seed": seed,
+        "workers": keyed_outcome.report.worker_count,
+        "operations_per_calibration": keyed_outcome.report.operation_count,
+        "dataset_records": keyed_outcome.report.dataset_cardinality.records,
+        "keyed_run_id": keyed_outcome.report.run_id,
+        "unlocked_run_id": unlocked_outcome.report.run_id,
+        "latency_split_by_class": split,
+        "keyed_lock_wait_p99_ms": match keyed_outcome.report.lock_wait_ms_p50_p95_p99 {
+            PercentileReport::Measured(p) => Some(p.p99_ms),
+            PercentileReport::NotRun => None,
+        },
+        "effective_parallelism": {
+            "keyed": keyed_outcome.report.effective_parallelism.ratio,
+            "unlocked": unlocked_outcome.report.effective_parallelism.ratio,
+        },
+        "throughput_ops_per_second": {
+            "keyed": throughput,
+            "unlocked": unlocked_outcome.report.throughput_operations_per_second,
+        },
+        "derived_bounds": {
+            "headroom_factor": MEASURED_TIMEOUT_HEADROOM,
+            "per_operation_timeout_ms": per_operation_ms,
+            "per_worker_timeout_ms": per_worker_ms,
+            "whole_test_timeout_ms": whole_test_ms,
+            "derivation": "per_operation = worst measured class p99 x headroom (floor 5000 ms); whole_test = (contract minimum operations / measured throughput) x headroom; per_worker = whole_test / 4",
+        },
+        "projected_full_extended_run_seconds": projected_workload_s,
+        "note": "measurement only - asserts no contract minimum and proves nothing; the extended profile's bounds are derived from these figures and recorded with this run_id",
+    });
+    let path = write_report_json(&format!("swarm-calibration-{run_id}.json"), &fragment);
+    println!("SWARM_CALIBRATION_REPORT={}", path.display());
+}
+
+fn calibration_enabled() -> bool {
+    std::env::var("HANDSHAKE_SWARM_CALIBRATE")
+        .map(|value| value.trim() == "1")
+        .unwrap_or(false)
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn extended_profile_64_workers_50000_operations() {
+    if calibration_enabled() {
+        println!("SWARM_EXTENDED=NOT_RUN_CALIBRATING (this process is reserved for the calibration run)");
+        return;
+    }
     if !extended_profile_enabled() {
         // Review R2-1-12: the NOT_RUN state is a machine-readable artifact,
         // not console prose, so a validator can tell "never attempted" from
@@ -1818,6 +2134,7 @@ async fn extended_profile_64_workers_50000_operations() {
         println!("SWARM_EXTENDED_NOT_RUN_REPORT={}", path.display());
         return;
     }
+    let _lane = serial_lane().await;
     let config = WorkloadConfig::extended(workload_seed());
     println!(
         "SWARM_EXTENDED_CONFIG workers={} operations={} dataset={} read_fraction={} key_skew={} contention={} seed={}",

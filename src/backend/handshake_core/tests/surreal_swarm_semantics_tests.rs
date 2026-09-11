@@ -52,7 +52,7 @@ const RACE_BOUND: Duration = Duration::from_secs(30);
 const SEMANTICS_TEST_BOUND: Duration = Duration::from_millis(900_000);
 /// Bound for opening/closing an embedded store (schema bootstrap and
 /// teardown are far slower than one statement).
-const STORE_LIFECYCLE_BOUND: Duration = Duration::from_millis(600_000);
+const STORE_LIFECYCLE_BOUND: Duration = Duration::from_millis(720_000);
 /// Bound for sequential setup writes (workspace and document seeding).
 const SETUP_BOUND: Duration = Duration::from_millis(300_000);
 /// Bound for the template-equivalence gate, which pays two cold applies.
@@ -60,6 +60,8 @@ const TEMPLATE_EQUIVALENCE_BOUND: Duration = Duration::from_millis(1_800_000);
 
 /// Runs one test body under [`SEMANTICS_TEST_BOUND`].
 async fn run_bounded_test<F: std::future::Future<Output = ()>>(name: &str, body: F) {
+    // Review R2-2-1: serial execution enforced in code, not by an env var.
+    let _lane = serial_lane().await;
     timeout(SEMANTICS_TEST_BOUND, body).await.unwrap_or_else(|_| {
         panic!(
             "{name} exceeded its whole-test bound of {} ms (a swarm proof that cannot finish is a failure, never an ignored test)",
@@ -1119,6 +1121,7 @@ async fn cloned_template_store_matches_a_freshly_bootstrapped_store() {
     // This gate deliberately pays TWO cold schema applies (the process
     // template plus a fresh comparison store), so it carries its own bound
     // instead of the shared whole-test one.
+    let _lane = serial_lane().await;
     timeout(
         TEMPLATE_EQUIVALENCE_BOUND,
         cloned_template_store_matches_a_freshly_bootstrapped_store_body(),
