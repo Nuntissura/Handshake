@@ -27,7 +27,63 @@ const MICRO_TASKS: &str = "micro_tasks";
 const MT_ITERATIONS: &str = "mt_iterations";
 const DEPENDENCIES: &str = "dependencies";
 
+/// Serializes dependency-graph mutations so the Rust-side cycle check in `add_dependency`
+/// decides against a stable graph. MT-151 (RESIDUAL-MT142-EARLY-LOCK-RELEASE-ON-STATEMENT-
+/// TIMEOUT): the caller-side statement bound drops this guard on timeout while the abandoned
+/// statement may still commit, so acyclicity is also owned database-side by the
+/// `storage_graph_anchors` compare-and-set in the add transaction; duplicates were always
+/// owned by `pk_dependencies` plus `HSK-LOCUS-DEPENDENCY-DUPLICATE`. The lock remains a
+/// contention shaper.
 static DEPENDENCY_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
+
+/// Acquires [`DEPENDENCY_MUTATION_LOCK`]; `None` only inside the MT-151 race-proof bypass.
+async fn dependency_mutation_guard() -> Option<tokio::sync::MutexGuard<'static, ()>> {
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    if super::keyed_lock::static_lock_test_support::static_mutation_locks_bypassed() {
+        return None;
+    }
+    Some(DEPENDENCY_MUTATION_LOCK.lock().await)
+}
+
+const GRAPH_ANCHORS_TABLE: &str = "storage_graph_anchors";
+const DEPENDENCY_GRAPH_KIND: &str = "work_packet_dependencies";
+/// The dependency graph is not workspace-scoped (`dependencies` rows carry none), so one
+/// anchor covers the whole graph.
+const DEPENDENCY_GRAPH_SCOPE: &str = "global";
+const DEPENDENCY_GRAPH_STALE: &str = "HSK-LOCUS-DEPENDENCY-GRAPH-STALE";
+
+fn dependency_graph_anchor() -> RecordId {
+    RecordId::new(
+        GRAPH_ANCHORS_TABLE,
+        format!("{DEPENDENCY_GRAPH_KIND}|{DEPENDENCY_GRAPH_SCOPE}"),
+    )
+}
+
+#[derive(SurrealValue)]
+struct AnchorVersionBinding {
+    anchor: RecordId,
+}
+
+/// Current dependency-graph anchor version, `0` before its first bump. Read BEFORE
+/// `load_dependencies` so any commit after this read is caught by the in-transaction CAS.
+async fn read_dependency_graph_version(storage: &SurrealStorage) -> StorageResult<i64> {
+    let versions = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values::<i64, _>(
+                        "SELECT VALUE version FROM $anchor;",
+                        AnchorVersionBinding {
+                            anchor: dependency_graph_anchor(),
+                        },
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    Ok(versions.into_iter().next().unwrap_or(0))
+}
 
 #[derive(Clone, SurrealValue)]
 struct WorkPacketRow {
@@ -190,6 +246,12 @@ struct DependencyWrite {
     dependency_type: String,
     created_at: String,
     vector_clock: String,
+    /// MT-151: the graph anchor and the version the cycle check was decided against.
+    anchor: RecordId,
+    anchor_key: String,
+    graph_kind: String,
+    scope_key: String,
+    expected_anchor_version: i64,
 }
 
 #[derive(SurrealValue)]
@@ -743,9 +805,10 @@ async fn add_dependency(
     if params.from_wp_id == params.to_wp_id {
         return Err(StorageError::Validation("dependency would create a cycle"));
     }
-    let _guard = DEPENDENCY_MUTATION_LOCK.lock().await;
+    let _guard = dependency_mutation_guard().await;
     ensure_wp_exists(storage, &params.from_wp_id).await?;
     ensure_wp_exists(storage, &params.to_wp_id).await?;
+    let expected_anchor_version = read_dependency_graph_version(storage).await?;
     let dependencies = load_dependencies(storage).await?;
     if dependencies
         .iter()
@@ -756,6 +819,8 @@ async fn add_dependency(
     if dependency_would_create_cycle(&dependencies, &params.from_wp_id, &params.to_wp_id)? {
         return Err(StorageError::Validation("dependency would create a cycle"));
     }
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    super::keyed_lock::static_lock_test_support::pause_after_decision().await;
     let now = now_rfc3339();
     let bindings = DependencyWrite {
         record: RecordId::new(DEPENDENCIES, params.dependency_id.clone()),
@@ -765,6 +830,11 @@ async fn add_dependency(
         dependency_type: dependency_type_str(params.kind).to_owned(),
         created_at: now.clone(),
         vector_clock: serde_json::to_string(&json!({"local": 1}))?,
+        anchor: dependency_graph_anchor(),
+        anchor_key: format!("{DEPENDENCY_GRAPH_KIND}|{DEPENDENCY_GRAPH_SCOPE}"),
+        graph_kind: DEPENDENCY_GRAPH_KIND.to_owned(),
+        scope_key: DEPENDENCY_GRAPH_SCOPE.to_owned(),
+        expected_anchor_version,
     };
     let result = storage
         .with_data_operation(move |database| {
@@ -779,6 +849,12 @@ async fn add_dependency(
                            from_wp_id: $from_wp_id, to_wp_id: $to_wp_id, \
                            dependency_type: $dependency_type, created_at: $created_at, \
                            vector_clock: $vector_clock } RETURN AFTER; \
+                         LET $anchor_version = (SELECT VALUE version FROM $anchor)[0] ?? 0; \
+                         IF $anchor_version != $expected_anchor_version \
+                           { THROW 'HSK-LOCUS-DEPENDENCY-GRAPH-STALE'; }; \
+                         UPSERT $anchor SET anchor_key = $anchor_key, graph_kind = $graph_kind, \
+                           scope_key = $scope_key, version = $anchor_version + 1, \
+                           updated_at = time::now(); \
                          COMMIT TRANSACTION;",
                         bindings,
                         3,
@@ -792,6 +868,17 @@ async fn add_dependency(
         Ok(_) => {
             return Err(StorageError::Database(
                 "Locus dependency create returned an unexpected row count".to_owned(),
+            ));
+        }
+        // MT-151: the graph changed after the cycle check (CAS THROW) or two adds overlapped
+        // in the engine (both UPSERT the anchor; commit-time write-write conflict). Either
+        // way the loser is typed and the caller re-reads before retrying.
+        Err(error)
+            if error.to_string().contains(DEPENDENCY_GRAPH_STALE)
+                || super::retry::message_marks_transaction_conflict(&error.to_string()) =>
+        {
+            return Err(StorageError::Conflict(
+                "dependency graph changed concurrently",
             ));
         }
         Err(error) => return Err(map_locus_error(error)),
@@ -809,7 +896,7 @@ async fn remove_dependency(
     storage: &SurrealStorage,
     params: LocusRemoveDependencyParams,
 ) -> StorageResult<JsonValue> {
-    let _guard = DEPENDENCY_MUTATION_LOCK.lock().await;
+    let _guard = dependency_mutation_guard().await;
     let bindings = RecordBinding {
         record: RecordId::new(DEPENDENCIES, params.dependency_id.clone()),
     };

@@ -1825,4 +1825,75 @@ mod tests {
         assert_eq!(is_unique_index_violation("Database index `x` is missing"), None);
         assert_eq!(is_unique_index_violation("Transaction conflict: Resource busy"), None);
     }
+
+    /// MT-151 I-151-6: the retry budget's zero-remaining branch. When the
+    /// enclosing `with_operation_deadline` scope has already passed,
+    /// `SurrealStorage::with_data_operation` must refuse to dispatch and return
+    /// the typed `StatementBudgetExhausted { budget_ms }` (the configured
+    /// statement timeout, `surreal.rs` `with_data_operation`) WITHOUT taking a
+    /// lease or running the operation: a `timeout(0, ..)` would instead report
+    /// `StatementTimeout { waited_ms: 0 }`, which claims the engine may have
+    /// applied a statement it never received. A bare engine open (no schema
+    /// bootstrap) is enough because no statement is ever issued.
+    #[tokio::test]
+    async fn expired_operation_deadline_refuses_to_dispatch_with_the_typed_budget_error() {
+        use std::sync::atomic::AtomicBool;
+
+        use crate::storage::surreal::{SurrealStorage, SurrealStorageConfig};
+
+        let temp = tempfile::tempdir().expect("create temporary root");
+        let config = SurrealStorageConfig::with_path(temp.path().join("store"))
+            .expect("configure store")
+            .with_statement_timeout(ms(1_500))
+            .expect("non-zero statement timeout");
+        let storage = SurrealStorage::open(config).await.expect("open bare store");
+        storage.reset_lease_high_water();
+
+        let issued = Arc::new(AtomicBool::new(false));
+        let expired = Instant::now()
+            .checked_sub(ms(10))
+            .expect("an instant 10 ms in the past exists");
+        let outcome = SurrealStorage::with_operation_deadline(expired, {
+            let issued = Arc::clone(&issued);
+            let storage = storage.clone();
+            async move {
+                storage
+                    .with_data_operation(move |_database| {
+                        Box::pin(async move {
+                            issued.store(true, Ordering::SeqCst);
+                            Ok(())
+                        })
+                    })
+                    .await
+            }
+        })
+        .await;
+
+        match outcome {
+            Err(SurrealStorageError::StatementBudgetExhausted { budget_ms }) => {
+                assert_eq!(budget_ms, 1_500, "budget_ms is the configured statement timeout");
+            }
+            other => panic!("expected StatementBudgetExhausted, got {other:?}"),
+        }
+        assert!(
+            !issued.load(Ordering::SeqCst),
+            "the operation must never run once the budget is spent"
+        );
+        assert_eq!(
+            storage.lease_high_water(),
+            0,
+            "no lifecycle lease may be taken for a statement that is never dispatched"
+        );
+        assert_eq!(storage.leases_in_flight(), 0);
+
+        // The same store still dispatches normally outside the expired scope,
+        // so the refusal came from the budget, not from the store's state.
+        let ran = storage
+            .with_data_operation(|_database| Box::pin(async move { Ok(7u8) }))
+            .await
+            .expect("an unscoped operation dispatches");
+        assert_eq!(ran, 7);
+        assert_eq!(storage.lease_high_water(), 1);
+        storage.shutdown().await.expect("close bare store");
+    }
 }

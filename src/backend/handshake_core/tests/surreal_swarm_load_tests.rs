@@ -1787,7 +1787,7 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
             "repository_changed_files": provenance.repository_changed_files,
             "sampled_at_utc": provenance.sampled_at_utc,
             "sampled": "at run start, before the store was opened - a commit landing mid-run is never attributed to this artifact (review R2-3-2)",
-            "dirty_meaning": "source_tree_dirty true means the crate had uncommitted changes when the run started, so the binary under test does not correspond to  and this artifact must not be cited as evidence for that commit",
+            "dirty_meaning": "source_tree_dirty true means the crate had uncommitted changes when the run started, so the binary under test does not correspond to head, and this artifact must not be cited as evidence for that commit",
         },
         "retry_diagnostics_owned_by_this_process": diagnostics_owned,
         "untyped_engine_conflicts": metrics.untyped_conflicts.clone(),

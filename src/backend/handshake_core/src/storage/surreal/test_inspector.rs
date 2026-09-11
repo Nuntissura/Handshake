@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use surrealdb::types::{RecordId, RecordIdKey, SurrealValue, Value as SurrealValueData};
 use thiserror::Error;
 
-use super::schema::{canonicalize_info, info_entry_name, parse_named_array};
+use super::schema::{
+    canonical_catalog_fingerprint, canonicalize_info, info_entry_name, parse_named_array,
+};
 use super::{SurrealStorage, SurrealStorageError};
 
 /// A feature-gated, read-only view of the live SurrealDB catalog and rows.
@@ -429,7 +430,9 @@ impl SurrealTestInspector {
             .cloned()
             .zip(table_infos.iter().cloned())
             .collect::<BTreeMap<_, _>>();
-        let info_fingerprint_sha256 = catalog_fingerprint(&database_info, &canonical_tables)?;
+        // MT-151: one fingerprint definition shared with bootstrap's `inspect_schema`.
+        let info_fingerprint_sha256 =
+            canonical_catalog_fingerprint(database_info.clone(), canonical_tables);
         if super::EXPECTED_SCHEMA_INFO_SHA256
             .bytes()
             .all(|byte| byte == b'0')
@@ -989,22 +992,6 @@ fn mutation_entries(
             Ok((mutation.field.name.clone(), mutation.value.0.clone()))
         })
         .collect()
-}
-
-#[derive(Serialize)]
-struct CanonicalCatalogEnvelope<'a> {
-    database: &'a SurrealValueData,
-    tables: &'a BTreeMap<String, SurrealValueData>,
-}
-
-fn catalog_fingerprint(
-    database: &SurrealValueData,
-    tables: &BTreeMap<String, SurrealValueData>,
-) -> Result<String, SurrealTestInspectorError> {
-    let canonical_json = serde_json::to_string(&CanonicalCatalogEnvelope { database, tables })
-        .map_err(|error| SurrealTestInspectorError::InvalidCatalog(error.to_string()))?;
-    let digest = Sha256::digest(canonical_json.as_bytes());
-    Ok(digest.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 fn parse_fields(

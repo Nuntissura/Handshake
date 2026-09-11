@@ -566,6 +566,11 @@ path = "tests/knowledge_delete_title_race_tests.rs"
 required-features = ["surreal-test-support", "test-utils"]
 
 [[test]]
+name = "mt151_early_lock_release_race_tests"
+path = "tests/mt151_early_lock_release_race_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
 name = "knowledge_documents_tests"
 path = "tests/knowledge_documents_tests.rs"
 required-features = ["test-utils", "surreal-test-support"]

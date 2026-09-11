@@ -108,11 +108,45 @@ async fn inspected_row_field(
         1,
         "expected exactly one {table_name}:{record_id} row"
     );
-    rows.pop()
-        .expect("inspected row")
-        .values
-        .remove(field_name)
-        .unwrap_or_else(|| panic!("inspected row omitted {table_name}.{field_name}"))
+    scalar(
+        &rows
+            .pop()
+            .expect("inspected row")
+            .values
+            .remove(field_name)
+            .unwrap_or_else(|| panic!("inspected row omitted {table_name}.{field_name}")),
+    )
+}
+
+/// The test inspector's `project()` serializes each `SurrealValueData` with
+/// `serde_json::to_value`, so a projected field arrives externally tagged
+/// (`{"String": "proposed"}`, `{"Number": {..}}`) and an unset column arrives
+/// as the bare tag string `"None"` or the single-key object `{"None": null}` /
+/// `{"Null": null}`. Unwrap that tagged shape into a plain `serde_json::Value`
+/// so callers compare with `json!(...)` as if the field came from a JSON
+/// response. `None` and `Null` both collapse to `Value::Null` ("absent"), and a
+/// record link (`{"RecordId": {"table", "key": <tagged key>}}`) collapses to
+/// its bare key. Same contract as `scalar()` in
+/// `tests/wp_kernel_012_native_editor_routes_tests.rs`.
+fn scalar(tagged: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+    fn is_absent_tag(tag: &str) -> bool {
+        tag == "None" || tag == "Null"
+    }
+    match tagged {
+        Value::String(tag) if is_absent_tag(tag) => Value::Null,
+        Value::Object(map) if map.len() == 1 => {
+            let (tag, inner) = map.iter().next().expect("single-entry tagged object");
+            if is_absent_tag(tag) {
+                Value::Null
+            } else if tag == "RecordId" {
+                inner.get("key").map_or_else(|| inner.clone(), scalar)
+            } else {
+                inner.clone()
+            }
+        }
+        other => other.clone(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -544,13 +578,15 @@ mod mt_056_claims {
             "unexpected: {err}"
         );
 
-        // Resolution requires a real EventLedger receipt (FK).
+        // Resolution requires a real EventLedger receipt: the
+        // `resolution_receipt_event_id ... ASSERT $value = NONE OR record::exists($value)`
+        // link ASSERT rejects the ghost and the engine wording reaches the caller.
         let err = store
             .db
             .resolve_knowledge_claim_conflict(&conflict.conflict_id, "KE-GHOST")
             .await
             .expect_err("resolution receipt must reference a real ledger event");
-        assert!(err.to_string().contains("foreign key"), "got {err}");
+        assert!(err.to_string().contains("record::exists"), "got {err}");
 
         let suffix = Uuid::now_v7();
         let receipt = store
@@ -976,7 +1012,10 @@ mod mt_057_passages {
                 .create_knowledge_memory_passage(passage(&workspace_id, vec![ghost_lineage]))
                 .await
                 .expect_err("ghost lineage must be rejected");
-            assert!(err.to_string().contains("foreign key"), "got {err}");
+            // The lineage columns are `record<...>` links whose
+            // `ASSERT $value = NONE OR record::exists($value)` rejects the ghost;
+            // the engine wording reaches the caller via meaningful_check.
+            assert!(err.to_string().contains("record::exists"), "got {err}");
             assert_eq!(
                 inspected_row_count(&store, "knowledge_memory_passages").await,
                 0,

@@ -10,6 +10,8 @@
 //! * `independent_clients_without_shared_lock_registry_stay_correct`
 //! * `opposite_order_multi_record_operations_do_not_deadlock`
 //! * `keyed_lock_registry_reclaims_after_high_cardinality_churn`
+//! * `first_attempt_consuming_the_retry_budget_reports_no_retry_window`
+//!   (MT-151 I-151-5: the live `HSK-STORAGE-NO-RETRY-WINDOW` saturation case)
 //!
 //! Every task is joined, every wait is bounded, no sleep is used for
 //! synchronisation (tokio `Barrier` + `timeout` only), and no test accepts
@@ -28,9 +30,15 @@ use handshake_core::storage::knowledge::{
     NewKnowledgeEntity, UpsertKnowledgeDocumentBacklink,
 };
 use handshake_core::storage::surreal::keyed_lock::{KeyedLockRegistry, LockKey, LockMode};
-use handshake_core::storage::surreal::SurrealDatabase;
-use handshake_core::storage::StorageError;
+use handshake_core::storage::surreal::retry::{
+    classify_storage_error, retry, ExhaustionBound, Replay, RetryClass, RetryContext, RetryError,
+    RetryPolicy, SystemJitter, TokioClock,
+};
+use handshake_core::storage::surreal::swarm_load_report::{FailureClass, OperationClass};
+use handshake_core::storage::surreal::{SurrealDatabase, SurrealStorage};
+use handshake_core::storage::{Database, StorageError};
 use serde_json::json;
+use surrealdb::types::SurrealValue;
 use swarm_support::*;
 use tokio::sync::Barrier;
 use tokio::time::timeout;
@@ -1512,5 +1520,287 @@ async fn deleted_backlink_target_converges_on_the_next_source_save_body() {
     );
 
     doc_api.shutdown().await;
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
+}
+
+// ---------------------------------------------------------------------------
+// MT-151 I-151-5: HSK-STORAGE-NO-RETRY-WINDOW from a live saturation event.
+// ---------------------------------------------------------------------------
+
+/// The whole retry budget handed to the composed operation. The attempt below
+/// sleeps for [`NO_RETRY_WINDOW_ATTEMPT_SLEEP`] inside the engine, so the
+/// FIRST attempt alone outlives the budget by a wide, deterministic margin.
+const NO_RETRY_WINDOW_BUDGET: Duration = Duration::from_millis(250);
+const NO_RETRY_WINDOW_ATTEMPT_SLEEP: Duration = Duration::from_millis(900);
+/// Bound on the attempt: the engine sleep plus one worst-case HDD commit.
+const NO_RETRY_WINDOW_ATTEMPT_BOUND: Duration = Duration::from_millis(10_000);
+
+/// The retried attempt: one explicit transaction whose RocksDB snapshot is
+/// taken at `BEGIN` (`surrealdb-core-3.2.0/src/kvs/rocksdb/mod.rs:758`
+/// `set_snapshot(true)`), which then sleeps past the retry budget and finally
+/// writes the workspace row. A committer that wrote the same row after that
+/// snapshot makes the `COMMIT` fail with the engine's retryable conflict.
+const NO_RETRY_WINDOW_ATTEMPT_STATEMENT: &str = "BEGIN TRANSACTION; SLEEP 900ms; UPDATE type::record('workspaces', $workspace_id) SET name = $name; COMMIT TRANSACTION;";
+/// The concurrent committer: writes the row, pauses inside its transaction so
+/// the attempt's `BEGIN` has certainly happened, then commits while the
+/// attempt is still asleep (300 ms of slack before, 600 ms after).
+const NO_RETRY_WINDOW_COMMITTER_STATEMENT: &str = "BEGIN TRANSACTION; UPDATE type::record('workspaces', $workspace_id) SET name = $name; SLEEP 300ms; COMMIT TRANSACTION;";
+
+#[derive(SurrealValue)]
+struct WorkspaceNameBindings {
+    workspace_id: String,
+    name: String,
+}
+
+/// One bounded statement through the sealed data facade, rendered to the
+/// opaque `StorageError::Database` exactly as the knowledge store's `map_err`
+/// does, so the product classifier sees the shape store callers see.
+async fn rename_workspace_bounded(
+    storage: &SurrealStorage,
+    statement: &'static str,
+    workspace_id: &str,
+    name: &str,
+) -> Result<(), StorageError> {
+    let bindings = WorkspaceNameBindings {
+        workspace_id: workspace_id.to_owned(),
+        name: name.to_owned(),
+    };
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values::<surrealdb::types::Value, _>(statement, bindings)
+                    .await
+                    .map(|_| ())
+            })
+        })
+        .await
+        .map_err(|error| StorageError::Database(error.to_string()))
+}
+
+/// The store-level rendering of a retry outcome, mirroring the knowledge
+/// store's private `retry_error_to_storage` (`storage/surreal/knowledge.rs`):
+/// `ExhaustionBound::NoRetryWindow` becomes [`NO_RETRY_WINDOW_CODE`], every
+/// other exhaustion becomes [`RETRY_EXHAUSTED_CODE`], with the same detail
+/// text. The mapping itself is product-private, so the proof of the code
+/// string rests on the bound being typed here and the constant being pinned
+/// in `swarm_support` (review R3-1-1).
+fn exhaustion_to_storage_error(error: RetryError<StorageError>) -> StorageError {
+    match error {
+        RetryError::Exhausted {
+            attempts,
+            elapsed,
+            last,
+            bound,
+        } => StorageError::ConflictDetails {
+            code: if bound.is_no_retry_window() {
+                NO_RETRY_WINDOW_CODE
+            } else {
+                RETRY_EXHAUSTED_CODE
+            },
+            detail: format!(
+                "attempts={attempts} elapsed_ms={} bound={} last={last}",
+                elapsed.as_millis(),
+                bound.as_str()
+            ),
+        },
+        other => panic!("expected an exhausted retry, got {other}"),
+    }
+}
+
+/// MT-151 I-151-5 (closes MT-142's stated limit "no_retry_window unexercised"):
+/// a retryable engine conflict whose FIRST attempt alone consumed the whole
+/// retry budget is reported as `ExhaustionBound::NoRetryWindow` with
+/// `attempts == 1` - never as `MaxElapsed` ("retried until the budget ran
+/// out") - and the swarm classifier files it under its own
+/// `no_retry_window` count, never under expected contention.
+///
+/// Why the operation is composed here from the product's own public
+/// primitives (`retry`, `RetryContext`, `RetryPolicy::CONTRACT`, `TokioClock`,
+/// `SystemJitter`, `classify_storage_error`, `with_data_operation`) rather
+/// than driven through a knowledge-store method: `guarded_mutation` binds the
+/// retry deadline and every attempt's statement bound to the SAME instant, so
+/// an attempt that outlives the budget is cut by `with_data_operation` and
+/// returns the terminal `StatementTimeout`, never a conflict. In the product
+/// the no-retry-window state is therefore reachable only when a conflict
+/// lands inside the last initial-backoff (<= 5 ms) before that instant - a
+/// genuine saturation signal that a deterministic test cannot schedule. This
+/// proof keeps the product's retry loop, classifier, deadline handling and a
+/// live engine conflict, and only lets the attempt's statement bound (the
+/// store's default) outlast the retry budget so the attempt can RETURN the
+/// conflict instead of timing out.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn first_attempt_consuming_the_retry_budget_reports_no_retry_window() {
+    run_bounded_test(
+        "first_attempt_consuming_the_retry_budget_reports_no_retry_window",
+        first_attempt_consuming_the_retry_budget_reports_no_retry_window_body(),
+    )
+    .await;
+}
+
+async fn first_attempt_consuming_the_retry_budget_reports_no_retry_window_body() {
+    let diagnostics_owned = install_retry_diagnostics();
+    let before = retry_diagnostics_snapshot();
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
+    let storage = store.storage.clone();
+
+    // The committer is spawned first so its transaction is open before the
+    // attempt's; its in-transaction pause guarantees the attempt's BEGIN
+    // precedes its COMMIT, and the attempt's longer sleep guarantees its own
+    // COMMIT follows. No test-side sleep is used for ordering.
+    let committer = tokio::spawn({
+        let storage = storage.clone();
+        let workspace_id = workspace_id.clone();
+        async move {
+            rename_workspace_bounded(
+                &storage,
+                NO_RETRY_WINDOW_COMMITTER_STATEMENT,
+                &workspace_id,
+                "renamed by the concurrent committer",
+            )
+            .await
+        }
+    });
+
+    let attempts_seen = Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let started = Instant::now();
+    let context = RetryContext::unbounded().with_deadline(started + NO_RETRY_WINDOW_BUDGET);
+    let jitter = SystemJitter::new();
+    let outcome = timeout(
+        NO_RETRY_WINDOW_ATTEMPT_BOUND,
+        retry(
+            &RetryPolicy::CONTRACT,
+            &context,
+            Replay::idempotent(format!("mt151-no-retry-window:{workspace_id}")),
+            &TokioClock,
+            &jitter,
+            classify_storage_error,
+            |attempt| {
+                attempts_seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                assert_eq!(attempt.number, 1, "no replay may ever be scheduled");
+                let storage = storage.clone();
+                let workspace_id = workspace_id.clone();
+                async move {
+                    rename_workspace_bounded(
+                        &storage,
+                        NO_RETRY_WINDOW_ATTEMPT_STATEMENT,
+                        &workspace_id,
+                        "renamed by the retried attempt",
+                    )
+                    .await
+                }
+            },
+        ),
+    )
+    .await
+    .expect("the single attempt returns within its bound");
+    let attempt_elapsed = started.elapsed();
+    committer
+        .await
+        .expect("committer joined")
+        .expect("the committer's write commits first and succeeds");
+
+    // 1. The typed retry outcome: exhausted on the first attempt, with the
+    //    budget bound that never scheduled a replay.
+    match &outcome {
+        Err(RetryError::Exhausted {
+            attempts,
+            elapsed,
+            last,
+            bound,
+        }) => {
+            assert_eq!(*attempts, 1, "the first attempt consumed the budget: {last}");
+            assert_eq!(
+                *bound,
+                ExhaustionBound::NoRetryWindow,
+                "a budget stop before any replay is NoRetryWindow, not MaxElapsed"
+            );
+            assert_ne!(*bound, ExhaustionBound::MaxElapsed);
+            assert!(bound.is_no_retry_window());
+            assert!(
+                *elapsed >= NO_RETRY_WINDOW_BUDGET,
+                "the attempt outlived the {} ms budget: elapsed {} ms",
+                NO_RETRY_WINDOW_BUDGET.as_millis(),
+                elapsed.as_millis()
+            );
+            assert_eq!(
+                classify_storage_error(last),
+                RetryClass::RetryableTransient,
+                "the attempt failed with the engine's retryable conflict, not a timeout: {last}"
+            );
+        }
+        other => panic!(
+            "expected Exhausted {{ NoRetryWindow, attempts: 1 }}, got {other:?} after {} ms",
+            attempt_elapsed.as_millis()
+        ),
+    }
+    let error = outcome.expect_err("asserted exhausted above");
+    assert_eq!(attempts_seen.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert!(
+        attempt_elapsed >= NO_RETRY_WINDOW_ATTEMPT_SLEEP,
+        "the attempt's engine sleep ran to completion: {} ms",
+        attempt_elapsed.as_millis()
+    );
+    // The retry module emitted exactly one exhaustion and no scheduled replay.
+    let delta = retry_diagnostics_snapshot().delta_since(&before);
+    if diagnostics_owned {
+        assert_eq!(delta.exhausted, 1, "exactly one retry exhaustion diagnostic");
+        assert_eq!(delta.scheduled, 0, "no replay was ever scheduled");
+    }
+
+    // 2. The same outcome as store callers see it, through the swarm
+    //    classifier: its own code, its own count, never expected contention.
+    let storage_error = exhaustion_to_storage_error(error);
+    assert!(is_no_retry_window(&storage_error), "{storage_error}");
+    assert!(
+        !is_retry_exhausted(&storage_error),
+        "NO-RETRY-WINDOW must stay distinct from RETRY-EXHAUSTED: {storage_error}"
+    );
+    assert!(storage_error.to_string().contains(NO_RETRY_WINDOW_CODE));
+    assert!(storage_error.to_string().contains("attempts=1"));
+    assert!(storage_error.to_string().contains("bound=no_retry_window"));
+    let op_outcome = OpOutcome::from_error(&storage_error);
+    assert!(
+        matches!(op_outcome, OpOutcome::NoRetryWindow(_)),
+        "classifier outcome: {op_outcome:?}"
+    );
+    assert_eq!(op_outcome.failure_class(), Some(FailureClass::RetryExhausted));
+    assert_ne!(op_outcome.failure_class(), Some(FailureClass::ExpectedStaleOrConflict));
+    assert!(!op_outcome.is_conflict(), "a budget stop is not counted as contention");
+
+    let mut metrics = SwarmMetrics::default();
+    metrics.record(OperationClass::OptimisticVersionedUpdate, &op_outcome, attempt_elapsed, 0, 0);
+    assert_eq!(metrics.no_retry_window_errors.len(), 1, "no_retry_window.count == 1");
+    assert!(metrics.retry_exhausted_errors.is_empty());
+    assert!(metrics.untyped_conflicts.is_empty());
+    assert!(metrics.unexpected_terminal.is_empty());
+    assert_eq!(metrics.conflicts, 0);
+    let class_metrics = metrics
+        .by_class
+        .get(&OperationClass::OptimisticVersionedUpdate)
+        .expect("the recorded class");
+    assert_eq!(class_metrics.failed.get(&FailureClass::RetryExhausted), Some(&1));
+    assert_eq!(
+        class_metrics.failed.get(&FailureClass::ExpectedStaleOrConflict),
+        None,
+        "never filed as expected stale/conflict"
+    );
+
+    // 3. The committer's write is the one that landed; the attempt wrote nothing.
+    let name = store
+        .db
+        .get_workspace(&workspace_id)
+        .await
+        .expect("read workspace")
+        .expect("workspace exists")
+        .name;
+    assert_eq!(name, "renamed by the concurrent committer");
+    println!(
+        "SWARM_NO_RETRY_WINDOW attempts=1 budget_ms={} attempt_elapsed_ms={} code={NO_RETRY_WINDOW_CODE} diagnostics_owned={diagnostics_owned}",
+        NO_RETRY_WINDOW_BUDGET.as_millis(),
+        attempt_elapsed.as_millis()
+    );
+
     op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
 }

@@ -23,28 +23,38 @@ pub const SCHEMA_LINEAGE_SHA256: &str =
 // MT-142 re-pin: the predecessor artifact is derived from the current schema.surql
 // (see `mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current`), so it
 // moves with the knowledge_rich_document_title_anchors block.
+// MT-151 re-pin: moves again with loom_blocks.journal_key and storage_graph_anchors.
 const PREDECESSOR_GENERATED_SURREALQL_SHA256: &str =
-    "2eebaba8db142637d0a3d5f7ec2c59b9776139508412bd6cb43da81b1e283bf4";
+    "b06b2ab7d71fc2e0026ce426b6aac571c5a5d381666729c32b3d4432a84e8694";
 // MT-142 re-pin: the synthesized predecessor store (derived from the current schema.surql
 // with the retired registry field) now carries knowledge_rich_document_title_anchors.
+// MT-151 re-pin: it now also carries journal_key and storage_graph_anchors, with table catalog
+// ids stripped (run mt142-LIB-20260911T124916Z, HANDSHAKE_SURREAL_PREDECESSOR_INFO_FINGERPRINT_MISMATCH observed).
 const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
-    "14f93f13b45eb9e52b677aac2d92372e48c83cc826c29b4bd7c64306415d90b3";
+    "310454fd78760cc9400cb696b14fadc5041756ea8752cfc07e0691abab13365c";
 const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
     "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4";
 // MT-142 re-pin: schema.surql gained knowledge_rich_document_title_anchors.
+// MT-151 re-pin: schema.surql gained loom_blocks.journal_key and storage_graph_anchors.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "ecfdca9826223629277a218c7f22a3d6aaabf0714274cf0358cc0ab5a8d562a0";
+    "a8bb72c7fd73c1a2ea0b9563ee2f0534bd9cd435d153975b61bf6794ff9a598a";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
+// MT-151 re-pin: catalog identities gained the journal_key field/index and the
+// storage_graph_anchors objects.
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "1358f301139d229061037b00305b5577edeed9f5394591d5428096054c7ca87c";
+    "1605235bf8f9c3b8b02812e9b90f86ac3ccc1efa05bf42623514dac127ba82c9";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
 /// Fresh-engine STRUCTURE fingerprint captured with the product-locked SurrealDB 3.2.0
 /// engine family after applying the generated schema to an absent RocksDB path.
 // MT-142 re-pin: live STRUCTURE fingerprint with knowledge_rich_document_title_anchors applied.
+// MT-151 re-pin: live STRUCTURE fingerprint with journal_key and storage_graph_anchors applied
+// and engine table catalog ids stripped (see `inspect_schema`); run mt142-LIB-20260911T124916Z,
+// `mt139_current_schema_info_pin_matches_fresh_mem_catalog`, and reached identically by the
+// in-place MT-151 upgrade (`mt151_exact_mt142_pin_upgrade_materialises_journal_key_and_restarts_current`).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "e117afdb9a7ff9ded218b29a5741b5fbf2541170f0772e475475114fca42a994";
+    "294530f11ca454f1afba332ac9e70e909ab39cac12ce35ad661daff2fd0ff222";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "e44e7cceecf2c0d980999e4b66391c2459512a3f3f07155e5cf68d48dedd553e";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -57,6 +67,48 @@ const PRE_MT142_GENERATED_SURREALQL_SHA256: &str =
     "b4bcdbd16ffbbb3d9543f164f4226d3d952c841e80a7bd9c302b82cb15e3d4f9";
 const PRE_MT142_SCHEMA_INFO_SHA256: &str =
     "685bc539ddd8864c773bb8bb599768570faa66a4ff17ee7ab24e10d6e2b2db41";
+/// Third allowlisted lineage (MT-151): every store bootstrapped at the MT-142 pin, before
+/// `loom_blocks.journal_key` / `uq_loom_blocks_journal_key` and `storage_graph_anchors` existed.
+/// These are the exact MT-142 pins of [`GENERATED_SURREALQL_SHA256`] and
+/// [`EXPECTED_SCHEMA_INFO_SHA256`]; such stores are upgraded in place by
+/// `upgrade_pre_mt151_current`. Pre-MT-142 stores receive both upgrades in one transaction.
+const PRE_MT151_GENERATED_SURREALQL_SHA256: &str =
+    "ecfdca9826223629277a218c7f22a3d6aaabf0714274cf0358cc0ab5a8d562a0";
+const PRE_MT151_SCHEMA_INFO_SHA256: &str =
+    "e117afdb9a7ff9ded218b29a5741b5fbf2541170f0772e475475114fca42a994";
+/// First MT-151 upgrade phase, committed in its OWN transaction before the DDL transaction:
+/// defines the computed `journal_key` and rewrites every existing journal block so the key is
+/// materialised and COMMITTED before `uq_loom_blocks_journal_key` is built. The pinned engine
+/// builds every `DEFINE INDEX` through its `IndexBuilder` in separate transactions
+/// (`surrealdb-core-3.2.0/src/expr/statements/define/index.rs:235`,
+/// `kvs/index/builder.rs:864-887`), so a backfill inside the same transaction as the index is
+/// invisible to the build and pre-existing journal rows would stay unprotected (observed run
+/// `mt142-LIB-20260911T125838Z`). Idempotent: re-running it after a crash is harmless.
+const MT151_JOURNAL_KEY_MATERIALISE_STATEMENTS: &str = "\
+DEFINE FIELD OVERWRITE journal_key ON TABLE loom_blocks TYPE option<string>
+    VALUE IF $this.content_type = 'journal' AND $this.journal_date != NONE {
+        type::string($this.workspace_id) + '|' + $this.journal_date
+    } ELSE {
+        NONE
+    };
+UPDATE loom_blocks SET updated_at = updated_at WHERE content_type = 'journal' AND journal_date != NONE RETURN NONE;
+";
+/// Second MT-151 upgrade phase, applied with the state update in one transaction on top of
+/// every allowlisted predecessor lineage. Every DDL statement here and in
+/// [`MT151_JOURNAL_KEY_MATERIALISE_STATEMENTS`] must stay identical to `schema.surql` (proven
+/// by `mt151_upgrade_statements_match_schema`). A store that already holds two journal blocks
+/// for one (workspace, date) fails closed at the index build rather than keeping an invariant
+/// the index cannot honour.
+const MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS: &str = "\
+DEFINE INDEX OVERWRITE uq_loom_blocks_journal_key ON TABLE loom_blocks FIELDS journal_key UNIQUE;
+DEFINE TABLE OVERWRITE storage_graph_anchors SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE anchor_key ON TABLE storage_graph_anchors TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE graph_kind ON TABLE storage_graph_anchors TYPE 'loom_folder_tree' | 'work_packet_dependencies';
+DEFINE FIELD OVERWRITE scope_key ON TABLE storage_graph_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE version ON TABLE storage_graph_anchors TYPE int ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE updated_at ON TABLE storage_graph_anchors TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_storage_graph_anchors ON TABLE storage_graph_anchors FIELDS anchor_key UNIQUE;
+";
 /// DDL and registry row MT-142 adds on top of both allowlisted predecessor lineages. Every DDL
 /// line must stay byte-identical to the `knowledge_rich_document_title_anchors` block in
 /// `schema.surql` (proven by `mt142_title_anchor_upgrade_statements_match_schema`).
@@ -185,8 +237,10 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 ];
 // MT-142 re-pin: +1 table (knowledge_rich_document_title_anchors), +7 fields,
 // +2 indexes (pk + uq), +1 REFERENCE field, +1 record-id alias assertion.
-const TABLE_DEFINITION_COUNT: usize = 282;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3082;
+// MT-151 re-pin: +1 table (storage_graph_anchors: +5 fields, +1 pk index, +1 record-id
+// alias assertion) and loom_blocks.journal_key (+1 field, +1 uq index); no REFERENCE field.
+const TABLE_DEFINITION_COUNT: usize = 283;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3088;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 238;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -201,18 +255,18 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 47;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 795;
+const INDEX_DEFINITION_COUNT: usize = 797;
 const EVENT_DEFINITION_COUNT: usize = 19;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
-const SOURCE_TABLE_COUNT: usize = 279;
+const SOURCE_TABLE_COUNT: usize = 280;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 537;
-const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 257;
+const SOURCE_NAMED_INDEX_COUNT: usize = 538;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 258;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 const REFERENCE_FIELD_COUNT: usize = 405;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 226;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 227;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -1007,6 +1061,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "loom_block_search_index",
     "calendar_activity_spans",
     "stage_capture_artifacts",
+    "storage_graph_anchors",
     "knowledge_rich_document_loom_projection_0343_state",
     "atelier_intake_item_loom_projection",
     "fems_memory_packs",
@@ -1149,6 +1204,15 @@ impl SchemaState {
             && self.generated_surql_sha256 == PRE_MT142_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT142_SCHEMA_INFO_SHA256
+    }
+
+    /// Exact MT-142 current lineage (revision 157 with the title-anchor table, before the
+    /// MT-151 journal key and graph anchors).
+    fn is_exact_pre_mt151_current(&self) -> bool {
+        self.has_stable_v1_identity()
+            && self.generated_surql_sha256 == PRE_MT151_GENERATED_SURREALQL_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_MT151_SCHEMA_INFO_SHA256
     }
 }
 
@@ -1506,6 +1570,11 @@ pub async fn bootstrap_schema(
                     Some(state) if state.is_exact_pre_mt142_current() => {
                         verified_observed =
                             Some(upgrade_pre_mt142_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
+                    Some(state) if state.is_exact_pre_mt151_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_mt151_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) => {
@@ -1956,10 +2025,58 @@ COMMIT TRANSACTION;
     }
 }
 
+/// MT-151 phase one for both allowlisted delta lineages: materialises `journal_key` on
+/// existing journal rows in its own transaction, guarded by the exact predecessor state so it
+/// never runs against any other lineage.
+async fn materialise_mt151_journal_key(
+    database: &SurrealAdminContext<'_>,
+    predecessor_generated_surql_sha256: &str,
+    predecessor_info_fingerprint_sha256: &str,
+) -> Result<(), SurrealStorageError> {
+    let materialise = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $schema_revision\n\
+    OR $current.target_revision != $schema_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_MT151_MATERIALISE_STATE_CHANGED';\n\
+}};\n\
+{MT151_JOURNAL_KEY_MATERIALISE_STATEMENTS}\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            materialise.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: predecessor_generated_surql_sha256.to_owned(),
+                predecessor_info_fingerprint_sha256: predecessor_info_fingerprint_sha256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+    Ok(())
+}
+
 /// MT-142: upgrades an exact pre-MT-142 current store in place by adding only the
 /// `knowledge_rich_document_title_anchors` table and its registry row inside one transaction
 /// guarded by the exact prior state, then finalizes through the same fingerprint gate as every
-/// other lineage. Application records are untouched.
+/// other lineage. Application records are untouched. MT-151: the same transaction also applies
+/// the MT-151 statements, because the finalize gate pins the current fingerprint.
 async fn upgrade_pre_mt142_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
@@ -1971,6 +2088,12 @@ async fn upgrade_pre_mt142_current(
         )
         .await;
     }
+    materialise_mt151_journal_key(
+        database,
+        PRE_MT142_GENERATED_SURREALQL_SHA256,
+        PRE_MT142_SCHEMA_INFO_SHA256,
+    )
+    .await?;
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -1988,6 +2111,7 @@ IF $current = NONE\n\
     THROW 'HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_STATE_CHANGED';\n\
 }};\n\
 {MT142_TITLE_ANCHOR_UPGRADE_STATEMENTS}\
+{MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS}\
 UPDATE ONLY handshake_schema_state:primary SET\n\
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
@@ -2048,6 +2172,111 @@ COMMIT TRANSACTION;\n"
             fail_closed(
                 database,
                 "HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// MT-151: upgrades an exact MT-142 current store in place by adding `loom_blocks.journal_key`
+/// with its UNIQUE index (materialising the key on existing journal rows first) and the
+/// `storage_graph_anchors` table inside one transaction guarded by the exact prior state, then
+/// finalizes through the same fingerprint gate as every other lineage. Every other application
+/// record is untouched.
+async fn upgrade_pre_mt151_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_mt151_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    materialise_mt151_journal_key(
+        database,
+        PRE_MT151_GENERATED_SURREALQL_SHA256,
+        PRE_MT151_SCHEMA_INFO_SHA256,
+    )
+    .await?;
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $schema_revision\n\
+    OR $current.target_revision != $schema_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_STATE_CHANGED';\n\
+}};\n\
+{MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS}\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT151_GENERATED_SURREALQL_SHA256
+                    .to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_MT151_SCHEMA_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_FINAL_STATE_MISSING".to_owned(),
             )
             .await
         }
@@ -2230,7 +2459,7 @@ async fn inspect_schema(
             Ok(count) => count,
             Err(reason) => return fail_closed(database, reason).await,
         };
-        table_info_by_name.insert(table.clone(), canonicalize_info(table_info));
+        table_info_by_name.insert(table.clone(), table_info);
     }
 
     if fields_defined != FIELD_DEFINITION_COUNT || indexes_defined != INDEX_DEFINITION_COUNT {
@@ -2244,15 +2473,8 @@ async fn inspect_schema(
         .await;
     }
 
-    let canonical = CanonicalInfoEnvelope {
-        database: canonicalize_info(db_info),
-        tables: table_info_by_name,
-    };
-    let canonical_json =
-        serde_json::to_string(&canonical).expect("canonical structured INFO serializes losslessly");
-
     Ok(ObservedSchema {
-        info_fingerprint_sha256: sha256_hex(canonical_json.as_bytes()),
+        info_fingerprint_sha256: canonical_catalog_fingerprint(db_info, table_info_by_name),
         tables_defined: table_names.len(),
         fields_defined,
         indexes_defined,
@@ -2268,6 +2490,35 @@ pub(super) fn info_entry_name(value: &SurrealValueData) -> Option<&str> {
         return None;
     };
     Some(name)
+}
+
+/// The ONE definition of the live schema fingerprint: `INFO FOR DB STRUCTURE` plus every
+/// table's `INFO FOR TABLE ... STRUCTURE`, canonicalised (named catalog entries sorted, index
+/// column order kept) with the engine's table catalog ids stripped, serialised and hashed.
+/// Bootstrap (`inspect_schema`) and the test inspector both pin
+/// [`EXPECTED_SCHEMA_INFO_SHA256`] through this function, so they cannot disagree.
+///
+/// MT-151: table catalog ids (`tables[].id` in STRUCTURE output) are the engine's allocation
+/// counter, not schema. A fresh apply numbers each table by its script position; a store
+/// upgraded in place by a delta `DEFINE TABLE` allocates the next free id and every later
+/// table keeps its old number, so a fingerprint that kept ids could never be reached by any
+/// table-adding lineage (run mt142-LIB-20260911T124424Z: every drifting entry was
+/// `tables[].id`, 233 fresh vs 300 upgraded for the added table). The MT-138 Atelier catalog
+/// fingerprint already strips them for the same reason (`strip_table_catalog_id`).
+pub(super) fn canonical_catalog_fingerprint(
+    db_info: SurrealValueData,
+    tables: BTreeMap<String, SurrealValueData>,
+) -> String {
+    let canonical = CanonicalInfoEnvelope {
+        database: strip_nested_table_catalog_ids(db_info),
+        tables: tables
+            .into_iter()
+            .map(|(name, info)| (name, strip_nested_table_catalog_ids(info)))
+            .collect(),
+    };
+    let canonical_json =
+        serde_json::to_string(&canonical).expect("canonical structured INFO serializes losslessly");
+    sha256_hex(canonical_json.as_bytes())
 }
 
 pub(super) fn canonicalize_info(value: SurrealValueData) -> SurrealValueData {
@@ -2893,6 +3144,80 @@ mod tests {
         .expect("MT-138 canonical fingerprint generation exceeded two minutes");
     }
 
+    /// Canonical STRUCTURE catalog of one live store, keyed like `inspect_schema` hashes it,
+    /// so a fingerprint mismatch can be explained entry by entry instead of hash by hash.
+    async fn canonical_catalog(
+        database: &SurrealAdminContext<'_>,
+    ) -> Result<BTreeMap<String, String>, SurrealStorageError> {
+        let mut entries = BTreeMap::new();
+        let mut db_info_response = database.query("INFO FOR DB STRUCTURE;").await?;
+        let db_info: SurrealValueData = db_info_response.take(0)?;
+        let mut table_names = parse_named_array(&db_info, "tables")
+            .unwrap_or_else(|reason| panic!("invalid DB INFO: {reason}"));
+        table_names.sort();
+        entries.insert(
+            "database".to_owned(),
+            serde_json::to_string(&strip_nested_table_catalog_ids(db_info))
+                .expect("db info serializes (same stripping as canonical_catalog_fingerprint)"),
+        );
+        for table in table_names {
+            let mut response = database
+                .query(format!("INFO FOR TABLE `{table}` STRUCTURE;"))
+                .await?;
+            let info: SurrealValueData = response.take(0)?;
+            entries.insert(
+                format!("table:{table}"),
+                serde_json::to_string(&strip_nested_table_catalog_ids(info))
+                    .expect("table info serializes"),
+            );
+        }
+        Ok(entries)
+    }
+
+    /// Fresh in-memory apply of the current script: the reference every lineage must reach.
+    async fn fresh_mem_catalog() -> BTreeMap<String, String> {
+        let client = Surreal::new::<Mem>(()).await.expect("open memory store");
+        client
+            .use_ns(DEFAULT_NAMESPACE)
+            .use_db(DEFAULT_DATABASE)
+            .await
+            .expect("select memory context");
+        let database = SurrealAdminContext { client: &client };
+        database
+            .query_bound(
+                SCHEMA,
+                BootstrapBindings {
+                    schema_version: SCHEMA_VERSION.to_owned(),
+                    schema_revision: SCHEMA_REVISION,
+                    namespace: DEFAULT_NAMESPACE.to_owned(),
+                    database: DEFAULT_DATABASE.to_owned(),
+                    source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                    generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                },
+            )
+            .await
+            .expect("apply current schema in memory");
+        canonical_catalog(&database)
+            .await
+            .expect("inspect fresh memory catalog")
+    }
+
+    /// Prints every catalog entry that differs from the fresh reference.
+    fn report_catalog_drift(label: &str, reference: &BTreeMap<String, String>, observed: &BTreeMap<String, String>) {
+        for (key, expected) in reference {
+            match observed.get(key) {
+                Some(actual) if actual == expected => {}
+                Some(actual) => eprintln!("{label} DRIFT {key}\n  fresh:    {expected}\n  observed: {actual}"),
+                None => eprintln!("{label} MISSING {key}"),
+            }
+        }
+        for key in observed.keys() {
+            if !reference.contains_key(key) {
+                eprintln!("{label} EXTRA {key}");
+            }
+        }
+    }
+
     #[tokio::test]
     async fn mt139_current_schema_info_pin_matches_fresh_mem_catalog() {
         let client = Surreal::new::<Mem>(()).await.expect("open memory store");
@@ -3173,6 +3498,40 @@ mod tests {
             .contains("family_key: 'rich_document_title_anchors', table_name: 'knowledge_rich_document_title_anchors'"));
     }
 
+    /// MT-151: same pin as `mt142_title_anchor_upgrade_statements_match_schema` for the
+    /// journal-key and graph-anchor DDL; statements are compared whitespace-normalised because
+    /// the fresh script and the upgrade both carry the multi-line `journal_key` VALUE verbatim.
+    #[test]
+    fn mt151_upgrade_statements_match_schema() {
+        fn statements(source: &str) -> Vec<String> {
+            source
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .split(';')
+                .map(|statement| statement.split_whitespace().collect::<Vec<_>>().join(" "))
+                .filter(|statement| statement.starts_with("DEFINE "))
+                .collect()
+        }
+        let mut upgrade = statements(MT151_JOURNAL_KEY_MATERIALISE_STATEMENTS);
+        upgrade.extend(statements(MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS));
+        assert_eq!(upgrade.len(), 9);
+        let schema = statements(SCHEMA);
+        for statement in &upgrade {
+            assert!(
+                schema.iter().any(|schema_statement| schema_statement == statement),
+                "MT-151 upgrade DDL drifted from schema.surql: {statement}"
+            );
+        }
+        assert!(MT151_JOURNAL_KEY_MATERIALISE_STATEMENTS.contains(
+            "UPDATE loom_blocks SET updated_at = updated_at WHERE content_type = 'journal' AND journal_date != NONE RETURN NONE;"
+        ));
+        assert!(TABLE_NAMES.contains(&"storage_graph_anchors"));
+        assert_ne!(PRE_MT151_GENERATED_SURREALQL_SHA256, GENERATED_SURREALQL_SHA256);
+        assert_ne!(PRE_MT151_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
+    }
+
     #[test]
     fn predecessor_registry_hash_rejects_changed_nonempty_retired_source() {
         let expected = expected_predecessor_registry_metadata()
@@ -3350,7 +3709,7 @@ mod tests {
             )));
         }
         assert!(SCHEMA.contains(
-            "record::exists(type::record('atelier_source_evidence_record', [$this.matrix_id, $value]))"
+            "$value = type::record('atelier_source_evidence_record', [$this.matrix_id, record::id($value)[1]])"
         ));
         assert!(SCHEMA.contains("cascade_atelier_source_evidence_record"));
         assert!(!SCHEMA.contains("apply_state = 'applying'"));
@@ -3556,6 +3915,189 @@ mod tests {
             })
             .await
             .expect("verify exact-current durable reopen after upgrade");
+        current.shutdown().await.expect("close current store");
+    }
+
+    /// MT-151: a store at the exact MT-142 pin (the current script minus the MT-151 blocks,
+    /// proven byte-exact against `PRE_MT151_GENERATED_SURREALQL_SHA256`) holding a journal
+    /// block is upgraded in place: the journal key is materialised on the existing row, the
+    /// UNIQUE index then rejects a second journal for that date, `storage_graph_anchors`
+    /// exists, the live fingerprint is the current pin, and the state survives a reopen.
+    #[tokio::test]
+    async fn mt151_exact_mt142_pin_upgrade_materialises_journal_key_and_restarts_current() {
+        const JOURNAL_KEY_BLOCK: &str = concat!(
+            "-- MT-151 journal_key: stored discriminator for the journal get-or-create natural key\n",
+            "-- (workspace, journal_date). NONE for every non-journal row, and the engine skips NONE\n",
+            "-- tuples in UNIQUE indexes (surrealdb-core-3.2.0/src/idx/index.rs:193-197), so only\n",
+            "-- journal blocks are constrained. Guards the invariant LOOM_MUTATION_LOCK alone used to\n",
+            "-- hold, on every write path (get-or-create, create, update.journal_date).\n",
+            "DEFINE FIELD OVERWRITE journal_key ON TABLE loom_blocks TYPE option<string>\n",
+            "    VALUE IF $this.content_type = 'journal' AND $this.journal_date != NONE {\n",
+            "        type::string($this.workspace_id) + '|' + $this.journal_date\n",
+            "    } ELSE {\n",
+            "        NONE\n",
+            "    };\n",
+        );
+        const JOURNAL_INDEX_LINE: &str =
+            "DEFINE INDEX OVERWRITE uq_loom_blocks_journal_key ON TABLE loom_blocks FIELDS journal_key UNIQUE;\n";
+        const GRAPH_ANCHORS_BLOCK: &str = concat!(
+            "\n-- MT-151 storage_graph_anchors: one version row per graph whose acyclicity is decided\n",
+            "-- Rust-side (the Loom folder tree per workspace, the work-packet dependency graph).\n",
+            "-- The deciding operation reads the version before its graph read and compare-and-sets\n",
+            "-- it inside the committing transaction (THROW on mismatch, UPSERT to bump), so a\n",
+            "-- decision against a stale graph fails closed and two writers that overlap in the\n",
+            "-- engine collide on this one key at commit. A serialization device, not domain data.\n",
+            "DEFINE TABLE OVERWRITE storage_graph_anchors SCHEMAFULL PERMISSIONS NONE;\n",
+            "DEFINE FIELD OVERWRITE anchor_key ON TABLE storage_graph_anchors TYPE string ASSERT $value = record::id($this.id);\n",
+            "DEFINE FIELD OVERWRITE graph_kind ON TABLE storage_graph_anchors TYPE 'loom_folder_tree' | 'work_packet_dependencies';\n",
+            "DEFINE FIELD OVERWRITE scope_key ON TABLE storage_graph_anchors TYPE string ASSERT string::trim($value) != '';\n",
+            "DEFINE FIELD OVERWRITE version ON TABLE storage_graph_anchors TYPE int ASSERT $value >= 1;\n",
+            "DEFINE FIELD OVERWRITE updated_at ON TABLE storage_graph_anchors TYPE datetime DEFAULT time::now();\n",
+            "DEFINE INDEX OVERWRITE pk_storage_graph_anchors ON TABLE storage_graph_anchors FIELDS anchor_key UNIQUE;\n",
+        );
+        for block in [JOURNAL_KEY_BLOCK, JOURNAL_INDEX_LINE, GRAPH_ANCHORS_BLOCK] {
+            assert_eq!(SCHEMA.matches(block).count(), 1, "MT-151 block drifted: {block}");
+        }
+        let mt142_pin_schema = SCHEMA
+            .replace(JOURNAL_KEY_BLOCK, "")
+            .replace(JOURNAL_INDEX_LINE, "")
+            .replace(GRAPH_ANCHORS_BLOCK, "");
+        assert_eq!(
+            sha256_hex(mt142_pin_schema.as_bytes()),
+            PRE_MT151_GENERATED_SURREALQL_SHA256,
+            "the pre-MT-151 allowlist must be exactly the current script minus the MT-151 blocks"
+        );
+
+        let directory = tempfile::tempdir().expect("temporary MT-142-pin store");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open MT-142-pin store");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_bound(
+                            mt142_pin_schema.as_str(),
+                            BootstrapBindings {
+                                schema_version: SCHEMA_VERSION.to_owned(),
+                                schema_revision: SCHEMA_REVISION,
+                                namespace: DEFAULT_NAMESPACE.to_owned(),
+                                database: DEFAULT_DATABASE.to_owned(),
+                                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                                generated_surql_sha256: PRE_MT151_GENERATED_SURREALQL_SHA256
+                                    .to_owned(),
+                            },
+                        )
+                        .await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET \
+                             info_fingerprint_sha256 = '{PRE_MT151_SCHEMA_INFO_SHA256}', \
+                             apply_state = 'complete', updated_at = time::now(); \
+                             CREATE workspaces:mt151_pin CONTENT {{ name: 'sentinel' }}; \
+                             CREATE loom_blocks:mt151_journal CONTENT {{ block_id: 'mt151_journal', \
+                             workspace_id: workspaces:mt151_pin, content_type: 'journal', \
+                             title: 'Daily Note 2026-09-11', journal_date: '2026-09-11' }};"
+                        ))
+                        .await?
+                        .check()?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("construct exact MT-142-pin store with a journal block");
+        storage.shutdown().await.expect("close MT-142-pin store");
+
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen MT-142-pin store");
+        let upgraded = match bootstrap_schema(&reopened).await {
+            Ok(report) => report,
+            Err(error) => {
+                let reference = fresh_mem_catalog().await;
+                let observed = reopened
+                    .with_admin_operation(|database| {
+                        Box::pin(async move { canonical_catalog(&database).await })
+                    })
+                    .await
+                    .expect("inspect the failed upgrade");
+                report_catalog_drift("MT151_UPGRADE", &reference, &observed);
+                panic!("upgrade exact MT-142-pin store: {error}");
+            }
+        };
+        assert!(upgraded.reused_existing_schema);
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        reopened
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut materialised = database
+                        .query("RETURN loom_blocks:mt151_journal.journal_key;")
+                        .await?;
+                    let journal_key: Option<String> = materialised.take(0)?;
+                    assert_eq!(
+                        journal_key.as_deref(),
+                        Some("workspaces:mt151_pin|2026-09-11"),
+                        "the upgrade must materialise journal_key on the existing journal row"
+                    );
+                    let duplicate = database
+                        .query(
+                            "CREATE loom_blocks:mt151_duplicate CONTENT { block_id: 'mt151_duplicate', \
+                             workspace_id: workspaces:mt151_pin, content_type: 'journal', \
+                             title: 'Daily Note 2026-09-11', journal_date: '2026-09-11' };",
+                        )
+                        .await
+                        .and_then(|response| Ok(response.check()?));
+                    let rendered = duplicate
+                        .err()
+                        .map(|error| error.to_string())
+                        .unwrap_or_default();
+                    assert!(
+                        rendered.contains("uq_loom_blocks_journal_key"),
+                        "a second journal for the date must lose to the upgraded index: {rendered}"
+                    );
+                    let mut anchors = database
+                        .query("INFO FOR TABLE storage_graph_anchors STRUCTURE;")
+                        .await?;
+                    let info: SurrealValueData = anchors.take(0)?;
+                    let fields = parse_named_array(&info, "fields")
+                        .unwrap_or_else(|reason| panic!("invalid anchors INFO: {reason}"));
+                    assert!(fields.iter().any(|field| field == "version"));
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify upgraded journal key, index and anchors table");
+        reopened.shutdown().await.expect("close upgraded store");
+
+        let current = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded store");
+        current
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("upgraded state survives reopen");
+                    assert!(state.is_exact_current());
+                    let mut sentinel = database
+                        .query("RETURN workspaces:mt151_pin.name;")
+                        .await?;
+                    let name: Option<String> = sentinel.take(0)?;
+                    assert_eq!(name.as_deref(), Some("sentinel"));
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify exact-current durable reopen after the MT-151 upgrade");
         current.shutdown().await.expect("close current store");
     }
 
@@ -3905,7 +4447,7 @@ mod tests {
                         .query(
                             "CREATE work_packets:wp_identity SET \
                              wp_id = 'wp_identity', version = 1, title = 'Identity', \
-                             status = 'ready', priority = 1, task_board_status = 'ready', \
+                             status = 'ready', priority = 1, task_board_status = 'READY', \
                              reporter = 'test', created_at = 'now', updated_at = 'now', \
                              vector_clock = '{}', metadata = '{}';",
                         )

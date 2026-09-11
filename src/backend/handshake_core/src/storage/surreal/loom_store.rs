@@ -38,7 +38,66 @@ const COLLECTIONS_TABLE: &str = "loom_collections";
 /// The embedded database is single-process. Serializing Loom read-decide-write
 /// paths prevents unique-index losers and metric lost updates while retaining
 /// the relational backend's transaction semantics.
+///
+/// MT-151 (RESIDUAL-MT142-EARLY-LOCK-RELEASE-ON-STATEMENT-TIMEOUT): the caller-side
+/// statement bound in `SurrealStorage::with_data_operation` drops this guard when it
+/// times out while the abandoned statement may still be live in the engine, so the
+/// lock alone no longer serializes a read-decide-write against that statement. Every
+/// invariant this lock guards is therefore also owned database-side: record identity
+/// by `pk_loom_blocks` / `pk_loom_edges`, the journal get-or-create natural key by
+/// `uq_loom_blocks_journal_key` (schema.surql, `journal_key`), counters by in-statement
+/// `array::len` recomputes, folder acyclicity by the `storage_graph_anchors`
+/// compare-and-set (see `update_loom_folder`). The lock remains a contention shaper.
 static LOOM_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
+
+/// Acquires [`LOOM_MUTATION_LOCK`]; `None` only inside the MT-151 race-proof bypass scope.
+async fn loom_mutation_guard() -> Option<tokio::sync::MutexGuard<'static, ()>> {
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    if super::keyed_lock::static_lock_test_support::static_mutation_locks_bypassed() {
+        return None;
+    }
+    Some(LOOM_MUTATION_LOCK.lock().await)
+}
+
+/// MT-151 race-proof pause point between a read-decide step and its transaction; a no-op
+/// outside `static_lock_test_support::with_pause_after_decision`.
+async fn pause_after_decision() {
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    super::keyed_lock::static_lock_test_support::pause_after_decision().await;
+}
+
+const GRAPH_ANCHORS_TABLE: &str = "storage_graph_anchors";
+const FOLDER_TREE_GRAPH_KIND: &str = "loom_folder_tree";
+
+/// Record id of the per-workspace folder-tree version anchor (MT-151).
+fn folder_tree_anchor(workspace_id: &str) -> RecordId {
+    thing(
+        GRAPH_ANCHORS_TABLE,
+        format!("{FOLDER_TREE_GRAPH_KIND}|{workspace_id}"),
+    )
+}
+
+#[derive(SurrealValue)]
+struct AnchorVersionBinding {
+    anchor: RecordId,
+}
+
+/// Current version of a graph anchor, `0` before its first bump. Read BEFORE the graph
+/// itself so any commit that lands after this read is caught by the in-transaction
+/// compare-and-set.
+async fn read_graph_anchor_version(
+    db: &SurrealDataContext<'_>,
+    anchor: RecordId,
+) -> StorageResult<i64> {
+    let versions = db
+        .query_values::<i64, _>(
+            "SELECT VALUE version FROM $anchor;",
+            AnchorVersionBinding { anchor },
+        )
+        .await
+        .map_err(map_err)?;
+    Ok(versions.into_iter().next().unwrap_or(0))
+}
 
 fn map_err(error: SurrealStorageError) -> StorageError {
     StorageError::Database(error.to_string())
@@ -62,9 +121,35 @@ fn guarded_err(error: SurrealStorageError) -> StorageError {
         StorageError::NotFound("media_asset_tier")
     } else if rendered.contains("uq_loom_folders_sibling_name") {
         StorageError::Conflict("loom_folder_sibling_name")
+    } else if rendered.contains("uq_loom_blocks_journal_key") {
+        StorageError::Conflict("loom_journal_date_exists")
+    } else if rendered.contains("HSK-LOOM-FOLDER-TREE-STALE") {
+        StorageError::Conflict("loom_folder_tree_changed_concurrently")
     } else {
         StorageError::Database(rendered)
     }
+}
+
+/// `guarded_err` plus the engine's commit-time write-write conflict for the journal
+/// get-or-create: two creators of one (workspace, date) that overlap in the engine both
+/// insert the same `uq_loom_blocks_journal_key` entry and the second collides at commit
+/// before the index's own violation text can fire; every other key this transaction
+/// writes is a fresh record id, so the conflict can only be the journal key (MT-151).
+fn journal_create_err(error: SurrealStorageError) -> StorageError {
+    if super::retry::message_marks_transaction_conflict(&error.to_string()) {
+        return StorageError::Conflict("loom_journal_date_exists");
+    }
+    guarded_err(error)
+}
+
+/// `guarded_err` plus the engine's commit-time write-write conflict, which is the typed
+/// outcome for the loser of two reparent transactions that overlap in the engine (both
+/// UPSERT the same `storage_graph_anchors` row; MT-151).
+fn folder_tree_err(error: SurrealStorageError) -> StorageError {
+    if super::retry::message_marks_transaction_conflict(&error.to_string()) {
+        return StorageError::Conflict("loom_folder_tree_changed_concurrently");
+    }
+    guarded_err(error)
 }
 
 fn require_guarded_resource(metadata: &MutationMetadata, resource_id: &str) -> StorageResult<()> {
@@ -303,7 +388,7 @@ pub(crate) async fn upsert_media_tier(
     db: &SurrealDataContext<'_>,
     upsert: MediaTierUpsert,
 ) -> StorageResult<MediaAssetTier> {
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let row_id = format!("{}--{}", upsert.asset_id, upsert.tier.as_str());
     let result = db
         .query_first::<MediaTierRow, _>(
@@ -561,7 +646,7 @@ pub(crate) async fn set_loom_collection_order(
     if asset_ids.iter().collect::<HashSet<_>>().len() != asset_ids.len() {
         return Err(StorageError::Conflict("duplicate loom collection asset"));
     }
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let collection = thing(COLLECTIONS_TABLE, collection_id);
     let members = asset_ids
         .iter()
@@ -758,7 +843,7 @@ pub(crate) async fn create_loom_block(
         ));
     }
     require_guarded_resource(&metadata, &id)?;
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let preview = LoomBlock {
         block_id: id.clone(),
         workspace_id: block.workspace_id.clone(),
@@ -792,7 +877,7 @@ pub(crate) async fn create_loom_block(
             1,
         )
         .await
-        .map_err(map_err)?
+        .map_err(guarded_err)?
         .into_iter()
         .next()
         .ok_or_else(|| StorageError::Database("loom block create returned no row".to_owned()))?;
@@ -813,7 +898,7 @@ pub(crate) async fn get_or_create_daily_journal_block(
     metadata: MutationMetadata,
 ) -> StorageResult<LoomBlock> {
     require_guarded_resource(&metadata, &new_block_id)?;
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     if let Some(row) = db
         .query_first::<BlockRow, _>(
             "SELECT * FROM loom_blocks WHERE workspace_id = $workspace AND content_type = 'journal' AND journal_date = $journal_date LIMIT 1;",
@@ -827,6 +912,7 @@ pub(crate) async fn get_or_create_daily_journal_block(
     {
         return block_to_domain(row);
     }
+    pause_after_decision().await;
     let title = format!("Daily Note {journal_date}");
     let mut derived = LoomBlockDerived::default();
     derived.full_text_index = Some(format!("# {title}\n\n"));
@@ -879,7 +965,7 @@ pub(crate) async fn get_or_create_daily_journal_block(
             1,
         )
         .await
-        .map_err(map_err)?
+        .map_err(journal_create_err)?
         .into_iter()
         .next()
         .ok_or_else(|| StorageError::Database("journal create returned no row".to_owned()))?;
@@ -969,7 +1055,7 @@ pub(crate) async fn update_loom_block(
     metadata: MutationMetadata,
 ) -> StorageResult<LoomBlock> {
     require_guarded_resource(&metadata, block_id)?;
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let existing = get_loom_block(db, workspace_id, block_id).await?;
     let mut projected = existing.clone();
     if let Some(value) = update.title.clone() {
@@ -1075,22 +1161,16 @@ pub(crate) async fn delete_loom_block(
     workspace_id: &str,
     block_id: &str,
 ) -> StorageResult<()> {
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
-    let affected: Vec<RecordId> = list_loom_edges_for_block(db, workspace_id, block_id)
-        .await?
-        .into_iter()
-        .flat_map(|edge| [edge.source_block_id, edge.target_block_id])
-        .filter(|id| id != block_id)
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .map(|id| thing(BLOCKS_TABLE, id))
-        .collect();
+    let _guard = loom_mutation_guard().await;
+    // MT-151: the neighbour set is computed inside the transaction (same snapshot as the
+    // DELETE) instead of from a Rust pre-read, so an edge committed between the two is
+    // never left with a stale count; an edge writer still in flight collides on this
+    // block's record at commit (its count UPDATE writes the key this DELETE removes).
     db.execute_returning(
-        "BEGIN TRANSACTION; IF (SELECT VALUE id FROM $record WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-NOT-FOUND'; }; DELETE $record RETURN BEFORE; FOR $block IN $affected { UPDATE $block SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $block AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $block AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $block AND edge_type IN ['mention', 'tag'])); }; COMMIT TRANSACTION;",
+        "BEGIN TRANSACTION; IF (SELECT VALUE id FROM $record WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-NOT-FOUND'; }; LET $affected = array::distinct(array::flatten((SELECT VALUE [source_block_id, target_block_id] FROM loom_edges WHERE workspace_id = $workspace AND (source_block_id = $record OR target_block_id = $record)))); DELETE $record RETURN BEFORE; FOR $block IN $affected { IF $block != $record { UPDATE $block SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $block AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $block AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $block AND edge_type IN ['mention', 'tag'])); }; }; COMMIT TRANSACTION;",
         DeleteBlockBinding {
             workspace: thing("workspaces", workspace_id),
             record: thing(BLOCKS_TABLE, block_id),
-            affected,
         },
     )
     .await
@@ -1102,7 +1182,6 @@ pub(crate) async fn delete_loom_block(
 struct DeleteBlockBinding {
     workspace: RecordId,
     record: RecordId,
-    affected: Vec<RecordId>,
 }
 
 #[derive(SurrealValue)]
@@ -1195,7 +1274,7 @@ pub(crate) async fn create_loom_edge(
     edge: NewLoomEdge,
     metadata: MutationMetadata,
 ) -> StorageResult<LoomEdge> {
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let id = edge
         .edge_id
         .clone()
@@ -1257,7 +1336,7 @@ pub(crate) async fn delete_loom_edge(
     workspace_id: &str,
     edge_id: &str,
 ) -> StorageResult<LoomEdge> {
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let existing = db
         .query_first::<EdgeRow, _>(
             "SELECT * FROM $record WHERE workspace_id = $workspace LIMIT 1;",
@@ -1450,7 +1529,7 @@ pub(crate) async fn recompute_all_metrics(
     db: &SurrealDataContext<'_>,
     workspace_id: &str,
 ) -> StorageResult<()> {
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let block_ids: Vec<_> = workspace_blocks(db, workspace_id)
         .await?
         .into_iter()
@@ -3047,7 +3126,7 @@ async fn mutate_pin(
     metadata: MutationMetadata,
 ) -> StorageResult<(LoomBlock, LoomMutationEventReceipt)> {
     require_guarded_resource(&metadata, block_id)?;
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let event = build_loom_mutation_event(
         workspace_id,
         "loom_block",
@@ -3204,7 +3283,7 @@ pub(crate) async fn create_loom_folder(
     workspace_id: &str,
     folder: NewLoomFolder,
 ) -> StorageResult<LoomFolder> {
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     let name = folder.name.trim();
     if name.is_empty() {
         return Err(StorageError::Validation("loom folder name is required"));
@@ -3332,16 +3411,33 @@ struct FolderUpdateBinding {
     set_project_ref: bool,
     project_ref: Option<String>,
     ledger: event_ledger::LedgerWrite,
+    /// MT-151: the folder-tree anchor and the version the cycle walk was decided against.
+    reparent: bool,
+    anchor: RecordId,
+    anchor_key: String,
+    graph_kind: String,
+    scope_key: String,
+    expected_anchor_version: i64,
 }
 
+/// Re-parenting decides acyclicity from a Rust-side walk over `list_loom_folders`. MT-151:
+/// that decision is bound to the per-workspace `storage_graph_anchors` version read BEFORE
+/// the walk and compare-and-set inside the transaction, so a reparent committed after the
+/// read fails closed (`HSK-LOOM-FOLDER-TREE-STALE`) and two reparents overlapping in the
+/// engine collide on the anchor row at commit; both surface as
+/// `Conflict("loom_folder_tree_changed_concurrently")`. Non-reparent updates keep the
+/// version they read and never bump it.
 pub(crate) async fn update_loom_folder(
     db: &SurrealDataContext<'_>,
     workspace_id: &str,
     folder_id: &str,
     update: LoomFolderUpdate,
 ) -> StorageResult<LoomFolder> {
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     get_loom_folder(db, workspace_id, folder_id).await?;
+    let anchor = folder_tree_anchor(workspace_id);
+    let expected_anchor_version = read_graph_anchor_version(db, anchor.clone()).await?;
+    let reparent = matches!(update.parent_folder_id, Some(Some(_)));
     if let Some(Some(parent_id)) = update.parent_folder_id.as_ref() {
         if parent_id == folder_id {
             return Err(StorageError::Validation(
@@ -3369,6 +3465,7 @@ pub(crate) async fn update_loom_folder(
             }
             current = parents.get(&candidate).cloned().flatten();
         }
+        pause_after_decision().await;
     }
     let name = update.name.as_deref().map(str::trim);
     if name.is_some_and(str::is_empty) {
@@ -3385,6 +3482,11 @@ pub(crate) async fn update_loom_folder(
                 CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, created_at: $ledger.created_at }; \
              }; \
              UPDATE $folder SET name = $name ?? name, color = IF $set_color { $color } ELSE { color }, sort_mode = $sort_mode ?? sort_mode, sort_order = IF $set_sort_order { $sort_order } ELSE { sort_order }, parent_folder_id = IF $set_parent { $parent } ELSE { parent_folder_id }, project_ref = IF $set_project_ref { $project_ref } ELSE { project_ref }, event_ledger_event_id = $ledger.record, updated_at = time::now() RETURN AFTER; \
+             IF $reparent { \
+                LET $anchor_version = (SELECT VALUE version FROM $anchor)[0] ?? 0; \
+                IF $anchor_version != $expected_anchor_version { THROW 'HSK-LOOM-FOLDER-TREE-STALE'; }; \
+                UPSERT $anchor SET anchor_key = $anchor_key, graph_kind = $graph_kind, scope_key = $scope_key, version = $anchor_version + 1, updated_at = time::now(); \
+             }; \
              COMMIT TRANSACTION;",
             FolderUpdateBinding {
                 folder: thing("loom_folders", folder_id),
@@ -3408,11 +3510,17 @@ pub(crate) async fn update_loom_folder(
                 set_project_ref: update.project_ref.is_some(),
                 project_ref: update.project_ref.flatten(),
                 ledger,
+                reparent,
+                anchor_key: format!("{FOLDER_TREE_GRAPH_KIND}|{workspace_id}"),
+                anchor,
+                graph_kind: FOLDER_TREE_GRAPH_KIND.to_owned(),
+                scope_key: workspace_id.to_owned(),
+                expected_anchor_version,
             },
             3,
         )
         .await
-        .map_err(guarded_err)?;
+        .map_err(folder_tree_err)?;
     rows.into_iter()
         .next()
         .ok_or(StorageError::NotFound("loom_folder"))
@@ -3434,7 +3542,7 @@ pub(crate) async fn delete_loom_folder(
     let event =
         build_loom_mutation_event(workspace_id, "loom_folder", folder_id, "delete", json!({}))?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     db.query_values_at::<JsonValue, _>(
         "BEGIN TRANSACTION; \
          LET $deleted = (DELETE $folder WHERE workspace_id = $workspace RETURN BEFORE); \
@@ -3472,7 +3580,7 @@ pub(crate) async fn add_block_to_loom_folder(
     block_id: &str,
     sort_order: Option<i32>,
 ) -> StorageResult<()> {
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     get_loom_folder(db, workspace_id, folder_id).await?;
     get_loom_block(db, workspace_id, block_id).await?;
     let event = build_loom_mutation_event(
@@ -3522,7 +3630,7 @@ pub(crate) async fn remove_block_from_loom_folder(
         json!({ "block_id": block_id }),
     )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
-    let _guard = LOOM_MUTATION_LOCK.lock().await;
+    let _guard = loom_mutation_guard().await;
     db.query_values_at::<JsonValue, _>(
         "BEGIN TRANSACTION; \
          LET $deleted = (DELETE loom_folder_members WHERE workspace_id = $workspace AND folder_id = $folder AND block_id = $block RETURN BEFORE); \

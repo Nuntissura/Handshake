@@ -676,8 +676,8 @@ fn page_atelier_storage_authority() -> NewUserManualPage {
                 "Where the SurrealDB schema comes from",
                 "`storage/surreal/schema.surql` is the sole declarative schema authority. Startup \
                  proves its exact bytes against a pinned SHA-256, parses the same source into a \
-                 sorted semantic catalog, and verifies exact identities and counts for 282 tables, \
-                 3,320 authored fields, 795 indexes, 19 events, two views, and two sequences. The \
+                 sorted semantic catalog, and verifies exact identities and counts for 283 tables, \
+                 3,326 authored fields, 797 indexes, 19 events, two views, and two sequences. The \
                  live catalog is then read from the pinned SurrealDB 3.2 engine and compared with an \
                  exact structured fingerprint. A fresh embedded RocksDB bootstrap, adversarial \
                  catalog mutations, shutdown, reopen, and unchanged-fingerprint checks prove that \
@@ -689,7 +689,10 @@ fn page_atelier_storage_authority() -> NewUserManualPage {
                  0343 support-table registry row and the MT-142 `knowledge_rich_document_title_anchors` \
                  table with its registry row for a final exact 63-row registry, removes the \
                  retired field, preserves \
-                 application records, and reports `upgraded_supported_predecessor`. Every other \
+                 application records, and reports `upgraded_supported_predecessor`. Stores at the \
+                 MT-142 pin gain the MT-151 `loom_blocks.journal_key` UNIQUE index (materialised \
+                 on existing journal rows first) and the `storage_graph_anchors` table in place \
+                 through the same exact-state-guarded transaction. Every other \
                  predecessor or divergent lineage is rejected. Registry value \
                  `storage/surreal/schema.surql` is relative to the crate source root \
                  `src/backend/handshake_core/src`, resolving repo-wide to \
@@ -706,6 +709,7 @@ fn page_atelier_storage_authority() -> NewUserManualPage {
                         "allowlist": "exact_state_schema_info_and_61_row_predecessor_registry_sha256",
                         "registry_rewrite": "61_historical_migration_file_rows_to_63_current_schema_source_rows",
                         "pre_mt142_lineage": "revision_157_stores_gain_knowledge_rich_document_title_anchors_in_place",
+                        "pre_mt151_lineage": "mt142_pin_stores_gain_loom_blocks_journal_key_and_storage_graph_anchors_in_place",
                         "ordinary_application_records": "preserved",
                         "reported_outcome": "upgraded_supported_predecessor",
                         "all_other_lineages": "rejected"
@@ -716,9 +720,9 @@ fn page_atelier_storage_authority() -> NewUserManualPage {
                         "live_engine_catalog_sha256"
                     ],
                     "catalog_counts": {
-                        "tables": 282,
-                        "authored_fields": 3320,
-                        "indexes": 795,
+                        "tables": 283,
+                        "authored_fields": 3326,
+                        "indexes": 797,
                         "events": 19,
                         "views": 2,
                         "sequences": 2
@@ -3395,9 +3399,10 @@ mod tests {
             "parsed_declarative_catalog_sha256",
             "live_engine_catalog_sha256",
             // MT-142 re-pin: knowledge_rich_document_title_anchors (+1 table, +7 fields, +2 indexes).
-            "282 tables",
-            "3,320 authored fields",
-            "795 indexes",
+            // MT-151 re-pin: storage_graph_anchors + loom_blocks.journal_key (+1 table, +6 fields, +2 indexes).
+            "283 tables",
+            "3,326 authored fields",
+            "797 indexes",
             "19 events",
             "surrealdb_3_2_0",
             "close/reopen",

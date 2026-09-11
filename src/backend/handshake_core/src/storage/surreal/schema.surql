@@ -443,7 +443,19 @@ DEFINE FIELD OVERWRITE preview_status ON TABLE loom_blocks TYPE 'none' | 'pendin
 DEFINE FIELD OVERWRITE thumbnail_asset_id ON TABLE loom_blocks TYPE option<record<assets>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
 DEFINE FIELD OVERWRITE proxy_asset_id ON TABLE loom_blocks TYPE option<record<assets>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
 DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE loom_blocks TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+-- MT-151 journal_key: stored discriminator for the journal get-or-create natural key
+-- (workspace, journal_date). NONE for every non-journal row, and the engine skips NONE
+-- tuples in UNIQUE indexes (surrealdb-core-3.2.0/src/idx/index.rs:193-197), so only
+-- journal blocks are constrained. Guards the invariant LOOM_MUTATION_LOCK alone used to
+-- hold, on every write path (get-or-create, create, update.journal_date).
+DEFINE FIELD OVERWRITE journal_key ON TABLE loom_blocks TYPE option<string>
+    VALUE IF $this.content_type = 'journal' AND $this.journal_date != NONE {
+        type::string($this.workspace_id) + '|' + $this.journal_date
+    } ELSE {
+        NONE
+    };
 DEFINE INDEX OVERWRITE pk_loom_blocks ON TABLE loom_blocks FIELDS block_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_loom_blocks_journal_key ON TABLE loom_blocks FIELDS journal_key UNIQUE;
 DEFINE INDEX OVERWRITE idx_loom_blocks_workspace_updated_at ON TABLE loom_blocks FIELDS workspace_id, updated_at;
 DEFINE INDEX OVERWRITE idx_loom_blocks_workspace_pinned ON TABLE loom_blocks FIELDS workspace_id, pinned;
 DEFINE INDEX OVERWRITE idx_loom_blocks_workspace_favorite ON TABLE loom_blocks FIELDS workspace_id, favorite;
@@ -4219,6 +4231,20 @@ DEFINE INDEX OVERWRITE pk_loom_folder_members ON TABLE loom_folder_members FIELD
 DEFINE INDEX OVERWRITE idx_loom_folder_members_block ON TABLE loom_folder_members FIELDS workspace_id, block_id;
 DEFINE INDEX OVERWRITE idx_loom_folder_members_folder_order ON TABLE loom_folder_members FIELDS folder_id, sort_order;
 DEFINE INDEX OVERWRITE idx_loom_folder_members_event ON TABLE loom_folder_members FIELDS event_ledger_event_id;
+
+-- MT-151 storage_graph_anchors: one version row per graph whose acyclicity is decided
+-- Rust-side (the Loom folder tree per workspace, the work-packet dependency graph).
+-- The deciding operation reads the version before its graph read and compare-and-sets
+-- it inside the committing transaction (THROW on mismatch, UPSERT to bump), so a
+-- decision against a stale graph fails closed and two writers that overlap in the
+-- engine collide on this one key at commit. A serialization device, not domain data.
+DEFINE TABLE OVERWRITE storage_graph_anchors SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE anchor_key ON TABLE storage_graph_anchors TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE graph_kind ON TABLE storage_graph_anchors TYPE 'loom_folder_tree' | 'work_packet_dependencies';
+DEFINE FIELD OVERWRITE scope_key ON TABLE storage_graph_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE version ON TABLE storage_graph_anchors TYPE int ASSERT $value >= 1;
+DEFINE FIELD OVERWRITE updated_at ON TABLE storage_graph_anchors TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_storage_graph_anchors ON TABLE storage_graph_anchors FIELDS anchor_key UNIQUE;
 
 -- 0295_loom_wiki_overlays
 DEFINE TABLE OVERWRITE loom_wiki_overlays SCHEMAFULL PERMISSIONS NONE;
