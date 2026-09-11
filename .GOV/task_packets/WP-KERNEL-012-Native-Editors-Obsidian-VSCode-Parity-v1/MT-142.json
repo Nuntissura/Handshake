@@ -508,7 +508,57 @@
         "evidence": "baseline run at 67ce701c: FAILED. 2 passed; 5 failed with the same five names and identical panics; logs D:/hs42/logs/baseline-67ce701c-20260910T183337Z.claims.*"
       }
     ],
-    "pre_existing_failures_carried_note": "Restored after an earlier phase-2 edit dropped the key; every entry is backed by the baseline run recorded in lifecycle.phase_2_20260910.baseline_run."
+    "pre_existing_failures_carried_note": "Restored after an earlier phase-2 edit dropped the key; every entry is backed by the baseline run recorded in lifecycle.phase_2_20260910.baseline_run.",
+    "round_2_remediation_a2": {
+      "at_utc": "2026-09-11T08:08:19.670Z",
+      "product_commit_base": "754c6757 plus uncommitted",
+      "major_r1_r2_open_item": {
+        "fix": "bounded SCHEDULING rather than attempt execution (preference 1). effective_deadline is now an explicit documented derivation: with a caller-supplied whole-operation deadline (one statement_timeout) that deadline is the wall-clock bound and maximum_elapsed governs only the ACCUMULATED BACKOFF; with no caller deadline maximum_elapsed remains the wall-clock bound so an unbounded caller can never run 8 slow attempts back to back.",
+        "contract_defaults": "RetryPolicy::CONTRACT untouched at 5 ms / 250 ms / 8 / 2000 ms exactly as retry_policy_requirements.defaults_to_validate pins them; contract_policy_matches_research_basis still asserts them",
+        "evidence_it_is_additive": "every pre-existing elapsed-bound test passes unchanged (maximum_elapsed_exhaustion_never_sleeps_past_the_bound, caller_deadline_exhausts_as_max_elapsed)",
+        "new_tests": [
+          "a_slow_attempt_still_gets_its_replay_under_a_caller_budget (5 s attempts, 2500x the backoff budget, still get their replay; returned attempts=1 under the old derivation)",
+          "accumulated_backoff_stays_within_maximum_elapsed"
+        ]
+      },
+      "diagnostic_split": {
+        "fix": "ExhaustionBound::NoRetryWindow (as_str no_retry_window) returned whenever a budget stop happens with attempts <= 1, mapped to a new conflict code HSK-STORAGE-NO-RETRY-WINDOW instead of HSK-STORAGE-RETRY-EXHAUSTED",
+        "why": "the contract structured_diagnostic_contract requires a no-context model to distinguish retry exhaustion from a load-budget regression; attempts=1 bound=max_elapsed previously said retried until the budget ran out when no retry was ever scheduled",
+        "no_new_storage_error_variant": "D-142-2 respected",
+        "test": "no_retry_window_is_reported_separately_from_exhaustion"
+      },
+      "minor_a": {
+        "fix": "with_data_operation refuses to dispatch on a zero remaining budget and returns SurrealStorageError::StatementBudgetExhausted { budget_ms }, whose message states the engine never received the statement, replacing the misleading StatementTimeout { waited_ms: 0 }",
+        "honest_gap": "this defensive branch has NO dedicated test; exercising it needs a live store and a ~6 minute fresh bootstrap, judged not worth the lane time and flagged rather than claimed as covered"
+      },
+      "proofs": {
+        "storage::surreal::retry": "ok. 28 passed; 0 failed",
+        "engine_conflict_retry_lane": "ok. 1 passed (236.15 s), SWARM_RETRY_LANE scheduled_total=219 scheduled_entity=171 scheduled_title=48 exhausted=0",
+        "not_obtained": "LIB storage::surreal::knowledge after a 4-line code-selection change - the lane was starved by the extended run and the filter aborted on the runner 60-minute cap; it was green at ok. 3 passed before that change and the tree compiles clean. TO RE-RUN before handoff.",
+        "warnings": "241 on every LIB run (pre-existing baseline); 261 on the integration run matching Lane B current baseline"
+      }
+    },
+    "residuals_and_follow_ons": [
+      {
+        "id": "FOLLOW-ON-MT142-TITLE-ANCHOR-RECLAMATION",
+        "severity": "MINOR",
+        "raised_by": "adversarial lens 1 round 2 (R2-2-3)",
+        "disposition": "ROUTED, not fixed - A2 judged it not cheap and gave a sound reason",
+        "reason": "a correct reclamation must delete the anchor only when no live document holds that title, which is itself a read-decide-write that would need anchoring; and a delete racing a create could remove the very row that serialises them, reintroducing the R1-1-2 window",
+        "growth_bound": "one row per distinct (workspace, normalized title) ever used, never per write; about 200 bytes per row, so 10000 distinct titles is roughly 2 MB. Rows are removed today only by the workspace cascade."
+      },
+      {
+        "id": "RESIDUAL-MT142-EARLY-LOCK-RELEASE-ON-STATEMENT-TIMEOUT",
+        "severity": "MAJOR",
+        "raised_by": "adversarial lens 1 round 2 (R2-2-4, flagged UNVERIFIED) and answered plainly by A2",
+        "disposition": "RECORDED AS A NEW RESIDUAL, not fixed in MT-142; the Integration Validator should see it",
+        "finding": "The caller-side statement bound now wraps EVERY store, so on a 300 s timeout the enclosing function returns and drops the LOOM_/CANVAS_/OVERLAY_/MARKDOWN_IMPORT_/WIKI_COMPILE_ mutex guard while the abandoned statement may still be live in the engine - the pinned SDK offers no cancellation, so nothing drains it.",
+        "safe_where": "sites whose invariant is also enforced database-side (UNIQUE index, THROW guard, CAS): the engine still arbitrates",
+        "unsafe_where": "any site whose invariant is LOCK-ONLY. The recon flags the Loom journal get-or-create and the Canvas/Wiki identity-choice paths as candidates, NOT audited. Those paths previously had no caller-side timeout at all, so this window is new.",
+        "likelihood": "bounded - only reached after a 300 s stall, where the alternative is an indefinite hang",
+        "recommended_disposition": "a follow-on that either routes those stores through the same guarded_mutation pattern (database-side guards plus bounded retry) or audits each site; D-142-1 scoped those locks out of this MT"
+      }
+    ]
   },
   "scope": {
     "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
@@ -797,5 +847,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T07:14:01.387Z"
+  "updated_at_utc": "2026-09-11T08:08:19.670Z"
 }
