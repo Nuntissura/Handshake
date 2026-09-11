@@ -91,7 +91,18 @@
         "harness_change": "tests/surreal_swarm_load_tests.rs: WorkloadConfig::extended clamps operations UP to 50000 (:169-171), so smaller runs would silently have run 50000. HANDSHAKE_SWARM_MEASUREMENT_ONLY=1 lifts only the operations clamp (workers and dataset stay clamped), uses the distinct profile extended-measurement and report file, records run_kind measurement/acceptance in effective_configuration, and skips the contract-minimum assertion with a printed marker. The acceptance path is unchanged.",
         "manual": "new section on the swarm page, Memory envelope of the embedded engine; the points live in MEMORY_ENVELOPE_CURVE and the classification is derived by a linear fit in the test, never hand-typed; knob evidence with file:line; the would-be trade-off (32 MiB x 4 buffers means more HDD flushes). LIB user_manual ok. 25 passed (mt142-LIB-20260911T183311Z)."
       }
-    }
+    },
+    "findings_20260911": [
+      {
+        "id": "FIND-152-ROOT-FOLDER-UNIQUENESS-NEVER-GUARDED",
+        "at_utc": "2026-09-11T21:07:20.646Z",
+        "found_by": "Lane L regression sweep (loom_folder_tests::duplicate_root_folder_names_are_rejected_per_workspace)",
+        "finding": "Root-folder name uniqueness was never database-guarded. uq_loom_folders_sibling_name (schema.surql:4219) is a plain composite UNIQUE on (workspace_id, parent_folder_id, name) with no discriminator for parent = NONE, and the pinned engine skips uniqueness for any tuple containing NONE (surrealdb-core-3.2.0/src/idx/index.rs:190-197, NULL != NULL). Nested siblings are guarded; roots are not.",
+        "audit_correction": "MT-151 lifecycle.i_151_4_audit recorded that index as the guard for folder sibling uniqueness. That record is WRONG for root folders. Corrected here; MT-151 is not edited because it validates at its pinned commit.",
+        "decision": "(a) database-side fix in MT-152: stored discriminator sibling_key = ws|parent-or-root|name with a plain UNIQUE (MT-151 journal_key pattern), set by create and rename, in-place upgrade with a deterministic backfill that disambiguates pre-existing duplicate roots by suffixing sibling_key only (never the visible name) and emitting one structured warning per collision; UNIQUE violation mapped to the existing Conflict(loom_folder_sibling_name). Rejected (b) key-only because it would leave a lock-only invariant, the class MT-151 removed.",
+        "open_question_for_lane_L": "the failing test is sequential and passed before the migration, so something rejected the duplicate then - most likely a Rust-side pre-check inside the formerly locked section removed on the assumption the index covered it; Lane L must name it"
+      }
+    ]
   },
   "scope": {
     "summary": "Four closures: (1) safe reclamation of knowledge_rich_document_title_anchors rows using the anchor row itself as the conflict key; (2) migrate the eight remaining product-data process-global storage mutexes onto the MT-142 primitives so disjoint records and workspaces no longer serialise; (3) turn the RSS finding into a measured answer and, if the engine exposes them, a bounded memory configuration; (4) audit FEMS_MUTATION_LOCK and STAGE_INSERT_LOCK under the caller-side statement bound the way MT-151 audited the others, and guard any lock-only invariant database-side.",
@@ -181,5 +192,5 @@
       "MT-151"
     ]
   },
-  "updated_at_utc": "2026-09-11T18:35:00.109Z"
+  "updated_at_utc": "2026-09-11T21:07:20.646Z"
 }
