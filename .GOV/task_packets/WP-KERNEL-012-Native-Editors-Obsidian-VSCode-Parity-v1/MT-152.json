@@ -90,6 +90,67 @@
         },
         "harness_change": "tests/surreal_swarm_load_tests.rs: WorkloadConfig::extended clamps operations UP to 50000 (:169-171), so smaller runs would silently have run 50000. HANDSHAKE_SWARM_MEASUREMENT_ONLY=1 lifts only the operations clamp (workers and dataset stay clamped), uses the distinct profile extended-measurement and report file, records run_kind measurement/acceptance in effective_configuration, and skips the contract-minimum assertion with a printed marker. The acceptance path is unchanged.",
         "manual": "new section on the swarm page, Memory envelope of the embedded engine; the points live in MEMORY_ENVELOPE_CURVE and the classification is derived by a linear fit in the test, never hand-typed; knob evidence with file:line; the would-be trade-off (32 MiB x 4 buffers means more HDD flushes). LIB user_manual ok. 25 passed (mt142-LIB-20260911T183311Z)."
+      },
+      "I-152-1": {
+        "status": "CLOSED",
+        "at_utc": "2026-09-11T21:56:41.653Z",
+        "rule": "knowledge.rs title_anchor_reclaim_statement :304-315 - UPSERT the anchor (so the key is in the write set even when absent), LET $anchor_live = count of live documents in the workspace whose normalized title equals the anchor's title_key, IF 0 THEN DELETE the anchor. Applied after tombstoning in delete_knowledge_rich_document_atomic (:2113-2115) and to the OLD title in rename (:4655-4660). Invariant documented on TitleAnchor (:232-264): an anchor row exists for a title iff at least one live document holds it, eventually, with the transient window bounded by one conflicting transaction.",
+        "proofs": "mt152_anchor_reclamation_tests ok. 4 passed (T183319Z, 137 s): delete-of-last-holder racing a create of the same title in both spawn orders, rename-away racing a create, plain delete of the last holder leaves zero anchors, two live documents sharing a title keep the anchor when one is deleted; two SurrealDatabase wrappers, one with the registry Disabled. knowledge_delete_title_race_tests ok. 1 passed (T212307Z).",
+        "assertion_change_by_spec": "knowledge_delete_title_race_tests phase 1 previously asserted a sole holder's anchor SURVIVES its rename or delete - the MT-142 behaviour. AC-152-1 changes that behaviour, so the assertion is re-targeted to 'reclaimed' (tests/knowledge_delete_title_race_tests.rs:346-364, 375-381); the phase-2 race is untouched. Recorded as a spec-driven change, not a weakening."
+      },
+      "I-152-4": {
+        "status": "CLOSED",
+        "at_utc": "2026-09-11T21:56:41.653Z",
+        "audit": [
+          {
+            "site": "fems_memory.rs:389 insert",
+            "invariant": "one proposal per (workspace, request_id); receipt idempotency",
+            "guard": "idx_fems_memory_proposals_ws_request, idx_kernel_event_ledger_idempotency, replay preflight inside the retry; workspace-delete ordering was LOCK-ONLY -> now the write anchor"
+          },
+          {
+            "site": "fems_memory.rs:541 review",
+            "invariant": "pending_review -> decision exactly once",
+            "guard": "HSK-FEMS-REVIEW-STATE CAS + uq_..._lifecycle_fr_outbox_proposal_event; plus the anchor"
+          },
+          {
+            "site": "fems_memory.rs:1391 commit",
+            "invariant": "approved -> committed exactly once; one item/report/pack",
+            "guard": "HSK-FEMS-COMMIT-STATE, pk_fems_memory_items, uq_fems_memory_commit_reports_proposal, pk_fems_memory_packs; plus the anchor"
+          },
+          {
+            "site": "fems_memory.rs:2274 upsert_memory_pack",
+            "invariant": "immutable pack per id",
+            "guard": "anchored create-if-absent (:2357) with the compare inside the retried closure"
+          },
+          {
+            "site": "fems_memory.rs:2484 upsert_memory_item",
+            "invariant": "item bound to one workspace",
+            "guard": "record-key write set + anchored UPSERT"
+          },
+          {
+            "site": "fems_memory.rs:3291 record_outbox_failure",
+            "invariant": "attempt_count monotonic",
+            "guard": "in-statement attempt_count = $expected CAS"
+          },
+          {
+            "site": "workspaces.rs:195 delete_workspace (formerly lock_fems_mutations)",
+            "invariant": "D-146-1 workspace-delete ordering",
+            "guard": "was LOCK-ONLY -> fems_workspace_write_anchors: every row-creating FEMS transaction UPSERTs the workspace anchor and the delete transaction UPSERTs then DELETEs the same key, so insert and delete collide at commit; the delete runs under bounded retry"
+          },
+          {
+            "site": "stage_artifacts.rs:196 insert",
+            "invariant": "one artifact per (workspace, idempotency_key), exact replay",
+            "guard": "uq_stage_capture_artifacts_idempotency + idx_kernel_event_ledger_idempotency confirmed; loser re-reads (:284-301)"
+          }
+        ],
+        "ddl": "new table fems_workspace_write_anchors (schema.surql:5006-5021, no REFERENCE); WORKSPACE_WRITE_ANCHOR_UPSERT literal (:117) proven byte-identical across its 6 uses by anchored_statements_embed_the_workspace_write_anchor; PRE_MT152 lineage hop (upgrade_pre_mt152_current schema.rs:2340, dispatch :1622) with the MT-152 statements also appended to the pre-MT-142 and pre-MT-151 upgrade paths; pins re-set.",
+        "statics_deleted": "FEMS_MUTATION_LOCK, lock_fems_mutations, STAGE_INSERT_LOCK - both stores now use SurrealDatabase::guarded_mutation via FemsMutationTarget (a SurrealStorage caller gets a Disabled registry, a SurrealDatabase caller its own); grep in src/ finds only comment tokens (schema.rs:3659, schema.surql:5013).",
+        "proofs": "mt152_fems_stage_guard_tests ok. 3 passed (T211531Z, 49.72 s); LIB storage::surreal::schema ok. 25 passed; LIB knowledge ok. 4 passed; knowledge_claims_tests ok. 7 passed (T212726Z, inspector-backed, pins agree). Warnings 241 on LIB runs.",
+        "hang_root_cause": "The 94-minute stall was a TEST-HARNESS artefact, not a product deadlock: the product-side pause hook pause_after_decision parks each racer on a two-party barrier before its transaction; after the two racers collided on the fems_workspace_write_anchors key (the guard working), the loser's bounded retry re-entered the closure and parked on the barrier a SECOND time while the winner had already left - a one-party wait on a cyclic two-party barrier, unbounded because the file had no bounds. Fix: the hook fires only on the first attempt (attempt counter in each closure: fems_memory.rs:81-92, 418-430, 524; workspaces.rs:11-22, 212-225; stage_artifacts.rs:36-47, 213-220, 375), so a retried attempt never touches the barrier and the interleaving cannot recur. Bounds added as in swarm_support; the first bounded rerun proved them by naming the store-open bound, which then moved to the template clone.",
+        "coverage_limits": [
+          "the D-146-1 race resolved insert-first in all 6 iterations (the delete retried and cascaded); the insert-loses ordering is proven only by the non-racing baseline test",
+          "api::memory::tests::proposal_delete_race_never_leaves_workspace_orphans (LIB, 8-16 min) was not rerun by the lane - the KERNEL_BUILDER runs it before handoff since it exercises the exact path changed"
+        ]
       }
     },
     "findings_20260911": [
@@ -196,5 +257,5 @@
       "MT-151"
     ]
   },
-  "updated_at_utc": "2026-09-11T21:49:21.708Z"
+  "updated_at_utc": "2026-09-11T21:56:41.653Z"
 }
