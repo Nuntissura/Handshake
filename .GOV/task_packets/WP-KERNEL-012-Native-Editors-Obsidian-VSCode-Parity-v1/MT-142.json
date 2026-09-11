@@ -489,7 +489,26 @@
         "projection": "about 50 minutes wall clock; under 1.6 h even if throughput halves as the dataset grows"
       },
       "contract_minimums_untouched": "worker_count 64 and operation_count 50000 unchanged; the CI profile untouched and green"
-    }
+    },
+    "pre_existing_failures_carried": [
+      {
+        "test": "storage::surreal::schema::tests::schema_contract_is_wave_scoped_and_identity_safe",
+        "evidence": "fails identically at base 67ce701c; the asserted substring occurs 0 times in schema.surql at HEAD while schema.rs asserts it"
+      },
+      {
+        "test": "storage::surreal::schema::tests::record_references_reject_orphans_and_preserve_identity_semantics",
+        "evidence": "fails identically at base 67ce701c (task_board_status lowercase ready against the uppercase enum)"
+      },
+      {
+        "test": "knowledge_documents_api_tests::mt032_delete_is_atomic_and_removes_canvas_references",
+        "evidence": "baseline run at 67ce701c reproduced the identical panic NotFound(loom_edge); delete_loom_edge keys by record id while the backlink projector creates edges with random record ids, and none of those surfaces changed in MT-142"
+      },
+      {
+        "test": "knowledge_claims_tests (5 tests: mt_057_passages::passage_creation_rejects_missing_or_ghost_lineage_without_persisting, mt_056_claims::claim_creation_and_retirement_reject_invalid_shapes_without_persisting, mt_056_claims::conflict_detection_and_receipt_backed_resolution, mt_056_claims::mt231_contradictory_claims_stay_conflicted_until_resolution_receipt, mt_056_claims::claim_lifecycle_rejects_backward_and_terminal_transitions_without_mutation)",
+        "evidence": "baseline run at 67ce701c: FAILED. 2 passed; 5 failed with the same five names and identical panics; logs D:/hs42/logs/baseline-67ce701c-20260910T183337Z.claims.*"
+      }
+    ],
+    "pre_existing_failures_carried_note": "Restored after an earlier phase-2 edit dropped the key; every entry is backed by the baseline run recorded in lifecycle.phase_2_20260910.baseline_run."
   },
   "scope": {
     "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
@@ -778,5 +797,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T07:12:53.949Z"
+  "updated_at_utc": "2026-09-11T07:14:01.387Z"
 }
