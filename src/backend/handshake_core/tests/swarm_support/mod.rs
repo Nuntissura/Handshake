@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
 use handshake_core::api::knowledge_documents as docs_api;
@@ -268,6 +268,12 @@ pub fn is_closed_error(error: &StorageError) -> bool {
 pub const RETRY_EXHAUSTED_CODE: &str = "HSK-STORAGE-RETRY-EXHAUSTED";
 /// Typed keyed-lock wait timeout code (`LOCK_WAIT_TIMEOUT_CONFLICT_CODE`).
 pub const LOCK_WAIT_TIMEOUT_CODE: &str = "HSK-STORAGE-LOCK-WAIT-TIMEOUT";
+/// Budget stop that never scheduled a retry (`ExhaustionBound::NoRetryWindow`):
+/// the first attempt alone consumed the whole retry budget, so a retryable
+/// conflict got ZERO replays. Review R3-1-1: this is a SATURATION signal, and
+/// filing it as ordinary expected contention would re-conflate the very states
+/// the product split apart.
+pub const NO_RETRY_WINDOW_CODE: &str = "HSK-STORAGE-NO-RETRY-WINDOW";
 
 fn conflict_code(error: &StorageError) -> Option<&str> {
     match error {
@@ -286,6 +292,11 @@ pub fn is_lock_wait_timeout(error: &StorageError) -> bool {
     conflict_code(error).is_some_and(|code| code == LOCK_WAIT_TIMEOUT_CODE)
 }
 
+/// True for a budget stop that never scheduled a retry (review R3-1-1).
+pub fn is_no_retry_window(error: &StorageError) -> bool {
+    conflict_code(error).is_some_and(|code| code == NO_RETRY_WINDOW_CODE)
+}
+
 /// Outcome of one bounded storage operation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OpOutcome {
@@ -295,6 +306,8 @@ pub enum OpOutcome {
     NotFound(String),
     Closed(String),
     RetryExhausted(String),
+    /// Budget stop with no retry scheduled: saturation, not contention.
+    NoRetryWindow(String),
     LockWaitTimeout(String),
     Terminal(String),
     Timeout,
@@ -314,6 +327,8 @@ impl OpOutcome {
     pub fn from_error(error: &StorageError) -> Self {
         if is_retry_exhausted(error) {
             Self::RetryExhausted(error.to_string())
+        } else if is_no_retry_window(error) {
+            Self::NoRetryWindow(error.to_string())
         } else if is_lock_wait_timeout(error) {
             Self::LockWaitTimeout(error.to_string())
         } else if is_typed_conflict(error) {
@@ -342,7 +357,14 @@ impl OpOutcome {
             Self::Ok => None,
             Self::Timeout => Some(FailureClass::Timeout),
             Self::Closed(_) => Some(FailureClass::Cancelled),
-            Self::RetryExhausted(_) => Some(FailureClass::RetryExhausted),
+            // A no-retry-window IS a retry-budget stop, so it shares the
+            // report's RetryExhausted bucket rather than needing a new variant
+            // in A2's frozen schema; `diagnostics.no_retry_window` keeps the
+            // two separable, and it never reaches the expected-contention
+            // bucket (review R3-1-1).
+            Self::RetryExhausted(_) | Self::NoRetryWindow(_) => {
+                Some(FailureClass::RetryExhausted)
+            }
             Self::LockWaitTimeout(_) => Some(FailureClass::LockWaitTimeout),
             Self::TypedConflict(_) | Self::NotFound(_) => {
                 Some(FailureClass::ExpectedStaleOrConflict)
@@ -377,6 +399,8 @@ pub struct SwarmMetrics {
     pub conflicts: u64,
     pub untyped_conflicts: Vec<String>,
     pub retry_exhausted_errors: Vec<String>,
+    /// Budget stops that never scheduled a retry (review R3-1-1).
+    pub no_retry_window_errors: Vec<String>,
     pub lock_wait_timeouts: Vec<String>,
     pub timeouts: u64,
     pub timed_out_classes: Vec<String>,
@@ -412,6 +436,9 @@ impl SwarmMetrics {
                 "worker {worker} op {operation} {class:?}: {text}"
             )),
             OpOutcome::RetryExhausted(text) => self.retry_exhausted_errors.push(format!(
+                "worker {worker} op {operation} {class:?}: {text}"
+            )),
+            OpOutcome::NoRetryWindow(text) => self.no_retry_window_errors.push(format!(
                 "worker {worker} op {operation} {class:?}: {text}"
             )),
             OpOutcome::LockWaitTimeout(text) => self.lock_wait_timeouts.push(format!(
@@ -452,6 +479,8 @@ impl SwarmMetrics {
         self.untyped_conflicts.extend(other.untyped_conflicts);
         self.retry_exhausted_errors
             .extend(other.retry_exhausted_errors);
+        self.no_retry_window_errors
+            .extend(other.no_retry_window_errors);
         self.lock_wait_timeouts.extend(other.lock_wait_timeouts);
         self.timeouts += other.timeouts;
         self.timed_out_classes.extend(other.timed_out_classes);
@@ -990,23 +1019,103 @@ pub fn machine_context(store_path: &Path) -> MachineContext {
     }
 }
 
-/// `git rev-parse --short=12 HEAD` of the crate's worktree, else `unknown`.
-pub fn source_commit() -> String {
+/// Provenance of the tree that produced an artifact (review R2-3-2).
+///
+/// An artifact that cannot be attributed to a known tree is not evidence. Two
+/// failure modes are closed here: a commit landing MID-RUN being attributed to
+/// the run (so this is sampled at run start, never at report assembly), and a
+/// dirty tree being reported as though it were its nearest commit (so
+/// uncommitted changes are marked in the commit string itself, where no reader
+/// can miss them).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceProvenance {
+    /// `<sha>`, or `<sha>-dirty` when the crate had uncommitted changes.
+    pub commit: String,
+    /// The bare commit, without the dirty marker.
+    pub head: String,
+    /// True when the CRATE had uncommitted changes, i.e. when the binary under
+    /// test may not correspond to `head`.
+    pub dirty: bool,
+    /// Uncommitted paths inside this crate (what can change the binary).
+    pub crate_changed_files: usize,
+    /// Uncommitted paths anywhere in the repository (context; governance and
+    /// other worktrees cannot change the binary).
+    pub repository_changed_files: usize,
+    /// When the sample was taken, so a later commit cannot be back-attributed.
+    pub sampled_at_utc: String,
+}
+
+fn git_lines(args: &[&str]) -> Option<Vec<String>> {
     let output = hidden_command("git")
-        .args(["rev-parse", "--short=12", "HEAD"])
+        .args(args)
         .current_dir(env!("CARGO_MANIFEST_DIR"))
-        .output();
-    match output {
-        Ok(output) if output.status.success() => {
-            let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-            if text.is_empty() {
-                "unknown".to_owned()
-            } else {
-                text
-            }
-        }
-        _ => "unknown".to_owned(),
+        .output()
+        .ok()?;
+    output.status.success().then(|| {
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(|line| line.trim_end().to_owned())
+            .filter(|line| !line.is_empty())
+            .collect()
+    })
+}
+
+/// Samples the producing tree's provenance. Call at RUN START.
+pub fn source_provenance() -> SourceProvenance {
+    let head = git_lines(&["rev-parse", "--short=12", "HEAD"])
+        .and_then(|lines| lines.into_iter().next())
+        .unwrap_or_else(|| "unknown".to_owned());
+    let crate_changed_files = git_lines(&["status", "--porcelain", "--", "."])
+        .map(|lines| lines.len())
+        .unwrap_or(0);
+    let repository_changed_files = git_lines(&["status", "--porcelain"])
+        .map(|lines| lines.len())
+        .unwrap_or(0);
+    let dirty = crate_changed_files > 0;
+    SourceProvenance {
+        commit: if dirty {
+            format!("{head}-dirty")
+        } else {
+            head.clone()
+        },
+        head,
+        dirty,
+        crate_changed_files,
+        repository_changed_files,
+        sampled_at_utc: utc_now_iso8601(),
     }
+}
+
+fn utc_now_iso8601() -> String {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or(0);
+    let (days, seconds_of_day) = ((now / 86_400) as i64, (now % 86_400) as i64);
+    // Civil-from-days (Howard Hinnant's algorithm), so the stamp needs no crate.
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        seconds_of_day / 3_600,
+        (seconds_of_day % 3_600) / 60,
+        seconds_of_day % 60
+    )
+}
+
+/// The producing tree's commit, carrying a `-dirty` marker when the crate had
+/// uncommitted changes. Prefer [`source_provenance`] where the full record can
+/// be emitted; this wrapper keeps the one-line fragments honest too.
+pub fn source_commit() -> String {
+    source_provenance().commit
 }
 
 /// Total size of the files under `path`, or `None` when it cannot be walked

@@ -1338,14 +1338,17 @@ async fn seed_documents(
 }
 
 async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
+    // Review R2-3-2: provenance is sampled at RUN START so a commit landing
+    // mid-run can never be attributed to this artifact.
+    let provenance = source_provenance();
     let diagnostics_owned = install_retry_diagnostics();
     clear_captured_product_events();
     let retry_before = retry_diagnostics_snapshot();
     let rss_before = process_rss_bytes();
     let run_id = new_run_id(&format!("mt142-{}", config.profile));
     println!(
-        "SWARM_SEED={} SWARM_RUN_ID={run_id} SWARM_PROFILE={} workers={} operations={} retry_diagnostics_owned={diagnostics_owned}",
-        config.seed, config.profile, config.workers, config.operations
+        "SWARM_SEED={} SWARM_RUN_ID={run_id} SWARM_PROFILE={} workers={} operations={} retry_diagnostics_owned={diagnostics_owned} source_commit={} dirty={}",
+        config.seed, config.profile, config.workers, config.operations, provenance.commit, provenance.dirty
     );
 
     // Bounded and measured: the store open is reported next to the budgets so
@@ -1633,6 +1636,15 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
             metrics.retry_exhausted_errors
         ));
     }
+    // Review R3-1-1: a budget stop that never scheduled a retry is a
+    // SATURATION signal, reported in its own right and never folded into
+    // expected contention.
+    if !metrics.no_retry_window_errors.is_empty() {
+        failures.push(format!(
+            "no-retry-window budget stops (the first attempt consumed the whole retry budget, so a retryable conflict got zero replays): {:?}",
+            metrics.no_retry_window_errors
+        ));
+    }
     if !metrics.untyped_conflicts.is_empty() {
         failures.push(format!(
             "raw engine conflicts leaked untyped: {:?}",
@@ -1694,7 +1706,9 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
         || !metrics.lock_wait_timeouts.is_empty()
     {
         IntegrityVerdict::Timeout
-    } else if !metrics.retry_exhausted_errors.is_empty() {
+    } else if !metrics.retry_exhausted_errors.is_empty()
+        || !metrics.no_retry_window_errors.is_empty()
+    {
         IntegrityVerdict::RetryExhausted
     } else if metrics.cancellations > 0 {
         IntegrityVerdict::Cancelled
@@ -1714,7 +1728,7 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
     let report = SwarmLoadReport {
         schema_id: SWARM_LOAD_REPORT_SCHEMA_ID.to_owned(),
         run_id: run_id.clone(),
-        source_commit: source_commit(),
+        source_commit: provenance.commit.clone(),
         surrealdb_version: SURREALDB_VERSION.to_owned(),
         sdk_version: SURREALDB_VERSION.to_owned(),
         engine_mode: EngineMode::EmbeddedRocksDb,
@@ -1765,9 +1779,25 @@ async fn run_profile(config: WorkloadConfig) -> ProfileOutcome {
         Err(problems) => json!(problems),
     };
     value["diagnostics"] = json!({
+        "source_provenance": {
+            "commit": provenance.commit,
+            "head": provenance.head,
+            "source_tree_dirty": provenance.dirty,
+            "crate_changed_files": provenance.crate_changed_files,
+            "repository_changed_files": provenance.repository_changed_files,
+            "sampled_at_utc": provenance.sampled_at_utc,
+            "sampled": "at run start, before the store was opened - a commit landing mid-run is never attributed to this artifact (review R2-3-2)",
+            "dirty_meaning": "source_tree_dirty true means the crate had uncommitted changes when the run started, so the binary under test does not correspond to  and this artifact must not be cited as evidence for that commit",
+        },
         "retry_diagnostics_owned_by_this_process": diagnostics_owned,
         "untyped_engine_conflicts": metrics.untyped_conflicts.clone(),
         "retry_exhausted_errors": metrics.retry_exhausted_errors.clone(),
+        "no_retry_window": {
+            "code": NO_RETRY_WINDOW_CODE,
+            "count": metrics.no_retry_window_errors.len(),
+            "errors": metrics.no_retry_window_errors.clone(),
+            "meaning": "a retry budget stopped with no retry ever scheduled - the first attempt alone consumed the budget, so a retryable engine conflict got ZERO replays. This is a SATURATION signal, distinct from HSK-STORAGE-RETRY-EXHAUSTED (retries were attempted and used up) and never counted as expected contention; both share the report's retry_exhausted failure class, and these counts separate them (review R3-1-1).",
+        },
         "unexpected_terminal_errors": metrics.unexpected_terminal.iter().take(50).collect::<Vec<_>>(),
         "timed_out_operations": metrics.timed_out_classes.clone(),
         "worker_timeouts": worker_timeouts.clone(),
