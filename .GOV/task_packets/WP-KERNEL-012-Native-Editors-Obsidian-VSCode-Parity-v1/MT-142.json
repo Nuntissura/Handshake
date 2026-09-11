@@ -401,6 +401,18 @@
           "follow-on candidate for a future MT: batch the DDL into fewer transactions, or bootstrap once and copy a closed template store per test, which would cut test wall clock by orders of magnitude without weakening isolation"
         ]
       }
+    },
+    "r1_1_2_remediation": {
+      "at_utc": "2026-09-11T03:56:30.926Z",
+      "finding": "R1-1-2 (lens 1): the delete transaction decided backlink scope from a title-uniqueness read outside its write set and stamped that decision into the durable tombstone",
+      "chosen_remediation": "(b) every title-mutating rich-document transaction - create, create-if-title-absent, rename (old and new title) and the atomic delete - now UPSERTs the per-(workspace, normalized title) anchor row with a per-attempt claim nonce, so a concurrent rename or create into the same title cannot commit invisibly to the delete; the anchor is a serialization device, not a uniqueness rule, so duplicate titles stay legal",
+      "proof": "tests/knowledge_delete_title_race_tests.rs::title_anchor_write_set_and_delete_rename_race - ok. 1 passed; 0 failed (run knowledge_delete_title_race_tests-20260911T034851Z, 381.83 s)",
+      "note": "the first run of this target failed on a TEST-side decoding bug (the inspector returns externally tagged values; a bare as_str on a tagged string is None) - the same class MT-150 hit - not on product behaviour"
+    },
+    "retry_budget_final": {
+      "worst_case_single_mutation": "one statement_timeout (300 s default; 30 s if a caller sets with_statement_timeout) shared by the keyed-lock wait, all 8 attempts and their sleeps, with each attempt clamped to the remaining budget",
+      "was": "8 x 300 s = about 40 minutes",
+      "only_retry_call_site": "guarded_mutation (knowledge.rs:200); all 19 knowledge mutation sites funnel through it"
     }
   },
   "scope": {
@@ -690,5 +702,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T02:44:23.095Z"
+  "updated_at_utc": "2026-09-11T03:56:30.926Z"
 }
