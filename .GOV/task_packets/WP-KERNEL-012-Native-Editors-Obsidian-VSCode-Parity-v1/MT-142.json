@@ -373,7 +373,7 @@
       "found_by": "Lane B instrumentation, confirmed against same-commit history by KERNEL_BUILDER",
       "at_utc": "2026-09-11T01:56:06.778Z",
       "severity": "HIGH",
-      "status": "OPEN - A2 measuring and fixing",
+      "status": "RETRACTED - NOT A REGRESSION",
       "summary": "Opening a fresh embedded store (schema bootstrap) costs about 356 s on this machine in the current tree, against roughly 15-20 s at the same commit 26731c56 before this round of uncommitted product work (T185436Z ran six tests with six store opens in 127 s total; A2 storage::surreal::schema ran 21 bootstraps in 217 s at T172443Z, versus storage::surreal::knowledge 3 tests in 349 s at T004101Z).",
       "ruled_out": [
         "disk contention from orphaned stores (Lane B cleared 259 of 260 and the measurement is post-cleanup)",
@@ -386,7 +386,21 @@
         "the MT-142 title-anchor upgrade hop evaluating predecessor lineage on every fresh open"
       ],
       "product_impact": "a six-minute cold start is product-visible, not merely a test cost; it also makes AC-142-3 unreachable (the CI profile whole-test bound is 180 s, measured ample at 77 s in the last green load run T224254Z)",
-      "handling": "Lane B will NOT raise the whole-test bound to paper over it; the CI profile is expected to fail its own budget until the regression is fixed, which is the bound doing its job"
+      "handling": "Lane B will NOT raise the whole-test bound to paper over it; the CI profile is expected to fail its own budget until the regression is fixed, which is the bound doing its job",
+      "resolution": {
+        "at_utc": "2026-09-11T02:44:23.095Z",
+        "by": "KERNEL_BUILDER-20260910-073935 on A2 phase measurement",
+        "measurement": "MT142_BOOTSTRAP_PHASE manifest_hash_ms=49 ddl_apply_ms=358385 registry_seed_ms=99 info_catalog_ms=582 tables=282 schema_statements=4467 (run mt142-LIB-20260911T023508Z)",
+        "finding": "358 of the ~361 s is the DDL apply itself: 4467 schema statements at about 80 ms each, which is the fsync-per-DDL cost of SyncMode::Every on a 7200-rpm SATA disk. The per-statement timeout wrapper costs nothing (53 ms for 200 statements with and without it, run mt142-LIB-20260911T021747Z), manifest hashing, registry seeding and INFO catalog reads together cost under a second.",
+        "why_my_earlier_comparison_was_wrong": "The ~8-10 s per-bootstrap figures I quoted came from the schema filter, whose tests mostly bootstrap onto an ALREADY-APPLIED store and take the INFO-comparison resume path. A brand-new empty store pays the full 4467-statement fresh apply. I compared a resume-path figure against a fresh-apply figure and called the difference a regression; it is not one, and no MT-142 change is responsible.",
+        "product_characteristic_recorded": "A cold first start against an HDD-backed embedded store costs minutes (about 6 on this machine); the resume path is cheap thereafter. This is pre-existing behaviour, not introduced by MT-142.",
+        "consequences": [
+          "no product code changes for this",
+          "Lane B keeps the raised SETUP bound (600 s store open) on this evidence and re-derives whole_test_timeout_ms from measured numbers",
+          "Lane C documents the cold-start cost in the manual",
+          "follow-on candidate for a future MT: batch the DDL into fewer transactions, or bootstrap once and copy a closed template store per test, which would cut test wall clock by orders of magnitude without weakening isolation"
+        ]
+      }
     }
   },
   "scope": {
@@ -676,5 +690,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T01:56:06.778Z"
+  "updated_at_utc": "2026-09-11T02:44:23.095Z"
 }
