@@ -358,7 +358,35 @@
         "slow_repeated_conflicts_stay_inside_one_caller_budget",
         "an_attempt_never_starts_once_the_deadline_is_reached"
       ],
-      "environmental_confound_ruled_out": "the follow-up store-open timeout (180 s) was NOT this defect: 260 orphaned RocksDB store directories left by the killed runs were being deleted in the background on the same HDD while a new store bootstrapped ~4,500 fsynced DDL statements. Lane B cleared 259 of them, verified schema.surql is unchanged in this tree, raised SETUP bounds to 600 s and kept the racing per-operation bound at 5 s."
+      "environmental_confound_ruled_out": "the follow-up store-open timeout (180 s) was NOT this defect: 260 orphaned RocksDB store directories left by the killed runs were being deleted in the background on the same HDD while a new store bootstrapped ~4,500 fsynced DDL statements. Lane B cleared 259 of them, verified schema.surql is unchanged in this tree, raised SETUP bounds to 600 s and kept the racing per-operation bound at 5 s.",
+      "causal_correction": {
+        "at_utc": "2026-09-11T01:56:06.778Z",
+        "by": "KERNEL_BUILDER-20260910-073935 on Lane B measured evidence",
+        "correction": "This defect was REAL and is fixed, but it was NOT the cause of the 48-minute stall. I attributed the stall to it from source reading before it was measured; that attribution was wrong.",
+        "measured_cause": "Each test opens its own embedded store, and one schema bootstrap now costs about 356 s (Lane B instrumentation SWARM_STORE_OPEN_MS=355678). The eight per-test bootstraps serialize behind the process-global BOOTSTRAP_MUTEX (schema.rs:174), so 8 x ~6 min is about 48 minutes - which is exactly why three tests reported and the rest sat silent.",
+        "evidence_that_the_retry_path_was_not_at_fault": "with the shared-budget fix the same-record CAS race completes in about 0.7 s of the 356 s run and the 5 s racing per-operation bound never fired",
+        "status_of_this_defect": "the 8 x statement_timeout multiplication was a genuine latent bound violation (AC-142-5, STOP obligation) and the one-budget fix stands on its own merit"
+      }
+    },
+    "defect_20260911_bootstrap_regression": {
+      "id": "DEF-MT142-BOOTSTRAP-COLD-OPEN-REGRESSION",
+      "found_by": "Lane B instrumentation, confirmed against same-commit history by KERNEL_BUILDER",
+      "at_utc": "2026-09-11T01:56:06.778Z",
+      "severity": "HIGH",
+      "status": "OPEN - A2 measuring and fixing",
+      "summary": "Opening a fresh embedded store (schema bootstrap) costs about 356 s on this machine in the current tree, against roughly 15-20 s at the same commit 26731c56 before this round of uncommitted product work (T185436Z ran six tests with six store opens in 127 s total; A2 storage::surreal::schema ran 21 bootstraps in 217 s at T172443Z, versus storage::surreal::knowledge 3 tests in 349 s at T004101Z).",
+      "ruled_out": [
+        "disk contention from orphaned stores (Lane B cleared 259 of 260 and the measurement is post-cleanup)",
+        "new DDL (schema.surql is unchanged in this tree)",
+        "the retry-budget defect (racing bound never fired; the race itself takes about 0.7 s)"
+      ],
+      "prime_suspects": [
+        "the per-statement timeout wrapper moved into SurrealStorage::with_data_operation by R2-1-4 (iii), which now runs on every one of the thousands of bootstrap statements",
+        "the OPERATION_DEADLINE task-local clamp",
+        "the MT-142 title-anchor upgrade hop evaluating predecessor lineage on every fresh open"
+      ],
+      "product_impact": "a six-minute cold start is product-visible, not merely a test cost; it also makes AC-142-3 unreachable (the CI profile whole-test bound is 180 s, measured ample at 77 s in the last green load run T224254Z)",
+      "handling": "Lane B will NOT raise the whole-test bound to paper over it; the CI profile is expected to fail its own budget until the regression is fixed, which is the bound doing its job"
     }
   },
   "scope": {
@@ -648,5 +676,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T01:31:44.851Z"
+  "updated_at_utc": "2026-09-11T01:56:06.778Z"
 }
