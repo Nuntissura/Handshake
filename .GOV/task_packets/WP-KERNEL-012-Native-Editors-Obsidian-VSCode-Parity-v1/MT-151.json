@@ -31,12 +31,12 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-142"
     ],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260910-073935",
@@ -44,7 +44,51 @@
     "created_by": "KERNEL_BUILDER-20260910-073935",
     "creation_reason": "Operator decision 2026-09-11 (same branch, light ceremony): fix the eight test failures MT-142 carried as pre-existing, close the testable stated limits, and close the early-lock-release residual, on feat/WP-KERNEL-012 after MT-142's pinned commit 6148b559.",
     "ceremony": "LIGHT by Operator direction: no refinement, no research basis (MT-142's research basis and recon inventory are reused), no adversarial review rounds unless the Operator asks; typed acceptance criteria, proof commands and a handoff are still required.",
-    "triage_input": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/triage/pre_existing_failures_triage.json"
+    "triage_input": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/triage/pre_existing_failures_triage.json",
+    "item_dispositions": {
+      "I-151-1": "CLOSED - schema.rs assertion realigned to schema.surql:1955 verbatim; fixture writes 'READY'. storage::surreal::schema ok. 23 passed (mt142-LIB-20260911T131642Z).",
+      "I-151-2": "CLOSED - knowledge.rs:1484 and wiki_store.rs:1151 create projected edges at type::record('loom_edges', $row.relationship_id), the key loom_store.rs:1220-1222 uses; no schema alias ASSERT. mt032 ok. 1 passed (mt142-knowledge_documents_api_tests-20260911T134155Z). Persisted random-id rows in operator stores: UNVERIFIED.",
+      "I-151-3": "CLOSED - inspected_row_field unwraps tagged values via scalar(); the two PostgreSQL 'foreign key' assertions now assert the Surreal record::exists wording. knowledge_claims_tests ok. 7 passed (mt142-knowledge_claims_tests-20260911T132507Z).",
+      "I-151-4": "CLOSED - full audit table in the Lane P report (recorded below). Three lock-only invariants found and guarded database-side; no store excluded from the caller-side bound. mt151_early_lock_release_race_tests ok. 3 passed (mt142-mt151_early_lock_release_race_tests-20260911T133616Z).",
+      "I-151-5": "CLOSED WITH A STATED LIMIT - first_attempt_consuming_the_retry_budget_reports_no_retry_window ok. 1 passed (mt142-surreal_swarm_semantics_tests-20260911T134726Z): SWARM_NO_RETRY_WINDOW attempts=1 budget_ms=250 attempt_elapsed_ms=918 code=HSK-STORAGE-NO-RETRY-WINDOW, classifier count 1, never expected_stale_or_conflict. LIMIT: proven at the primitive level with the product's code-string mapping mirrored in a test helper; not proven end-to-end through guarded_mutation, because the product binds the retry deadline and the per-attempt statement bound to the same instant, so an attempt that outlives the budget returns terminal StatementTimeout first and the product-path NO-RETRY-WINDOW is reachable only within a few milliseconds.",
+      "I-151-6": "CLOSED - expired_operation_deadline_refuses_to_dispatch_with_the_typed_budget_error asserts StatementBudgetExhausted { budget_ms: 1500 }, op never ran, lease_high_water 0. storage::surreal::retry ok. 29 passed (mt142-LIB-20260911T122634Z).",
+      "I-151-7": "CLOSED - swarm targets run with RUST_TEST_THREADS unset (byte-identical runner copy with 'unset RUST_TEST_THREADS'; nproc 32; every context line records rust_test_threads=<unset>): semantics ok. 10 passed (T134902Z), load ok. 3 passed (T135017Z), lifecycle ok. 2 passed (T135236Z). The env var is an optimisation; SWARM_SERIAL is the correctness guarantee.",
+      "I-151-8": "CLOSED, premise partly false - dirty_meaning now reads 'does not correspond to head, and this artifact ...'. The research basis never cited #7411 for RSS growth (lines 47/204/311/316 already cite #7424, related #7383); a citation_corrections note pins the disambiguation rather than rewriting text that was not wrong."
+    },
+    "i_151_4_audit": {
+      "lock_only_invariants_guarded": [
+        {
+          "store": "LOOM",
+          "site": "loom_store.rs:816 get_or_create_daily_journal_block",
+          "invariant": "one journal block per (workspace, date)",
+          "guard": "computed loom_blocks.journal_key + uq_loom_blocks_journal_key UNIQUE (schema.surql:446-458); create_loom_block and update_loom_block.journal_date guarded too"
+        },
+        {
+          "store": "LOOM",
+          "site": "loom_store.rs:3343 update_loom_folder",
+          "invariant": "folder tree acyclicity",
+          "guard": "storage_graph_anchors version CAS in-transaction, THROW HSK-LOOM-FOLDER-TREE-STALE, typed Conflict(loom_folder_tree_changed_concurrently)"
+        },
+        {
+          "store": "LOCUS",
+          "site": "locus_store.rs:746 add_dependency",
+          "invariant": "dependency graph acyclicity",
+          "guard": "storage_graph_anchors CAS, THROW HSK-LOCUS-DEPENDENCY-GRAPH-STALE, typed Conflict(dependency graph changed concurrently); duplicates were already pk_dependencies + THROW"
+        }
+      ],
+      "already_database_guarded": "every other LOOM, CANVAS, WIKI (OVERLAY, COMPILE, MARKDOWN_IMPORT), BLOCK_VIEW and BRIDGE site - UNIQUE indexes and THROW/CAS guards named per site in the Lane P report; loom_store.rs:1078 delete_loom_block now computes $affected inside the transaction",
+      "accepted_derived_staleness": "loom_store.rs:972 search_text projection and the wiki markdown-import backlink snapshot are derived data rebuilt on the next write, the same class as MT-142-D-006",
+      "not_exposed": "BOOTSTRAP_MUTEX runs under with_admin_operation, which is unbounded by design",
+      "flagged_outside_allowed_paths_for_owner_decision": [
+        "FEMS_MUTATION_LOCK (src/storage/fems_memory.rs:1565): CAS THROWs and create_if_absent cover most invariants; the D-146-1 workspace-delete ordering is lock-only by documented design",
+        "STAGE_INSERT_LOCK (stage_artifacts.rs:23): uq_stage_capture_artifacts_idempotency covers it; both take the lock outside with_data_operation but a timeout still returns Err and drops the guard"
+      ],
+      "no_store_excluded_from_the_bound": true
+    },
+    "fingerprint_defect_fixed": "During MT-151 the schema INFO fingerprint briefly had two definitions (schema.rs pin computed with engine table catalog ids stripped; test_inspector.rs computing unstripped), which broke every inspector-backed test at store open. Fixed at the source: one shared schema::canonical_catalog_fingerprint used by bootstrap and the inspector. Why ids are stripped: INFO STRUCTURE tables[].id is the engine allocation counter - a fresh apply numbers tables by script position while an in-place delta DEFINE TABLE takes the next free id (observed 233 vs 300), so no table-adding lineage could match a raw-INFO pin; MT-138's atelier fingerprint already stripped them.",
+    "schema_lineage": "New PRE_MT151 allowlisted lineage with a two-phase in-place upgrade: materialise_mt151_journal_key commits the journal_key backfill BEFORE the UNIQUE index is defined, because the surrealdb 3.2.0 IndexBuilder builds in its own transactions (index.rs:235, builder.rs:864-887) and a same-transaction backfill is invisible to the build. Proven live by mt151_exact_mt142_pin_upgrade_materialises_journal_key_and_restarts_current. Re-pins with MT-151 comments: GENERATED a8bb72c7, CATALOG 1605235b, EXPECTED_INFO 294530f1, PREDECESSOR_GENERATED b06b2ab7, PREDECESSOR_INFO 310454fd; counts 283 tables / 3326 fields / 797 indexes.",
+    "ready_for_validation_at_utc": "2026-09-11T13:56:17.176Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260910-073935"
   },
   "scope": {
     "summary": "Close the loose ends MT-142 handed off honestly rather than fixed: seven test-side defects and one product defect among the eight carried pre-existing failures; the three stated limits that are testable; the research-basis citation defect; the dirty_meaning typo; and the early-lock-release residual, by making the lock-only invariants in stores MT-142 did not own safe under the now-global caller-side statement bound. Explicitly NOT in scope: title-anchor reclamation (stays routed with its reason), the full migration of the other product-data locks onto the MT-142 primitives (D-142-1 follow-on), and any investigation of RSS growth (a recorded finding).",
@@ -179,7 +223,54 @@
       "MT-149",
       "MT-150",
       "MT-142"
-    ]
+    ],
+    "product_commit": "98353583742437f1ebf4ccba5950938927af59da",
+    "product_branch": "feat/WP-KERNEL-012",
+    "base_commit": "6148b5593d0b794213278ecfcddb1025d36a031c",
+    "kb_ready_checklist_receipt": {
+      "overall_verdict": "WAIVED_BY_OPERATOR",
+      "waiver": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "note": "light ceremony by Operator direction; typed dispositions and verbatim proof lines above stand in"
+    },
+    "warnings": "241 on every LIB run, the pre-existing baseline; none in changed files",
+    "anti_laundering_scan": "same 8 pre-existing files as at 6148b559 (tripwire fixtures and legacy-URL rejection guards); none in changed files",
+    "closes_from_mt142": [
+      "all 8 carried pre-existing failures",
+      "RESIDUAL-MT142-EARLY-LOCK-RELEASE-ON-STATEMENT-TIMEOUT",
+      "FOLLOW-ON-MT142-DIRTY-MEANING-TYPO",
+      "stated limits: no_retry_window unexercised (with the new limit above), StatementBudgetExhausted untested, serialization redundancy, citation disambiguation"
+    ],
+    "still_open": [
+      "FOLLOW-ON-MT142-TITLE-ANCHOR-RECLAMATION (by design)",
+      "migration of the remaining product-data locks onto guarded_mutation (D-142-1 follow-on)",
+      "RSS growth investigation (recorded finding)",
+      "owner decision on FEMS_MUTATION_LOCK and STAGE_INSERT_LOCK under the caller-side bound (outside MT-151 allowed paths)",
+      "the calibration under-projection of sustained throughput (improvement, not defect)"
+    ],
+    "coder_handoff": {
+      "receipt_kind": "CODER_HANDOFF",
+      "timestamp_utc": "2026-09-11T13:56:17.176Z",
+      "correlation_id": "review:mt151-followon-20260911",
+      "target_role": "INTEGRATION_VALIDATOR",
+      "target_session": "PENDING"
+    }
   },
-  "updated_at_utc": "2026-09-11T11:39:06.634Z"
+  "updated_at_utc": "2026-09-11T13:56:17.176Z",
+  "owned_files": [
+    "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.surql",
+    "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+    "src/backend/handshake_core/src/storage/surreal/wiki_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/locus_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/keyed_lock.rs",
+    "src/backend/handshake_core/src/storage/surreal/retry.rs",
+    "src/backend/handshake_core/src/storage/surreal/test_inspector.rs",
+    "src/backend/handshake_core/src/user_manual/seed.rs",
+    "src/backend/handshake_core/tests/knowledge_claims_tests.rs",
+    "src/backend/handshake_core/tests/surreal_swarm_semantics_tests.rs",
+    "src/backend/handshake_core/tests/surreal_swarm_load_tests.rs",
+    "src/backend/handshake_core/tests/mt151_early_lock_release_race_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ]
 }
