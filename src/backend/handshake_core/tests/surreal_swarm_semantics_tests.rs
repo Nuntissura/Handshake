@@ -24,8 +24,8 @@ use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use handshake_core::storage::knowledge::{
-    KnowledgeIdempotentWrite, KnowledgeRichDocument, KnowledgeStore,
-    UpsertKnowledgeDocumentBacklink,
+    KnowledgeEntityKind, KnowledgeIdempotentWrite, KnowledgeRichDocument, KnowledgeStore,
+    NewKnowledgeEntity, UpsertKnowledgeDocumentBacklink,
 };
 use handshake_core::storage::surreal::keyed_lock::{KeyedLockRegistry, LockKey, LockMode};
 use handshake_core::storage::surreal::SurrealDatabase;
@@ -43,6 +43,30 @@ const DISJOINT_DOCUMENTS: usize = 16;
 /// operation returns to count as overlapping inside the engine.
 const OVERLAP_MARGIN: Duration = Duration::from_millis(2);
 const RACE_BOUND: Duration = Duration::from_secs(30);
+
+/// Whole-test bound applied to EVERY test in this file (contract
+/// `load_profiles.ci_deterministic.hard_bound` and the red-team minimum
+/// control "every task, lock wait, query, retry loop, shutdown and reopen
+/// proof is explicitly bounded"): a stalled proof FAILS naming itself instead
+/// of hanging the runner and starving the shared cargo lane.
+const SEMANTICS_TEST_BOUND: Duration = Duration::from_millis(900_000);
+/// Bound for opening/closing an embedded store (schema bootstrap and
+/// teardown are far slower than one statement).
+const STORE_LIFECYCLE_BOUND: Duration = Duration::from_millis(600_000);
+/// Bound for sequential setup writes (workspace and document seeding).
+const SETUP_BOUND: Duration = Duration::from_millis(300_000);
+/// Bound for the template-equivalence gate, which pays two cold applies.
+const TEMPLATE_EQUIVALENCE_BOUND: Duration = Duration::from_millis(1_800_000);
+
+/// Runs one test body under [`SEMANTICS_TEST_BOUND`].
+async fn run_bounded_test<F: std::future::Future<Output = ()>>(name: &str, body: F) {
+    timeout(SEMANTICS_TEST_BOUND, body).await.unwrap_or_else(|_| {
+        panic!(
+            "{name} exceeded its whole-test bound of {} ms (a swarm proof that cannot finish is a failure, never an ignored test)",
+            SEMANTICS_TEST_BOUND.as_millis()
+        )
+    });
+}
 
 fn utc_after(instant: DateTime<Utc>, margin: Duration) -> DateTime<Utc> {
     instant + chrono::Duration::from_std(margin).expect("margin fits chrono")
@@ -136,10 +160,12 @@ async fn assert_single_new_version(
     winner_sha256: &str,
     context: &str,
 ) {
-    let versions = db
-        .list_knowledge_rich_document_versions(rich_document_id)
-        .await
-        .expect("list versions");
+    let versions = op(
+        &format!("list versions of {rich_document_id}"),
+        db.list_knowledge_rich_document_versions(rich_document_id),
+    )
+    .await
+    .expect("list versions");
     let observed: Vec<i64> = versions.iter().map(|v| v.doc_version).collect();
     assert_eq!(
         observed, expected_versions,
@@ -150,11 +176,13 @@ async fn assert_single_new_version(
         head.content_sha256, winner_sha256,
         "{context}: the head version row must carry the winner's content"
     );
-    let live = db
-        .get_knowledge_rich_document(rich_document_id)
-        .await
-        .expect("read live document")
-        .expect("document is live");
+    let live = op(
+        &format!("read live document {rich_document_id}"),
+        db.get_knowledge_rich_document(rich_document_id),
+    )
+    .await
+    .expect("read live document")
+    .expect("document is live");
     assert_eq!(
         live.doc_version,
         *expected_versions.last().expect("non-empty"),
@@ -251,19 +279,23 @@ fn assert_one_effect(
     first
 }
 
-async fn assert_one_receipt_row(store: &EmbeddedKnowledgeStore, idempotency_key: &str, context: &str) {
+async fn assert_one_receipt_row(store: &SwarmStore, idempotency_key: &str, context: &str) {
     let inspector = store.storage.test_inspector();
-    let keys = inspector
-        .table_selector("knowledge_idempotency_keys")
-        .await
-        .expect("idempotency table selector");
-    let rows = inspector
-        .row_count(
+    let keys = op(
+        "idempotency table selector",
+        inspector.table_selector("knowledge_idempotency_keys"),
+    )
+    .await
+    .expect("idempotency table selector");
+    let rows = op(
+        "count idempotency receipt rows",
+        inspector.row_count(
             &keys,
             handshake_core::storage::surreal::RowFilter::IdEquals(idempotency_key.to_owned()),
-        )
-        .await
-        .expect("count receipt rows");
+        ),
+    )
+    .await
+    .expect("count receipt rows");
     assert_eq!(
         rows, 1,
         "{context}: exactly one idempotency receipt row may exist for key {idempotency_key}"
@@ -272,15 +304,18 @@ async fn assert_one_receipt_row(store: &EmbeddedKnowledgeStore, idempotency_key:
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn same_record_expected_version_race_has_one_winner() {
+    run_bounded_test("same_record_expected_version_race_has_one_winner", same_record_expected_version_race_has_one_winner_body()).await;
+}
+
+async fn same_record_expected_version_race_has_one_winner_body() {
     let seed = workload_seed();
     println!("SWARM_SEED={seed}");
-    let store = open_embedded_store()
-        .await
-        .expect("MT-142 requires the embedded SurrealDB test store");
-    let workspace_id = store.create_workspace().await;
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
     let created = store
         .db
-        .create_knowledge_rich_document(new_document(&workspace_id, "cas race", "base"))
+        .create_knowledge_rich_document(new_document(&workspace_id, "cas race", "base"));
+    let created = op_within("create cas-race document", SETUP_BOUND, created)
         .await
         .expect("create document");
 
@@ -323,17 +358,19 @@ async fn same_record_expected_version_race_has_one_winner() {
     )
     .await;
 
-    store.close_and_remove().await.expect("close store");
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn identical_idempotency_key_replays_converge_to_one_effect() {
+    run_bounded_test("identical_idempotency_key_replays_converge_to_one_effect", identical_idempotency_key_replays_converge_to_one_effect_body()).await;
+}
+
+async fn identical_idempotency_key_replays_converge_to_one_effect_body() {
     let seed = workload_seed();
     println!("SWARM_SEED={seed}");
-    let store = open_embedded_store()
-        .await
-        .expect("MT-142 requires the embedded SurrealDB test store");
-    let workspace_id = store.create_workspace().await;
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
     let created = store
         .db
         .create_knowledge_rich_document(new_document(&workspace_id, "idempotent replay", "base"))
@@ -391,7 +428,7 @@ async fn identical_idempotency_key_replays_converge_to_one_effect() {
     .await;
     assert_one_receipt_row(&store, &key, "identical-key sequential replay").await;
 
-    store.close_and_remove().await.expect("close store");
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
 }
 
 /// One barrier-aligned save with its call window and the engine-side
@@ -490,16 +527,45 @@ async fn create_documents(
     let mut documents = Vec::with_capacity(count);
     for index in 0..count {
         documents.push(
-            db.create_knowledge_rich_document(new_document(
-                workspace_id,
-                &format!("{prefix} {index}"),
-                &format!("{prefix} base {index}"),
-            ))
+            op_within(
+                &format!("create {prefix} {index}"),
+                SETUP_BOUND,
+                db.create_knowledge_rich_document(new_document(
+                    workspace_id,
+                    &format!("{prefix} {index}"),
+                    &format!("{prefix} base {index}"),
+                )),
+            )
             .await
             .expect("create disjoint document"),
         );
     }
     documents
+}
+
+/// One machine-readable overlap measurement (review R2-1-3: the engine-window
+/// evidence must be a JSON fragment, not console prose).
+fn overlap_fragment(windows: &[SaveWindow], context: &str, max_concurrent: usize, pairs: usize) -> serde_json::Value {
+    let latencies: Vec<u64> = windows.iter().map(|w| w.latency.as_millis() as u64).collect();
+    let sum: u64 = latencies.iter().sum();
+    let wall = windows
+        .iter()
+        .map(|w| w.end)
+        .max()
+        .zip(windows.iter().map(|w| w.start).min())
+        .map(|(end, start)| (end - start).num_milliseconds().max(0) as u64)
+        .unwrap_or(0);
+    json!({
+        "context": context,
+        "operations": windows.len(),
+        "max_concurrent_in_engine": max_concurrent,
+        "overlapping_pairs": pairs,
+        "latencies_ms": latencies,
+        "sum_operation_latency_ms": sum,
+        "wall_clock_ms": wall,
+        "effective_parallelism_ratio": if wall > 0 { Some(sum as f64 / wall as f64) } else { None },
+        "measurement": "engine_at is `updated_at = time::now()` evaluated INSIDE the committing transaction; an operation counts as overlapping when another operation's window still had >= 2 ms to run at that instant, so a process-global lock would force this to 1",
+    })
 }
 
 fn assert_overlap(windows: &[SaveWindow], context: &str) -> (usize, usize) {
@@ -517,13 +583,15 @@ fn assert_overlap(windows: &[SaveWindow], context: &str) -> (usize, usize) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn disjoint_records_commit_concurrently_without_unrelated_waiting() {
+    run_bounded_test("disjoint_records_commit_concurrently_without_unrelated_waiting", disjoint_records_commit_concurrently_without_unrelated_waiting_body()).await;
+}
+
+async fn disjoint_records_commit_concurrently_without_unrelated_waiting_body() {
     let seed = workload_seed();
     println!("SWARM_SEED={seed}");
-    let store = open_embedded_store()
-        .await
-        .expect("MT-142 requires the embedded SurrealDB test store");
-    let workspace_a = store.create_workspace().await;
-    let workspace_b = store.create_workspace().await;
+    let store = open_store_measured().await;
+    let workspace_a = op_within("create workspace a", SETUP_BOUND, store.create_workspace()).await;
+    let workspace_b = op_within("create workspace b", SETUP_BOUND, store.create_workspace()).await;
     let gauge = Arc::new(InFlightGauge::default());
 
     // Same workspace, 16 different documents.
@@ -540,7 +608,10 @@ async fn disjoint_records_commit_concurrently_without_unrelated_waiting() {
         "call-boundary in-flight high-water mark must be >= 2, got {}",
         gauge.high_water()
     );
-    assert_overlap(&windows, "same workspace, 16 disjoint documents");
+    let mut fragments = Vec::new();
+    let context = "same workspace, 16 disjoint documents";
+    let (max_concurrent, pairs) = assert_overlap(&windows, context);
+    fragments.push(overlap_fragment(&windows, context, max_concurrent, pairs));
     assert_eq!(
         store.db.lock_registry().entry_count(),
         0,
@@ -575,7 +646,9 @@ async fn disjoint_records_commit_concurrently_without_unrelated_waiting() {
     .await
     .expect("cross-workspace disjoint saves must finish inside their bound");
     assert_eq!(windows.len(), DISJOINT_DOCUMENTS, "every cross-workspace save committed");
-    assert_overlap(&windows, "two workspaces, 8 + 8 disjoint documents, registry disabled");
+    let context = "two workspaces, 8 + 8 disjoint documents, registry disabled";
+    let (max_concurrent, pairs) = assert_overlap(&windows, context);
+    fragments.push(overlap_fragment(&windows, context, max_concurrent, pairs));
     let ids: std::collections::BTreeSet<&str> = windows.iter().map(|w| w.rich_document_id.as_str()).collect();
     assert_eq!(ids.len(), DISJOINT_DOCUMENTS, "every save targeted a distinct record");
     assert_eq!(
@@ -604,24 +677,44 @@ async fn disjoint_records_commit_concurrently_without_unrelated_waiting() {
     )
     .await
     .expect("keyed cross-workspace disjoint saves must finish inside their bound");
-    assert_overlap(&windows, "two workspaces, 8 + 8 disjoint documents, registry keyed");
+    let context = "two workspaces, 8 + 8 disjoint documents, registry keyed";
+    let (max_concurrent, pairs) = assert_overlap(&windows, context);
+    fragments.push(overlap_fragment(&windows, context, max_concurrent, pairs));
     assert_eq!(
         store.db.lock_registry().entry_count(),
         0,
         "keyed registry must be idle once the disjoint saves returned"
     );
 
-    store.close_and_remove().await.expect("close store");
+    let run_id = new_run_id("mt142-overlap");
+    let fragment = json!({
+        "schema_id": REPORT_FRAGMENT_SCHEMA_ID,
+        "fragment": "disjoint_record_engine_overlap",
+        "run_id": run_id,
+        "source_commit": source_commit(),
+        "surrealdb_version": SURREALDB_VERSION,
+        "engine_mode": "embedded_rocks_db",
+        "workload_seed": seed,
+        "call_boundary_high_water": gauge.high_water(),
+        "call_boundary_note": "a call-boundary gauge equals the worker count even under total serialization; the engine-window measurements below are the anti-serialization evidence (review R2-1-3)",
+        "measurements": fragments,
+    });
+    let path = write_report_json(&format!("swarm-overlap-{run_id}.json"), &fragment);
+    println!("SWARM_OVERLAP_REPORT={}", path.display());
+
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn independent_clients_without_shared_lock_registry_stay_correct() {
+    run_bounded_test("independent_clients_without_shared_lock_registry_stay_correct", independent_clients_without_shared_lock_registry_stay_correct_body()).await;
+}
+
+async fn independent_clients_without_shared_lock_registry_stay_correct_body() {
     let seed = workload_seed();
     println!("SWARM_SEED={seed}");
-    let store = open_embedded_store()
-        .await
-        .expect("MT-142 requires the embedded SurrealDB test store");
-    let workspace_id = store.create_workspace().await;
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
 
     // Two wrappers over ONE embedded engine that do NOT share a keyed-lock
     // registry: client A owns a fresh keyed registry, client B runs with the
@@ -726,7 +819,7 @@ async fn independent_clients_without_shared_lock_registry_stay_correct() {
         "an unconfigured remote proof is NOT_RUN_UNCONFIGURED, never PASS"
     );
 
-    store.close_and_remove().await.expect("close store");
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
 }
 
 fn backlink(
@@ -735,9 +828,11 @@ fn backlink(
     target: &KnowledgeRichDocument,
     label: &str,
 ) -> UpsertKnowledgeDocumentBacklink {
+    // schema.surql: relationship_id must be `KDLNK-` + 64 hex characters
+    // (string::len = 70); derive it deterministically from the label.
     UpsertKnowledgeDocumentBacklink {
         workspace_id: workspace_id.to_owned(),
-        relationship_id: format!("KDLNK-mt142-{label}"),
+        relationship_id: format!("KDLNK-{}", sha256_hex(format!("mt142-{label}").as_bytes())),
         source_document_id: source.rich_document_id.clone(),
         link_kind: "wikilink".to_owned(),
         target: target.rich_document_id.clone(),
@@ -747,6 +842,10 @@ fn backlink(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn opposite_order_multi_record_operations_do_not_deadlock() {
+    run_bounded_test("opposite_order_multi_record_operations_do_not_deadlock", opposite_order_multi_record_operations_do_not_deadlock_body()).await;
+}
+
+async fn opposite_order_multi_record_operations_do_not_deadlock_body() {
     const ITERATIONS: usize = 10;
     const DEADLOCK_BOUND: Duration = Duration::from_secs(60);
 
@@ -788,10 +887,8 @@ async fn opposite_order_multi_record_operations_do_not_deadlock() {
     // (2) The public multi-record product operation: rebuilding A's backlinks
     // touches loom_blocks A and B (edge + count recompute) and B's rebuild
     // touches the same two records in the opposite order.
-    let store = open_embedded_store()
-        .await
-        .expect("MT-142 requires the embedded SurrealDB test store");
-    let workspace_id = store.create_workspace().await;
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
     let doc_a = store
         .db
         .create_knowledge_rich_document(new_document(&workspace_id, "deadlock A", "a"))
@@ -870,20 +967,22 @@ async fn opposite_order_multi_record_operations_do_not_deadlock() {
     assert_eq!(from_a[0].target, doc_b.rich_document_id, "A links to B");
     assert_eq!(from_b[0].target, doc_a.rich_document_id, "B links to A");
 
-    store.close_and_remove().await.expect("close store");
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn keyed_lock_registry_reclaims_after_high_cardinality_churn() {
+    run_bounded_test("keyed_lock_registry_reclaims_after_high_cardinality_churn", keyed_lock_registry_reclaims_after_high_cardinality_churn_body()).await;
+}
+
+async fn keyed_lock_registry_reclaims_after_high_cardinality_churn_body() {
     const DISTINCT_KEYS: u32 = 10_000;
     const CHURN_BOUND: Duration = Duration::from_secs(60);
 
     // The registry the product actually uses: the one attached to this
     // store's SurrealDatabase wrapper (a clone shares the same map), so the
     // churn below and the real product writes afterwards hit one registry.
-    let store = open_embedded_store()
-        .await
-        .expect("MT-142 requires the embedded SurrealDB test store");
+    let store = open_store_measured().await;
     let registry = store.db.lock_registry().clone();
     assert_eq!(registry.mode(), LockMode::Keyed);
 
@@ -947,7 +1046,7 @@ async fn keyed_lock_registry_reclaims_after_high_cardinality_churn() {
 
     // Real product writes through the same registry: 32 concurrent saves on
     // 8 documents (4 writers per record key) leave it at the idle bound.
-    let workspace_id = store.create_workspace().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
     let documents = create_documents(&store.db, &workspace_id, "churn", 8).await;
     let barrier = Arc::new(Barrier::new(32));
     let mut writers = Vec::new();
@@ -989,7 +1088,7 @@ async fn keyed_lock_registry_reclaims_after_high_cardinality_churn() {
         "entry_count must return to 0 after real product writes through the registry"
     );
     assert_eq!(store.db.lock_registry().idle_entry_count(), 0);
-    store.close_and_remove().await.expect("close store");
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
 
     // Disabled mode (the independent-client configuration) never tracks.
     let disabled = KeyedLockRegistry::disabled();
@@ -1007,4 +1106,408 @@ async fn keyed_lock_registry_reclaims_after_high_cardinality_churn() {
     summary.insert("entry_count_after", registry.entry_count() as u32);
     summary.insert("idle_entry_count_after", registry.idle_entry_count() as u32);
     println!("SWARM_LOCK_REGISTRY {summary:?}");
+}
+
+/// The template fixture's correctness gate: a store CLONED from the closed
+/// template must be indistinguishable from a freshly bootstrapped one. Proves
+/// the schema catalog (tables, fields, indexes and the pinned schema-info
+/// fingerprint the inspector verifies) matches exactly, that the clone is a
+/// real independent store on disk, and that writes to one are invisible to the
+/// other. Without this the accelerator would be an unproven shortcut.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn cloned_template_store_matches_a_freshly_bootstrapped_store() {
+    // This gate deliberately pays TWO cold schema applies (the process
+    // template plus a fresh comparison store), so it carries its own bound
+    // instead of the shared whole-test one.
+    timeout(
+        TEMPLATE_EQUIVALENCE_BOUND,
+        cloned_template_store_matches_a_freshly_bootstrapped_store_body(),
+    )
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "cloned_template_store_matches_a_freshly_bootstrapped_store exceeded its bound of {} ms (two cold schema applies)",
+            TEMPLATE_EQUIVALENCE_BOUND.as_millis()
+        )
+    });
+}
+
+async fn cloned_template_store_matches_a_freshly_bootstrapped_store_body() {
+    // A store the product bootstraps from scratch, right now.
+    let fresh = op_within(
+        "fresh bootstrap for the template comparison",
+        STORE_LIFECYCLE_BOUND,
+        open_embedded_store(),
+    )
+    .await
+    .expect("fresh embedded store");
+    // A store cloned from this process's closed template.
+    let cloned = open_store_measured().await;
+
+    let fresh_catalog = op_within(
+        "fresh schema catalog",
+        SETUP_BOUND,
+        fresh.storage.test_inspector().schema_catalog(),
+    )
+    .await
+    .expect("fresh schema catalog");
+    let cloned_catalog = op_within(
+        "cloned schema catalog",
+        SETUP_BOUND,
+        cloned.storage.test_inspector().schema_catalog(),
+    )
+    .await
+    .expect("cloned schema catalog");
+    assert_eq!(
+        cloned_catalog, fresh_catalog,
+        "a cloned template store must present exactly the freshly bootstrapped schema catalog"
+    );
+
+    // Independent stores: a write to one is invisible to the other.
+    let fresh_ws = op_within("fresh workspace", SETUP_BOUND, fresh.create_workspace()).await;
+    let cloned_ws = op_within("cloned workspace", SETUP_BOUND, cloned.create_workspace()).await;
+    let fresh_doc = op_within(
+        "fresh document",
+        SETUP_BOUND,
+        fresh
+            .db
+            .create_knowledge_rich_document(new_document(&fresh_ws, "fresh only", "fresh")),
+    )
+    .await
+    .expect("create in the fresh store");
+    let cloned_doc = op_within(
+        "cloned document",
+        SETUP_BOUND,
+        cloned
+            .db
+            .create_knowledge_rich_document(new_document(&cloned_ws, "clone only", "clone")),
+    )
+    .await
+    .expect("create in the cloned store");
+    assert!(
+        op(
+            "cross-store read (clone -> fresh doc)",
+            cloned.db.get_knowledge_rich_document(&fresh_doc.rich_document_id),
+        )
+        .await
+        .expect("cross-store read")
+        .is_none(),
+        "the cloned store must not see the fresh store's rows"
+    );
+    assert!(
+        op(
+            "cross-store read (fresh -> clone doc)",
+            fresh.db.get_knowledge_rich_document(&cloned_doc.rich_document_id),
+        )
+        .await
+        .expect("cross-store read")
+        .is_none(),
+        "the fresh store must not see the cloned store's rows"
+    );
+    assert_ne!(
+        fresh.data_dir, cloned.data_dir,
+        "each store owns its own directory"
+    );
+    println!(
+        "SWARM_TEMPLATE_EQUIVALENCE catalog_tables={} independent=true",
+        cloned_catalog.tables.len()
+    );
+
+    op_within(
+        "close and remove fresh store",
+        STORE_LIFECYCLE_BOUND,
+        fresh.close_and_remove(),
+    )
+    .await
+    .expect("close fresh store");
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, cloned.close_and_remove())
+        .await
+        .expect("close cloned store");
+}
+
+/// Review R1-1-4: the keyed registry serialises same-key writers, which is
+/// exactly why the load profiles never produce a real engine commit conflict
+/// and why the retryability of one rested on untested SDK message text. This
+/// permanent contention lane bypasses the registry (`LockMode::Disabled`) so
+/// two independent clients commit the same natural key concurrently, and
+/// asserts the engine conflict was classified retryable and retried
+/// end-to-end. The shape is adopted from the lens-1 reviewer's probe
+/// `tests/swarm_review_probe_1.rs::probe_independent_clients_natural_key_upserts_stay_correct`
+/// (kept as their regression evidence; this lane is the lane-owned target).
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn engine_conflict_retry_lane_bypassing_the_keyed_registry() {
+    run_bounded_test("engine_conflict_retry_lane_bypassing_the_keyed_registry", engine_conflict_retry_lane_bypassing_the_keyed_registry_body()).await;
+}
+
+async fn engine_conflict_retry_lane_bypassing_the_keyed_registry_body() {
+    const LANE_RACERS: usize = 16;
+    const ROUNDS: usize = 6;
+
+    let seed = workload_seed();
+    println!("SWARM_SEED={seed}");
+    let diagnostics_owned = install_retry_diagnostics();
+    let before = retry_diagnostics_snapshot();
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
+
+    // One keyed wrapper, one wrapper with NO process-local lock at all.
+    let keyed = SurrealDatabase::new(store.storage.clone());
+    let unlocked = SurrealDatabase::with_lock_registry(
+        store.storage.clone(),
+        KeyedLockRegistry::disabled(),
+    );
+    assert_eq!(unlocked.lock_registry().mode(), LockMode::Disabled);
+    let clients = [keyed.clone(), unlocked.clone()];
+
+    // Natural-key entity upserts: one identity, N concurrent committers.
+    let mut entity_ids = std::collections::BTreeSet::new();
+    for round in 0..ROUNDS {
+        let entity_key = format!("mt142-retry-lane-{round}");
+        let barrier = Arc::new(Barrier::new(LANE_RACERS));
+        let mut tasks = Vec::with_capacity(LANE_RACERS);
+        for racer in 0..LANE_RACERS {
+            let db = clients[racer % clients.len()].clone();
+            let barrier = Arc::clone(&barrier);
+            let workspace_id = workspace_id.clone();
+            let entity_key = entity_key.clone();
+            tasks.push(tokio::spawn(async move {
+                barrier.wait().await;
+                timeout(
+                    PER_OPERATION_TIMEOUT,
+                    db.upsert_knowledge_entity(NewKnowledgeEntity {
+                        workspace_id,
+                        entity_kind: KnowledgeEntityKind::Concept,
+                        entity_key,
+                        display_name: format!("retry lane racer {racer}"),
+                        detection_provenance: json!({ "source": "mt142-retry-lane", "racer": racer }),
+                        primary_source_id: None,
+                        detected_in_run: None,
+                        evidence_span_ids: Vec::new(),
+                    }),
+                )
+                .await
+                .unwrap_or_else(|_| panic!("entity racer {racer} exceeded its per-operation bound"))
+            }));
+        }
+        for task in tasks {
+            let entity = task
+                .await
+                .expect("entity racer joined")
+                .expect("every natural-key upsert must converge (retry then UPDATE branch)");
+            entity_ids.insert(entity.entity_id);
+        }
+    }
+    assert_eq!(
+        entity_ids.len(),
+        ROUNDS,
+        "each natural key must resolve to exactly one entity id across both clients, got {entity_ids:?}"
+    );
+    let after_entities = retry_diagnostics_snapshot().delta_since(&before);
+
+    // Title anchor race: create-if-title-absent through both clients.
+    let mut created_documents = Vec::new();
+    for round in 0..ROUNDS {
+        let title = format!("MT-142 Retry Lane Title {round}");
+        let barrier = Arc::new(Barrier::new(LANE_RACERS));
+        let mut tasks = Vec::with_capacity(LANE_RACERS);
+        for racer in 0..LANE_RACERS {
+            let db = clients[racer % clients.len()].clone();
+            let barrier = Arc::clone(&barrier);
+            let document = new_document(&workspace_id, &title, &format!("retry lane {racer}"));
+            tasks.push(tokio::spawn(async move {
+                barrier.wait().await;
+                timeout(
+                    PER_OPERATION_TIMEOUT,
+                    db.create_knowledge_rich_document_if_title_absent(document),
+                )
+                .await
+                .unwrap_or_else(|_| panic!("title racer {racer} exceeded its per-operation bound"))
+            }));
+        }
+        let mut created = 0usize;
+        let mut ids = std::collections::BTreeSet::new();
+        for task in tasks {
+            let (document, was_created) = task
+                .await
+                .expect("title racer joined")
+                .expect("every create-if-title-absent call must converge");
+            ids.insert(document.rich_document_id.clone());
+            if was_created {
+                created += 1;
+                created_documents.push(document);
+            }
+        }
+        assert_eq!(
+            created, 1,
+            "exactly one racer may report creating the title {title:?}"
+        );
+        assert_eq!(
+            ids.len(),
+            1,
+            "every racer must observe the single winning document for {title:?}, got {ids:?}"
+        );
+    }
+    let after = retry_diagnostics_snapshot().delta_since(&before);
+    let title_scheduled = after.scheduled - after_entities.scheduled;
+    println!(
+        "SWARM_RETRY_LANE diagnostics_owned={diagnostics_owned} scheduled_total={} scheduled_entity={} scheduled_title={title_scheduled} exhausted={}",
+        after.scheduled, after_entities.scheduled, after.exhausted
+    );
+
+    // The lane's reason to exist: a REAL embedded RocksDB commit conflict was
+    // classified retryable and retried, and no retry budget was exhausted.
+    assert!(
+        after.scheduled > 0,
+        "the contention lane must exercise the real engine-conflict retry path at least once (retry_count 0 would mean the classifier is only proven by injected unit-test outcomes)"
+    );
+    assert_eq!(
+        after.exhausted, 0,
+        "no retry may exhaust its bounded budget in this lane"
+    );
+    assert_eq!(
+        created_documents.len(),
+        ROUNDS,
+        "exactly one document per title survives"
+    );
+
+    let run_id = new_run_id("mt142-retry-lane");
+    let fragment = json!({
+        "schema_id": REPORT_FRAGMENT_SCHEMA_ID,
+        "fragment": "engine_conflict_retry_lane",
+        "run_id": run_id,
+        "source_commit": source_commit(),
+        "surrealdb_version": SURREALDB_VERSION,
+        "engine_mode": "embedded_rocks_db",
+        "workload_seed": seed,
+        "racers_per_round": LANE_RACERS,
+        "rounds": ROUNDS,
+        "clients": ["keyed_registry", "lock_mode_disabled"],
+        "retry_scheduled_total": after.scheduled,
+        "retry_scheduled_entity_natural_key": after_entities.scheduled,
+        "retry_scheduled_title_anchor": title_scheduled,
+        "retry_exhaustion_count": after.exhausted,
+        "entity_natural_keys": entity_ids.len(),
+        "titles_created": created_documents.len(),
+        "retry_diagnostics_owned_by_this_process": diagnostics_owned,
+        "remote_proof_status": "not_run_unconfigured",
+    });
+    let path = write_report_json(&format!("swarm-retry-lane-{run_id}.json"), &fragment);
+    println!("SWARM_RETRY_LANE_REPORT={}", path.display());
+
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
+}
+
+/// Authority decision D-142-6: a backlink / Loom-edge row whose target
+/// document is deleted between resolution and commit may go stale, and the
+/// next save of the SOURCE document rebuilds it. Staleness is therefore not a
+/// lost write - but the rebuild must actually happen, which is what this proves
+/// (the integrity oracle deliberately holds no derived-row expectation).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn deleted_backlink_target_converges_on_the_next_source_save() {
+    run_bounded_test("deleted_backlink_target_converges_on_the_next_source_save", deleted_backlink_target_converges_on_the_next_source_save_body()).await;
+}
+
+async fn deleted_backlink_target_converges_on_the_next_source_save_body() {
+    let seed = workload_seed();
+    println!("SWARM_SEED={seed}");
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
+    let doc_api = DocApi::boot(&store).await;
+
+    let source = store
+        .db
+        .create_knowledge_rich_document(new_document(&workspace_id, "D-142-6 source", "source"))
+        .await
+        .expect("create source");
+    let target = store
+        .db
+        .create_knowledge_rich_document(new_document(&workspace_id, "D-142-6 target", "target"))
+        .await
+        .expect("create target");
+
+    let rows = store
+        .db
+        .replace_knowledge_document_backlinks(
+            &source.rich_document_id,
+            vec![backlink(&workspace_id, &source, &target, "d1426")],
+        )
+        .await
+        .expect("initial backlink rebuild");
+    assert_eq!(rows.len(), 1, "the source starts with one derived backlink");
+    assert_eq!(rows[0].target, target.rich_document_id, "it points at the live target");
+
+    // Delete the target through the public route (atomic tombstone + receipt).
+    doc_api
+        .delete_document(&target.rich_document_id, "d1426")
+        .await
+        .expect("delete the backlink target");
+    assert!(
+        store
+            .db
+            .get_knowledge_rich_document(&target.rich_document_id)
+            .await
+            .expect("read deleted target")
+            .is_none(),
+        "the target must be tombstoned"
+    );
+
+    // Whatever the delete left behind (cleaned or stale) is NOT a lost write.
+    // The proof obligation is convergence on the next save of the SOURCE.
+    let stale_rows = store
+        .db
+        .list_knowledge_document_backlinks_from(&source.rich_document_id)
+        .await
+        .expect("derived rows after the target delete");
+    println!(
+        "SWARM_D1426 rows_after_delete={} targets={:?}",
+        stale_rows.len(),
+        stale_rows.iter().map(|row| row.target.clone()).collect::<Vec<_>>()
+    );
+
+    let saved = store
+        .db
+        .save_knowledge_rich_document_version(
+            &source.rich_document_id,
+            source.doc_version,
+            document_content("source after target delete"),
+            None,
+            None,
+            None,
+        )
+        .await
+        .expect("save the source document");
+    assert_eq!(saved.doc_version, source.doc_version + 1);
+    let rebuilt = store
+        .db
+        .replace_knowledge_document_backlinks(
+            &source.rich_document_id,
+            vec![backlink(&workspace_id, &source, &target, "d1426")],
+        )
+        .await
+        .expect("rebuild the source's backlinks after the save");
+
+    // Convergence: the rebuild drops the row whose KRD target is no longer
+    // live, so no derived row references the deleted document.
+    assert!(
+        rebuilt.iter().all(|row| row.target != target.rich_document_id),
+        "the rebuild must drop the backlink to the deleted target, got {:?}",
+        rebuilt.iter().map(|row| row.target.clone()).collect::<Vec<_>>()
+    );
+    let converged = store
+        .db
+        .list_knowledge_document_backlinks_from(&source.rich_document_id)
+        .await
+        .expect("derived rows after the rebuild");
+    assert!(
+        converged.iter().all(|row| row.target != target.rich_document_id),
+        "the persisted derived rows must converge with the rebuild, got {:?}",
+        converged.iter().map(|row| row.target.clone()).collect::<Vec<_>>()
+    );
+    println!(
+        "SWARM_D1426 rows_after_rebuild={} converged=true",
+        converged.len()
+    );
+
+    doc_api.shutdown().await;
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove()).await.expect("close store");
 }

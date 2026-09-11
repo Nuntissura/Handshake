@@ -559,6 +559,12 @@ name = "knowledge_documents_api_tests"
 path = "tests/knowledge_documents_api_tests.rs"
 required-features = ["surreal-test-support", "test-utils"]
 
+# MT-142 review finding R1-1-2: delete-vs-rename on one title.
+[[test]]
+name = "knowledge_delete_title_race_tests"
+path = "tests/knowledge_delete_title_race_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
 [[test]]
 name = "knowledge_documents_tests"
 path = "tests/knowledge_documents_tests.rs"

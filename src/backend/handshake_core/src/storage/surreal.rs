@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     pin::Pin,
     sync::{
-        atomic::{AtomicU8, Ordering},
+        atomic::{AtomicU8, AtomicUsize, Ordering},
         Arc, Mutex as StdMutex,
     },
     time::{Duration, Instant},
@@ -148,25 +148,37 @@ pub const DEFAULT_SHUTDOWN_WAIT: Duration = Duration::from_secs(30);
 /// MT-142 AC-142-7: how long shutdown waits for in-flight leases before it
 /// cancels cooperative work (retry loops, keyed-lock waits).
 pub const DEFAULT_DRAIN_GRACE: Duration = Duration::from_secs(5);
-/// MT-142: caller-side bound on one storage-layer statement attempt. 300 s
-/// rather than the 30 s first proposed: in the 4-way parallel
-/// `knowledge_documents_api_tests` batch on the HDD (concurrent fresh
-/// bootstraps, `sync=every` fsync), a single save statement exceeded 30 s and
-/// the engine still held it 35 s later at teardown
-/// (`mt142-knowledge_documents_api_tests-20260910T173440Z.err.log`,
-/// `ShutdownStillInProgress`), while the same test passes alone in 87 s; a
-/// too-tight bound turns disk load into terminal 500s. Tighten per store via
-/// [`SurrealStorageConfig::with_statement_timeout`].
+/// MT-142: caller-side bound applied by [`SurrealStorage::with_data_operation`]
+/// to EVERY data operation of every store (knowledge, loom, wiki, canvas, ...).
+///
+/// 300 s rather than the 30 s first proposed (review R2-1-10, accepted with
+/// this written reason): in the 4-way parallel `knowledge_documents_api_tests`
+/// batch on the HDD (concurrent fresh bootstraps, `sync=every` fsync) a single
+/// save statement exceeded 30 s and the engine still held it 35 s later at
+/// teardown (`mt142-knowledge_documents_api_tests-20260910T173440Z.err.log`,
+/// `ShutdownStillInProgress`), while the same test passes alone in 87 s, and
+/// the fresh ~4,500-statement schema bootstrap exceeds 60 s under that load
+/// (`suite-run-1.out.log:1718,1731,1735`). A tight default converts disk load
+/// into terminal, outcome-unknown `StatementTimeout`s. Production consequence:
+/// a hung statement blocks its request for up to 5 minutes, beyond typical
+/// 30-60 s HTTP client timeouts, whose retries multiply engine work; deployments
+/// and fixtures that want a tighter bound lower it per store with
+/// [`SurrealStorageConfig::with_statement_timeout`], and the load report
+/// records the effective value.
 pub const DEFAULT_STATEMENT_TIMEOUT: Duration = Duration::from_secs(300);
 /// MT-142: recommended engine-level query deadline when a caller opts in via
-/// [`SurrealStorageConfig::with_engine_timeouts`]. NOT applied by default: the
-/// deadlines are per engine open and cannot exclude the fresh schema bootstrap
-/// (one ~4,500-statement transaction), which exceeds 60 s on a loaded HDD
-/// (MT-141 baseline `suite-run-1.out.log`: the bootstrap tests report "running
-/// for over 60 seconds"); the executor would cancel that transaction
-/// (`surrealdb-core-3.2.0/src/dbs/executor.rs:1034-1049`) and fail startup
-/// closed. The caller-side [`DEFAULT_STATEMENT_TIMEOUT`] bounds knowledge
-/// statements instead.
+/// [`SurrealStorageConfig::with_engine_timeouts`]. NOT applied by default
+/// (review R2-1-10, accepted with this written reason): engine deadlines are
+/// per engine open and cannot exclude the fresh schema bootstrap (one
+/// ~4,500-statement transaction), which exceeds 60 s on a loaded HDD (MT-141
+/// baseline `suite-run-1.out.log:1718,1731,1735`, "running for over 60
+/// seconds"); with these values applied the executor cancelled that
+/// transaction (`surrealdb-core-3.2.0/src/dbs/executor.rs:1034-1049`) and
+/// bootstrap failed closed (run `mt142-LIB-20260910T111428Z`). Therefore no
+/// engine-side cap exists by default; the caller-side
+/// [`DEFAULT_STATEMENT_TIMEOUT`] in [`SurrealStorage::with_data_operation`]
+/// bounds every data operation instead, and stores whose bootstrap is known to
+/// fit can enable these values.
 pub const DEFAULT_ENGINE_QUERY_TIMEOUT: Duration = Duration::from_secs(30);
 /// MT-142: recommended engine-level write-transaction deadline for opt-in use
 /// (see [`DEFAULT_ENGINE_QUERY_TIMEOUT`] for why it is not the default).
@@ -229,6 +241,14 @@ pub enum SurrealStorageError {
     InvalidShutdownWaitTimeout,
     #[error("embedded storage timeout `{setting}` must be greater than zero")]
     InvalidTimeout { setting: &'static str },
+    /// The last SDK handle was dropped but the engine had not released the
+    /// store's `LOCK` within the shutdown budget (MT-142 AC-142-7). The store
+    /// stays closed; a reopen of the same path fails until the engine finishes
+    /// the abandoned statement.
+    #[error(
+        "embedded engine did not release its store lock within {waited_ms} ms after the last handle was dropped; the store stays closed without a release proof"
+    )]
+    EngineReleaseUnproven { waited_ms: u128 },
     /// The caller stopped waiting for one statement attempt (MT-142). Terminal
     /// by contract: the engine may still apply the statement, so it is never
     /// retried.
@@ -410,6 +430,11 @@ pub(crate) type SurrealTransactionOperation<'a, T, E> =
 
 tokio::task_local! {
     static INSIDE_SURREAL_OPERATION: ();
+    /// MT-142: deadline for one logical (possibly retried) storage operation.
+    /// Set by [`SurrealStorage::with_operation_deadline`]; every data operation
+    /// underneath clamps its own bound to the remaining budget so a retry loop
+    /// cannot multiply `statement_timeout` by its attempt count.
+    static OPERATION_DEADLINE: Instant;
 }
 
 /// A sealed, lease-bound view for ordinary typed data operations.
@@ -807,6 +832,11 @@ enum ShutdownAttemptError {
     /// The sole client is still owned by the storage and another shutdown call
     /// may safely retry the flush barrier.
     Retryable(SurrealStorageError),
+    /// MT-142 AC-142-7: the drain did not complete inside `shutdown_wait`
+    /// after the cancellation token fired. The sole client is still owned by
+    /// the storage, admission stays stopped, cooperative work stays cancelled,
+    /// and a later shutdown call retries the close.
+    DrainTimedOut(SurrealStorageError),
     /// The sole client was taken and dropped. Operations must remain closed even
     /// though the platform release proof could not be completed.
     Terminal(SurrealStorageError),
@@ -834,9 +864,29 @@ struct SurrealStorageInner {
     /// tokens are handed out by [`SurrealStorage::cancellation_token`].
     cancel: StdMutex<CancellationToken>,
     shutdown_report: StdMutex<Option<ShutdownReport>>,
+    /// Leases held right now and the high-water mark since the last reset:
+    /// the engine-window concurrency gauge (review R2-1-3) that a hidden
+    /// global mutex cannot inflate, unlike a call-boundary counter.
+    leases_in_flight: AtomicUsize,
+    lease_high_water: AtomicUsize,
+}
+
+/// Decrements the in-flight lease count on every exit path, including drops of
+/// a cancelled or timed-out operation future.
+struct LeaseCount<'a>(&'a AtomicUsize);
+
+impl Drop for LeaseCount<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::AcqRel);
+    }
 }
 
 impl SurrealStorageInner {
+    fn enter_lease(&self) -> LeaseCount<'_> {
+        let current = self.leases_in_flight.fetch_add(1, Ordering::AcqRel) + 1;
+        self.lease_high_water.fetch_max(current, Ordering::AcqRel);
+        LeaseCount(&self.leases_in_flight)
+    }
     fn cancel_operations(&self) {
         self.cancel
             .lock()
@@ -957,6 +1007,8 @@ impl SurrealStorage {
                 shutdown: Mutex::new(ShutdownCoordinatorState::Open),
                 cancel: StdMutex::new(CancellationToken::new()),
                 shutdown_report: StdMutex::new(None),
+                leases_in_flight: AtomicUsize::new(0),
+                lease_high_water: AtomicUsize::new(0),
             }),
         })
     }
@@ -974,13 +1026,33 @@ impl SurrealStorage {
     /// The callback receives only a sealed facade. Holding the read lease across
     /// its returned future lets shutdown stop new work and drain every in-flight
     /// operation before dropping the final owned SDK handle.
+    ///
+    /// MT-142: every data operation is bounded by the configured
+    /// `statement_timeout` (review R2-1-4), clamped to the remaining budget of
+    /// the enclosing [`Self::with_operation_deadline`] scope when there is one.
+    /// On expiry the operation future is dropped (lease released) and the typed
+    /// [`SurrealStorageError::StatementTimeout`] is returned; the engine may
+    /// still apply the statement, so the outcome is unknown and never retried.
+    /// Paths that remain unbounded by design: `with_admin_operation` (schema
+    /// bootstrap, test inspector/mutator) and `with_transaction` (no product
+    /// callers).
     pub async fn with_data_operation<T, F>(&self, operation: F) -> Result<T, SurrealStorageError>
     where
         T: Send,
         F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealOperation<'a, T>,
     {
-        self.with_lease(|client| operation(SurrealDataContext { client }))
-            .await
+        let timeout = self.effective_statement_timeout();
+        match tokio::time::timeout(
+            timeout,
+            self.with_lease(|client| operation(SurrealDataContext { client })),
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(_elapsed) => Err(SurrealStorageError::StatementTimeout {
+                waited_ms: timeout.as_millis(),
+            }),
+        }
     }
 
     /// Keeps the lifecycle lease until an explicit transaction is committed or
@@ -1122,7 +1194,55 @@ impl SurrealStorage {
             return Err(SurrealStorageError::Closed);
         }
         let client = guard.as_ref().ok_or(SurrealStorageError::Closed)?;
+        let _lease_count = self.inner.enter_lease();
         INSIDE_SURREAL_OPERATION.scope((), operation(client)).await
+    }
+
+    /// Runs one logical storage operation - including every retry attempt it
+    /// makes - under a single wall-clock budget (MT-142 AC-142-5).
+    ///
+    /// Without this the per-attempt `statement_timeout` multiplies by the retry
+    /// policy's `maximum_attempts` (8 x 300 s = 40 minutes), because
+    /// `retry`'s `maximum_elapsed` deliberately bounds only the sleeps between
+    /// attempts: an in-flight attempt is never raced against a deadline, so an
+    /// acknowledged commit can never be dropped (see `retry.rs`). Scoping the
+    /// deadline here keeps that property while bounding the whole operation:
+    /// every `with_data_operation` underneath clamps its bound to what is left,
+    /// so the last attempt cannot overshoot.
+    pub async fn with_operation_deadline<T, F>(deadline: Instant, operation: F) -> T
+    where
+        F: Future<Output = T>,
+    {
+        OPERATION_DEADLINE.scope(deadline, operation).await
+    }
+
+    /// The configured statement timeout, clamped to the remaining budget of an
+    /// enclosing [`Self::with_operation_deadline`] scope.
+    fn effective_statement_timeout(&self) -> Duration {
+        let configured = self.inner.config.statement_timeout;
+        OPERATION_DEADLINE
+            .try_with(|deadline| deadline.saturating_duration_since(Instant::now()))
+            .map_or(configured, |remaining| configured.min(remaining))
+    }
+
+    /// Leases held right now (operations inside the engine window).
+    pub fn leases_in_flight(&self) -> usize {
+        self.inner.leases_in_flight.load(Ordering::Acquire)
+    }
+
+    /// Highest number of simultaneously held leases since the last
+    /// [`Self::reset_lease_high_water`]: the engine-window concurrency measure
+    /// for `maximum_concurrent_operations` (review R2-1-3). A store serialized
+    /// by a hidden global mutex cannot exceed 1 here.
+    pub fn lease_high_water(&self) -> usize {
+        self.inner.lease_high_water.load(Ordering::Acquire)
+    }
+
+    /// Restarts the high-water mark from the current in-flight count.
+    pub fn reset_lease_high_water(&self) {
+        self.inner
+            .lease_high_water
+            .store(self.leases_in_flight(), Ordering::Release);
     }
 
     pub async fn is_closed(&self) -> bool {
@@ -1220,11 +1340,12 @@ impl SurrealStorage {
     ) {
         let attempt = SurrealStorage::perform_shutdown(&inner).await;
         let terminal_failure = matches!(&attempt, Err(ShutdownAttemptError::Terminal(_)));
+        let drain_timed_out = matches!(&attempt, Err(ShutdownAttemptError::DrainTimedOut(_)));
         let result = attempt.map_err(|failure| {
             let error = match failure {
-                ShutdownAttemptError::Retryable(error) | ShutdownAttemptError::Terminal(error) => {
-                    error
-                }
+                ShutdownAttemptError::Retryable(error)
+                | ShutdownAttemptError::DrainTimedOut(error)
+                | ShutdownAttemptError::Terminal(error) => error,
             };
             Arc::<str>::from(error.to_string())
         });
@@ -1234,6 +1355,12 @@ impl SurrealStorage {
             Ok(()) => {
                 inner.lifecycle.store(LIFECYCLE_CLOSED, Ordering::Release);
                 *coordinator = ShutdownCoordinatorState::Closed;
+            }
+            Err(_) if drain_timed_out => {
+                // Admission stays stopped (lifecycle CLOSING) and cooperative
+                // work stays cancelled; the coordinator reopens so a later
+                // shutdown call retries the bounded close.
+                *coordinator = ShutdownCoordinatorState::Open;
             }
             Err(error) if terminal_failure => {
                 // The client has already been taken and dropped. Preserve that
@@ -1256,15 +1383,18 @@ impl SurrealStorage {
         let _ = sender.send(Some(result));
     }
 
-    /// MT-142 AC-142-7 close sequence: admission already stopped (`CLOSING`);
-    /// wait up to `drain_grace` for every lease; on expiry fire the cooperative
-    /// cancellation token so retry loops and lock waits return `Closed`, then
-    /// wait for the remaining engine-bound leases (a blocking RocksDB call
-    /// cannot be interrupted; the caller's `shutdown_wait` bounds its own wait
-    /// via `ShutdownStillInProgress`); flush, drop the sole handle, and prove
-    /// the engine released the store.
+    /// MT-142 AC-142-7 close sequence, bounded end to end by `shutdown_wait`:
+    /// admission already stopped (`CLOSING`); wait up to `drain_grace` for
+    /// every lease; on expiry fire the cooperative cancellation token so retry
+    /// loops and keyed-lock waits return `Closed`, then wait for the remaining
+    /// engine-bound leases (every data operation is itself bounded by
+    /// `statement_timeout`) only until the `shutdown_wait` budget is spent
+    /// (`DrainTimedOut`, typed `ShutdownStillInProgress`); flush, drop the sole
+    /// handle, and prove the engine released the store within the remaining
+    /// budget (`EngineReleaseUnproven` otherwise).
     async fn perform_shutdown(inner: &SurrealStorageInner) -> Result<(), ShutdownAttemptError> {
         let started = Instant::now();
+        let budget = inner.config.shutdown_wait;
         let mut report = ShutdownReport {
             drained: true,
             cancelled: false,
@@ -1284,10 +1414,23 @@ impl SurrealStorage {
                         .unwrap_or(u64::MAX),
                     "embedded store drain grace expired; cooperative work cancelled, waiting for engine-bound leases"
                 );
-                inner.client.write().await
+                let remaining = budget.saturating_sub(started.elapsed());
+                match tokio::time::timeout(remaining, inner.client.write()).await {
+                    Ok(guard) => guard,
+                    Err(_) => {
+                        report.elapsed = started.elapsed();
+                        inner.record_shutdown_report(report);
+                        return Err(ShutdownAttemptError::DrainTimedOut(
+                            SurrealStorageError::ShutdownStillInProgress {
+                                waited_ms: started.elapsed().as_millis(),
+                            },
+                        ));
+                    }
+                }
             }
         };
-        let outcome = SurrealStorage::close_client(inner, guard).await;
+        let release_budget = budget.saturating_sub(started.elapsed());
+        let outcome = SurrealStorage::close_client(inner, guard, release_budget).await;
         report.elapsed = started.elapsed();
         inner.record_shutdown_report(report);
         outcome
@@ -1296,6 +1439,7 @@ impl SurrealStorage {
     async fn close_client(
         inner: &SurrealStorageInner,
         mut guard: RwLockWriteGuard<'_, Option<SurrealClient>>,
+        release_budget: Duration,
     ) -> Result<(), ShutdownAttemptError> {
         let Some(client) = guard.as_ref() else {
             return Ok(());
@@ -1311,7 +1455,7 @@ impl SurrealStorage {
         };
         drop(guard);
         drop(client);
-        wait_for_engine_release(&inner.config.path)
+        wait_for_engine_release(&inner.config.path, release_budget)
             .await
             .map_err(ShutdownAttemptError::Terminal)?;
         Ok(())
@@ -1319,7 +1463,10 @@ impl SurrealStorage {
 }
 
 #[cfg(windows)]
-async fn wait_for_engine_release(store_path: &Path) -> Result<(), SurrealStorageError> {
+async fn wait_for_engine_release(
+    store_path: &Path,
+    budget: Duration,
+) -> Result<(), SurrealStorageError> {
     use std::{fs::OpenOptions, os::windows::fs::OpenOptionsExt};
 
     const ERROR_SHARING_VIOLATION: i32 = 32;
@@ -1329,6 +1476,7 @@ async fn wait_for_engine_release(store_path: &Path) -> Result<(), SurrealStorage
 
     let lock_path = store_path.join("LOCK");
     let mut backoff = INITIAL_BACKOFF;
+    let started = Instant::now();
 
     loop {
         match OpenOptions::new()
@@ -1362,13 +1510,22 @@ async fn wait_for_engine_release(store_path: &Path) -> Result<(), SurrealStorage
             }
         }
 
-        tokio::time::sleep(backoff).await;
+        let waited = started.elapsed();
+        if waited >= budget {
+            return Err(SurrealStorageError::EngineReleaseUnproven {
+                waited_ms: waited.as_millis(),
+            });
+        }
+        tokio::time::sleep(backoff.min(budget.saturating_sub(waited))).await;
         backoff = backoff.saturating_mul(2).min(MAX_BACKOFF);
     }
 }
 
 #[cfg(not(windows))]
-async fn wait_for_engine_release(_store_path: &Path) -> Result<(), SurrealStorageError> {
+async fn wait_for_engine_release(
+    _store_path: &Path,
+    _budget: Duration,
+) -> Result<(), SurrealStorageError> {
     // The locked SDK provides no router join or datastore-close acknowledgement.
     // A yield preserves the prior non-Windows behavior without claiming proof
     // equivalent to the Windows zero-sharing LOCK acquisition above.
@@ -1503,7 +1660,9 @@ mod windows_path_tests {
             .expect("hold exclusive RocksDB-style lock");
 
         let store_path = temp.path().to_path_buf();
-        let mut waiter = tokio::spawn(async move { wait_for_engine_release(&store_path).await });
+        let mut waiter = tokio::spawn(async move {
+            wait_for_engine_release(&store_path, Duration::from_secs(30)).await
+        });
         assert!(
             tokio::time::timeout(Duration::from_millis(50), &mut waiter)
                 .await
@@ -1517,6 +1676,40 @@ mod windows_path_tests {
             .expect("release proof should finish after CloseHandle")
             .expect("release proof task should not panic")
             .expect("exclusive release probe should succeed");
+    }
+
+    /// MT-142 AC-142-7 / review R2-1-4(ii): the LOCK probe is bounded, so a
+    /// never-released engine handle yields a typed outcome instead of an
+    /// unbounded loop.
+    #[tokio::test]
+    async fn engine_release_probe_gives_up_within_its_budget() {
+        use std::{fs::OpenOptions, os::windows::fs::OpenOptionsExt};
+
+        let temp = tempfile::tempdir().expect("create temporary root");
+        let lock_path = temp.path().join("LOCK");
+        let _held_lock = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .share_mode(0)
+            .open(&lock_path)
+            .expect("hold exclusive RocksDB-style lock");
+
+        let started = Instant::now();
+        let outcome =
+            wait_for_engine_release(temp.path(), Duration::from_millis(120)).await;
+        assert!(
+            matches!(
+                outcome,
+                Err(SurrealStorageError::EngineReleaseUnproven { .. })
+            ),
+            "held lock must yield the typed unproven outcome, got {outcome:?}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "probe must return inside its budget, took {:?}",
+            started.elapsed()
+        );
     }
 
     #[tokio::test]

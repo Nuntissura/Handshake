@@ -12,7 +12,10 @@
 #[path = "../knowledge_ingestion_support/mod.rs"]
 mod knowledge_ingestion_support;
 
-pub use knowledge_ingestion_support::{open_embedded_store, EmbeddedKnowledgeStore};
+// `open_embedded_store` still backs the one-time template bootstrap and the
+// clone-equivalence gate's fresh comparison store; every test's own store is a
+// clone of that template (see `SwarmStore`).
+pub use knowledge_ingestion_support::open_embedded_store;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
@@ -20,7 +23,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use handshake_core::api::knowledge_documents as docs_api;
@@ -41,9 +44,10 @@ use handshake_core::storage::surreal::swarm_load_report::{
     StoreDriveKind,
 };
 use handshake_core::storage::surreal::{
-    RowFilter, SurrealDatabase, SurrealTestInspector, TableSelector,
+    bootstrap_schema, RowFilter, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
+    SurrealTestInspector, TableSelector,
 };
-use handshake_core::storage::StorageError;
+use handshake_core::storage::{Database, NewWorkspace, StorageError, WriteContext};
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
 use serde_json::{json, Value};
@@ -245,15 +249,18 @@ pub fn is_not_found(error: &StorageError) -> bool {
     matches!(error, StorageError::NotFound(_))
 }
 
-/// Typed closed/cancelled outcome after shutdown stopped admission
-/// (`SurrealStorageError::Closed` renders `embedded database is closed`).
+/// Exact rendering of `SurrealStorageError::Closed` (`surreal.rs`), which
+/// reaches store callers wrapped by `StorageError::Database`. The knowledge
+/// retry loop maps a fired cancellation token to the same error
+/// (`knowledge.rs` `retry_error_to_storage`).
+pub const CLOSED_STORE_MESSAGE: &str = "embedded database is closed";
+
+/// Typed closed/cancelled outcome after shutdown stopped admission. Review
+/// R2-1-13: an exact match on the rendered `Closed` error, never a loose
+/// substring scan for "closed"/"cancelled" that any unrelated engine error
+/// could satisfy.
 pub fn is_closed_error(error: &StorageError) -> bool {
-    let text = error.to_string().to_ascii_lowercase();
-    text.contains("is closed")
-        || text.contains("closed")
-        || text.contains("cancelled")
-        || text.contains("canceled")
-        || text.contains("shutdown")
+    error.to_string().contains(CLOSED_STORE_MESSAGE)
 }
 
 /// Typed retry-exhaustion code the knowledge store returns
@@ -322,6 +329,14 @@ impl OpOutcome {
         }
     }
 
+    /// Review R2-1-8: an expected compare-and-set loser, idempotency-divergence
+    /// or title-race outcome is contention, not a correctness failure, and is
+    /// reported as [`FailureClass::ExpectedStaleOrConflict`]. A `NotFound`
+    /// raised by a racing delete is the same kind of expected contention; an
+    /// illegal disappearance is caught independently by the oracle
+    /// (`Oracle::note_missing_read`), never by this bucket. Only an
+    /// unclassified error or a raw engine conflict that leaked untyped stays
+    /// [`FailureClass::Terminal`].
     pub fn failure_class(&self) -> Option<FailureClass> {
         match self {
             Self::Ok => None,
@@ -329,10 +344,10 @@ impl OpOutcome {
             Self::Closed(_) => Some(FailureClass::Cancelled),
             Self::RetryExhausted(_) => Some(FailureClass::RetryExhausted),
             Self::LockWaitTimeout(_) => Some(FailureClass::LockWaitTimeout),
-            Self::TypedConflict(_)
-            | Self::UntypedEngineConflict(_)
-            | Self::NotFound(_)
-            | Self::Terminal(_) => Some(FailureClass::Terminal),
+            Self::TypedConflict(_) | Self::NotFound(_) => {
+                Some(FailureClass::ExpectedStaleOrConflict)
+            }
+            Self::UntypedEngineConflict(_) | Self::Terminal(_) => Some(FailureClass::Terminal),
         }
     }
 
@@ -590,6 +605,251 @@ pub fn retry_diagnostics_snapshot() -> RetryDiagnosticsSnapshot {
 // Bounded futures.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Template-store fixture.
+//
+// A fresh schema apply is ~4,467 DDL statements, each fsynced on a 7200-rpm
+// disk: ~360 s measured (`SWARM_STORE_OPEN_MS=355678`; A2's phase measurement
+// `ddl_apply_ms=358385`). Paying that per test costs ~48 minutes for one
+// unfiltered semantics run. This fixture applies the schema ONCE per test
+// binary, closes that store cleanly, and gives every test its own COPY of the
+// closed store directory: a real, isolated, on-disk RocksDB store carrying the
+// real schema - no sharing, no weakened isolation, no mock. The copy is then
+// opened through the ordinary production path and its schema state is
+// re-verified by `bootstrap_schema`, which takes the resume path.
+// ---------------------------------------------------------------------------
+
+/// Root for this process's swarm stores, kept out of the product's
+/// `storage-conformance` subtree so concurrent targets never collide.
+fn swarm_store_root() -> PathBuf {
+    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .expect("HANDSHAKE_ARTIFACTS_ROOT must be set (absolute) for swarm stores");
+    let root = PathBuf::from(root)
+        .join("handshake-test")
+        .join("swarm-stores")
+        .join(format!("pid-{}", std::process::id()));
+    std::fs::create_dir_all(&root)
+        .unwrap_or_else(|error| panic!("create swarm store root {}: {error}", root.display()));
+    root
+}
+
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<u64> {
+    std::fs::create_dir_all(to)?;
+    let mut bytes = 0;
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.metadata()?.is_dir() {
+            bytes += copy_dir(&entry.path(), &target)?;
+        } else {
+            bytes += std::fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(bytes)
+}
+
+static TEMPLATE_STORE: tokio::sync::OnceCell<PathBuf> = tokio::sync::OnceCell::const_new();
+
+/// Applies the schema once per process and returns the closed template dir.
+async fn template_store_dir() -> &'static PathBuf {
+    TEMPLATE_STORE
+        .get_or_init(|| async {
+            let started = Instant::now();
+            let store = open_embedded_store()
+                .await
+                .expect("MT-142 requires the embedded SurrealDB test store");
+            let source = store.data_dir.clone();
+            store
+                .shutdown()
+                .await
+                .expect("close the template store before copying it");
+            let template = swarm_store_root().join("template");
+            if template.exists() {
+                std::fs::remove_dir_all(&template).ok();
+            }
+            let bytes = copy_dir(&source, &template).unwrap_or_else(|error| {
+                panic!("copy template store {} -> {}: {error}", source.display(), template.display())
+            });
+            // The original fixture (and its cleanup guard) goes away; the
+            // closed copy is what every test clones from here on.
+            store
+                .close_and_remove()
+                .await
+                .expect("remove the template's origin store");
+            println!(
+                "SWARM_TEMPLATE_BOOTSTRAP_MS={} template_bytes={bytes}",
+                started.elapsed().as_millis()
+            );
+            template
+        })
+        .await
+}
+
+/// One test's own real embedded store, cloned from the process template.
+pub struct SwarmStore {
+    pub db: SurrealDatabase,
+    pub storage: SurrealStorage,
+    pub data_dir: PathBuf,
+    closed: bool,
+}
+
+impl SwarmStore {
+    /// Copies the closed template, opens the copy through the production path
+    /// and re-verifies its schema state (`bootstrap_schema` resume path).
+    pub async fn from_template() -> SwarmStore {
+        let template = template_store_dir().await;
+        let data_dir = swarm_store_root().join(format!("store-{}", uuid::Uuid::now_v7().simple()));
+        copy_dir(template, &data_dir).unwrap_or_else(|error| {
+            panic!("clone template store into {}: {error}", data_dir.display())
+        });
+        let config = SurrealStorageConfig::for_data_dir(&data_dir)
+            .unwrap_or_else(|error| panic!("config for {}: {error}", data_dir.display()));
+        let storage = SurrealStorage::open(config)
+            .await
+            .unwrap_or_else(|error| panic!("open cloned store {}: {error}", data_dir.display()));
+        // Schema-state check on the clone: identical to what a freshly
+        // bootstrapped store reports, and cheap because nothing is re-applied.
+        bootstrap_schema(&storage)
+            .await
+            .unwrap_or_else(|error| panic!("verify cloned store schema state: {error}"));
+        let db = SurrealDatabase::new(storage.clone());
+        SwarmStore {
+            db,
+            storage,
+            data_dir,
+            closed: false,
+        }
+    }
+
+    pub async fn create_workspace(&self) -> String {
+        self.db
+            .create_workspace(
+                &WriteContext::human(None),
+                NewWorkspace {
+                    name: format!("swarm-ws-{}", uuid::Uuid::now_v7()),
+                },
+            )
+            .await
+            .expect("create workspace for the swarm store")
+            .id
+    }
+
+    pub fn database(&self) -> Arc<dyn handshake_core::storage::Database> {
+        Arc::new(self.db.clone())
+    }
+
+    pub async fn shutdown(&self) -> Result<(), StorageError> {
+        self.storage
+            .shutdown()
+            .await
+            .map_err(|error| StorageError::Database(error.to_string()))
+    }
+
+    /// Reopen the same on-disk store after a shutdown.
+    pub async fn reopen_database(&self) -> Result<SurrealDatabase, StorageError> {
+        let config = SurrealStorageConfig::for_data_dir(&self.data_dir)
+            .map_err(|error| StorageError::Database(error.to_string()))?;
+        let storage = SurrealStorage::open(config)
+            .await
+            .map_err(|error| StorageError::Database(error.to_string()))?;
+        Ok(SurrealDatabase::new(storage))
+    }
+
+    pub async fn close_and_remove(mut self) -> Result<(), StorageError> {
+        let shutdown = self.storage.shutdown().await;
+        self.closed = true;
+        let removal = std::fs::remove_dir_all(&self.data_dir);
+        match (shutdown, removal) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(error), _) => Err(StorageError::Database(error.to_string())),
+            (Ok(()), Err(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            (Ok(()), Err(error)) => Err(StorageError::Database(format!(
+                "cleanup failed for {}: {error}",
+                self.data_dir.display()
+            ))),
+        }
+    }
+}
+
+impl Drop for SwarmStore {
+    /// Panic path: the test never reached `close_and_remove`, so remove the
+    /// directory rather than leaking a store per failed run.
+    fn drop(&mut self) {
+        if self.closed {
+            return;
+        }
+        let data_dir = self.data_dir.clone();
+        let storage = self.storage.clone();
+        let cleanup = std::thread::Builder::new()
+            .name("mt142-swarm-store-cleanup".to_owned())
+            .spawn(move || {
+                if let Ok(runtime) = tokio::runtime::Builder::new_current_thread().enable_all().build() {
+                    let _ = runtime.block_on(storage.shutdown());
+                }
+                let _ = std::fs::remove_dir_all(&data_dir);
+            });
+        if let Ok(thread) = cleanup {
+            let _ = thread.join();
+        }
+    }
+}
+
+/// Bound for opening or closing an embedded store. A fresh bootstrap is
+/// ~4,500 DDL statements with `SyncMode::Every` on a 7200-rpm disk that other
+/// lanes and the harness's background store-cleanup threads share, so this is
+/// deliberately generous: it exists to turn a HANG into a named failure, not
+/// to police setup latency. The racing per-operation bound stays tight.
+pub const STORE_OPEN_BOUND: Duration = Duration::from_millis(600_000);
+
+/// Opens this test's own real embedded store (a clone of the process
+/// template) under [`STORE_OPEN_BOUND`], printing the measured duration as
+/// `SWARM_STORE_OPEN_MS=<ms>`. The first call in a process also pays the
+/// one-time schema apply, reported separately as
+/// `SWARM_TEMPLATE_BOOTSTRAP_MS`.
+pub async fn open_store_measured() -> SwarmStore {
+    let started = Instant::now();
+    let store = op_within("open embedded store", STORE_OPEN_BOUND, SwarmStore::from_template()).await;
+    println!(
+        "SWARM_STORE_OPEN_MS={} store_open_bound_ms={}",
+        started.elapsed().as_millis(),
+        STORE_OPEN_BOUND.as_millis()
+    );
+    store
+}
+
+/// Runs one store operation under [`PER_OPERATION_TIMEOUT`], panicking with
+/// the operation's name when it stalls. Contract `load_profiles` hard bound and
+/// red-team minimum control: every task, lock wait, query, retry loop, shutdown
+/// and reopen proof is explicitly bounded, so a hang FAILS naming itself
+/// instead of hanging the runner.
+pub async fn op<T, F>(label: &str, future: F) -> T
+where
+    F: Future<Output = T>,
+{
+    match tokio::time::timeout(PER_OPERATION_TIMEOUT, future).await {
+        Ok(value) => value,
+        Err(_) => panic!(
+            "operation {label:?} exceeded its per-operation bound of {} ms",
+            PER_OPERATION_TIMEOUT.as_millis()
+        ),
+    }
+}
+
+/// [`op`] with a caller-chosen bound for operations that are legitimately
+/// slower than one statement (store open, close, reopen, bulk seeding).
+pub async fn op_within<T, F>(label: &str, bound: Duration, future: F) -> T
+where
+    F: Future<Output = T>,
+{
+    match tokio::time::timeout(bound, future).await {
+        Ok(value) => value,
+        Err(_) => panic!(
+            "operation {label:?} exceeded its explicit bound of {} ms",
+            bound.as_millis()
+        ),
+    }
+}
+
 /// Runs `future` under `bound`; `Err(label)` names what timed out.
 pub async fn bounded<T, F>(label: &str, bound: Duration, future: F) -> Result<T, String>
 where
@@ -717,6 +977,24 @@ pub fn source_commit() -> String {
     }
 }
 
+/// Total size of the files under `path`, or `None` when it cannot be walked.
+pub fn directory_size_bytes(path: &Path) -> Option<u64> {
+    fn walk(path: &Path, total: &mut u64) -> std::io::Result<()> {
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            let metadata = entry.metadata()?;
+            if metadata.is_dir() {
+                walk(&entry.path(), total)?;
+            } else {
+                *total += metadata.len();
+            }
+        }
+        Ok(())
+    }
+    let mut total = 0;
+    walk(path, &mut total).ok().map(|()| total)
+}
+
 /// Resident set size of this process in bytes when cheaply available.
 pub fn process_rss_bytes() -> Option<u64> {
     if !cfg!(windows) {
@@ -749,8 +1027,66 @@ pub fn report_dir() -> PathBuf {
         .join("swarm-load")
 }
 
+/// Fragments the product validator never scans (review R2-1-11): the same
+/// forbidden path/credential rule `SwarmLoadReport::validate` applies to the
+/// struct, applied here to the FINAL JSON value including the diagnostics
+/// extension block, whose verbatim error texts can embed a store path.
+const FORBIDDEN_REPORT_FRAGMENTS: [&str; 6] = [
+    "C:\\Users",
+    "C:/Users",
+    "/home/",
+    "/Users/",
+    "password",
+    "token=",
+];
+
+fn scan_forbidden(value: &Value, path: &str, offending: &mut Vec<String>) {
+    let check = |text: &str, at: &str, offending: &mut Vec<String>| {
+        let lowered = text.to_ascii_lowercase();
+        for fragment in FORBIDDEN_REPORT_FRAGMENTS {
+            let hit = if fragment.chars().any(|c| c.is_ascii_uppercase()) {
+                text.contains(fragment)
+            } else {
+                lowered.contains(fragment)
+            };
+            if hit {
+                offending.push(format!("{at} contains forbidden fragment {fragment:?}"));
+            }
+        }
+    };
+    match value {
+        Value::String(text) => check(text, path, offending),
+        Value::Array(items) => {
+            for (index, item) in items.iter().enumerate() {
+                scan_forbidden(item, &format!("{path}[{index}]"), offending);
+            }
+        }
+        Value::Object(fields) => {
+            for (key, item) in fields {
+                check(key, &format!("{path}.{key} key"), offending);
+                scan_forbidden(item, &format!("{path}.{key}"), offending);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Every forbidden path/credential fragment in the rendered report.
+pub fn forbidden_report_strings(value: &Value) -> Vec<String> {
+    let mut offending = Vec::new();
+    scan_forbidden(value, "$", &mut offending);
+    offending
+}
+
 /// Writes pretty JSON to `<report_dir>/<file_name>` and returns the path.
+/// Panics when the rendered value carries a user-profile path or a
+/// credential-looking token (review R2-1-11), diagnostics included.
 pub fn write_report_json(file_name: &str, value: &Value) -> PathBuf {
+    let offending = forbidden_report_strings(value);
+    assert!(
+        offending.is_empty(),
+        "report {file_name} carries forbidden path/credential fragments: {offending:?}"
+    );
     let dir = report_dir();
     std::fs::create_dir_all(&dir)
         .unwrap_or_else(|error| panic!("create report dir {}: {error}", dir.display()));
@@ -827,7 +1163,7 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
-fn app_state(store: &EmbeddedKnowledgeStore) -> AppState {
+fn app_state(store: &SwarmStore) -> AppState {
     let recorder = Arc::new(NoopRecorder);
     AppState {
         storage: Arc::new(store.db.clone()),
@@ -868,7 +1204,7 @@ pub struct DocApi {
 }
 
 impl DocApi {
-    pub async fn boot(store: &EmbeddedKnowledgeStore) -> DocApi {
+    pub async fn boot(store: &SwarmStore) -> DocApi {
         let app = docs_api::routes(app_state(store));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
@@ -1008,6 +1344,15 @@ impl DocOracle {
     }
 }
 
+/// What MUST be true after a run.
+///
+/// Scope note (authority decision D-142-6): derived backlink and Loom-edge
+/// rows are deliberately NOT tracked here. A row whose target document is
+/// deleted between backlink resolution and commit may go stale, and the next
+/// save of the SOURCE document rebuilds it, so staleness is not a lost write.
+/// The obligation that the rebuild actually happens is proven explicitly by
+/// `surreal_swarm_semantics_tests::deleted_backlink_target_converges_on_the_next_source_save`,
+/// never by silently ignoring the class here.
 #[derive(Debug, Default)]
 pub struct Oracle {
     pub docs: BTreeMap<String, DocOracle>,

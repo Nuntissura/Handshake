@@ -26,12 +26,21 @@ use tokio::sync::Notify;
 use tokio::time::timeout;
 
 const WORKERS: u32 = 16;
+/// Explicit bound on the close-and-reopen step (review R2-1-16).
+const REOPEN_BOUND: Duration = Duration::from_millis(60_000);
+/// Drain grace for the cancel scenario: short enough that an in-flight
+/// heavy save cannot finish inside it (review R2-1-5).
+const CANCEL_DRAIN_GRACE: Duration = Duration::from_millis(100);
+/// Bound for opening/closing an embedded store (schema bootstrap, teardown).
+const STORE_LIFECYCLE_BOUND: Duration = Duration::from_millis(600_000);
+/// Bound for sequential setup writes.
+const SETUP_BOUND: Duration = Duration::from_millis(300_000);
 /// Acknowledged writes before shutdown is triggered mid-flight.
 const ACKS_BEFORE_SHUTDOWN: u64 = 200;
 /// Operations a worker may still complete successfully after shutdown was
 /// requested before admission must have stopped (bounded drain).
 const MAX_SUCCESSES_AFTER_SHUTDOWN_REQUEST: u64 = 64;
-const LIFECYCLE_BOUND: Duration = Duration::from_millis(180_000);
+const LIFECYCLE_BOUND: Duration = Duration::from_millis(900_000);
 
 #[derive(Debug, Default)]
 struct WorkerSummary {
@@ -217,10 +226,8 @@ async fn shutdown_under_load_then_reopen_is_durable() {
 
 async fn lifecycle_proof(seed: u64) {
     let run_id = new_run_id("mt142-lifecycle");
-    let store = open_embedded_store()
-        .await
-        .expect("MT-142 requires the embedded SurrealDB test store");
-    let workspace_id = store.create_workspace().await;
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
     let inspector = store.storage.test_inspector();
     let baseline = table_counts(&inspector).await;
 
@@ -231,15 +238,17 @@ async fn lifecycle_proof(seed: u64) {
     for worker in 0..WORKERS {
         let mut documents = Vec::with_capacity(2);
         for slot in 0..2 {
-            let document = store
-                .db
-                .create_knowledge_rich_document(new_document(
+            let document = op_within(
+                &format!("create lifecycle document w{worker} d{slot}"),
+                SETUP_BOUND,
+                store.db.create_knowledge_rich_document(new_document(
                     &workspace_id,
                     &format!("lifecycle w{worker} d{slot}"),
                     &format!("lifecycle base w{worker} d{slot}"),
-                ))
-                .await
-                .expect("create lifecycle document");
+                )),
+            )
+            .await
+            .expect("create lifecycle document");
             oracle.ack_create(&document);
             documents.push(document);
         }
@@ -383,11 +392,12 @@ async fn lifecycle_proof(seed: u64) {
         "at most one in-flight operation per worker can straddle the shutdown instant"
     );
 
-    // Real reopen of the same data_dir.
+    // Real reopen of the same data_dir (review R2-1-16: bounded and named, so
+    // a reopen hang is not attributed to the whole-test bound).
     let reopen_started = Instant::now();
-    let reopened = store
-        .reopen_database()
+    let reopened = bounded("reopen after shutdown", REOPEN_BOUND, store.reopen_database())
         .await
+        .expect("reopen must finish inside its explicit bound")
         .expect("reopen the same data_dir after shutdown");
     let reopen_elapsed = reopen_started.elapsed();
     let reopened_inspector = reopened.storage().test_inspector();
@@ -416,11 +426,15 @@ async fn lifecycle_proof(seed: u64) {
     // version row, no orphan version/block/index rows).
     let mut acknowledged_versions = 0u64;
     for (rich_document_id, entry) in &oracle.docs {
-        let live = reopened
-            .get_knowledge_rich_document(rich_document_id)
-            .await
-            .expect("read after reopen")
-            .unwrap_or_else(|| panic!("document {rich_document_id} lost across reopen"));
+        let live = bounded(
+            &format!("post-reopen read of {rich_document_id}"),
+            PER_OPERATION_TIMEOUT,
+            reopened.get_knowledge_rich_document(rich_document_id),
+        )
+        .await
+        .expect("post-reopen read must finish inside its explicit bound")
+        .expect("read after reopen")
+        .unwrap_or_else(|| panic!("document {rich_document_id} lost across reopen"));
         let (head, sha) = entry.head_version().expect("acknowledged head");
         assert_eq!(
             live.doc_version, head,
@@ -430,10 +444,14 @@ async fn lifecycle_proof(seed: u64) {
             live.content_sha256, sha,
             "document {rich_document_id} must carry the acknowledged head content after reopen"
         );
-        let versions = reopened
-            .list_knowledge_rich_document_versions(rich_document_id)
-            .await
-            .expect("versions after reopen");
+        let versions = bounded(
+            &format!("post-reopen version list of {rich_document_id}"),
+            PER_OPERATION_TIMEOUT,
+            reopened.list_knowledge_rich_document_versions(rich_document_id),
+        )
+        .await
+        .expect("post-reopen version list must finish inside its explicit bound")
+        .expect("versions after reopen");
         let stored: BTreeMap<i64, String> = versions
             .iter()
             .map(|row| (row.doc_version, row.content_sha256.clone()))
@@ -494,5 +512,285 @@ async fn lifecycle_proof(seed: u64) {
     let path = write_report_json(&format!("swarm-lifecycle-{run_id}.json"), &fragment);
     println!("SWARM_LIFECYCLE_REPORT={}", path.display());
 
-    store.close_and_remove().await.expect("close and remove the store");
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove())
+        .await
+        .expect("close and remove the store");
+}
+
+// ---------------------------------------------------------------------------
+// Review R2-1-5: the CANCEL branch of shutdown against a live store. The drain
+// path above always drained (ShutdownReport.cancelled = false), so the drain
+// grace expiry, the cooperative cancellation token and the typed closed
+// outcome had no end-to-end proof.
+// ---------------------------------------------------------------------------
+
+/// A payload big enough that one save cannot commit inside the 100 ms drain
+/// grace on the HDD-backed store (fsync per commit plus the projection and
+/// version rows).
+fn heavy_content(text: &str) -> serde_json::Value {
+    let paragraphs: Vec<serde_json::Value> = (0..400)
+        .map(|index| {
+            json!({
+                "type": "paragraph",
+                "content": [{
+                    "type": "text",
+                    "text": format!("swarm cancel {text} paragraph {index} {}", "x".repeat(180)),
+                }]
+            })
+        })
+        .collect();
+    json!({ "type": "doc", "content": paragraphs })
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn shutdown_cancel_path_under_load_is_bounded_and_durable() {
+    let seed = workload_seed();
+    println!("SWARM_SEED={seed}");
+    timeout(LIFECYCLE_BOUND, cancel_path_proof(seed))
+        .await
+        .unwrap_or_else(|_| {
+            panic!(
+                "cancel-path proof exceeded its whole-test bound of {} ms",
+                LIFECYCLE_BOUND.as_millis()
+            )
+        });
+}
+
+async fn cancel_path_proof(seed: u64) {
+    let run_id = new_run_id("mt142-lifecycle-cancel");
+    // Bootstrap a store the normal way, then reopen the SAME data_dir with a
+    // 100 ms drain grace so shutdown must cancel rather than drain.
+    let store = open_store_measured().await;
+    let workspace_id = op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
+    let data_dir = store.data_dir.clone();
+    // Baseline BEFORE seeding: reconcile() expects baseline + the oracle's
+    // acknowledged creates, so counting the seed documents here too would
+    // double-count them.
+    let baseline = table_counts(&store.storage.test_inspector()).await;
+    let mut oracle = Oracle::default();
+    let mut documents = Vec::with_capacity(WORKERS as usize);
+    for worker in 0..WORKERS {
+        let document = op_within(
+            &format!("create cancel-scenario document w{worker}"),
+            SETUP_BOUND,
+            store.db.create_knowledge_rich_document(new_document(
+                &workspace_id,
+                &format!("cancel w{worker}"),
+                &format!("cancel base w{worker}"),
+            )),
+        )
+        .await
+        .expect("create cancel-scenario document");
+        oracle.ack_create(&document);
+        documents.push(document);
+    }
+    op_within(
+        "close the bootstrap handle",
+        STORE_LIFECYCLE_BOUND,
+        store.storage.shutdown(),
+    )
+    .await
+    .expect("close the bootstrap handle before reopening with a short drain grace");
+
+    let config = handshake_core::storage::surreal::SurrealStorageConfig::for_data_dir(&data_dir)
+        .expect("config for the bootstrapped data_dir")
+        .with_drain_grace(CANCEL_DRAIN_GRACE);
+    assert_eq!(config.drain_grace(), CANCEL_DRAIN_GRACE);
+    let storage = op_within(
+        "reopen with a short drain grace",
+        STORE_LIFECYCLE_BOUND,
+        handshake_core::storage::surreal::SurrealStorage::open(config),
+    )
+    .await
+    .expect("reopen the store with a short drain grace");
+    let db = handshake_core::storage::surreal::SurrealDatabase::new(storage.clone());
+
+    let acknowledged = Arc::new(AtomicU64::new(0));
+    let threshold = Arc::new(Notify::new());
+    let oracle = Arc::new(Mutex::new(oracle));
+    let mut tasks = Vec::with_capacity(documents.len());
+    for (worker, document) in documents.iter().cloned().enumerate() {
+        let db = db.clone();
+        let acknowledged = Arc::clone(&acknowledged);
+        let threshold = Arc::clone(&threshold);
+        let oracle = Arc::clone(&oracle);
+        let worker = worker as u32;
+        tasks.push(tokio::spawn(async move {
+            let mut expected_version = document.doc_version;
+            let mut closed_error: Option<String> = None;
+            let mut untyped: Vec<String> = Vec::new();
+            let mut acknowledged_here = 0u64;
+            for operation in 0..1_000u64 {
+                let saved = timeout(
+                    PER_OPERATION_TIMEOUT,
+                    db.save_knowledge_rich_document_version(
+                        &document.rich_document_id,
+                        expected_version,
+                        heavy_content(&format!("w{worker} op{operation}")),
+                        None,
+                        None,
+                        None,
+                    ),
+                )
+                .await;
+                match saved {
+                    Err(_) => {
+                        untyped.push(format!(
+                            "worker {worker} save exceeded the {} ms per-operation bound",
+                            PER_OPERATION_TIMEOUT.as_millis()
+                        ));
+                        break;
+                    }
+                    Ok(Ok(document)) => {
+                        expected_version = document.doc_version;
+                        oracle.lock().expect("oracle").ack_save(&document);
+                        acknowledged_here += 1;
+                        if acknowledged.fetch_add(1, Ordering::SeqCst) + 1 == u64::from(WORKERS) {
+                            threshold.notify_one();
+                        }
+                    }
+                    Ok(Err(error)) => {
+                        if is_closed_error(&error) {
+                            closed_error = Some(error.to_string());
+                        } else {
+                            untyped.push(format!("worker {worker}: {error}"));
+                        }
+                        break;
+                    }
+                }
+            }
+            (worker, acknowledged_here, closed_error, untyped)
+        }));
+    }
+
+    // Every worker has committed at least one heavy save, so a lease is held
+    // when shutdown starts (bounded wait, no sleep).
+    timeout(PER_WORKER_TIMEOUT, threshold.notified())
+        .await
+        .expect("workers must acknowledge their first heavy save inside the bound");
+    let shutdown_started = Instant::now();
+    let report = timeout(
+        storage.config().shutdown_wait() + Duration::from_secs(5),
+        storage.shutdown_with_report(),
+    )
+    .await
+    .expect("shutdown must return inside its explicit bound")
+    .expect("shutdown under load must succeed");
+    let shutdown_elapsed = shutdown_started.elapsed();
+    println!(
+        "SWARM_CANCEL_SHUTDOWN elapsed_ms={} report={report:?} drain_grace_ms={}",
+        shutdown_elapsed.as_millis(),
+        CANCEL_DRAIN_GRACE.as_millis()
+    );
+    assert!(
+        report.cancelled,
+        "with a {} ms drain grace and heavy saves in flight, shutdown must take the CANCEL branch (drain grace expired -> cooperative cancellation), got {report:?}",
+        CANCEL_DRAIN_GRACE.as_millis()
+    );
+    assert!(!report.drained, "a cancelled shutdown did not fully drain: {report:?}");
+    assert!(
+        shutdown_elapsed >= CANCEL_DRAIN_GRACE,
+        "cancellation may only fire after the drain grace elapsed"
+    );
+    assert!(
+        shutdown_elapsed <= storage.config().shutdown_wait(),
+        "cancelled shutdown took {} ms, over its explicit bound of {} ms",
+        shutdown_elapsed.as_millis(),
+        storage.config().shutdown_wait().as_millis()
+    );
+    assert!(!storage.is_accepting_operations(), "cancelled shutdown must stop admission");
+
+    let mut summaries = Vec::with_capacity(tasks.len());
+    for task in tasks {
+        summaries.push(task.await.expect("cancel-scenario worker joined"));
+    }
+    let acknowledged_total = acknowledged.load(Ordering::SeqCst);
+    let closed_workers = summaries.iter().filter(|(_, _, closed, _)| closed.is_some()).count();
+    println!(
+        "SWARM_CANCEL acknowledged_total={acknowledged_total} workers={} closed_workers={closed_workers}",
+        summaries.len()
+    );
+    for (worker, _, closed, untyped) in &summaries {
+        assert!(
+            untyped.is_empty(),
+            "worker {worker} saw an outcome that is neither an acknowledged write nor the typed closed error: {untyped:?}"
+        );
+        assert!(
+            closed.is_some(),
+            "worker {worker} never observed the typed closed/cancelled error after the cancelled shutdown"
+        );
+    }
+
+    // Reopen with the default configuration and reconcile.
+    let reopen_started = Instant::now();
+    let reopen_config =
+        handshake_core::storage::surreal::SurrealStorageConfig::for_data_dir(&data_dir)
+            .expect("reopen config");
+    let reopened_storage = bounded(
+        "reopen after cancelled shutdown",
+        REOPEN_BOUND,
+        handshake_core::storage::surreal::SurrealStorage::open(reopen_config),
+    )
+    .await
+    .expect("reopen must finish inside its explicit bound")
+    .expect("reopen the same data_dir after a cancelled shutdown");
+    let reopened = handshake_core::storage::surreal::SurrealDatabase::new(reopened_storage.clone());
+    let reopen_elapsed = reopen_started.elapsed();
+    let reopened_inspector = reopened_storage.test_inspector();
+    let oracle = Arc::try_unwrap(oracle)
+        .unwrap_or_else(|_| panic!("every worker released the oracle"))
+        .into_inner()
+        .expect("oracle");
+    let integrity = reconcile(&reopened, &reopened_inspector, &oracle, &baseline).await;
+    println!(
+        "SWARM_CANCEL_REOPEN elapsed_ms={} verdict={:?} violations={} documents_checked={} versions_checked={}",
+        reopen_elapsed.as_millis(),
+        integrity.verdict,
+        integrity.violations.len(),
+        integrity.documents_checked,
+        integrity.versions_checked
+    );
+    assert_eq!(
+        integrity.verdict,
+        IntegrityVerdict::Pass,
+        "every acknowledged write must survive a CANCELLED shutdown with no partial transaction; first violations:\n{}",
+        integrity.rendered_violations(25)
+    );
+
+    let fragment = json!({
+        "schema_id": REPORT_FRAGMENT_SCHEMA_ID,
+        "fragment": "lifecycle_shutdown_cancel_path",
+        "run_id": run_id,
+        "source_commit": source_commit(),
+        "surrealdb_version": SURREALDB_VERSION,
+        "engine_mode": "embedded_rocks_db",
+        "workload_seed": seed,
+        "worker_count": WORKERS,
+        "drain_grace_ms": CANCEL_DRAIN_GRACE.as_millis() as u64,
+        "shutdown_wait_bound_ms": reopened_storage.config().shutdown_wait().as_millis() as u64,
+        "shutdown_report": {
+            "drained": report.drained,
+            "cancelled": report.cancelled,
+            "engine_elapsed_ms": report.elapsed.as_millis() as u64,
+        },
+        "shutdown_elapsed_ms": shutdown_elapsed.as_millis() as u64,
+        "acknowledged_writes": acknowledged_total,
+        "workers_with_typed_closed_error": closed_workers,
+        "reopen_elapsed_ms": reopen_elapsed.as_millis() as u64,
+        "reopen_integrity_counts_and_hashes": integrity.counts_and_hashes,
+        "integrity_verdict": format!("{:?}", integrity.verdict),
+        "remote_proof_status": "not_run_unconfigured",
+    });
+    let path = write_report_json(&format!("swarm-lifecycle-cancel-{run_id}.json"), &fragment);
+    println!("SWARM_CANCEL_REPORT={}", path.display());
+
+    reopened_storage
+        .shutdown()
+        .await
+        .expect("shutdown the reopened engine");
+    drop(reopened_inspector);
+    drop(reopened);
+    op_within("close and remove store", STORE_LIFECYCLE_BOUND, store.close_and_remove())
+        .await
+        .expect("close and remove the store");
 }

@@ -57,11 +57,81 @@ pub enum OperationClass {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FailureClass {
+    /// Unclassified error: a genuine correctness or infrastructure failure.
     Terminal,
     RetryExhausted,
     Timeout,
     Cancelled,
     LockWaitTimeout,
+    /// Expected loser of a typed compare-and-set race, idempotency divergence
+    /// or title race (review R2-1-8): contention, not a correctness failure.
+    ExpectedStaleOrConflict,
+}
+
+/// Anti-serialization metric (review R2-1-3): summed per-operation latency over
+/// the run's wall clock. A ratio near 1 means the workers were globally
+/// serialized regardless of any call-boundary gauge; a ratio approaching the
+/// worker count means the engine overlapped them.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct EffectiveParallelism {
+    pub sum_operation_latency_ms: f64,
+    pub wall_clock_ms: u64,
+    pub ratio: f64,
+}
+
+impl EffectiveParallelism {
+    /// `None` when `wall_clock_ms` is zero or the sum is not finite.
+    pub fn new(sum_operation_latency_ms: f64, wall_clock_ms: u64) -> Option<Self> {
+        if wall_clock_ms == 0 || !sum_operation_latency_ms.is_finite() {
+            return None;
+        }
+        Some(Self {
+            sum_operation_latency_ms,
+            wall_clock_ms,
+            ratio: sum_operation_latency_ms / wall_clock_ms as f64,
+        })
+    }
+}
+
+/// Provenance label of a recorded budget (research basis labels).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BudgetLabel {
+    Assumption,
+    Measured,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LatencyBudget {
+    pub p99_max_ms: f64,
+    pub label: BudgetLabel,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ConflictRateBudget {
+    pub max_rate: f64,
+    pub label: BudgetLabel,
+}
+
+/// Recorded (non-gating) numeric budgets (review R2-1-7) so a load-budget
+/// regression is readable from the JSON.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LoadBudgets {
+    pub per_operation_timeout_ms: u64,
+    pub per_worker_timeout_ms: u64,
+    pub whole_test_timeout_ms: u64,
+    pub latency_p99_budget_ms_by_operation: Option<BTreeMap<OperationClass, LatencyBudget>>,
+    pub conflict_rate_budget: Option<ConflictRateBudget>,
+}
+
+/// Derived by [`SwarmLoadReport::evaluate_budgets`]; independent of
+/// `integrity_verdict`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BudgetVerdict {
+    Pass,
+    Regression,
+    NotConfigured,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -213,12 +283,41 @@ pub struct SwarmLoadReport {
     pub integrity_verdict: IntegrityVerdict,
     pub remote_proof_status: RemoteProofStatus,
     pub machine_context: MachineContext,
+    pub effective_parallelism: EffectiveParallelism,
+    pub budgets: LoadBudgets,
+    pub budget_verdict: BudgetVerdict,
 }
 
 impl SwarmLoadReport {
+    /// Compares measured p99 latencies and the conflict rate against the
+    /// recorded budgets. `NotConfigured` when no budget is recorded.
+    pub fn evaluate_budgets(&self) -> BudgetVerdict {
+        let latency = self.budgets.latency_p99_budget_ms_by_operation.as_ref();
+        let conflict = self.budgets.conflict_rate_budget.as_ref();
+        if latency.is_none() && conflict.is_none() {
+            return BudgetVerdict::NotConfigured;
+        }
+        let latency_regression = latency.is_some_and(|budgets| {
+            budgets.iter().any(|(class, budget)| {
+                matches!(
+                    self.latency_ms_p50_p95_p99_by_operation.get(class),
+                    Some(PercentileReport::Measured(measured)) if measured.p99_ms > budget.p99_max_ms
+                )
+            })
+        });
+        let conflict_regression =
+            conflict.is_some_and(|budget| self.conflict_rate.rate > budget.max_rate);
+        if latency_regression || conflict_regression {
+            BudgetVerdict::Regression
+        } else {
+            BudgetVerdict::Pass
+        }
+    }
+
     /// Every problem found, or `Ok` when the report is well-formed.
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut problems = Vec::new();
+        self.check_parallelism_and_budgets(&mut problems);
         if self.schema_id != SWARM_LOAD_REPORT_SCHEMA_ID {
             problems.push(format!(
                 "schema_id must be {SWARM_LOAD_REPORT_SCHEMA_ID}, found {}",
@@ -283,6 +382,41 @@ impl SwarmLoadReport {
                     "operation class {class:?} succeeded {succeeded} > attempted {attempted}"
                 ));
             }
+        }
+    }
+
+    fn check_parallelism_and_budgets(&self, problems: &mut Vec<String>) {
+        let parallelism = &self.effective_parallelism;
+        if parallelism.wall_clock_ms == 0 {
+            problems.push("effective_parallelism wall_clock_ms must be > 0".to_string());
+        } else {
+            let expected = parallelism.sum_operation_latency_ms / parallelism.wall_clock_ms as f64;
+            if !parallelism.sum_operation_latency_ms.is_finite()
+                || parallelism.sum_operation_latency_ms < 0.0
+                || !parallelism.ratio.is_finite()
+                || (parallelism.ratio - expected).abs() > 1e-9
+            {
+                problems.push(format!(
+                    "effective_parallelism ratio {} does not equal sum/wall {expected}",
+                    parallelism.ratio
+                ));
+            }
+        }
+        for (name, value) in [
+            ("per_operation_timeout_ms", self.budgets.per_operation_timeout_ms),
+            ("per_worker_timeout_ms", self.budgets.per_worker_timeout_ms),
+            ("whole_test_timeout_ms", self.budgets.whole_test_timeout_ms),
+        ] {
+            if value == 0 {
+                problems.push(format!("budgets.{name} must be > 0"));
+            }
+        }
+        let derived = self.evaluate_budgets();
+        if self.budget_verdict != derived {
+            problems.push(format!(
+                "budget_verdict {:?} does not match the recorded budgets ({derived:?})",
+                self.budget_verdict
+            ));
         }
     }
 
@@ -449,8 +583,14 @@ mod tests {
     ];
 
     /// Fields this schema adds beyond the contract list (research basis
-    /// `numeric_budgets.machine_context`).
-    const EXTRA_FIELDS: [&str; 1] = ["machine_context"];
+    /// `numeric_budgets.machine_context`; review R2-1-3 `effective_parallelism`;
+    /// review R2-1-7 `budgets` + `budget_verdict`).
+    const EXTRA_FIELDS: [&str; 4] = [
+        "machine_context",
+        "effective_parallelism",
+        "budgets",
+        "budget_verdict",
+    ];
 
     fn measured(p50: f64, p95: f64, p99: f64, samples: u64) -> PercentileReport {
         PercentileReport::Measured(Percentiles {
@@ -531,7 +671,68 @@ mod tests {
                 store_drive_kind: StoreDriveKind::Hdd,
                 os: "Microsoft Windows 11 Home 10.0.26200".to_string(),
             },
+            effective_parallelism: EffectiveParallelism::new(9_600.0, 2_462)
+                .expect("non-zero wall clock"),
+            budgets: LoadBudgets {
+                per_operation_timeout_ms: 5_000,
+                per_worker_timeout_ms: 60_000,
+                whole_test_timeout_ms: 180_000,
+                latency_p99_budget_ms_by_operation: Some(BTreeMap::from([(
+                    OperationClass::PointRead,
+                    LatencyBudget {
+                        p99_max_ms: 40.0,
+                        label: BudgetLabel::Assumption,
+                    },
+                )])),
+                conflict_rate_budget: Some(ConflictRateBudget {
+                    max_rate: 0.4,
+                    label: BudgetLabel::Assumption,
+                }),
+            },
+            budget_verdict: BudgetVerdict::Pass,
         }
+    }
+
+    #[test]
+    fn budget_verdict_is_derived_and_checked() {
+        let mut report = well_formed_report();
+        assert_eq!(report.evaluate_budgets(), BudgetVerdict::Pass);
+
+        report.budgets.conflict_rate_budget = Some(ConflictRateBudget {
+            max_rate: 0.01,
+            label: BudgetLabel::Assumption,
+        });
+        assert_eq!(report.evaluate_budgets(), BudgetVerdict::Regression);
+        let problems = report.validate().expect_err("stale verdict must fail");
+        assert!(problems.iter().any(|p| p.starts_with("budget_verdict Pass")), "{problems:?}");
+        report.budget_verdict = BudgetVerdict::Regression;
+        assert_eq!(report.validate(), Ok(()));
+
+        report.budgets.conflict_rate_budget = None;
+        report.budgets.latency_p99_budget_ms_by_operation = None;
+        assert_eq!(report.evaluate_budgets(), BudgetVerdict::NotConfigured);
+        report.budget_verdict = BudgetVerdict::NotConfigured;
+        assert_eq!(report.validate(), Ok(()));
+
+        report.budgets.per_worker_timeout_ms = 0;
+        let problems = report.validate().expect_err("zero budget must fail");
+        assert!(problems.iter().any(|p| p == "budgets.per_worker_timeout_ms must be > 0"), "{problems:?}");
+    }
+
+    #[test]
+    fn effective_parallelism_requires_wall_clock_and_consistent_ratio() {
+        assert!(EffectiveParallelism::new(10.0, 0).is_none());
+        assert!(EffectiveParallelism::new(f64::NAN, 10).is_none());
+        let mut report = well_formed_report();
+        report.effective_parallelism.wall_clock_ms = 0;
+        let problems = report.validate().expect_err("zero wall clock must fail");
+        assert!(problems.iter().any(|p| p == "effective_parallelism wall_clock_ms must be > 0"), "{problems:?}");
+        let mut report = well_formed_report();
+        report.effective_parallelism.ratio = 1.0;
+        let problems = report.validate().expect_err("inconsistent ratio must fail");
+        assert!(problems.iter().any(|p| p.starts_with("effective_parallelism ratio 1")), "{problems:?}");
+        let value = serde_json::to_value(FailureClass::ExpectedStaleOrConflict).expect("serializes");
+        assert_eq!(value, "expected_stale_or_conflict");
     }
 
     #[test]

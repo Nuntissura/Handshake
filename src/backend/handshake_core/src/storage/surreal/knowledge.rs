@@ -175,14 +175,29 @@ where
     Fut: Future<Output = StorageResult<T>>,
 {
     let storage = database.storage();
-    let lock_deadline = Instant::now().checked_add(storage.config().statement_timeout());
-    let _guards = database
-        .lock_registry()
-        .acquire_many_with_deadline(keys, lock_deadline)
-        .await
-        .map_err(lock_wait_error)?;
-    let context = RetryContext::unbounded().with_cancel(storage.cancellation_token());
-    retry(
+    // ONE wall-clock budget for the whole logical mutation: the keyed-lock
+    // wait, every retry attempt and the sleeps between them share it. Without
+    // a caller deadline the per-attempt statement bound would multiply by the
+    // retry policy's 8 attempts (8 x `statement_timeout`), because
+    // `RetryPolicy::maximum_elapsed` bounds only the sleeps - an in-flight
+    // attempt is never raced against a deadline so an acknowledged commit is
+    // never dropped. `with_operation_deadline` clamps each attempt's statement
+    // bound to the remaining budget, so the last attempt cannot overshoot.
+    let deadline = Instant::now().checked_add(storage.config().statement_timeout());
+    let cancel = storage.cancellation_token();
+    // Lock waits observe the store's shutdown cancellation as well as the
+    // deadline, so a parked writer returns the typed closed-store error inside
+    // the drain grace instead of holding out for the statement timeout.
+    let _guards = tokio::select! {
+        biased;
+        _ = cancel.cancelled() => return Err(closed_store_error()),
+        guards = database
+            .lock_registry()
+            .acquire_many_with_deadline(keys, deadline) => guards.map_err(lock_wait_error)?,
+    };
+    let mut context = RetryContext::unbounded().with_cancel(cancel);
+    context.deadline = deadline;
+    let attempts = retry(
         &RetryPolicy::CONTRACT,
         &context,
         Replay::idempotent(replay_key),
@@ -190,19 +205,37 @@ where
         &*RETRY_JITTER,
         |error| classify_knowledge_error(error, own_index),
         |_attempt| op(),
-    )
-    .await
+    );
+    match deadline {
+        Some(deadline) => SurrealStorage::with_operation_deadline(deadline, attempts).await,
+        None => attempts.await,
+    }
     .map_err(retry_error_to_storage)
 }
 
-/// Per-(workspace, normalized title) write anchor UPSERTed inside the
-/// create-if-title-absent transaction (MT-142). Two concurrent creators of one
-/// normalized title write the same anchor key, so RocksDB commit-time conflict
-/// detection admits exactly one commit; the loser's retry re-reads and returns
-/// the winner. The anchor is a serialization device, not a uniqueness rule:
-/// duplicate titles created through the plain path stay legal and still
-/// surface `knowledge_rich_document_title_ambiguous`. `claim_nonce` changes on
-/// every attempt because the engine skips unchanged documents
+/// Per-(workspace, normalized title) write anchor UPSERTed by EVERY
+/// title-mutating rich-document transaction (MT-142; review finding R1-1-2
+/// remediation (b)): create, create-if-title-absent, rename (old and new
+/// title) and the atomic delete.
+///
+/// Two purposes, both resting on the pinned engine detecting conflicts only on
+/// keys a transaction WRITES (`surrealdb-core-3.2.0/src/kvs/rocksdb/mod.rs:2133-2138`):
+///
+/// 1. Concurrent creators of one normalized title write the same anchor key,
+///    so exactly one commits; the loser's retry re-reads and returns the winner.
+/// 2. Every transaction whose decision depends on which live documents hold a
+///    title - the delete's `$unique_title`, which widens the backlink cleanup
+///    and is stamped into the durable tombstone - writes that title's anchor,
+///    so a concurrent rename or create into the same title cannot commit
+///    invisibly to it. Without the anchor those title rows are read but never
+///    written, the read is not validated at commit, and the delete can stamp a
+///    count computed from a snapshot the rename already invalidated.
+///
+/// The anchor is a serialization device, not a uniqueness rule: it is one
+/// UPSERTed row per (workspace, normalized title), so duplicate titles created
+/// through the plain path stay legal and still surface
+/// `knowledge_rich_document_title_ambiguous`. `claim_nonce` changes on every
+/// attempt because the engine skips unchanged documents
 /// (`surrealdb-core-3.2.0/src/doc/store.rs:15-18`).
 struct TitleAnchor {
     anchor_key: String,
@@ -221,13 +254,29 @@ fn title_anchor(workspace_id: &str, title: &str) -> TitleAnchor {
     }
 }
 
-const TITLE_ANCHOR_STATEMENT: &str = "UPSERT type::record('knowledge_rich_document_title_anchors', $anchor_key) SET anchor_key = $anchor_key, workspace_id = $workspace, title_key = $anchor_title_key, last_rich_document_id = $doc_id, claim_nonce = $anchor_nonce, updated_at = time::now() RETURN NONE;";
+/// Anchor slot names; a rename writes both in one transaction.
+const TITLE_ANCHOR_SLOT_CURRENT: &str = "current";
+const TITLE_ANCHOR_SLOT_PREVIOUS: &str = "previous";
 
-fn title_anchor_binds(anchor: &TitleAnchor) -> Binds {
+/// The anchor UPSERT for one slot. Slot-scoped bind names let a single
+/// transaction write more than one title anchor.
+fn title_anchor_statement(slot: &str) -> String {
+    format!(
+        "UPSERT type::record('knowledge_rich_document_title_anchors', $anchor_key_{slot}) SET anchor_key = $anchor_key_{slot}, workspace_id = $workspace, title_key = $anchor_title_key_{slot}, last_rich_document_id = $doc_id, claim_nonce = $anchor_nonce_{slot}, updated_at = time::now() RETURN NONE;"
+    )
+}
+
+fn title_anchor_binds(slot: &str, anchor: &TitleAnchor) -> Binds {
     vec![
-        b("anchor_key", anchor.anchor_key.clone()),
-        b("anchor_title_key", anchor.title_key.clone()),
-        b("anchor_nonce", uuid::Uuid::now_v7().to_string()),
+        b(&format!("anchor_key_{slot}"), anchor.anchor_key.clone()),
+        b(
+            &format!("anchor_title_key_{slot}"),
+            anchor.title_key.clone(),
+        ),
+        b(
+            &format!("anchor_nonce_{slot}"),
+            uuid::Uuid::now_v7().to_string(),
+        ),
     ]
 }
 
@@ -1236,21 +1285,20 @@ where
     let statement = statement.into();
     #[cfg(any(test, feature = "surreal-test-support"))]
     let _ = KNOWLEDGE_QUERY_COUNT.try_with(|count| count.set(count.get() + 1));
-    bounded_statement(storage, async move {
-        storage
-            .with_data_operation(move |database| {
-                Box::pin(async move {
-                    let mut query = database.client.query(statement);
-                    for (name, value) in binds {
-                        query = query.bind((name, value));
-                    }
-                    let mut response = meaningful_check(query.await?)?;
-                    Ok(response.take(index)?)
-                })
+    // Bounded by `statement_timeout` inside `with_data_operation` (MT-142):
+    // a timed-out attempt surfaces as the terminal `StatementTimeout`.
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                let mut query = database.client.query(statement);
+                for (name, value) in binds {
+                    query = query.bind((name, value));
+                }
+                let mut response = meaningful_check(query.await?)?;
+                Ok(response.take(index)?)
             })
-            .await
-    })
-    .await
+        })
+        .await
 }
 
 /// Surfaces the meaningful statement error of a failed multi-statement query.
@@ -1292,38 +1340,18 @@ async fn raw_execute(
     let statement = statement.into();
     #[cfg(any(test, feature = "surreal-test-support"))]
     let _ = KNOWLEDGE_QUERY_COUNT.try_with(|count| count.set(count.get() + 1));
-    bounded_statement(storage, async move {
-        storage
-            .with_data_operation(move |database| {
-                Box::pin(async move {
-                    let mut query = database.client.query(statement);
-                    for (name, value) in binds {
-                        query = query.bind((name, value));
-                    }
-                    meaningful_check(query.await?)?;
-                    Ok(())
-                })
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                let mut query = database.client.query(statement);
+                for (name, value) in binds {
+                    query = query.bind((name, value));
+                }
+                meaningful_check(query.await?)?;
+                Ok(())
             })
-            .await
-    })
-    .await
-}
-
-/// MT-142 per-attempt bound: the caller stops waiting after the configured
-/// statement timeout and reports a terminal `StatementTimeout`. Dropping the
-/// SDK future does not abort the engine-side statement, so the outcome is
-/// unknown and the attempt must never be retried.
-async fn bounded_statement<T>(
-    storage: &SurrealStorage,
-    operation: impl Future<Output = Result<T, SurrealStorageError>>,
-) -> Result<T, SurrealStorageError> {
-    let timeout = storage.config().statement_timeout();
-    match tokio::time::timeout(timeout, operation).await {
-        Ok(result) => result,
-        Err(_elapsed) => Err(SurrealStorageError::StatementTimeout {
-            waited_ms: timeout.as_millis(),
-        }),
-    }
+        })
+        .await
 }
 
 async fn query_rows<R>(
@@ -2016,8 +2044,21 @@ impl SurrealDatabase {
                             AND edge_type IN ['mention', 'tag'])) \
                     WHERE workspace_id = $workspace AND id = $affected RETURN NONE; \
             }; \
-            COMMIT TRANSACTION;";
-        let binds = vec![
+            ";
+        // `$unique_title` above reads OTHER documents' title rows, which this
+        // transaction would otherwise never write: on the pinned engine only
+        // written keys are validated at commit
+        // (`surrealdb-core-3.2.0/src/kvs/rocksdb/mod.rs:2133-2138`), so a
+        // concurrent rename or create into this title could commit invisibly
+        // and leave the widened backlink DELETE - and the `backlinks_deleted`
+        // count stamped on the durable tombstone - decided from a stale
+        // snapshot. Writing this title's anchor puts the decision in the write
+        // set, so those operations collide and the loser re-reads
+        // (review finding R1-1-2, remediation (b)).
+        let anchor = title_anchor(&current.workspace_id, &current.title);
+        let anchor_statement = title_anchor_statement(TITLE_ANCHOR_SLOT_CURRENT);
+        let statement = format!("{statement}{anchor_statement} COMMIT TRANSACTION;");
+        let mut binds = vec![
             b(
                 "document",
                 thing(KNOWLEDGE_RICH_DOCUMENTS_TABLE, &current.rich_document_id),
@@ -2034,6 +2075,7 @@ impl SurrealDatabase {
             b("expected_content_sha256", current.content_sha256),
             b("event", event.clone()),
         ];
+        binds.extend(title_anchor_binds(TITLE_ANCHOR_SLOT_CURRENT, &anchor));
 
         let replay_event = event;
         let result: Result<(), SurrealStorageError> =
@@ -2149,16 +2191,18 @@ fn extract_backlink_upserts(
 
 /// MT-032 create transaction: authority row, version 1, same-id Loom
 /// projection, search projection, and initial backlinks become durable in one
-/// transaction. `title_anchor` appends the MT-142 title write anchor for the
-/// create-if-title-absent path. Runs inside a retried attempt, so the backlink
-/// target resolution below is re-read on every attempt. Target liveness is not
-/// revalidated inside the transaction: a target deleted between resolution
-/// and commit leaves derived backlink data that the next save rebuilds
-/// (MT-142 decision Q4, accepted derived-data staleness).
+/// transaction, together with the MT-142 title write anchor (see
+/// [`TitleAnchor`]). Runs inside a retried attempt, so the backlink target
+/// resolution below is re-read on every attempt. Target liveness is not
+/// revalidated inside the transaction: a target deleted between resolution and
+/// commit leaves derived backlink data that the next save rebuilds. That
+/// staleness is accepted by decision `MT-142-D-006-DERIVED-BACKLINK-STALENESS`
+/// in `.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142.json`,
+/// which covers derived backlink and Loom-edge rows only.
 async fn create_rich_document_transaction(
     storage: &SurrealStorage,
     new_document: &NewKnowledgeRichDocument,
-    title_anchor: Option<&TitleAnchor>,
+    title_anchor: &TitleAnchor,
 ) -> StorageResult<KnowledgeRichDocument> {
     if new_document.title.trim() != new_document.title || new_document.title.is_empty() {
         return Err(StorageError::Validation(
@@ -2239,12 +2283,9 @@ async fn create_rich_document_transaction(
         .collect();
 
     // Statements: BEGIN(0) CREATE doc(1) loom(2) search(3) version(4)
-    // backlink writes(5..9) [title anchor(10)] COMMIT.
-    let anchor_statement = if title_anchor.is_some() {
-        TITLE_ANCHOR_STATEMENT
-    } else {
-        ""
-    };
+    // backlink writes(5..9) title anchor(10) COMMIT. The document row is read
+    // back from index 1, so appending the anchor keeps every index stable.
+    let anchor_statement = title_anchor_statement(TITLE_ANCHOR_SLOT_CURRENT);
     let statement = format!(
         "BEGIN TRANSACTION;\n\
          CREATE type::record('knowledge_rich_documents', $doc_id) CONTENT {{ rich_document_id: $doc_id, workspace_id: $workspace, document_id: $legacy_document_id, title: $doc_title, schema_version: $schema_version, content_json: $content_json, content_sha256: $doc_content_sha256, crdt_document_id: $crdt_document_id, crdt_snapshot_id: $crdt_snapshot_id, promotion_receipt_event_id: $promotion_receipt, project_ref: $project_ref, folder_ref: $folder_ref, authority_label: $authority_label, owner_actor_kind: $owner_actor_kind, owner_actor_id: $owner_actor_id }} RETURN AFTER;\n\
@@ -2294,9 +2335,7 @@ async fn create_rich_document_transaction(
         &resolved,
         &affected_blocks,
     ));
-    if let Some(anchor) = title_anchor {
-        binds.extend(title_anchor_binds(anchor));
-    }
+    binds.extend(title_anchor_binds(TITLE_ANCHOR_SLOT_CURRENT, title_anchor));
     // `projection_binds` and `backlink_write_binds` both carry `workspace`;
     // duplicate bind names would overwrite with the identical value, which is
     // harmless, but deduplicate for determinism.
@@ -2834,12 +2873,15 @@ impl KnowledgeStore for SurrealDatabase {
             ));
         }
         // Only file sources carry a natural key; other kinds always CREATE.
+        // Distinct `kind` from `create_knowledge_source_root` (R1-1-5): both
+        // are workspace-scoped path keys but their grammars differ, and a
+        // shared kind would alias unrelated writers into one lock-wait bucket.
         let keys = relative_path
             .as_ref()
             .map(|path| {
                 vec![LockKey::natural_key(
                     new_source.workspace_id.clone(),
-                    "knowledge_source_root_path",
+                    "knowledge_source_relative_path",
                     format!("{}|{path}", new_source.root_id.as_deref().unwrap_or("")),
                 )]
             })
@@ -4204,17 +4246,26 @@ impl KnowledgeStore for SurrealDatabase {
         &self,
         new_document: NewKnowledgeRichDocument,
     ) -> StorageResult<KnowledgeRichDocument> {
-        // No natural key: a fresh KRD id is generated per attempt and a commit
-        // conflict (shared backlink-target counts) wrote nothing, so the
-        // re-run creates exactly one document.
+        // No natural key of its own (a fresh KRD id is generated per attempt,
+        // and a commit conflict wrote nothing, so the re-run creates exactly
+        // one document), but the transaction writes the title anchor so a
+        // concurrent delete of another document with this title cannot decide
+        // its backlink scope without seeing this create (R1-1-2).
+        let anchor = title_anchor(&new_document.workspace_id, &new_document.title);
+        let keys = vec![LockKey::natural_key(
+            new_document.workspace_id.clone(),
+            TITLE_ANCHOR_LOCK_KIND,
+            anchor.title_key.clone(),
+        )];
         let replay_key = format!(
             "krd-create:{}:{}",
             new_document.workspace_id,
             knowledge_canonical_json_sha256(&new_document.content_json)
         );
         let new_document = &new_document;
-        guarded_mutation(self, Vec::new(), replay_key, None, || {
-            create_rich_document_transaction(self.storage(), new_document, None)
+        let anchor = &anchor;
+        guarded_mutation(self, keys, replay_key, None, || {
+            create_rich_document_transaction(self.storage(), new_document, anchor)
         })
         .await
     }
@@ -4536,33 +4587,50 @@ impl KnowledgeStore for SurrealDatabase {
                 }
             }
             let (_, search_text) = loom_projection_inputs(title, &current.content_json)?;
+            // A rename changes which live documents hold BOTH titles, and the
+            // atomic delete decides its backlink scope from exactly that set,
+            // so the transaction writes both anchors (R1-1-2 remediation (b)).
+            let new_anchor = title_anchor(&current.workspace_id, title);
+            let previous_anchor = title_anchor(&current.workspace_id, &current.title);
             // Statements: BEGIN(0) guarded-rename(1) loom-title(2) search(3)
-            // final-select(4) COMMIT.
+            // final-select(4) title anchors(5,6) COMMIT; the appended anchors
+            // keep the read-back index 4 stable.
+            let new_anchor_statement = title_anchor_statement(TITLE_ANCHOR_SLOT_CURRENT);
+            let previous_anchor_statement = if previous_anchor.anchor_key == new_anchor.anchor_key {
+                String::new()
+            } else {
+                title_anchor_statement(TITLE_ANCHOR_SLOT_PREVIOUS)
+            };
             let statement = format!(
                 "BEGIN TRANSACTION;\n\
                  IF array::len((UPDATE knowledge_rich_documents SET title = $doc_title, updated_at = time::now() WHERE rich_document_id = $doc_id AND deleted_at = NONE AND ($expected_updated_at = NONE OR updated_at = $expected_updated_at) RETURN AFTER)) != 1 {{ THROW 'HSK-KRD-RENAME-STALE'; }};\n\
                  IF array::len((UPDATE loom_blocks SET title = $doc_title, updated_at = time::now() WHERE block_id = $doc_id AND workspace_id = $workspace AND content_type = 'note' RETURN AFTER)) != 1 {{ THROW 'HSK-KRD-RENAME-LOOM-MISSING'; }};\n\
                  {SEARCH_PROJECTION_STATEMENT}\n\
                  SELECT * FROM knowledge_rich_documents WHERE rich_document_id = $doc_id;\n\
+                 {new_anchor_statement}\n\
+                 {previous_anchor_statement}\n\
                  COMMIT TRANSACTION;"
             );
-            let result: Result<Vec<RichDocRecord>, SurrealStorageError> = raw_rows_at(
-                self.storage(),
-                statement,
-                vec![
-                    b("doc_id", rich_document_id.to_owned()),
-                    b("doc_title", title.to_owned()),
-                    b(
-                        "expected_updated_at",
-                        expected_updated_at.map(Datetime::from),
-                    ),
-                    b("workspace", thing(WORKSPACES_TABLE, &current.workspace_id)),
-                    b("doc_block_id", rich_document_id.to_owned()),
-                    b("doc_search_text", search_text),
-                ],
-                4,
-            )
-            .await;
+            let mut binds = vec![
+                b("doc_id", rich_document_id.to_owned()),
+                b("doc_title", title.to_owned()),
+                b(
+                    "expected_updated_at",
+                    expected_updated_at.map(Datetime::from),
+                ),
+                b("workspace", thing(WORKSPACES_TABLE, &current.workspace_id)),
+                b("doc_block_id", rich_document_id.to_owned()),
+                b("doc_search_text", search_text),
+            ];
+            binds.extend(title_anchor_binds(TITLE_ANCHOR_SLOT_CURRENT, &new_anchor));
+            if !previous_anchor_statement.is_empty() {
+                binds.extend(title_anchor_binds(
+                    TITLE_ANCHOR_SLOT_PREVIOUS,
+                    &previous_anchor,
+                ));
+            }
+            let result: Result<Vec<RichDocRecord>, SurrealStorageError> =
+                raw_rows_at(self.storage(), statement, binds, 4).await;
             let rows = result.map_err(|error| {
                 map_guarded_err(
                     error,
@@ -4957,8 +5025,10 @@ impl KnowledgeStore for SurrealDatabase {
     ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
         // Content-derived, idempotent rebuild: the prior-state read, target
         // resolution and the atomic rewrite all run inside the retried attempt.
-        // Target liveness is not revalidated in the transaction (MT-142 Q4:
-        // accepted derived-data staleness, rebuilt on the next save).
+        // Target liveness is not revalidated in the transaction; that derived
+        // staleness (rebuilt on the next save) is accepted by decision
+        // `MT-142-D-006-DERIVED-BACKLINK-STALENESS` in
+        // `.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142.json`.
         let keys = vec![LockKey::record(
             KNOWLEDGE_RICH_DOCUMENTS_TABLE,
             source_document_id.to_owned(),
@@ -5439,8 +5509,7 @@ async fn create_if_title_absent_attempt(
     });
     match matches.len() {
         0 => {
-            let document =
-                create_rich_document_transaction(storage, new_document, Some(anchor)).await?;
+            let document = create_rich_document_transaction(storage, new_document, anchor).await?;
             Ok((document, true))
         }
         1 => {
@@ -6180,6 +6249,76 @@ impl SurrealDatabase {
                 "knowledge idempotency result ref kind is not valid for rich document save",
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod title_anchor_tests {
+    use super::*;
+
+    /// Review finding R1-1-2: the anchor only serializes title mutations if
+    /// every path derives the SAME row id from the same normalized title, and
+    /// only stays a serialization device (not a uniqueness rule) if unrelated
+    /// titles and workspaces never collide.
+    #[test]
+    fn title_anchor_keys_collapse_normalized_titles_within_one_workspace() {
+        let canonical = title_anchor("WS-1", "Race Title");
+        for variant in ["Race Title", "  race   title ", "RACE TITLE"] {
+            let anchor = title_anchor("WS-1", variant);
+            assert_eq!(
+                anchor.anchor_key, canonical.anchor_key,
+                "normalized-equal titles must share one anchor row: {variant}"
+            );
+            assert_eq!(anchor.title_key, "race title");
+        }
+        assert_ne!(
+            title_anchor("WS-1", "Other Title").anchor_key,
+            canonical.anchor_key,
+            "different titles must not serialize against each other"
+        );
+        assert_ne!(
+            title_anchor("WS-2", "Race Title").anchor_key,
+            canonical.anchor_key,
+            "the anchor is workspace-scoped"
+        );
+    }
+
+    /// Both slots address the anchor table and carry slot-scoped bind names,
+    /// so a rename can write the old and the new title in one transaction.
+    #[test]
+    fn title_anchor_statement_slots_do_not_share_bind_names() {
+        let current = title_anchor_statement(TITLE_ANCHOR_SLOT_CURRENT);
+        let previous = title_anchor_statement(TITLE_ANCHOR_SLOT_PREVIOUS);
+        for statement in [&current, &previous] {
+            assert!(
+                statement.contains("knowledge_rich_document_title_anchors"),
+                "anchor statement must address the anchor table: {statement}"
+            );
+            assert!(statement.contains("claim_nonce = $anchor_nonce_"));
+        }
+        assert!(current.contains("$anchor_key_current"));
+        assert!(previous.contains("$anchor_key_previous"));
+        assert!(!current.contains("$anchor_key_previous"));
+
+        let anchor = title_anchor("WS-1", "Race Title");
+        let names: Vec<String> = title_anchor_binds(TITLE_ANCHOR_SLOT_CURRENT, &anchor)
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect();
+        assert_eq!(
+            names,
+            vec![
+                "anchor_key_current".to_owned(),
+                "anchor_title_key_current".to_owned(),
+                "anchor_nonce_current".to_owned()
+            ]
+        );
+        // A fresh nonce per attempt keeps the row in the write set even when
+        // nothing else about it changes (`doc/store.rs:15-18` skips unchanged
+        // documents).
+        let first = title_anchor_binds(TITLE_ANCHOR_SLOT_CURRENT, &anchor);
+        let second = title_anchor_binds(TITLE_ANCHOR_SLOT_CURRENT, &anchor);
+        assert_ne!(first[2].1, second[2].1, "claim_nonce must change per attempt");
     }
 }
 

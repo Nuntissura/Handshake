@@ -26,6 +26,16 @@
 //! 0.1.3 auto-deallocation pattern and its idle bound (zero entries once every
 //! guard is dropped) is directly provable.
 //!
+//! Reclamation: every waiter and holder owns one strong reference to the
+//! key's [`LockCell`]; dropping the LAST strong reference removes the map
+//! entry under the map lock, whichever party drops it and in whichever order
+//! guards and wait futures are dropped. A strong-count snapshot taken by the
+//! releasing guard is NOT used: on a multi-thread runtime two guards of one key
+//! releasing in parallel could each observe the other's still-live reference,
+//! both skip removal, and leave a dangling entry (Lane B run
+//! `mt142-surreal_swarm_semantics_tests-20260910T184953Z`: one entry survived
+//! 10 000-key concurrent churn).
+//!
 //! Deadlock freedom: [`KeyedLockRegistry::acquire_many`] sorts and dedups keys
 //! before acquiring, so two callers holding overlapping key sets in opposite
 //! input order cannot wait on each other (lockable 0.2.0 warns that arbitrary
@@ -33,30 +43,33 @@
 //! `selected_design.keyed_lock_registry.multi_key`). Callers must not nest
 //! separate `acquire` calls in arbitrary order.
 //!
+//! Lock-wait samples: every keyed acquire that obtains its permit records its
+//! wait in an always-on bounded sink ([`LOCK_WAIT_SAMPLE_CAP`] most recent
+//! samples, oldest dropped and counted by
+//! [`KeyedLockRegistry::lock_wait_samples_dropped`]) so the swarm report can
+//! fill `lock_wait_ms_p50_p95_p99`; [`KeyedLockRegistry::take_lock_wait_samples`]
+//! drains it. Disabled mode records nothing.
+//!
 //! Never call this from a read-only path: reads are served from the
 //! transaction snapshot and gain nothing from serialization (research basis
 //! `selected_design.keyed_lock_registry.key_taxonomy`). Nothing in this module
 //! touches the database.
-//!
-//! Lock-wait samples: every keyed acquire that obtains its permit records its
-//! wait in an always-on bounded sink ([`LOCK_WAIT_SAMPLE_CAP`] most recent
-//! samples, oldest dropped) so the swarm report can fill
-//! `lock_wait_ms_p50_p95_p99`; [`KeyedLockRegistry::take_lock_wait_samples`]
-//! drains it. Disabled mode records nothing.
 //!
 //! Visibility: `pub` because the MT-142 `tests/` swarm target (validation plan
 //! `lock_registry_tests`, `how_independent_clients_are_modelled`) constructs
 //! registries and asserts the idle bound from outside the crate.
 
 use std::collections::{HashMap, VecDeque};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 
-/// Maximum retained lock-wait samples per registry; older samples are dropped.
-pub const LOCK_WAIT_SAMPLE_CAP: usize = 65_536;
-
 use thiserror::Error;
 use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
+
+/// Maximum retained lock-wait samples per registry; older samples are dropped
+/// and counted.
+pub const LOCK_WAIT_SAMPLE_CAP: usize = 65_536;
 
 /// Lock identity. `Ord` gives the deterministic acquisition order used by
 /// [`KeyedLockRegistry::acquire_many`] (variant order, then field order).
@@ -65,7 +78,8 @@ pub enum LockKey {
     /// One record mutation.
     Record { table: &'static str, id: String },
     /// A uniqueness / upsert race on a natural key discovered before the
-    /// record id exists.
+    /// record id exists. `workspace_id` is the scope; document-scoped natural
+    /// keys carry the owning document id there.
     NaturalKey {
         workspace_id: String,
         kind: &'static str,
@@ -118,17 +132,36 @@ pub struct LockWaitTimeout {
     pub waited: Duration,
 }
 
-type LockCell = Arc<AsyncMutex<()>>;
+/// One key's cell. The outer `Arc` counts holders and waiters (one per
+/// [`HeldLock`]); the inner mutex `Arc` is what `lock_owned` needs. Dropping
+/// the last outer reference removes the map entry (see the module doc).
+#[derive(Debug)]
+struct LockCell {
+    mutex: Arc<AsyncMutex<()>>,
+    key: LockKey,
+    registry: Weak<RegistryInner>,
+}
+
+impl Drop for LockCell {
+    fn drop(&mut self) {
+        if let Some(registry) = self.registry.upgrade() {
+            registry.remove_dead_entry(&self.key);
+        }
+    }
+}
+
+type LockCellRef = Arc<LockCell>;
 
 #[derive(Debug)]
 struct RegistryInner {
     mode: LockMode,
-    entries: StdMutex<HashMap<LockKey, Weak<AsyncMutex<()>>>>,
+    entries: StdMutex<HashMap<LockKey, Weak<LockCell>>>,
     wait_samples: StdMutex<VecDeque<Duration>>,
+    dropped_samples: AtomicU64,
 }
 
 impl RegistryInner {
-    fn lock_entries(&self) -> MutexGuard<'_, HashMap<LockKey, Weak<AsyncMutex<()>>>> {
+    fn lock_entries(&self) -> MutexGuard<'_, HashMap<LockKey, Weak<LockCell>>> {
         self.entries
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -144,33 +177,38 @@ impl RegistryInner {
         let mut samples = self.lock_samples();
         if samples.len() >= LOCK_WAIT_SAMPLE_CAP {
             samples.pop_front();
+            self.dropped_samples.fetch_add(1, Ordering::Relaxed);
         }
         samples.push_back(wait);
     }
 
-    /// Upgrades the existing cell or inserts a fresh one.
-    fn cell_for(&self, key: &LockKey) -> LockCell {
+    /// Upgrades the live cell or installs a fresh one (replacing a dangling
+    /// entry whose last holder is mid-drop; that holder's removal then sees a
+    /// live entry and leaves it).
+    fn cell_for(self: &Arc<Self>, key: &LockKey) -> LockCellRef {
         let mut entries = self.lock_entries();
         if let Some(cell) = entries.get(key).and_then(Weak::upgrade) {
             return cell;
         }
-        let cell = Arc::new(AsyncMutex::new(()));
+        let cell = Arc::new(LockCell {
+            mutex: Arc::new(AsyncMutex::new(())),
+            key: key.clone(),
+            registry: Arc::downgrade(self),
+        });
         entries.insert(key.clone(), Arc::downgrade(&cell));
         cell
     }
 
-    /// Removes the entry when `cell` is the map's cell and this is its last
-    /// strong holder; a concurrent acquirer that upgraded first keeps it.
-    fn reclaim(&self, key: &LockKey, cell: LockCell) {
+    /// Runs from the last strong holder's drop: removes the entry unless a
+    /// concurrent acquirer already installed a live cell for the key.
+    fn remove_dead_entry(&self, key: &LockKey) {
         let mut entries = self.lock_entries();
-        let last_holder = entries
+        if entries
             .get(key)
-            .is_some_and(|weak| Weak::ptr_eq(weak, &Arc::downgrade(&cell)) && Arc::strong_count(&cell) == 1);
-        if last_holder {
+            .is_some_and(|weak| weak.strong_count() == 0)
+        {
             entries.remove(key);
         }
-        drop(entries);
-        drop(cell);
     }
 }
 
@@ -187,19 +225,9 @@ impl KeyedLockRegistry {
                 mode,
                 entries: StdMutex::new(HashMap::new()),
                 wait_samples: StdMutex::new(VecDeque::new()),
+                dropped_samples: AtomicU64::new(0),
             }),
         }
-    }
-
-    /// Drains the recorded lock-wait samples (most recent
-    /// [`LOCK_WAIT_SAMPLE_CAP`] keyed acquires), oldest first.
-    pub fn take_lock_wait_samples(&self) -> Vec<Duration> {
-        self.inner.lock_samples().drain(..).collect()
-    }
-
-    /// Number of lock-wait samples currently retained.
-    pub fn lock_wait_sample_count(&self) -> usize {
-        self.inner.lock_samples().len()
     }
 
     pub fn keyed() -> Self {
@@ -219,8 +247,9 @@ impl KeyedLockRegistry {
         self.inner.lock_entries().len()
     }
 
-    /// Entries whose cell no longer has a strong holder. Documented bound at
-    /// all times: 0 (every holder reclaims on drop; AC-142-10).
+    /// Entries whose cell no longer has a strong holder. Documented bound once
+    /// every guard and wait future is gone: 0 (the last holder's drop removes
+    /// the entry; a reader racing that drop can transiently see 1).
     pub fn idle_entry_count(&self) -> usize {
         self.inner
             .lock_entries()
@@ -229,13 +258,34 @@ impl KeyedLockRegistry {
             .count()
     }
 
-    /// Waits without bound. Cancel-safe: dropping the future reclaims the entry.
+    /// Drains the recorded lock-wait samples (most recent
+    /// [`LOCK_WAIT_SAMPLE_CAP`] keyed acquires), oldest first, and resets the
+    /// dropped-sample counter.
+    pub fn take_lock_wait_samples(&self) -> Vec<Duration> {
+        let samples = self.inner.lock_samples().drain(..).collect();
+        self.inner.dropped_samples.store(0, Ordering::Relaxed);
+        samples
+    }
+
+    /// Number of lock-wait samples currently retained.
+    pub fn lock_wait_sample_count(&self) -> usize {
+        self.inner.lock_samples().len()
+    }
+
+    /// Samples evicted by the cap since the last drain; a non-zero value means
+    /// the retained percentiles describe only the most recent acquires.
+    pub fn lock_wait_samples_dropped(&self) -> u64 {
+        self.inner.dropped_samples.load(Ordering::Relaxed)
+    }
+
+    /// Waits without bound. Cancel-safe: dropping the future drops the
+    /// waiter's cell reference, and the last reference removes the entry.
     pub async fn acquire(&self, key: LockKey) -> KeyedLockGuard {
-        let Some((mut held, cell)) = self.begin(key) else {
+        let Some(mut held) = self.begin(key) else {
             return KeyedLockGuard::noop();
         };
         let started = Instant::now();
-        let permit = cell.lock_owned().await;
+        let permit = Arc::clone(&held.cell.mutex).lock_owned().await;
         held.permit = Some(permit);
         let lock_wait = started.elapsed();
         self.inner.record_wait(lock_wait);
@@ -252,16 +302,13 @@ impl KeyedLockRegistry {
         let Some(deadline) = deadline else {
             return Ok(self.acquire(key).await);
         };
-        let Some((mut held, cell)) = self.begin(key) else {
+        let Some(mut held) = self.begin(key) else {
             return Ok(KeyedLockGuard::noop());
         };
         let started = Instant::now();
-        // Bind the outcome first: the timed-out `lock_owned` future (and its
-        // strong reference) is dropped by the `await`, so `held` is the last
-        // holder when it reclaims the entry on return.
         let outcome = tokio::time::timeout_at(
             tokio::time::Instant::from_std(deadline),
-            cell.lock_owned(),
+            Arc::clone(&held.cell.mutex).lock_owned(),
         )
         .await;
         match outcome {
@@ -272,7 +319,7 @@ impl KeyedLockRegistry {
                 Ok(KeyedLockGuard::held(held, lock_wait))
             }
             Err(_elapsed) => Err(LockWaitTimeout {
-                key: held.key.clone(),
+                key: held.cell.key.clone(),
                 waited: started.elapsed(),
             }),
         }
@@ -301,20 +348,16 @@ impl KeyedLockRegistry {
         Ok(guards)
     }
 
-    /// Registers a strong holder for `key` and returns a second strong
-    /// reference for `lock_owned`; `None` in [`LockMode::Disabled`].
-    fn begin(&self, key: LockKey) -> Option<(HeldLock, LockCell)> {
+    /// Registers a strong holder for `key`; `None` in [`LockMode::Disabled`].
+    fn begin(&self, key: LockKey) -> Option<HeldLock> {
         if self.inner.mode == LockMode::Disabled {
             return None;
         }
-        let cell = self.inner.cell_for(&key);
-        let held = HeldLock {
-            key,
+        Some(HeldLock {
             permit: None,
-            cell: Some(Arc::clone(&cell)),
-            registry: Arc::clone(&self.inner),
-        };
-        Some((held, cell))
+            cell: self.inner.cell_for(&key),
+            _registry: Arc::clone(&self.inner),
+        })
     }
 }
 
@@ -325,23 +368,14 @@ fn ordered_unique(mut keys: Vec<LockKey>) -> Vec<LockKey> {
 }
 
 /// Strong holder of a registry cell from the moment a key is looked up until
-/// the guard drops; its `Drop` releases the permit first and then reclaims
-/// the entry, on every path (success, timeout, cancelled acquire).
+/// the guard drops. Fields drop in declaration order: the permit is released
+/// first so waiters proceed, then the cell reference, whose last drop removes
+/// the map entry.
 #[derive(Debug)]
 struct HeldLock {
-    key: LockKey,
     permit: Option<OwnedMutexGuard<()>>,
-    cell: Option<LockCell>,
-    registry: Arc<RegistryInner>,
-}
-
-impl Drop for HeldLock {
-    fn drop(&mut self) {
-        drop(self.permit.take());
-        if let Some(cell) = self.cell.take() {
-            self.registry.reclaim(&self.key, cell);
-        }
-    }
+    cell: LockCellRef,
+    _registry: Arc<RegistryInner>,
 }
 
 /// Holds one keyed lock (or nothing in [`LockMode::Disabled`]).
@@ -373,7 +407,7 @@ impl KeyedLockGuard {
     }
 
     pub fn key(&self) -> Option<&LockKey> {
-        self.held.as_ref().map(|held| &held.key)
+        self.held.as_ref().map(|held| &held.cell.key)
     }
 
     pub fn is_noop(&self) -> bool {
@@ -385,6 +419,7 @@ impl KeyedLockGuard {
 mod tests {
     use std::time::Duration;
 
+    use tokio::sync::Barrier;
     use tokio::time::timeout;
 
     use super::*;
@@ -552,6 +587,68 @@ mod tests {
         assert_eq!(registry.idle_entry_count(), 0);
     }
 
+    /// Lane B's leak class: OS-thread-parallel releasers of the same hot keys
+    /// (run `mt142-surreal_swarm_semantics_tests-20260910T184953Z` left one
+    /// entry). Barrier-aligned 8-thread churn over overlapping natural and
+    /// record keys, including multi-key acquisitions, must leave zero entries.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn parallel_releasers_never_leave_a_dangling_entry() {
+        let registry = KeyedLockRegistry::keyed();
+        let barrier = Arc::new(Barrier::new(8));
+        let mut workers = Vec::new();
+        for worker in 0..8u32 {
+            let registry = registry.clone();
+            let barrier = Arc::clone(&barrier);
+            workers.push(tokio::spawn(async move {
+                barrier.wait().await;
+                for index in 0..2_000u32 {
+                    let natural = LockKey::natural_key(
+                        format!("ws-{}", index % 5),
+                        "title",
+                        format!("title-{}", (index + worker) % 40),
+                    );
+                    let record = LockKey::record("loom_blocks", format!("BLK-{}", (index * 7 + worker) % 50));
+                    if index % 3 == 0 {
+                        let guards = registry.acquire_many(vec![record, natural]).await;
+                        assert_eq!(guards.len(), 2);
+                    } else {
+                        drop(registry.acquire(natural).await);
+                    }
+                }
+            }));
+        }
+        let joined = timeout(Duration::from_secs(60), async {
+            for worker in workers {
+                worker.await.expect("parallel churn worker");
+            }
+        })
+        .await;
+        assert!(joined.is_ok(), "parallel churn workers did not finish");
+        assert_eq!(registry.entry_count(), 0, "entry_count must be 0 after parallel churn");
+        assert_eq!(registry.idle_entry_count(), 0);
+    }
+
+    /// Deterministic order-independence proof: a waiter that is handed the
+    /// permit by the releasing holder and is then dropped before ever being
+    /// polled again leaves no entry, whatever the drop order of its wait
+    /// future and cell reference.
+    #[tokio::test]
+    async fn waiter_dropped_after_holder_release_reclaims_the_entry() {
+        let registry = KeyedLockRegistry::keyed();
+        let key = LockKey::record("t", "handoff");
+        let holder = registry.acquire(key.clone()).await;
+        let mut waiter = Box::pin(registry.acquire(key.clone()));
+        assert!(
+            futures::poll!(waiter.as_mut()).is_pending(),
+            "waiter must register behind the holder"
+        );
+        assert_eq!(registry.entry_count(), 1);
+        drop(holder);
+        drop(waiter);
+        assert_eq!(registry.entry_count(), 0);
+        assert_eq!(registry.idle_entry_count(), 0);
+    }
+
     #[tokio::test]
     async fn deadline_returns_typed_lock_wait_timeout() {
         let registry = KeyedLockRegistry::keyed();
@@ -619,6 +716,7 @@ mod tests {
         assert!(timed_out.is_err(), "held key must time out");
         drop(holder);
         assert_eq!(registry.lock_wait_sample_count(), 5, "timeouts record no sample");
+        assert_eq!(registry.lock_wait_samples_dropped(), 0);
         let samples = registry.take_lock_wait_samples();
         assert_eq!(samples.len(), 5);
         assert_eq!(registry.lock_wait_sample_count(), 0);
@@ -627,7 +725,9 @@ mod tests {
             drop(registry.acquire(LockKey::record("cap", i.to_string())).await);
         }
         assert_eq!(registry.lock_wait_sample_count(), LOCK_WAIT_SAMPLE_CAP);
+        assert_eq!(registry.lock_wait_samples_dropped(), 10);
         assert_eq!(registry.take_lock_wait_samples().len(), LOCK_WAIT_SAMPLE_CAP);
+        assert_eq!(registry.lock_wait_samples_dropped(), 0);
 
         let disabled = KeyedLockRegistry::disabled();
         drop(disabled.acquire(LockKey::record("t", "1")).await);

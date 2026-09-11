@@ -550,6 +550,20 @@ where
             }
             _ = clock.sleep(sleep) => {}
         }
+        // Never START another attempt once the effective deadline has passed.
+        // A running attempt is deliberately not raced against the deadline (an
+        // acknowledged commit must never be dropped), so refusing the next
+        // attempt is what bounds the whole loop; the caller's per-statement
+        // bound, clamped to the remaining budget, bounds the attempt itself.
+        if deadline.is_some_and(|deadline| clock.now() >= deadline) {
+            return Err(exhausted(
+                &replay,
+                attempts,
+                elapsed_since(clock, started),
+                error,
+                ExhaustionBound::MaxElapsed,
+            ));
+        }
     }
 }
 
@@ -1216,6 +1230,94 @@ mod tests {
         assert_eq!(clock.elapsed(), ms(15));
     }
 
+    /// The whole retried operation stays inside ONE caller budget: no attempt
+    /// may START after the deadline, so a repeatedly-conflicting idempotent
+    /// operation cannot multiply its per-attempt bound by `maximum_attempts`
+    /// (the 8 x statement_timeout stall class). The outcome stays typed.
+    #[tokio::test]
+    async fn slow_repeated_conflicts_stay_inside_one_caller_budget() {
+        let clock = VirtualClock::new();
+        let jitter = ScriptedJitter::upper_bound();
+        // Each attempt consumes most of the budget, as a slow engine statement
+        // would; the budget is the caller's, not the policy's sleep bound.
+        let budget = ms(1_000);
+        let deadline = clock.now() + budget;
+        let ctx = RetryContext::unbounded().with_deadline(deadline);
+        let mut starts = Vec::new();
+        let result = retry(
+            &RetryPolicy::CONTRACT,
+            &ctx,
+            Replay::idempotent("slow"),
+            &clock,
+            &jitter,
+            classify_fake,
+            |attempt| {
+                starts.push(attempt.elapsed);
+                clock.advance(ms(300));
+                ready(Err::<u32, _>(FakeError::Transient))
+            },
+        )
+        .await;
+        match result {
+            Err(RetryError::Exhausted { bound, attempts, .. }) => {
+                assert_eq!(bound, ExhaustionBound::MaxElapsed);
+                assert!(
+                    (1..=RetryPolicy::CONTRACT.maximum_attempts).contains(&attempts),
+                    "attempts {attempts} must stay within the policy"
+                );
+            }
+            other => panic!("expected a typed MaxElapsed exhaustion, got {other:?}"),
+        }
+        assert!(
+            starts.iter().all(|start| *start <= budget),
+            "no attempt may start after the caller deadline: {starts:?}"
+        );
+        // Four 300 ms attempts would overshoot a 1 s budget; the loop stops at
+        // three plus their sleeps rather than running all eight.
+        assert!(
+            starts.len() <= 4,
+            "the budget must cap the attempt count, ran {}",
+            starts.len()
+        );
+    }
+
+    /// A deadline reached exactly at a sleep's wake-up must stop the loop
+    /// before the next attempt starts.
+    #[tokio::test]
+    async fn an_attempt_never_starts_once_the_deadline_is_reached() {
+        let clock = VirtualClock::new();
+        let jitter = ScriptedJitter::sequence(vec![ms(5)], JitterFallback::Zero);
+        let ctx = RetryContext::unbounded().with_deadline(clock.now() + ms(100));
+        let mut starts = Vec::new();
+        let result = retry(
+            &RetryPolicy::CONTRACT,
+            &ctx,
+            Replay::idempotent("edge"),
+            &clock,
+            &jitter,
+            classify_fake,
+            |attempt| {
+                starts.push(attempt.elapsed);
+                clock.advance(ms(95));
+                ready(Err::<u32, _>(FakeError::Transient))
+            },
+        )
+        .await;
+        assert!(
+            matches!(
+                result,
+                Err(RetryError::Exhausted {
+                    bound: ExhaustionBound::MaxElapsed,
+                    attempts: 1,
+                    ..
+                })
+            ),
+            "{result:?}"
+        );
+        assert_eq!(starts, vec![Duration::ZERO]);
+        assert_eq!(clock.elapsed(), ms(100), "the loop stops exactly at the deadline");
+    }
+
     #[tokio::test]
     async fn cancellation_before_the_first_attempt_runs_nothing() {
         let clock = VirtualClock::new();
@@ -1470,6 +1572,69 @@ mod tests {
             )),
             RetryClass::Terminal
         );
+    }
+
+    /// Review finding R1-1-4: an engine commit conflict only ever reaches a
+    /// caller as rendered text. The executor rewrites every prior result slot
+    /// to the generic not-executed message and pushes the real cause on a
+    /// trailing COMMIT row (`surrealdb-core-3.2.0/src/dbs/executor.rs:1476-1492`),
+    /// which `meaningful_check` in `knowledge.rs` selects and `map_err` renders
+    /// into `StorageError::Database`. These are the exact captured renderings;
+    /// if an SDK bump changes either, this unit test fails before any load run.
+    #[test]
+    fn classify_storage_error_pins_the_pinned_sdk_commit_renderings() {
+        // Trailing COMMIT row of a conflicted explicit transaction.
+        let commit_row = StorageError::Database(
+            "database error: embedded database error: Cannot COMMIT: Transaction conflict: \
+             Resource busy. This transaction can be retried"
+                .to_string(),
+        );
+        assert_eq!(
+            classify_storage_error(&commit_row),
+            RetryClass::RetryableTransient,
+            "the COMMIT row rendering must stay retryable"
+        );
+
+        // Implicit per-statement transaction (no BEGIN in the query string).
+        let implicit = StorageError::Database(
+            "database error: embedded database error: The query was not executed due to a failed \
+             transaction. Transaction conflict: Resource busy. This transaction can be retried"
+                .to_string(),
+        );
+        assert_eq!(
+            classify_storage_error(&implicit),
+            RetryClass::RetryableTransient,
+            "the implicit-path rendering must stay retryable"
+        );
+
+        // The generic first-slot text every prior statement is rewritten to.
+        // Selecting it instead of the COMMIT row is the regression R1-1-4
+        // guards: on its own it carries no conflict marker and is terminal.
+        let generic = StorageError::Database(
+            "database error: embedded database error: The query was not executed due to a failed \
+             transaction"
+                .to_string(),
+        );
+        assert_eq!(
+            classify_storage_error(&generic),
+            RetryClass::Terminal,
+            "the generic not-executed slot must never be treated as retryable"
+        );
+
+        // Both markers are required; half a marker is terminal.
+        for half in [
+            "database error: embedded database error: Cannot COMMIT: Transaction conflict: \
+             Resource busy",
+            "database error: embedded database error: This transaction can be retried",
+        ] {
+            assert_eq!(
+                classify_storage_error(&StorageError::Database(half.to_string())),
+                RetryClass::Terminal,
+                "a single marker must not be enough: {half}"
+            );
+        }
+        assert!(TRANSACTION_CONFLICT_MARKER.starts_with("Transaction conflict:"));
+        assert_eq!(TRANSACTION_RETRYABLE_MARKER, "This transaction can be retried");
     }
 
     #[test]
