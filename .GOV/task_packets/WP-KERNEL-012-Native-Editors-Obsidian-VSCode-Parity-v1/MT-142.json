@@ -338,7 +338,16 @@
         "code_citation_required": "src/storage/surreal/knowledge.rs:2139-2142 and :4945 must cite MT-142-D-006-DERIVED-BACKLINK-STALENESS and this file, replacing the earlier bare 'MT-142 decision Q4' reference, which pointed at a recon open question that was never promoted to authority.",
         "follow_on": "A future MT may close the window by resolving title-targeted backlinks to record ids at write time, or by writing the target's anchor row so deletion conflicts with backlink creation."
       }
-    ]
+    ],
+    "ac_142_9_scan_20260911": {
+      "recorded_by": "KERNEL_BUILDER-20260910-073935",
+      "at_utc": "2026-09-11T00:12:14.916Z",
+      "product_commit": "26731c56 plus uncommitted remediation",
+      "source_scan": "grep -E for use sqlx|postgres|rusqlite|sqlite, sqlx::, rusqlite::, postgres|postgresql|sqlite:// URLs, PGHOST/PGPASSWORD/DATABASE_URL over src/storage/surreal/**: ZERO matches",
+      "dependency_scan": "Cargo.lock has no package named sqlx, sqlx-core, sqlx-postgres, sqlx-sqlite, postgres, tokio-postgres, rusqlite, libsqlite3-sys, diesel, pq-sys or mysql: ZERO matches. SurrealDB remains the only database (surrealdb 3.2.0, kv-rocksdb; kv-mem is dev-only for catalog fingerprints)",
+      "pt_142_2_lock_scan": "RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK: zero occurrences in product source. The only three files mentioning the names are src/user_manual/seed.rs (the manual documenting their removal), tests/surreal_swarm_semantics_tests.rs and tests/knowledge_delete_title_race_tests.rs (test prose)",
+      "verdict": "AC-142-9 MET, PT-142-2 lock half MET"
+    }
   },
   "scope": {
     "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
@@ -627,5 +636,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-10T22:44:54.375Z"
+  "updated_at_utc": "2026-09-11T00:12:14.916Z"
 }
