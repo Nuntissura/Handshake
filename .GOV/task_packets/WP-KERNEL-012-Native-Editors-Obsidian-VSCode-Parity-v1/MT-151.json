@@ -253,9 +253,13 @@
       "correlation_id": "review:mt151-followon-20260911",
       "target_role": "INTEGRATION_VALIDATOR",
       "target_session": "PENDING"
+    },
+    "validate_at_commit": {
+      "commit": "98353583742437f1ebf4ccba5950938927af59da",
+      "instruction": "Validate MT-151 at this exact commit; MT-152 commits after it on the same branch by Operator decision (2026-09-11, added scope granted)."
     }
   },
-  "updated_at_utc": "2026-09-11T13:56:17.176Z",
+  "updated_at_utc": "2026-09-11T14:37:56.168Z",
   "owned_files": [
     "src/backend/handshake_core/src/storage/surreal/schema.rs",
     "src/backend/handshake_core/src/storage/surreal/schema.surql",

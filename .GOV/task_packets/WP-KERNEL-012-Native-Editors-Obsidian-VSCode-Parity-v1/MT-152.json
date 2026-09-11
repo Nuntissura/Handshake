@@ -1,0 +1,139 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-152",
+  "title": "B17-MT-152-Anchor-Reclamation-Lock-Migration-Memory-Envelope-And-FEMS-Stage-Guards",
+  "group": "B17",
+  "created_at_utc": "2026-09-11T14:37:56.168Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "CLAIMED",
+    "depends_on": [
+      "MT-142",
+      "MT-151"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260910-073935",
+    "claimed_at_utc": "2026-09-11T14:37:56.168Z",
+    "created_by": "KERNEL_BUILDER-20260910-073935",
+    "creation_reason": "Operator direction 2026-09-11: 'fix them all, added scope granted' - the four items MT-151 left open by design or by allowed-path limits.",
+    "ceremony": "LIGHT (same as MT-151): typed items, acceptance criteria, verbatim proof lines and a handoff; MT-142's research basis and recon inventory reused; no adversarial review rounds unless the Operator asks.",
+    "operator_scope_grant": "src/backend/handshake_core/src/storage/fems_memory.rs and src/backend/handshake_core/src/storage/stage_artifacts.rs are in scope for this MT (they were outside MT-142/MT-151 allowed_paths)."
+  },
+  "scope": {
+    "summary": "Four closures: (1) safe reclamation of knowledge_rich_document_title_anchors rows using the anchor row itself as the conflict key; (2) migrate the eight remaining product-data process-global storage mutexes onto the MT-142 primitives so disjoint records and workspaces no longer serialise; (3) turn the RSS finding into a measured answer and, if the engine exposes them, a bounded memory configuration; (4) audit FEMS_MUTATION_LOCK and STAGE_INSERT_LOCK under the caller-side statement bound the way MT-151 audited the others, and guard any lock-only invariant database-side.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/frontend/**",
+      "app/src/**",
+      "src/backend/handshake_core/src/storage/postgres/**",
+      "src/backend/handshake_core/src/storage/mod.rs (StorageError: no new variants; map into existing ones as MT-142 did)"
+    ],
+    "base_commit": "98353583742437f1ebf4ccba5950938927af59da",
+    "items": [
+      {
+        "id": "I-152-1",
+        "lane": "A",
+        "kind": "product",
+        "title": "title-anchor reclamation using the anchor row as the conflict key",
+        "detail": "MT-142 rejected reclamation because a naive 'read live count then delete' reintroduces the R1-1-2 window. The safe design uses the MT-142 write-set discipline: every title-mutating transaction already UPSERTs the anchor row, so a reclamation transaction that DELETEs the anchor row writes the same key and collides at commit with any concurrent create/rename/delete on that title - one side loses, its bounded retry re-reads and either recreates the anchor (create path) or sees the new live document and skips (reclaim path). Implement reclamation inside the atomic delete transaction (knowledge.rs delete_knowledge_rich_document_atomic, around :2068 where the anchor is written): after tombstoning, LET $live = count of live documents in the workspace whose title_key equals the anchor's; IF $live = 0 THEN DELETE the anchor row. Also cover rename (the OLD title's anchor may become orphaned, same rule). Prove with a race test in both orders: delete-of-last-holder racing a create of the same title must end with exactly one anchor row and one live document, never zero anchors with a live document. Record the invariant in a doc comment: an anchor row exists for a title iff at least one live document holds it, eventually, with the transient window bounded by a single conflicting transaction.",
+        "closes": [
+          "FOLLOW-ON-MT142-TITLE-ANCHOR-RECLAMATION"
+        ]
+      },
+      {
+        "id": "I-152-2",
+        "lane": "L",
+        "kind": "product",
+        "title": "migrate the eight remaining product-data locks onto the MT-142 primitives",
+        "detail": "Static mutexes and acquisition sites: LOOM_MUTATION_LOCK (loom_store.rs:51, 15 sites via its guard helper), CANVAS_MUTATION_LOCK (loom_canvas_store.rs:51, 9), OVERLAY_MUTATION_LOCK / MARKDOWN_IMPORT_LOCK / WIKI_COMPILE_LOCK (wiki_store.rs:40-42, 4), BLOCK_VIEW_MUTATION_LOCK (block_view_store.rs:38, 2), BRIDGE_MUTATION_LOCK (bridge_store.rs:23, 1), DEPENDENCY_MUTATION_LOCK (locus_store.rs:37, 1). MT-151 proved every invariant behind them is now database-guarded (its audit table is in MT-151.json lifecycle.i_151_4_audit), so the mutexes are pure contention shaping. Replace each with the knowledge.rs pattern: the per-SurrealDatabase KeyedLockRegistry on the narrowest stable key (LockKey::Record for single-record mutations, NaturalKey for uniqueness/upsert races, Workspace only for invariants that genuinely span a workspace - the MT-142 contract's contention_control_requirements), wrapped in guarded_mutation-style bounded retry with pre-reads inside the closure. Delete the static mutexes (PT: zero occurrences of the ten names in src/). Prove: (a) every existing target that exercises those stores stays green (loom, canvas, wiki, block_view, bridge, locus targets - enumerate them from tests/ and run each once); (b) a new disjoint-record overlap proof per store family in the style of tests/surreal_swarm_semantics_tests.rs::disjoint_records_commit_concurrently_without_unrelated_waiting, asserting engine-window overlap >= 2 for two different Loom blocks, two Canvas boards and two Wiki projections; (c) a same-record race per family asserting one winner and typed losers.",
+        "closes": [
+          "D-142-1 follow-on"
+        ]
+      },
+      {
+        "id": "I-152-3",
+        "lane": "M",
+        "kind": "measurement+product",
+        "title": "memory envelope: measure, then bound if the engine allows it",
+        "detail": "The RSS finding (413.9 MB and 433.99 MB of growth on an 18 MB store; 25x operations and 20x store for 1.9x growth against the CI profile) suggests fixed engine overhead. Two steps. MEASURE: run the extended load profile at constant worker count and buffer configuration while varying only operation_count (e.g. 5000, 20000, 50000 at 64 workers, same seed family) and record growth_bytes per run; state whether growth is ingest-proportional or fixed with the three points. BOUND: the research basis records RocksDB defaults of write_buffer_size 128 MiB x max_write_buffer_number 32 on machines with >= 64 GiB RAM (surrealdb-core-3.2.0 cnf.rs:31-50), i.e. up to 4 GiB of write buffers, and that the SDK never passes a ConfigMap. Read cnf.rs and the kvs/rocksdb config path in the pinned crates for ENVIRONMENT-driven knobs (historically SURREAL_ROCKSDB_* variables) and for anything reachable through the SDK's opt::Config or Capabilities; if a supported knob exists, expose it through SurrealStorageConfig with a documented default that bounds the engine's memory to a stated envelope, set it at open, and re-measure at the same workload to show the effect. If no supported knob exists, say so with the file:line evidence and record the envelope as a documented characteristic with the measured curve. Write a memory-envelope section into the manual page.",
+        "closes": [
+          "RSS finding turned into a measured answer"
+        ]
+      },
+      {
+        "id": "I-152-4",
+        "lane": "A",
+        "kind": "product",
+        "title": "FEMS_MUTATION_LOCK and STAGE_INSERT_LOCK under the caller-side statement bound",
+        "detail": "Both take their mutex OUTSIDE with_data_operation, but a statement timeout still returns Err through them and drops the guard while the abandoned statement may be live. Audit every invariant each protects exactly as MT-151 I-151-4 did (table: site, invariant, database-side guard or LOCK-ONLY). Known: FEMS (src/storage/fems_memory.rs:1565, 7 sites) has CAS THROWs HSK-FEMS-REVIEW-STATE / COMMIT-STATE and create_if_absent for most invariants, but the D-146-1 workspace-delete ordering is lock-only by documented design - give it a database-side guard (an ordering anchor CAS like storage_graph_anchors, or a THROW on the ordering precondition inside the transaction) and prove it with a lock-registry-disabled race. STAGE (src/storage/stage_artifacts.rs:23, 1 site) is covered by uq_stage_capture_artifacts_idempotency - confirm and record. Then migrate both onto the keyed registry + bounded retry as in I-152-2 and delete the statics.",
+        "closes": [
+          "owner decision on FEMS_MUTATION_LOCK and STAGE_INSERT_LOCK"
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "AC-152-1: an anchor row exists for a title iff a live document holds it (eventually, transient window bounded by one conflicting transaction), proven by a two-order race test; no live document is ever left without its anchor.",
+      "AC-152-2: none of the ten static product-data mutexes exist in src/; every store previously behind them uses the per-SurrealDatabase keyed registry on the narrowest stable key with bounded retry; every pre-existing target for those stores is green; per family, disjoint records show engine-window overlap >= 2 and same-record races show one winner with typed losers.",
+      "AC-152-3: RSS growth is measured at three operation counts under constant workers and buffers and classified as fixed or ingest-proportional from the data; if the engine exposes a supported memory knob it is wired through SurrealStorageConfig with a documented default and a before/after measurement, otherwise the absence is evidenced with file:line and the envelope documented.",
+      "AC-152-4: every FEMS and STAGE invariant is recorded as database-guarded or gains a guard proven by a lock-registry-disabled race; the D-146-1 ordering no longer depends on the mutex alone.",
+      "AC-152-5: no PostgreSQL or SQLite token introduced; crate warnings do not increase; every changed target has a verbatim green line at the final commit; the manual page is updated for the memory envelope and for the lock migration (which locks are gone, what shapes contention now)."
+    ],
+    "execution_constraints": {
+      "cargo": "single shared lane via the mutex runner (scratchpad mt142-run.sh; lane names A, L, M); logs and reports under ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/ as a light-ceremony reuse; RUST_TEST_THREADS=1 pinned by the runner; the memory measurements use the extended runner scratchpad mt142-extended-run.sh with HANDSHAKE_SWARM_OPERATIONS varied",
+      "base": "commits after 98353583 only; MT-142 validates at 6148b559 and MT-151 at 98353583"
+    },
+    "not_in_scope": [
+      "migrating the HTTP API layer to one SurrealDatabase per app state (the per-request wrapper follow-on) - the keyed registry shapes in-process callers only, correctness never depends on it",
+      "any change under src/storage/mod.rs"
+    ]
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": "KERNEL_BUILDER-20260910-073935",
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "batch_with": [
+      "MT-141",
+      "MT-148",
+      "MT-149",
+      "MT-150",
+      "MT-142",
+      "MT-151"
+    ]
+  },
+  "updated_at_utc": "2026-09-11T14:37:56.168Z"
+}
