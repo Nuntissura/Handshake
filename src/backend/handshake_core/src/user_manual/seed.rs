@@ -1680,7 +1680,21 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
          - `{lifecycle_command}` - shutdown under load, reopen, acknowledged-write reconciliation.\n\n\
          Run-scoped stores live under `HANDSHAKE_ARTIFACTS_ROOT` and are removed by the fixture; keep only \
          the JSON reports. Pass the test filter shown: both profiles live in one test binary and share \
-         process-global retry/event counters, and the gate variable decides which one may run in a process."
+         process-global retry/event counters, and the gate variable decides which one may run in a process.\n\n\
+         Run the swarm targets with `RUST_TEST_THREADS=1`. Each test opens its own real embedded store, so \
+         libtest's default parallelism puts nine concurrent RocksDB stores on one spindle; that saturates the \
+         disk and trips `statement_timeout` on plain `CREATE`s, which is a harness artefact, not a product \
+         defect. Serial TEST execution is required; the concurrency each proof exercises INTERNALLY (12-16 \
+         racing workers against one store) is untouched by it.\n\n\
+         Why per-test store open is seconds and not minutes: the swarm fixture applies the schema ONCE per \
+         test binary, closes that store cleanly, and hands every test its own directory COPY of the closed \
+         store - a real, isolated, on-disk RocksDB store carrying the real schema, opened through the ordinary \
+         production path, where `bootstrap_schema` takes its resume path \
+         (`tests/swarm_support/mod.rs:604-820`). No sharing, no weakened isolation, no mock: \
+         `cloned_template_store_matches_a_freshly_bootstrapped_store` proves a clone is catalog-identical to a \
+         freshly bootstrapped store, and the semantics proofs assert clones are mutually isolated. The one-time \
+         apply prints `SWARM_TEMPLATE_BOOTSTRAP_MS` and each open prints `SWARM_STORE_OPEN_MS` - about 6 s per \
+         test in the measured runs, against ~360 s if every test paid a cold apply."
     );
     // Timeout defaults are rendered from the storage constants so this page can
     // never state a value the code does not have (MT-142 review R2-1-1, D-142-4).
@@ -1970,6 +1984,12 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  (the first attempt included), 2000 ms maximum elapsed, full jitter \
                  `sleep = random(0, min(cap, base * 2^n))` (`retry.rs:28-29`, `:524-525`). The 7 sleep upper \
                  bounds are 5, 10, 20, 40, 80, 160, 250 ms (worst case 565 ms of sleep, `retry.rs:1146-1150`). \
+                 Read `maximum_elapsed` precisely: it bounds the SLEEP SCHEDULE, not the operation. \
+                 `retry` never races an attempt already in flight against a deadline or the cancellation token, \
+                 because dropping it after the engine acknowledged a commit would report a durable write as a \
+                 failure (`retry.rs:31-38`); the deadline is consulted before an attempt and to decide whether \
+                 the next sleep still fits (`sleep_fits`, `:568-575`). The operation's own wall clock is bounded \
+                 separately, see \"What bounds one logical mutation\" below. \
                  The effective deadline is the earlier of start + 2000 ms and the caller deadline (`:556-562`); \
                  no sleep starts that would end after it (`:568-575`); cancellation is observed before every \
                  attempt and during every sleep (`:489-495`, `:543-552`); an attempt already in flight is never \
@@ -2010,7 +2030,29 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  `RetryError::Cancelled { attempts, elapsed }` and reaches callers as the closed-store error \
                  (`SurrealStorageError::Closed`, `embedded database is closed`; `knowledge.rs:107-109`, \
                  `:146-148`; `surreal.rs:214`). In the load report these appear as `conflict_count`, \
-                 `retry_count`, `retry_exhaustion_count` and `failed_by_operation_and_class[..][retry_exhausted]`.",
+                 `retry_count`, `retry_exhaustion_count` and `failed_by_operation_and_class[..][retry_exhausted]`.\n\n\
+                 What bounds one logical mutation (the number to size timeouts against): ONE \
+                 `statement_timeout` budget covers the whole thing - the keyed-lock wait, all 8 attempts and \
+                 the sleeps between them. `guarded_mutation` takes `deadline = now + statement_timeout` once, \
+                 hands it to the lock acquire and to the `RetryContext`, and wraps the entire retry future in \
+                 `SurrealStorage::with_operation_deadline`; every data operation underneath clamps its own \
+                 statement bound to the REMAINING budget (`OPERATION_DEADLINE` task-local, \
+                 `surreal.rs:431-438`, `:1030-1035`), so the last attempt cannot overshoot and the attempts \
+                 cannot multiply the bound. Worst case for one contended mutation is therefore one \
+                 `statement_timeout` (default 300 s; 30 s if the caller set \
+                 `with_statement_timeout(Duration::from_secs(30))`), NOT 8 x that \
+                 (`knowledge.rs:177-214`).\n\n\
+                 The trade-off this creates, worth knowing before you size anything: the retry loop's effective \
+                 deadline is the EARLIER of the caller budget and `maximum_elapsed`, and 2000 ms is earlier \
+                 than a 300 s budget in every ordinary configuration. Under heavy disk saturation a single slow \
+                 attempt can consume the whole 2000 ms by itself, and a legitimately retryable conflict then \
+                 gets ZERO retries: the caller receives \
+                 `HSK-STORAGE-RETRY-EXHAUSTED; attempts=1 elapsed_ms=2523 bound=max_elapsed` (measured on an \
+                 idempotent backlink rebuild during a saturated run). The outcome is bounded, typed and \
+                 correct - nothing was written - but it is a typed conflict handed back to the caller, not a \
+                 transparent recovery. Expect retries to thin out or disappear exactly when the disk is \
+                 slowest, and treat a burst of `attempts=1 ... bound=max_elapsed` as a saturation signal rather \
+                 than a contention signal.",
                 json!({
                     "retry_policy": {
                         "base_delay_ms": 5,
@@ -2024,6 +2066,18 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                     "retried": ["RetryableTransient (engine commit conflict)", "RetryableSnapshotChange (idempotent upsert index race)"],
                     "retried_only_when": "Replay::Idempotent { key }",
                     "never_retried": ["Replay::NotIdempotent", "Terminal: thrown guard codes, AlreadyExists, TimedOut, Cancelled, NotExecuted/Internal without conflict markers, Validation, NotAllowed, NotFound", "expected-version mismatch (HSK-KRD-SAVE-STALE)", "SurrealStorageError::StatementTimeout (outcome unknown)"],
+                    "one_logical_mutation_bound": {
+                        "budget": "one statement_timeout shared by the keyed-lock wait, all attempts and their sleeps",
+                        "mechanism": ["guarded_mutation deadline", "RetryContext::deadline", "SurrealStorage::with_operation_deadline", "OPERATION_DEADLINE task-local clamps each attempt to the remaining budget"],
+                        "worst_case": "one statement_timeout (not maximum_attempts x statement_timeout)",
+                        "maximum_elapsed_bounds": "the sleep schedule, not the operation"
+                    },
+                    "saturation_trade_off": {
+                        "effective_deadline": "earlier of the caller budget and maximum_elapsed (2000 ms)",
+                        "consequence": "one slow attempt can consume the whole 2000 ms, leaving zero retries",
+                        "observed": "HSK-STORAGE-RETRY-EXHAUSTED; attempts=1 elapsed_ms=2523 bound=max_elapsed",
+                        "outcome": "bounded and typed; a typed conflict to the caller, never a silent write or a transparent recovery"
+                    },
                     "exhaustion": {
                         "error": "RetryError::Exhausted { attempts, elapsed, last, bound }",
                         "bounds": ["max_attempts", "max_elapsed"],
@@ -2118,13 +2172,22 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                         {"name": "HANDSHAKE_SWARM_DATASET", "value": "seeded dataset records", "read_by_swarm_tests": true},
                         {"name": "HANDSHAKE_SWARM_READ_WRITE_MIX", "value": "read fraction within [0.05, 0.95]", "read_by_swarm_tests": true},
                         {"name": "HANDSHAKE_SWARM_KEY_SKEW", "value": "hot-set fraction within (0, 1]", "read_by_swarm_tests": true},
-                        {"name": "HANDSHAKE_SWARM_CONTENTION", "value": "hot-set write share within [0, 1]", "read_by_swarm_tests": true}
+                        {"name": "HANDSHAKE_SWARM_CONTENTION", "value": "hot-set write share within [0, 1]", "read_by_swarm_tests": true},
+                        {"name": "RUST_TEST_THREADS", "value": "1 - required: serial TEST execution, not serial workers", "read_by_swarm_tests": false}
                     ],
                     "printed_markers": [
                         "SWARM_LOAD_REPORT=", "SWARM_EXTENDED=NOT_RUN_UNCONFIGURED",
                         "SWARM_EXTENDED_NOT_RUN_REPORT=", "SWARM_CI=NOT_RUN_EXTENDED_CONFIGURED",
-                        "swarm-load-", "swarm-load-extended-not-run-"
+                        "swarm-load-", "swarm-load-extended-not-run-",
+                        "SWARM_STORE_OPEN_MS", "SWARM_TEMPLATE_BOOTSTRAP_MS"
                     ],
+                    "test_execution": {
+                        "required": "RUST_TEST_THREADS=1",
+                        "why": "each test opens its own embedded store; default libtest parallelism puts nine RocksDB stores on one spindle and trips statement_timeout on plain CREATEs",
+                        "internal_concurrency_unaffected": "12-16 racing workers per proof",
+                        "store_fixture": "schema applied once per test binary, closed, then copied per test; opened through the production path (bootstrap_schema resume)",
+                        "clone_proof": "cloned_template_store_matches_a_freshly_bootstrapped_store"
+                    },
                     "report_dir_fallback": "<HANDSHAKE_ARTIFACTS_ROOT>/handshake-test/swarm-load/"
                 }),
             ),
@@ -2279,6 +2342,35 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                     "forbidden": ["deriving remote claims from embedded reports", "opening the same store path twice as a remote simulation"]
                 }),
             ),
+            section_with_json(
+                "failure_modes",
+                "Cold start cost: a first start is slow, not hung",
+                "A FRESH embedded store applies the whole schema before serving: about 4,467 DDL statements at \
+                 roughly 80 ms each, measured `ddl_apply_ms=358385` (~361 s), because `SyncMode::Every` fsyncs \
+                 every DDL and the measured store sits on a 7200-rpm disk. Everything around it is cheap: \
+                 manifest hashing, registry seeding and the `INFO` catalog reads together cost under a second, \
+                 and every later start takes the resume path instead of reapplying. So a first start that \
+                 appears to hang for several minutes on a spinning disk is this apply, not a deadlock and not \
+                 a lock conflict - the process is making progress and holds the store's `LOCK` throughout.\n\n\
+                 This is PRE-EXISTING bootstrap behaviour, not something MT-142 introduced or changed; it is \
+                 documented here because it is the number an operator needs before killing a first start. Do \
+                 not kill and retry in a loop: each attempt restarts the apply. Wait it out, or start on an SSD \
+                 where the same apply costs a fraction of that. It is also why engine-level timeouts cannot be \
+                 defaults (see the shutdown section): a 60 s engine transaction deadline would cancel this \
+                 bootstrap and fail startup closed. The swarm proofs avoid paying it per test with the \
+                 template-store clone described in the load-profile section.",
+                json!({
+                    "scope": "fresh store only; later starts take the resume path",
+                    "ddl_statements": 4467,
+                    "per_statement_ms_approx": 80,
+                    "ddl_apply_ms_measured": 358385,
+                    "why": "SyncMode::Every fsyncs every DDL; measured on a 7200-rpm disk",
+                    "other_startup_phases_ms": "under 1000 total (manifest hashing, registry seeding, INFO catalog reads)",
+                    "introduced_by_mt142": false,
+                    "operator_action": "wait; do not kill and retry in a loop",
+                    "related": "engine timeouts stay off by default because they would cancel this bootstrap"
+                }),
+            ),
             section(
                 "recovery",
                 "Recovery",
@@ -2296,7 +2388,12 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  backend on the same `HANDSHAKE_DATA_DIR` until `SurrealStorage::open` succeeds on it.\n\
                  7. `IO error: Failed to create lock file`: another engine holds `<store>/LOCK`; stop that \
                  process instead of deleting the store or the `LOCK` file.\n\
-                 8. `integrity_verdict` other than `pass`: preserve the run's store and report, record \
+                 8. A first start that seems to hang for minutes: see the cold-start section - a fresh schema \
+                 apply is ~361 s on a 7200-rpm disk. Do not kill and retry in a loop.\n\
+                 9. `HSK-STORAGE-RETRY-EXHAUSTED` with `attempts=1` and `bound=max_elapsed`: the disk is \
+                 saturated, not the record contended; one attempt spent the whole 2000 ms sleep budget. Reduce \
+                 load or move the store off a spinning disk; retrying harder makes it worse.\n\
+                 10. `integrity_verdict` other than `pass`: preserve the run's store and report, record \
                  `run_id`, `workload_seed`, `source_commit`, and reproduce with the same `HANDSHAKE_SWARM_SEED` \
                  before changing code.",
             ),
@@ -3667,6 +3764,26 @@ mod tests {
             retry_json["worst_case_sleep_sum_ms"].as_u64(),
             Some(schedule.iter().sum::<u64>())
         );
+        // The worst-case wall clock for one logical mutation is derived from the
+        // constants, so raising either the attempt count or the statement bound
+        // fails here instead of leaving a stale number on the page.
+        for required in [
+            format!("NOT {} x that", policy.maximum_attempts),
+            format!("default {} s", DEFAULT_STATEMENT_TIMEOUT.as_secs()),
+            format!("whole {} ms", millis(policy.maximum_elapsed)),
+        ] {
+            assert!(
+                body.contains(&required),
+                "missing MT-142 manual text for the one-mutation bound: {required}"
+            );
+        }
+        let mutation_bound = &mt142_section_json(&page, "Contention, retry, and retry exhaustion")
+            ["one_logical_mutation_bound"];
+        assert_eq!(
+            mutation_bound["worst_case"].as_str(),
+            Some("one statement_timeout (not maximum_attempts x statement_timeout)")
+        );
+
         let schedule_text = schedule
             .iter()
             .map(u64::to_string)
@@ -3706,6 +3823,13 @@ mod tests {
             "`lease_high_water()`",
             "MT-142-D-006-DERIVED-BACKLINK-STALENESS",
             "`replace_knowledge_document_backlinks`",
+            "bounds the SLEEP SCHEDULE, not the operation",
+            "`SurrealStorage::with_operation_deadline`",
+            "attempts=1 elapsed_ms=2523 bound=max_elapsed",
+            "`RUST_TEST_THREADS=1`",
+            "`SWARM_TEMPLATE_BOOTSTRAP_MS`",
+            "4,467 DDL statements",
+            "ddl_apply_ms=358385",
             "surrealdb 3.2.0",
             "A second process on the same store path is NOT supported",
             "a second embedded engine on the same path inside this process is NOT supported",
