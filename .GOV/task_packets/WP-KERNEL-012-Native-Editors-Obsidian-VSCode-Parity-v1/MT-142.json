@@ -330,7 +330,36 @@
           "recorded_at_utc": "2026-09-10T22:44:54.375Z"
         }
       },
-      "regression_found_after_26731c56": "keyed_lock_registry_reclaims_after_high_cardinality_churn: entry_count 1 after concurrent churn (Lane B semantics run T184953Z) -> A2 root-causing with a deterministic unit test"
+      "regression_found_after_26731c56": "keyed_lock_registry_reclaims_after_high_cardinality_churn: entry_count 1 after concurrent churn (Lane B semantics run T184953Z) -> A2 root-causing with a deterministic unit test",
+      "round_3": {
+        "lens_1": {
+          "verdict": "APPROVE",
+          "file": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-1-round-3.json",
+          "product_commit": "b05a3a01",
+          "blockers": 0,
+          "majors": 0,
+          "minors": [
+            "R3-1-1 HSK-STORAGE-NO-RETRY-WINDOW is not recognised by the harness, so a saturation signal is filed as expected contention - routed to Lane B in its current pass",
+            "R3-1-2 the packet phrasing correction recorded above",
+            "R3-1-3 a containment option the early-lock-release record does not weigh: scope the statement bound to the stores MT-142 owns rather than auditing the others"
+          ],
+          "judgements": {
+            "early_lock_release_residual": "recording is SUFFICIENT and should not block: before MT-142 the same 300 s stall held those mutexes indefinitely, so this trades an unbounded hang for a bounded early release, and the record names the safe class, the unsafe class, the unaudited candidates and the likelihood",
+            "anchor_reclamation_routing": "accepted on its merits; about 2 MB per 10000 titles is the right price for not reintroducing the R1-1-2 window",
+            "zero_budget_branch": "prefers a disclosed untested defensive branch over one claimed as covered"
+          },
+          "what_would_change_it": "evidence that a freshly bootstrapped store at this commit is genuinely missing a table (a schema regression rather than a test artifact), or a reproduction showing a no-retry-window or early-lock-release outcome reaching product DATA rather than only a diagnostic surface",
+          "unattributed_observation": "the reviewer stopped its own 122-test sweep at 33 to free the lane (CARGO_EXIT=127, not a verdict); its last stderr entry was a loom_store panic (table loom_edges does not exist) on a test that never produced a result line. MT-142 touches neither loom_store.rs nor any loom_edges DDL and every swarm target reading loom_edges through the same bootstrap is green at this tree, but the reviewer explicitly declined to attribute it in either direction without the 67ce701c baseline procedure. CARRIED AS UNATTRIBUTED."
+        },
+        "lens_2": {
+          "verdict": "REJECT",
+          "file": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-2-round-3.json",
+          "blocker": "R2-3-1 the sole AC-142-6 artifact was produced by a tree that is neither 754c6757 nor b05a3a01",
+          "major": "R2-3-2 source_commit has no dirty-tree check and is sampled at report-assembly time",
+          "stated_approval_condition": "a clean-tree extended artifact carrying budget_verdict_note, with R2-3-2 fixed",
+          "live_reproduction": "the reviewer own CI run reproduced the defect during the review: the runner and source_commit both recorded b05a3a01 while cargo compiled code absent from that commit. The reviewer explicitly did NOT claim b05a3a01 fails to compile and verified the committed blob lacked the code."
+        }
+      }
     },
     "decisions_20260910": [
       {
@@ -519,7 +548,13 @@
         "new_tests": [
           "a_slow_attempt_still_gets_its_replay_under_a_caller_budget (5 s attempts, 2500x the backoff budget, still get their replay; returned attempts=1 under the old derivation)",
           "accumulated_backoff_stays_within_maximum_elapsed"
-        ]
+        ],
+        "evidence_it_is_additive_CORRECTED": {
+          "at_utc": "2026-09-11T09:47:48.576Z",
+          "by": "KERNEL_BUILDER on adversarial lens 1 round 3 correction",
+          "correction": "My earlier wording said every pre-existing elapsed-bound test passes unchanged. That is not accurate: an_attempt_never_starts_once_the_deadline_is_reached had its expected bound edited from MaxElapsed to NoRetryWindow. The reviewer checked it and the behavioural assertions (attempts: 1, clock.elapsed() == 100 ms) are unchanged, and with attempts == 1 NoRetryWindow is the only correct label - so it is a phrasing fix in my record, not a defect.",
+          "what_does_hold": "effective_deadline is ctx.deadline.or_else(|| started + maximum_elapsed) (retry.rs:596-609): with no caller deadline it is byte-equivalent to the old derivation, which is why maximum_elapsed_exhaustion_never_sleeps_past_the_bound passes untouched; with a caller deadline the deadline governs and caller_deadline_exhausts_as_max_elapsed still discriminates because it has more than one attempt. RetryPolicy::CONTRACT untouched at 5/250/8/2000. Independently re-run by the reviewer at b05a3a01: 28 passed, 0 failed (mt142-LIB-20260911T094247Z)."
+        }
       },
       "diagnostic_split": {
         "fix": "ExhaustionBound::NoRetryWindow (as_str no_retry_window) returned whenever a budget stop happens with attempts <= 1, mapped to a new conflict code HSK-STORAGE-NO-RETRY-WINDOW instead of HSK-STORAGE-RETRY-EXHAUSTED",
@@ -558,7 +593,8 @@
         "likelihood": "bounded - only reached after a 300 s stall, where the alternative is an indefinite hang",
         "recommended_disposition": "a follow-on that either routes those stores through the same guarded_mutation pattern (database-side guards plus bounded retry) or audits each site; D-142-1 scoped those locks out of this MT"
       }
-    ]
+    ],
+    "kernel_builder_self_correction_20260911": "The same provenance defect existed in my own runner scripts: every context line recorded a bare HEAD sha regardless of tree state, and those lines are cited as evidence throughout this microtask. Both runners now record <sha>-dirty(<n>) using crate-scoped dirtiness."
   },
   "scope": {
     "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
@@ -847,5 +883,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T08:08:19.670Z"
+  "updated_at_utc": "2026-09-11T09:47:48.576Z"
 }
