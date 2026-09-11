@@ -45,7 +45,53 @@
     "created_by": "KERNEL_BUILDER-20260910-073935",
     "creation_reason": "Operator direction 2026-09-11: 'fix them all, added scope granted' - the four items MT-151 left open by design or by allowed-path limits.",
     "ceremony": "LIGHT (same as MT-151): typed items, acceptance criteria, verbatim proof lines and a handoff; MT-142's research basis and recon inventory reused; no adversarial review rounds unless the Operator asks.",
-    "operator_scope_grant": "src/backend/handshake_core/src/storage/fems_memory.rs and src/backend/handshake_core/src/storage/stage_artifacts.rs are in scope for this MT (they were outside MT-142/MT-151 allowed_paths)."
+    "operator_scope_grant": "src/backend/handshake_core/src/storage/fems_memory.rs and src/backend/handshake_core/src/storage/stage_artifacts.rs are in scope for this MT (they were outside MT-142/MT-151 allowed_paths).",
+    "item_dispositions": {
+      "I-152-3": {
+        "status": "CLOSED - measured; no supported knob exists",
+        "at_utc": "2026-09-11T18:35:00.109Z",
+        "knobs": {
+          "exist_in_engine": "rocksdb_write_buffer_size, rocksdb_max_write_buffer_number, rocksdb_block_cache_size, rocksdb_jobs_count, rocksdb_keep_log_file_num, parsed by RocksDbConfig::parse from a ConfigMap (surrealdb-core-3.2.0/src/kvs/rocksdb/cnf.rs:656-717), loaded at the rocksdb arm (src/kvs/ds.rs:657-664), applied in memory_manager.rs:27-45 (WriteBufferManager limit 32 x 128 MiB plus block cache max(mem/2 - 1 GiB, 16 MiB))",
+          "only_source": "Datastore::builder().with_config (src/kvs/ds/builder.rs:90); the builder starts from ConfigMap::empty() (:82)",
+          "negatives": [
+            "SDK: surrealdb-3.2.0/src/engine/local/native.rs:131-149 builds with query/transaction timeout, auth, temp dir, notify, capabilities and build_with_path - no with_config",
+            "opt::Config has no memory field (src/opt/config.rs:14-33); Capabilities has none (surrealdb-core-3.2.0/src/dbs/capabilities.rs:682)",
+            "env: ConfigMap::from_env (SURREAL_ prefix, src/cnf/mod.rs:59-78) is defined but never called anywhere in surrealdb-core or surrealdb; the only direct env reads are SURREAL_MEMORY_THRESHOLD (a task kill threshold) and SURREAL_KVS_THREADPOOL_SIZE - neither sizes RocksDB",
+            "path query: ?k=v is re-keyed datastore_<k> (src/kvs/ds.rs:585-591), so only datastore_versioned and datastore_retention are reachable, never rocksdb_*; Handshake also rejects ? in the store path"
+          ],
+          "conclusion": "An embedded SDK caller cannot bound RocksDB memory through any supported path in the pinned versions. Doing so would require bypassing the surrealdb SDK and constructing surrealdb_core::kvs::Datastore directly - an architecture change outside this MT. Recorded in the manual for when the SDK exposes with_config."
+        },
+        "curve": {
+          "config": "64 workers, dataset 5000, seed 142142142142, only operation_count varied; every run integrity pass; run_kind measurement",
+          "points": [
+            {
+              "ops": 5119,
+              "growth_bytes": 308215808,
+              "growth_mib": 294,
+              "store_mb": 7,
+              "run": "mt142-extended-measurement-01a090ec19e570c1bcaccfdbcf346698"
+            },
+            {
+              "ops": 20479,
+              "growth_bytes": 357900288,
+              "growth_mib": 341,
+              "store_mb": 11.3,
+              "run": "mt142-extended-measurement-01a09154332471d189373e47de307f2f"
+            },
+            {
+              "ops": 51108,
+              "growth_bytes": 434028544,
+              "growth_mib": 414,
+              "store_mb": 18.2,
+              "run": "mt142-extended-measurement-01a091745e0477e2bbd46b61ce0f0a11"
+            }
+          ],
+          "classification": "MOSTLY FIXED. Linear fit: about 281 MiB fixed plus about 26 MiB per 10k operations (~2.7 KB per operation). The proportional tail over the full range (120 MiB) is smaller than the fixed part; the store grew 11 MB while RSS grew 120 MiB, so the tail is engine working set rather than store size. The MT-142 runs (413.9 and 433.99 MB at ~51k, different seed) sit on the same curve. No leak signal in range."
+        },
+        "harness_change": "tests/surreal_swarm_load_tests.rs: WorkloadConfig::extended clamps operations UP to 50000 (:169-171), so smaller runs would silently have run 50000. HANDSHAKE_SWARM_MEASUREMENT_ONLY=1 lifts only the operations clamp (workers and dataset stay clamped), uses the distinct profile extended-measurement and report file, records run_kind measurement/acceptance in effective_configuration, and skips the contract-minimum assertion with a printed marker. The acceptance path is unchanged.",
+        "manual": "new section on the swarm page, Memory envelope of the embedded engine; the points live in MEMORY_ENVELOPE_CURVE and the classification is derived by a linear fit in the test, never hand-typed; knob evidence with file:line; the would-be trade-off (32 MiB x 4 buffers means more HDD flushes). LIB user_manual ok. 25 passed (mt142-LIB-20260911T183311Z)."
+      }
+    }
   },
   "scope": {
     "summary": "Four closures: (1) safe reclamation of knowledge_rich_document_title_anchors rows using the anchor row itself as the conflict key; (2) migrate the eight remaining product-data process-global storage mutexes onto the MT-142 primitives so disjoint records and workspaces no longer serialise; (3) turn the RSS finding into a measured answer and, if the engine exposes them, a bounded memory configuration; (4) audit FEMS_MUTATION_LOCK and STAGE_INSERT_LOCK under the caller-side statement bound the way MT-151 audited the others, and guard any lock-only invariant database-side.",
@@ -135,5 +181,5 @@
       "MT-151"
     ]
   },
-  "updated_at_utc": "2026-09-11T14:37:56.168Z"
+  "updated_at_utc": "2026-09-11T18:35:00.109Z"
 }
