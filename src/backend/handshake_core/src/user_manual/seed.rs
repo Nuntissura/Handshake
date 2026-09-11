@@ -33,7 +33,10 @@ use super::store::{
 use super::USER_MANUAL_VERSION;
 use crate::kernel::model_manual::kernel002_no_context_model_manual;
 use crate::model_manual::{model_manual, CommandStatus};
-use crate::storage::surreal::SurrealDatabase;
+use crate::storage::surreal::{
+    SurrealDatabase, DEFAULT_DRAIN_GRACE, DEFAULT_ENGINE_QUERY_TIMEOUT,
+    DEFAULT_ENGINE_TRANSACTION_TIMEOUT, DEFAULT_SHUTDOWN_WAIT, DEFAULT_STATEMENT_TIMEOUT,
+};
 use crate::storage::StorageResult;
 
 /// Everything the seeder writes.
@@ -1658,9 +1661,17 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
          HANDSHAKE_SWARM_EXTENDED=1 HANDSHAKE_SWARM_SEED=<u64> HANDSHAKE_ARTIFACTS_ROOT=<absolute-artifacts-root> HANDSHAKE_WORKSPACE_ROOT=<run-dir> HANDSHAKE_SWARM_LOAD_REPORT_DIR=<report-dir> \\\n\
          {extended_command}\n\
          ```\n\n\
-         It writes `swarm-load-extended-<run_id>.json` plus an RSS record \
-         `swarm-load-extended-<run_id>-memory.json` to the same directory (`:98`, `:1143`, `:1285`). \
-         `HANDSHAKE_SWARM_SEED` (u64) \
+         It writes `swarm-load-extended-<run_id>.json` to the same directory. When the gate is unset the test \
+         still records the state machine-readably: it prints `SWARM_EXTENDED=NOT_RUN_UNCONFIGURED`, writes \
+         `swarm-load-extended-not-run-<run_id>.json` (status `not_run_unconfigured`, the gate variable and the \
+         contract minimums) and prints `SWARM_EXTENDED_NOT_RUN_REPORT=<path>`, so a validator can tell \
+         \"never attempted\" from \"attempted without configuration\". Setting the gate also reserves the \
+         process: the CI test then prints `SWARM_CI=NOT_RUN_EXTENDED_CONFIGURED` and returns, because both \
+         profiles share process-global counters and one disk. Workload shape is configurable for either \
+         profile through `HANDSHAKE_SWARM_WORKERS`, `HANDSHAKE_SWARM_OPERATIONS`, `HANDSHAKE_SWARM_DATASET`, \
+         `HANDSHAKE_SWARM_READ_WRITE_MIX` (the READ fraction, 0.05-0.95), `HANDSHAKE_SWARM_KEY_SKEW` (hot-set \
+         fraction, 0-1] and `HANDSHAKE_SWARM_CONTENTION` (0-1); each value is validated, applied and recorded \
+         in the report. `HANDSHAKE_SWARM_SEED` (u64) \
          overrides the fixed workload seed for either profile; the seed used is printed and stored in \
          `workload_seed`. Companion proofs in the same tree:\n\
          - `{semantics_command}` - same-record expected-version race, idempotency convergence, \
@@ -1668,7 +1679,83 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
          freedom, registry reclamation.\n\
          - `{lifecycle_command}` - shutdown under load, reopen, acknowledged-write reconciliation.\n\n\
          Run-scoped stores live under `HANDSHAKE_ARTIFACTS_ROOT` and are removed by the fixture; keep only \
-         the JSON reports."
+         the JSON reports. Pass the test filter shown: both profiles live in one test binary and share \
+         process-global retry/event counters, and the gate variable decides which one may run in a process."
+    );
+    // Timeout defaults are rendered from the storage constants so this page can
+    // never state a value the code does not have (MT-142 review R2-1-1, D-142-4).
+    let millis = |duration: std::time::Duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
+    let shutdown_wait_s = DEFAULT_SHUTDOWN_WAIT.as_secs();
+    let drain_grace_s = DEFAULT_DRAIN_GRACE.as_secs();
+    let statement_timeout_s = DEFAULT_STATEMENT_TIMEOUT.as_secs();
+    let engine_query_s = DEFAULT_ENGINE_QUERY_TIMEOUT.as_secs();
+    let engine_transaction_s = DEFAULT_ENGINE_TRANSACTION_TIMEOUT.as_secs();
+    let shutdown_md = format!(
+        "`SurrealStorage::shutdown` (`surreal.rs:1254-1302`) is idempotent across repeated and concurrent \
+         callers and is rejected with `ReentrantShutdown` from inside an operation (`:1255-1257`). The whole \
+         close is bounded end to end by `shutdown_wait` (`perform_shutdown`, `:1353-1404`):\n\
+         1. Admission stops: the lifecycle flips to CLOSING (`:1272-1274`) and every new `with_lease` call \
+         returns `SurrealStorageError::Closed` (`:1178-1192`, `embedded database is closed`), never a hang.\n\
+         2. Drain: the close waits up to `SurrealStorageConfig::drain_grace` (`DEFAULT_DRAIN_GRACE` \
+         {drain_grace_s} s, `:148-150`; `with_drain_grace`, zero cancels immediately, `:341-344`) for every \
+         in-flight lease to finish (`:1370-1373`).\n\
+         3. Cancel: if the grace expires, the store-wide `CancellationToken` fires (`cancel_operations`, \
+         `:1374-1383`). Cooperative work observes it through a child token from \
+         `SurrealStorage::cancellation_token()` (`:1223-1228`): a retry loop parked in a backoff sleep \
+         (`RetryContext::with_cancel`, `knowledge.rs:190`) and a keyed-lock wait (raced against the token in \
+         a `biased` `tokio::select!`, `knowledge.rs:178-189`) both return the typed closed-store error. Work \
+         already inside the engine is not interruptible; the close then waits for those leases only until \
+         the `shutdown_wait` budget is spent and otherwise returns the typed \
+         `ShutdownStillInProgress {{ waited_ms }}` (`DrainTimedOut`, `:1384-1396`), leaving admission stopped \
+         and the coordinator open for a later retry (`:1326-1331`). Every data operation is itself bounded by \
+         `statement_timeout`, so such a lease cannot outlive that bound.\n\
+         4. Close: `close_client` runs a `RETURN true;` barrier under the client write lease, takes and \
+         drops the sole engine handle (`:1406-1429`), then on Windows proves RocksDB `LOCK` release by an \
+         exclusive-open probe with 5 ms to 250 ms doubling backoff, bounded by the remaining budget and \
+         otherwise returning `EngineReleaseUnproven {{ waited_ms }}` (`:1399-1400`, `:1432-1489`); \
+         non-Windows builds yield without that stronger proof (`:1491-1501`). Each caller waits at most \
+         `shutdown_wait` (`DEFAULT_SHUTDOWN_WAIT` {shutdown_wait_s} s, `:147`; `with_shutdown_wait_timeout`, \
+         zero rejected, `:326-339`) and otherwise gets `ShutdownStillInProgress` while the close continues \
+         (`:1296-1301`). A retryable barrier failure reinstalls a fresh cancellation token and reopens the \
+         wrapper for another attempt; a terminal failure after the handle was dropped leaves it CLOSED and \
+         reports `Shutdown(error)` on every later call (`:1304-1351`).\n\
+         5. Statement bounds: engine timeouts are OFF by default (`engine_query_timeout: None`, \
+         `engine_transaction_timeout: None`, `:318-320`), so no engine-side deadline caps a statement \
+         unless a caller opts in with `SurrealStorageConfig::with_engine_timeouts(Some(query), \
+         Some(transaction))` (`:361-385`; `None` disables one, zero is rejected). The recommended opt-in \
+         values are `DEFAULT_ENGINE_QUERY_TIMEOUT` {engine_query_s} s and \
+         `DEFAULT_ENGINE_TRANSACTION_TIMEOUT` {engine_transaction_s} s (`:169-185`); they are not applied by \
+         default because an engine deadline is per engine open and would also cancel the fresh \
+         ~4,500-statement schema bootstrap transaction, which exceeds 60 s on a loaded HDD and then fails \
+         startup closed (observed: run `mt142-LIB-20260910T111428Z`). When opted in they reach the embedded \
+         datastore at open through the SDK `Config::query_timeout`/`transaction_timeout` (`:969-973`; \
+         surrealdb-3.2.0 `engine/local/native.rs:131-133`, `opt/config.rs:16-17,53-61`; surrealdb-core-3.2.0 \
+         `dbs/executor.rs:1034-1049`, `kvs/ds.rs:3951-3953`). The bound that IS applied by default is the \
+         caller-side `statement_timeout` (`DEFAULT_STATEMENT_TIMEOUT` {statement_timeout_s} s, `:151-168`; \
+         `with_statement_timeout`, zero rejected, `:346-359`), enforced by \
+         `SurrealStorage::with_data_operation` on EVERY data operation of EVERY store (`:1019-1050`); \
+         `with_admin_operation` (schema bootstrap, test inspector/mutator) and `with_transaction` stay \
+         unbounded by design. D-142-4 keeps {statement_timeout_s} s with a written reason \
+         (`surreal.rs:151-168`): under a 4-way parallel HDD test batch a single save statement exceeded 30 s \
+         and the fresh bootstrap exceeded 60 s, so a tighter default turns disk load into terminal, \
+         outcome-unknown `StatementTimeout`s. Production consequence to plan for: a hung statement blocks its \
+         request for up to {statement_timeout_s} s, beyond typical 30-60 s HTTP client timeouts whose \
+         retries multiply engine work; deployments and fixtures that want a tighter bound lower it per store \
+         with `with_statement_timeout`.\n\n\
+         Reading a `ShutdownReport {{ drained, cancelled, elapsed }}` (`:842-852`; returned by \
+         `SurrealStorage::shutdown_with_report()`, `:1236-1243`, or read later with \
+         `last_shutdown_report()`, `:1231-1233`): `drained: bool` = every in-flight lease finished within \
+         the grace; `cancelled: bool` = the grace expired and the cancellation token fired before the \
+         remaining engine-bound leases were awaited; `elapsed: Duration` = wall time from the close \
+         attempt to engine release (the load report copies it to `shutdown_elapsed_ms`). \
+         `cancelled == true` is not an integrity failure: every acknowledged commit had already completed \
+         its grouped fsync and is present after reopen; every cancelled or unacknowledged transaction is \
+         absent as a whole (no partial document/version/projection/ledger state). A `ShutdownStillInProgress` \
+         or `EngineReleaseUnproven` result means the budget was spent before the engine released the store: \
+         report it as a bound finding, do not retry blindly, and do not reopen the path until \
+         `SurrealStorage::open` succeeds on it. After shutdown, reopen with `SurrealStorage::open` on the \
+         same data dir; the lifecycle proof (`surreal_swarm_lifecycle_tests`) reconciles acknowledged writes \
+         against the reopened store."
     );
     NewUserManualPage {
         slug: SURREAL_SWARM_PAGE_SLUG.into(),
@@ -1683,15 +1770,16 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                 "Embedded single-owner topology",
                 "One `SurrealStorage` owns one embedded SurrealDB engine over one RocksDB store path: \
                  `SurrealStorage::open` calls `Surreal::new::<RocksDb>((path, engine_config))` exactly once and \
-                 keeps that sole `Surreal<Db>` handle inside the wrapper (`storage/surreal.rs:874-941`, \
-                 `:906-907`, `:158`, `:806-816`). The store path is `HANDSHAKE_DATA_DIR` (or the platform-local \
-                 data dir) joined with `handshake-surreal` (`surreal.rs:143-146`, `:245-262`).\n\n\
+                 keeps that sole `Surreal<Db>` handle inside the wrapper (`storage/surreal.rs:969-973`, `:187`). \
+                 The store path is `HANDSHAKE_DATA_DIR` (or the platform-local data dir) joined with \
+                 `handshake-surreal` (`surreal.rs:143-146`, `:293`).\n\n\
                  Parallelism unit: clone the wrapper, never the engine. `SurrealStorage` and `SurrealDatabase` \
-                 are cheap `Clone` values over one shared `Arc` (`surreal.rs:378-381`, \
+                 are cheap `Clone` values over one shared `Arc` (`surreal.rs:420`, \
                  `storage/surreal/database.rs:30-34`); every clone in every tokio task runs its operation under \
-                 a shared lifecycle lease (`with_data_operation`/`with_lease`, `surreal.rs:951-963`, \
-                 `:1091-1105`) against the same engine. The wrapper hands out no cloned SDK handle \
-                 (`surreal.rs:1139-1141`). At the SDK level a cloned `Surreal<Db>` is a separate session over the \
+                 a shared lifecycle lease (`with_data_operation`/`with_lease`, `surreal.rs:1033-1050`, \
+                 `:1178-1192`) against the same engine, and the store counts held leases so engine-window \
+                 concurrency is measurable (`leases_in_flight()`, `lease_high_water()`, `:1195-1213`). The \
+                 wrapper hands out no cloned SDK handle (`surreal.rs:1248`). At the SDK level a cloned `Surreal<Db>` is a separate session over the \
                  same `Datastore` (surrealdb 3.2.0 `src/lib.rs:336-347`, `engine/local/native.rs:240`), which is \
                  why in-process sharing of cloned handles is the supported topology.\n\n\
                  A second process on the same store path is NOT supported, and a second embedded engine on \
@@ -1737,7 +1825,7 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  `BEGIN TRANSACTION ... COMMIT TRANSACTION` query string with bound parameters and `THROW` \
                  guards, so a document save writes the document, its Loom projection, its search projection, \
                  its version row, its draft delete and (optionally) its idempotency claim atomically \
-                 (`storage/surreal/knowledge.rs:2400-2410`):\n\
+                 (`storage/surreal/knowledge.rs:2416-2426`):\n\
                  - Point reads and range/search queries: never wait on any lock; they read the transaction \
                  snapshot.\n\
                  - Creates on distinct records, deletes, and multi-record projection/ledger transactions on \
@@ -1748,30 +1836,30 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  writes.\n\
                  - Same-record optimistic versioned update (expected-version race): the guarded \
                  `UPDATE ... WHERE doc_version = $expected_version` runs inside the transaction and otherwise \
-                 executes `THROW 'HSK-KRD-SAVE-STALE'` (`knowledge.rs:2402`). Exactly one caller wins; every \
+                 executes `THROW 'HSK-KRD-SAVE-STALE'` (`knowledge.rs:2417`). Exactly one caller wins; every \
                  other caller gets the typed stale outcome `StorageError::Conflict(\"knowledge rich document \
-                 version conflict: expected_version is stale\")` (`knowledge.rs:2383-2387`, `:2467-2490`), \
+                 version conflict: expected_version is stale\")` (`knowledge.rs:2398-2402`, `:2482-2505`), \
                  surfaced over HTTP as `409 {\"error\":\"conflict\",\"detail\":...}` \
                  (`api/knowledge_documents.rs:388-401`). There is no last-writer-wins. If two writers both pass \
                  the guard before either commits, the engine aborts one at commit with a retryable conflict; \
                  the CAS save is re-run only because the expected_version makes the re-run safe: the live read, \
                  the stale pre-check and the compare-and-set all repeat, so the re-run succeeds once or reports \
-                 stale (`knowledge.rs:2351-2357`). A stale outcome is terminal and is never retried.\n\
+                 stale (`knowledge.rs:2366-2372`). A stale outcome is terminal and is never retried.\n\
                  - Identical idempotency-key replays: the claim statement creates the \
                  `knowledge_idempotency_keys` record in the same transaction or executes \
-                 `THROW 'HSK-KIDEM-RACE'` (`knowledge.rs:2319`); the losing transaction aborts having written \
-                 nothing and the caller re-reads the winner's committed result (`knowledge.rs:2351-2354`, \
-                 `:2464-2466`). A replay with the same request hash returns the stored result reference; a \
-                 different payload under the same key is a typed conflict (`knowledge.rs:2500-2501`). One key \
+                 `THROW 'HSK-KIDEM-RACE'` (`knowledge.rs:2334`); the losing transaction aborts having written \
+                 nothing and the caller re-reads the winner's committed result (`knowledge.rs:2366-2369`, \
+                 `:2479-2481`). A replay with the same request hash returns the stored result reference; a \
+                 different payload under the same key is a typed conflict (`knowledge.rs:2515-2516`). One key \
                  converges to exactly one durable effect.\n\
                  - `create_knowledge_rich_document_if_title_absent`: the transaction UPSERTs one \
                  `knowledge_rich_document_title_anchors` row per (workspace, normalized title) with a fresh \
-                 claim nonce (`knowledge.rs:198-230`), so two concurrent creators write the same key and RocksDB \
+                 claim nonce (`knowledge.rs:204-230`), so two concurrent creators write the same key and RocksDB \
                  admits exactly one commit; the loser's retry re-reads and returns the winner as the existing \
                  document. The anchor is a serialization device, not a uniqueness rule: duplicate titles created \
                  through the plain path stay legal.\n\
                  - Natural-key upserts (`upsert_knowledge_*`): IF-exists-UPDATE-ELSE-CREATE inside one \
-                 transaction under `guarded_mutation` (`knowledge.rs:159-196`); a unique-index violation on the \
+                 transaction under `guarded_mutation` (`knowledge.rs:159-202`); a unique-index violation on the \
                  statement's OWN natural-key index is classified `RetryableSnapshotChange` and the re-run takes \
                  the UPDATE branch, while a violation on any other index is terminal \
                  (`classify_knowledge_error`, `knowledge.rs:111-128`).\n\n\
@@ -1784,12 +1872,14 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  `SurrealDatabase::with_lock_registry(storage, registry)` attaches an explicit one (pass \
                  `KeyedLockRegistry::disabled()` for the no-lock proof), `SurrealDatabase::lock_registry()` \
                  exposes it for measurement, and `Clone` shares it (clones are one logical wrapper). Knowledge \
-                 writers take their keys through `guarded_mutation` (`knowledge.rs:159-196`): \
-                 `acquire_many_with_deadline` with the statement timeout as deadline, then the bounded retry; a \
-                 lock wait that outlives the statement timeout returns \
+                 writers take their keys through `guarded_mutation` (`knowledge.rs:159-202`), which races \
+                 `acquire_many_with_deadline` (deadline = the statement timeout) against the store's shutdown \
+                 cancellation token in a `biased` `tokio::select!` (`:178-189`): a lock wait that outlives the \
+                 deadline returns \
                  `StorageError::ConflictDetails { code: \"HSK-STORAGE-LOCK-WAIT-TIMEOUT\" }` \
-                 (`LOCK_WAIT_TIMEOUT_CONFLICT_CODE`, `knowledge.rs:96-98`, `:152-157`, `:178-183`) instead of \
-                 hanging. Multi-key acquisition sorts and \
+                 (`LOCK_WAIT_TIMEOUT_CONFLICT_CODE`, `knowledge.rs:96-98`, `:152-157`), and a wait interrupted \
+                 by shutdown returns the closed-store error instead of holding out for that deadline. \
+                 Multi-key acquisition sorts and \
                  dedups keys so opposite-order callers cannot deadlock (`:241-262`, `:281-285`); \
                  `acquire_with_deadline` returns a typed `LockWaitTimeout` instead of hanging (`:104-110`, \
                  `:209-239`); the registry reclaims every entry when its last guard drops, so its idle bound is \
@@ -1798,6 +1888,31 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  independent-client proof runs two wrappers over one engine that share no registry (one in \
                  `LockMode::Disabled`) and every same-record, uniqueness, idempotency and ledger invariant \
                  holds identically, proving that the transactions own correctness (AC-142-8).\n\n\
+                 One bounded exception to \"atomic or absent\", decided in writing as \
+                 `MT-142-D-006-DERIVED-BACKLINK-STALENESS` (short id D-142-6; recorded in the MT-142 work \
+                 packet under `lifecycle.decisions_20260910`): `create_rich_document_transaction` and \
+                 `replace_knowledge_document_backlinks` resolve backlink TARGET LIVENESS with a read their \
+                 committing transaction never writes, and the pinned engine validates only written keys, so if \
+                 the target document is deleted between resolution and commit the derived rows can go stale - \
+                 `knowledge_document_backlinks` rows, the `loom_edges` projected from them, and the \
+                 `loom_blocks` backlink counts. These rows are DERIVED: they are never the source of truth for \
+                 document content, permissions or ledger receipts, and the next save of the SOURCE document \
+                 rebuilds them (`replace_knowledge_document_backlinks` is an idempotent content-derived \
+                 rebuild). Read a dangling backlink or edge count as this known window, not as a lost write; \
+                 to repair one, save the source document. The carve-out covers derived rows only - a durable \
+                 receipt or tombstone derived from an unconflictable read is authority, not derived data, and \
+                 is not covered.\n\n\
+                 Scope of the shaping today: every HTTP route builds its own wrapper per request \
+                 (`db_for` -> `SurrealDatabase::new(state.surreal.clone())`, `api/knowledge_documents.rs:290-292`; \
+                 53 `db_for` call sites across the knowledge-document, memory, retrieval, code-nav and \
+                 UserManual routes, plus direct `SurrealDatabase::new` constructions in the loom, memory, \
+                 ingestion and code-index routes), so each request holds a fresh registry and keyed-lock \
+                 shaping is inert for HTTP traffic: same-record HTTP writers are serialized only by the \
+                 engine's commit-time conflict detection and the typed stale/idempotency outcomes above. \
+                 Shaping applies only to callers that hold one `SurrealDatabase` across their writes (the swarm \
+                 tests and in-process swarms), and a load report's `lock_wait_ms_p50_p95_p99` samples only the \
+                 registry the harness held. Correctness never depends on it (AC-142-8); an app-state-owned \
+                 single wrapper is a routed follow-on, not part of MT-142.\n\n\
                  Rules for a model driving parallel work:\n\
                  1. Take `expected_version` from your own last successful response; on `409` stale, re-read the \
                  document and rebase.\n\
@@ -1819,6 +1934,21 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                         "natural_key_upsert": "UNIQUE index + IF-exists guard; index race replayed as RetryableSnapshotChange"
                     },
                     "removed_global_locks": ["RICH_DOCUMENT_MUTATION_LOCK", "KNOWLEDGE_UPSERT_LOCK"],
+                    "derived_backlink_staleness": {
+                        "decision": "MT-142-D-006-DERIVED-BACKLINK-STALENESS",
+                        "short_id": "D-142-6",
+                        "authority": "MT-142 work packet, lifecycle.decisions_20260910",
+                        "rows_that_can_go_stale": ["knowledge_document_backlinks", "loom_edges", "loom_blocks backlink counts"],
+                        "rebuilt_by": "replace_knowledge_document_backlinks on the next save of the source document",
+                        "not_a_lost_write": true,
+                        "not_covered": "durable receipts or tombstones derived from an unconflictable read"
+                    },
+                    "http_api_wrapper_topology": {
+                        "today": "SurrealDatabase::new per request (db_for); fresh registry per request; keyed-lock shaping inert over HTTP",
+                        "shaping_applies_to": "callers holding one SurrealDatabase across writes (swarm tests, in-process swarms)",
+                        "correctness_impact": "none; transactions own correctness (AC-142-8)",
+                        "follow_on": "app-state-owned single wrapper"
+                    },
                     "keyed_lock": {
                         "registry": "KeyedLockRegistry per SurrealDatabase",
                         "modes": ["Keyed", "Disabled"],
@@ -1858,15 +1988,15 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  `HSK-KRD-SAVE-STALE` and `HSK-KIDEM-RACE`, `AlreadyExists`, `TimedOut`, `Cancelled`, \
                  `NotExecuted` without the conflict markers, `Internal` without them (IO, corruption, `LOCK`, \
                  router closed), `Validation`, `NotAllowed`, `NotFound` (`:624-626`, `:1421-1444`). An \
-                 expected-version mismatch is never a retry. A statement attempt that outlives the caller-side \
-                 statement timeout (`SurrealStorageConfig::statement_timeout`, default 30 s) returns the terminal \
-                 `SurrealStorageError::StatementTimeout { waited_ms }` and is never retried: dropping the SDK \
-                 future does not abort the engine-side statement, so its outcome is unknown \
-                 (`knowledge.rs:1282-1297`).\n\n\
+                 expected-version mismatch is never a retry. A data operation that outlives the caller-side \
+                 statement timeout (`SurrealStorageConfig::statement_timeout`; the default is \
+                 `DEFAULT_STATEMENT_TIMEOUT`, stated with its value in the shutdown section) returns the \
+                 terminal `SurrealStorageError::StatementTimeout { waited_ms }` and is never retried: the \
+                 operation future is dropped and the lease released, but the engine may still apply the \
+                 statement, so the outcome is unknown (`with_data_operation`, `surreal.rs:1019-1050`).\n\n\
                  Knowledge writes run under `RetryPolicy::CONTRACT` with `TokioClock`, one process-wide \
                  `SystemJitter` and the store's shutdown cancellation token \
-                 (`RetryContext::unbounded().with_cancel(storage.cancellation_token())`, `knowledge.rs:101`, \
-                 `:184-195`).\n\n\
+                 (`RetryContext::unbounded().with_cancel(cancel)`, `knowledge.rs:101`, `:190-201`).\n\n\
                  Exhaustion and its code: when every attempt failed retryably and a bound is hit, `retry` returns \
                  `RetryError::Exhausted { attempts, elapsed, last, bound }` with `bound` = `max_attempts` or \
                  `max_elapsed` (`retry.rs:355-390`) and emits exactly one `warn` diagnostic \
@@ -1879,7 +2009,7 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  Cancellation before an attempt or during a sleep returns \
                  `RetryError::Cancelled { attempts, elapsed }` and reaches callers as the closed-store error \
                  (`SurrealStorageError::Closed`, `embedded database is closed`; `knowledge.rs:107-109`, \
-                 `:146-148`; `surreal.rs:184-185`). In the load report these appear as `conflict_count`, \
+                 `:146-148`; `surreal.rs:214`). In the load report these appear as `conflict_count`, \
                  `retry_count`, `retry_exhaustion_count` and `failed_by_operation_and_class[..][retry_exhausted]`.",
                 json!({
                     "retry_policy": {
@@ -1910,59 +2040,21 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
             section_with_json(
                 "workflows",
                 "Shutdown under load and the ShutdownReport",
-                "`SurrealStorage::shutdown` (`surreal.rs:1146-1194`) is idempotent across repeated and \
-                 concurrent callers and is rejected with `ReentrantShutdown` from inside an operation \
-                 (`:1147-1149`). Phases (`perform_shutdown`, `:1238-1273`):\n\
-                 1. Admission stops: the lifecycle flips to CLOSING (`:1164-1166`) and every new `with_lease` \
-                 call returns `SurrealStorageError::Closed` (`:1096-1102`, `embedded database is closed`), \
-                 never a hang.\n\
-                 2. Drain: the close waits up to `SurrealStorageConfig::drain_grace` (`DEFAULT_DRAIN_GRACE` \
-                 5 s, `:148-150`; `with_drain_grace`, zero cancels immediately, `:301-306`) for every in-flight \
-                 lease to finish (`:1252-1255`).\n\
-                 3. Cancel: if the grace expires, the store-wide `CancellationToken` fires \
-                 (`cancel_operations`, `:1256-1267`); `retry` sleeps and keyed-lock waits hold child tokens \
-                 from `SurrealStorage::cancellation_token()` (`:1115-1120`) and return the closed-store error. \
-                 Work already blocked inside the engine is not interruptible and is awaited instead \
-                 (`:1238-1244`); the engine transaction timeout below caps that wait.\n\
-                 4. Close: `close_client` runs a `RETURN true;` barrier under the client write lease, takes and \
-                 drops the sole engine handle (`:1275-1297`), then on Windows proves RocksDB `LOCK` release by \
-                 an exclusive-open probe with 5 ms to 250 ms doubling backoff (`:1300-1347`); non-Windows \
-                 builds yield without that stronger proof (`:1349-1356`). Each caller waits at most \
-                 `shutdown_wait` (`DEFAULT_SHUTDOWN_WAIT` 30 s, `:147`; `with_shutdown_wait_timeout`, zero \
-                 rejected, `:286-299`) and otherwise gets `ShutdownStillInProgress { waited_ms }` while the \
-                 close continues (`:1188-1193`). A retryable barrier failure reinstalls a fresh cancellation \
-                 token and reopens the wrapper for another attempt; a terminal failure after the handle was \
-                 dropped leaves it CLOSED and reports `Shutdown(error)` on every later call (`:1196-1236`).\n\
-                 5. No single statement can hold a lease forever: \
-                 `SurrealStorageConfig::with_engine_timeouts(query, transaction)` \
-                 (`DEFAULT_ENGINE_QUERY_TIMEOUT` 30 s, `DEFAULT_ENGINE_TRANSACTION_TIMEOUT` 60 s, `:153-156`, \
-                 `:323-343`; `None` disables one, zero is rejected) is handed to the embedded datastore at open \
-                 through the SDK `Config::query_timeout`/`transaction_timeout` (`:894-907`; surrealdb-3.2.0 \
-                 `engine/local/native.rs:131-133`, `opt/config.rs:16-17,53-61`; surrealdb-core-3.2.0 \
-                 `dbs/executor.rs:1034-1049` cancels an expired write transaction and `kvs/ds.rs:3951-3953` \
-                 makes the query timeout every query's context deadline). The caller-side `statement_timeout` \
-                 (`DEFAULT_STATEMENT_TIMEOUT` 30 s, `:151-152`; `with_statement_timeout`, `:308-321`) bounds \
-                 one statement attempt and every keyed-lock wait.\n\n\
-                 Reading a `ShutdownReport { drained, cancelled, elapsed }` (`:794-804`; returned by \
-                 `SurrealStorage::shutdown_with_report()`, `:1127-1135`, or read later with \
-                 `last_shutdown_report()`, `:1122-1125`): `drained: bool` = every in-flight lease finished \
-                 within the grace; `cancelled: bool` = the grace expired and the cancellation token fired before \
-                 the remaining engine-bound leases were awaited; `elapsed: Duration` = wall time from the close \
-                 attempt to engine release (the load report copies it to `shutdown_elapsed_ms`). \
-                 `cancelled == true` is not an integrity failure: every acknowledged commit had already \
-                 completed its grouped fsync and is present after reopen; every cancelled or unacknowledged \
-                 transaction is absent as a whole (no partial document/version/projection/ledger state). \
-                 `elapsed` far above `drain_grace`, or a `ShutdownStillInProgress` result, means engine-bound \
-                 statements were still running: report it as a bound finding, do not retry blindly. After \
-                 shutdown, reopen with `SurrealStorage::open` on the same data dir; the lifecycle proof \
-                 (`surreal_swarm_lifecycle_tests`) reconciles acknowledged writes against the reopened store.",
+                &shutdown_md,
                 json!({
                     "phases": ["admission_stop", "drain_within_drain_grace", "cancel_cooperative_work", "barrier_drop_handle_prove_lock_release", "close"],
-                    "shutdown_wait_default_ms": 30000,
-                    "drain_grace_default_ms": 5000,
-                    "statement_timeout_default_ms": 30000,
-                    "engine_query_timeout_default_ms": 30000,
-                    "engine_transaction_timeout_default_ms": 60000,
+                    "shutdown_wait_default_ms": millis(DEFAULT_SHUTDOWN_WAIT),
+                    "drain_grace_default_ms": millis(DEFAULT_DRAIN_GRACE),
+                    "statement_timeout_default_ms": millis(DEFAULT_STATEMENT_TIMEOUT),
+                    "statement_timeout_scope": "every data operation of every store (SurrealStorage::with_data_operation); with_admin_operation (schema bootstrap, test inspector/mutator) and with_transaction stay unbounded by design",
+                    "engine_timeouts_default": "off (None); opt-in via SurrealStorageConfig::with_engine_timeouts",
+                    "engine_query_timeout_opt_in_ms": millis(DEFAULT_ENGINE_QUERY_TIMEOUT),
+                    "engine_transaction_timeout_opt_in_ms": millis(DEFAULT_ENGINE_TRANSACTION_TIMEOUT),
+                    "cancellation_token_observed_by": ["retry loops (RetryContext::with_cancel)", "keyed-lock waits (raced in a biased tokio::select!)"],
+                    "cancellation_token_not_observed_by": ["engine-bound statements (not interruptible; bounded by statement_timeout and the shutdown_wait budget)"],
+                    "bounded_end_to_end_by": "shutdown_wait",
+                    "typed_bound_outcomes": ["ShutdownStillInProgress", "EngineReleaseUnproven"],
+                    "decision": "D-142-4",
                     "report": {
                         "type": "ShutdownReport",
                         "fields": ["drained", "cancelled", "elapsed"],
@@ -1979,6 +2071,8 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                         "SurrealStorageError::ReentrantShutdown",
                         "SurrealStorageError::ShutdownStillInProgress",
                         "SurrealStorageError::StatementTimeout",
+                        "SurrealStorageError::EngineReleaseUnproven",
+                        "SurrealStorage::lease_high_water",
                         "SurrealStorageConfig::with_shutdown_wait_timeout",
                         "SurrealStorageConfig::with_drain_grace",
                         "SurrealStorageConfig::with_statement_timeout",
@@ -2018,9 +2112,19 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                         {"name": "HANDSHAKE_WORKSPACE_ROOT", "value": "run-scoped directory", "read_by_swarm_tests": false, "consumer": "src/storage/mod.rs"},
                         {"name": "HANDSHAKE_SWARM_LOAD_REPORT_DIR", "value": "report directory", "read_by_swarm_tests": true},
                         {"name": "HANDSHAKE_SWARM_SEED", "value": "u64 workload seed", "read_by_swarm_tests": true},
-                        {"name": "HANDSHAKE_SWARM_EXTENDED", "value": "1 enables the extended profile", "read_by_swarm_tests": true}
+                        {"name": "HANDSHAKE_SWARM_EXTENDED", "value": "1 enables the extended profile and reserves the process", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_WORKERS", "value": "parallel worker count", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_OPERATIONS", "value": "total operations", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_DATASET", "value": "seeded dataset records", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_READ_WRITE_MIX", "value": "read fraction within [0.05, 0.95]", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_KEY_SKEW", "value": "hot-set fraction within (0, 1]", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_CONTENTION", "value": "hot-set write share within [0, 1]", "read_by_swarm_tests": true}
                     ],
-                    "printed_markers": ["SWARM_LOAD_REPORT=", "SWARM_EXTENDED=NOT_RUN_UNCONFIGURED", "swarm-load-", "swarm-load-extended-", "-memory.json"],
+                    "printed_markers": [
+                        "SWARM_LOAD_REPORT=", "SWARM_EXTENDED=NOT_RUN_UNCONFIGURED",
+                        "SWARM_EXTENDED_NOT_RUN_REPORT=", "SWARM_CI=NOT_RUN_EXTENDED_CONFIGURED",
+                        "swarm-load-", "swarm-load-extended-not-run-"
+                    ],
                     "report_dir_fallback": "<HANDSHAKE_ARTIFACTS_ROOT>/handshake-test/swarm-load/"
                 }),
             ),
@@ -2028,9 +2132,11 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                 "schema",
                 "Reading hsk.surreal_swarm_load_report@1",
                 "The report is the JSON serialization of `SwarmLoadReport` \
-                 (`storage/surreal/swarm_load_report.rs:181-216`). First run `SwarmLoadReport::validate` \
-                 (`:218-262`) or apply the same rules by hand; a report that fails them is not evidence. Then \
-                 read the fields in this order:\n\
+                 (`storage/surreal/swarm_load_report.rs:181-216`). A report is evidence only together with the \
+                 result line of the test that produced it (`test ... ok`): the harness derives \
+                 `integrity_verdict` from timeouts, retry exhaustion and reopen reconciliation, so read the test \
+                 outcome first, then the JSON. Run `SwarmLoadReport::validate` (`:218-262`) or apply the same \
+                 rules by hand; a report that fails them is not evidence. Then read the fields in this order:\n\
                  - `schema_id` must equal `hsk.surreal_swarm_load_report@1` (`:28`).\n\
                  - `integrity_verdict`: `pass` (valid only with non-empty `reopen_integrity_counts_and_hashes`, \
                  `:290-297`); `lost_write`, `duplicate_effect`, `partial_commit`, `dirty_read` (correctness \
@@ -2042,8 +2148,12 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  run as retry-exhausted, timed out or cancelled even when the integrity counts reconcile; in the \
                  CI profile a timeout fails the test (contract `load_profiles.ci_deterministic.hard_bound`). \
                  Report them with their class counts; never fold them into a pass.\n\
-                 - `failed_by_operation_and_class`: failures per operation class split into `terminal`, \
-                 `retry_exhausted`, `timeout`, `cancelled`, `lock_wait_timeout` (`:57-65`).\n\
+                 - `failed_by_operation_and_class`: failures per operation class split into `terminal` \
+                 (unclassified: a genuine correctness or infrastructure failure), `retry_exhausted`, \
+                 `timeout`, `cancelled`, `lock_wait_timeout` and `expected_stale_or_conflict` - the expected \
+                 loser of a typed compare-and-set race, idempotency divergence or title race, which is \
+                 contention, not a correctness failure (`:57-69`). Read `terminal` as the correctness signal \
+                 and `expected_stale_or_conflict` as contention.\n\
                  - `operation_mix`: every required class (`point_read`, `range_or_search_query`, `create`, \
                  `idempotent_upsert`, `optimistic_versioned_update`, `delete`, \
                  `multi_record_projection_or_ledger_transaction`, `:30-40`) with its `share` and `status` \
@@ -2059,8 +2169,33 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  `{ \"status\": \"not_run\" }` (`:113-128`, `:317-329`). `not_run` means no samples; it is NOT a \
                  zero-latency pass, and `measured` with `sample_count` 0 is invalid. Percentiles are \
                  nearest-rank (`:383-403`).\n\
-                 - `maximum_concurrent_operations`: in-flight high-water mark; a value below 2 means the \
-                 workers were globally serialized and the run proves nothing about parallelism.\n\
+                 - `maximum_concurrent_operations`: the ENGINE-WINDOW high-water mark - \
+                 `SurrealStorage::lease_high_water()`, incremented inside `with_lease` around the engine call \
+                 (`surreal.rs:1195-1213`), which a store serialized by a hidden global mutex cannot push above \
+                 1. The weaker measure taken where the harness calls the store is retained only as a labelled \
+                 diagnostic: `diagnostics.concurrency_measures` carries `engine_window_lease_high_water` \
+                 alongside `call_boundary_high_water`, which equals the worker count even under total \
+                 serialization and is therefore never proof of parallelism. If a report's \
+                 `maximum_concurrent_operations` equals `worker_count` exactly, check which measure filled it \
+                 before reading it as overlap.\n\
+                 - `effective_parallelism`: the anti-serialization metric (`swarm_load_report.rs:71-94`), with \
+                 `sum_operation_latency_ms` (summed per-operation latency), `wall_clock_ms` (the run's wall \
+                 clock) and `ratio` = the first over the second. A `ratio` near 1 means the workers were \
+                 globally serialized regardless of `maximum_concurrent_operations`; a ratio approaching \
+                 `worker_count` means the engine genuinely overlapped them. `validate` rejects a zero \
+                 `wall_clock_ms` or a `ratio` that is not sum over wall.\n\
+                 - `budgets`: the recorded (non-gating) numeric budgets (`swarm_load_report.rs:96-125`) - \
+                 `per_operation_timeout_ms`, `per_worker_timeout_ms` and `whole_test_timeout_ms` (the bounds \
+                 the run enforced), plus the optional `latency_p99_budget_ms_by_operation` (per class a \
+                 `p99_max_ms`) and `conflict_rate_budget` (a `max_rate`); each of those carries a `label` of \
+                 `assumption` or `measured` naming its provenance.\n\
+                 - `budget_verdict`: `pass`, `regression` or `not_configured` - derived by \
+                 `SwarmLoadReport::evaluate_budgets` from those budgets (any measured class p99 above its \
+                 `p99_max_ms`, or `conflict_rate.rate` above `max_rate`, is a `regression`; no budget recorded \
+                 is `not_configured`) and cross-checked by `validate` \
+                 (`swarm_load_report.rs:127-135`, `:291-315`). A `regression` is a load-budget finding to \
+                 report, readable from the JSON without console prose; it is independent of \
+                 `integrity_verdict` and never gates a CI pass.\n\
                  - `throughput_operations_per_second`, `shutdown_elapsed_ms`: record; compare only against runs \
                  with the same `machine_context` and `engine_mode`.\n\
                  - `engine_mode`: `embedded_rocks_db` (the only shipped mode) or `remote` (`:67-74`).\n\
@@ -2077,9 +2212,11 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  Decision procedure for a no-context model: (1) validate; (2) `integrity_verdict == pass`; \
                  (3) read `retry_exhaustion_count`, `timeout_count`, `cancellation_count` and the \
                  `failed_by_operation_and_class` classes; (4) every required class attempted > 0 and no \
-                 `not_run` percentile for a class that ran; (5) `maximum_concurrent_operations >= 2`; \
-                 (6) `remote_proof_status` is `not_run_unconfigured` for every embedded run - report it as such, \
-                 never as pass.",
+                 `not_run` percentile for a class that ran; (5) `effective_parallelism` well above 1, with \
+                 `maximum_concurrent_operations` read as the engine-window mark and \
+                 `call_boundary_high_water` never taken as overlap; (6) `budget_verdict` for a load-budget \
+                 regression, recorded but never a correctness failure; (7) `remote_proof_status` is \
+                 `not_run_unconfigured` for every embedded run - report it as such, never as pass.",
                 json!({
                     "schema_id": "hsk.surreal_swarm_load_report@1",
                     "validator": "SwarmLoadReport::validate",
@@ -2091,18 +2228,31 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                         "retry_exhaustion_count", "lock_wait_ms_p50_p95_p99", "latency_ms_p50_p95_p99_by_operation",
                         "throughput_operations_per_second", "maximum_concurrent_operations", "timeout_count",
                         "cancellation_count", "shutdown_elapsed_ms", "reopen_integrity_counts_and_hashes",
-                        "integrity_verdict", "remote_proof_status", "machine_context"
+                        "integrity_verdict", "remote_proof_status", "machine_context",
+                        "effective_parallelism", "budgets", "budget_verdict"
                     ],
+                    "maximum_concurrent_operations_semantics": {
+                        "reported_measure": "engine window (SurrealStorage::lease_high_water, incremented inside with_lease)",
+                        "diagnostics_block": "diagnostics.concurrency_measures",
+                        "diagnostics_keys": ["engine_window_lease_high_water", "call_boundary_high_water"],
+                        "call_boundary_high_water": "equals worker_count even under total serialization; never proof of parallelism",
+                        "anti_serialization_proof": "effective_parallelism.ratio"
+                    },
+                    "budget_verdict": ["pass", "regression", "not_configured"],
+                    "budget_label": ["assumption", "measured"],
                     "integrity_verdict": ["pass", "lost_write", "duplicate_effect", "partial_commit", "dirty_read", "retry_exhausted", "timeout", "cancelled", "not_run"],
                     "remote_proof_status": ["not_run_unconfigured", "pass", "fail"],
-                    "failure_classes": ["terminal", "retry_exhausted", "timeout", "cancelled", "lock_wait_timeout"],
+                    "failure_classes": ["terminal", "retry_exhausted", "timeout", "cancelled", "lock_wait_timeout", "expected_stale_or_conflict"],
                     "engine_mode": ["embedded_rocks_db", "remote"],
                     "percentile_status": ["measured", "not_run"],
                     "rules": [
                         "not_run percentile is not a zero-latency pass",
                         "rates carry numerator and denominator",
                         "not_run_unconfigured is never a PASS",
-                        "no user-profile paths or credential-looking strings"
+                        "no user-profile paths or credential-looking strings",
+                        "maximum_concurrent_operations reports the engine-window lease high-water mark; call_boundary_high_water is a diagnostic only",
+                        "budgets and budget_verdict are recorded, never gating",
+                        "a report is evidence only with the producing test's result line"
                     ]
                 }),
             ),
@@ -2137,8 +2287,8 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  `expected_version`.\n\
                  2. `409` with `detail` `HSK-STORAGE-LOCK-WAIT-TIMEOUT`: a keyed-lock wait outlived the \
                  statement timeout; nothing was written; retry from the caller once the holder finishes.\n\
-                 3. `StatementTimeout`: the attempt's outcome is unknown; read the record before deciding to \
-                 resend.\n\
+                 3. `StatementTimeout`: the operation outlived `statement_timeout`; the engine may still have \
+                 applied it, so the outcome is unknown - read the record before deciding to resend.\n\
                  4. `409` `expected_version is stale`: re-read, rebase, resend; never loop without re-reading.\n\
                  5. `embedded database is closed`: the backend is shutting down or closed; wait for the \
                  restart, then re-issue.\n\
@@ -3386,11 +3536,6 @@ mod tests {
         use crate::storage::surreal::swarm_load_report::{
             EngineMode, RemoteProofStatus, REQUIRED_OPERATION_CLASSES, SWARM_LOAD_REPORT_SCHEMA_ID,
         };
-        use crate::storage::surreal::{
-            DEFAULT_DRAIN_GRACE, DEFAULT_ENGINE_QUERY_TIMEOUT, DEFAULT_ENGINE_TRANSACTION_TIMEOUT,
-            DEFAULT_SHUTDOWN_WAIT, DEFAULT_STATEMENT_TIMEOUT,
-        };
-
         let corpus = seed_corpus();
         let toc = corpus
             .pages
@@ -3439,6 +3584,18 @@ mod tests {
                 "page documents phantom report field {field}"
             );
         }
+        // Nested field vocabularies the page teaches a model to read.
+        for (header, owner) in [
+            ("pub struct EffectiveParallelism {", "effective_parallelism"),
+            ("pub struct LoadBudgets {", "budgets"),
+        ] {
+            for field in mt142_struct_fields(&report_source, header) {
+                assert!(
+                    body.contains(&format!("`{field}")),
+                    "missing MT-142 manual text for {owner} field: {field}"
+                );
+            }
+        }
         assert!(body.contains(SWARM_LOAD_REPORT_SCHEMA_ID));
         assert_eq!(report_json["schema_id"], SWARM_LOAD_REPORT_SCHEMA_ID);
 
@@ -3457,6 +3614,8 @@ mod tests {
             ("pub enum RemoteProofStatus {", "remote_proof_status"),
             ("pub enum FailureClass {", "failure_classes"),
             ("pub enum EngineMode {", "engine_mode"),
+            ("pub enum BudgetVerdict {", "budget_verdict"),
+            ("pub enum BudgetLabel {", "budget_label"),
         ] {
             let variants = mt142_enum_variants(&report_source, header);
             let listed = report_json[json_key].as_array().expect(json_key);
@@ -3533,6 +3692,20 @@ mod tests {
             "HSK-STORAGE-LOCK-WAIT-TIMEOUT",
             "StatementTimeout",
             "knowledge_rich_document_title_anchors",
+            "keyed-lock shaping is inert for HTTP traffic",
+            "`db_for`",
+            "engine timeouts are OFF by default",
+            "EVERY data operation of EVERY store",
+            "D-142-4",
+            "`call_boundary_high_water`",
+            "`engine_window_lease_high_water`",
+            "`diagnostics.concurrency_measures`",
+            "`effective_parallelism`",
+            "`budget_verdict`",
+            "`expected_stale_or_conflict`",
+            "`lease_high_water()`",
+            "MT-142-D-006-DERIVED-BACKLINK-STALENESS",
+            "`replace_knowledge_document_backlinks`",
             "surrealdb 3.2.0",
             "A second process on the same store path is NOT supported",
             "a second embedded engine on the same path inside this process is NOT supported",
@@ -3578,9 +3751,9 @@ mod tests {
             ("shutdown_wait_default_ms", DEFAULT_SHUTDOWN_WAIT, "DEFAULT_SHUTDOWN_WAIT"),
             ("drain_grace_default_ms", DEFAULT_DRAIN_GRACE, "DEFAULT_DRAIN_GRACE"),
             ("statement_timeout_default_ms", DEFAULT_STATEMENT_TIMEOUT, "DEFAULT_STATEMENT_TIMEOUT"),
-            ("engine_query_timeout_default_ms", DEFAULT_ENGINE_QUERY_TIMEOUT, "DEFAULT_ENGINE_QUERY_TIMEOUT"),
+            ("engine_query_timeout_opt_in_ms", DEFAULT_ENGINE_QUERY_TIMEOUT, "DEFAULT_ENGINE_QUERY_TIMEOUT"),
             (
-                "engine_transaction_timeout_default_ms",
+                "engine_transaction_timeout_opt_in_ms",
                 DEFAULT_ENGINE_TRANSACTION_TIMEOUT,
                 "DEFAULT_ENGINE_TRANSACTION_TIMEOUT",
             ),
