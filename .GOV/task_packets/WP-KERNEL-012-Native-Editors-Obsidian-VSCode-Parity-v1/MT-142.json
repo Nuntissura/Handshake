@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -41,7 +41,7 @@
       "MT-141"
     ],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260910-073935",
@@ -359,6 +359,20 @@
           "stated_approval_condition": "a clean-tree extended artifact carrying budget_verdict_note, with R2-3-2 fixed",
           "live_reproduction": "the reviewer own CI run reproduced the defect during the review: the runner and source_commit both recorded b05a3a01 while cargo compiled code absent from that commit. The reviewer explicitly did NOT claim b05a3a01 fails to compile and verified the committed blob lacked the code."
         }
+      },
+      "round_4": {
+        "lens_2": {
+          "verdict": "APPROVE",
+          "file": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-2-round-4.json",
+          "product_commit": "6148b559",
+          "blockers": 0,
+          "majors": 0,
+          "written_as_its_own_round": "the reviewer kept round 3's REJECT intact rather than editing it, so the audit trail shows the rejection and the approval separately and AC-142-12 gets an unambiguous machine-readable approval",
+          "reviewer_self_correction": "in round 3 it reported the new artifact lacked budget_verdict_note; that was wrong - it had checked diagnostics one level too shallow and the field is present at diagnostics.budget_provenance.budget_verdict_note on the correct non-CI branch",
+          "verified_not_trusted": "confirmed the tree clean for both the crate and the whole repository at the commit the artifact names, and re-derived the headline numbers from the artifact rather than from my summary",
+          "reproduction_weight": "51053 vs 51072 operations, dataset records identical at 13730, parallelism 60.22 vs 60.01, conflict_rate 0.0359 vs 0.0357 - agreement across two independent 51k runs confirms the round-3 defect was in the LABELLING, not the measurement, which is what the reviewer said when it rejected: declining to certify provenance, not disputing numbers",
+          "new_minor": "R2-4-1 tests/surreal_swarm_load_tests.rs:1790 - the dirty_meaning literal has a dropped word and a double space. Non-blocking; nothing breaks at runtime."
+        }
       }
     },
     "decisions_20260910": [
@@ -592,9 +606,19 @@
         "unsafe_where": "any site whose invariant is LOCK-ONLY. The recon flags the Loom journal get-or-create and the Canvas/Wiki identity-choice paths as candidates, NOT audited. Those paths previously had no caller-side timeout at all, so this window is new.",
         "likelihood": "bounded - only reached after a 300 s stall, where the alternative is an indefinite hang",
         "recommended_disposition": "a follow-on that either routes those stores through the same guarded_mutation pattern (database-side guards plus bounded retry) or audits each site; D-142-1 scoped those locks out of this MT"
+      },
+      {
+        "id": "FOLLOW-ON-MT142-DIRTY-MEANING-TYPO",
+        "severity": "MINOR",
+        "raised_by": "adversarial lens 2 round 4 (R2-4-1)",
+        "disposition": "DELIBERATELY NOT FIXED IN MT-142",
+        "finding": "tests/surreal_swarm_load_tests.rs:1790, the dirty_meaning literal drops a word: it reads 'does not correspond to  and this artifact must not be cited as evidence for that commit'. Suggested wording: name the sibling field, 'does not correspond to head, and this artifact ...'.",
+        "why_not_fixed_now": "Committing a further change after the AC-142-6 acceptance artifact was produced would make HEAD later than the commit that artifact names, re-introducing exactly the attribution gap R2-3-1 was raised about. Keeping the artifact attributable to HEAD (6148b559) is worth more than a cosmetic string fix. To be fixed by the next microtask that touches this file."
       }
     ],
-    "kernel_builder_self_correction_20260911": "The same provenance defect existed in my own runner scripts: every context line recorded a bare HEAD sha regardless of tree state, and those lines are cited as evidence throughout this microtask. Both runners now record <sha>-dirty(<n>) using crate-scoped dirtiness."
+    "kernel_builder_self_correction_20260911": "The same provenance defect existed in my own runner scripts: every context line recorded a bare HEAD sha regardless of tree state, and those lines are cited as evidence throughout this microtask. Both runners now record <sha>-dirty(<n>) using crate-scoped dirtiness.",
+    "ready_for_validation_at_utc": "2026-09-11T11:19:40.452Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260910-073935"
   },
   "scope": {
     "summary": "Prove and harden the SurrealDB-only storage layer for parallel model swarms. Exercise concurrent point reads, range/search queries, creates, idempotent upserts, optimistic updates, deletes and multi-record projection transactions against a real embedded SurrealDB RocksDB store. Measure conflicts, retries, retry exhaustion, lock wait, operation latency and throughput. Replace the coarse process-global RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK in storage/surreal/knowledge.rs with record/workspace-keyed contention control where local coordination is useful and with atomic Surreal transactions plus in-transaction guards where correctness must survive independent clients or future remote deployment. A keyed in-process lock is only a local contention-shaping optimization; it MUST NOT be the sole correctness mechanism for uniqueness, compare-and-set, versioning, idempotency, ledger/projection atomicity or lost-update prevention. Preserve SurrealDB as the only database: no PostgreSQL or SQLite driver, fallback, fixture, syntax, environment variable, server spawn or compatibility path may be introduced.",
@@ -880,8 +904,181 @@
     "coder_session": "KERNEL_BUILDER-20260910-073935",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": null,
+    "adversarial_reviews": {
+      "lens_1": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-1-round-3.json",
+      "lens_2": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-2-round-4.json",
+      "round_1": [
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-1-round-1.json",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-2-round-1.json"
+      ]
+    },
+    "kb_ready_checklist_evidence": {
+      "schema_id": "hsk.kb_ready_checklist_evidence@1",
+      "product_commit": "6148b5593d0b794213278ecfcddb1025d36a031c",
+      "actor_session": "KERNEL_BUILDER-20260910-073935",
+      "prepared_at_utc": "2026-09-11T11:19:40.452Z",
+      "summary": "MT-142: the two coarse knowledge locks are gone; correctness lives in atomic SurrealQL transactions with in-transaction guards (CAS THROWs, ledger idempotency, UNIQUE indexes and the new per-title write anchor), with a bounded full-jitter retry and an optional per-SurrealDatabase keyed-lock registry as contention shaping only. Proven on a real embedded RocksDB store by a deterministic CI load profile, a same-record/idempotency/independent-client semantics suite, a shutdown-cancel-and-reopen lifecycle suite, a delete-versus-rename race target and the extended 64-worker profile, all reported through hsk.surreal_swarm_load_report@1. Two independent adversarial reviews (concurrency-correctness lens and load/lifecycle/operability lens) ran to APPROVE after two remediation rounds. Independent validator verdict pending.",
+      "rubric_items": [
+        {
+          "rubric_item_id": "RC-001-NO-STALE-REASONS",
+          "answer": "yes",
+          "explanation": "Every reason field, doc comment and manual claim was authored or re-derived in this MT against the pinned sources; the one stale citation a reviewer found (a bare 'MT-142 decision Q4' pointing at an unpromoted recon question) was replaced by decision id MT-142-D-006-DERIVED-BACKLINK-STALENESS recorded in this contract.",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-1-round-1.json",
+            "lifecycle.decisions_20260910"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-002-NO-DEAD-CODE",
+          "answer": "yes",
+          "explanation": "The new modules are driven by in-crate unit tests and by the integration targets; no pub item is unused. Crate warning count is unchanged from the pre-MT baseline and none originate in the new or changed files.",
+          "evidence_refs": [
+            "src/backend/handshake_core/src/storage/surreal.rs",
+            "src/backend/handshake_core/src/storage/surreal/retry.rs",
+            "src/backend/handshake_core/src/storage/surreal/keyed_lock.rs",
+            "src/backend/handshake_core/src/storage/surreal/swarm_load_report.rs",
+            "src/backend/handshake_core/src/storage/surreal/knowledge.rs"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-003-CFG-GATED-TESTS",
+          "answer": "yes",
+          "explanation": "Every new integration target is gated at crate level on surreal-test-support and test-utils; no #[ignore] anywhere; the extended profile is env-gated and reports NOT_RUN_UNCONFIGURED rather than being skipped silently.",
+          "evidence_refs": [
+            "src/backend/handshake_core/tests/surreal_swarm_semantics_tests.rs",
+            "src/backend/handshake_core/tests/surreal_swarm_load_tests.rs",
+            "src/backend/handshake_core/tests/surreal_swarm_lifecycle_tests.rs",
+            "src/backend/handshake_core/tests/knowledge_delete_title_race_tests.rs",
+            "src/backend/handshake_core/tests/swarm_review_probe_1.rs"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-004-CROSS-PLATFORM-CI",
+          "answer": "yes",
+          "explanation": "Branch CI run 34587146063 on the final product commit: cross-platform-build SUCCESS and backend-storage SUCCESS, the two jobs that compile and run handshake_core, with no failing step inside either. The run as a whole is failure because validate, governance (ubuntu and windows), traceability, secret_scan and dependency_audit fail - the same governance and scan job set that fails identically on every commit of this branch including the pre-MT-142 base. Not inspected further by this session and not a product-build failure.",
+          "evidence_refs": [
+            "https://github.com/Nuntissura/Handshake/actions/runs/34587146063"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-005-PROOF-COMMANDS",
+          "answer": "yes",
+          "explanation": "Every proof_commands entry was executed on this machine against real embedded RocksDB stores with HANDSHAKE_WORKSPACE_ROOT isolated per run and HANDSHAKE_ARTIFACTS_ROOT absolute, on a single serialized cargo lane. Reports: ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reports/swarm-load-ci-mt142-ci-01a08fe4172d71a195eb4ce71da169d8.json and ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reports/swarm-load-extended-mt142-extended-01a08feabdb37dc394b535b29fb2f66c.json.",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/logs/",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reports/"
+          ]
+        },
+        {
+          "rubric_item_id": "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
+          "answer": "yes",
+          "explanation": "lifecycle.claimed_by is KERNEL_BUILDER-20260910-073935; completed_by and validator_verdict are null. The two adversarial reviews were run by independent sub-agents with separate lenses and their findings are recorded with verdicts; only READY_FOR_VALIDATION_V4 is requested.",
+          "evidence_refs": [
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-1-round-3.json",
+            "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/reviews/review-2-round-4.json"
+          ]
+        }
+      ]
+    },
+    "kb_ready_checklist_receipt": {
+      "overall_verdict": "WAIVED_BY_OPERATOR",
+      "waiver": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "note": "Same helper drift as MT-141/MT-148/MT-150: no in-repo emitter for the direct-receipt schemas; typed evidence stands in."
+    },
+    "coder_handoff": {
+      "receipt_kind": "CODER_HANDOFF",
+      "timestamp_utc": "2026-09-11T11:19:40.452Z",
+      "correlation_id": "review:mt142-swarm-20260910",
+      "target_role": "INTEGRATION_VALIDATOR",
+      "target_session": "PENDING",
+      "receipts_ref": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/RECEIPTS.jsonl",
+      "batch": [
+        "MT-141",
+        "MT-148",
+        "MT-149",
+        "MT-150",
+        "MT-142"
+      ]
+    },
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "carried_pre_existing_failures": [
+      {
+        "test": "storage::surreal::schema::tests::schema_contract_is_wave_scoped_and_identity_safe",
+        "evidence": "fails identically at base 67ce701c; the asserted substring occurs 0 times in schema.surql at HEAD while schema.rs asserts it"
+      },
+      {
+        "test": "storage::surreal::schema::tests::record_references_reject_orphans_and_preserve_identity_semantics",
+        "evidence": "fails identically at base 67ce701c (task_board_status lowercase ready against the uppercase enum)"
+      },
+      {
+        "test": "knowledge_documents_api_tests::mt032_delete_is_atomic_and_removes_canvas_references",
+        "evidence": "baseline run at 67ce701c reproduced the identical panic NotFound(loom_edge); delete_loom_edge keys by record id while the backlink projector creates edges with random record ids, and none of those surfaces changed in MT-142"
+      },
+      {
+        "test": "knowledge_claims_tests (5 tests: mt_057_passages::passage_creation_rejects_missing_or_ghost_lineage_without_persisting, mt_056_claims::claim_creation_and_retirement_reject_invalid_shapes_without_persisting, mt_056_claims::conflict_detection_and_receipt_backed_resolution, mt_056_claims::mt231_contradictory_claims_stay_conflicted_until_resolution_receipt, mt_056_claims::claim_lifecycle_rejects_backward_and_terminal_transitions_without_mutation)",
+        "evidence": "baseline run at 67ce701c: FAILED. 2 passed; 5 failed with the same five names and identical panics; logs D:/hs42/logs/baseline-67ce701c-20260910T183337Z.claims.*"
+      }
+    ],
+    "stated_limits": [
+      "no_retry_window is proven WIRED but not yet exercised against a live saturation event: its count is 0 on every clean run because the derived bounds leave a real retry window. The positive case was observed earlier only as a raw string (attempts=1 elapsed_ms=2523 bound=max_elapsed) before the codes were split.",
+      "the with_data_operation zero-remaining-budget branch (StatementBudgetExhausted) has no dedicated test: exercising it needs a live store and a cold apply of several minutes. Disclosed rather than claimed as covered.",
+      "the extended-profile calibration under-projected sustained throughput (18.70 ops/s over 640 operations against 12.77 sustained over 51053 as the dataset trebled); the 4x headroom absorbed it, but a longer calibration would project better.",
+      "serial test execution is enforced twice - a bounded static mutex in code and RUST_TEST_THREADS=1 in the runner - and the two have not been proven redundant, because the suite has not been run without the environment variable.",
+      "the research basis citation is wrong where it attributes RSS growth to upstream issue #7411; #7411 is the TransactionFinished defect and the RSS pointer is #7424 (related #7383). The MT-142 memory finding neither corroborates nor refutes #7424 - deciding that needs a run varying ingest while holding worker count and buffer configuration constant, which MT-142 did not do.",
+      "RSS growth measured 413.9 MB (ratio 24.03) and 433.99 MB (ratio 23.97) across the two extended runs - about a 4.8 percent spread in bytes, closer in ratio. Growth scales far sub-linearly with ingest (25x the operations and 20x the store for 1.9x the growth against the CI profile), which points at fixed engine and allocator overhead rather than a per-row leak."
+    ],
+    "follow_ons": [
+      "App state should own one SurrealDatabase instead of building one per request (src/api/knowledge_documents.rs db_for and 50+ sites, outside MT-142 allowed paths) so the keyed registry shapes HTTP contention; correctness does not depend on it.",
+      "The other product-data global locks (Loom, Canvas, Wiki, BlockView, Bridge, Locus) migrate onto these primitives (decision D-142-1).",
+      "process_ledger/reclaim.rs ad-hoc retry loop is outside storage/surreal/ and not migrated.",
+      "MT-142-D-006 window may be closed later by resolving title-targeted backlinks to record ids at write time."
+    ],
+    "state_recovery": {
+      "product_branch": "feat/WP-KERNEL-012",
+      "product_commit": "6148b5593d0b794213278ecfcddb1025d36a031c",
+      "product_worktree": "wtc-native-editors-v1",
+      "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
+      "cargo_target_override": "D:/hs12 (MT-141 owner target) per CX-984-010",
+      "junctions_to_remove_at_wp_cleanup": [
+        "D:\\hs12",
+        "D:\\hs48",
+        "D:\\hs50",
+        "D:\\hs42"
+      ]
+    }
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T09:47:48.576Z"
+  "updated_at_utc": "2026-09-11T11:19:40.452Z",
+  "owned_files": [
+    "src/backend/handshake_core/src/storage/surreal.rs",
+    "src/backend/handshake_core/src/storage/surreal/retry.rs",
+    "src/backend/handshake_core/src/storage/surreal/keyed_lock.rs",
+    "src/backend/handshake_core/src/storage/surreal/swarm_load_report.rs",
+    "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.surql",
+    "src/backend/handshake_core/src/storage/surreal/knowledge_schema_registry_seed.surql",
+    "src/backend/handshake_core/src/user_manual/seed.rs",
+    "src/backend/handshake_core/tests/surreal_swarm_semantics_tests.rs",
+    "src/backend/handshake_core/tests/surreal_swarm_load_tests.rs",
+    "src/backend/handshake_core/tests/surreal_swarm_lifecycle_tests.rs",
+    "src/backend/handshake_core/tests/swarm_support/mod.rs",
+    "src/backend/handshake_core/tests/knowledge_delete_title_race_tests.rs",
+    "src/backend/handshake_core/tests/swarm_review_probe_1.rs",
+    "src/backend/handshake_core/Cargo.toml",
+    "src/backend/handshake_core/Cargo.lock"
+  ],
+  "proof_commands": [
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test surreal_swarm_semantics_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test surreal_swarm_load_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test surreal_swarm_lifecycle_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_delete_title_race_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test swarm_review_probe_1 --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -j 4 --no-fail-fast storage::surreal::{retry,keyed_lock,swarm_load_report,knowledge,schema} -- --nocapture",
+    "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -j 4 user_manual -- --nocapture",
+    "HANDSHAKE_SWARM_EXTENDED=1 HANDSHAKE_SWARM_WORKERS=64 HANDSHAKE_SWARM_OPERATIONS=50000 HANDSHAKE_SWARM_DATASET=5000 cargo test ... --test surreal_swarm_load_tests extended_profile   # AC-142-6, operator machine only",
+    "grep -rn --include=*.rs -E '^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://' src/backend/handshake_core/src src/backend/handshake_core/tests   # AC-142-9, expect no matches",
+    "grep -rn 'RICH_DOCUMENT_MUTATION_LOCK\\|KNOWLEDGE_UPSERT_LOCK' src/backend/handshake_core/src   # PT-142-2, expect no matches in product source"
+  ]
 }
