@@ -1046,10 +1046,16 @@
         "D:\\hs50",
         "D:\\hs42"
       ]
+    },
+    "validate_at_commit": {
+      "commit": "6148b5593d0b794213278ecfcddb1025d36a031c",
+      "instruction": "Validate MT-142 at this exact commit. By Operator decision (2026-09-11, same branch / light ceremony) the follow-on microtask MT-151 will commit to feat/WP-KERNEL-012 AFTER this commit; those later commits are NOT part of MT-142 and the AC-142-6 acceptance artifact names this commit in its own source_provenance block. Check it out or diff against it rather than validating branch HEAD.",
+      "recorded_at_utc": "2026-09-11T11:33:29.573Z",
+      "operator_decision": "Fix the carried pre-existing failures, the stated limits that are testable, and the early-lock-release residual on the same branch under one light-ceremony follow-on (MT-151); leave title-anchor reclamation routed and the RSS observation as a finding."
     }
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T11:19:40.452Z",
+  "updated_at_utc": "2026-09-11T11:33:29.573Z",
   "owned_files": [
     "src/backend/handshake_core/src/storage/surreal.rs",
     "src/backend/handshake_core/src/storage/surreal/retry.rs",
