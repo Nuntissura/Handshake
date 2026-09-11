@@ -1,0 +1,185 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "mt_id": "MT-151",
+  "title": "B16-MT-151-Close-The-MT-142-Carried-Failures-Testable-Limits-And-Early-Lock-Release-Residual",
+  "group": "B16",
+  "created_at_utc": "2026-09-11T11:39:06.634Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-151.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
+  },
+  "lifecycle": {
+    "status": "CLAIMED",
+    "depends_on": [
+      "MT-142"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "completed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260910-073935",
+    "claimed_at_utc": "2026-09-11T11:39:06.634Z",
+    "created_by": "KERNEL_BUILDER-20260910-073935",
+    "creation_reason": "Operator decision 2026-09-11 (same branch, light ceremony): fix the eight test failures MT-142 carried as pre-existing, close the testable stated limits, and close the early-lock-release residual, on feat/WP-KERNEL-012 after MT-142's pinned commit 6148b559.",
+    "ceremony": "LIGHT by Operator direction: no refinement, no research basis (MT-142's research basis and recon inventory are reused), no adversarial review rounds unless the Operator asks; typed acceptance criteria, proof commands and a handoff are still required.",
+    "triage_input": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/triage/pre_existing_failures_triage.json"
+  },
+  "scope": {
+    "summary": "Close the loose ends MT-142 handed off honestly rather than fixed: seven test-side defects and one product defect among the eight carried pre-existing failures; the three stated limits that are testable; the research-basis citation defect; the dirty_meaning typo; and the early-lock-release residual, by making the lock-only invariants in stores MT-142 did not own safe under the now-global caller-side statement bound. Explicitly NOT in scope: title-anchor reclamation (stays routed with its reason), the full migration of the other product-data locks onto the MT-142 primitives (D-142-1 follow-on), and any investigation of RSS growth (a recorded finding).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/surreal/",
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/Cargo.toml",
+      "Cargo.lock"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/frontend/**",
+      "app/src/**",
+      "src/backend/handshake_core/src/storage/postgres/**"
+    ],
+    "base_commit": "6148b5593d0b794213278ecfcddb1025d36a031c",
+    "items": [
+      {
+        "id": "I-151-1",
+        "kind": "test",
+        "title": "schema.rs assertion drift",
+        "detail": "schema.rs:3353 asserts the pre-4ed7b60a wording of the atelier_source_evidence_record ASSERT; schema.surql:1955 now reads `$value = type::record('atelier_source_evidence_record', [$this.matrix_id, record::id($value)[1]])`. Update the assertion to the current statement. schema.rs:3908 fixture writes task_board_status 'ready'; the product contract is SCREAMING_SNAKE_CASE (schema.surql:609, locus/types.rs:1009). Write 'READY'.",
+        "closes": [
+          "schema_contract_is_wave_scoped_and_identity_safe",
+          "record_references_reject_orphans_and_preserve_identity_semantics"
+        ]
+      },
+      {
+        "id": "I-151-2",
+        "kind": "product",
+        "title": "loom_edges projector record identity",
+        "detail": "knowledge.rs:1484 and wiki_store.rs:1151 create backlink edges with CREATE loom_edges CONTENT { edge_id ... } and a RANDOM record id, while loom_store.rs:1218 creates its own edges deterministically and delete_loom_edge (loom_store.rs:1263-1277) resolves by record id. Fix option (a) from the triage: create the projected edge at the deterministic record id type::record('loom_edges', $row.relationship_id) at both sites, so pre-fix rows self-migrate on the next backlink rebuild. Do NOT add the schema alias ASSERT (option c) in this MT: it would bite existing random-id rows on their next write. State the persisted random-id row count if you can measure it cheaply, otherwise UNVERIFIED.",
+        "closes": [
+          "mt032_delete_is_atomic_and_removes_canvas_references"
+        ]
+      },
+      {
+        "id": "I-151-3",
+        "kind": "test",
+        "title": "knowledge_claims_tests inspector decoding and PostgreSQL wording",
+        "detail": "inspected_row_field (tests/knowledge_claims_tests.rs:88-116) must unwrap the inspector's externally tagged values the way scalar() does in tests/wp_kernel_012_native_editor_routes_tests.rs (single-entry tag object; bare None/Null mean absent; RecordId collapses to its key). Two assertions (:979 and :553) still demand the PostgreSQL text 'foreign key'; the product now surfaces the real Surreal record::exists ASSERT message via meaningful_check - assert on the Surreal wording or on the typed error class, never on PostgreSQL text.",
+        "closes": [
+          "mt_057_passages::passage_creation_rejects_missing_or_ghost_lineage_without_persisting",
+          "mt_056_claims::claim_creation_and_retirement_reject_invalid_shapes_without_persisting",
+          "mt_056_claims::conflict_detection_and_receipt_backed_resolution",
+          "mt_056_claims::mt231_contradictory_claims_stay_conflicted_until_resolution_receipt",
+          "mt_056_claims::claim_lifecycle_rejects_backward_and_terminal_transitions_without_mutation"
+        ]
+      },
+      {
+        "id": "I-151-4",
+        "kind": "product",
+        "title": "early-lock-release residual (RESIDUAL-MT142-EARLY-LOCK-RELEASE-ON-STATEMENT-TIMEOUT)",
+        "detail": "The caller-side statement bound in SurrealStorage::with_data_operation now wraps every store, so a 300 s timeout drops the LOOM_/CANVAS_/OVERLAY_/MARKDOWN_IMPORT_/WIKI_COMPILE_/BLOCK_VIEW_/BRIDGE_/DEPENDENCY_ mutex guard while the abandoned statement may still be live. Audit every invariant those mutexes protect (MT-142 recon lock_inventory.json other_global_locks lists them with sites; the recon flagged the Loom journal get-or-create and the Canvas/Wiki identity-choice paths as lock-only candidates). For each invariant that is ALSO enforced database-side (UNIQUE index, THROW guard, CAS) record that and move on. For each invariant that is LOCK-ONLY, add the database-side guard (a UNIQUE index or an in-transaction THROW) so early release is safe, and prove it with a test that races the path with the lock registry disabled. Fallback, only where a guard is not cheap: exclude that specific store from the caller-side bound with a written reason in a doc comment, so it returns to its pre-MT-142 behaviour rather than gaining a new window. Do NOT migrate those stores onto guarded_mutation/keyed locks in this MT (D-142-1 follow-on).",
+        "closes": [
+          "RESIDUAL-MT142-EARLY-LOCK-RELEASE-ON-STATEMENT-TIMEOUT"
+        ]
+      },
+      {
+        "id": "I-151-5",
+        "kind": "test",
+        "title": "exercise no_retry_window against a live saturation event",
+        "detail": "MT-142 left HSK-STORAGE-NO-RETRY-WINDOW wired but unexercised (count 0 on every clean run). Add a deterministic test that forces it: open a store, set a small with_statement_timeout so the shared budget is tiny, make the first attempt slow enough to consume it (a SurrealQL SLEEP inside the retried statement, or a held keyed lock released only after the budget), and assert the typed HSK-STORAGE-NO-RETRY-WINDOW outcome with attempts == 1, distinct from HSK-STORAGE-RETRY-EXHAUSTED. Then feed the same outcome through the swarm classifier and assert no_retry_window.count == 1 and that it never lands in expected_stale_or_conflict.",
+        "closes": [
+          "stated limit: no_retry_window unexercised"
+        ]
+      },
+      {
+        "id": "I-151-6",
+        "kind": "test",
+        "title": "cover the zero-remaining-budget branch",
+        "detail": "with_data_operation refuses to dispatch when the OPERATION_DEADLINE task-local has already passed and returns SurrealStorageError::StatementBudgetExhausted { budget_ms }. Cover it with a unit test that sets an already-expired deadline and asserts the typed error and that no statement was issued (a resume-path store or the kv-mem dev engine is fine; a fresh cold apply is not required).",
+        "closes": [
+          "stated limit: StatementBudgetExhausted untested"
+        ]
+      },
+      {
+        "id": "I-151-7",
+        "kind": "test",
+        "title": "prove the two serialization mechanisms redundant",
+        "detail": "Run the three swarm targets once WITHOUT RUST_TEST_THREADS set, relying only on the in-code SWARM_SERIAL mutex, and record the result lines. If they pass, the env var is proven an optimisation and the runbook says so; if they fail, say why and keep the env var as a requirement.",
+        "closes": [
+          "stated limit: serialization mechanisms not proven redundant"
+        ]
+      },
+      {
+        "id": "I-151-8",
+        "kind": "doc",
+        "title": "research-basis citation and dirty_meaning typo",
+        "detail": "In ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/research/research_basis.json the RSS-growth entry cites upstream #7411; #7411 is the TransactionFinished defect and the RSS pointer is #7424 (related #7383) - correct it and note the correction. In tests/surreal_swarm_load_tests.rs:1790 the dirty_meaning literal drops a word ('does not correspond to  and'); name the sibling field: 'does not correspond to head, and this artifact ...'.",
+        "closes": [
+          "stated limit: citation defect",
+          "FOLLOW-ON-MT142-DIRTY-MEANING-TYPO"
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "AC-151-1: all eight carried tests are green on the embedded store, with no assertion weakened - a PostgreSQL wording assertion is replaced by the Surreal wording or the typed error class, never deleted.",
+      "AC-151-2: projected loom_edges rows are created at the deterministic record id used by loom_store, and delete_loom_edge removes a projector-created edge; existing random-id rows are not migrated by schema and the count of such rows is stated or marked UNVERIFIED.",
+      "AC-151-3: every invariant protected by a remaining process-global storage mutex is either recorded as database-guarded with the guard named, or gains a database-side guard proven by a lock-registry-disabled race test, or the store is excluded from the caller-side bound with a written reason; no lock-only invariant remains exposed to early release.",
+      "AC-151-4: HSK-STORAGE-NO-RETRY-WINDOW and StatementBudgetExhausted each have a deterministic test that produces them, and the swarm classifier counts the former distinctly.",
+      "AC-151-5: the swarm targets have been run once without RUST_TEST_THREADS and the outcome is recorded either way.",
+      "AC-151-6: no PostgreSQL or SQLite token is introduced (AC-142-9 scan repeated); crate warnings do not increase; every changed target has a verbatim green result line at the final commit."
+    ],
+    "proof_commands": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -j 4 storage::surreal::schema -- --nocapture   # expect 21 passed after I-151-1",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_claims_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture   # expect 7 passed",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_documents_api_tests --features surreal-test-support,test-utils -j 4 mt032_delete_is_atomic_and_removes_canvas_references -- --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -j 4 storage::surreal::retry -- --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test surreal_swarm_semantics_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture   # plus load and lifecycle, once with RUST_TEST_THREADS unset",
+      "grep -rn --include=*.rs -E '^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://' src/backend/handshake_core/src src/backend/handshake_core/tests   # expect no matches"
+    ],
+    "execution_constraints": {
+      "cargo_target": "shared warm target D:/hs12/target via the MT-142 mutex runner (scratchpad mt142-run.sh); logs and reports stay under ../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/ with lane names P and T - recorded here as a light-ceremony reuse rather than a new owner dir",
+      "single_cargo_lane": true,
+      "base": "commit after 6148b559 only; MT-142 validates at 6148b559 and these commits are not part of it"
+    },
+    "not_in_scope": [
+      "FOLLOW-ON-MT142-TITLE-ANCHOR-RECLAMATION (reason recorded in MT-142: a reclamation is itself a read-decide-write that would reintroduce the R1-1-2 window)",
+      "migration of the remaining product-data locks onto guarded_mutation (D-142-1 follow-on)",
+      "RSS growth investigation (recorded finding; deciding #7424 needs a run varying ingest at constant workers and buffers)"
+    ]
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "coder_session": "KERNEL_BUILDER-20260910-073935",
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "batch_with": [
+      "MT-141",
+      "MT-148",
+      "MT-149",
+      "MT-150",
+      "MT-142"
+    ]
+  },
+  "updated_at_utc": "2026-09-11T11:39:06.634Z"
+}
