@@ -432,6 +432,63 @@
       "worst_case_single_mutation": "one statement_timeout (300 s default; 30 s if a caller sets with_statement_timeout) shared by the keyed-lock wait, all 8 attempts and their sleeps, with each attempt clamped to the remaining budget",
       "was": "8 x 300 s = about 40 minutes",
       "only_retry_call_site": "guarded_mutation (knowledge.rs:200); all 19 knowledge mutation sites funnel through it"
+    },
+    "calibration_64_worker_20260911": {
+      "recorded_by": "KERNEL_BUILDER-20260910-073935",
+      "at_utc": "2026-09-11T07:12:53.949Z",
+      "run": "mt142-calibration-01a08f43ebdf7372b5505e9583739561 (64 workers, 640 operations, 5000-record dataset, same seed, run twice: keyed registry and LockMode::Disabled)",
+      "purpose": "separate engine time from hot-key queueing before re-deriving the extended profile bounds, as adversarial lens 2 round 2 required",
+      "result_per_class_p99_ms": {
+        "optimistic_versioned_update": {
+          "engine_only": 18339.7,
+          "keyed": 21321,
+          "lock_queueing": 2981.3,
+          "lock_share": "14.0%"
+        },
+        "multi_record": {
+          "engine_only": 16667,
+          "keyed": 20866.9,
+          "lock_queueing": 4199.9,
+          "lock_share": "20.1%"
+        },
+        "idempotent_upsert": {
+          "engine_only": 15703.5,
+          "keyed": 18732.6,
+          "lock_queueing": 3029.1,
+          "lock_share": "16.2%"
+        },
+        "delete": {
+          "engine_only": 2536.4,
+          "keyed": 2116.8,
+          "lock_queueing": 0
+        },
+        "range_or_search_query": {
+          "engine_only": 1058.7,
+          "keyed": 914.2,
+          "lock_queueing": 0
+        },
+        "create": {
+          "engine_only": 1017.8,
+          "keyed": 731.4,
+          "lock_queueing": 0
+        },
+        "point_read": {
+          "engine_only": 893.1,
+          "keyed": 816.4,
+          "lock_queueing": 0
+        }
+      },
+      "finding": "The hot-key hypothesis is REFUTED by measurement: write-class p99 is 15.7-18.3 s with no process-local lock at all, and the keyed registry adds only 14-20 percent; read classes never queue. The latency is engine-bound disk time, so the derived bound is the correct remedy and the workload key skew stays unchanged (changing it would move under 20 percent of the latency while disguising an 80 percent disk-bound reality).",
+      "corroboration": "both calibration profiles passed with integrity pass and zero failed predicates at 64 workers, which isolates the earlier extended-profile failure to the inherited 5 s per-operation bound and nothing else",
+      "product_characteristic": "At 64-way concurrency on a 7200-rpm SATA disk this storage layer delivers write-class p99 of roughly 15-18 s, engine-bound. That is the honest performance envelope to size against, not the CI profile 16-worker figures.",
+      "derived_extended_bounds": {
+        "per_operation_ms": 90000,
+        "per_worker_ms": 10800000,
+        "whole_test_ms": 11700000,
+        "rule": "per_operation = worst class p99 x 4; per_worker = full workload duration x 4 (a worker runs for the whole workload, so whole_test/4 would give it zero headroom); whole_test = (workload + 3 x measured seed/reconcile) x 4",
+        "projection": "about 50 minutes wall clock; under 1.6 h even if throughput halves as the dataset grows"
+      },
+      "contract_minimums_untouched": "worker_count 64 and operation_count 50000 unchanged; the CI profile untouched and green"
     }
   },
   "scope": {
@@ -721,5 +778,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T04:15:36.175Z"
+  "updated_at_utc": "2026-09-11T07:12:53.949Z"
 }
