@@ -226,14 +226,11 @@
         "state_recovery_commit": "448338d4 (WIP, not green)"
       },
       "C": {
-        "status": "LANDED_UNCOMMITTED_IN_WIP",
-        "page": "surreal-swarm-concurrency-and-load (page_surreal_swarm_concurrency_and_load)",
-        "tests": [
-          "mt142_manual_covers_surreal_swarm_concurrency_and_load",
-          "mt142_manual_runbook_targets_and_env_vars_exist"
-        ],
-        "proof": "user_manual filter ok. 25 passed; 0 failed (mt142-LIB-20260910T110436Z)",
-        "manual_version": "unchanged 2.0.4"
+        "status": "LANDED",
+        "product_commit": "2b3d6a2d",
+        "proof": "LIB user_manual ok. 25 passed; 0 failed (mt142-LIB-20260911T001258Z)",
+        "page": "surreal-swarm-concurrency-and-load; timeouts rendered from the storage constants and report vocabulary derived from source so schema drift fails the guard",
+        "pending": "one late edit after the retry-budget fix lands, to state the real worst-case wall clock for a single mutation"
       },
       "baseline_run": {
         "launched_at_utc": "2026-09-10T18:33:56.318Z",
@@ -347,6 +344,21 @@
       "dependency_scan": "Cargo.lock has no package named sqlx, sqlx-core, sqlx-postgres, sqlx-sqlite, postgres, tokio-postgres, rusqlite, libsqlite3-sys, diesel, pq-sys or mysql: ZERO matches. SurrealDB remains the only database (surrealdb 3.2.0, kv-rocksdb; kv-mem is dev-only for catalog fingerprints)",
       "pt_142_2_lock_scan": "RICH_DOCUMENT_MUTATION_LOCK and KNOWLEDGE_UPSERT_LOCK: zero occurrences in product source. The only three files mentioning the names are src/user_manual/seed.rs (the manual documenting their removal), tests/surreal_swarm_semantics_tests.rs and tests/knowledge_delete_title_race_tests.rs (test prose)",
       "verdict": "AC-142-9 MET, PT-142-2 lock half MET"
+    },
+    "defect_20260911_retry_budget": {
+      "id": "DEF-MT142-RETRY-BUDGET-MULTIPLICATION",
+      "found_by": "KERNEL_BUILDER-20260910-073935 by source reading, after Lane B s semantics target stalled 48 minutes and had to be killed",
+      "at_utc": "2026-09-11T01:31:44.851Z",
+      "severity": "HIGH",
+      "summary": "guarded_mutation used RetryContext::unbounded(); RetryPolicy::CONTRACT.maximum_elapsed (2000 ms) bounds only SLEEPS (an in-flight attempt is deliberately never raced against the deadline so an acknowledged commit is never dropped); each attempt was bounded by statement_timeout (300 s) and maximum_attempts is 8. One contended mutation could therefore occupy 8 x 300 s = 40 minutes uninterruptibly. A2 s R1-1-2 remediation, which makes every title-mutating transaction write the title anchor, raised same-title contention and turned that latent bound into a real stall.",
+      "contract_violation": "AC-142-5 bound requirement and hbr_obligations.STOP (a timeout must be a typed failure, never a silent park); red_team minimum control every retry loop is explicitly bounded",
+      "fix": "ONE budget for the whole logical mutation: deadline = now + statement_timeout, used for the keyed-lock wait, set as RetryContext.deadline and enforced around the whole retry via SurrealStorage::with_operation_deadline; with_data_operation clamps each attempt to min(statement_timeout, remaining budget) through an OPERATION_DEADLINE task-local; retry refuses to START an attempt once the deadline has passed (typed Exhausted{MaxElapsed}). New worst case for one mutation: one statement_timeout (300 s default, 30 s if the caller tightens it).",
+      "scope_checked": "exactly one retry( call site exists in product code (knowledge.rs:200 inside guarded_mutation); all 19 knowledge mutation sites funnel through it, so the multiplication class existed only there",
+      "tests": [
+        "slow_repeated_conflicts_stay_inside_one_caller_budget",
+        "an_attempt_never_starts_once_the_deadline_is_reached"
+      ],
+      "environmental_confound_ruled_out": "the follow-up store-open timeout (180 s) was NOT this defect: 260 orphaned RocksDB store directories left by the killed runs were being deleted in the background on the same HDD while a new store bootstrapped ~4,500 fsynced DDL statements. Lane B cleared 259 of them, verified schema.surql is unchanged in this tree, raised SETUP bounds to 600 s and kept the racing per-operation bound at 5 s."
     }
   },
   "scope": {
@@ -636,5 +648,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T00:12:14.916Z"
+  "updated_at_utc": "2026-09-11T01:31:44.851Z"
 }
