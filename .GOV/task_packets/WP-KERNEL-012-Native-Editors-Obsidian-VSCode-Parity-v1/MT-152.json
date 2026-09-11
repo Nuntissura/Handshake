@@ -100,7 +100,11 @@
         "finding": "Root-folder name uniqueness was never database-guarded. uq_loom_folders_sibling_name (schema.surql:4219) is a plain composite UNIQUE on (workspace_id, parent_folder_id, name) with no discriminator for parent = NONE, and the pinned engine skips uniqueness for any tuple containing NONE (surrealdb-core-3.2.0/src/idx/index.rs:190-197, NULL != NULL). Nested siblings are guarded; roots are not.",
         "audit_correction": "MT-151 lifecycle.i_151_4_audit recorded that index as the guard for folder sibling uniqueness. That record is WRONG for root folders. Corrected here; MT-151 is not edited because it validates at its pinned commit.",
         "decision": "(a) database-side fix in MT-152: stored discriminator sibling_key = ws|parent-or-root|name with a plain UNIQUE (MT-151 journal_key pattern), set by create and rename, in-place upgrade with a deterministic backfill that disambiguates pre-existing duplicate roots by suffixing sibling_key only (never the visible name) and emitting one structured warning per collision; UNIQUE violation mapped to the existing Conflict(loom_folder_sibling_name). Rejected (b) key-only because it would leave a lock-only invariant, the class MT-151 removed.",
-        "open_question_for_lane_L": "the failing test is sequential and passed before the migration, so something rejected the duplicate then - most likely a Rust-side pre-check inside the formerly locked section removed on the assumption the index covered it; Lane L must name it"
+        "open_question_resolved": {
+          "at_utc": "2026-09-11T21:49:21.708Z",
+          "answer": "Nothing rejected a duplicate root before the migration. create_loom_folder at 98353583 is: acquire mutex, trim and validate the name, parent-exists read, one CREATE $folder SET ... - no Rust-side duplicate pre-check exists in that function or anywhere in loom_store.rs, and the migration diff removed only the mutex line. No run of loom_folder_tests exists in the MT-142 or MT-151 evidence, so the test's status at HEAD is UNVERIFIED by run; by construction (the engine skips UNIQUE on NONE tuples) it could not have passed.",
+          "reclassification": "NOT a migration regression. A pre-existing unguarded invariant with a pre-existing test nobody had run, surfaced by the MT-152 regression sweep. The MT-151 audit recorded the composite index as covering it in error - the same root cause its own journal_key block documents."
+        }
       }
     ]
   },
@@ -192,5 +196,5 @@
       "MT-151"
     ]
   },
-  "updated_at_utc": "2026-09-11T21:07:20.646Z"
+  "updated_at_utc": "2026-09-11T21:49:21.708Z"
 }
