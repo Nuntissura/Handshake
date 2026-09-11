@@ -157,7 +157,7 @@
         ]
       },
       "A2": {
-        "status": "LANDED",
+        "status": "COMPLETE_AND_FROZEN",
         "product_commit": "26731c56",
         "at_utc": "2026-09-10T18:33:56.318Z",
         "summary": "both locks removed from src/storage (0 occurrences); per-site guard table in the lane report; title uniqueness via knowledge_rich_document_title_anchors (UNIQUE workspace_id+title_key, per-attempt claim nonce inside the create-if-absent transaction) because duplicate document titles are a modelled state; schema lineage gains an allowlisted pre-MT-142 -> current hop, all pins re-set (registry rows 62->63); raw_rows_at/raw_execute decode the meaningful row (fixes DEF-KNOWLEDGE-RAW-ROWS-UNTYPED-TRANSACTION-FAILURE); upsert sites retry RetryableSnapshotChange on their own UNIQUE index; shutdown CLOSING -> drain_grace 5 s -> cancel -> bounded drain -> close with ShutdownReport; SurrealStorageConfig drain_grace/statement_timeout (300 s, evidence: a save statement exceeded 30 s under the 4-way HDD batch)/engine timeouts (wired, default None: fresh bootstrap exceeds 60 s under load); KeyedLockRegistry lock-wait samples (cap 65536)",
@@ -193,7 +193,26 @@
           "storage::surreal::swarm_load_report": "ok. 10 passed",
           "storage::surreal::knowledge": "ok. 1 passed",
           "storage::surreal::schema": "FAILED. 19 passed; 2 failed (pre-existing pair only)"
-        }
+        },
+        "completed_at_utc": "2026-09-11T04:15:36.175Z",
+        "final_proofs": {
+          "knowledge_delete_title_race_tests": "ok. 1 passed (381.83 s)",
+          "storage::surreal::keyed_lock": "ok. 13 passed",
+          "storage::surreal::swarm_load_report": "ok. 10 passed",
+          "storage::surreal::retry": "ok. 25 passed",
+          "storage::surreal::knowledge": "ok. 3 passed (349.63 s)",
+          "warnings": "241 on every LIB run = the pre-existing baseline; zero new in A2 files (the one it introduced, a dead store in retry.rs, was found and removed)"
+        },
+        "r1_items_closed": {
+          "R1-1-2": "remediation (b) chosen over (a) with a stated reason: (a) would have changed the durable tombstone backlinks_deleted semantics and orphaned title-targeted backlinks, a product behaviour change beyond MT-142 concurrency scope. (b) puts the $unique_title decision in the write set by having create, create-if-title-absent, rename (both old and new title) and the atomic delete UPSERT the per-(workspace, normalized title) anchor, so a racing rename or create collides at commit and the loser re-reads. Proven in two phases: each route is asserted to actually WRITE the anchor (write-set membership is what makes conflict detection fire), then delete races rename over one title in both spawn orders for 6 iterations.",
+          "R1-1-3": "both comments now cite MT-142-D-006-DERIVED-BACKLINK-STALENESS and the contract path instead of the non-existent Q4",
+          "R1-1-4 (product half)": "classify_storage_error_pins_the_pinned_sdk_commit_renderings pins the captured COMMIT conflict renderings as retryable, the generic not-executed text as Terminal, and asserts one marker alone is insufficient",
+          "R1-1-5": "the source upsert now uses kind knowledge_source_relative_path so the two key grammars cannot alias"
+        },
+        "deliberately_left": [
+          "both temporary measurement tests deleted rather than kept: a fresh apply costs about 6 minutes and an env-gated early return would be the NOT_RUN-as-prose pattern R2-1-12 flags; their numbers live in the record and in D:/hs42/logs/mt142-LIB-20260911T0{21747,23508}Z.out.log",
+          "R2-1-9 product half (app state owning one SurrealDatabase instead of a per-request wrapper, 22+ API sites) stays the recorded follow-on, outside allowed paths"
+        ]
       },
       "B": {
         "status": "LANDED",
@@ -702,5 +721,5 @@
     "review_response_receipt_id": null
   },
   "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-142/kb01/",
-  "updated_at_utc": "2026-09-11T03:56:30.926Z"
+  "updated_at_utc": "2026-09-11T04:15:36.175Z"
 }
