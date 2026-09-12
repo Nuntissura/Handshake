@@ -2,6 +2,7 @@ import fs from "node:fs";
 import {
   computedPolicyOutcomeAllowsClosure,
   evaluateComputedPolicyGateFromPacketText,
+  parsePolicyWaiverLedger,
 } from "../scripts/lib/computed-policy-gate-lib.mjs";
 import { GOV_ROOT_REPO_REL, listOfficialWorkPacketEntries, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
@@ -36,7 +37,27 @@ function loadPacketReceipts(packetText = "") {
 
 const wpIdArg = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "";
 const jsonMode = process.argv.includes("--json");
+const waiversMode = process.argv.includes("--waivers");
 const results = [];
+
+// --waivers: print the resolved policy waiver ledger (markdown `WAIVERS GRANTED` or JSON
+// `waivers_granted[]`) for the target packet(s) [VPX-006]; exit 1 when any entry is UNSIGNED.
+if (waiversMode) {
+  const ledgers = [];
+  for (const target of loadTargetPackets(wpIdArg)) {
+    const packetAbsPath = repoPathAbs(target.packetPath);
+    if (!fs.existsSync(packetAbsPath)) fail("Work packet not found", [target.packetPath]);
+    const ledger = parsePolicyWaiverLedger(fs.readFileSync(packetAbsPath, "utf8"));
+    ledgers.push({ wpId: target.wpId, packetPath: target.packetPath, ledger });
+  }
+  const unsigned = ledgers.flatMap((entry) => entry.ledger.entries
+    .filter((row) => row.status === "UNSIGNED")
+    .map((row) => `${entry.wpId}: ${row.waiverId} is UNSIGNED (signature=${row.signature || "<missing>"})`));
+  process.stdout.write(`${JSON.stringify(ledgers, null, 2)}
+`);
+  if (unsigned.length > 0) fail("Unsigned policy waivers found [VPX-006]", unsigned);
+  process.exit(0);
+}
 
 for (const target of loadTargetPackets(wpIdArg)) {
   const packetAbsPath = repoPathAbs(target.packetPath);

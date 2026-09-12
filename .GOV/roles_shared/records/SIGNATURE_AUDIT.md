@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-08-01
+**Updated:** 2026-09-12
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja120820261440 | KERNEL_BUILDER-20260910-073935 | 2026-09-12 12:46 | Operator waiver WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910: kb-ready-checklist receipt persistence waived; typed dispositions + verbatim proof lines stand in; covers MT-141, MT-142, MT-148, MT-150, MT-151, MT-152 | n/a | RGF-328 signed-waiver rule ([VPX-006]); consumed once by `waivers_granted[0]` in `.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json`. Does not activate, assign, or sign any MT. |
 | ilja010820266000 | KERNEL_BUILDER | 2026-08-01 06:00 | Master Spec enrichment: Tailor and BodyKit-v2 Rust-native offline runtime, GNM-v3 default provider, high-resolution human creation, professional operator/model surfaces, dependency acquisition, privacy, shared pillars, cinematic qualification, and Blender/Unreal interchange | v02.203 | Consumed once for the copy-first v02.202 -> v02.203 spec enrichment after the operator approved the researched Tailor vision. It does not activate, assign, or sign WP-KERNEL-010 or its microtasks. |
 | ilja260720260635 | KERNEL_BUILDER | 2026-07-26 06:35 | Master Spec enrichment: account-bound resource privacy pillar, LocalAccount/Principal/AccessSpace/ResourceGrant/Persona separation, and future shared-workspace/SaaS/MCP continuity for WP-KERNEL-006/007/008 | v02.202 | Consumed once for the copy-first v02.201 -> v02.202 spec enrichment. It does not activate or sign any WP stub or microtask. |
 | ilja080720262117 | KERNEL_BUILDER | 2026-07-08 21:17 | Master Spec enrichment: v02.198 Section 13 two-submodule Tailor (Cloth 13.1-13.15 second-pass MD-parity reconciliation + BodyKit 13.16-13.27, anchors TAI-BK-001..240) for WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1 | v02.198 | Approved after deep MD-parity verification + BodyKit fold-in (research .GOV/reference/tailor_bodykit_research/; gap matrix + MT blueprint 06-gap-matrix-and-mt-plan.md). Signs the copy-first v02.197 -> v02.198 bundle bump. |

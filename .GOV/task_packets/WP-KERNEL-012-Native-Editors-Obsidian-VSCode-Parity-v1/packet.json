@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-06T19:47:55.958Z",
+  "updated_at_utc": "2026-09-12T12:46:11Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -29,6 +29,21 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY",
     "note": "JSON contract is authority. No markdown projection generated."
   },
+  "waivers_granted": [
+    {
+      "waiver_id": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "status": "ACTIVE",
+      "covers": [
+        "GOVERNANCE",
+        "PROOF"
+      ],
+      "scope": "kb-ready-checklist receipt persistence for MT-141, MT-142, MT-148, MT-150, MT-151, MT-152 (validate_at_commit pins per MT)",
+      "justification": "kb-ready-checklist receipt persistence waived; typed dispositions + verbatim proof lines stand in (cited by MT-141, MT-142, MT-148, MT-150, MT-151, MT-152 handoffs as kb_ready_checklist_receipt.waiver)",
+      "approver": "Operator",
+      "expires": "WP closeout",
+      "signature": "ilja120820261440"
+    }
+  ],
   "workflow": {
     "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
     "authority": "KERNEL_BUILDER",

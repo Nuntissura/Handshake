@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   computedPolicyOutcomeAllowsClosure,
   evaluateComputedPolicyGateFromPacketText,
+  buildPolicyWaiverLedgerFromEntries,
   parsePolicyWaiverLedger,
+  parsePolicyWaiverLedgerFromPacket,
   parseRegisteredSignatures,
 } from "../scripts/lib/computed-policy-gate-lib.mjs";
 
@@ -448,4 +450,53 @@ test("computed policy gate allows honest OUTDATED_ONLY terminal closure without 
   assert.ok(evaluation.issues.fail.some((item) => item.code === "LEGAL_VERDICT_FAIL"));
   assert.ok(evaluation.issues.reviewRequired.some((item) => item.code === "DISPOSITION_OUTDATED_ONLY"));
   assert.equal(computedPolicyOutcomeAllowsClosure(evaluation), true);
+});
+
+test("JSON packet waivers_granted builds a signed ACTIVE ledger and an UNSIGNED entry [VPX-006]", () => {
+  const packetJson = JSON.stringify({
+    schema_id: "hsk.work_packet_contract@1",
+    wp_id: "WP-TEST-JSON-v1",
+    waivers_granted: [
+      {
+        waiver_id: "WP-TEST-JSON-WAIVER-1",
+        status: "ACTIVE",
+        covers: ["GOVERNANCE", "PROOF"],
+        scope: "kb-ready receipt persistence",
+        justification: "typed dispositions stand in",
+        approver: "Operator",
+        expires: "WP closeout",
+        signature: SIGNED_WAIVER_SIGNATURE,
+      },
+      {
+        waiver_id: "WP-TEST-JSON-WAIVER-2",
+        status: "ACTIVE",
+        covers: ["TEST"],
+        approver: "Operator",
+      },
+    ],
+  }, null, 2);
+
+  const ledger = parsePolicyWaiverLedger(packetJson, { registeredSignatures: REGISTERED_SIGNATURES });
+  assert.equal(ledger.entries.length, 2);
+  assert.equal(ledger.entries[0].waiverId, "WP-TEST-JSON-WAIVER-1");
+  assert.equal(ledger.entries[0].status, "ACTIVE");
+  assert.equal(ledger.entries[0].signatureValid, true);
+  assert.deepEqual(ledger.entries[0].coverage, ["GOVERNANCE", "PROOF"]);
+  assert.equal(ledger.entries[0].scope, "kb-ready receipt persistence");
+  assert.equal(ledger.entries[1].status, "UNSIGNED");
+  assert.equal(ledger.entries[1].signatureValid, false);
+  assert.deepEqual(ledger.activeEntries.map((entry) => entry.waiverId), ["WP-TEST-JSON-WAIVER-1"]);
+  assert.deepEqual(ledger.activeCoverageTokens, ["GOVERNANCE", "PROOF"]);
+
+  const viaContract = parsePolicyWaiverLedgerFromPacket({ contract: JSON.parse(packetJson) }, { registeredSignatures: REGISTERED_SIGNATURES });
+  assert.deepEqual(viaContract.activeCoverageTokens, ["GOVERNANCE", "PROOF"]);
+  const viaEntries = buildPolicyWaiverLedgerFromEntries(JSON.parse(packetJson).waivers_granted, { registeredSignatures: REGISTERED_SIGNATURES });
+  assert.equal(viaEntries.entries[1].status, "UNSIGNED");
+});
+
+test("JSON packet without waivers_granted and markdown packets keep the markdown path", () => {
+  const noWaivers = parsePolicyWaiverLedger(JSON.stringify({ wp_id: "WP-TEST-JSON-v1" }), { registeredSignatures: REGISTERED_SIGNATURES });
+  assert.deepEqual(noWaivers.entries, []);
+  const markdown = parsePolicyWaiverLedger(`## WAIVERS GRANTED\n${SIGNED_WAIVER_LINE}\n`, { registeredSignatures: REGISTERED_SIGNATURES });
+  assert.equal(markdown.entries[0].status, "ACTIVE");
 });

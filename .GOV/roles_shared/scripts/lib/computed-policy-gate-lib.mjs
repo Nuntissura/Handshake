@@ -307,8 +307,87 @@ function resolveWaiverSignature(record, registeredSignatures) {
   return { signature, signatureValid };
 }
 
-export function parsePolicyWaiverLedger(packetText, { registeredSignatures = null } = {}) {
+function finalizeWaiverEntry(record, { signatures, rawBody, body }) {
+  const waiverId = record.WAIVER_ID || record.ID || "";
+  const status = String(record.STATUS || "ACTIVE").trim().toUpperCase();
+  const coverage = normalizeCoverageTokens(record.COVERS || "").length > 0
+    ? normalizeCoverageTokens(record.COVERS)
+    : inferCoverageTokens(body);
+  const { signature, signatureValid } = resolveWaiverSignature(record, signatures);
+  const normalizedStatus = POLICY_WAIVER_STATUS_VALUES.includes(status) ? status : "ACTIVE";
+  // [VPX-006] an unsigned waiver is not a waiver: it never reaches ACTIVE.
+  const effectiveStatus = normalizedStatus === "ACTIVE" && !signatureValid ? "UNSIGNED" : normalizedStatus;
+  return {
+    waiverId: waiverId || body,
+    status: effectiveStatus,
+    coverage,
+    scope: record.SCOPE || "",
+    justification: record.JUSTIFICATION || body,
+    approver: record.APPROVER || "",
+    expires: record.EXPIRES || "",
+    signature,
+    signatureValid,
+    raw: rawBody,
+  };
+}
+
+function finalizeWaiverLedger(raw, entries) {
+  const activeEntries = entries.filter((entry) => entry.status === "ACTIVE");
+  const activeCoverageTokens = uniqueOrdered(activeEntries.flatMap((entry) => entry.coverage));
+  return { raw, entries, activeEntries, activeCoverageTokens };
+}
+
+// Typed JSON path: packet.json top-level `waivers_granted[]` objects
+// {waiver_id, status, covers[], scope, justification, approver, expires, signature, raw?}.
+export function buildPolicyWaiverLedgerFromEntries(waiversGranted, { registeredSignatures = null } = {}) {
   const signatures = registeredSignatures instanceof Set ? registeredSignatures : loadRegisteredSignatures();
+  const source = Array.isArray(waiversGranted) ? waiversGranted : [];
+  const entries = [];
+  for (const item of source) {
+    if (!item || typeof item !== "object") continue;
+    const covers = Array.isArray(item.covers) ? item.covers.join(",") : String(item.covers || "");
+    const record = {
+      WAIVER_ID: String(item.waiver_id || item.waiverId || item.id || "").trim(),
+      STATUS: String(item.status || "ACTIVE").trim(),
+      COVERS: covers,
+      SCOPE: String(item.scope || "").trim(),
+      JUSTIFICATION: String(item.justification || "").trim(),
+      APPROVER: String(item.approver || "").trim(),
+      EXPIRES: String(item.expires || "").trim(),
+      SIGNATURE: String(item.signature || item.user_signature || "").trim(),
+    };
+    const body = [record.WAIVER_ID, record.SCOPE, record.JUSTIFICATION].filter(Boolean).join(" | ");
+    const rawBody = typeof item.raw === "string" && item.raw.trim() ? item.raw.trim() : JSON.stringify(item);
+    entries.push(finalizeWaiverEntry(record, { signatures, rawBody, body }));
+  }
+  return finalizeWaiverLedger(JSON.stringify(source), entries);
+}
+
+function tryParsePacketJson(packetText) {
+  const text = String(packetText || "").replace(/^\uFEFF/, "").trim();
+  if (!text.startsWith("{")) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function parsePolicyWaiverLedgerFromPacket({ packetText = "", contract = null } = {}, options = {}) {
+  const source = contract && typeof contract === "object" ? contract : tryParsePacketJson(packetText);
+  if (source && Array.isArray(source.waivers_granted)) {
+    return buildPolicyWaiverLedgerFromEntries(source.waivers_granted, options);
+  }
+  return parsePolicyWaiverLedger(packetText, { ...options, contract: null });
+}
+
+export function parsePolicyWaiverLedger(packetText, { registeredSignatures = null, contract = null } = {}) {
+  const signatures = registeredSignatures instanceof Set ? registeredSignatures : loadRegisteredSignatures();
+  const jsonSource = contract && typeof contract === "object" ? contract : tryParsePacketJson(packetText);
+  if (jsonSource && Array.isArray(jsonSource.waivers_granted)) {
+    return buildPolicyWaiverLedgerFromEntries(jsonSource.waivers_granted, { registeredSignatures: signatures });
+  }
   const section = extractSectionAfterHeading(packetText, "WAIVERS GRANTED");
   const lines = String(section || "")
     .split(/\r?\n/)
@@ -320,38 +399,10 @@ export function parsePolicyWaiverLedger(packetText, { registeredSignatures = nul
     const body = line.replace(/^\-\s+/, "").trim();
     if (!body || /^NONE$/i.test(body) || /^\(/.test(body)) continue;
     const record = parsePipeRecord(body);
-    const waiverId = record.WAIVER_ID || record.ID || "";
-    const status = String(record.STATUS || "ACTIVE").trim().toUpperCase();
-    const coverage = normalizeCoverageTokens(record.COVERS || "").length > 0
-      ? normalizeCoverageTokens(record.COVERS)
-      : inferCoverageTokens(body);
-    const { signature, signatureValid } = resolveWaiverSignature(record, signatures);
-    const normalizedStatus = POLICY_WAIVER_STATUS_VALUES.includes(status) ? status : "ACTIVE";
-    // [VPX-006] an unsigned waiver is not a waiver: it never reaches ACTIVE.
-    const effectiveStatus = normalizedStatus === "ACTIVE" && !signatureValid ? "UNSIGNED" : normalizedStatus;
-    entries.push({
-      waiverId: waiverId || body,
-      status: effectiveStatus,
-      coverage,
-      scope: record.SCOPE || "",
-      justification: record.JUSTIFICATION || body,
-      approver: record.APPROVER || "",
-      expires: record.EXPIRES || "",
-      signature,
-      signatureValid,
-      raw: body,
-    });
+    entries.push(finalizeWaiverEntry(record, { signatures, rawBody: body, body }));
   }
 
-  const activeEntries = entries.filter((entry) => entry.status === "ACTIVE");
-  const activeCoverageTokens = uniqueOrdered(activeEntries.flatMap((entry) => entry.coverage));
-
-  return {
-    raw: section,
-    entries,
-    activeEntries,
-    activeCoverageTokens,
-  };
+  return finalizeWaiverLedger(section, entries);
 }
 
 function parseValidationReport(packetText) {
