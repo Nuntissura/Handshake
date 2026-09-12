@@ -108,6 +108,15 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 
 **Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. Root-level repo control files are separate from that kernel flow: `AGENTS.md` and the root `justfile` are authored only in `handshake_main` on local `main`, never from a role worktree or WP worktree. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
+## Validator-Executed Proof [VPX] (HARD)
+
+- [VPX-001] A PASS at any level (per-MT `MT_VERDICT` PASS, `READY_FOR_VALIDATION -> COMPLETED`, whole-WP PASS, merge readiness) is legal only when every required proof command for that level was executed by the validator's own governed session, at the packet/MT `validate_at_commit` commit (or the reviewed range head), on a clean tree (`git status` clean for the product paths in scope; a dirty tree is recorded in the proof record and blocks PASS), in a validator-owned artifact target below `${HANDSHAKE_ARTIFACTS_ROOT}/WP-{ID}/<validator-owner>/` - never the implementer's target directory, a shared warm target, or a junction to either.
+- [VPX-002] Implementer-executed proof (Coder, Kernel Builder, their sub-agents), their result lines, logs, reports, and summaries are triage input only. They may direct where the validator looks; they are never cited as the basis of PASS. Reading them is not verification.
+- [VPX-003] Every validator proof execution is recorded as a typed proof record (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict receipt cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
+- [VPX-004] Reuse: the validator may reuse its OWN proof record for a later verdict only when commit, clean-tree state, command, features, and environment knobs are identical. Cross-role reuse (validator citing implementer records, or vice versa) is forbidden. For validator verdicts this supersedes the reuse clause of [WPV-ART-003] / [IV-ART-003] and [CX-503I1]; those IDs stay in place.
+- [VPX-005] Cost is managed by validator-owned build caching across MTs at the same commit and by focused-then-broad sequencing, never by skipping execution. The validator executes the focused proof for each MT itself; the validator executes the broad suite at each declared batch/final boundary. `FULL_CARGO_SUITE=DEFERRED_TO_SESSION_MT_BATCH` remains a valid intermediate state only for the BROAD suite and only until that boundary.
+- [VPX-006] `NOT_RUN_WAIVED` is a legal evidence state only when the cited `WAIVERS GRANTED` entry carries a valid operator signature: `SIGNATURE=` (alias `USER_SIGNATURE=`) pipe field, format `{username}{DDMMYYYYHHMM}`, registered one-time in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (ledger entry `status=ACTIVE`, `signatureValid=true` per `parsePolicyWaiverLedger`). The verdict must cite the waiver id AND the signature. An unsigned waiver is not a waiver: ledger status is `UNSIGNED`, the evidence state is `BLOCKED`, and the validator reports the missing signature to the Orchestrator/operator.
+
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
 Validator output (review verdicts, concerns, gate decisions, closeout judgments) lands in typed receipt and report-template fields, not in narrative paragraphs the Orchestrator or Coder must parse. Routing-decisive content (verdict, blocking-or-not, next-actor) MUST live in schema fields. Narrative prose in report templates exists for operator readability and is NOT the wire between roles. Operator-facing artifacts (validator reports, dossier sections) are projections of typed receipt/notification truth. See Codex `[CX-130]` for the full rule.
@@ -642,7 +651,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - When micro tasks exist in the resolved Work Packet folder (current physical `.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works â€” do not wait for all MTs to be done.
 - On orchestrator-managed lanes, treat governed coder `CODER_INTENT` / overlap `REVIEW_REQUEST` receipts without a declared-MT `microtask_contract` as invalid workflow, not merely weak evidence; the contract must resolve to one declared MT and keep `file_targets` inside that MT's `CODE_SURFACES`.
 - For each MT where `CODER STATUS: DONE`:
-  - Read the MT file and verify the evidence (file:line proof, tests run)
+  - Read the MT file as triage input ([VPX-002]); verify file:line claims against the diff and execute the MT's required proof commands yourself, recording proof records ([VPX-001], [VPX-003])
   - Check the implementation against the clause and the master spec
   - Set `VALIDATOR STATUS: CONFIRMED` if the evidence is sufficient
   - Set `VALIDATOR STATUS: NEEDS_REVISION` with `DIRECTION` guidance if the evidence is insufficient or the implementation misses the clause
@@ -803,13 +812,14 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - When waivers are needed: justified unwrap/Value exceptions, unavoidable platform-specific code, deferred non-critical hygiene. SurrealDB-exclusive authority and the PostgreSQL/SQLite prohibition under CX-DBP-VAL-014 are not waivable by a portability or dual-backend rationale.
 - Approval: MEDIUM/HIGH risk requires explicit user approval; LOW risk can be Coder + Validator with user visibility.
 - Recording (in work packet under "WAIVERS GRANTED"): waiver ID/date, check waived, scope (per WP), justification, approver, expiry (e.g., Phase 1 completion or specific WP).
+- [CX-573F-SIG] Signature: every `WAIVERS GRANTED` entry MUST carry `SIGNATURE=` (alias `USER_SIGNATURE=`), a one-time operator signature `{username}{DDMMYYYYHHMM}` registered in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`. `parsePolicyWaiverLedger` marks an entry without a valid registered signature `UNSIGNED`; it never counts as ACTIVE and `NOT_RUN_WAIVED` is illegal on it ([VPX-006]).
 - Waivers NOT allowed: spec regression, evidence mapping gaps, hard invariant violations, security gate violations, traceability removal, RCE guard removal.
 - Absent waiver for a required check = FAIL. Expired waivers at phase boundary must be revalidated or removed.
 
 ## Escalation Protocol (Blocking paths)
 - Incomplete work packet/spec regression: FAIL immediately; send to Orchestrator to fix packet/spec before validation continues.
 - Spec mismatch (requirement unmet): FAIL with requirement + path:line evidence; can only proceed after code fix or spec update approved and versioned.
-- Test flake/unreproducible failure: request full output; attempt re-run. If still inconsistent, FAIL and return to Coder to stabilize.
+- Test flake/unreproducible failure: request full output as triage input; re-run in the validator's own governed session and target ([VPX-001]) and record each run as a proof record. If still inconsistent, FAIL and return to Coder to stabilize.
 - Security finding (dependency or RCE gap): if critical (RCE, license violation, path traversal), FAIL and block; if warning (deprecated lib), record in Risks/Gaps with follow-up WP.
 
 ## Standard Command Set (run when applicable)

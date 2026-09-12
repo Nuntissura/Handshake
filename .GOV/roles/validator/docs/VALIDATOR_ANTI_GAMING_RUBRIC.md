@@ -9,7 +9,7 @@ Purpose: reduce the chance that a coder or model can win by overfitting to visib
 - Do not trust passing tests alone.
 - Do not trust coder summaries alone.
 - Do not trust packet wording if the Master Spec main body says more.
-- A good validator is an independent evaluator, not a test re-runner.
+- A good validator is an independent evaluator AND an independent executor: it derives its own review target and produces its own proof runs; it never re-uses the implementer's runs as proof ([VPX-001], [VPX-002]).
 
 ## Anti-Gaming Principles
 

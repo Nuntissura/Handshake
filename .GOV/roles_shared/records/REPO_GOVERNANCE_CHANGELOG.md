@@ -21,6 +21,17 @@
 
 ## Entries
 
+### 2026.09.12.01 / GOV-CHANGE-20260912-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Tasks: `RGF-328`
+- Summary: Made validators independent proof executors (`[VPX-001..006]`) and made policy waivers require a registered operator signature.
+- Contract impact: PASS at any level (per-MT `MT_VERDICT`, `READY_FOR_VALIDATION -> COMPLETED`, whole-WP, merge readiness) is legal only on validator-executed proof records (`PROOF_RECORD.schema.json`) at `validate_at_commit` on a clean tree in a validator-owned artifact target; implementer proof is triage input only; cross-role proof reuse is forbidden (supersedes the reuse clause of `[WPV-ART-003]`/`[IV-ART-003]`/`[CX-503I1]` for verdicts); the WP Validator executes focused proof per MT and the broad suite at each batch/final boundary (`[WPV-CAD-001..005]`); `parsePolicyWaiverLedger` reads `SIGNATURE=`/`USER_SIGNATURE=` and marks entries without a well-formed signature registered in `SIGNATURE_AUDIT.md` as `UNSIGNED` so they never contribute to `activeEntries`/`activeCoverageTokens`; `NOT_RUN_WAIVED` on an unsigned waiver is `BLOCKED`.
+- Driver evidence: Operator reviewer finding 2026-09-12 that validator protocols made the validator an independent judge but not an independent producer of evidence, and that waivers carried no operator signature.
+- Files changed: `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, `.GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md`, `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`, `.GOV/roles_shared/schemas/POLICY_WAIVER_LEDGER.schema.json`, `.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`, `.GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`, `.GOV/roles_shared/tests/baseline-waiver-ledger-lib.test.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: see RGF-328 board row; `node --test .GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs .GOV/roles_shared/tests/baseline-waiver-ledger-lib.test.mjs` green; `just gov-check` outcome recorded in the commit message.
+
 ### 2026.09.08.01 / GOV-CHANGE-20260908-01
 
 - STATUS: APPLIED; final integration pending under `RGF-327`.

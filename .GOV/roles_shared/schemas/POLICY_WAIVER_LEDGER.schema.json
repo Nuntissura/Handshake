@@ -17,7 +17,8 @@
           "waiverId": { "type": "string" },
           "status": {
             "type": "string",
-            "enum": ["ACTIVE", "EXPIRED", "REVOKED", "CLOSED"]
+            "enum": ["ACTIVE", "EXPIRED", "REVOKED", "CLOSED", "UNSIGNED"],
+            "description": "UNSIGNED: entry declared ACTIVE but SIGNATURE is missing, malformed, or not registered in roles_shared/records/SIGNATURE_AUDIT.md [VPX-006]; never counts toward activeEntries/activeCoverageTokens."
           },
           "coverage": {
             "type": "array",
@@ -41,6 +42,14 @@
           "justification": { "type": "string" },
           "approver": { "type": "string" },
           "expires": { "type": "string" },
+          "signature": {
+            "type": "string",
+            "description": "Operator one-time signature from the SIGNATURE= (alias USER_SIGNATURE=) pipe field; format {username}{DDMMYYYYHHMM}; empty when absent."
+          },
+          "signatureValid": {
+            "type": "boolean",
+            "description": "true only when signature matches ^[a-z][a-z0-9_.-]*\\d{12}$ AND is registered in SIGNATURE_AUDIT.md."
+          },
           "raw": { "type": "string" }
         },
         "additionalProperties": false

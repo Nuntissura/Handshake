@@ -3,7 +3,13 @@ import test from "node:test";
 import {
   computedPolicyOutcomeAllowsClosure,
   evaluateComputedPolicyGateFromPacketText,
+  parsePolicyWaiverLedger,
+  parseRegisteredSignatures,
 } from "../scripts/lib/computed-policy-gate-lib.mjs";
+
+const SIGNED_WAIVER_SIGNATURE = "ilja010120260101";
+const REGISTERED_SIGNATURES = new Set([SIGNED_WAIVER_SIGNATURE]);
+const SIGNED_WAIVER_LINE = `- WAIVER_ID: CX-TEST-1 | STATUS: ACTIVE | COVERS: PROTECTED_SURFACE | SCOPE: WP-TEST-POLICY-v1 | JUSTIFICATION: temporary probe deferral | APPROVER: USER | EXPIRES: after hardening | SIGNATURE: ${SIGNED_WAIVER_SIGNATURE}`;
 
 function packetFixture({
   packetFormatVersion = "2026-03-23",
@@ -167,18 +173,83 @@ test("computed policy gate returns REVIEW_REQUIRED for honest not-proven closure
   assert.ok(evaluation.issues.reviewRequired.some((item) => item.code === "PROOF_COMPLETENESS_NOT_PROVEN"));
 });
 
-test("computed policy gate returns WAIVED when the only remaining issue is waiver-covered", () => {
+test("computed policy gate returns WAIVED when the only remaining issue is covered by a signed waiver", () => {
+  const evaluation = evaluateComputedPolicyGateFromPacketText(packetFixture({
+    sharedSurfaceRisk: "YES",
+    waiverBlock: SIGNED_WAIVER_LINE,
+  }), {
+    wpId: "WP-TEST-POLICY-v1",
+    requireClosedStatus: true,
+    registeredSignatures: REGISTERED_SIGNATURES,
+  });
+
+  assert.equal(evaluation.outcome, "WAIVED");
+  assert.equal(computedPolicyOutcomeAllowsClosure(evaluation), true);
+  assert.ok(evaluation.issues.waived.some((item) => item.code === "PROTECTED_SURFACE_PARTIAL"));
+  const entry = evaluation.artifacts.waiverLedger.entries[0];
+  assert.equal(entry.status, "ACTIVE");
+  assert.equal(entry.signature, SIGNED_WAIVER_SIGNATURE);
+  assert.equal(entry.signatureValid, true);
+});
+
+test("computed policy gate does not waive through an unsigned waiver [VPX-006]", () => {
   const evaluation = evaluateComputedPolicyGateFromPacketText(packetFixture({
     sharedSurfaceRisk: "YES",
     waiverBlock: "- WAIVER_ID: CX-TEST-1 | STATUS: ACTIVE | COVERS: PROTECTED_SURFACE | SCOPE: WP-TEST-POLICY-v1 | JUSTIFICATION: temporary probe deferral | APPROVER: USER | EXPIRES: after hardening",
   }), {
     wpId: "WP-TEST-POLICY-v1",
     requireClosedStatus: true,
+    registeredSignatures: REGISTERED_SIGNATURES,
   });
 
-  assert.equal(evaluation.outcome, "WAIVED");
-  assert.equal(computedPolicyOutcomeAllowsClosure(evaluation), true);
-  assert.ok(evaluation.issues.waived.some((item) => item.code === "PROTECTED_SURFACE_PARTIAL"));
+  assert.notEqual(evaluation.outcome, "WAIVED");
+  assert.equal(computedPolicyOutcomeAllowsClosure(evaluation), false);
+  assert.equal(evaluation.issues.waived.length, 0);
+  const entry = evaluation.artifacts.waiverLedger.entries[0];
+  assert.equal(entry.status, "UNSIGNED");
+  assert.equal(entry.signature, "");
+  assert.equal(entry.signatureValid, false);
+  assert.equal(evaluation.artifacts.waiverLedger.activeEntries.length, 0);
+  assert.deepEqual(evaluation.artifacts.waiverLedger.activeCoverageTokens, []);
+});
+
+test("parsePolicyWaiverLedger marks signed ACTIVE, unsigned, malformed, and unregistered signatures [VPX-006]", () => {
+  const packetText = [
+    "## WAIVERS GRANTED",
+    SIGNED_WAIVER_LINE,
+    "- WAIVER_ID: CX-TEST-2 | STATUS: ACTIVE | COVERS: TEST | APPROVER: USER",
+    "- WAIVER_ID: CX-TEST-3 | STATUS: ACTIVE | COVERS: ENVIRONMENT | APPROVER: USER | SIGNATURE: Ilja-2026",
+    "- WAIVER_ID: CX-TEST-4 | STATUS: ACTIVE | COVERS: GOVERNANCE | APPROVER: USER | USER_SIGNATURE: ilja020220260202",
+    "- WAIVER_ID: CX-TEST-5 | STATUS: CLOSED | COVERS: SCOPE | APPROVER: USER",
+    "",
+    "## NEXT",
+  ].join("\n");
+  const ledger = parsePolicyWaiverLedger(packetText, { registeredSignatures: REGISTERED_SIGNATURES });
+  const byId = Object.fromEntries(ledger.entries.map((entry) => [entry.waiverId, entry]));
+
+  assert.equal(byId["CX-TEST-1"].status, "ACTIVE");
+  assert.equal(byId["CX-TEST-1"].signatureValid, true);
+  assert.equal(byId["CX-TEST-2"].status, "UNSIGNED");
+  assert.equal(byId["CX-TEST-3"].status, "UNSIGNED");
+  assert.equal(byId["CX-TEST-3"].signature, "Ilja-2026");
+  assert.equal(byId["CX-TEST-3"].signatureValid, false);
+  assert.equal(byId["CX-TEST-4"].status, "UNSIGNED");
+  assert.equal(byId["CX-TEST-4"].signature, "ilja020220260202");
+  assert.equal(byId["CX-TEST-4"].signatureValid, false);
+  assert.equal(byId["CX-TEST-5"].status, "CLOSED");
+  assert.deepEqual(ledger.activeEntries.map((entry) => entry.waiverId), ["CX-TEST-1"]);
+  assert.deepEqual(ledger.activeCoverageTokens, ["PROTECTED_SURFACE"]);
+});
+
+test("parseRegisteredSignatures reads only well-formed signatures from SIGNATURE_AUDIT table rows", () => {
+  const registered = parseRegisteredSignatures([
+    "| Signature | Used By | Date/Time | Purpose |",
+    "|-----------|---------|-----------|---------|",
+    "| ilja010120260101 | Orchestrator | 2026-01-01 01:01 | test |",
+    "| not-a-signature | Orchestrator | 2026-01-01 01:01 | test |",
+    "plain text ilja020220260202",
+  ].join("\n"));
+  assert.deepEqual([...registered], ["ilja010120260101"]);
 });
 
 test("computed policy gate turns narrative PASS over proof gaps into FAIL", () => {

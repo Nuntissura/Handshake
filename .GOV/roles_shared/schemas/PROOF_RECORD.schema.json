@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/schemas/proof-record.schema.json",
+  "title": "Proof Record",
+  "description": "One executed proof command, recorded by the role that executed it [VPX-003]. Stored in MT JSON validation.proof_records[] for per-MT proof and in the packet VALIDATION_REPORTS typed block for WP-level proof. Validator verdicts may cite only proof records whose executor_role is the validator's own role [VPX-001][VPX-004]; implementer records are triage input only [VPX-002].",
+  "type": "object",
+  "required": [
+    "proof_id",
+    "command",
+    "cwd",
+    "commit",
+    "tree_clean",
+    "dirty_file_count",
+    "executor_role",
+    "executor_session",
+    "target_dir",
+    "started_utc",
+    "finished_utc",
+    "exit_code",
+    "result_line",
+    "log_path"
+  ],
+  "properties": {
+    "proof_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable id cited by verdict receipts, e.g. PR-WP-1-Example-v1-MT-003-001."
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Exact command line executed."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Working directory, repo-relative (\".\" for repo root). Never absolute."
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "description": "Commit the proof ran at; must equal the MT/packet validate_at_commit or reviewed range head for verdict use."
+    },
+    "tree_clean": {
+      "type": "boolean",
+      "description": "git status clean for the product paths in scope at execution time. false blocks PASS [VPX-001]."
+    },
+    "dirty_file_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "executor_role": {
+      "type": "string",
+      "enum": ["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR", "CODER", "KERNEL_BUILDER", "ORCHESTRATOR"],
+      "description": "Role whose governed session executed the command."
+    },
+    "executor_session": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Governed session id of the executor."
+    },
+    "target_dir": {
+      "type": "string",
+      "description": "Artifact target, relative to HANDSHAKE_ARTIFACTS_ROOT, e.g. WP-1-Example-v1/MT-003/wp-validator/target. Validator records must sit below WP-{ID}/<validator-owner>/ [VPX-001]."
+    },
+    "started_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "exit_code": {
+      "type": "integer"
+    },
+    "result_line": {
+      "type": "string",
+      "description": "Final result line as emitted by the tool (e.g. `test result: ok. 12 passed; 0 failed`)."
+    },
+    "log_path": {
+      "type": "string",
+      "description": "Log file, relative to HANDSHAKE_ARTIFACTS_ROOT."
+    },
+    "features": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Cargo/build features in effect."
+    },
+    "env_knobs": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Environment variables that affect the proof (e.g. CARGO_TARGET_DIR, RUST_LOG, HANDSHAKE_* knobs)."
+    },
+    "covers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "MT ids (MT-NNN) or packet acceptance-row ids this execution proves."
+    }
+  },
+  "additionalProperties": false
+}

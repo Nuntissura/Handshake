@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { GOV_ROOT_ABS } from "./runtime-paths.mjs";
 import {
   COMPLETION_LAYER_VERDICTS_MIN_VERSION,
   packetRequiresCompletionLayerVerdicts,
@@ -15,7 +18,10 @@ import {
 
 export const COMPUTED_POLICY_OUTCOMES = ["PASS", "FAIL", "REVIEW_REQUIRED", "WAIVED", "BLOCKED"];
 export const MT_RECEIPT_DUAL_TRACK_MIN_VERSION = "2026-04-27";
-export const POLICY_WAIVER_STATUS_VALUES = ["ACTIVE", "EXPIRED", "REVOKED", "CLOSED"];
+export const POLICY_WAIVER_STATUS_VALUES = ["ACTIVE", "EXPIRED", "REVOKED", "CLOSED", "UNSIGNED"];
+// [VPX-006] operator one-time signature: username + DDMMYYYYHHMM, registered in SIGNATURE_AUDIT.md.
+export const POLICY_WAIVER_SIGNATURE_RE = /^[a-z][a-z0-9_.-]*\d{12}$/;
+export const SIGNATURE_AUDIT_GOV_REL_PATH = "roles_shared/records/SIGNATURE_AUDIT.md";
 export const POLICY_WAIVER_COVERAGE_VALUES = [
   "SCOPE",
   "PROOF",
@@ -262,7 +268,47 @@ function inferCoverageTokens(rawLine) {
   return uniqueOrdered(coverage);
 }
 
-export function parsePolicyWaiverLedger(packetText) {
+export function parseRegisteredSignatures(signatureAuditText) {
+  const registered = new Set();
+  for (const rawLine of String(signatureAuditText || "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line.startsWith("|")) continue;
+    const cols = line.split("|").slice(1, -1).map((col) => col.trim());
+    const signature = cols[0] || "";
+    if (POLICY_WAIVER_SIGNATURE_RE.test(signature)) registered.add(signature);
+  }
+  return registered;
+}
+
+let cachedRegisteredSignatures = null;
+
+export function loadRegisteredSignatures(govRoot = GOV_ROOT_ABS) {
+  const auditPath = path.resolve(govRoot, SIGNATURE_AUDIT_GOV_REL_PATH);
+  if (govRoot === GOV_ROOT_ABS && cachedRegisteredSignatures) return cachedRegisteredSignatures;
+  let text = "";
+  try {
+    text = fs.readFileSync(auditPath, "utf8");
+  } catch {
+    text = "";
+  }
+  const registered = parseRegisteredSignatures(text);
+  if (govRoot === GOV_ROOT_ABS) cachedRegisteredSignatures = registered;
+  return registered;
+}
+
+function resolveWaiverSignature(record, registeredSignatures) {
+  const signature = String(record.SIGNATURE || record.USER_SIGNATURE || "").trim();
+  const signatureValid = Boolean(
+    signature
+    && POLICY_WAIVER_SIGNATURE_RE.test(signature)
+    && registeredSignatures instanceof Set
+    && registeredSignatures.has(signature),
+  );
+  return { signature, signatureValid };
+}
+
+export function parsePolicyWaiverLedger(packetText, { registeredSignatures = null } = {}) {
+  const signatures = registeredSignatures instanceof Set ? registeredSignatures : loadRegisteredSignatures();
   const section = extractSectionAfterHeading(packetText, "WAIVERS GRANTED");
   const lines = String(section || "")
     .split(/\r?\n/)
@@ -279,14 +325,20 @@ export function parsePolicyWaiverLedger(packetText) {
     const coverage = normalizeCoverageTokens(record.COVERS || "").length > 0
       ? normalizeCoverageTokens(record.COVERS)
       : inferCoverageTokens(body);
+    const { signature, signatureValid } = resolveWaiverSignature(record, signatures);
+    const normalizedStatus = POLICY_WAIVER_STATUS_VALUES.includes(status) ? status : "ACTIVE";
+    // [VPX-006] an unsigned waiver is not a waiver: it never reaches ACTIVE.
+    const effectiveStatus = normalizedStatus === "ACTIVE" && !signatureValid ? "UNSIGNED" : normalizedStatus;
     entries.push({
       waiverId: waiverId || body,
-      status: POLICY_WAIVER_STATUS_VALUES.includes(status) ? status : "ACTIVE",
+      status: effectiveStatus,
       coverage,
       scope: record.SCOPE || "",
       justification: record.JUSTIFICATION || body,
       approver: record.APPROVER || "",
       expires: record.EXPIRES || "",
+      signature,
+      signatureValid,
       raw: body,
     });
   }
@@ -442,6 +494,7 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
   requireClosedStatus = true,
   receipts = [],
   declaredMicrotasks = null,
+  registeredSignatures = null,
 } = {}) {
   const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
   const packetRiskTier = parseSingleField(packetText, "RISK_TIER").toUpperCase();
@@ -451,7 +504,7 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
   const currentMainCompatibilityStatus = parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS").toUpperCase();
   const status = parseStatus(packetText);
   const report = parseValidationReport(packetText);
-  const waiverLedger = parsePolicyWaiverLedger(packetText);
+  const waiverLedger = parsePolicyWaiverLedger(packetText, { registeredSignatures });
   const usesStructuredReport = packetUsesStructuredValidationReport(packetFormatVersion);
   const requiresCompletionLayer = packetRequiresCompletionLayerVerdicts(packetFormatVersion);
   const requiresRiskAudit = validatorReportProfileRequiresRiskAudit(validatorReportProfile);

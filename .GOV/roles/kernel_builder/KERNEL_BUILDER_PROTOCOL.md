@@ -640,6 +640,8 @@ Runtime-proof anti-scaffold interpretation: `READY_FOR_VALIDATION` is illegal fo
 
 **Sub-rule 3 — Implementer cannot self-certify.** Structural rule, not a self-check. `lifecycle.claimed_by` must not equal `lifecycle.completed_by`. The implementer transitions `CLAIMED -> READY_FOR_VALIDATION` and emits the validator handoff per the packet's `workflow.validation_topology`. The validator role transitions `READY_FOR_VALIDATION -> COMPLETED`.
 
+- [KB-PROOF-001] Implementer proof runs remain mandatory before `READY_FOR_VALIDATION` and MUST be recorded as typed proof records (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`, MT JSON `validation.proof_records[]`) with `executor_role=KERNEL_BUILDER` (or the sub-agent's declaring role) set. These records are triage input for the validator, never PASS evidence; the validator executes its own proof runs ([VPX-002]).
+
 The failure loop this gate breaks: implementer authors impl -> implementer authors mock -> implementer authors test asserting impl returns what mock returns -> test passes tautologically -> implementer marks `COMPLETED`. Sub-rule 1 catches the explicit placeholder return. Sub-rule 2 catches the trait-abstraction-with-no-real-impl pattern. Sub-rule 3 breaks the self-authoring loop structurally.
 
 One-line operator-quotable test: *"an MT is not done when the implementer's tests pass; it is done when a separate actor confirms the diff exercises the spec at runtime against resources the implementer didn't author."*
