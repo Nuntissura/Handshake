@@ -19,12 +19,23 @@
 //! Single-store/EventLedger authority only — NO SQLite.
 //!
 //! Embedded SurrealDB is the only persistence authority for this module.
+//!
+//! Concurrency (MT-152 I-152-4): no process-global mutex. Every invariant is
+//! guarded database-side - `pk_*` / `idx_fems_memory_proposals_ws_request`
+//! UNIQUE indexes, the in-transaction `HSK-FEMS-REVIEW-STATE` /
+//! `HSK-FEMS-COMMIT-STATE` compare-and-sets, the create-if-absent shapes, the
+//! outbox `attempt_count` compare-and-set, and the per-workspace
+//! `fems_workspace_write_anchors` key that every row-creating FEMS transaction
+//! and the workspace delete both write (MT-146 D-146-1). Same-key writers are
+//! shaped by the caller's optional per-[`SurrealDatabase`] keyed registry and
+//! engine commit conflicts are absorbed by the bounded MT-142 retry through
+//! [`SurrealDatabase::guarded_mutation`]; a caller that passes a bare
+//! [`SurrealStorage`] gets the same correctness with no keyed shaping.
 use chrono::{DateTime, Utc};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
-use tokio::sync::Mutex;
 
 use crate::ace::{
     FemsEntityRef, FemsSourceRef, FemsSourceRefKind, MemoryCommitAppliedOp, MemoryCommitOpStatus,
@@ -35,9 +46,82 @@ use crate::ace::{
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
 use crate::storage::{
-    surreal::{bootstrap_schema, event_ledger, SurrealStorage},
+    surreal::{
+        bootstrap_schema, event_ledger,
+        keyed_lock::{KeyedLockRegistry, LockKey},
+        retry::Replay,
+        SurrealDatabase, SurrealStorage,
+    },
     StorageError, StorageResult,
 };
+
+/// Where a FEMS mutation runs: the embedded store plus the optional keyed
+/// registry that shapes same-key writers in this process. Implemented for
+/// [`SurrealDatabase`] (uses that wrapper's registry) and for a bare
+/// [`SurrealStorage`] (no keyed shaping - a fresh `LockMode::Disabled`
+/// wrapper), so existing callers that hold only the storage keep compiling and
+/// stay correct: correctness is owned by the committing transaction, never by
+/// the lock (MT-142 D-142-3).
+pub trait FemsMutationTarget: Sync {
+    /// The wrapper whose registry and retry run the mutation.
+    fn fems_database(&self) -> SurrealDatabase;
+}
+
+impl FemsMutationTarget for SurrealDatabase {
+    fn fems_database(&self) -> SurrealDatabase {
+        self.clone()
+    }
+}
+
+impl FemsMutationTarget for SurrealStorage {
+    fn fems_database(&self) -> SurrealDatabase {
+        SurrealDatabase::with_lock_registry(self.clone(), KeyedLockRegistry::disabled())
+    }
+}
+
+/// MT-152 race-proof pause point between a read-decide step and its transaction; a no-op
+/// outside `race_test_support::with_pause_after_decision`. Called with `first_attempt` so
+/// only the FIRST attempt of a retried mutation parks on the two-party barrier: a retried
+/// attempt (the loser of the engine-level collision the proof provokes) must not wait for a
+/// second party that has already left.
+async fn pause_after_decision(first_attempt: bool) {
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    if first_attempt {
+        crate::storage::surreal::keyed_lock::race_test_support::pause_after_decision().await;
+    }
+    #[cfg(not(any(test, feature = "surreal-test-support")))]
+    let _ = first_attempt;
+}
+
+/// Natural-key kinds for the keyed registry (`LockKey::natural_key`).
+const FEMS_PROPOSAL_REQUEST_LOCK_KIND: &str = "fems_proposal_request";
+const FEMS_OUTBOX_EVENT_LOCK_KIND: &str = "fems_outbox_event";
+
+/// The per-workspace write anchor bound as `$anchor` by every FEMS transaction
+/// that creates a row referencing the workspace, and by the workspace-delete
+/// transaction (`storage/surreal/workspaces.rs`). `key` is the workspace id;
+/// `nonce` changes per attempt because the engine skips unchanged documents
+/// (`surrealdb-core-3.2.0/src/doc/store.rs:15-18`) and an unchanged row would
+/// leave the key out of the write set.
+#[derive(Clone, Debug, SurrealValue)]
+pub struct WorkspaceWriteAnchor {
+    pub key: String,
+    pub nonce: String,
+}
+
+/// A fresh anchor binding for `workspace_id`.
+pub fn workspace_write_anchor(workspace_id: &str) -> WorkspaceWriteAnchor {
+    WorkspaceWriteAnchor {
+        key: workspace_id.to_owned(),
+        nonce: uuid::Uuid::now_v7().to_string(),
+    }
+}
+
+/// The exact anchor UPSERT every anchored statement literal in this module and
+/// in `workspaces.rs` embeds (statement literals must be `&'static str`, so the
+/// text is repeated; `anchored_statements_embed_the_workspace_write_anchor`
+/// proves each copy is byte-identical to this one).
+pub const WORKSPACE_WRITE_ANCHOR_UPSERT: &str = "UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE;";
 
 /// Verify that the versioned FEMS migration has installed the required tables.
 ///
@@ -310,21 +394,57 @@ fn heal_legacy_proposal_artifact(stored: &StoredMemoryProposal) -> Option<Value>
 /// `fems_memory_items` (the never-editor-direct invariant). Replaying the same
 /// workspace/request identity returns the original row and receipt without duplication.
 pub async fn insert_memory_proposal_with_receipt(
-    storage: &SurrealStorage,
+    target: &impl FemsMutationTarget,
     proposal: &StoredMemoryProposal,
     receipt: NewKernelEvent,
 ) -> StorageResult<StoredMemoryProposal> {
-    insert_memory_proposal_with_receipt_inner(storage, proposal, receipt, false).await
+    insert_memory_proposal_with_receipt_inner(target, proposal, receipt, false).await
 }
 
 async fn insert_memory_proposal_with_receipt_inner(
-    storage: &SurrealStorage,
+    target: &impl FemsMutationTarget,
     proposal: &StoredMemoryProposal,
     receipt: NewKernelEvent,
     force_failure_after_proposal_insert: bool,
 ) -> StorageResult<StoredMemoryProposal> {
-    ensure_fems_memory_schema(storage).await?;
-    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    let database = target.fems_database();
+    ensure_fems_memory_schema(database.storage()).await?;
+    // Same (workspace, request_id) writers are shaped by the natural key that
+    // `idx_fems_memory_proposals_ws_request` guards; the replay preflight, the
+    // heal branch and the insert transaction all re-run inside the closure.
+    let keys = vec![LockKey::natural_key(
+        proposal.workspace_id.clone(),
+        FEMS_PROPOSAL_REQUEST_LOCK_KIND,
+        proposal.request_id.clone(),
+    )];
+    let replay_key = format!(
+        "fems-proposal-insert:{}:{}",
+        proposal.workspace_id, proposal.request_id
+    );
+    let receipt = &receipt;
+    let mut attempts = 0u32;
+    database
+        .guarded_mutation(keys, Replay::idempotent(replay_key), None, || {
+            attempts += 1;
+            insert_memory_proposal_attempt(
+                database.storage(),
+                proposal,
+                receipt.clone(),
+                force_failure_after_proposal_insert,
+                attempts == 1,
+            )
+        })
+        .await
+}
+
+/// One attempt of the proposal insert (see `insert_memory_proposal_with_receipt`).
+async fn insert_memory_proposal_attempt(
+    storage: &SurrealStorage,
+    proposal: &StoredMemoryProposal,
+    receipt: NewKernelEvent,
+    force_failure_after_proposal_insert: bool,
+    first_attempt: bool,
+) -> StorageResult<StoredMemoryProposal> {
     let mut candidate = proposal.clone();
     stamp_receipt_identity(&mut candidate.proposal, &receipt)?;
 
@@ -410,31 +530,34 @@ async fn insert_memory_proposal_with_receipt_inner(
             "FR-EVT-MEM-001",
             &event,
         )?,
+        anchor: workspace_write_anchor(&candidate.workspace_id),
     };
+    pause_after_decision(first_attempt).await;
     run_proposal_insert_transaction(storage, bindings).await?;
     Ok(candidate)
 }
 
 #[cfg(test)]
 pub async fn insert_memory_proposal_with_receipt_forced_failure(
-    storage: &SurrealStorage,
+    target: &impl FemsMutationTarget,
     proposal: &StoredMemoryProposal,
     receipt: NewKernelEvent,
 ) -> StorageResult<StoredMemoryProposal> {
-    insert_memory_proposal_with_receipt_inner(storage, proposal, receipt, true).await
+    insert_memory_proposal_with_receipt_inner(target, proposal, receipt, true).await
 }
 
 /// Atomically move a proposal out of `pending_review` and append the matching durable
 /// EventLedger decision receipt. Exact retries return the original transition; a different
 /// decision or reviewer identity is a conflict and cannot rewrite the audit record.
 pub async fn review_memory_proposal_with_receipt(
-    storage: &SurrealStorage,
+    target: &impl FemsMutationTarget,
     workspace_id: &str,
     proposal_id: &str,
     review: &MemoryProposalReview,
-    mut receipt: NewKernelEvent,
+    receipt: NewKernelEvent,
 ) -> StorageResult<MemoryProposalReviewResult> {
-    ensure_fems_memory_schema(storage).await?;
+    let database = target.fems_database();
+    ensure_fems_memory_schema(database.storage()).await?;
     let target_status = match review.decision.as_str() {
         "approved" => "approved",
         "rejected" => "rejected",
@@ -463,8 +586,34 @@ pub async fn review_memory_proposal_with_receipt(
             "memory proposal review identity is invalid",
         ));
     }
+    // The pending-review read-decide runs inside the closure; the transaction's
+    // `HSK-FEMS-REVIEW-STATE` compare-and-set decides the race.
+    let keys = vec![LockKey::record(PROPOSALS_TABLE, proposal_id.to_owned())];
+    let replay_key = format!("fems-proposal-review:{proposal_id}:{}", review.decision);
+    let receipt = &receipt;
+    database
+        .guarded_mutation(keys, Replay::idempotent(replay_key), None, || {
+            review_memory_proposal_attempt(
+                database.storage(),
+                workspace_id,
+                proposal_id,
+                review,
+                target_status,
+                receipt.clone(),
+            )
+        })
+        .await
+}
 
-    let _serial = FEMS_MUTATION_LOCK.lock().await;
+/// One attempt of the proposal review (see `review_memory_proposal_with_receipt`).
+async fn review_memory_proposal_attempt(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    proposal_id: &str,
+    review: &MemoryProposalReview,
+    target_status: &str,
+    mut receipt: NewKernelEvent,
+) -> StorageResult<MemoryProposalReviewResult> {
     let mut stored = get_memory_proposal(storage, proposal_id)
         .await?
         .filter(|stored| stored.workspace_id == workspace_id)
@@ -579,6 +728,7 @@ pub async fn review_memory_proposal_with_receipt(
         expected_status: "pending_review".to_owned(),
         ledger,
         outbox: lifecycle_outbox_write(workspace_id, proposal_id, "FR-EVT-MEM-002", &event)?,
+        anchor: workspace_write_anchor(workspace_id),
     };
     run_proposal_review_transaction(storage, bindings).await?;
     let candidate_receipt = persisted;
@@ -1250,13 +1400,38 @@ fn build_memory_item(
 /// strict MemoryPack projection, proposal terminal state, and EventLedger receipt are
 /// written in one transaction. Exact retries return the original result.
 pub async fn commit_memory_proposal_with_receipt(
+    target: &impl FemsMutationTarget,
+    workspace_id: &str,
+    proposal_id: &str,
+    receipt: NewKernelEvent,
+) -> StorageResult<MemoryProposalCommitResult> {
+    let database = target.fems_database();
+    ensure_fems_memory_schema(database.storage()).await?;
+    // The approved-state read, the replay preflight and the pack build run
+    // inside the closure; `HSK-FEMS-COMMIT-STATE`, `pk_fems_memory_items` and
+    // `uq_fems_memory_commit_reports_proposal` decide the race.
+    let keys = vec![LockKey::record(PROPOSALS_TABLE, proposal_id.to_owned())];
+    let replay_key = format!("fems-proposal-commit:{proposal_id}");
+    let receipt = &receipt;
+    database
+        .guarded_mutation(keys, Replay::idempotent(replay_key), None, || {
+            commit_memory_proposal_attempt(
+                database.storage(),
+                workspace_id,
+                proposal_id,
+                receipt.clone(),
+            )
+        })
+        .await
+}
+
+/// One attempt of the proposal commit (see `commit_memory_proposal_with_receipt`).
+async fn commit_memory_proposal_attempt(
     storage: &SurrealStorage,
     workspace_id: &str,
     proposal_id: &str,
     mut receipt: NewKernelEvent,
 ) -> StorageResult<MemoryProposalCommitResult> {
-    ensure_fems_memory_schema(storage).await?;
-    let _serial = FEMS_MUTATION_LOCK.lock().await;
     let mut proposal = get_memory_proposal(storage, proposal_id)
         .await?
         .filter(|proposal| proposal.workspace_id == workspace_id)
@@ -1474,6 +1649,7 @@ pub async fn commit_memory_proposal_with_receipt(
     )?;
     let stamp = Datetime::from(committed_at);
     let bindings = CommitBindings {
+        anchor: workspace_write_anchor(workspace_id),
         item_record: RecordId::new(ITEMS_TABLE, memory_id.clone()),
         item: ItemContent {
             memory_id: memory_id.clone(),
@@ -1561,39 +1737,6 @@ const ITEMS_TABLE: &str = "fems_memory_items";
 const REPORTS_TABLE: &str = "fems_memory_commit_reports";
 const LIFECYCLE_OUTBOX_TABLE: &str = "fems_memory_lifecycle_fr_outbox";
 const COMMIT_OUTBOX_TABLE: &str = "fems_memory_commit_fr_outbox";
-
-static FEMS_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
-
-/// Acquire the FEMS mutation lock from outside this module.
-///
-/// WP-KERNEL-012 MT-146 D-146-1. SurrealDB 3.2.0 on RocksDB runs
-/// `OptimisticTransactionDB` with `set_snapshot(true)` and performs WRITE-WRITE
-/// conflict detection only — `get_for_update` is never called anywhere in
-/// `surrealdb-core`, so there is no read-set tracking and no serializable
-/// (SSI) guarantee. Two consequences bite a workspace delete racing a proposal
-/// insert, and neither is detectable at commit because the two transactions
-/// write disjoint keys:
-///
-/// 1. `ASSERT record::exists($value)` on `fems_memory_proposals.workspace_id`
-///    resolves through the inserting transaction's own snapshot, so it still
-///    sees a workspace that a concurrent transaction has already deleted.
-/// 2. `REFERENCE ON DELETE CASCADE` is a snapshot-bound range scan over the
-///    reference keys of the target record, so it cannot see a reference key
-///    written by a transaction that had not committed when the delete took its
-///    snapshot.
-///
-/// Either interleaving leaves a proposal row pointing at a deleted workspace.
-/// Serializing workspace deletion against FEMS proposal mutations orders the
-/// two snapshots so exactly one of the two safe outcomes happens: the insert
-/// lands first and the cascade sees it, or the delete lands first and the
-/// insert's existence check fails closed.
-///
-/// This is deliberately the FEMS mutation lock and not a workspace-wide lock:
-/// workspace deletion is a rare, already-heavy teardown, so it does not
-/// serialize ordinary workspace writes.
-pub async fn lock_fems_mutations() -> tokio::sync::MutexGuard<'static, ()> {
-    FEMS_MUTATION_LOCK.lock().await
-}
 
 #[derive(SurrealValue)]
 struct WorkspaceBinding {
@@ -1820,6 +1963,12 @@ struct LifecycleOutboxWrite {
 }
 
 #[derive(SurrealValue)]
+struct LifecycleOutboxHealBindings {
+    anchor: WorkspaceWriteAnchor,
+    write: LifecycleOutboxWrite,
+}
+
+#[derive(SurrealValue)]
 struct LifecycleOutboxContent {
     event_id: String,
     workspace_id: RecordId,
@@ -1891,6 +2040,7 @@ struct ProposalInsertBindings {
     force_failure_after_proposal_insert: bool,
     ledger: event_ledger::LedgerWrite,
     outbox: LifecycleOutboxWrite,
+    anchor: WorkspaceWriteAnchor,
 }
 
 #[derive(SurrealValue)]
@@ -1900,10 +2050,12 @@ struct ProposalReviewBindings {
     expected_status: String,
     ledger: event_ledger::LedgerWrite,
     outbox: LifecycleOutboxWrite,
+    anchor: WorkspaceWriteAnchor,
 }
 
 #[derive(SurrealValue)]
 struct CommitBindings {
+    anchor: WorkspaceWriteAnchor,
     item_record: RecordId,
     item: ItemContent,
     report_record: RecordId,
@@ -1924,6 +2076,136 @@ enum OutboxKind {
     Commit,
 }
 
+// MT-152 I-152-4: every row-creating FEMS transaction below embeds
+// `WORKSPACE_WRITE_ANCHOR_UPSERT` (statement literals must be `&'static str`,
+// so the text is repeated; `anchored_statements_embed_the_workspace_write_anchor`
+// proves each copy is byte-identical).
+const PROPOSAL_INSERT_TRANSACTION: &str = "BEGIN TRANSACTION; \
+    IF !record::exists($proposal.workspace_id) { \
+    THROW 'HSK-MEM-WORKSPACE-MISSING'; \
+    }; \
+    UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE; \
+    CREATE $proposal_record CONTENT { \
+    proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
+    workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
+    selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
+    content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
+    status: $proposal.status, review_gated: $proposal.review_gated, \
+    created_at: $proposal.created_at, proposal: $proposal.proposal \
+    } RETURN AFTER; \
+    IF $force_failure_after_proposal_insert { \
+    THROW 'forced failure after proposal insert'; \
+    }; \
+    CREATE $ledger.record CONTENT { \
+    event_id: $ledger.event_id, event_version: $ledger.event_version, \
+    kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, \
+    aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, \
+    idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, \
+    actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
+    causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
+    payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
+    payload: $ledger.payload, created_at: $ledger.created_at \
+    }; \
+    CREATE $outbox.record CONTENT { \
+    event_id: $outbox.event_id, workspace_id: $outbox.workspace_id, \
+    proposal_id: $outbox.proposal_id, event_code: $outbox.event_code, \
+    event: $outbox.event, event_hash: $outbox.event_hash, created_at: $outbox.created_at \
+    }; \
+    COMMIT TRANSACTION;";
+
+const PROPOSAL_REVIEW_TRANSACTION: &str = "BEGIN TRANSACTION; \
+    UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE; \
+    IF array::len((UPDATE $proposal_record CONTENT { \
+    proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
+    workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
+    selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
+    content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
+    status: $proposal.status, review_gated: $proposal.review_gated, \
+    created_at: $proposal.created_at, proposal: $proposal.proposal \
+    } WHERE status = $expected_status RETURN AFTER)) != 1 { \
+    THROW 'HSK-FEMS-REVIEW-STATE'; \
+    }; \
+    CREATE $ledger.record CONTENT { \
+    event_id: $ledger.event_id, event_version: $ledger.event_version, \
+    kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, \
+    aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, \
+    idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, \
+    actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
+    causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
+    payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
+    payload: $ledger.payload, created_at: $ledger.created_at \
+    }; \
+    CREATE $outbox.record CONTENT { \
+    event_id: $outbox.event_id, workspace_id: $outbox.workspace_id, \
+    proposal_id: $outbox.proposal_id, event_code: $outbox.event_code, \
+    event: $outbox.event, event_hash: $outbox.event_hash, created_at: $outbox.created_at \
+    }; \
+    COMMIT TRANSACTION;";
+
+const LIFECYCLE_OUTBOX_HEAL_TRANSACTION: &str = "BEGIN TRANSACTION; \
+    UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE; \
+    IF (SELECT VALUE id FROM fems_memory_lifecycle_fr_outbox \
+    WHERE proposal_id = $write.proposal_id \
+    AND event_code = $write.event_code LIMIT 1)[0] != NONE { \
+    RETURN SELECT event_id, workspace_id, proposal_id, event_code, \
+    event, event_hash, created_at, published_at, attempt_count, \
+    last_error, last_error_at, quarantined_at \
+    FROM fems_memory_lifecycle_fr_outbox \
+    WHERE proposal_id = $write.proposal_id \
+    AND event_code = $write.event_code LIMIT 1; \
+    } ELSE { \
+    RETURN CREATE $write.record CONTENT { \
+    event_id: $write.event_id, workspace_id: $write.workspace_id, \
+    proposal_id: $write.proposal_id, event_code: $write.event_code, \
+    event: $write.event, event_hash: $write.event_hash, \
+    created_at: $write.created_at \
+    }; \
+    }; \
+    COMMIT TRANSACTION;";
+
+const COMMIT_TRANSACTION: &str = "BEGIN TRANSACTION; \
+    UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE; \
+    CREATE $item_record CONTENT { memory_id: $item.memory_id, \
+    workspace_id: $item.workspace_id, item: $item.item, \
+    created_at: $item.created_at, updated_at: $item.updated_at } RETURN AFTER; \
+    CREATE $report_record CONTENT { commit_id: $report.commit_id, \
+    workspace_id: $report.workspace_id, proposal_id: $report.proposal_id, \
+    memory_id: $report.memory_id, report: $report.report, \
+    report_hash: $report.report_hash, created_at: $report.created_at }; \
+    IF array::len((UPDATE $proposal_record CONTENT { \
+    proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
+    workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
+    selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
+    content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
+    status: $proposal.status, review_gated: $proposal.review_gated, \
+    created_at: $proposal.created_at, proposal: $proposal.proposal \
+    } WHERE status = $expected_status RETURN AFTER)) != 1 { \
+    THROW 'HSK-FEMS-COMMIT-STATE'; \
+    }; \
+    CREATE $pack_record CONTENT { pack_id: $pack.pack_id, \
+    workspace_id: $pack.workspace_id, scope_key: $pack.scope_key, \
+    pack: $pack.pack, generated_at: $pack.generated_at, created_at: $pack.created_at }; \
+    CREATE $ledger.record CONTENT { event_id: $ledger.event_id, \
+    event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, \
+    session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, \
+    aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, \
+    event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, \
+    actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, \
+    correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, \
+    source_component: $ledger.source_component, payload: $ledger.payload, \
+    created_at: $ledger.created_at }; \
+    CREATE $committed_outbox.record CONTENT { event_id: $committed_outbox.event_id, \
+    workspace_id: $committed_outbox.workspace_id, proposal_id: $committed_outbox.proposal_id, \
+    commit_id: $committed_outbox.commit_id, event_code: $committed_outbox.event_code, \
+    event: $committed_outbox.event, event_hash: $committed_outbox.event_hash, \
+    created_at: $committed_outbox.created_at }; \
+    CREATE $packed_outbox.record CONTENT { event_id: $packed_outbox.event_id, \
+    workspace_id: $packed_outbox.workspace_id, proposal_id: $packed_outbox.proposal_id, \
+    commit_id: $packed_outbox.commit_id, event_code: $packed_outbox.event_code, \
+    event: $packed_outbox.event, event_hash: $packed_outbox.event_hash, \
+    created_at: $packed_outbox.created_at }; \
+    COMMIT TRANSACTION;";
+
 async fn run_proposal_insert_transaction(
     storage: &SurrealStorage,
     bindings: ProposalInsertBindings,
@@ -1933,42 +2215,12 @@ async fn run_proposal_insert_transaction(
             Box::pin(async move {
                 database
                     .query_values_at(
-                        "BEGIN TRANSACTION; \
-                         IF !record::exists($proposal.workspace_id) { \
-                            THROW 'HSK-MEM-WORKSPACE-MISSING'; \
-                         }; \
-                         CREATE $proposal_record CONTENT { \
-                            proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
-                            workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
-                            selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
-                            content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
-                            status: $proposal.status, review_gated: $proposal.review_gated, \
-                            created_at: $proposal.created_at, proposal: $proposal.proposal \
-                         } RETURN AFTER; \
-                         IF $force_failure_after_proposal_insert { \
-                            THROW 'forced failure after proposal insert'; \
-                         }; \
-                         CREATE $ledger.record CONTENT { \
-                            event_id: $ledger.event_id, event_version: $ledger.event_version, \
-                            kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, \
-                            aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, \
-                            idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, \
-                            actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
-                            causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
-                            payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
-                            payload: $ledger.payload, created_at: $ledger.created_at \
-                         }; \
-                         CREATE $outbox.record CONTENT { \
-                            event_id: $outbox.event_id, workspace_id: $outbox.workspace_id, \
-                            proposal_id: $outbox.proposal_id, event_code: $outbox.event_code, \
-                            event: $outbox.event, event_hash: $outbox.event_hash, created_at: $outbox.created_at \
-                         }; \
-                         COMMIT TRANSACTION;",
+                        PROPOSAL_INSERT_TRANSACTION,
                         bindings,
-                        // `take(index)` counts BEGIN TRANSACTION as statement 0, so the
-                        // in-transaction workspace-existence guard above shifts the proposal
-                        // CREATE from index 1 to index 2.
-                        2,
+                        // `take(index)` counts BEGIN TRANSACTION as statement 0; the
+                        // workspace-existence guard (1) and the MT-152 workspace write
+                        // anchor (2) precede the proposal CREATE at index 3.
+                        3,
                     )
                     .await
             })
@@ -2003,33 +2255,7 @@ async fn run_proposal_review_transaction(
             Box::pin(async move {
                 database
                     .query_values_at(
-                        "BEGIN TRANSACTION; \
-                         IF array::len((UPDATE $proposal_record CONTENT { \
-                            proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
-                            workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
-                            selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
-                            content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
-                            status: $proposal.status, review_gated: $proposal.review_gated, \
-                            created_at: $proposal.created_at, proposal: $proposal.proposal \
-                         } WHERE status = $expected_status RETURN AFTER)) != 1 { \
-                            THROW 'HSK-FEMS-REVIEW-STATE'; \
-                         }; \
-                         CREATE $ledger.record CONTENT { \
-                            event_id: $ledger.event_id, event_version: $ledger.event_version, \
-                            kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, \
-                            aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, \
-                            idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, \
-                            actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
-                            causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
-                            payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
-                            payload: $ledger.payload, created_at: $ledger.created_at \
-                         }; \
-                         CREATE $outbox.record CONTENT { \
-                            event_id: $outbox.event_id, workspace_id: $outbox.workspace_id, \
-                            proposal_id: $outbox.proposal_id, event_code: $outbox.event_code, \
-                            event: $outbox.event, event_hash: $outbox.event_hash, created_at: $outbox.created_at \
-                         }; \
-                         COMMIT TRANSACTION;",
+                        PROPOSAL_REVIEW_TRANSACTION,
                         bindings,
                         1,
                     )
@@ -2057,16 +2283,41 @@ pub async fn ensure_fems_memory_schema(storage: &SurrealStorage) -> StorageResul
 }
 
 pub async fn upsert_memory_pack(
-    storage: &SurrealStorage,
+    target: &impl FemsMutationTarget,
     workspace_id: &str,
     scope_key: &str,
     pack: &MemoryPack,
 ) -> StorageResult<()> {
-    ensure_fems_memory_schema(storage).await?;
+    let database = target.fems_database();
+    ensure_fems_memory_schema(database.storage()).await?;
     let generated_at = DateTime::parse_from_rfc3339(&pack.generated_at)
         .map(|value| value.with_timezone(&Utc))
         .map_err(|_| StorageError::Validation("memory pack generated_at is invalid"))?;
-    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    let keys = vec![LockKey::record(PACKS_TABLE, pack.pack_id.clone())];
+    let replay_key = format!("fems-pack-upsert:{}", pack.pack_id);
+    database
+        .guarded_mutation(keys, Replay::idempotent(replay_key), None, || {
+            upsert_memory_pack_attempt(
+                database.storage(),
+                workspace_id,
+                scope_key,
+                pack,
+                generated_at,
+            )
+        })
+        .await
+}
+
+/// One attempt of the pack upsert (see `upsert_memory_pack`): the immutable
+/// content compare and the anchored create-if-absent run together so a re-run
+/// after a lost commit observes the winner.
+async fn upsert_memory_pack_attempt(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    scope_key: &str,
+    pack: &MemoryPack,
+    generated_at: DateTime<Utc>,
+) -> StorageResult<()> {
     let record_id = pack.pack_id.clone();
     let pack_value = serde_json::to_value(pack)?;
     if let Some(existing) = select_pack(storage, workspace_id, &record_id).await? {
@@ -2089,13 +2340,9 @@ pub async fn upsert_memory_pack(
         generated_at: Datetime::from(generated_at),
         created_at: now,
     };
-    let id = pack.pack_id.clone();
-    let created: Option<PackRow> = storage
-        .with_data_operation(move |database| {
-            Box::pin(async move { database.create_if_absent(PACKS_TABLE, &id, content).await })
-        })
-        .await
-        .map_err(StorageError::from)?;
+    let created: Option<PackRow> =
+        anchored_create_if_absent(storage, PACKS_TABLE, &pack.pack_id, workspace_id, content)
+            .await?;
     if created.is_some() {
         Ok(())
     } else {
@@ -2104,6 +2351,62 @@ pub async fn upsert_memory_pack(
         ))
     }
 }
+
+#[derive(SurrealValue)]
+struct AnchoredCreateBindings {
+    tb: String,
+    id: String,
+    content: surrealdb::types::Value,
+    anchor: WorkspaceWriteAnchor,
+}
+
+/// `SurrealDataContext::create_if_absent` with the workspace write anchor in
+/// the same transaction (MT-152 I-152-4, D-146-1): the existence test, the
+/// anchor UPSERT and the create are one `BEGIN ... COMMIT`, so a workspace
+/// delete overlapping this create collides on the anchor key at commit.
+/// Returns the created row, or `None` when the id was already taken.
+async fn anchored_create_if_absent<R, D>(
+    storage: &SurrealStorage,
+    table: &'static str,
+    id: &str,
+    workspace_id: &str,
+    content: D,
+) -> StorageResult<Option<R>>
+where
+    R: SurrealValue + Send,
+    D: SurrealValue + Send,
+{
+    let bindings = AnchoredCreateBindings {
+        tb: table.to_owned(),
+        id: id.to_owned(),
+        content: content.into_value(),
+        anchor: workspace_write_anchor(workspace_id),
+    };
+    let rows: Vec<R> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values_at(
+                        ANCHORED_CREATE_IF_ABSENT_STATEMENT,
+                        bindings,
+                        // BEGIN(0) anchor(1) LET(2) IF(3): the IF's RETURN is the row set.
+                        3,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    Ok(rows.into_iter().next())
+}
+
+const ANCHORED_CREATE_IF_ABSENT_STATEMENT: &str = "BEGIN TRANSACTION; \
+    UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE; \
+    LET $record = type::record($tb, $id); \
+    IF (SELECT VALUE id FROM $record)[0] = NONE \
+    { RETURN CREATE $record CONTENT $content; } \
+    ELSE { RETURN []; }; \
+    COMMIT TRANSACTION;";
 
 pub async fn get_latest_memory_pack(
     storage: &SurrealStorage,
@@ -2190,12 +2493,41 @@ pub async fn list_memory_proposals(
 }
 
 pub async fn upsert_memory_item(
+    target: &impl FemsMutationTarget,
+    workspace_id: &str,
+    memory_id: &str,
+    item: &Value,
+) -> StorageResult<()> {
+    let database = target.fems_database();
+    let keys = vec![LockKey::record(ITEMS_TABLE, memory_id.to_owned())];
+    let replay_key = format!("fems-item-upsert:{memory_id}");
+    database
+        .guarded_mutation(keys, Replay::idempotent(replay_key), None, || {
+            upsert_memory_item_attempt(database.storage(), workspace_id, memory_id, item)
+        })
+        .await
+}
+
+#[derive(SurrealValue)]
+struct AnchoredUpsertBindings {
+    record: RecordId,
+    content: ItemContent,
+    anchor: WorkspaceWriteAnchor,
+}
+
+const ANCHORED_ITEM_UPSERT_STATEMENT: &str = "BEGIN TRANSACTION; \
+    UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE; \
+    UPSERT $record CONTENT $content RETURN AFTER; \
+    COMMIT TRANSACTION;";
+
+/// One attempt of the item upsert (see `upsert_memory_item`): the workspace
+/// ownership read and the anchored UPSERT run together.
+async fn upsert_memory_item_attempt(
     storage: &SurrealStorage,
     workspace_id: &str,
     memory_id: &str,
     item: &Value,
 ) -> StorageResult<()> {
-    let _serial = FEMS_MUTATION_LOCK.lock().await;
     let now = Datetime::from(Utc::now());
     let created_at = if let Some(existing) = select_item(storage, memory_id).await? {
         if record_key(existing.workspace_id, "memory item workspace")? != workspace_id {
@@ -2214,10 +2546,18 @@ pub async fn upsert_memory_item(
         created_at,
         updated_at: now,
     };
-    let id = memory_id.to_owned();
-    let _: Option<ItemRow> = storage
+    let bindings = AnchoredUpsertBindings {
+        record: RecordId::new(ITEMS_TABLE, memory_id),
+        content,
+        anchor: workspace_write_anchor(workspace_id),
+    };
+    let _: Vec<ItemRow> = storage
         .with_data_operation(move |database| {
-            Box::pin(async move { database.upsert_one(ITEMS_TABLE, &id, content).await })
+            Box::pin(async move {
+                database
+                    .query_values_at(ANCHORED_ITEM_UPSERT_STATEMENT, bindings, 2)
+                    .await
+            })
         })
         .await
         .map_err(StorageError::from)?;
@@ -2671,36 +3011,26 @@ async fn ensure_lifecycle_outbox(
                 event_code,
                 event,
             )?;
-            let healed: Option<LifecycleOutboxRow> = storage
+            let bindings = LifecycleOutboxHealBindings {
+                anchor: workspace_write_anchor(&proposal.workspace_id),
+                write,
+            };
+            let healed: Vec<LifecycleOutboxRow> = storage
                 .with_data_operation(move |database| {
                     Box::pin(async move {
                         database
-                            .query_first(
-                                "IF (SELECT VALUE id FROM fems_memory_lifecycle_fr_outbox \
-                                     WHERE proposal_id = $proposal_id \
-                                     AND event_code = $event_code LIMIT 1)[0] != NONE { \
-                                     RETURN SELECT event_id, workspace_id, proposal_id, event_code, \
-                                         event, event_hash, created_at, published_at, attempt_count, \
-                                         last_error, last_error_at, quarantined_at \
-                                         FROM fems_memory_lifecycle_fr_outbox \
-                                         WHERE proposal_id = $proposal_id \
-                                         AND event_code = $event_code LIMIT 1; \
-                                 } ELSE { \
-                                     RETURN CREATE $record CONTENT { \
-                                        event_id: $event_id, workspace_id: $workspace_id, \
-                                        proposal_id: $proposal_id, event_code: $event_code, \
-                                        event: $event, event_hash: $event_hash, \
-                                        created_at: $created_at \
-                                     }; \
-                                 }",
-                                write,
+                            .query_values_at(
+                                LIFECYCLE_OUTBOX_HEAL_TRANSACTION,
+                                bindings,
+                                // BEGIN(0) anchor(1) IF(2).
+                                2,
                             )
                             .await
                     })
                 })
                 .await
                 .map_err(StorageError::from)?;
-            healed.ok_or(StorageError::Conflict(
+            healed.into_iter().next().ok_or(StorageError::Conflict(
                 "memory proposal lifecycle outbox heal did not persist",
             ))?
         }
@@ -2812,16 +3142,14 @@ async fn create_lifecycle_outbox_if_absent(
     )?;
     let id = write.event_id.clone();
     let content = LifecycleOutboxContent::from(write);
-    let created: Option<LifecycleOutboxRow> = storage
-        .with_data_operation(move |database| {
-            Box::pin(async move {
-                database
-                    .create_if_absent(LIFECYCLE_OUTBOX_TABLE, &id, content)
-                    .await
-            })
-        })
-        .await
-        .map_err(StorageError::from)?;
+    let created: Option<LifecycleOutboxRow> = anchored_create_if_absent(
+        storage,
+        LIFECYCLE_OUTBOX_TABLE,
+        &id,
+        &proposal.workspace_id,
+        content,
+    )
+    .await?;
     if created.is_none() {
         ensure_lifecycle_outbox(storage, proposal, event_code, event).await?;
     }
@@ -2979,7 +3307,38 @@ async fn record_outbox_failure(
     error: &str,
     quarantine_now: bool,
 ) -> StorageResult<()> {
-    let _serial = FEMS_MUTATION_LOCK.lock().await;
+    // The `attempt_count` compare-and-set inside the UPDATE decides the race;
+    // the read of the current count re-runs inside the closure.
+    let keys = vec![LockKey::natural_key(
+        workspace_id.to_owned(),
+        FEMS_OUTBOX_EVENT_LOCK_KIND,
+        event_id.to_owned(),
+    )];
+    let replay_key = format!("fems-outbox-failure:{workspace_id}:{event_id}");
+    storage
+        .fems_database()
+        .guarded_mutation(keys, Replay::idempotent(replay_key), None, || {
+            record_outbox_failure_attempt(
+                storage,
+                kind,
+                workspace_id,
+                event_id,
+                error,
+                quarantine_now,
+            )
+        })
+        .await
+}
+
+/// One attempt of the outbox failure record (see `record_outbox_failure`).
+async fn record_outbox_failure_attempt(
+    storage: &SurrealStorage,
+    kind: OutboxKind,
+    workspace_id: &str,
+    event_id: &str,
+    error: &str,
+    quarantine_now: bool,
+) -> StorageResult<()> {
     let identity = OutboxIdentityBinding {
         workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
         event_id: event_id.to_owned(),
@@ -3220,49 +3579,10 @@ async fn run_commit_transaction(
             Box::pin(async move {
                 database
                     .query_values_at(
-                        "BEGIN TRANSACTION; \
-                         CREATE $item_record CONTENT { memory_id: $item.memory_id, \
-                            workspace_id: $item.workspace_id, item: $item.item, \
-                            created_at: $item.created_at, updated_at: $item.updated_at } RETURN AFTER; \
-                         CREATE $report_record CONTENT { commit_id: $report.commit_id, \
-                            workspace_id: $report.workspace_id, proposal_id: $report.proposal_id, \
-                            memory_id: $report.memory_id, report: $report.report, \
-                            report_hash: $report.report_hash, created_at: $report.created_at }; \
-                         IF array::len((UPDATE $proposal_record CONTENT { \
-                            proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
-                            workspace_id: $proposal.workspace_id, document_id: $proposal.document_id, \
-                            selection_start: $proposal.selection_start, selection_end: $proposal.selection_end, \
-                            content_hash: $proposal.content_hash, memory_class: $proposal.memory_class, \
-                            status: $proposal.status, review_gated: $proposal.review_gated, \
-                            created_at: $proposal.created_at, proposal: $proposal.proposal \
-                         } WHERE status = $expected_status RETURN AFTER)) != 1 { \
-                            THROW 'HSK-FEMS-COMMIT-STATE'; \
-                         }; \
-                         CREATE $pack_record CONTENT { pack_id: $pack.pack_id, \
-                            workspace_id: $pack.workspace_id, scope_key: $pack.scope_key, \
-                            pack: $pack.pack, generated_at: $pack.generated_at, created_at: $pack.created_at }; \
-                         CREATE $ledger.record CONTENT { event_id: $ledger.event_id, \
-                            event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, \
-                            session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, \
-                            aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, \
-                            event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, \
-                            actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, \
-                            correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, \
-                            source_component: $ledger.source_component, payload: $ledger.payload, \
-                            created_at: $ledger.created_at }; \
-                         CREATE $committed_outbox.record CONTENT { event_id: $committed_outbox.event_id, \
-                            workspace_id: $committed_outbox.workspace_id, proposal_id: $committed_outbox.proposal_id, \
-                            commit_id: $committed_outbox.commit_id, event_code: $committed_outbox.event_code, \
-                            event: $committed_outbox.event, event_hash: $committed_outbox.event_hash, \
-                            created_at: $committed_outbox.created_at }; \
-                         CREATE $packed_outbox.record CONTENT { event_id: $packed_outbox.event_id, \
-                            workspace_id: $packed_outbox.workspace_id, proposal_id: $packed_outbox.proposal_id, \
-                            commit_id: $packed_outbox.commit_id, event_code: $packed_outbox.event_code, \
-                            event: $packed_outbox.event, event_hash: $packed_outbox.event_hash, \
-                            created_at: $packed_outbox.created_at }; \
-                         COMMIT TRANSACTION;",
+                        COMMIT_TRANSACTION,
                         bindings,
-                        1,
+                        // BEGIN(0) anchor(1) item CREATE(2).
+                        2,
                     )
                     .await
             })
@@ -3297,16 +3617,9 @@ async fn create_commit_outbox_if_absent(
     let write = commit_outbox_write(workspace_id, proposal_id, commit_id, event_code, event)?;
     let id = write.event_id.clone();
     let content = CommitOutboxContent::from(write);
-    let created: Option<OutboxRow> = storage
-        .with_data_operation(move |database| {
-            Box::pin(async move {
-                database
-                    .create_if_absent(COMMIT_OUTBOX_TABLE, &id, content)
-                    .await
-            })
-        })
-        .await
-        .map_err(StorageError::from)?;
+    let created: Option<OutboxRow> =
+        anchored_create_if_absent(storage, COMMIT_OUTBOX_TABLE, &id, workspace_id, content)
+            .await?;
     if created.is_none() {
         ensure_commit_outbox(
             storage,
@@ -3709,5 +4022,58 @@ mod receipt_authenticity_tests {
             .expect("durable FEMS pack");
         assert_eq!(persisted, pack);
         reopened.shutdown().await.expect("close reopened store");
+    }
+}
+
+#[cfg(test)]
+mod workspace_write_anchor_tests {
+    use super::*;
+
+    /// MT-152 I-152-4: every row-creating FEMS statement embeds the one anchor
+    /// UPSERT byte-for-byte, and the workspace-existence guard precedes it in
+    /// the proposal insert so a deleted workspace THROWs before any write.
+    #[test]
+    fn anchored_statements_embed_the_workspace_write_anchor() {
+        for (name, statement) in [
+            ("PROPOSAL_INSERT_TRANSACTION", PROPOSAL_INSERT_TRANSACTION),
+            ("PROPOSAL_REVIEW_TRANSACTION", PROPOSAL_REVIEW_TRANSACTION),
+            ("COMMIT_TRANSACTION", COMMIT_TRANSACTION),
+            (
+                "LIFECYCLE_OUTBOX_HEAL_TRANSACTION",
+                LIFECYCLE_OUTBOX_HEAL_TRANSACTION,
+            ),
+            (
+                "ANCHORED_CREATE_IF_ABSENT_STATEMENT",
+                ANCHORED_CREATE_IF_ABSENT_STATEMENT,
+            ),
+            ("ANCHORED_ITEM_UPSERT_STATEMENT", ANCHORED_ITEM_UPSERT_STATEMENT),
+        ] {
+            assert_eq!(
+                statement.matches(WORKSPACE_WRITE_ANCHOR_UPSERT).count(),
+                1,
+                "{name} must embed the workspace write anchor exactly once"
+            );
+            assert!(statement.starts_with("BEGIN TRANSACTION;"), "{name}");
+            assert!(statement.ends_with("COMMIT TRANSACTION;"), "{name}");
+            let anchor_at = statement
+                .find(WORKSPACE_WRITE_ANCHOR_UPSERT)
+                .expect("anchor present");
+            let first_create = statement
+                .find("CREATE ")
+                .or_else(|| statement.find("UPSERT $record"))
+                .expect("statement creates or upserts a row");
+            assert!(anchor_at < first_create, "{name}: anchor must precede the row write");
+        }
+        let guard = PROPOSAL_INSERT_TRANSACTION
+            .find("THROW 'HSK-MEM-WORKSPACE-MISSING'")
+            .expect("workspace guard present");
+        let anchor = PROPOSAL_INSERT_TRANSACTION
+            .find(WORKSPACE_WRITE_ANCHOR_UPSERT)
+            .expect("anchor present");
+        assert!(guard < anchor);
+        let first = workspace_write_anchor("WS-1");
+        let second = workspace_write_anchor("WS-1");
+        assert_eq!(first.key, "WS-1");
+        assert_ne!(first.nonce, second.nonce, "a fresh nonce per attempt keeps the key written");
     }
 }

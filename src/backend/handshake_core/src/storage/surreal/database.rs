@@ -9,14 +9,28 @@
 //! enumerated mechanically by `not_implemented_surface_is_declared` so it can
 //! never be silently forgotten.
 
+use std::future::Future;
+use std::sync::LazyLock;
+use std::time::Instant;
+
 use async_trait::async_trait;
 
-use super::keyed_lock::KeyedLockRegistry;
-use super::SurrealStorage;
+use super::keyed_lock::{KeyedLockRegistry, LockKey, LockWaitTimeout};
+use super::retry::{
+    classify_storage_error, is_unique_index_violation, retry, Replay, RetryClass, RetryContext,
+    RetryError, RetryPolicy, SystemJitter, TokioClock,
+};
+use super::{SurrealDataContext, SurrealStorage, SurrealStorageError, SurrealStorageOperation};
 use crate::storage::{Database, StorageError};
 
 #[allow(unused_imports)]
 use crate::storage::*;
+
+/// Tables the MT-152 keyed locks below are scoped to (must match the store
+/// modules' record tables so a lock key names the row the transaction writes).
+const LOOM_BLOCKS_TABLE: &str = "loom_blocks";
+const LOOM_EDGES_TABLE: &str = "loom_edges";
+const LOOM_FOLDERS_TABLE: &str = "loom_folders";
 
 /// Embedded-SurrealDB control-plane database.
 ///
@@ -79,6 +93,154 @@ impl SurrealDatabase {
             .validate_write(ctx, resource_id)
             .await
             .map_err(StorageError::from)
+    }
+
+    /// Runs one mutation under the optional keyed locks and the bounded MT-142
+    /// retry - the shared form of `knowledge.rs::guarded_mutation` (MT-152
+    /// I-152-2; the knowledge copy is left in place for a later tidy). `op`
+    /// must contain every pre-read the decision depends on so a retried
+    /// attempt observes the state the winning writer committed; the
+    /// transaction it executes wrote nothing when a commit conflict is
+    /// reported (`surrealdb-core-3.2.0/src/kvs/rocksdb/mod.rs:2133-2138`),
+    /// which is what makes the re-run safe. Callers whose replay safety is
+    /// not proven pass [`Replay::NotIdempotent`]: they still get the keyed
+    /// lock and the bounded wait, never a second attempt. `own_index` names
+    /// the statement's OWN natural-key unique index for idempotent IF-exists
+    /// upserts, whose violation is a benign snapshot change (the re-run takes
+    /// the UPDATE branch); every other violation stays terminal.
+    ///
+    /// ONE wall-clock budget covers the whole logical mutation: the keyed-lock
+    /// wait, every retry attempt and the sleeps between them share it, and
+    /// `with_operation_deadline` clamps each attempt's statement bound to the
+    /// remaining budget so the last attempt cannot overshoot. Lock waits also
+    /// observe the store's shutdown cancellation, so a parked writer returns
+    /// the typed closed-store error inside the drain grace.
+    pub(crate) async fn guarded_mutation<T, F, Fut>(
+        &self,
+        keys: Vec<LockKey>,
+        replay: Replay,
+        own_index: Option<&'static str>,
+        mut op: F,
+    ) -> StorageResult<T>
+    where
+        F: FnMut() -> Fut,
+        Fut: Future<Output = StorageResult<T>>,
+    {
+        let deadline = Instant::now().checked_add(self.storage.config().statement_timeout());
+        let cancel = self.storage.cancellation_token();
+        let _guards = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(closed_store_error()),
+            guards = self
+                .lock_registry
+                .acquire_many_with_deadline(keys, deadline) => guards.map_err(lock_wait_error)?,
+        };
+        let mut context = RetryContext::unbounded().with_cancel(cancel);
+        context.deadline = deadline;
+        let attempts = retry(
+            &RetryPolicy::CONTRACT,
+            &context,
+            replay,
+            &TokioClock,
+            &*RETRY_JITTER,
+            |error| classify_mutation_error(error, own_index),
+            |_attempt| op(),
+        );
+        match deadline {
+            Some(deadline) => SurrealStorage::with_operation_deadline(deadline, attempts).await,
+            None => attempts.await,
+        }
+        .map_err(retry_error_to_storage)
+    }
+
+    /// [`Self::guarded_mutation`] for the lease-bound stores whose functions
+    /// take a [`SurrealDataContext`] (`loom_store`, `block_view_store`): each
+    /// attempt runs `operation(context, args.clone())` under its own lifecycle
+    /// lease through `with_storage_operation`, so the store function's
+    /// pre-reads and transaction are re-run together on a retry.
+    pub(crate) async fn guarded_storage_mutation<T, A, F>(
+        &self,
+        keys: Vec<LockKey>,
+        replay: Replay,
+        args: A,
+        operation: F,
+    ) -> StorageResult<T>
+    where
+        T: Send,
+        A: Clone + Send + 'static,
+        F: for<'a> Fn(SurrealDataContext<'a>, A) -> SurrealStorageOperation<'a, T>
+            + Clone
+            + Send
+            + 'static,
+    {
+        self.guarded_mutation(keys, replay, None, || {
+            let args = args.clone();
+            let operation = operation.clone();
+            async move {
+                self.storage
+                    .with_storage_operation(move |database| operation(database, args))
+                    .await
+                    .map_err(StorageError::from)?
+            }
+        })
+        .await
+    }
+}
+
+static RETRY_JITTER: LazyLock<SystemJitter> = LazyLock::new(SystemJitter::new);
+
+fn closed_store_error() -> StorageError {
+    StorageError::Database(SurrealStorageError::Closed.to_string())
+}
+
+/// Engine transaction conflicts are transient; a unique-index violation on the
+/// statement's OWN natural-key index is a benign snapshot change for an
+/// idempotent IF-exists upsert; everything else, including a violation on any
+/// other index and a statement timeout, is terminal.
+fn classify_mutation_error(error: &StorageError, own_index: Option<&str>) -> RetryClass {
+    match classify_storage_error(error) {
+        RetryClass::Terminal => match (error, own_index) {
+            (StorageError::Database(message), Some(index))
+                if is_unique_index_violation(message).as_deref() == Some(index) =>
+            {
+                RetryClass::RetryableSnapshotChange
+            }
+            _ => RetryClass::Terminal,
+        },
+        class => class,
+    }
+}
+
+fn retry_error_to_storage(error: RetryError<StorageError>) -> StorageError {
+    match error {
+        RetryError::Terminal { error, .. } => error,
+        RetryError::Exhausted {
+            attempts,
+            elapsed,
+            last,
+            bound,
+        } => StorageError::ConflictDetails {
+            code: if bound.is_no_retry_window() {
+                super::knowledge::NO_RETRY_WINDOW_CONFLICT_CODE
+            } else {
+                super::knowledge::RETRY_EXHAUSTED_CONFLICT_CODE
+            },
+            detail: format!(
+                "attempts={attempts} elapsed_ms={} bound={} last={last}",
+                elapsed.as_millis(),
+                bound.as_str()
+            ),
+        },
+        // The store's cancellation token fires only from shutdown, so callers
+        // see the same closed-store error the lease path returns.
+        RetryError::Cancelled { .. } => closed_store_error(),
+    }
+}
+
+fn lock_wait_error(error: LockWaitTimeout) -> StorageError {
+    StorageError::ConflictDetails {
+        code: super::knowledge::LOCK_WAIT_TIMEOUT_CONFLICT_CODE,
+        detail: error.to_string(),
     }
 }
 
@@ -246,14 +408,17 @@ impl Database for SurrealDatabase {
         upsert: MediaTierUpsert,
     ) -> StorageResult<MediaAssetTier> {
         self.mutation_metadata(ctx, &upsert.asset_id).await?;
-        self.storage
-            .with_storage_operation(move |database| {
-                Box::pin(
-                    async move { super::loom_store::upsert_media_tier(&database, upsert).await },
-                )
-            })
-            .await
-            .map_err(StorageError::from)?
+        // One UPSERT on the (asset, tier) row: the row id is the stable key.
+        let row_id = format!("{}--{}", upsert.asset_id, upsert.tier.as_str());
+        self.guarded_storage_mutation(
+            vec![LockKey::record("media_asset_tiers", row_id.clone())],
+            Replay::idempotent(format!("media-tier:{row_id}")),
+            upsert,
+            |database, upsert| {
+                Box::pin(async move { super::loom_store::upsert_media_tier(&database, upsert).await })
+            },
+        )
+        .await
     }
 
     async fn set_media_tier_status(
@@ -411,8 +576,11 @@ impl Database for SurrealDatabase {
         let workspace_id = workspace_id.to_owned();
         let collection_id = collection_id.to_owned();
         let asset_ids = asset_ids.to_vec();
-        self.storage
-            .with_storage_operation(move |database| {
+        self.guarded_storage_mutation(
+            vec![LockKey::record("loom_collections", collection_id.clone())],
+            Replay::idempotent(format!("loom-collection-order:{collection_id}")),
+            (workspace_id, collection_id, asset_ids),
+            |database, (workspace_id, collection_id, asset_ids)| {
                 Box::pin(async move {
                     super::loom_store::set_loom_collection_order(
                         &database,
@@ -422,9 +590,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn create_loom_block(
@@ -439,14 +607,17 @@ impl Database for SurrealDatabase {
             .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
         block.block_id = Some(block_id.clone());
         let metadata = self.mutation_metadata(ctx, &block_id).await?;
-        self.storage
-            .with_storage_operation(move |database| {
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!("loom-block-create:{block_id}")),
+            (block, metadata),
+            |database, (block, metadata)| {
                 Box::pin(async move {
                     super::loom_store::create_loom_block(&database, block, metadata).await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn get_or_create_daily_journal_block(
@@ -459,8 +630,17 @@ impl Database for SurrealDatabase {
         let metadata = self.mutation_metadata(ctx, &block_id).await?;
         let workspace_id = workspace_id.to_owned();
         let journal_date = journal_date.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        // The natural key of the get-or-create race (`uq_loom_blocks_journal_key`
+        // owns it database-side); the lookup and the CREATE are one attempt.
+        self.guarded_storage_mutation(
+            vec![LockKey::natural_key(
+                workspace_id.clone(),
+                "loom_journal_date",
+                journal_date.clone(),
+            )],
+            Replay::idempotent(format!("loom-journal:{workspace_id}:{journal_date}")),
+            (block_id, workspace_id, journal_date, metadata),
+            |database, (block_id, workspace_id, journal_date, metadata)| {
                 Box::pin(async move {
                     super::loom_store::get_or_create_daily_journal_block(
                         &database,
@@ -471,9 +651,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn get_loom_block(&self, workspace_id: &str, block_id: &str) -> StorageResult<LoomBlock> {
@@ -497,7 +677,7 @@ impl Database for SurrealDatabase {
     ) -> StorageResult<LoomKnowledgeBridge> {
         let metadata = self.mutation_metadata(ctx, block_id).await?;
         super::bridge_store::bridge_loom_block_to_knowledge(
-            &self.storage,
+            self,
             ctx,
             metadata,
             workspace_id,
@@ -576,8 +756,11 @@ impl Database for SurrealDatabase {
         let metadata = self.mutation_metadata(ctx, block_id).await?;
         let workspace_id = workspace_id.to_owned();
         let block_id = block_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!("loom-block-update:{block_id}:{}", metadata.edit_event_id)),
+            (workspace_id, block_id, update, metadata),
+            |database, (workspace_id, block_id, update, metadata)| {
                 Box::pin(async move {
                     super::loom_store::update_loom_block(
                         &database,
@@ -588,9 +771,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn set_loom_block_preview(
@@ -633,14 +816,19 @@ impl Database for SurrealDatabase {
         self.mutation_metadata(ctx, block_id).await?;
         let workspace_id = workspace_id.to_owned();
         let block_id = block_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        // Neighbour counts are recomputed inside the one transaction (MT-151), so a
+        // concurrent edge writer collides at commit and the retry re-runs the delete.
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!("loom-block-delete:{block_id}")),
+            (workspace_id, block_id),
+            |database, (workspace_id, block_id)| {
                 Box::pin(async move {
                     super::loom_store::delete_loom_block(&database, &workspace_id, &block_id).await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn create_loom_edge(
@@ -655,14 +843,19 @@ impl Database for SurrealDatabase {
             .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
         edge.edge_id = Some(edge_id.clone());
         let metadata = self.mutation_metadata(ctx, &edge_id).await?;
-        self.storage
-            .with_storage_operation(move |database| {
+        // Endpoint counters are `array::len` recomputes inside the transaction, so two
+        // edges touching one block collide at commit and the loser's retry recounts.
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_EDGES_TABLE, edge_id.clone())],
+            Replay::idempotent(format!("loom-edge-create:{edge_id}")),
+            (edge, metadata),
+            |database, (edge, metadata)| {
                 Box::pin(async move {
                     super::loom_store::create_loom_edge(&database, edge, metadata).await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn delete_loom_edge(
@@ -674,14 +867,17 @@ impl Database for SurrealDatabase {
         self.mutation_metadata(ctx, edge_id).await?;
         let workspace_id = workspace_id.to_owned();
         let edge_id = edge_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_EDGES_TABLE, edge_id.clone())],
+            Replay::idempotent(format!("loom-edge-delete:{edge_id}")),
+            (workspace_id, edge_id),
+            |database, (workspace_id, edge_id)| {
                 Box::pin(async move {
                     super::loom_store::delete_loom_edge(&database, &workspace_id, &edge_id).await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn list_loom_edges_for_block(
@@ -787,14 +983,20 @@ impl Database for SurrealDatabase {
 
     async fn recompute_all_metrics(&self, workspace_id: &str) -> StorageResult<()> {
         let workspace_id = workspace_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        // Rewrites every block's counters in the workspace: the one Loom mutation whose
+        // invariant genuinely spans the workspace. Each recount is a pure function of
+        // the edge rows, so re-running the sweep after a conflict converges.
+        self.guarded_storage_mutation(
+            vec![LockKey::workspace(workspace_id.clone())],
+            Replay::idempotent(format!("loom-metrics-recompute:{workspace_id}")),
+            workspace_id,
+            |database, workspace_id| {
                 Box::pin(async move {
                     super::loom_store::recompute_all_metrics(&database, &workspace_id).await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn query_loom_view(
@@ -1523,8 +1725,11 @@ impl Database for SurrealDatabase {
         let metadata = self.mutation_metadata(ctx, block_id).await?;
         let workspace_id = workspace_id.to_owned();
         let block_id = block_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!("loom-block-pin:{block_id}:{}", metadata.edit_event_id)),
+            (workspace_id, block_id, metadata),
+            move |database, (workspace_id, block_id, metadata)| {
                 Box::pin(async move {
                     super::loom_store::set_loom_block_pin_order(
                         &database,
@@ -1535,9 +1740,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn remove_loom_block_pin(
@@ -1549,8 +1754,11 @@ impl Database for SurrealDatabase {
         let metadata = self.mutation_metadata(ctx, block_id).await?;
         let workspace_id = workspace_id.to_owned();
         let block_id = block_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!("loom-block-unpin:{block_id}:{}", metadata.edit_event_id)),
+            (workspace_id, block_id, metadata),
+            |database, (workspace_id, block_id, metadata)| {
                 Box::pin(async move {
                     super::loom_store::remove_loom_block_pin(
                         &database,
@@ -1560,9 +1768,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn create_loom_folder(
@@ -1571,14 +1779,28 @@ impl Database for SurrealDatabase {
         folder: NewLoomFolder,
     ) -> StorageResult<LoomFolder> {
         let workspace_id = workspace_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        // The uniqueness race is the sibling name under one parent
+        // (`uq_loom_folders_sibling_name`); the folder id itself is fresh.
+        let sibling_key = format!(
+            "{}/{}",
+            folder.parent_folder_id.as_deref().unwrap_or(""),
+            folder.name.trim()
+        );
+        self.guarded_storage_mutation(
+            vec![LockKey::natural_key(
+                workspace_id.clone(),
+                "loom_folder_sibling_name",
+                sibling_key.clone(),
+            )],
+            Replay::idempotent(format!("loom-folder-create:{workspace_id}:{sibling_key}")),
+            (workspace_id, folder),
+            |database, (workspace_id, folder)| {
                 Box::pin(async move {
                     super::loom_store::create_loom_folder(&database, &workspace_id, folder).await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn get_loom_folder(
@@ -1618,8 +1840,20 @@ impl Database for SurrealDatabase {
     ) -> StorageResult<LoomFolder> {
         let workspace_id = workspace_id.to_owned();
         let folder_id = folder_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        let mut keys = vec![LockKey::record(LOOM_FOLDERS_TABLE, folder_id.clone())];
+        if matches!(update.parent_folder_id, Some(Some(_))) {
+            // A re-parent's acyclicity check spans the workspace tree; the row it is
+            // proven on is the per-workspace anchor the transaction compare-and-sets.
+            keys.push(LockKey::record(
+                super::loom_store::GRAPH_ANCHORS_TABLE,
+                super::loom_store::folder_tree_anchor_id(&workspace_id),
+            ));
+        }
+        self.guarded_storage_mutation(
+            keys,
+            Replay::idempotent(format!("loom-folder-update:{folder_id}")),
+            (workspace_id, folder_id, update),
+            |database, (workspace_id, folder_id, update)| {
                 Box::pin(async move {
                     super::loom_store::update_loom_folder(
                         &database,
@@ -1629,23 +1863,26 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn delete_loom_folder(&self, workspace_id: &str, folder_id: &str) -> StorageResult<()> {
         let workspace_id = workspace_id.to_owned();
         let folder_id = folder_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_FOLDERS_TABLE, folder_id.clone())],
+            Replay::idempotent(format!("loom-folder-delete:{folder_id}")),
+            (workspace_id, folder_id),
+            |database, (workspace_id, folder_id)| {
                 Box::pin(async move {
                     super::loom_store::delete_loom_folder(&database, &workspace_id, &folder_id)
                         .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn add_block_to_loom_folder(
@@ -1658,8 +1895,15 @@ impl Database for SurrealDatabase {
         let workspace_id = workspace_id.to_owned();
         let folder_id = folder_id.to_owned();
         let block_id = block_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        let member_id = super::loom_store::folder_member_id(&folder_id, &block_id);
+        self.guarded_storage_mutation(
+            vec![LockKey::record(
+                super::loom_store::FOLDER_MEMBERS_TABLE,
+                member_id.clone(),
+            )],
+            Replay::idempotent(format!("loom-folder-member-add:{member_id}")),
+            (workspace_id, folder_id, block_id),
+            move |database, (workspace_id, folder_id, block_id)| {
                 Box::pin(async move {
                     super::loom_store::add_block_to_loom_folder(
                         &database,
@@ -1670,9 +1914,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn remove_block_from_loom_folder(
@@ -1684,8 +1928,15 @@ impl Database for SurrealDatabase {
         let workspace_id = workspace_id.to_owned();
         let folder_id = folder_id.to_owned();
         let block_id = block_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        let member_id = super::loom_store::folder_member_id(&folder_id, &block_id);
+        self.guarded_storage_mutation(
+            vec![LockKey::record(
+                super::loom_store::FOLDER_MEMBERS_TABLE,
+                member_id.clone(),
+            )],
+            Replay::idempotent(format!("loom-folder-member-remove:{member_id}")),
+            (workspace_id, folder_id, block_id),
+            |database, (workspace_id, folder_id, block_id)| {
                 Box::pin(async move {
                     super::loom_store::remove_block_from_loom_folder(
                         &database,
@@ -1695,9 +1946,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn list_loom_folder_blocks(
@@ -1734,7 +1985,7 @@ impl Database for SurrealDatabase {
         board_state: Value,
     ) -> StorageResult<LoomCanvasBoard> {
         super::loom_canvas_store::create_canvas_board(
-            &self.storage,
+            self,
             ctx,
             workspace_id,
             block_id,
@@ -1760,7 +2011,7 @@ impl Database for SurrealDatabase {
         expected_event_ledger_event_id: &str,
     ) -> StorageResult<LoomCanvasBoard> {
         super::loom_canvas_store::update_canvas_board_state(
-            &self.storage,
+            self,
             ctx,
             workspace_id,
             block_id,
@@ -1775,7 +2026,7 @@ impl Database for SurrealDatabase {
         ctx: &WriteContext,
         placement: NewLoomCanvasPlacement,
     ) -> StorageResult<LoomCanvasPlacement> {
-        super::loom_canvas_store::place_block_on_canvas(&self.storage, ctx, placement).await
+        super::loom_canvas_store::place_block_on_canvas(self, ctx, placement).await
     }
 
     async fn create_stage_canvas_card(
@@ -1783,7 +2034,7 @@ impl Database for SurrealDatabase {
         ctx: &WriteContext,
         card: NewLoomCanvasStageCard,
     ) -> StorageResult<LoomCanvasStageCard> {
-        super::loom_canvas_store::create_stage_canvas_card(&self.storage, ctx, card).await
+        super::loom_canvas_store::create_stage_canvas_card(self, ctx, card).await
     }
 
     async fn compensate_stage_canvas_card(
@@ -1791,7 +2042,7 @@ impl Database for SurrealDatabase {
         ctx: &WriteContext,
         card: CompensateLoomCanvasStageCard,
     ) -> StorageResult<LoomCanvasStageCompensation> {
-        super::loom_canvas_store::compensate_stage_canvas_card(&self.storage, ctx, card).await
+        super::loom_canvas_store::compensate_stage_canvas_card(self, ctx, card).await
     }
 
     async fn update_canvas_placement(
@@ -1802,7 +2053,7 @@ impl Database for SurrealDatabase {
         update: LoomCanvasPlacementUpdate,
     ) -> StorageResult<LoomCanvasPlacement> {
         super::loom_canvas_store::update_canvas_placement(
-            &self.storage,
+            self,
             ctx,
             workspace_id,
             placement_id,
@@ -1818,7 +2069,7 @@ impl Database for SurrealDatabase {
         placement_id: &str,
     ) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
         super::loom_canvas_store::remove_canvas_placement(
-            &self.storage,
+            self,
             ctx,
             workspace_id,
             placement_id,
@@ -1836,7 +2087,7 @@ impl Database for SurrealDatabase {
         label: Option<String>,
     ) -> StorageResult<LoomCanvasVisualEdge> {
         super::loom_canvas_store::add_canvas_visual_edge(
-            &self.storage,
+            self,
             ctx,
             workspace_id,
             canvas_block_id,
@@ -1854,7 +2105,7 @@ impl Database for SurrealDatabase {
         visual_edge_id: &str,
     ) -> StorageResult<()> {
         super::loom_canvas_store::remove_canvas_visual_edge(
-            &self.storage,
+            self,
             ctx,
             workspace_id,
             visual_edge_id,
@@ -1873,8 +2124,13 @@ impl Database for SurrealDatabase {
         let metadata = self.mutation_metadata(ctx, block_id).await?;
         let workspace_id = workspace_id.to_owned();
         let block_id = block_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        // Idempotent create keyed on the view block id; the knowledge-entity natural
+        // identity it also creates is keyed on the same id (`entity_key`).
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!("block-view-create:{block_id}")),
+            (workspace_id, block_id, title, definition, metadata),
+            |database, (workspace_id, block_id, title, definition, metadata)| {
                 Box::pin(async move {
                     super::block_view_store::create_block_view(
                         &database,
@@ -1886,9 +2142,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn get_block_view(
@@ -1919,8 +2175,14 @@ impl Database for SurrealDatabase {
         let metadata = self.mutation_metadata(ctx, block_id).await?;
         let workspace_id = workspace_id.to_owned();
         let block_id = block_id.to_owned();
-        self.storage
-            .with_storage_operation(move |database| {
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!(
+                "block-view-update:{block_id}:{}",
+                metadata.edit_event_id
+            )),
+            (workspace_id, block_id, definition, metadata),
+            |database, (workspace_id, block_id, definition, metadata)| {
                 Box::pin(async move {
                     super::block_view_store::update_block_view_definition(
                         &database,
@@ -1931,9 +2193,9 @@ impl Database for SurrealDatabase {
                     )
                     .await
                 })
-            })
-            .await
-            .map_err(StorageError::from)?
+            },
+        )
+        .await
     }
 
     async fn query_block_view_results(
@@ -2014,7 +2276,7 @@ impl Database for SurrealDatabase {
         anchor: Option<&str>,
     ) -> StorageResult<LoomWikiOverlay> {
         super::wiki_store::add_loom_wiki_overlay(
-            &self.storage,
+            self,
             workspace_id,
             projection_id,
             annotation,
@@ -2036,7 +2298,7 @@ impl Database for SurrealDatabase {
         workspace_id: &str,
         overlay_id: &str,
     ) -> StorageResult<()> {
-        super::wiki_store::delete_loom_wiki_overlay(&self.storage, workspace_id, overlay_id).await
+        super::wiki_store::delete_loom_wiki_overlay(self, workspace_id, overlay_id).await
     }
 
     async fn import_markdown_to_loom(
@@ -2047,7 +2309,7 @@ impl Database for SurrealDatabase {
         markdown: &str,
     ) -> StorageResult<LoomMarkdownImport> {
         super::wiki_store::import_markdown_to_loom(
-            &self.storage,
+            self,
             ctx,
             workspace_id,
             title,
@@ -2393,7 +2655,7 @@ impl Database for SurrealDatabase {
         &self,
         op: crate::workflows::locus::types::LocusOperation,
     ) -> StorageResult<serde_json::Value> {
-        super::locus_store::execute_locus_operation(&self.storage, op).await
+        super::locus_store::execute_locus_operation(self, op).await
     }
 
     async fn locus_task_board_update_work_packet(

@@ -13,7 +13,6 @@ use chrono::{DateTime, Utc};
 use regex::Regex;
 use serde_json::{json, Value as JsonValue};
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use super::{event_ledger, SurrealDataContext, SurrealStorageError};
@@ -35,46 +34,66 @@ const BLOCKS_TABLE: &str = "loom_blocks";
 const EDGES_TABLE: &str = "loom_edges";
 const COLLECTIONS_TABLE: &str = "loom_collections";
 
-/// The embedded database is single-process. Serializing Loom read-decide-write
-/// paths prevents unique-index losers and metric lost updates while retaining
-/// the relational backend's transaction semantics.
-///
-/// MT-151 (RESIDUAL-MT142-EARLY-LOCK-RELEASE-ON-STATEMENT-TIMEOUT): the caller-side
-/// statement bound in `SurrealStorage::with_data_operation` drops this guard when it
-/// times out while the abandoned statement may still be live in the engine, so the
-/// lock alone no longer serializes a read-decide-write against that statement. Every
-/// invariant this lock guards is therefore also owned database-side: record identity
-/// by `pk_loom_blocks` / `pk_loom_edges`, the journal get-or-create natural key by
-/// `uq_loom_blocks_journal_key` (schema.surql, `journal_key`), counters by in-statement
-/// `array::len` recomputes, folder acyclicity by the `storage_graph_anchors`
-/// compare-and-set (see `update_loom_folder`). The lock remains a contention shaper.
-static LOOM_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
-
-/// Acquires [`LOOM_MUTATION_LOCK`]; `None` only inside the MT-151 race-proof bypass scope.
-async fn loom_mutation_guard() -> Option<tokio::sync::MutexGuard<'static, ()>> {
-    #[cfg(any(test, feature = "surreal-test-support"))]
-    if super::keyed_lock::static_lock_test_support::static_mutation_locks_bypassed() {
-        return None;
-    }
-    Some(LOOM_MUTATION_LOCK.lock().await)
-}
+// Concurrency (MT-152 I-152-2, replacing the process-global Loom mutation mutex):
+// every invariant a Loom mutation depends on is owned database-side - record identity
+// by `pk_loom_blocks` / `pk_loom_edges`, the journal get-or-create natural key by
+// `uq_loom_blocks_journal_key` (schema.surql, `journal_key`), counters by in-statement
+// `array::len` recomputes, folder acyclicity by the `storage_graph_anchors`
+// compare-and-set (see `update_loom_folder`), sibling names by
+// `uq_loom_folders_sibling_name`. The functions here therefore take no lock at all;
+// the `SurrealDatabase` caller wraps each mutation in
+// `SurrealDatabase::guarded_storage_mutation` on the narrowest stable key (the
+// mutated record, the natural key of a uniqueness race, the per-workspace tree anchor
+// for re-parents, the workspace only for `recompute_all_metrics`), which shapes
+// same-key writers and absorbs engine commit conflicts with the bounded MT-142 retry.
+// The per-workspace folder-tree anchor record id is [`folder_tree_anchor_id`].
 
 /// MT-151 race-proof pause point between a read-decide step and its transaction; a no-op
-/// outside `static_lock_test_support::with_pause_after_decision`.
+/// outside `race_test_support::with_pause_after_decision`.
 async fn pause_after_decision() {
     #[cfg(any(test, feature = "surreal-test-support"))]
-    super::keyed_lock::static_lock_test_support::pause_after_decision().await;
+    super::keyed_lock::race_test_support::pause_after_decision().await;
 }
 
-const GRAPH_ANCHORS_TABLE: &str = "storage_graph_anchors";
+pub(crate) const GRAPH_ANCHORS_TABLE: &str = "storage_graph_anchors";
 const FOLDER_TREE_GRAPH_KIND: &str = "loom_folder_tree";
+
+/// Key of the per-workspace folder-tree version anchor row (MT-151); also the
+/// `LockKey::record` id a folder re-parent is shaped on (MT-152).
+pub(crate) fn folder_tree_anchor_id(workspace_id: &str) -> String {
+    format!("{FOLDER_TREE_GRAPH_KIND}|{workspace_id}")
+}
+
+pub(crate) const FOLDER_MEMBERS_TABLE: &str = "loom_folder_members";
+
+/// `loom_folders.sibling_key` (MT-152): `workspace|parent-or-root|name`, the stored
+/// discriminator behind `uq_loom_folders_sibling_key`, which is what actually rejects a
+/// duplicate ROOT name - the composite `uq_loom_folders_sibling_name` is skipped by the engine
+/// for any tuple containing NONE (surrealdb-core-3.2.0/src/idx/index.rs:190-197). The SQL in
+/// `create_loom_folder` / `update_loom_folder` (a `string::concat` over the row) computes the same
+/// value from the row; the schema upgrade backfill computes it here.
+pub(crate) fn loom_folder_sibling_key(
+    workspace_id: &str,
+    parent_folder_id: Option<&str>,
+    name: &str,
+) -> String {
+    format!(
+        "{workspace_id}|{}|{}",
+        parent_folder_id.unwrap_or("root"),
+        name.trim()
+    )
+}
+
+/// Key of the `loom_folder_members` row for (folder, block); length-prefixed so
+/// the two ids cannot be confused. Also the `LockKey::record` id membership
+/// writes are shaped on (MT-152).
+pub(crate) fn folder_member_id(folder_id: &str, block_id: &str) -> String {
+    format!("{}:{folder_id}--{}:{block_id}", folder_id.len(), block_id.len())
+}
 
 /// Record id of the per-workspace folder-tree version anchor (MT-151).
 fn folder_tree_anchor(workspace_id: &str) -> RecordId {
-    thing(
-        GRAPH_ANCHORS_TABLE,
-        format!("{FOLDER_TREE_GRAPH_KIND}|{workspace_id}"),
-    )
+    thing(GRAPH_ANCHORS_TABLE, folder_tree_anchor_id(workspace_id))
 }
 
 #[derive(SurrealValue)]
@@ -119,7 +138,9 @@ fn guarded_err(error: SurrealStorageError) -> StorageError {
         StorageError::Conflict("loom_workspace_conflict")
     } else if rendered.contains("HSK-MEDIA-TIER-NOT-FOUND") {
         StorageError::NotFound("media_asset_tier")
-    } else if rendered.contains("uq_loom_folders_sibling_name") {
+    } else if rendered.contains("uq_loom_folders_sibling_name")
+        || rendered.contains("uq_loom_folders_sibling_key")
+    {
         StorageError::Conflict("loom_folder_sibling_name")
     } else if rendered.contains("uq_loom_blocks_journal_key") {
         StorageError::Conflict("loom_journal_date_exists")
@@ -388,7 +409,6 @@ pub(crate) async fn upsert_media_tier(
     db: &SurrealDataContext<'_>,
     upsert: MediaTierUpsert,
 ) -> StorageResult<MediaAssetTier> {
-    let _guard = loom_mutation_guard().await;
     let row_id = format!("{}--{}", upsert.asset_id, upsert.tier.as_str());
     let result = db
         .query_first::<MediaTierRow, _>(
@@ -646,7 +666,6 @@ pub(crate) async fn set_loom_collection_order(
     if asset_ids.iter().collect::<HashSet<_>>().len() != asset_ids.len() {
         return Err(StorageError::Conflict("duplicate loom collection asset"));
     }
-    let _guard = loom_mutation_guard().await;
     let collection = thing(COLLECTIONS_TABLE, collection_id);
     let members = asset_ids
         .iter()
@@ -843,7 +862,6 @@ pub(crate) async fn create_loom_block(
         ));
     }
     require_guarded_resource(&metadata, &id)?;
-    let _guard = loom_mutation_guard().await;
     let preview = LoomBlock {
         block_id: id.clone(),
         workspace_id: block.workspace_id.clone(),
@@ -898,7 +916,6 @@ pub(crate) async fn get_or_create_daily_journal_block(
     metadata: MutationMetadata,
 ) -> StorageResult<LoomBlock> {
     require_guarded_resource(&metadata, &new_block_id)?;
-    let _guard = loom_mutation_guard().await;
     if let Some(row) = db
         .query_first::<BlockRow, _>(
             "SELECT * FROM loom_blocks WHERE workspace_id = $workspace AND content_type = 'journal' AND journal_date = $journal_date LIMIT 1;",
@@ -916,7 +933,7 @@ pub(crate) async fn get_or_create_daily_journal_block(
     let title = format!("Daily Note {journal_date}");
     let mut derived = LoomBlockDerived::default();
     derived.full_text_index = Some(format!("# {title}\n\n"));
-    // Call the unlocked implementation inline because this function owns the mutex.
+    // Inline create so the journal lookup and the CREATE run in one guarded attempt.
     let id = new_block_id;
     let block = NewLoomBlock {
         block_id: Some(id.clone()),
@@ -1055,7 +1072,6 @@ pub(crate) async fn update_loom_block(
     metadata: MutationMetadata,
 ) -> StorageResult<LoomBlock> {
     require_guarded_resource(&metadata, block_id)?;
-    let _guard = loom_mutation_guard().await;
     let existing = get_loom_block(db, workspace_id, block_id).await?;
     let mut projected = existing.clone();
     if let Some(value) = update.title.clone() {
@@ -1161,7 +1177,6 @@ pub(crate) async fn delete_loom_block(
     workspace_id: &str,
     block_id: &str,
 ) -> StorageResult<()> {
-    let _guard = loom_mutation_guard().await;
     // MT-151: the neighbour set is computed inside the transaction (same snapshot as the
     // DELETE) instead of from a Rust pre-read, so an edge committed between the two is
     // never left with a stale count; an edge writer still in flight collides on this
@@ -1274,7 +1289,6 @@ pub(crate) async fn create_loom_edge(
     edge: NewLoomEdge,
     metadata: MutationMetadata,
 ) -> StorageResult<LoomEdge> {
-    let _guard = loom_mutation_guard().await;
     let id = edge
         .edge_id
         .clone()
@@ -1336,7 +1350,6 @@ pub(crate) async fn delete_loom_edge(
     workspace_id: &str,
     edge_id: &str,
 ) -> StorageResult<LoomEdge> {
-    let _guard = loom_mutation_guard().await;
     let existing = db
         .query_first::<EdgeRow, _>(
             "SELECT * FROM $record WHERE workspace_id = $workspace LIMIT 1;",
@@ -1529,7 +1542,6 @@ pub(crate) async fn recompute_all_metrics(
     db: &SurrealDataContext<'_>,
     workspace_id: &str,
 ) -> StorageResult<()> {
-    let _guard = loom_mutation_guard().await;
     let block_ids: Vec<_> = workspace_blocks(db, workspace_id)
         .await?
         .into_iter()
@@ -3126,7 +3138,6 @@ async fn mutate_pin(
     metadata: MutationMetadata,
 ) -> StorageResult<(LoomBlock, LoomMutationEventReceipt)> {
     require_guarded_resource(&metadata, block_id)?;
-    let _guard = loom_mutation_guard().await;
     let event = build_loom_mutation_event(
         workspace_id,
         "loom_block",
@@ -3283,7 +3294,6 @@ pub(crate) async fn create_loom_folder(
     workspace_id: &str,
     folder: NewLoomFolder,
 ) -> StorageResult<LoomFolder> {
-    let _guard = loom_mutation_guard().await;
     let name = folder.name.trim();
     if name.is_empty() {
         return Err(StorageError::Validation("loom folder name is required"));
@@ -3303,7 +3313,7 @@ pub(crate) async fn create_loom_folder(
              IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] = NONE { \
                 CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, created_at: $ledger.created_at }; \
              }; \
-             CREATE $folder SET folder_id = record::id($folder), workspace_id = $workspace, parent_folder_id = $parent, name = $name, color = $color, sort_mode = $sort_mode, sort_order = $sort_order, project_ref = $project_ref, event_ledger_event_id = $ledger.record RETURN AFTER; \
+             CREATE $folder SET folder_id = record::id($folder), workspace_id = $workspace, parent_folder_id = $parent, name = $name, sibling_key = string::concat(record::id($workspace), '|', (IF $parent = NONE { 'root' } ELSE { record::id($parent) }), '|', $name), color = $color, sort_mode = $sort_mode, sort_order = $sort_order, project_ref = $project_ref, event_ledger_event_id = $ledger.record RETURN AFTER; \
              COMMIT TRANSACTION;",
             FolderCreateBinding {
                 folder: thing("loom_folders", folder_id),
@@ -3433,7 +3443,6 @@ pub(crate) async fn update_loom_folder(
     folder_id: &str,
     update: LoomFolderUpdate,
 ) -> StorageResult<LoomFolder> {
-    let _guard = loom_mutation_guard().await;
     get_loom_folder(db, workspace_id, folder_id).await?;
     let anchor = folder_tree_anchor(workspace_id);
     let expected_anchor_version = read_graph_anchor_version(db, anchor.clone()).await?;
@@ -3482,6 +3491,7 @@ pub(crate) async fn update_loom_folder(
                 CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, created_at: $ledger.created_at }; \
              }; \
              UPDATE $folder SET name = $name ?? name, color = IF $set_color { $color } ELSE { color }, sort_mode = $sort_mode ?? sort_mode, sort_order = IF $set_sort_order { $sort_order } ELSE { sort_order }, parent_folder_id = IF $set_parent { $parent } ELSE { parent_folder_id }, project_ref = IF $set_project_ref { $project_ref } ELSE { project_ref }, event_ledger_event_id = $ledger.record, updated_at = time::now() RETURN AFTER; \
+             UPDATE $folder SET sibling_key = string::concat(record::id(workspace_id), '|', (IF parent_folder_id = NONE { 'root' } ELSE { record::id(parent_folder_id) }), '|', name) RETURN NONE; \
              IF $reparent { \
                 LET $anchor_version = (SELECT VALUE version FROM $anchor)[0] ?? 0; \
                 IF $anchor_version != $expected_anchor_version { THROW 'HSK-LOOM-FOLDER-TREE-STALE'; }; \
@@ -3542,7 +3552,6 @@ pub(crate) async fn delete_loom_folder(
     let event =
         build_loom_mutation_event(workspace_id, "loom_folder", folder_id, "delete", json!({}))?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
-    let _guard = loom_mutation_guard().await;
     db.query_values_at::<JsonValue, _>(
         "BEGIN TRANSACTION; \
          LET $deleted = (DELETE $folder WHERE workspace_id = $workspace RETURN BEFORE); \
@@ -3580,7 +3589,6 @@ pub(crate) async fn add_block_to_loom_folder(
     block_id: &str,
     sort_order: Option<i32>,
 ) -> StorageResult<()> {
-    let _guard = loom_mutation_guard().await;
     get_loom_folder(db, workspace_id, folder_id).await?;
     get_loom_block(db, workspace_id, block_id).await?;
     let event = build_loom_mutation_event(
@@ -3599,10 +3607,7 @@ pub(crate) async fn add_block_to_loom_folder(
          UPSERT $member SET folder_id = $folder, block_id = $block, workspace_id = $workspace, sort_order = $sort_order, event_ledger_event_id = $ledger.record; \
          COMMIT TRANSACTION;",
         FolderMemberBinding {
-            member: thing(
-                "loom_folder_members",
-                format!("{}:{folder_id}--{}:{block_id}", folder_id.len(), block_id.len()),
-            ),
+            member: thing(FOLDER_MEMBERS_TABLE, folder_member_id(folder_id, block_id)),
             folder: thing("loom_folders", folder_id),
             block: thing(BLOCKS_TABLE, block_id),
             workspace: thing("workspaces", workspace_id),
@@ -3630,7 +3635,6 @@ pub(crate) async fn remove_block_from_loom_folder(
         json!({ "block_id": block_id }),
     )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
-    let _guard = loom_mutation_guard().await;
     db.query_values_at::<JsonValue, _>(
         "BEGIN TRANSACTION; \
          LET $deleted = (DELETE loom_folder_members WHERE workspace_id = $workspace AND folder_id = $folder AND block_id = $block RETURN BEFORE); \
@@ -3639,10 +3643,7 @@ pub(crate) async fn remove_block_from_loom_folder(
          }; \
          COMMIT TRANSACTION;",
         FolderMemberBinding {
-            member: thing(
-                "loom_folder_members",
-                format!("{}:{folder_id}--{}:{block_id}", folder_id.len(), block_id.len()),
-            ),
+            member: thing(FOLDER_MEMBERS_TABLE, folder_member_id(folder_id, block_id)),
             folder: thing("loom_folders", folder_id),
             block: thing(BLOCKS_TABLE, block_id),
             workspace: thing("workspaces", workspace_id),
@@ -4155,27 +4156,27 @@ mod tests {
             .expect("seed pin lifecycle")
             .expect("seed pinned block");
 
-        let remove = |store: SurrealStorage, actor: &'static str| {
+        // MT-152: same-record writers are shaped by the `SurrealDatabase` keyed registry
+        // (`Record(loom_blocks, block_id)`) with the bounded retry, no longer by a mutex inside
+        // this module, so the racers go through the product entry point.
+        let database = crate::storage::surreal::SurrealDatabase::new(store.clone());
+        let remove = |database: crate::storage::surreal::SurrealDatabase, actor: &'static str| {
             let workspace_id = workspace_id.to_owned();
             let block_id = block_id.to_owned();
             async move {
-                store
-                    .with_storage_operation(move |db| {
-                        let mut write_metadata = metadata(&block_id, Utc::now());
-                        write_metadata.actor_id = Some(actor.to_owned());
-                        Box::pin(async move {
-                            remove_loom_block_pin(&db, &workspace_id, &block_id, write_metadata)
-                                .await
-                        })
-                    })
-                    .await
-                    .expect("pin removal lifecycle")
-                    .expect("remove pin")
+                crate::storage::Database::remove_loom_block_pin(
+                    &database,
+                    &crate::storage::WriteContext::system(Some(actor.to_owned())),
+                    &workspace_id,
+                    &block_id,
+                )
+                .await
+                .expect("remove pin")
             }
         };
         let (first, second) = tokio::join!(
-            remove(store.clone(), "concurrent-removal-a"),
-            remove(store.clone(), "concurrent-removal-b")
+            remove(database.clone(), "concurrent-removal-a"),
+            remove(database.clone(), "concurrent-removal-b")
         );
 
         assert_ne!(first.event.event_id, second.event.event_id);

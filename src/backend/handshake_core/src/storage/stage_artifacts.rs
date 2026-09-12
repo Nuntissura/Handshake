@@ -1,15 +1,29 @@
 //! WP-KERNEL-012 MT-066/074 exact-byte Stage capture authority on embedded SurrealDB.
+//!
+//! Concurrency (MT-152 I-152-4): no process-global mutex. The one invariant
+//! the insert protects - one artifact per (workspace, idempotency_key), with an
+//! exact replay returning the original row - is owned by
+//! `uq_stage_capture_artifacts_idempotency` (schema.surql) together with
+//! `idx_kernel_event_ledger_idempotency` for the receipts the same transaction
+//! writes. Two racers that both pass the replay preflight send two CREATEs; the
+//! index admits one, the loser re-reads by idempotency key inside the bounded
+//! MT-142 retry ([`SurrealDatabase::guarded_mutation`]) and returns the winner
+//! as a replay, or the typed request-hash conflict.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use surrealdb::types::{Bytes, Datetime, RecordId, RecordIdKey, SurrealValue};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use super::{
-    surreal::{event_ledger, SurrealStorage},
+    surreal::{
+        event_ledger,
+        keyed_lock::{KeyedLockRegistry, LockKey},
+        retry::{is_unique_index_violation, Replay},
+        SurrealDatabase, SurrealStorage,
+    },
     StorageError,
 };
 use crate::kernel::NewKernelEvent;
@@ -19,8 +33,29 @@ const STAGE_CONTENT_KINDS: [&str; 4] = ["document", "selection", "canvas_node", 
 const WORKSPACES_TABLE: &str = "workspaces";
 const ARTIFACTS_TABLE: &str = "stage_capture_artifacts";
 const JOBS_TABLE: &str = "ai_jobs";
+/// MT-152 race-proof pause point between a read-decide step and its transaction; a no-op
+/// outside `race_test_support::with_pause_after_decision`. Called with `first_attempt` so
+/// only the FIRST attempt of a retried mutation parks on the two-party barrier: a retried
+/// attempt (the loser of the engine-level collision the proof provokes) must not wait for a
+/// second party that has already left.
+async fn pause_after_decision(first_attempt: bool) {
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    if first_attempt {
+        super::surreal::keyed_lock::race_test_support::pause_after_decision().await;
+    }
+    #[cfg(not(any(test, feature = "surreal-test-support")))]
+    let _ = first_attempt;
+}
 
-static STAGE_INSERT_LOCK: Mutex<()> = Mutex::const_new(());
+/// Natural-key kind for the keyed registry (`LockKey::natural_key`).
+const STAGE_IDEMPOTENCY_LOCK_KIND: &str = "stage_capture_idempotency";
+/// The UNIQUE indexes that decide the idempotency race inside the insert
+/// transaction; a violation on either means another writer committed the same
+/// request first and the attempt re-reads it.
+const STAGE_IDEMPOTENCY_INDEXES: [&str; 2] = [
+    "uq_stage_capture_artifacts_idempotency",
+    "idx_kernel_event_ledger_idempotency",
+];
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StageCaptureArtifact {
@@ -139,12 +174,26 @@ struct InsertBindings {
 
 #[derive(Clone)]
 pub struct StageArtifactStore {
-    storage: SurrealStorage,
+    database: SurrealDatabase,
 }
 
 impl StageArtifactStore {
+    /// Store over a bare embedded handle: no keyed shaping (a fresh
+    /// `LockMode::Disabled` wrapper); correctness is owned by the transaction.
     pub fn new(storage: SurrealStorage) -> Self {
-        Self { storage }
+        Self::with_database(SurrealDatabase::with_lock_registry(
+            storage,
+            KeyedLockRegistry::disabled(),
+        ))
+    }
+
+    /// Store over a wrapper whose keyed registry shapes same-key writers.
+    pub fn with_database(database: SurrealDatabase) -> Self {
+        Self { database }
+    }
+
+    fn storage(&self) -> &SurrealStorage {
+        self.database.storage()
     }
 
     fn content_sha256(content: &[u8]) -> String {
@@ -153,25 +202,76 @@ impl StageArtifactStore {
 
     pub async fn insert_stage_artifact(
         &self,
-        mut input: NewStageCaptureArtifact,
+        input: NewStageCaptureArtifact,
     ) -> Result<StageArtifactInsertResult, StorageError> {
         validate_input(&input)?;
-        let _serial = STAGE_INSERT_LOCK.lock().await;
+        let keys = vec![LockKey::natural_key(
+            input.workspace_id.clone(),
+            STAGE_IDEMPOTENCY_LOCK_KIND,
+            input.idempotency_key.clone(),
+        )];
+        let replay_key = format!(
+            "stage-capture-insert:{}:{}",
+            input.workspace_id, input.idempotency_key
+        );
+        let input = &input;
+        let mut attempts = 0u32;
+        self.database
+            .guarded_mutation(keys, Replay::idempotent(replay_key), None, || {
+                attempts += 1;
+                self.insert_stage_artifact_attempt(input.clone(), attempts == 1)
+            })
+            .await
+    }
 
-        if let Some(existing) = self
-            .get_by_idempotency(&input.workspace_id, &input.idempotency_key)
+    /// Replay preflight: the stored artifact for this (workspace, idempotency
+    /// key), as a replay when the request hash matches, the typed conflict
+    /// otherwise, `None` when absent.
+    async fn replay_by_idempotency(
+        &self,
+        workspace_id: &str,
+        idempotency_key: &str,
+        request_hash: &str,
+    ) -> Result<Option<StageArtifactInsertResult>, StorageError> {
+        let Some(existing) = self
+            .get_by_idempotency(workspace_id, idempotency_key)
+            .await?
+        else {
+            return Ok(None);
+        };
+        if existing.request_hash != request_hash {
+            return Err(StorageError::Conflict(
+                "stage capture idempotency key was reused with a different request",
+            ));
+        }
+        Ok(Some(StageArtifactInsertResult {
+            artifact: existing,
+            replayed: true,
+        }))
+    }
+
+    /// One attempt of the insert: replay preflight, then the transaction; a
+    /// unique-index loss on the idempotency key re-reads the winner.
+    async fn insert_stage_artifact_attempt(
+        &self,
+        mut input: NewStageCaptureArtifact,
+        first_attempt: bool,
+    ) -> Result<StageArtifactInsertResult, StorageError> {
+        if let Some(replayed) = self
+            .replay_by_idempotency(
+                &input.workspace_id,
+                &input.idempotency_key,
+                &input.request_hash,
+            )
             .await?
         {
-            if existing.request_hash != input.request_hash {
-                return Err(StorageError::Conflict(
-                    "stage capture idempotency key was reused with a different request",
-                ));
-            }
-            return Ok(StageArtifactInsertResult {
-                artifact: existing,
-                replayed: true,
-            });
+            return Ok(replayed);
         }
+        let replay_identity = (
+            input.workspace_id.clone(),
+            input.idempotency_key.clone(),
+            input.request_hash.clone(),
+        );
 
         let content_kind = input.content_kind.trim().to_owned();
         let content_type = input.content_type.trim().to_owned();
@@ -282,8 +382,9 @@ impl StageArtifactStore {
             correlation_id: input.correlation_id,
             approval_id: input.approval_id,
         };
-        let rows: Vec<ArtifactRow> = self
-            .storage
+        pause_after_decision(first_attempt).await;
+        let transaction: Result<Vec<ArtifactRow>, _> = self
+            .storage()
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
@@ -291,8 +392,28 @@ impl StageArtifactStore {
                         .await
                 })
             })
-            .await
-            .map_err(StorageError::from)?;
+            .await;
+        let rows = match transaction {
+            Ok(rows) => rows,
+            Err(error) => {
+                // The index admitted another writer's identical request between
+                // the preflight and this commit: re-read it as the replay (or the
+                // typed request-hash conflict). Every other error, including an
+                // engine commit conflict, goes to the retry classifier.
+                let lost_idempotency_race = is_unique_index_violation(&error.to_string())
+                    .is_some_and(|index| STAGE_IDEMPOTENCY_INDEXES.contains(&index.as_str()));
+                if lost_idempotency_race {
+                    let (workspace_id, idempotency_key, request_hash) = &replay_identity;
+                    if let Some(replayed) = self
+                        .replay_by_idempotency(workspace_id, idempotency_key, request_hash)
+                        .await?
+                    {
+                        return Ok(replayed);
+                    }
+                }
+                return Err(StorageError::from(error));
+            }
+        };
         let artifact = rows
             .into_iter()
             .next()
@@ -344,7 +465,7 @@ impl StageArtifactStore {
             SELECT_BY_ID
         };
         let row: Option<ArtifactRow> = self
-            .storage
+            .storage()
             .with_data_operation(move |database| {
                 Box::pin(async move { database.query_first(statement, bindings).await })
             })

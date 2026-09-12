@@ -2,10 +2,11 @@
 
 use serde_json::json;
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use super::{event_ledger, loom_store, SurrealStorage};
+use super::keyed_lock::LockKey;
+use super::retry::Replay;
+use super::{event_ledger, loom_store, SurrealDatabase, SurrealStorage};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::{
     LoomKnowledgeBridge, MutationMetadata, StorageError, StorageResult, WriteActorKind,
@@ -17,10 +18,11 @@ const ENTITIES: &str = "knowledge_entities";
 const BRIDGES: &str = "loom_block_knowledge_bridge";
 const EXTRACTOR_VERSION: &str = "loom_block_knowledge_bridge_v1";
 
-// The embedded engine is single-process. Serialize the read/choose-id/write
-// bridge path so two first-time bridge calls cannot choose different entity
-// ids before the natural-identity index becomes visible.
-static BRIDGE_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
+// Concurrency (MT-152 I-152-2): the natural identity (one entity per block) is
+// owned database-side by the in-transaction `$identity` compare (THROW
+// HSK-LOOM-BRIDGE-IDENTITY-CONFLICT) and `pk_loom_block_knowledge_bridge`; the
+// read/choose-id/write path is shaped per bridge row through
+// `SurrealDatabase::guarded_mutation` on `LockKey::record(BRIDGES, block_id)`.
 
 #[derive(SurrealValue)]
 struct EntityLookupBindings {
@@ -69,7 +71,7 @@ struct BridgeRow {
 }
 
 pub(crate) async fn bridge_loom_block_to_knowledge(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     metadata: MutationMetadata,
     workspace_id: &str,
@@ -78,8 +80,26 @@ pub(crate) async fn bridge_loom_block_to_knowledge(
     if metadata.resource_id != block_id {
         return Err(StorageError::Guard("guarded resource id mismatch"));
     }
+    let metadata = &metadata;
+    database
+        .guarded_mutation(
+            vec![LockKey::record(BRIDGES, block_id.to_owned())],
+            Replay::idempotent(format!("loom-bridge:{block_id}:{}", metadata.edit_event_id)),
+            None,
+            || bridge_attempt(database.storage(), ctx, metadata, workspace_id, block_id),
+        )
+        .await
+}
 
-    let _mutation_guard = BRIDGE_MUTATION_LOCK.lock().await;
+/// One attempt: the block read, the entity natural-identity lookup and the
+/// guarded transaction, re-run together on an engine commit conflict.
+async fn bridge_attempt(
+    storage: &SurrealStorage,
+    ctx: &WriteContext,
+    metadata: &MutationMetadata,
+    workspace_id: &str,
+    block_id: &str,
+) -> StorageResult<LoomKnowledgeBridge> {
     let workspace_id_owned = workspace_id.to_owned();
     let block_id_owned = block_id.to_owned();
     let block = storage

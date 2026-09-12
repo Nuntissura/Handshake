@@ -4,9 +4,10 @@ use chrono::Utc;
 use serde_json::{json, Value as JsonValue};
 use sha2::{Digest, Sha256};
 use surrealdb::types::{RecordId, RecordIdKey, SurrealValue};
-use tokio::sync::Mutex;
 
-use super::SurrealStorage;
+use super::keyed_lock::LockKey;
+use super::retry::Replay;
+use super::{SurrealDatabase, SurrealStorage};
 use crate::storage::{StorageError, StorageResult};
 use crate::workflows::locus::types::{
     executor_eligibility_policy_ids_for_family, governed_action_ids_for_family,
@@ -27,23 +28,13 @@ const MICRO_TASKS: &str = "micro_tasks";
 const MT_ITERATIONS: &str = "mt_iterations";
 const DEPENDENCIES: &str = "dependencies";
 
-/// Serializes dependency-graph mutations so the Rust-side cycle check in `add_dependency`
-/// decides against a stable graph. MT-151 (RESIDUAL-MT142-EARLY-LOCK-RELEASE-ON-STATEMENT-
-/// TIMEOUT): the caller-side statement bound drops this guard on timeout while the abandoned
-/// statement may still commit, so acyclicity is also owned database-side by the
-/// `storage_graph_anchors` compare-and-set in the add transaction; duplicates were always
-/// owned by `pk_dependencies` plus `HSK-LOCUS-DEPENDENCY-DUPLICATE`. The lock remains a
-/// contention shaper.
-static DEPENDENCY_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
-
-/// Acquires [`DEPENDENCY_MUTATION_LOCK`]; `None` only inside the MT-151 race-proof bypass.
-async fn dependency_mutation_guard() -> Option<tokio::sync::MutexGuard<'static, ()>> {
-    #[cfg(any(test, feature = "surreal-test-support"))]
-    if super::keyed_lock::static_lock_test_support::static_mutation_locks_bypassed() {
-        return None;
-    }
-    Some(DEPENDENCY_MUTATION_LOCK.lock().await)
-}
+// Concurrency (MT-152 I-152-2, replacing the process-global dependency mutex): the
+// Rust-side cycle check in `add_dependency` is owned database-side by the
+// `storage_graph_anchors` compare-and-set in the add transaction (MT-151); duplicates
+// were always owned by `pk_dependencies` plus `HSK-LOCUS-DEPENDENCY-DUPLICATE`. Adds are
+// shaped through `SurrealDatabase::guarded_mutation` on the anchor row they
+// compare-and-set (`LockKey::record(GRAPH_ANCHORS_TABLE, dependency_graph_anchor_id())`),
+// removals on their own dependency row.
 
 const GRAPH_ANCHORS_TABLE: &str = "storage_graph_anchors";
 const DEPENDENCY_GRAPH_KIND: &str = "work_packet_dependencies";
@@ -52,11 +43,12 @@ const DEPENDENCY_GRAPH_KIND: &str = "work_packet_dependencies";
 const DEPENDENCY_GRAPH_SCOPE: &str = "global";
 const DEPENDENCY_GRAPH_STALE: &str = "HSK-LOCUS-DEPENDENCY-GRAPH-STALE";
 
+fn dependency_graph_anchor_id() -> String {
+    format!("{DEPENDENCY_GRAPH_KIND}|{DEPENDENCY_GRAPH_SCOPE}")
+}
+
 fn dependency_graph_anchor() -> RecordId {
-    RecordId::new(
-        GRAPH_ANCHORS_TABLE,
-        format!("{DEPENDENCY_GRAPH_KIND}|{DEPENDENCY_GRAPH_SCOPE}"),
-    )
+    RecordId::new(GRAPH_ANCHORS_TABLE, dependency_graph_anchor_id())
 }
 
 #[derive(SurrealValue)]
@@ -263,9 +255,10 @@ struct ReadyBindings {
 }
 
 pub(crate) async fn execute_locus_operation(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     op: LocusOperation,
 ) -> StorageResult<JsonValue> {
+    let storage = database.storage();
     match op {
         LocusOperation::CreateWp(params) => create_wp(storage, params).await,
         LocusOperation::UpdateWp(params) => update_wp(storage, params).await,
@@ -279,8 +272,8 @@ pub(crate) async fn execute_locus_operation(
         LocusOperation::RecordIteration(params) => record_iteration(storage, params).await,
         LocusOperation::CompleteMt(params) => complete_mt(storage, params).await,
         LocusOperation::GetMtProgress(params) => get_mt_progress(storage, params).await,
-        LocusOperation::AddDependency(params) => add_dependency(storage, params).await,
-        LocusOperation::RemoveDependency(params) => remove_dependency(storage, params).await,
+        LocusOperation::AddDependency(params) => add_dependency(database, params).await,
+        LocusOperation::RemoveDependency(params) => remove_dependency(database, params).await,
         LocusOperation::QueryReady(params) => query_ready(storage, params).await,
         LocusOperation::GetWpStatus(params) => get_wp_status(storage, params).await,
         LocusOperation::SyncTaskBoard(params) => sync_task_board_snapshot(storage, params).await,
@@ -799,13 +792,34 @@ async fn run_record_iteration(
 }
 
 async fn add_dependency(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     params: LocusAddDependencyParams,
 ) -> StorageResult<JsonValue> {
     if params.from_wp_id == params.to_wp_id {
         return Err(StorageError::Validation("dependency would create a cycle"));
     }
-    let _guard = dependency_mutation_guard().await;
+    // Every add compare-and-sets the one global anchor row, so that row is the stable
+    // key; a concurrent add's stale decision is the typed loser below, never retried.
+    let params = &params;
+    database
+        .guarded_mutation(
+            vec![LockKey::record(
+                GRAPH_ANCHORS_TABLE,
+                dependency_graph_anchor_id(),
+            )],
+            Replay::idempotent(format!("locus-dependency-add:{}", params.dependency_id)),
+            None,
+            || add_dependency_attempt(database.storage(), params),
+        )
+        .await
+}
+
+/// One attempt: the existence checks, the anchor-version read, the cycle walk and the
+/// guarded transaction, re-run together on an engine commit conflict.
+async fn add_dependency_attempt(
+    storage: &SurrealStorage,
+    params: &LocusAddDependencyParams,
+) -> StorageResult<JsonValue> {
     ensure_wp_exists(storage, &params.from_wp_id).await?;
     ensure_wp_exists(storage, &params.to_wp_id).await?;
     let expected_anchor_version = read_dependency_graph_version(storage).await?;
@@ -820,7 +834,7 @@ async fn add_dependency(
         return Err(StorageError::Validation("dependency would create a cycle"));
     }
     #[cfg(any(test, feature = "surreal-test-support"))]
-    super::keyed_lock::static_lock_test_support::pause_after_decision().await;
+    super::keyed_lock::race_test_support::pause_after_decision().await;
     let now = now_rfc3339();
     let bindings = DependencyWrite {
         record: RecordId::new(DEPENDENCIES, params.dependency_id.clone()),
@@ -884,36 +898,50 @@ async fn add_dependency(
         Err(error) => return Err(map_locus_error(error)),
     }
     Ok(json!({
-        "dependency_id": params.dependency_id,
-        "from_wp_id": params.from_wp_id,
-        "to_wp_id": params.to_wp_id,
+        "dependency_id": params.dependency_id.clone(),
+        "from_wp_id": params.from_wp_id.clone(),
+        "to_wp_id": params.to_wp_id.clone(),
         "type": dependency_type_str(params.kind),
         "created_at": now,
     }))
 }
 
 async fn remove_dependency(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     params: LocusRemoveDependencyParams,
 ) -> StorageResult<JsonValue> {
-    let _guard = dependency_mutation_guard().await;
-    let bindings = RecordBinding {
-        record: RecordId::new(DEPENDENCIES, params.dependency_id.clone()),
-    };
-    let rows: Vec<DependencyRow> = storage
-        .with_data_operation(move |database| {
-            Box::pin(async move {
-                database
-                    .query_values_at(
-                        "BEGIN TRANSACTION; DELETE $record RETURN BEFORE; COMMIT TRANSACTION;",
-                        bindings,
-                        1,
-                    )
-                    .await
-            })
-        })
-        .await
-        .map_err(StorageError::from)?;
+    // A removal cannot create a cycle and does not touch the anchor: its own row is
+    // the narrowest key. One DELETE transaction, replay-safe.
+    let dependency_id = &params.dependency_id;
+    let rows: Vec<DependencyRow> = database
+        .guarded_mutation(
+            vec![LockKey::record(DEPENDENCIES, dependency_id.clone())],
+            Replay::idempotent(format!("locus-dependency-remove:{dependency_id}")),
+            None,
+            || {
+                let bindings = RecordBinding {
+                    record: RecordId::new(DEPENDENCIES, dependency_id.clone()),
+                };
+                async move {
+                    database
+                        .storage()
+                        .with_data_operation(move |database| {
+                            Box::pin(async move {
+                                database
+                                    .query_values_at(
+                                        "BEGIN TRANSACTION; DELETE $record RETURN BEFORE; COMMIT TRANSACTION;",
+                                        bindings,
+                                        1,
+                                    )
+                                    .await
+                            })
+                        })
+                        .await
+                        .map_err(StorageError::from)
+                }
+            },
+        )
+        .await?;
     if rows.is_empty() {
         return Err(StorageError::NotFound("dependency"));
     }

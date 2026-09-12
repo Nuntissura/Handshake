@@ -415,31 +415,23 @@ impl KeyedLockGuard {
     }
 }
 
-/// MT-151 test support for the process-global mutation mutexes that MT-142 did NOT migrate
-/// (`LOOM_MUTATION_LOCK`, `DEPENDENCY_MUTATION_LOCK`; recon `other_global_locks`). Those
-/// statics are not registry-governed, so [`LockMode::Disabled`] cannot switch them off; the
-/// race proofs for the early-lock-release residual instead scope a task-local bypass around
-/// the racing caller and a task-local barrier the store awaits right after its Rust-side
-/// read-decide step, so both racers commit against the same stale decision and only the
-/// database-side guard (UNIQUE index or in-transaction compare-and-set) picks the winner.
-/// Production code never enters these scopes; outside them every hook is a no-op.
+/// MT-151 race-proof support (retained by MT-152 after the last process-global
+/// mutation mutexes moved onto this registry): a task-local barrier the store awaits
+/// right after its Rust-side read-decide step, so two racers - one on a keyed wrapper,
+/// one on a wrapper in [`LockMode::Disabled`] - both commit against the same stale
+/// decision and only the database-side guard (UNIQUE index or in-transaction
+/// compare-and-set) picks the winner. Production code never enters the scope; outside
+/// it the hook is a no-op. The former static-mutex bypass is gone with the statics:
+/// a disabled registry is the bypass.
 #[cfg(any(test, feature = "surreal-test-support"))]
-pub mod static_lock_test_support {
+pub mod race_test_support {
     use std::future::Future;
     use std::sync::Arc;
 
     use tokio::sync::Barrier;
 
     tokio::task_local! {
-        static STATIC_MUTATION_LOCKS_BYPASSED: ();
         static PAUSE_AFTER_DECISION: Arc<Barrier>;
-    }
-
-    /// Runs `operation` with every static mutation mutex acquisition skipped.
-    pub async fn with_static_mutation_locks_bypassed<F: Future>(operation: F) -> F::Output {
-        STATIC_MUTATION_LOCKS_BYPASSED
-            .scope((), operation)
-            .await
     }
 
     /// Runs `operation` so that the store pauses on `barrier` after its read-decide step
@@ -449,11 +441,6 @@ pub mod static_lock_test_support {
         operation: F,
     ) -> F::Output {
         PAUSE_AFTER_DECISION.scope(barrier, operation).await
-    }
-
-    /// True inside [`with_static_mutation_locks_bypassed`].
-    pub(crate) fn static_mutation_locks_bypassed() -> bool {
-        STATIC_MUTATION_LOCKS_BYPASSED.try_with(|_| ()).is_ok()
     }
 
     /// Awaits the scoped barrier, if any.

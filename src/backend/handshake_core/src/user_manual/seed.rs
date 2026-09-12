@@ -1611,6 +1611,47 @@ fn page_embedded_store_recovery() -> NewUserManualPage {
 /// Slug of the MT-142 swarm page; shared with the in-crate consistency tests.
 const SURREAL_SWARM_PAGE_SLUG: &str = "surreal-swarm-concurrency-and-load";
 
+/// One measured point of the MT-152 I-152-3 memory-envelope curve, copied
+/// from `diagnostics.memory` of the named `swarm-load-extended-measurement-*`
+/// report (64 workers, 5000 seeded records, seed 142142142142).
+struct MemoryEnvelopePoint {
+    operations: u64,
+    growth_bytes: u64,
+    store_bytes: u64,
+    rss_before_bytes: u64,
+    rss_after_bytes: u64,
+    run_id: &'static str,
+}
+
+/// MT-152 I-152-3 measured curve, ascending by operation count. Every entry
+/// is evidence: the run id names the report the numbers were copied from.
+const MEMORY_ENVELOPE_CURVE: &[MemoryEnvelopePoint] = &[
+    MemoryEnvelopePoint {
+        operations: 5119,
+        growth_bytes: 308_215_808,
+        store_bytes: 7_012_910,
+        rss_before_bytes: 14_376_960,
+        rss_after_bytes: 322_592_768,
+        run_id: "mt142-extended-measurement-01a090ec19e570c1bcaccfdbcf346698",
+    },
+    MemoryEnvelopePoint {
+        operations: 20479,
+        growth_bytes: 357_900_288,
+        store_bytes: 11_275_508,
+        rss_before_bytes: 14_389_248,
+        rss_after_bytes: 372_289_536,
+        run_id: "mt142-extended-measurement-01a09154332471d189373e47de307f2f",
+    },
+    MemoryEnvelopePoint {
+        operations: 51108,
+        growth_bytes: 434_028_544,
+        store_bytes: 18_244_172,
+        rss_before_bytes: 14_344_192,
+        rss_after_bytes: 448_372_736,
+        run_id: "mt142-extended-measurement-01a091745e0477e2bbd46b61ce0f0a11",
+    },
+];
+
 /// WP-KERNEL-012 MT-142 (AC-142-11, PT-142-10): embedded single-owner SurrealDB
 /// topology, safe parallel swarm use, retry / retry-exhaustion / shutdown
 /// behaviour, both load-profile runbooks, how to read
@@ -1699,6 +1740,140 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
          freshly bootstrapped store, and the semantics proofs assert clones are mutually isolated. The one-time \
          apply prints `SWARM_TEMPLATE_BOOTSTRAP_MS` and each open prints `SWARM_STORE_OPEN_MS` - about 6 s per \
          test in the measured runs, against ~360 s if every test paid a cold apply."
+    );
+    // MT-152 I-152-3 memory envelope. The points come from MEMORY_ENVELOPE_CURVE
+    // (copied from the measurement reports the run ids name) and the
+    // classification is DERIVED from them here, never typed by hand.
+    let mib = |bytes: u64| bytes as f64 / (1024.0 * 1024.0);
+    let curve_lines: Vec<String> = MEMORY_ENVELOPE_CURVE
+        .iter()
+        .map(|point| {
+            format!(
+                "- {} operations: RSS {} B before open, {} B after the workload, growth {} B ({:.0} MiB) on a                  {:.1} MB store; run `{}`.",
+                point.operations,
+                point.rss_before_bytes,
+                point.rss_after_bytes,
+                point.growth_bytes,
+                mib(point.growth_bytes),
+                point.store_bytes as f64 / 1_000_000.0,
+                point.run_id
+            )
+        })
+        .collect();
+    let first = MEMORY_ENVELOPE_CURVE.first().expect("at least one measured point");
+    let last = MEMORY_ENVELOPE_CURVE.last().expect("at least one measured point");
+    // Two-point linear fit through the first and last measured points: the
+    // intercept is the fixed part, the slope the ingest-proportional tail.
+    let (slope_bytes_per_op, intercept_bytes) = if last.operations > first.operations {
+        let slope = (last.growth_bytes as f64 - first.growth_bytes as f64)
+            / (last.operations - first.operations) as f64;
+        (slope, first.growth_bytes as f64 - slope * first.operations as f64)
+    } else {
+        (0.0, first.growth_bytes as f64)
+    };
+    let tail_mib_per_10k_ops = slope_bytes_per_op * 10_000.0 / (1024.0 * 1024.0);
+    let tail_over_range_mib = mib(last.growth_bytes) - mib(first.growth_bytes);
+    let intercept_mib = intercept_bytes / (1024.0 * 1024.0);
+    let mostly_fixed = tail_over_range_mib < intercept_mib;
+    let classification_md = if MEMORY_ENVELOPE_CURVE.len() < 2 {
+        "Classification: PENDING until at least two operation counts are measured; the single point above          is the fixed cost of opening and warming the engine plus one workload's ingest."
+            .to_string()
+    } else if mostly_fixed {
+        format!(
+            "Classification: MOSTLY FIXED. A linear fit through the first and last points gives a fixed part              of about {:.0} MiB (engine open, block cache warm-up, memtables, RocksDB background threads, the              test binary's own oracle) plus an ingest-proportional tail of about {:.0} MiB per 10k operations              ({:.0} bytes per operation); over the whole measured range, {} to {} operations, the tail added              {:.0} MiB, less than the fixed part. The earlier MT-142 acceptance runs (413.9 MB and 433.99 MB              at ~51k operations, 18.6-18.7 MB store, a different seed) sit on the same curve. The tail is not              store size either: the store grew by {:.1} MB while RSS grew by {:.0} MiB, so it is engine              working set (memtables, WAL, block and row cache fills), which the engine's write-buffer manager              bounds well above this range. Nothing in the measured range indicates a leak.",
+            intercept_mib,
+            tail_mib_per_10k_ops,
+            slope_bytes_per_op,
+            first.operations,
+            last.operations,
+            tail_over_range_mib,
+            (last.store_bytes as f64 - first.store_bytes as f64) / 1_000_000.0,
+            tail_over_range_mib
+        )
+    } else {
+        format!(
+            "Classification: INGEST-PROPORTIONAL. Growth rises by about {:.1} MiB per 10k operations between              {} and {} operations and the tail over that range ({:.0} MiB) exceeds the fixed part ({:.0} MiB);              treat it as a finding and re-measure at a larger count before relying on the envelope.",
+            tail_mib_per_10k_ops,
+            first.operations,
+            last.operations,
+            tail_over_range_mib,
+            intercept_mib
+        )
+    };
+    let memory_curve_json: Vec<serde_json::Value> = MEMORY_ENVELOPE_CURVE
+        .iter()
+        .map(|point| {
+            json!({
+                "operations": point.operations,
+                "growth_bytes": point.growth_bytes,
+                "store_bytes": point.store_bytes,
+                "rss_before_bytes": point.rss_before_bytes,
+                "rss_after_bytes": point.rss_after_bytes,
+                "run_id": point.run_id,
+            })
+        })
+        .collect();
+    let memory_classification_key = if MEMORY_ENVELOPE_CURVE.len() < 2 {
+        "pending_single_point"
+    } else if mostly_fixed {
+        "mostly_fixed"
+    } else {
+        "ingest_proportional"
+    };
+    let memory_tail_mib_per_10k_ops = (tail_mib_per_10k_ops * 10.0).round() / 10.0;
+    let memory_envelope_md = format!(
+        "What the process RSS does when the embedded store is opened and driven hard, measured (MT-152          I-152-3) so the finding is a number and not a worry. Each `swarm-load-*.json` report carries          `diagnostics.memory` with `rss_bytes_before` (before the store opens), `rss_bytes_after` (after          the workload, before shutdown), `growth_bytes` (the difference), `store_bytes` (on-disk store size)          and `rss_over_store_ratio`; weigh `growth_bytes`, the ratio is only a weak signal on a small store.
+
+         Measured curve, 64 workers, 5000 seeded records, seed 142142142142, one operation count per run,          same tree and machine (128 GiB RAM, HDD-backed store):
+         {curve}
+         {classification}
+
+         Why it is this size: on a machine with at least 64 GiB the engine sizes RocksDB for the machine, not \
+         for Handshake: `write_buffer_size` 128 MiB (`surrealdb-core-3.2.0/src/kvs/rocksdb/cnf.rs:31-40`), \
+         `max_write_buffer_number` 32 (`cnf.rs:44-55`), block cache `max(total_memory / 2 - 1 GiB, 16 MiB)` \
+         (`cnf.rs:24-27`), applied through a `WriteBufferManager` whose limit is \
+         `max_write_buffer_number * write_buffer_size + block_cache_size` with `allow_stall` (\
+         `memory_manager.rs:27-45`). Those are CEILINGS the engine may grow into under sustained ingest, not \
+         allocations made at open; the measured envelope is what the workload actually touched.\n\n\
+         Is there a knob? Not one an embedded caller can reach, with evidence:\n\
+         - The keys exist: `rocksdb_write_buffer_size`, `rocksdb_max_write_buffer_number`, \
+         `rocksdb_block_cache_size`, `rocksdb_jobs_count`, `rocksdb_keep_log_file_num` are parsed from a \
+         `ConfigMap` in `RocksDbConfig::parse` (`cnf.rs:656-717`) and loaded at the `rocksdb` arm of the \
+         composer (`src/kvs/ds.rs:657-664`, `config.load()`).\n\
+         - The only source of that map is `Datastore::builder().with_config(..)` (`src/kvs/ds/builder.rs:90`); \
+         the builder starts from `ConfigMap::empty()` (`builder.rs:82`).\n\
+         - The SDK local engine, which `SurrealStorage::open` uses through `Surreal::new::<RocksDb>((path, \
+         engine_config))`, never calls `with_config`: its builder chain is query timeout, transaction \
+         timeout, auth, temporary directory, notifications, capabilities, then `build_with_path` \
+         (`surrealdb-3.2.0/src/engine/local/native.rs:131-149`), and `opt::Config` has no memory field \
+         (`src/opt/config.rs:14-33`).\n\
+         - No environment variable reaches it either: `ConfigMap::from_env` (`SURREAL_` prefix, \
+         `src/cnf/mod.rs:59-78`) is defined in the core crate but never called by it; the server binary, not \
+         the embedded library, builds its map from the environment. The engine still reads a few globals \
+         directly (`SURREAL_MEMORY_THRESHOLD`, `cnf/mod.rs:525-530`, a query-task kill threshold; \
+         `SURREAL_KVS_THREADPOOL_SIZE`, `:689`), none of which sizes RocksDB buffers.\n\
+         - Path query parameters (`rocksdb://path?key=value`) are re-keyed as `datastore_<key>` \
+         (`src/kvs/ds.rs:585-591`), so only `datastore_versioned` and `datastore_retention` \
+         (`cnf.rs:658-659`) are reachable that way, never `rocksdb_*`; and `SurrealStorage` rejects a `?` in \
+         the store path before creating anything (`open_rejects_query_delimiter_before_creating_directory`).\n\
+         - `Capabilities` carries no storage or memory setting (`surrealdb-core-3.2.0/src/dbs/capabilities.rs:682`).\n\
+         Consequently `SurrealStorageConfig` exposes no memory knob: wiring one would require bypassing \
+         the `surrealdb` SDK and constructing `surrealdb_core::kvs::Datastore` directly, which is an \
+         architecture change outside this microtask. The trade-off such a knob would carry is recorded for \
+         when the SDK exposes `with_config`: smaller and fewer write buffers (for example 32 MiB x 4 = 128 MiB) \
+         bound memtable memory at the price of more frequent flushes and L0 compactions on the HDD.\n\n\
+         What an operator should expect: a Handshake process settles roughly 300-450 MB above its \
+         pre-open RSS once the store has been exercised, independent of how many operations it has served \
+         within the measured range; a process that keeps climbing well past that under a steady workload is \
+         a finding to report with the run's `diagnostics.memory` block. To re-measure, run the extended \
+         profile with `HANDSHAKE_SWARM_MEASUREMENT_ONLY=1`: it lifts only the operations clamp \
+         (`HANDSHAKE_SWARM_OPERATIONS` may go below 50000; workers and dataset stay at or above the contract \
+         minimum), prints `SWARM_EXTENDED_MEASUREMENT_ONLY`, writes \
+         `swarm-load-extended-measurement-<run_id>.json` with `run_kind` `measurement` in \
+         `diagnostics.effective_configuration`, and never produces an acceptance artifact.",
+        curve = curve_lines.join("
+"),
+        classification = classification_md,
     );
     // Timeout defaults are rendered from the storage constants so this page can
     // never state a value the code does not have (MT-142 review R2-1-1, D-142-4).
@@ -2177,12 +2352,14 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                         {"name": "HANDSHAKE_SWARM_READ_WRITE_MIX", "value": "read fraction within [0.05, 0.95]", "read_by_swarm_tests": true},
                         {"name": "HANDSHAKE_SWARM_KEY_SKEW", "value": "hot-set fraction within (0, 1]", "read_by_swarm_tests": true},
                         {"name": "HANDSHAKE_SWARM_CONTENTION", "value": "hot-set write share within [0, 1]", "read_by_swarm_tests": true},
+                        {"name": "HANDSHAKE_SWARM_MEASUREMENT_ONLY", "value": "1 turns the extended run into a memory-envelope measurement (operations clamp lifted, run_kind measurement, never an acceptance artifact)", "read_by_swarm_tests": true},
                         {"name": "RUST_TEST_THREADS", "value": "1 - required: serial TEST execution, not serial workers", "read_by_swarm_tests": false}
                     ],
                     "printed_markers": [
                         "SWARM_LOAD_REPORT=", "SWARM_EXTENDED=NOT_RUN_UNCONFIGURED",
                         "SWARM_EXTENDED_NOT_RUN_REPORT=", "SWARM_CI=NOT_RUN_EXTENDED_CONFIGURED",
-                        "swarm-load-", "swarm-load-extended-not-run-",
+                        "SWARM_EXTENDED_MEASUREMENT_ONLY",
+                        "swarm-load-", "swarm-load-extended-not-run-", "swarm-load-extended-measurement-",
                         "SWARM_STORE_OPEN_MS", "SWARM_TEMPLATE_BOOTSTRAP_MS"
                     ],
                     "test_execution": {
@@ -2321,6 +2498,37 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                         "budgets and budget_verdict are recorded, never gating",
                         "a report is evidence only with the producing test's result line"
                     ]
+                }),
+            ),
+            section_with_json(
+                "safety",
+                "Memory envelope of the embedded engine",
+                &memory_envelope_md,
+                json!({
+                    "measured_by": "MT-152 I-152-3; extended runner with HANDSHAKE_SWARM_MEASUREMENT_ONLY=1, workers 64, dataset 5000, seed 142142142142, one operation count per run",
+                    "measurement_env_var": "HANDSHAKE_SWARM_MEASUREMENT_ONLY",
+                    "measurement_marker": "SWARM_EXTENDED_MEASUREMENT_ONLY",
+                    "measurement_report_file": "swarm-load-extended-measurement-<run_id>.json",
+                    "measured_curve": memory_curve_json,
+                    "classification": memory_classification_key,
+                    "fixed_part_mib": intercept_mib.round(),
+                    "ingest_tail_mib_per_10k_operations": memory_tail_mib_per_10k_ops,
+                    "knob_exists_for_embedded_caller": false,
+                    "engine_defaults_on_this_machine_class": {
+                        "write_buffer_size_bytes": 134_217_728,
+                        "max_write_buffer_number": 32,
+                        "block_cache_size_rule": "max(total_memory / 2 - 1 GiB, 16 MiB)",
+                        "write_buffer_manager_limit": "max_write_buffer_number * write_buffer_size + block_cache_size (allow_stall = true)",
+                        "source": "surrealdb-core-3.2.0 src/kvs/rocksdb/cnf.rs:24-27,31-40,44-55,633-635; src/kvs/rocksdb/memory_manager.rs:27-45"
+                    },
+                    "config_keys_that_would_bound_it": ["rocksdb_write_buffer_size", "rocksdb_max_write_buffer_number", "rocksdb_block_cache_size", "rocksdb_jobs_count", "rocksdb_keep_log_file_num"],
+                    "why_unreachable": [
+                        "keys are read only from the ConfigMap passed to Datastore::builder().with_config (surrealdb-core-3.2.0 src/kvs/rocksdb/cnf.rs:656-717, src/kvs/ds.rs:663; src/kvs/ds/builder.rs:82 starts from ConfigMap::empty, :90 with_config)",
+                        "the SDK local engine never calls with_config and opt::Config carries no memory field (surrealdb-3.2.0 src/engine/local/native.rs:131-149; src/opt/config.rs:14-33)",
+                        "the embedded engine never calls ConfigMap::from_env; SURREAL_ROCKSDB_* env vars are read only by the server binary (surrealdb-core-3.2.0 src/cnf/mod.rs:59-78 defines from_env; no caller in the crate)",
+                        "path query parameters are re-keyed as datastore_<key> (src/kvs/ds.rs:585-591), so only datastore_versioned/datastore_retention (src/kvs/rocksdb/cnf.rs:658-659) are reachable that way, and SurrealStorage rejects a '?' in the store path anyway (surreal.rs open_rejects_query_delimiter_before_creating_directory)"
+                    ],
+                    "operator_expectation": "a Handshake process embedding the store settles roughly 300-450 MB above its pre-open RSS on a 128 GiB machine; the ceiling the engine enforces is the write-buffer-manager limit, not this figure"
                 }),
             ),
             section_with_json(

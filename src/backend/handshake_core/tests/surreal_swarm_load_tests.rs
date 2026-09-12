@@ -11,6 +11,11 @@
 //!   `HANDSHAKE_SWARM_EXTENDED=1`; otherwise prints
 //!   `SWARM_EXTENDED=NOT_RUN_UNCONFIGURED` and returns - never `#[ignore]`)
 //!
+//! `HANDSHAKE_SWARM_MEASUREMENT_ONLY=1` (MT-152) runs the extended profile as
+//! a memory-envelope measurement: `HANDSHAKE_SWARM_OPERATIONS` may go below
+//! the 50 000 contract minimum, the report is `swarm-load-extended-measurement-*`
+//! with `run_kind: measurement`, and it is never an acceptance artifact.
+//!
 //! Seed: `HANDSHAKE_SWARM_SEED` (printed as `SWARM_SEED=`). Report path is
 //! printed as `SWARM_LOAD_REPORT=<path>`; the report directory is
 //! `HANDSHAKE_SWARM_LOAD_REPORT_DIR` else
@@ -162,13 +167,26 @@ impl WorkloadConfig {
     /// Extended profile with the contract minimums as defaults; every knob is
     /// overridable from the environment (review R2-1-6) and every override is
     /// clamped to the contract minimum rather than silently accepted below it.
+    ///
+    /// MT-152 I-152-3: with `HANDSHAKE_SWARM_MEASUREMENT_ONLY=1` the
+    /// OPERATIONS clamp alone is lifted so the memory-envelope curve can be
+    /// measured at 5 000 / 20 000 / 50 000 operations under constant workers
+    /// and dataset. Such a run is a measurement, never an acceptance run: its
+    /// profile is `extended-measurement` (a distinct report file name), its
+    /// `run_kind` is `measurement`, and the contract-minimum assertion is
+    /// skipped for it. Workers and dataset stay clamped.
     fn extended(seed: u64) -> Self {
+        let measurement_only = measurement_only_enabled();
         let workers = env_parsed::<u32>("HANDSHAKE_SWARM_WORKERS")
             .unwrap_or(EXTENDED_MINIMUM_WORKERS)
             .max(EXTENDED_MINIMUM_WORKERS);
         let operations = env_parsed::<u64>("HANDSHAKE_SWARM_OPERATIONS")
-            .unwrap_or(EXTENDED_MINIMUM_OPERATIONS)
-            .max(EXTENDED_MINIMUM_OPERATIONS);
+            .unwrap_or(EXTENDED_MINIMUM_OPERATIONS);
+        let operations = if measurement_only {
+            operations.max(1)
+        } else {
+            operations.max(EXTENDED_MINIMUM_OPERATIONS)
+        };
         let seed_documents = env_parsed::<u64>("HANDSHAKE_SWARM_DATASET")
             .unwrap_or(EXTENDED_MINIMUM_DATASET)
             .max(EXTENDED_MINIMUM_DATASET);
@@ -199,7 +217,11 @@ impl WorkloadConfig {
         .iter()
         .any(|name| std::env::var_os(name).is_some_and(|value| !value.is_empty()));
         Self {
-            profile: "extended",
+            profile: if measurement_only {
+                "extended-measurement"
+            } else {
+                "extended"
+            },
             seed,
             workers,
             operations,
@@ -262,6 +284,7 @@ impl WorkloadConfig {
     fn effective_configuration(&self) -> serde_json::Value {
         json!({
             "profile": self.profile,
+            "run_kind": if self.profile == "extended-measurement" { "measurement" } else { "acceptance" },
             "seed": self.seed,
             "workers": self.workers,
             "operations": self.operations,
@@ -281,6 +304,7 @@ impl WorkloadConfig {
                 "HANDSHAKE_SWARM_SEED", "HANDSHAKE_SWARM_WORKERS", "HANDSHAKE_SWARM_OPERATIONS",
                 "HANDSHAKE_SWARM_DATASET", "HANDSHAKE_SWARM_READ_WRITE_MIX",
                 "HANDSHAKE_SWARM_KEY_SKEW", "HANDSHAKE_SWARM_CONTENTION",
+                "HANDSHAKE_SWARM_MEASUREMENT_ONLY",
             ],
             "contract_minimums_enforced": {
                 "workers": EXTENDED_MINIMUM_WORKERS,
@@ -1973,6 +1997,16 @@ fn extended_profile_enabled() -> bool {
         .unwrap_or(false)
 }
 
+/// MT-152 I-152-3: `HANDSHAKE_SWARM_MEASUREMENT_ONLY=1` turns the extended
+/// run into a memory-envelope MEASUREMENT (operations below the contract
+/// minimum allowed, `run_kind: measurement`, distinct report name). It never
+/// produces an acceptance artifact.
+fn measurement_only_enabled() -> bool {
+    std::env::var("HANDSHAKE_SWARM_MEASUREMENT_ONLY")
+        .map(|value| value.trim() == "1")
+        .unwrap_or(false)
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 async fn ci_profile_16_workers_2000_operations_is_correct_and_bounded() {
     // Review R2-1-17: both profiles share process-global retry and product
@@ -2190,10 +2224,17 @@ async fn extended_profile_64_workers_50000_operations() {
         outcome.report.worker_count >= EXTENDED_MINIMUM_WORKERS,
         "extended profile needs >= {EXTENDED_MINIMUM_WORKERS} workers"
     );
-    assert!(
-        outcome.report.operation_count >= EXTENDED_MINIMUM_OPERATIONS,
-        "extended profile needs >= {EXTENDED_MINIMUM_OPERATIONS} operations"
-    );
+    if measurement_only_enabled() {
+        println!(
+            "SWARM_EXTENDED_MEASUREMENT_ONLY operations={} (contract minimum {EXTENDED_MINIMUM_OPERATIONS} not asserted; this is a memory-envelope measurement, not an acceptance run)",
+            outcome.report.operation_count
+        );
+    } else {
+        assert!(
+            outcome.report.operation_count >= EXTENDED_MINIMUM_OPERATIONS,
+            "extended profile needs >= {EXTENDED_MINIMUM_OPERATIONS} operations"
+        );
+    }
     assert!(
         outcome.report.dataset_cardinality.records >= EXTENDED_MINIMUM_DATASET,
         "extended profile needs dataset cardinality >= {EXTENDED_MINIMUM_DATASET}"

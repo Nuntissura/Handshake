@@ -4208,6 +4208,13 @@ DEFINE FIELD OVERWRITE folder_id ON TABLE loom_folders TYPE string ASSERT $value
 DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_folders TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE parent_folder_id ON TABLE loom_folders TYPE option<record<loom_folders>> ASSERT ($value = NONE) OR (record::exists($value) AND $value != $this.id) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE name ON TABLE loom_folders TYPE string ASSERT string::trim($value) != '';
+-- MT-152 sibling_key: stored discriminator for sibling-name uniqueness covering ROOT folders.
+-- `uq_loom_folders_sibling_name` cannot: the engine skips uniqueness for any tuple containing
+-- NONE (surrealdb-core-3.2.0/src/idx/index.rs:190-197, NULL != NULL) and roots carry
+-- parent_folder_id = NONE. `workspace|parent-or-root|name`, set by every create, rename and
+-- re-parent write; the in-place upgrade backfills existing rows and disambiguates pre-existing
+-- root duplicates with a stable '#dup<n>' suffix on this key only (never on the visible name).
+DEFINE FIELD OVERWRITE sibling_key ON TABLE loom_folders TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE color ON TABLE loom_folders TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE sort_mode ON TABLE loom_folders TYPE 'name_asc' | 'name_desc' | 'created_desc' | 'updated_desc' | 'manual' DEFAULT 'updated_desc';
 DEFINE FIELD OVERWRITE sort_order ON TABLE loom_folders TYPE option<int>;
@@ -4217,6 +4224,7 @@ DEFINE FIELD OVERWRITE created_at ON TABLE loom_folders TYPE datetime DEFAULT ti
 DEFINE FIELD OVERWRITE updated_at ON TABLE loom_folders TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_loom_folders ON TABLE loom_folders FIELDS folder_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_loom_folders_sibling_name ON TABLE loom_folders FIELDS workspace_id, parent_folder_id, name UNIQUE;
+DEFINE INDEX OVERWRITE uq_loom_folders_sibling_key ON TABLE loom_folders FIELDS sibling_key UNIQUE;
 DEFINE INDEX OVERWRITE idx_loom_folders_workspace_parent ON TABLE loom_folders FIELDS workspace_id, parent_folder_id;
 DEFINE INDEX OVERWRITE idx_loom_folders_event ON TABLE loom_folders FIELDS event_ledger_event_id;
 
@@ -5003,6 +5011,22 @@ DEFINE FIELD OVERWRITE quarantined_at ON TABLE fems_memory_lifecycle_fr_outbox T
 DEFINE INDEX OVERWRITE pk_fems_memory_lifecycle_fr_outbox ON TABLE fems_memory_lifecycle_fr_outbox FIELDS event_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_fems_memory_lifecycle_fr_outbox_proposal_event ON TABLE fems_memory_lifecycle_fr_outbox FIELDS proposal_id, event_code UNIQUE;
 DEFINE INDEX OVERWRITE idx_fems_memory_lifecycle_fr_outbox_pending ON TABLE fems_memory_lifecycle_fr_outbox FIELDS workspace_id, created_at, event_id;
+
+-- MT-152 fems_workspace_write_anchors: one write anchor per workspace, UPSERTed (with a
+-- fresh claim_nonce) by every FEMS transaction that creates a row referencing the workspace
+-- and by the workspace-delete transaction itself (UPSERT then DELETE, so the key is in its
+-- write set whether or not the row existed). The pinned engine detects conflicts only on
+-- keys a transaction writes, so a FEMS insert and a workspace delete that overlap in the
+-- engine now collide at commit instead of both committing with an orphan (MT-146 D-146-1,
+-- previously ordered only by FEMS_MUTATION_LOCK). Deliberately NOT a record<workspaces>
+-- reference: the delete removes it explicitly and no cascade scan is involved. A
+-- serialization device, not domain data.
+DEFINE TABLE OVERWRITE fems_workspace_write_anchors SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE anchor_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE claim_nonce ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE updated_at ON TABLE fems_workspace_write_anchors TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_fems_workspace_write_anchors ON TABLE fems_workspace_write_anchors FIELDS anchor_key UNIQUE;
 
 -- 0353_calendar_lossless_temporal_contract. The additive `calendar_events`
 -- columns (start_date, end_date_exclusive, normalization_note,

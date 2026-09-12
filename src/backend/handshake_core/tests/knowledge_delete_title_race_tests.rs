@@ -17,9 +17,11 @@
 //!
 //! Proofs here:
 //!   1. Deterministic write-set membership: after each title-mutating route
-//!      call, the anchor row for the affected title(s) exists and carries the
-//!      operating document id - i.e. the row really is written by that
-//!      transaction, which is what makes the conflict detection fire.
+//!      call, the anchor row for a title that still has a live holder exists
+//!      and carries the operating document id, and (MT-152 I-152-1) the anchor
+//!      of a title whose sole holder was renamed away or deleted is reclaimed
+//!      in that same transaction - the row is written either way, which is
+//!      what makes the conflict detection fire.
 //!   2. Barrier-aligned race, both spawn orders: a delete of A titled T racing
 //!      a rename of B into T never leaves the stamped receipt count
 //!      disagreeing with the rows that actually vanished, never deletes a
@@ -348,10 +350,16 @@ async fn title_anchor_write_set_and_delete_rename_race() {
         Some(&renamed),
         "rename must write the NEW title anchor: {rows:?}"
     );
+    // MT-152 I-152-1 (AC-152-1): the rename writes the PREVIOUS title anchor too
+    // (UPSERT then conditional DELETE in the same transaction) and, because the
+    // renamed document was that title's only live holder, reclaims it: an anchor
+    // row exists iff a live document holds the title. The write-set membership the
+    // MT-142 assertion used to read off the surviving row is proven by the
+    // reclamation races in `tests/mt152_anchor_reclamation_tests.rs`.
     assert_eq!(
         anchor_for(&rows, "anchor rename before"),
-        Some(&renamed),
-        "rename must also write the PREVIOUS title anchor (it frees that title): {rows:?}"
+        None,
+        "rename away from a sole-holder title must reclaim the PREVIOUS title anchor: {rows:?}"
     );
 
     let deleted = create_doc(
@@ -370,10 +378,12 @@ async fn title_anchor_write_set_and_delete_rename_race() {
     .expect("delete send");
     assert_eq!(response.status(), 200, "delete must succeed");
     let rows = anchor_rows(&store).await;
+    // MT-152 I-152-1 (AC-152-1): the atomic delete writes the title anchor and,
+    // as the last live holder is gone, reclaims it in the same transaction.
     assert_eq!(
         anchor_for(&rows, "anchor delete title"),
-        Some(&deleted),
-        "atomic delete must write the deleted document's title anchor: {rows:?}"
+        None,
+        "atomic delete of the sole holder must reclaim the deleted document's title anchor: {rows:?}"
     );
 
     // Phase 2: delete of A titled T racing rename of B into T, both spawn

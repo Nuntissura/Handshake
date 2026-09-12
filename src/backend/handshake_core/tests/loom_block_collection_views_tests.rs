@@ -112,6 +112,45 @@ async fn embedded_row_count_by_id(
         .expect("count embedded row")
 }
 
+/// The test inspector projects Surreal values EXTERNALLY TAGGED (`{"String": "..."}`,
+/// `{"Object": {...}}`, `None`/`Null` for absent, a record link through its `key`), the
+/// contract documented at `tests/knowledge_delete_title_race_tests.rs::scalar`; a bare
+/// `.as_str()` on a tagged value yields `None`. This unwraps the tags at every depth so
+/// projected rows compare against plain JSON. A tag is a single-key object whose key is a
+/// capitalised Surreal variant name; domain payloads here never have that shape.
+fn untag(value: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+    fn is_absent_tag(tag: &str) -> bool {
+        tag == "None" || tag == "Null"
+    }
+    match value {
+        Value::String(tag) if is_absent_tag(tag) => Value::Null,
+        Value::Object(map)
+            if map.len() == 1
+                && map
+                    .keys()
+                    .next()
+                    .is_some_and(|tag| tag.chars().next().is_some_and(char::is_uppercase)) =>
+        {
+            match map.iter().next() {
+                Some((tag, _)) if is_absent_tag(tag) => Value::Null,
+                Some((tag, inner)) if tag == "RecordId" => {
+                    inner.get("key").map_or_else(|| untag(inner), untag)
+                }
+                Some((_, inner)) => untag(inner),
+                None => Value::Null,
+            }
+        }
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .map(|(key, inner)| (key.clone(), untag(inner)))
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.iter().map(untag).collect()),
+        other => other.clone(),
+    }
+}
+
 async fn embedded_row_count(store: &EmbeddedKnowledgeStore, table_name: &str) -> u64 {
     let inspector = store.storage.test_inspector();
     let table = inspector
@@ -472,9 +511,9 @@ async fn saved_view_creation_persists_normalized_outbox_actor() {
         rows[0].record_id.key_string(),
         Some(publication_event_id.as_str())
     );
-    assert_eq!(rows[0].values["operation"].as_str(), Some("create"));
+    assert_eq!(untag(&rows[0].values["operation"]).as_str(), Some("create"));
     assert_eq!(
-        rows[0].values["event"]
+        untag(&rows[0].values["event"])
             .get("actor_id")
             .and_then(serde_json::Value::as_str),
         Some("Caf\u{e9}"),
@@ -538,7 +577,8 @@ async fn view_def_block_persists_definition_only_in_dedicated_field() {
         .expect("read persisted view fields");
     assert_eq!(rows.len(), 1, "saved view must persist one Loom block");
 
-    let persisted_definition = rows[0].values["view_definition_json"]
+    let persisted_definition = untag(&rows[0].values["view_definition_json"]);
+    let persisted_definition = persisted_definition
         .as_str()
         .expect("dedicated definition field is populated");
     assert_eq!(
@@ -547,7 +587,7 @@ async fn view_def_block_persists_definition_only_in_dedicated_field() {
         serde_json::to_value(&definition).expect("encode expected view definition")
     );
     assert_eq!(
-        rows[0].values["derived_json"],
+        untag(&rows[0].values["derived_json"]),
         serde_json::to_value(LoomBlockDerived::default()).expect("encode default derived payload"),
         "the view definition must not be overloaded into the derived payload"
     );

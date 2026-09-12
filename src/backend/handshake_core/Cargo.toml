@@ -570,6 +570,25 @@ name = "mt151_early_lock_release_race_tests"
 path = "tests/mt151_early_lock_release_race_tests.rs"
 required-features = ["surreal-test-support", "test-utils"]
 
+# MT-152 I-152-1: title-anchor reclamation using the anchor row as the conflict key.
+[[test]]
+name = "mt152_anchor_reclamation_tests"
+path = "tests/mt152_anchor_reclamation_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+# MT-152 I-152-4: FEMS / STAGE invariants under the caller-side statement bound.
+[[test]]
+name = "mt152_fems_stage_guard_tests"
+path = "tests/mt152_fems_stage_guard_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
+# MT-152 I-152-2: the eight product-data mutexes on the keyed registry - disjoint-record
+# engine overlap and same-record races per store family (Loom, Canvas, wiki).
+[[test]]
+name = "mt152_lock_migration_tests"
+path = "tests/mt152_lock_migration_tests.rs"
+required-features = ["surreal-test-support", "test-utils"]
+
 [[test]]
 name = "knowledge_documents_tests"
 path = "tests/knowledge_documents_tests.rs"

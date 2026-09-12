@@ -11,9 +11,10 @@ use std::str::FromStr;
 use chrono::Utc;
 use serde_json::{json, Value as JsonValue};
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use super::keyed_lock::LockKey;
+use super::retry::Replay;
 use super::{event_ledger, loom_store, SurrealDatabase, SurrealStorage, SurrealStorageError};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
@@ -34,12 +35,18 @@ const ENTITIES: &str = "knowledge_entities";
 const BRIDGES: &str = "loom_block_knowledge_bridge";
 const BRIDGE_EXTRACTOR_VERSION: &str = "loom_block_knowledge_bridge_v1";
 
-// The embedded database is single-process. These locks close the
-// read/choose-identity/write races that the removed backend closed with
-// transaction advisory locks.
-static OVERLAY_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
-static MARKDOWN_IMPORT_LOCK: Mutex<()> = Mutex::const_new(());
-static WIKI_COMPILE_LOCK: Mutex<()> = Mutex::const_new(());
+// Concurrency (MT-152 I-152-2, replacing the three process-global wiki mutexes):
+// the read/choose-identity/write races are owned database-side - the compile's
+// stable identity by `uq_knowledge_wiki_projections_identity` plus its in-transaction
+// source and ledger proofs, overlays by `pk_loom_wiki_overlays` and the projection
+// existence THROW, the markdown import by `pk_loom_blocks` / the rich-document id
+// (its backlink snapshot is derived data rebuilt on the next write, MT-151). Each
+// mutation runs through `SurrealDatabase::guarded_mutation` on the narrowest stable
+// key: the (workspace, title) natural key for a compile, the projection row for an
+// overlay add, the overlay row for an overlay delete, the fresh rich-document row
+// for an import.
+const WIKI_PROJECTIONS: &str = "knowledge_wiki_projections";
+const WIKI_PROJECTION_IDENTITY_INDEX: &str = "uq_knowledge_wiki_projections_identity";
 
 fn map_err(error: SurrealStorageError) -> StorageError {
     StorageError::Database(error.to_string())
@@ -314,16 +321,40 @@ pub(crate) async fn compile_loom_wiki_projection(
     title: &str,
     block_ids: &[String],
 ) -> StorageResult<LoomWikiProjection> {
-    use crate::knowledge_wiki::{
-        loom_block_content_hash, CitedSource, CitedSourceKind, WikiCompileStamp,
-    };
-
     let title = title.trim();
     if title.is_empty() {
         return Err(StorageError::Validation(
             "loom wiki projection title is required",
         ));
     }
+    // The stable identity is (workspace, 'wiki_page', title); a violation of that
+    // index is the benign snapshot change of the IF-exists upsert (re-run updates).
+    database
+        .guarded_mutation(
+            vec![LockKey::natural_key(
+                workspace_id.to_owned(),
+                "wiki_projection_title",
+                title.to_owned(),
+            )],
+            Replay::idempotent(format!("wiki-compile:{workspace_id}:{title}")),
+            Some(WIKI_PROJECTION_IDENTITY_INDEX),
+            || compile_loom_wiki_projection_attempt(database, workspace_id, title, block_ids),
+        )
+        .await
+}
+
+/// One attempt: the source reads, the ledger-version read and the proving
+/// transaction, re-run together on an engine commit conflict.
+async fn compile_loom_wiki_projection_attempt(
+    database: &SurrealDatabase,
+    workspace_id: &str,
+    title: &str,
+    block_ids: &[String],
+) -> StorageResult<LoomWikiProjection> {
+    use crate::knowledge_wiki::{
+        loom_block_content_hash, CitedSource, CitedSourceKind, WikiCompileStamp,
+    };
+
     let mut blocks = Vec::with_capacity(block_ids.len());
     for block_id in block_ids {
         blocks.push(get_block(database.storage(), workspace_id, block_id).await?);
@@ -393,7 +424,6 @@ pub(crate) async fn compile_loom_wiki_projection(
     // transactional snapshot, then publish the projection inside that same
     // transaction. A changed source fails closed instead of emitting a page
     // whose rendering, hashes, and compile stamp describe different moments.
-    let _guard = WIKI_COMPILE_LOCK.lock().await;
     // Result-set index 6: BEGIN(0), source proof FOR(1), ledger LET(2),
     // ledger guard(3), stable-identity upsert IF(4), COMMIT(5), read(6).
     let rows = database
@@ -567,7 +597,7 @@ fn wiki_mutation_event(
 }
 
 pub(crate) async fn add_loom_wiki_overlay(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     workspace_id: &str,
     projection_id: &str,
     annotation: &str,
@@ -584,6 +614,35 @@ pub(crate) async fn add_loom_wiki_overlay(
         .filter(|value| !value.is_empty())
         .map(str::to_owned);
     let overlay_id = format!("LWO-{}", Uuid::now_v7().simple());
+    // The overlay id is fresh; the row the existence guard reads is the projection.
+    let (anchor, overlay_id) = (&anchor, &overlay_id);
+    database
+        .guarded_mutation(
+            vec![LockKey::record(WIKI_PROJECTIONS, projection_id.to_owned())],
+            Replay::idempotent(format!("wiki-overlay-add:{overlay_id}")),
+            None,
+            || {
+                add_loom_wiki_overlay_attempt(
+                    database.storage(),
+                    workspace_id,
+                    projection_id,
+                    annotation,
+                    anchor.clone(),
+                    overlay_id.clone(),
+                )
+            },
+        )
+        .await
+}
+
+async fn add_loom_wiki_overlay_attempt(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    projection_id: &str,
+    annotation: &str,
+    anchor: Option<String>,
+    overlay_id: String,
+) -> StorageResult<LoomWikiOverlay> {
     let event = wiki_mutation_event(
         workspace_id,
         projection_id,
@@ -591,7 +650,6 @@ pub(crate) async fn add_loom_wiki_overlay(
         "overlay_added",
         json!({ "has_anchor": anchor.is_some() }),
     )?;
-    let _guard = OVERLAY_MUTATION_LOCK.lock().await;
     let rows = storage
         .with_data_operation({
             let bindings = OverlayWriteBinding {
@@ -662,11 +720,25 @@ pub(crate) async fn list_loom_wiki_overlays(
 }
 
 pub(crate) async fn delete_loom_wiki_overlay(
+    database: &SurrealDatabase,
+    workspace_id: &str,
+    overlay_id: &str,
+) -> StorageResult<()> {
+    database
+        .guarded_mutation(
+            vec![LockKey::record(OVERLAYS, overlay_id.to_owned())],
+            Replay::idempotent(format!("wiki-overlay-delete:{overlay_id}")),
+            None,
+            || delete_loom_wiki_overlay_attempt(database.storage(), workspace_id, overlay_id),
+        )
+        .await
+}
+
+async fn delete_loom_wiki_overlay_attempt(
     storage: &SurrealStorage,
     workspace_id: &str,
     overlay_id: &str,
 ) -> StorageResult<()> {
-    let _guard = OVERLAY_MUTATION_LOCK.lock().await;
     let projection = storage
         .with_data_operation({
             let bindings = OverlayLookupBinding {
@@ -1008,13 +1080,12 @@ fn bridge_actor(ctx: &WriteContext) -> KernelActor {
 }
 
 pub(crate) async fn import_markdown_to_loom(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     workspace_id: &str,
     title: &str,
     markdown: &str,
 ) -> StorageResult<LoomMarkdownImport> {
-    use crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION;
     use crate::knowledge_document::import::{import_snippet, ImportFormat};
 
     let title = title.trim();
@@ -1028,23 +1099,66 @@ pub(crate) async fn import_markdown_to_loom(
         .map(|warning| format!("{}: {}", warning.code, warning.detail))
         .collect();
     let rich_document_id = new_knowledge_id("KRD");
-    let metadata = storage
+    let metadata = database
+        .storage()
         .inner
         .guard
         .validate_write(ctx, &rich_document_id)
         .await
         .map_err(StorageError::from)?;
-    let content_sha256 = knowledge_canonical_json_sha256(&outcome.document_json);
-    let (derived_json, search_text) = rich_document_loom_projection(title, &outcome.document_json)?;
-    let derived_json: JsonValue = serde_json::from_str(&derived_json)?;
+    // Every row the import creates is keyed on the fresh rich-document id; the
+    // backlink snapshot it resolves is derived data (rebuilt on the next write), so
+    // no cross-import invariant needs a wider key. The retry absorbs commit
+    // conflicts with concurrent metric writers on the linked blocks.
+    let (document_json, metadata, rich_document_id) =
+        (&outcome.document_json, &metadata, &rich_document_id);
+    let block = database
+        .guarded_mutation(
+            vec![LockKey::record(RICH_DOCUMENTS, rich_document_id.clone())],
+            Replay::idempotent(format!("loom-markdown-import:{rich_document_id}")),
+            None,
+            || {
+                import_markdown_to_loom_attempt(
+                    database.storage(),
+                    ctx,
+                    workspace_id,
+                    title,
+                    rich_document_id.clone(),
+                    document_json.clone(),
+                    metadata.clone(),
+                )
+            },
+        )
+        .await?;
+    Ok(LoomMarkdownImport {
+        block,
+        rich_document_id: rich_document_id.clone(),
+        warnings,
+    })
+}
 
-    let _guard = MARKDOWN_IMPORT_LOCK.lock().await;
+/// One attempt: the backlink resolution reads and the import transaction,
+/// re-run together on an engine commit conflict.
+async fn import_markdown_to_loom_attempt(
+    storage: &SurrealStorage,
+    ctx: &WriteContext,
+    workspace_id: &str,
+    title: &str,
+    rich_document_id: String,
+    document_json: JsonValue,
+    metadata: crate::storage::MutationMetadata,
+) -> StorageResult<LoomBlock> {
+    use crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION;
+
+    let content_sha256 = knowledge_canonical_json_sha256(&document_json);
+    let (derived_json, search_text) = rich_document_loom_projection(title, &document_json)?;
+    let derived_json: JsonValue = serde_json::from_str(&derived_json)?;
     let resolved = resolve_initial_backlinks(
         storage,
         workspace_id,
         &rich_document_id,
         DOCUMENT_SCHEMA_VERSION,
-        &outcome.document_json,
+        &document_json,
     )
     .await?;
     let backlink_rows = JsonValue::Array(
@@ -1115,7 +1229,7 @@ pub(crate) async fn import_markdown_to_loom(
         doc_id: rich_document_id.clone(),
         title: title.to_owned(),
         schema_version: DOCUMENT_SCHEMA_VERSION.to_owned(),
-        content_json: outcome.document_json,
+        content_json: document_json,
         content_sha256,
         derived_json,
         search: thing(SEARCH_INDEX, rich_document_id.clone()),
@@ -1168,16 +1282,10 @@ pub(crate) async fn import_markdown_to_loom(
                 map_err(error)
             }
         })?;
-    let block = rows
-        .into_iter()
+    rows.into_iter()
         .next()
         .ok_or_else(|| StorageError::Database("loom markdown import returned no block".to_owned()))
-        .and_then(block_to_domain)?;
-    Ok(LoomMarkdownImport {
-        block,
-        rich_document_id,
-        warnings,
-    })
+        .and_then(block_to_domain)
 }
 
 #[derive(SurrealValue)]

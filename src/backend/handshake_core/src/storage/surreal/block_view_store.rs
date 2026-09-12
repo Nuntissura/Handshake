@@ -10,7 +10,6 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Value as JsonValue};
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[cfg(any(test, feature = "surreal-test-support"))]
@@ -33,9 +32,12 @@ const BRIDGES: &str = "loom_block_knowledge_bridge";
 const OUTBOX: &str = "loom_block_view_fr_outbox";
 const BRIDGE_EXTRACTOR_VERSION: &str = "loom_block_knowledge_bridge_v1";
 
-// The embedded engine is single-process. This lock closes the read/create race
-// for idempotent create and for the knowledge-entity natural identity.
-static BLOCK_VIEW_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
+// Concurrency (MT-152 I-152-2): the idempotent create and the knowledge-entity
+// natural identity are owned database-side (`pk_loom_blocks`, the bridge and
+// entity rows keyed on the block id, the CREATE_TRANSACTION guards); the
+// `SurrealDatabase` caller shapes same-block writers with
+// `guarded_storage_mutation` on `LockKey::record("loom_blocks", block_id)` and
+// absorbs engine commit conflicts with the bounded MT-142 retry.
 
 fn thing(table: &str, id: impl Into<String>) -> RecordId {
     RecordId::new(table, id.into())
@@ -440,7 +442,6 @@ pub(crate) async fn create_block_view(
     }
     require_resource(&metadata, block_id)?;
     let definition_json = encode_definition(&definition)?;
-    let _guard = BLOCK_VIEW_MUTATION_LOCK.lock().await;
 
     if let Some(existing) = existing_view(db, block_id).await? {
         let existing_workspace = record_key(existing.workspace_id, WORKSPACES)?;
@@ -627,7 +628,6 @@ pub(crate) async fn update_block_view_definition(
 ) -> StorageResult<BlockViewRecord> {
     require_resource(&metadata, block_id)?;
     let definition_json = encode_definition(&definition)?;
-    let _guard = BLOCK_VIEW_MUTATION_LOCK.lock().await;
     let flight_event = block_view_outbox::build_event(
         &metadata,
         workspace_id,

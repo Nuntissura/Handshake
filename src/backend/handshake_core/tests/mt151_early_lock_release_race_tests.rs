@@ -5,9 +5,10 @@
 //! may still be live in the engine. The invariants those mutexes alone used to
 //! hold now have database-side guards; these proofs race each guarded path with
 //! two `SurrealDatabase` wrappers over one engine - one keyed, one with
-//! `LockMode::Disabled` - inside the static-lock bypass scope, and pause both
-//! racers after their Rust-side read-decide step so both commit against the
-//! same stale decision. Exactly one wins; the loser is a typed `Conflict`.
+//! `LockMode::Disabled` (MT-152 moved the statics onto that registry, so the
+//! disabled wrapper IS the bypass) - and pause both racers after their
+//! Rust-side read-decide step so both commit against the same stale decision.
+//! Exactly one wins; the loser is a typed `Conflict`.
 //!
 //!   1. journal get-or-create: `uq_loom_blocks_journal_key` (schema.surql) -
 //!      one journal block per (workspace, date) on every write path.
@@ -23,9 +24,7 @@ mod embedded_knowledge_support;
 use std::sync::Arc;
 
 use embedded_knowledge_support::open_embedded_store;
-use handshake_core::storage::surreal::keyed_lock::static_lock_test_support::{
-    with_pause_after_decision, with_static_mutation_locks_bypassed,
-};
+use handshake_core::storage::surreal::keyed_lock::race_test_support::with_pause_after_decision;
 use handshake_core::storage::surreal::keyed_lock::{KeyedLockRegistry, LockMode};
 use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::{
@@ -74,14 +73,14 @@ async fn journal_get_or_create_admits_one_block_per_date_without_the_static_lock
         let workspace_id = workspace_id.clone();
         let barrier = Arc::clone(&barrier);
         tokio::spawn(async move {
-            with_static_mutation_locks_bypassed(with_pause_after_decision(barrier, async move {
+            with_pause_after_decision(barrier, async move {
                 db.get_or_create_daily_journal_block(
                     &WriteContext::human(None),
                     &workspace_id,
                     date,
                 )
                 .await
-            }))
+            })
             .await
         })
     });
@@ -209,10 +208,10 @@ async fn folder_reparents_that_would_form_a_cycle_admit_one_without_the_static_l
         let workspace_id = workspace_id.clone();
         let barrier = Arc::clone(&barrier);
         tokio::spawn(async move {
-            with_static_mutation_locks_bypassed(with_pause_after_decision(barrier, async move {
+            with_pause_after_decision(barrier, async move {
                 db.update_loom_folder(&workspace_id, &folder_id, reparent(&parent_id))
                     .await
-            }))
+            })
             .await
         })
     });
@@ -310,10 +309,10 @@ async fn dependency_adds_that_would_form_a_cycle_admit_one_without_the_static_lo
     let racers = adds.map(|(db, dependency_id, from, to)| {
         let barrier = Arc::clone(&barrier);
         tokio::spawn(async move {
-            with_static_mutation_locks_bypassed(with_pause_after_decision(barrier, async move {
+            with_pause_after_decision(barrier, async move {
                 db.execute_locus_operation(dependency(&dependency_id, &from, &to))
                     .await
-            }))
+            })
             .await
         })
     });

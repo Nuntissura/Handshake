@@ -8,7 +8,6 @@
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[cfg(any(test, feature = "surreal-test-support"))]
@@ -22,7 +21,9 @@ use std::{
 #[cfg(any(test, feature = "surreal-test-support"))]
 use tokio::sync::Notify;
 
-use super::{event_ledger, loom_store, SurrealStorage, SurrealStorageError};
+use super::keyed_lock::LockKey;
+use super::retry::Replay;
+use super::{event_ledger, loom_store, SurrealDatabase, SurrealStorage, SurrealStorageError};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{knowledge_canonical_json_sha256, rich_document_loom_projection};
 use crate::storage::{
@@ -45,10 +46,18 @@ const EVENT_LEDGER: &str = "kernel_event_ledger";
 const BRIDGES: &str = "loom_block_knowledge_bridge";
 const EXTRACTOR_VERSION: &str = "loom_block_knowledge_bridge_v1";
 
-/// The embedded engine is single-process. This lock replaces the removed
-/// transaction-advisory-lock domain and serializes every Canvas mutation that
-/// can interact with a Stage provenance key or compensation-owned placement.
-static CANVAS_MUTATION_LOCK: Mutex<()> = Mutex::const_new(());
+// Concurrency (MT-152 I-152-2, replacing the process-global Canvas mutation
+// mutex): every Canvas invariant is owned by the guards inside its one
+// transaction (board identity and stale-viewport THROWs, `uq_loom_canvas_placement`,
+// `idx_loom_canvas_stage_provenance`, the compensation ownership/reference
+// THROWs) and by `pk_*` on each row. Each mutation below runs through
+// `SurrealDatabase::guarded_mutation` on the narrowest stable key: the board
+// row for board writes, the placement row for placement writes, the placed
+// Loom block for a new placement (the row a concurrent Stage compensation
+// deletes, so a writer queued behind a compensation revalidates the deleted
+// block in its own transaction), the (workspace, canvas, provenance key)
+// natural key for a Stage card, and both endpoint placements, in sorted order,
+// for a visual edge.
 
 #[cfg(any(test, feature = "surreal-test-support"))]
 struct StageCompensationBarrierState {
@@ -66,7 +75,7 @@ static STAGE_COMPENSATION_BARRIERS: LazyLock<
 #[cfg(any(test, feature = "surreal-test-support"))]
 impl SurrealStorage {
     /// Arms a deterministic pause after compensation has validated ownership
-    /// and references while it still owns the Canvas mutation lock.
+    /// and references while it still holds the placed block's keyed lock.
     pub fn test_arm_stage_compensation_barrier(&self, placed_block_id: &str) {
         STAGE_COMPENSATION_BARRIERS
             .lock()
@@ -884,21 +893,44 @@ async fn read_loom_block(
 }
 
 pub(crate) async fn create_canvas_board(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     workspace_id: &str,
     block_id: &str,
     board_state: Value,
 ) -> StorageResult<LoomCanvasBoard> {
     validate_board_state(&board_state)?;
-    validate_write(storage, ctx, block_id).await?;
+    validate_write(database.storage(), ctx, block_id).await?;
+    let board_state = &board_state;
+    database
+        .guarded_mutation(
+            vec![LockKey::record(BOARDS, block_id.to_owned())],
+            Replay::idempotent(format!("canvas-board-create:{block_id}")),
+            None,
+            || {
+                create_canvas_board_attempt(
+                    database.storage(),
+                    workspace_id,
+                    block_id,
+                    board_state.clone(),
+                )
+            },
+        )
+        .await
+}
+
+async fn create_canvas_board_attempt(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    block_id: &str,
+    board_state: Value,
+) -> StorageResult<LoomCanvasBoard> {
     let block = read_loom_block(storage, workspace_id, block_id).await?;
     if !matches!(block.content_type, LoomBlockContentType::Canvas) {
         return Err(StorageError::Validation(
             "canvas board block must be content_type=canvas",
         ));
     }
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
     let event = prepare_canvas_event(block_id, workspace_id, "create", board_state.clone())?;
     let bindings = BoardWriteBindings {
         board: RecordId::new(BOARDS, block_id.to_owned()),
@@ -1041,7 +1073,7 @@ pub(crate) async fn get_canvas_board(
 }
 
 pub(crate) async fn update_canvas_board_state(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     workspace_id: &str,
     block_id: &str,
@@ -1056,8 +1088,35 @@ pub(crate) async fn update_canvas_board_state(
             "canvas viewport requires an exact EventLedger revision",
         ));
     }
-    validate_write(storage, ctx, block_id).await?;
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
+    validate_write(database.storage(), ctx, block_id).await?;
+    let board_state = &board_state;
+    database
+        .guarded_mutation(
+            vec![LockKey::record(BOARDS, block_id.to_owned())],
+            Replay::idempotent(format!(
+                "canvas-board-viewport:{block_id}:{expected_event_ledger_event_id}"
+            )),
+            None,
+            || {
+                update_canvas_board_state_attempt(
+                    database.storage(),
+                    workspace_id,
+                    block_id,
+                    board_state.clone(),
+                    expected_event_ledger_event_id,
+                )
+            },
+        )
+        .await
+}
+
+async fn update_canvas_board_state_attempt(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    block_id: &str,
+    board_state: Value,
+    expected_event_ledger_event_id: &str,
+) -> StorageResult<LoomCanvasBoard> {
     let event = prepare_canvas_event(block_id, workspace_id, "viewport", board_state.clone())?;
     let bindings = BoardWriteBindings {
         board: RecordId::new(BOARDS, block_id.to_owned()),
@@ -1117,7 +1176,7 @@ pub(crate) async fn update_canvas_board_state(
 }
 
 pub(crate) async fn place_block_on_canvas(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     placement: NewLoomCanvasPlacement,
 ) -> StorageResult<LoomCanvasPlacement> {
@@ -1128,10 +1187,34 @@ pub(crate) async fn place_block_on_canvas(
         ));
     }
     let placement_id = format!("LCP-{}", Uuid::now_v7().simple());
-    validate_write(storage, ctx, &placement_id).await?;
+    validate_write(database.storage(), ctx, &placement_id).await?;
     #[cfg(any(test, feature = "surreal-test-support"))]
     mark_stage_reference_writer_waiting(&placement.placed_block_id);
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
+    // The placed block is the row a concurrent Stage compensation deletes and the
+    // narrower half of `uq_loom_canvas_placement`; the placement id is fresh.
+    let placement = &placement;
+    let placement_id = &placement_id;
+    database
+        .guarded_mutation(
+            vec![LockKey::record(BLOCKS, placement.placed_block_id.clone())],
+            Replay::idempotent(format!("canvas-placement-create:{placement_id}")),
+            None,
+            || {
+                place_block_on_canvas_attempt(
+                    database.storage(),
+                    placement_id.clone(),
+                    placement.clone(),
+                )
+            },
+        )
+        .await
+}
+
+async fn place_block_on_canvas_attempt(
+    storage: &SurrealStorage,
+    placement_id: String,
+    placement: NewLoomCanvasPlacement,
+) -> StorageResult<LoomCanvasPlacement> {
     let bindings = PlacementWriteBindings {
         placement: RecordId::new(PLACEMENTS, placement_id.clone()),
         placement_id,
@@ -1298,25 +1381,52 @@ async fn stage_replay(
 }
 
 pub(crate) async fn create_stage_canvas_card(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     card: NewLoomCanvasStageCard,
 ) -> StorageResult<LoomCanvasStageCard> {
-    use crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION;
-    use crate::knowledge_document::import::{import_snippet, ImportFormat};
-
     if card.title.trim() != card.title || card.title.is_empty() {
         return Err(StorageError::Validation(
             "Stage canvas card title must be non-empty and trimmed",
         ));
     }
     validate_geometry(card.w, card.h)?;
+    validated_stage_provenance(&card.stage_provenance_key, &card.stage_provenance)?;
+    // The idempotent identity is (workspace, canvas, provenance key)
+    // (`idx_loom_canvas_stage_provenance`); every row id the card creates is fresh.
+    let card = &card;
+    database
+        .guarded_mutation(
+            vec![LockKey::natural_key(
+                card.workspace_id.clone(),
+                "canvas_stage_provenance",
+                format!("{}|{}", card.canvas_block_id, card.stage_provenance_key),
+            )],
+            Replay::idempotent(format!(
+                "canvas-stage-card:{}:{}:{}",
+                card.workspace_id, card.canvas_block_id, card.stage_provenance_key
+            )),
+            None,
+            || create_stage_canvas_card_attempt(database.storage(), ctx, card),
+        )
+        .await
+}
+
+/// One attempt: the authority and replay reads plus the guarded transaction,
+/// re-run together on an engine commit conflict.
+async fn create_stage_canvas_card_attempt(
+    storage: &SurrealStorage,
+    ctx: &WriteContext,
+    card: &NewLoomCanvasStageCard,
+) -> StorageResult<LoomCanvasStageCard> {
+    use crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION;
+    use crate::knowledge_document::import::{import_snippet, ImportFormat};
+
     let stage_provenance =
         validated_stage_provenance(&card.stage_provenance_key, &card.stage_provenance)?;
     let canonical_markdown = serde_json::to_string(&card.stage_provenance)?;
     let imported = import_snippet(&canonical_markdown, ImportFormat::Markdown);
 
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
     let authority = read_stage_authority(
         storage,
         &card.workspace_id,
@@ -1347,7 +1457,7 @@ pub(crate) async fn create_stage_canvas_card(
         1 => {
             return stage_replay(
                 storage,
-                &card,
+                card,
                 &stage_provenance,
                 existing.into_iter().next().expect("one row"),
             )
@@ -1760,6 +1870,35 @@ async fn read_stage_search(
 }
 
 pub(crate) async fn compensate_stage_canvas_card(
+    database: &SurrealDatabase,
+    ctx: &WriteContext,
+    card: CompensateLoomCanvasStageCard,
+) -> StorageResult<LoomCanvasStageCompensation> {
+    validated_stage_provenance(&card.stage_provenance_key, &card.stage_provenance)?;
+    validate_write(database.storage(), ctx, &card.placement_id).await?;
+    validate_write(database.storage(), ctx, &card.placed_block_id).await?;
+    // Two records, acquired in sorted order: the placement being removed and the
+    // placed block whose document/block/bridge/entity tuple is deleted with it.
+    let card = &card;
+    database
+        .guarded_mutation(
+            vec![
+                LockKey::record(PLACEMENTS, card.placement_id.clone()),
+                LockKey::record(BLOCKS, card.placed_block_id.clone()),
+            ],
+            Replay::idempotent(format!(
+                "canvas-stage-compensate:{}:{}:{}",
+                card.workspace_id, card.placement_id, card.stage_provenance_key
+            )),
+            None,
+            || compensate_stage_canvas_card_attempt(database.storage(), ctx, card.clone()),
+        )
+        .await
+}
+
+/// One attempt: every ownership read and the guarded transaction, re-run
+/// together on an engine commit conflict.
+async fn compensate_stage_canvas_card_attempt(
     storage: &SurrealStorage,
     ctx: &WriteContext,
     card: CompensateLoomCanvasStageCard,
@@ -1769,9 +1908,6 @@ pub(crate) async fn compensate_stage_canvas_card(
 
     let stage_provenance =
         validated_stage_provenance(&card.stage_provenance_key, &card.stage_provenance)?;
-    validate_write(storage, ctx, &card.placement_id).await?;
-    validate_write(storage, ctx, &card.placed_block_id).await?;
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
 
     let Some(placement) =
         read_stage_placement_by_id(storage, &card.workspace_id, &card.placement_id).await?
@@ -2164,7 +2300,7 @@ pub(crate) async fn compensate_stage_canvas_card(
 }
 
 pub(crate) async fn update_canvas_placement(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     workspace_id: &str,
     placement_id: &str,
@@ -2175,8 +2311,31 @@ pub(crate) async fn update_canvas_placement(
     } else if let Some(h) = update.h {
         validate_geometry(1.0, h)?;
     }
-    validate_write(storage, ctx, placement_id).await?;
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
+    validate_write(database.storage(), ctx, placement_id).await?;
+    let update = &update;
+    database
+        .guarded_mutation(
+            vec![LockKey::record(PLACEMENTS, placement_id.to_owned())],
+            Replay::idempotent(format!("canvas-placement-update:{placement_id}")),
+            None,
+            || {
+                update_canvas_placement_attempt(
+                    database.storage(),
+                    workspace_id,
+                    placement_id,
+                    update.clone(),
+                )
+            },
+        )
+        .await
+}
+
+async fn update_canvas_placement_attempt(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    placement_id: &str,
+    update: LoomCanvasPlacementUpdate,
+) -> StorageResult<LoomCanvasPlacement> {
     let group_id_set = update.group_id.is_some();
     let bindings = PlacementUpdateBindings {
         placement: RecordId::new(PLACEMENTS, placement_id.to_owned()),
@@ -2249,13 +2408,28 @@ async fn read_placement(
 }
 
 pub(crate) async fn remove_canvas_placement(
+    database: &SurrealDatabase,
+    ctx: &WriteContext,
+    workspace_id: &str,
+    placement_id: &str,
+) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
+    validate_write(database.storage(), ctx, placement_id).await?;
+    database
+        .guarded_mutation(
+            vec![LockKey::record(PLACEMENTS, placement_id.to_owned())],
+            Replay::idempotent(format!("canvas-placement-remove:{placement_id}")),
+            None,
+            || remove_canvas_placement_attempt(database.storage(), ctx, workspace_id, placement_id),
+        )
+        .await
+}
+
+async fn remove_canvas_placement_attempt(
     storage: &SurrealStorage,
     ctx: &WriteContext,
     workspace_id: &str,
     placement_id: &str,
 ) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
-    validate_write(storage, ctx, placement_id).await?;
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
     let placement = read_placement(storage, workspace_id, placement_id).await?;
     let event = prepare_placement_removal_event(ctx, &placement)?;
     let bindings = PlacementRemovalBindings {
@@ -2318,7 +2492,7 @@ pub(crate) async fn remove_canvas_placement(
 }
 
 pub(crate) async fn add_canvas_visual_edge(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     workspace_id: &str,
     canvas_block_id: &str,
@@ -2332,8 +2506,43 @@ pub(crate) async fn add_canvas_visual_edge(
         ));
     }
     let visual_edge_id = format!("LCV-{}", Uuid::now_v7().simple());
-    validate_write(storage, ctx, &visual_edge_id).await?;
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
+    validate_write(database.storage(), ctx, &visual_edge_id).await?;
+    // Both endpoint placements (a removal of either races the edge's existence
+    // guard); `acquire_many` orders them, so opposite-order edges cannot deadlock.
+    let visual_edge_id = &visual_edge_id;
+    let label = &label;
+    database
+        .guarded_mutation(
+            vec![
+                LockKey::record(PLACEMENTS, from_placement_id.to_owned()),
+                LockKey::record(PLACEMENTS, to_placement_id.to_owned()),
+            ],
+            Replay::idempotent(format!("canvas-visual-edge-add:{visual_edge_id}")),
+            None,
+            || {
+                add_canvas_visual_edge_attempt(
+                    database.storage(),
+                    workspace_id,
+                    canvas_block_id,
+                    from_placement_id,
+                    to_placement_id,
+                    label.clone(),
+                    visual_edge_id.clone(),
+                )
+            },
+        )
+        .await
+}
+
+async fn add_canvas_visual_edge_attempt(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    canvas_block_id: &str,
+    from_placement_id: &str,
+    to_placement_id: &str,
+    label: Option<String>,
+    visual_edge_id: String,
+) -> StorageResult<LoomCanvasVisualEdge> {
     let bindings = VisualEdgeWriteBindings {
         edge: RecordId::new(VISUAL_EDGES, visual_edge_id.clone()),
         visual_edge_id,
@@ -2381,32 +2590,41 @@ pub(crate) async fn add_canvas_visual_edge(
 }
 
 pub(crate) async fn remove_canvas_visual_edge(
-    storage: &SurrealStorage,
+    database: &SurrealDatabase,
     ctx: &WriteContext,
     workspace_id: &str,
     visual_edge_id: &str,
 ) -> StorageResult<()> {
-    validate_write(storage, ctx, visual_edge_id).await?;
-    let _mutation_guard = CANVAS_MUTATION_LOCK.lock().await;
-    let count = storage
-        .with_data_operation({
-            let bindings = RecordWorkspaceBindings {
-                record: RecordId::new(VISUAL_EDGES, visual_edge_id.to_owned()),
-                workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
-            };
-            move |database| {
-                Box::pin(async move {
+    validate_write(database.storage(), ctx, visual_edge_id).await?;
+    let count = database
+        .guarded_mutation(
+            vec![LockKey::record(VISUAL_EDGES, visual_edge_id.to_owned())],
+            Replay::idempotent(format!("canvas-visual-edge-remove:{visual_edge_id}")),
+            None,
+            || {
+                let bindings = RecordWorkspaceBindings {
+                    record: RecordId::new(VISUAL_EDGES, visual_edge_id.to_owned()),
+                    workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
+                };
+                async move {
                     database
-                        .execute_returning(
-                            "DELETE $record WHERE workspace_id = $workspace RETURN BEFORE;",
-                            bindings,
-                        )
+                        .storage()
+                        .with_data_operation(move |database| {
+                            Box::pin(async move {
+                                database
+                                    .execute_returning(
+                                        "DELETE $record WHERE workspace_id = $workspace RETURN BEFORE;",
+                                        bindings,
+                                    )
+                                    .await
+                            })
+                        })
                         .await
-                })
-            }
-        })
-        .await
-        .map_err(map_err)?;
+                        .map_err(map_err)
+                }
+            },
+        )
+        .await?;
     if count == 1 {
         Ok(())
     } else {
@@ -2536,7 +2754,8 @@ mod tests {
     ) -> LoomCanvasBoard {
         seed_workspace(store, workspace_id).await;
         create_block(store, workspace_id, canvas_id, LoomBlockContentType::Canvas).await;
-        create_canvas_board(store, &context(), workspace_id, canvas_id, board_state(0.0))
+        let db = SurrealDatabase::new(store.clone());
+        create_canvas_board(&db, &context(), workspace_id, canvas_id, board_state(0.0))
             .await
             .expect("create Canvas board")
     }
@@ -2547,9 +2766,10 @@ mod tests {
         let workspace_id = "canvas-cas-workspace";
         let canvas_id = "canvas-cas";
         let created = create_board_fixture(&store, workspace_id, canvas_id).await;
+        let db = SurrealDatabase::new(store.clone());
 
         let updated = update_canvas_board_state(
-            &store,
+            &db,
             &context(),
             workspace_id,
             canvas_id,
@@ -2562,7 +2782,7 @@ mod tests {
         assert!(updated.updated_at >= created.updated_at);
 
         let stale = update_canvas_board_state(
-            &store,
+            &db,
             &context(),
             workspace_id,
             canvas_id,
@@ -2597,8 +2817,9 @@ mod tests {
         let source_id = "canvas-removal-source";
         create_board_fixture(&store, workspace_id, canvas_id).await;
         create_block(&store, workspace_id, source_id, LoomBlockContentType::Note).await;
+        let db = SurrealDatabase::new(store.clone());
         let placement = place_block_on_canvas(
-            &store,
+            &db,
             &context(),
             NewLoomCanvasPlacement {
                 canvas_block_id: canvas_id.to_owned(),
@@ -2618,7 +2839,7 @@ mod tests {
         .expect("place source block");
 
         let receipt =
-            remove_canvas_placement(&store, &context(), workspace_id, &placement.placement_id)
+            remove_canvas_placement(&db, &context(), workspace_id, &placement.placement_id)
                 .await
                 .expect("remove placement");
         assert_eq!(receipt.workspace_id, workspace_id);

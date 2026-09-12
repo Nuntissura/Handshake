@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use sha2::{Digest, Sha256};
 use surrealdb::types::{
-    Array as SurrealArray, Object as SurrealObject, SurrealValue, Value as SurrealValueData,
+    Array as SurrealArray, Datetime, Object as SurrealObject, RecordId, RecordIdKey, SurrealValue,
+    Value as SurrealValueData,
 };
 use tokio::sync::Mutex;
 
@@ -24,25 +25,36 @@ pub const SCHEMA_LINEAGE_SHA256: &str =
 // (see `mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current`), so it
 // moves with the knowledge_rich_document_title_anchors block.
 // MT-151 re-pin: moves again with loom_blocks.journal_key and storage_graph_anchors.
+// MT-152 re-pin: moves again with fems_workspace_write_anchors, then with
+// loom_folders.sibling_key / uq_loom_folders_sibling_key (I-152-2 sweep finding; offline
+// recomputation, same derivation as the test).
 const PREDECESSOR_GENERATED_SURREALQL_SHA256: &str =
-    "b06b2ab7d71fc2e0026ce426b6aac571c5a5d381666729c32b3d4432a84e8694";
+    "cd6c96a495e65b24958c4583a3d9935645e25b765ff7403911e08c3c72804a7e";
 // MT-142 re-pin: the synthesized predecessor store (derived from the current schema.surql
 // with the retired registry field) now carries knowledge_rich_document_title_anchors.
 // MT-151 re-pin: it now also carries journal_key and storage_graph_anchors, with table catalog
 // ids stripped (run mt142-LIB-20260911T124916Z, HANDSHAKE_SURREAL_PREDECESSOR_INFO_FINGERPRINT_MISMATCH observed).
+// MT-152 re-pin: it now also carries fems_workspace_write_anchors (run mt142-LIB-20260911T162250Z,
+// HANDSHAKE_SURREAL_PREDECESSOR_INFO_FINGERPRINT_MISMATCH observed).
+// MT-152 re-pin (I-152-2 sweep finding): it now also carries loom_folders.sibling_key and its
+// UNIQUE index (run mt142-LIB-20260911T234013Z, HANDSHAKE_SURREAL_PREDECESSOR_INFO_FINGERPRINT_MISMATCH observed).
 const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
-    "310454fd78760cc9400cb696b14fadc5041756ea8752cfc07e0691abab13365c";
+    "3d704adc7ddbf6ec802567aaa614cacedc97f76123b18b66e8ed6ecd1ba81cde";
 const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
     "1f8443486cd7101babb56dd6264ffcf08538a1eae24016d2155b19d5eb6370b4";
 // MT-142 re-pin: schema.surql gained knowledge_rich_document_title_anchors.
 // MT-151 re-pin: schema.surql gained loom_blocks.journal_key and storage_graph_anchors.
+// MT-152 re-pin: schema.surql gained fems_workspace_write_anchors, then
+// loom_folders.sibling_key / uq_loom_folders_sibling_key (I-152-2 sweep finding).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "a8bb72c7fd73c1a2ea0b9563ee2f0534bd9cd435d153975b61bf6794ff9a598a";
+    "46eac57c4ac3e39acc9d18ac0a43fc62ec01461e8cf3b70b7e2711de2a59da10";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
+// MT-152 re-pin: catalog identities gained the fems_workspace_write_anchors objects, then the
+// loom_folders sibling_key field/index (I-152-2 sweep finding).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "1605235bf8f9c3b8b02812e9b90f86ac3ccc1efa05bf42623514dac127ba82c9";
+    "83d8bc663e38f6de08039055e8ba4dd368dedaeb341f08b3cca1fadab28c5b39";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -53,8 +65,15 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // and engine table catalog ids stripped (see `inspect_schema`); run mt142-LIB-20260911T124916Z,
 // `mt139_current_schema_info_pin_matches_fresh_mem_catalog`, and reached identically by the
 // in-place MT-151 upgrade (`mt151_exact_mt142_pin_upgrade_materialises_journal_key_and_restarts_current`).
+// MT-152 re-pin: live STRUCTURE fingerprint with fems_workspace_write_anchors applied; run
+// mt142-LIB-20260911T160117Z, `mt139_current_schema_info_pin_matches_fresh_mem_catalog`, and
+// reached identically by the in-place MT-152 upgrade
+// (`mt152_exact_mt151_pin_upgrade_adds_fems_write_anchors_and_restarts_current`).
+// MT-152 re-pin (I-152-2 sweep finding): loom_folders.sibling_key / uq_loom_folders_sibling_key
+// applied; run mt142-LIB-20260911T233822Z, `mt139_current_schema_info_pin_matches_fresh_mem_catalog`
+// observed, and reached identically by both in-place MT-152 upgrade proofs.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "294530f11ca454f1afba332ac9e70e909ab39cac12ce35ad661daff2fd0ff222";
+    "bb515db9b0f18c4bc8b7c26cf0773cb9dbe5bb4343ba02bc9ea32218cfddd39d";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "e44e7cceecf2c0d980999e4b66391c2459512a3f3f07155e5cf68d48dedd553e";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -76,6 +95,44 @@ const PRE_MT151_GENERATED_SURREALQL_SHA256: &str =
     "ecfdca9826223629277a218c7f22a3d6aaabf0714274cf0358cc0ab5a8d562a0";
 const PRE_MT151_SCHEMA_INFO_SHA256: &str =
     "e117afdb9a7ff9ded218b29a5741b5fbf2541170f0772e475475114fca42a994";
+/// Fourth allowlisted lineage (MT-152): every store bootstrapped at the MT-151 pin, before
+/// `fems_workspace_write_anchors` existed. These are the exact MT-151 pins of
+/// [`GENERATED_SURREALQL_SHA256`] and [`EXPECTED_SCHEMA_INFO_SHA256`]; such stores are upgraded
+/// in place by `upgrade_pre_mt152_current`. Pre-MT-142 and pre-MT-151 stores receive the
+/// MT-152 statements inside their own upgrade transaction, because the finalize gate pins the
+/// current fingerprint.
+const PRE_MT152_GENERATED_SURREALQL_SHA256: &str =
+    "a8bb72c7fd73c1a2ea0b9563ee2f0534bd9cd435d153975b61bf6794ff9a598a";
+const PRE_MT152_SCHEMA_INFO_SHA256: &str =
+    "294530f11ca454f1afba332ac9e70e909ab39cac12ce35ad661daff2fd0ff222";
+/// MT-152 upgrade statements, applied with the state update in one transaction on top of every
+/// allowlisted predecessor lineage. Every DDL statement must stay identical to `schema.surql`
+/// (proven by `mt152_upgrade_statements_match_schema`). No backfill: the anchor rows are
+/// created lazily by the first FEMS write or workspace delete per workspace.
+const MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS: &str = "\
+DEFINE TABLE OVERWRITE fems_workspace_write_anchors SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE anchor_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE workspace_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE claim_nonce ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE updated_at ON TABLE fems_workspace_write_anchors TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_fems_workspace_write_anchors ON TABLE fems_workspace_write_anchors FIELDS anchor_key UNIQUE;
+";
+/// MT-152 (I-152-2 sweep finding): the stored `loom_folders.sibling_key` discriminator.
+/// `uq_loom_folders_sibling_name` never rejected a duplicate ROOT name because the pinned
+/// engine skips uniqueness for any tuple containing NONE
+/// (`surrealdb-core-3.2.0/src/idx/index.rs:190-197`); MT-151's audit recorded that index as
+/// covering the invariant. Phase one (own transaction, MT-151 `journal_key` pattern): define the
+/// field, then `backfill_mt152_folder_sibling_keys` writes every existing row's key and
+/// disambiguates pre-existing root duplicates with a stable `#dup<n>` suffix so an operator
+/// store upgrades instead of failing at the index build; phase two builds the UNIQUE index in
+/// the DDL transaction. Both statements must stay identical to `schema.surql` (proven by
+/// `mt152_folder_sibling_key_statements_match_schema`).
+const MT152_LOOM_FOLDER_SIBLING_KEY_FIELD_STATEMENTS: &str = "\
+DEFINE FIELD OVERWRITE sibling_key ON TABLE loom_folders TYPE string ASSERT string::trim($value) != '';
+";
+const MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS: &str = "\
+DEFINE INDEX OVERWRITE uq_loom_folders_sibling_key ON TABLE loom_folders FIELDS sibling_key UNIQUE;
+";
 /// First MT-151 upgrade phase, committed in its OWN transaction before the DDL transaction:
 /// defines the computed `journal_key` and rewrites every existing journal block so the key is
 /// materialised and COMMITTED before `uq_loom_blocks_journal_key` is built. The pinned engine
@@ -239,8 +296,10 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 // +2 indexes (pk + uq), +1 REFERENCE field, +1 record-id alias assertion.
 // MT-151 re-pin: +1 table (storage_graph_anchors: +5 fields, +1 pk index, +1 record-id
 // alias assertion) and loom_blocks.journal_key (+1 field, +1 uq index); no REFERENCE field.
-const TABLE_DEFINITION_COUNT: usize = 283;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3088;
+// MT-152 re-pin: +1 table (fems_workspace_write_anchors: +4 fields, +1 pk index, +1 record-id
+// alias assertion); no REFERENCE field.
+const TABLE_DEFINITION_COUNT: usize = 284;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3093;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 238;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -255,18 +314,18 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 47;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 797;
+const INDEX_DEFINITION_COUNT: usize = 799;
 const EVENT_DEFINITION_COUNT: usize = 19;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
-const SOURCE_TABLE_COUNT: usize = 280;
+const SOURCE_TABLE_COUNT: usize = 281;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 538;
-const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 258;
+const SOURCE_NAMED_INDEX_COUNT: usize = 539;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 259;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 const REFERENCE_FIELD_COUNT: usize = 405;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 227;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 228;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -638,8 +697,14 @@ fn atelier_schema_ddl() -> String {
 pub async fn bootstrap_loom_receipt_test_schema(
     storage: &SurrealStorage,
 ) -> Result<(), SurrealStorageError> {
+    // FOURTH pin over the Loom receipt-test table set (not the whole schema). Re-pinned by
+    // MT-152 (I-152-2): the value below is the catalog WITH MT-151's `loom_blocks.journal_key`
+    // field and `uq_loom_blocks_journal_key` index, which MT-151 added inside this table set
+    // without moving the pin (previous value 77ab023e..., pinned at e9b81814; run
+    // mt142-LIB-20260911T234638Z, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH
+    // observed). The MT-152 loom_folders DDL is outside this set.
     const EXPECTED_CATALOG_SHA256: &str =
-        "77ab023e8e57bee576b0350cf47e24e2a998805edb854a89f143956f42390993";
+        "6d54790ef80b87f99233e561b562e814be7109e9250ca83e441ef2d7022016c2";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -1070,6 +1135,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "fems_memory_commit_reports",
     "fems_memory_commit_fr_outbox",
     "fems_memory_lifecycle_fr_outbox",
+    "fems_workspace_write_anchors",
     "calendar_mutation_outbox",
     "preference_records",
     "preference_change_receipts",
@@ -1213,6 +1279,15 @@ impl SchemaState {
             && self.generated_surql_sha256 == PRE_MT151_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT151_SCHEMA_INFO_SHA256
+    }
+
+    /// Exact MT-151 current lineage (revision 157 with journal_key and graph anchors, before
+    /// the MT-152 FEMS workspace write anchors).
+    fn is_exact_pre_mt152_current(&self) -> bool {
+        self.has_stable_v1_identity()
+            && self.generated_surql_sha256 == PRE_MT152_GENERATED_SURREALQL_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_MT152_SCHEMA_INFO_SHA256
     }
 }
 
@@ -1575,6 +1650,11 @@ pub async fn bootstrap_schema(
                     Some(state) if state.is_exact_pre_mt151_current() => {
                         verified_observed =
                             Some(upgrade_pre_mt151_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
+                    Some(state) if state.is_exact_pre_mt152_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_mt152_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) => {
@@ -2072,6 +2152,141 @@ COMMIT TRANSACTION;\n"
     Ok(())
 }
 
+#[derive(SurrealValue)]
+struct FolderSiblingKeyRow {
+    id: RecordId,
+    workspace_id: RecordId,
+    parent_folder_id: Option<RecordId>,
+    name: String,
+    /// Selected only because the engine requires every ORDER BY idiom in the projection.
+    #[allow(dead_code)]
+    created_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct FolderSiblingKeyWrite {
+    record: RecordId,
+    sibling_key: String,
+}
+
+#[derive(SurrealValue)]
+struct FolderSiblingKeyWrites {
+    writes: Vec<FolderSiblingKeyWrite>,
+}
+
+fn record_id_key(record: &RecordId) -> String {
+    match &record.key {
+        RecordIdKey::String(value) => value.clone(),
+        other => format!("{other:?}"),
+    }
+}
+
+/// MT-152 phase one for every allowlisted predecessor lineage: defines `loom_folders.sibling_key`
+/// in its own state-guarded transaction, then backfills every existing folder row. Rows are
+/// visited in `(created_at, id)` order; the first holder of a key keeps it and each later
+/// duplicate gets `<key>#dup<n>` (the visible `name` is never touched), with one structured
+/// warning per collision naming every folder id, so the UNIQUE index built in phase two always
+/// succeeds and the collision is visible rather than fatal. Idempotent: re-running after a crash
+/// recomputes the same keys.
+async fn materialise_mt152_folder_sibling_key(
+    database: &SurrealAdminContext<'_>,
+    predecessor_generated_surql_sha256: &str,
+    predecessor_info_fingerprint_sha256: &str,
+) -> Result<(), SurrealStorageError> {
+    let define = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $schema_revision\n\
+    OR $current.target_revision != $schema_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_MT152_FOLDER_SIBLING_KEY_STATE_CHANGED';\n\
+}};\n\
+{MT152_LOOM_FOLDER_SIBLING_KEY_FIELD_STATEMENTS}\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            define.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: predecessor_generated_surql_sha256.to_owned(),
+                predecessor_info_fingerprint_sha256: predecessor_info_fingerprint_sha256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+    backfill_mt152_folder_sibling_keys(database).await
+}
+
+async fn backfill_mt152_folder_sibling_keys(
+    database: &SurrealAdminContext<'_>,
+) -> Result<(), SurrealStorageError> {
+    let mut response = database
+        .query(
+            "SELECT id, workspace_id, parent_folder_id, name, created_at FROM loom_folders \
+             ORDER BY created_at ASC, id ASC;",
+        )
+        .await?;
+    let rows: Vec<FolderSiblingKeyRow> = response.take(0)?;
+    let mut holders: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut writes = Vec::with_capacity(rows.len());
+    for row in rows {
+        let workspace_id = record_id_key(&row.workspace_id);
+        let parent_folder_id = row.parent_folder_id.as_ref().map(record_id_key);
+        let base = super::loom_store::loom_folder_sibling_key(
+            &workspace_id,
+            parent_folder_id.as_deref(),
+            &row.name,
+        );
+        let folder_id = record_id_key(&row.id);
+        let seen = holders.entry(base.clone()).or_default();
+        let sibling_key = if seen.is_empty() {
+            base
+        } else {
+            format!("{base}#dup{}", seen.len())
+        };
+        seen.push(folder_id);
+        writes.push(FolderSiblingKeyWrite {
+            record: row.id,
+            sibling_key,
+        });
+    }
+    for (sibling_key, folder_ids) in holders.iter().filter(|(_, ids)| ids.len() > 1) {
+        tracing::warn!(
+            sibling_key = %sibling_key,
+            folder_ids = ?folder_ids,
+            kept = %folder_ids[0],
+            "HANDSHAKE_SURREAL_LOOM_FOLDER_SIBLING_NAME_COLLISION: pre-existing folders share one sibling name; later duplicates keep their visible name and carry a '#dup<n>' sibling_key suffix (MT-152)"
+        );
+    }
+    if writes.is_empty() {
+        return Ok(());
+    }
+    database
+        .query_bound(
+            "BEGIN TRANSACTION; \
+             FOR $write IN $writes { UPDATE $write.record SET sibling_key = $write.sibling_key RETURN NONE; }; \
+             COMMIT TRANSACTION;",
+            FolderSiblingKeyWrites { writes },
+        )
+        .await?;
+    Ok(())
+}
+
 /// MT-142: upgrades an exact pre-MT-142 current store in place by adding only the
 /// `knowledge_rich_document_title_anchors` table and its registry row inside one transaction
 /// guarded by the exact prior state, then finalizes through the same fingerprint gate as every
@@ -2089,6 +2304,12 @@ async fn upgrade_pre_mt142_current(
         .await;
     }
     materialise_mt151_journal_key(
+        database,
+        PRE_MT142_GENERATED_SURREALQL_SHA256,
+        PRE_MT142_SCHEMA_INFO_SHA256,
+    )
+    .await?;
+    materialise_mt152_folder_sibling_key(
         database,
         PRE_MT142_GENERATED_SURREALQL_SHA256,
         PRE_MT142_SCHEMA_INFO_SHA256,
@@ -2112,6 +2333,8 @@ IF $current = NONE\n\
 }};\n\
 {MT142_TITLE_ANCHOR_UPGRADE_STATEMENTS}\
 {MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS}\
+{MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS}\
+{MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
 UPDATE ONLY handshake_schema_state:primary SET\n\
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
@@ -2200,6 +2423,12 @@ async fn upgrade_pre_mt151_current(
         PRE_MT151_SCHEMA_INFO_SHA256,
     )
     .await?;
+    materialise_mt152_folder_sibling_key(
+        database,
+        PRE_MT151_GENERATED_SURREALQL_SHA256,
+        PRE_MT151_SCHEMA_INFO_SHA256,
+    )
+    .await?;
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -2217,6 +2446,8 @@ IF $current = NONE\n\
     THROW 'HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_STATE_CHANGED';\n\
 }};\n\
 {MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS}\
+{MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS}\
+{MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
 UPDATE ONLY handshake_schema_state:primary SET\n\
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
@@ -2277,6 +2508,111 @@ COMMIT TRANSACTION;\n"
             fail_closed(
                 database,
                 "HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// MT-152: upgrades an exact MT-151 current store in place by adding the
+/// `fems_workspace_write_anchors` table inside one transaction guarded by the exact prior
+/// state, then finalizes through the same fingerprint gate as every other lineage. Every
+/// application record is untouched.
+async fn upgrade_pre_mt152_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_mt152_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_MT152_UPGRADE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    materialise_mt152_folder_sibling_key(
+        database,
+        PRE_MT152_GENERATED_SURREALQL_SHA256,
+        PRE_MT152_SCHEMA_INFO_SHA256,
+    )
+    .await?;
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $schema_revision\n\
+    OR $current.target_revision != $schema_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_MT152_UPGRADE_STATE_CHANGED';\n\
+}};\n\
+{MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS}\
+{MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT152_GENERATED_SURREALQL_SHA256
+                    .to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_MT152_SCHEMA_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT152_UPGRADE_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT152_UPGRADE_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT152_UPGRADE_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT152_UPGRADE_FINAL_STATE_MISSING".to_owned(),
             )
             .await
         }
@@ -2720,8 +3056,9 @@ async fn fail_closed<T>(
 mod tests {
     use super::*;
     use crate::storage::{
-        surreal::{SurrealStorage, SurrealStorageConfig},
-        EntityRef, JobMetrics, OperationType, PlannedOperation,
+        surreal::{SurrealDatabase, SurrealStorage, SurrealStorageConfig},
+        Database, EntityRef, JobMetrics, LoomFolderSortMode, LoomFolderUpdate, NewLoomFolder,
+        OperationType, PlannedOperation, StorageError,
     };
     use surrealdb::{engine::local::Mem, Surreal};
 
@@ -3499,6 +3836,287 @@ mod tests {
     }
 
     /// MT-151: same pin as `mt142_title_anchor_upgrade_statements_match_schema` for the
+    /// The exact MT-152 `fems_workspace_write_anchors` block as it appears in `schema.surql`;
+    /// removing it from the current script yields the byte-exact MT-151 pin.
+    const MT152_FEMS_WRITE_ANCHORS_BLOCK: &str = concat!(
+        "\n-- MT-152 fems_workspace_write_anchors: one write anchor per workspace, UPSERTed (with a\n",
+        "-- fresh claim_nonce) by every FEMS transaction that creates a row referencing the workspace\n",
+        "-- and by the workspace-delete transaction itself (UPSERT then DELETE, so the key is in its\n",
+        "-- write set whether or not the row existed). The pinned engine detects conflicts only on\n",
+        "-- keys a transaction writes, so a FEMS insert and a workspace delete that overlap in the\n",
+        "-- engine now collide at commit instead of both committing with an orphan (MT-146 D-146-1,\n",
+        "-- previously ordered only by FEMS_MUTATION_LOCK). Deliberately NOT a record<workspaces>\n",
+        "-- reference: the delete removes it explicitly and no cascade scan is involved. A\n",
+        "-- serialization device, not domain data.\n",
+        "DEFINE TABLE OVERWRITE fems_workspace_write_anchors SCHEMAFULL PERMISSIONS NONE;\n",
+        "DEFINE FIELD OVERWRITE anchor_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT $value = record::id($this.id);\n",
+        "DEFINE FIELD OVERWRITE workspace_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';\n",
+        "DEFINE FIELD OVERWRITE claim_nonce ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';\n",
+        "DEFINE FIELD OVERWRITE updated_at ON TABLE fems_workspace_write_anchors TYPE datetime DEFAULT time::now();\n",
+        "DEFINE INDEX OVERWRITE pk_fems_workspace_write_anchors ON TABLE fems_workspace_write_anchors FIELDS anchor_key UNIQUE;\n",
+    );
+
+    /// The exact MT-152 `loom_folders.sibling_key` field block and index line as they appear in
+    /// `schema.surql` (I-152-2 sweep finding); removed with the FEMS block to reach the MT-151 pin.
+    const MT152_LOOM_FOLDER_SIBLING_KEY_BLOCK: &str = concat!(
+        "-- MT-152 sibling_key: stored discriminator for sibling-name uniqueness covering ROOT folders.\n",
+        "-- `uq_loom_folders_sibling_name` cannot: the engine skips uniqueness for any tuple containing\n",
+        "-- NONE (surrealdb-core-3.2.0/src/idx/index.rs:190-197, NULL != NULL) and roots carry\n",
+        "-- parent_folder_id = NONE. `workspace|parent-or-root|name`, set by every create, rename and\n",
+        "-- re-parent write; the in-place upgrade backfills existing rows and disambiguates pre-existing\n",
+        "-- root duplicates with a stable '#dup<n>' suffix on this key only (never on the visible name).\n",
+        "DEFINE FIELD OVERWRITE sibling_key ON TABLE loom_folders TYPE string ASSERT string::trim($value) != '';\n",
+    );
+    const MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_LINE: &str =
+        "DEFINE INDEX OVERWRITE uq_loom_folders_sibling_key ON TABLE loom_folders FIELDS sibling_key UNIQUE;\n";
+
+    /// The current script minus the MT-152 blocks: the exact MT-151 pin.
+    fn mt151_pin_schema() -> String {
+        for block in [
+            MT152_FEMS_WRITE_ANCHORS_BLOCK,
+            MT152_LOOM_FOLDER_SIBLING_KEY_BLOCK,
+            MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_LINE,
+        ] {
+            assert_eq!(SCHEMA.matches(block).count(), 1, "MT-152 block drifted: {block}");
+        }
+        let pinned = SCHEMA
+            .replace(MT152_FEMS_WRITE_ANCHORS_BLOCK, "")
+            .replace(MT152_LOOM_FOLDER_SIBLING_KEY_BLOCK, "")
+            .replace(MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_LINE, "");
+        assert_eq!(
+            sha256_hex(pinned.as_bytes()),
+            PRE_MT152_GENERATED_SURREALQL_SHA256,
+            "the pre-MT-152 allowlist must be exactly the current script minus the MT-152 block"
+        );
+        pinned
+    }
+
+    /// MT-152: the upgrade DDL is byte-identical (whitespace-normalised) to the fresh-script
+    /// `fems_workspace_write_anchors` block, the table is in the inventory, and the lineage
+    /// pins moved.
+    #[test]
+    fn mt152_upgrade_statements_match_schema() {
+        fn statements(source: &str) -> Vec<String> {
+            source
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .split(';')
+                .map(|statement| statement.split_whitespace().collect::<Vec<_>>().join(" "))
+                .filter(|statement| statement.starts_with("DEFINE "))
+                .collect()
+        }
+        let upgrade = statements(MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS);
+        assert_eq!(upgrade.len(), 6);
+        assert_eq!(upgrade, statements(MT152_FEMS_WRITE_ANCHORS_BLOCK));
+        let schema = statements(SCHEMA);
+        for statement in &upgrade {
+            assert!(
+                schema.iter().any(|schema_statement| schema_statement == statement),
+                "MT-152 upgrade DDL drifted from schema.surql: {statement}"
+            );
+        }
+        assert!(TABLE_NAMES.contains(&"fems_workspace_write_anchors"));
+        assert!(!MT152_FEMS_WRITE_ANCHORS_BLOCK.contains("REFERENCE"));
+        assert_ne!(PRE_MT152_GENERATED_SURREALQL_SHA256, GENERATED_SURREALQL_SHA256);
+        assert_ne!(PRE_MT152_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
+        // The MT-152 predecessor is the MT-151 current pin, so the two hops chain.
+        assert_ne!(PRE_MT152_GENERATED_SURREALQL_SHA256, PRE_MT151_GENERATED_SURREALQL_SHA256);
+        let _ = mt151_pin_schema();
+    }
+
+    /// MT-152 (I-152-2): the folder `sibling_key` field and UNIQUE index statements applied by
+    /// the upgrade are byte-identical (whitespace-normalised) to `schema.surql`, and the field
+    /// precedes the index there (the backfill must be committed before the index builds).
+    #[test]
+    fn mt152_folder_sibling_key_statements_match_schema() {
+        fn statements(source: &str) -> Vec<String> {
+            source
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .split(';')
+                .map(|statement| statement.split_whitespace().collect::<Vec<_>>().join(" "))
+                .filter(|statement| statement.starts_with("DEFINE "))
+                .collect()
+        }
+        let field = statements(MT152_LOOM_FOLDER_SIBLING_KEY_FIELD_STATEMENTS);
+        let index = statements(MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS);
+        assert_eq!(field.len(), 1);
+        assert_eq!(index.len(), 1);
+        assert_eq!(field, statements(MT152_LOOM_FOLDER_SIBLING_KEY_BLOCK));
+        assert_eq!(index, statements(MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_LINE));
+        let schema = statements(SCHEMA);
+        let field_at = schema.iter().position(|s| s == &field[0]).expect("field in schema");
+        let index_at = schema.iter().position(|s| s == &index[0]).expect("index in schema");
+        assert!(field_at < index_at, "sibling_key field must precede its UNIQUE index");
+        assert_eq!(
+            super::super::loom_store::loom_folder_sibling_key("ws-1", None, " Root "),
+            "ws-1|root|Root"
+        );
+        assert_eq!(
+            super::super::loom_store::loom_folder_sibling_key("ws-1", Some("LFD-p"), "Child"),
+            "ws-1|LFD-p|Child"
+        );
+    }
+
+    /// MT-152 (I-152-2): a store at the exact MT-151 pin holding two ROOT folders with one name
+    /// (legal there - the composite index never covered roots) and one nested folder is upgraded
+    /// in place: every row gains `sibling_key`, the later duplicate carries the `#dup1` suffix on
+    /// the key only, its visible name is untouched, and the UNIQUE index then rejects a third
+    /// root with that name through the product path with the same typed conflict as a nested
+    /// duplicate.
+    #[tokio::test]
+    async fn mt152_exact_mt151_pin_upgrade_backfills_folder_sibling_keys_and_rejects_root_duplicates() {
+        let mt151_pin_schema = mt151_pin_schema();
+        let directory = tempfile::tempdir().expect("temporary MT-151-pin store");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open MT-151-pin store");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_bound(
+                            mt151_pin_schema.as_str(),
+                            BootstrapBindings {
+                                schema_version: SCHEMA_VERSION.to_owned(),
+                                schema_revision: SCHEMA_REVISION,
+                                namespace: DEFAULT_NAMESPACE.to_owned(),
+                                database: DEFAULT_DATABASE.to_owned(),
+                                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                                generated_surql_sha256: PRE_MT152_GENERATED_SURREALQL_SHA256
+                                    .to_owned(),
+                            },
+                        )
+                        .await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET \
+                             info_fingerprint_sha256 = '{PRE_MT152_SCHEMA_INFO_SHA256}', \
+                             apply_state = 'complete', updated_at = time::now(); \
+                             CREATE workspaces:mt152_folders CONTENT {{ name: 'folders' }}; \
+                             CREATE kernel_event_ledger:mt152_folder_evt CONTENT {{ event_id: 'mt152_folder_evt', \
+                             event_version: 'v1', kernel_task_run_id: 'run', session_run_id: 'session', \
+                             aggregate_type: 'loom_folder', aggregate_id: 'seed', idempotency_key: 'mt152-folder-seed', \
+                             event_type: 'seed', actor_kind: 'HUMAN', actor_id: 'test', payload_hash: 'seed', \
+                             source_component: 'test', payload: {{ }} }}; \
+                             CREATE loom_folders:mt152_root_a CONTENT {{ folder_id: 'mt152_root_a', \
+                             workspace_id: workspaces:mt152_folders, parent_folder_id: NONE, name: 'Shared', \
+                             event_ledger_event_id: kernel_event_ledger:mt152_folder_evt, \
+                             created_at: d'2026-01-01T00:00:00Z' }}; \
+                             CREATE loom_folders:mt152_root_b CONTENT {{ folder_id: 'mt152_root_b', \
+                             workspace_id: workspaces:mt152_folders, parent_folder_id: NONE, name: 'Shared', \
+                             event_ledger_event_id: kernel_event_ledger:mt152_folder_evt, \
+                             created_at: d'2026-01-02T00:00:00Z' }}; \
+                             CREATE loom_folders:mt152_child CONTENT {{ folder_id: 'mt152_child', \
+                             workspace_id: workspaces:mt152_folders, parent_folder_id: loom_folders:mt152_root_a, \
+                             name: 'Shared', event_ledger_event_id: kernel_event_ledger:mt152_folder_evt }};"
+                        ))
+                        .await?
+                        .check()?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("construct exact MT-151-pin store with duplicate root folders");
+        storage.shutdown().await.expect("close MT-151-pin store");
+
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen MT-151-pin store");
+        let upgraded = bootstrap_schema(&reopened)
+            .await
+            .expect("upgrade exact MT-151-pin store holding duplicate root folders");
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        assert_eq!(upgraded.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+        reopened
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut keys = database
+                        .query(
+                            "SELECT VALUE sibling_key FROM loom_folders ORDER BY folder_id ASC; \
+                             SELECT VALUE name FROM loom_folders ORDER BY folder_id ASC;",
+                        )
+                        .await?;
+                    let sibling_keys: Vec<String> = keys.take(0)?;
+                    let names: Vec<String> = keys.take(1)?;
+                    assert_eq!(
+                        sibling_keys,
+                        vec![
+                            "mt152_folders|mt152_root_a|Shared".to_owned(),
+                            "mt152_folders|root|Shared".to_owned(),
+                            "mt152_folders|root|Shared#dup1".to_owned(),
+                        ]
+                    );
+                    assert_eq!(names, vec!["Shared"; 3], "visible names are never rewritten");
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify backfilled sibling keys");
+        let db = SurrealDatabase::new(reopened.clone());
+        let duplicate_root = db
+            .create_loom_folder(
+                "mt152_folders",
+                NewLoomFolder {
+                    folder_id: None,
+                    workspace_id: "mt152_folders".to_owned(),
+                    parent_folder_id: None,
+                    name: "Shared".to_owned(),
+                    color: None,
+                    sort_mode: LoomFolderSortMode::UpdatedDesc,
+                    sort_order: None,
+                    project_ref: None,
+                },
+            )
+            .await
+            .expect_err("a third root 'Shared' must hit uq_loom_folders_sibling_key");
+        assert!(
+            matches!(duplicate_root, StorageError::Conflict("loom_folder_sibling_name")),
+            "root duplicate must surface the typed sibling-name conflict, got {duplicate_root}"
+        );
+        let renamed_into_collision = db
+            .update_loom_folder(
+                "mt152_folders",
+                "mt152_child",
+                LoomFolderUpdate {
+                    parent_folder_id: Some(None),
+                    ..LoomFolderUpdate::default()
+                },
+            )
+            .await
+            .expect_err("re-parenting the child to root under the taken name must be rejected");
+        assert!(
+            matches!(renamed_into_collision, StorageError::Conflict("loom_folder_sibling_name")),
+            "re-parent into a root collision must surface the typed conflict, got {renamed_into_collision}"
+        );
+        let distinct = db
+            .create_loom_folder(
+                "mt152_folders",
+                NewLoomFolder {
+                    folder_id: None,
+                    workspace_id: "mt152_folders".to_owned(),
+                    parent_folder_id: None,
+                    name: "Distinct".to_owned(),
+                    color: None,
+                    sort_mode: LoomFolderSortMode::UpdatedDesc,
+                    sort_order: None,
+                    project_ref: None,
+                },
+            )
+            .await
+            .expect("a distinct root name is still accepted after the upgrade");
+        assert_eq!(distinct.name, "Distinct");
+        reopened.shutdown().await.expect("close upgraded store");
+    }
+
     /// journal-key and graph-anchor DDL; statements are compared whitespace-normalised because
     /// the fresh script and the upgrade both carry the multi-line `journal_key` VALUE verbatim.
     #[test]
@@ -3958,14 +4576,16 @@ mod tests {
         for block in [JOURNAL_KEY_BLOCK, JOURNAL_INDEX_LINE, GRAPH_ANCHORS_BLOCK] {
             assert_eq!(SCHEMA.matches(block).count(), 1, "MT-151 block drifted: {block}");
         }
-        let mt142_pin_schema = SCHEMA
+        // The MT-152 block sits on top of the MT-151 pin, so the MT-142 pin is the current
+        // script minus both; the pre-MT-151 path now applies MT-151 and MT-152 together.
+        let mt142_pin_schema = mt151_pin_schema()
             .replace(JOURNAL_KEY_BLOCK, "")
             .replace(JOURNAL_INDEX_LINE, "")
             .replace(GRAPH_ANCHORS_BLOCK, "");
         assert_eq!(
             sha256_hex(mt142_pin_schema.as_bytes()),
             PRE_MT151_GENERATED_SURREALQL_SHA256,
-            "the pre-MT-151 allowlist must be exactly the current script minus the MT-151 blocks"
+            "the pre-MT-151 allowlist must be exactly the current script minus the MT-151 and MT-152 blocks"
         );
 
         let directory = tempfile::tempdir().expect("temporary MT-142-pin store");
@@ -4098,6 +4718,135 @@ mod tests {
             })
             .await
             .expect("verify exact-current durable reopen after the MT-151 upgrade");
+        current.shutdown().await.expect("close current store");
+    }
+
+    /// MT-152: a store at the exact MT-151 pin (the current script minus the MT-152 block,
+    /// proven byte-exact against `PRE_MT152_GENERATED_SURREALQL_SHA256`) holding a workspace
+    /// and a FEMS pack is upgraded in place: `fems_workspace_write_anchors` exists and accepts
+    /// an UPSERT, the live fingerprint is the current pin, every application row survives, and
+    /// the state survives a reopen.
+    #[tokio::test]
+    async fn mt152_exact_mt151_pin_upgrade_adds_fems_write_anchors_and_restarts_current() {
+        let mt151_pin_schema = mt151_pin_schema();
+        let directory = tempfile::tempdir().expect("temporary MT-151-pin store");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open MT-151-pin store");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_bound(
+                            mt151_pin_schema.as_str(),
+                            BootstrapBindings {
+                                schema_version: SCHEMA_VERSION.to_owned(),
+                                schema_revision: SCHEMA_REVISION,
+                                namespace: DEFAULT_NAMESPACE.to_owned(),
+                                database: DEFAULT_DATABASE.to_owned(),
+                                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                                generated_surql_sha256: PRE_MT152_GENERATED_SURREALQL_SHA256
+                                    .to_owned(),
+                            },
+                        )
+                        .await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET \
+                             info_fingerprint_sha256 = '{PRE_MT152_SCHEMA_INFO_SHA256}', \
+                             apply_state = 'complete', updated_at = time::now(); \
+                             CREATE workspaces:mt152_pin CONTENT {{ name: 'sentinel' }}; \
+                             CREATE fems_memory_packs:mt152_pack CONTENT {{ pack_id: 'mt152_pack', \
+                             workspace_id: workspaces:mt152_pin, scope_key: '', pack: {{ v: 1 }}, \
+                             generated_at: time::now() }};"
+                        ))
+                        .await?
+                        .check()?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("construct exact MT-151-pin store with a workspace and a FEMS pack");
+        storage.shutdown().await.expect("close MT-151-pin store");
+
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen MT-151-pin store");
+        let upgraded = match bootstrap_schema(&reopened).await {
+            Ok(report) => report,
+            Err(error) => {
+                let reference = fresh_mem_catalog().await;
+                let observed = reopened
+                    .with_admin_operation(|database| {
+                        Box::pin(async move { canonical_catalog(&database).await })
+                    })
+                    .await
+                    .expect("inspect the failed upgrade");
+                report_catalog_drift("MT152_UPGRADE", &reference, &observed);
+                panic!("upgrade exact MT-151-pin store: {error}");
+            }
+        };
+        assert!(upgraded.reused_existing_schema);
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        reopened
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut anchors = database
+                        .query("INFO FOR TABLE fems_workspace_write_anchors STRUCTURE;")
+                        .await?;
+                    let info: SurrealValueData = anchors.take(0)?;
+                    let fields = parse_named_array(&info, "fields")
+                        .unwrap_or_else(|reason| panic!("invalid anchors INFO: {reason}"));
+                    assert!(fields.iter().any(|field| field == "claim_nonce"));
+                    database
+                        .query(
+                            "UPSERT fems_workspace_write_anchors:mt152_pin SET \
+                             anchor_key = 'mt152_pin', workspace_key = 'mt152_pin', \
+                             claim_nonce = 'nonce-1';",
+                        )
+                        .await?
+                        .check()?;
+                    let mut pack = database
+                        .query("RETURN fems_memory_packs:mt152_pack.pack_id;")
+                        .await?;
+                    let pack_id: Option<String> = pack.take(0)?;
+                    assert_eq!(pack_id.as_deref(), Some("mt152_pack"));
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify upgraded anchors table and surviving rows");
+        reopened.shutdown().await.expect("close upgraded store");
+
+        let current = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded store");
+        current
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("upgraded state survives reopen");
+                    assert!(state.is_exact_current());
+                    let mut sentinel = database
+                        .query("RETURN workspaces:mt152_pin.name;")
+                        .await?;
+                    let name: Option<String> = sentinel.take(0)?;
+                    assert_eq!(name.as_deref(), Some("sentinel"));
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify exact-current durable reopen after the MT-152 upgrade");
         current.shutdown().await.expect("close current store");
     }
 

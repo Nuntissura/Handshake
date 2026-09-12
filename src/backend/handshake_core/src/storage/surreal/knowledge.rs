@@ -247,6 +247,21 @@ where
 /// `knowledge_rich_document_title_ambiguous`. `claim_nonce` changes on every
 /// attempt because the engine skips unchanged documents
 /// (`surrealdb-core-3.2.0/src/doc/store.rs:15-18`).
+///
+/// Reclamation invariant (MT-152 I-152-1): an anchor row exists for a title
+/// iff at least one live (`deleted_at = NONE`) document in the workspace holds
+/// that normalized title - eventually, with the transient window bounded by a
+/// single conflicting transaction. The atomic delete and the rename (for the
+/// OLD title) reclaim inside their own transaction
+/// ([`title_anchor_reclaim_statement`]): they UPSERT the anchor first, so the
+/// key is in the write set whether or not the row existed, then count the live
+/// holders of the title key AFTER their own tombstone/retitle and DELETE the
+/// anchor when that count is zero. Because every title-mutating transaction
+/// writes the same key, a reclaim racing a create (or a rename INTO the title)
+/// collides at commit: if the create loses, its bounded retry re-runs and
+/// re-UPSERTs the anchor; if the reclaim loses, its retry re-counts, sees the
+/// new live holder and keeps the row. A naive read-count-then-delete outside
+/// the write set was rejected by MT-142 because it reopened the R1-1-2 window.
 struct TitleAnchor {
     anchor_key: String,
     title_key: String,
@@ -273,6 +288,29 @@ const TITLE_ANCHOR_SLOT_PREVIOUS: &str = "previous";
 fn title_anchor_statement(slot: &str) -> String {
     format!(
         "UPSERT type::record('knowledge_rich_document_title_anchors', $anchor_key_{slot}) SET anchor_key = $anchor_key_{slot}, workspace_id = $workspace, title_key = $anchor_title_key_{slot}, last_rich_document_id = $doc_id, claim_nonce = $anchor_nonce_{slot}, updated_at = time::now() RETURN NONE;"
+    )
+}
+
+/// The anchor UPSERT for one slot followed by its reclamation: the row stays
+/// only while a live document in the workspace holds the normalized title.
+/// The SurrealQL normalization (`string::lowercase` -> `string::words` ->
+/// `array::join`) is the exact image of [`normalize_rich_document_title`]
+/// (trim, lowercase, collapse whitespace), proven against case and whitespace
+/// variants by `tests/mt152_anchor_reclamation_tests.rs`. The UPSERT precedes
+/// the conditional DELETE so the key is in the transaction's write set even
+/// when no row existed (a legacy title never touched since MT-142) - a bare
+/// DELETE of an absent record writes nothing and would leave a concurrent
+/// create undetected.
+fn title_anchor_reclaim_statement(slot: &str) -> String {
+    let upsert = title_anchor_statement(slot);
+    format!(
+        "{upsert} \
+         LET $anchor_live_{slot} = array::len((SELECT VALUE id FROM knowledge_rich_documents \
+             WHERE workspace_id = $workspace AND deleted_at = NONE \
+                 AND array::join(string::words(string::lowercase(title)), ' ') = $anchor_title_key_{slot})); \
+         IF $anchor_live_{slot} = 0 {{ \
+             DELETE type::record('knowledge_rich_document_title_anchors', $anchor_key_{slot}) RETURN NONE; \
+         }};"
     )
 }
 
@@ -942,12 +980,17 @@ struct RichDocumentDeleteTombstoneRow {
 /// `KnowledgeStore` method: deletion owns EventLedger, RichDocument, source,
 /// backlink, Loom, and Canvas records in one transaction and must not be
 /// decomposed by a provider-neutral caller.
+// `pub` (MT-152 I-152-1): the anchor-reclamation race proof in
+// `tests/mt152_anchor_reclamation_tests.rs` drives the atomic delete directly
+// on two `SurrealDatabase` wrappers, so the delete entrypoint and its outcome
+// are crate-external; the operation stays Surreal-specific and is still not
+// part of the provider-neutral `KnowledgeStore` trait.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct KnowledgeRichDocumentDeleteOutcome {
-    pub(crate) receipt_event_id: String,
-    pub(crate) source_marked_stale: bool,
-    pub(crate) backlinks_deleted: usize,
-    pub(crate) loom_block_deleted: bool,
+pub struct KnowledgeRichDocumentDeleteOutcome {
+    pub receipt_event_id: String,
+    pub source_marked_stale: bool,
+    pub backlinks_deleted: usize,
+    pub loom_block_deleted: bool,
 }
 
 fn rich_document_to_domain(record: RichDocRecord) -> StorageResult<KnowledgeRichDocument> {
@@ -1890,7 +1933,7 @@ impl SurrealDatabase {
     /// so a concurrent save can never make the delete receipt describe stale
     /// document state. Exact EventLedger idempotency replays reuse the stored
     /// receipt; divergent reuse aborts before any tombstone or cleanup commits.
-    pub(crate) async fn delete_knowledge_rich_document_atomic(
+    pub async fn delete_knowledge_rich_document_atomic(
         &self,
         expected: &KnowledgeRichDocument,
         event: NewKernelEvent,
@@ -2064,9 +2107,11 @@ impl SurrealDatabase {
         // count stamped on the durable tombstone - decided from a stale
         // snapshot. Writing this title's anchor puts the decision in the write
         // set, so those operations collide and the loser re-reads
-        // (review finding R1-1-2, remediation (b)).
+        // (review finding R1-1-2, remediation (b)). MT-152 I-152-1: the same
+        // write then reclaims the anchor when this tombstone removed the last
+        // live holder of the title (see `TitleAnchor`).
         let anchor = title_anchor(&current.workspace_id, &current.title);
-        let anchor_statement = title_anchor_statement(TITLE_ANCHOR_SLOT_CURRENT);
+        let anchor_statement = title_anchor_reclaim_statement(TITLE_ANCHOR_SLOT_CURRENT);
         let statement = format!("{statement}{anchor_statement} COMMIT TRANSACTION;");
         let mut binds = vec![
             b(
@@ -4600,16 +4645,18 @@ impl KnowledgeStore for SurrealDatabase {
             // A rename changes which live documents hold BOTH titles, and the
             // atomic delete decides its backlink scope from exactly that set,
             // so the transaction writes both anchors (R1-1-2 remediation (b)).
+            // MT-152 I-152-1: the OLD title's anchor is reclaimed when this
+            // document was its last live holder (see `TitleAnchor`).
             let new_anchor = title_anchor(&current.workspace_id, title);
             let previous_anchor = title_anchor(&current.workspace_id, &current.title);
             // Statements: BEGIN(0) guarded-rename(1) loom-title(2) search(3)
-            // final-select(4) title anchors(5,6) COMMIT; the appended anchors
+            // final-select(4) title anchors(5..) COMMIT; the appended anchors
             // keep the read-back index 4 stable.
             let new_anchor_statement = title_anchor_statement(TITLE_ANCHOR_SLOT_CURRENT);
             let previous_anchor_statement = if previous_anchor.anchor_key == new_anchor.anchor_key {
                 String::new()
             } else {
-                title_anchor_statement(TITLE_ANCHOR_SLOT_PREVIOUS)
+                title_anchor_reclaim_statement(TITLE_ANCHOR_SLOT_PREVIOUS)
             };
             let statement = format!(
                 "BEGIN TRANSACTION;\n\
@@ -6291,6 +6338,34 @@ mod title_anchor_tests {
             canonical.anchor_key,
             "the anchor is workspace-scoped"
         );
+    }
+
+    /// MT-152 I-152-1: the reclaim form writes the anchor BEFORE deciding, and
+    /// its live-holder count and DELETE are slot-scoped like the UPSERT.
+    #[test]
+    fn title_anchor_reclaim_statement_writes_then_conditionally_deletes() {
+        for slot in [TITLE_ANCHOR_SLOT_CURRENT, TITLE_ANCHOR_SLOT_PREVIOUS] {
+            let statement = title_anchor_reclaim_statement(slot);
+            let upsert = statement
+                .find("UPSERT type::record('knowledge_rich_document_title_anchors'")
+                .expect("reclaim starts with the anchor UPSERT");
+            let count = statement
+                .find(&format!("LET $anchor_live_{slot} = array::len("))
+                .expect("reclaim counts live holders");
+            let delete = statement
+                .find(&format!(
+                    "IF $anchor_live_{slot} = 0 {{ DELETE type::record('knowledge_rich_document_title_anchors', $anchor_key_{slot}) RETURN NONE; }};"
+                ))
+                .expect("reclaim deletes only at zero live holders");
+            assert!(upsert < count && count < delete, "order: {statement}");
+            assert!(statement.contains("deleted_at = NONE"));
+            assert!(statement.contains(
+                "array::join(string::words(string::lowercase(title)), ' ')"
+            ));
+            assert!(statement.contains(&format!("= $anchor_title_key_{slot}")));
+        }
+        let current = title_anchor_reclaim_statement(TITLE_ANCHOR_SLOT_CURRENT);
+        assert!(!current.contains("_previous"));
     }
 
     /// Both slots address the anchor table and carry slot-scoped bind names,
