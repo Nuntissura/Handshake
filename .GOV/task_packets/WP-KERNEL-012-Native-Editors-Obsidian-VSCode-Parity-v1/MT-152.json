@@ -31,13 +31,13 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-142",
       "MT-151"
     ],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260910-073935",
@@ -89,7 +89,8 @@
           "classification": "MOSTLY FIXED. Linear fit: about 281 MiB fixed plus about 26 MiB per 10k operations (~2.7 KB per operation). The proportional tail over the full range (120 MiB) is smaller than the fixed part; the store grew 11 MB while RSS grew 120 MiB, so the tail is engine working set rather than store size. The MT-142 runs (413.9 and 433.99 MB at ~51k, different seed) sit on the same curve. No leak signal in range."
         },
         "harness_change": "tests/surreal_swarm_load_tests.rs: WorkloadConfig::extended clamps operations UP to 50000 (:169-171), so smaller runs would silently have run 50000. HANDSHAKE_SWARM_MEASUREMENT_ONLY=1 lifts only the operations clamp (workers and dataset stay clamped), uses the distinct profile extended-measurement and report file, records run_kind measurement/acceptance in effective_configuration, and skips the contract-minimum assertion with a printed marker. The acceptance path is unchanged.",
-        "manual": "new section on the swarm page, Memory envelope of the embedded engine; the points live in MEMORY_ENVELOPE_CURVE and the classification is derived by a linear fit in the test, never hand-typed; knob evidence with file:line; the would-be trade-off (32 MiB x 4 buffers means more HDD flushes). LIB user_manual ok. 25 passed (mt142-LIB-20260911T183311Z)."
+        "manual": "new section on the swarm page, Memory envelope of the embedded engine; the points live in MEMORY_ENVELOPE_CURVE and the classification is derived by a linear fit in the test, never hand-typed; knob evidence with file:line; the would-be trade-off (32 MiB x 4 buffers means more HDD flushes). LIB user_manual ok. 25 passed (mt142-LIB-20260911T183311Z).",
+        "manual_lock_migration_section": "added: LIB user_manual ok. 26 passed (mt142-LIB-20260912T011120Z), mt152_manual_lock_migration_pins_code pins the ten mutex names as absent from src/ and the new guard names as present"
       },
       "I-152-1": {
         "status": "CLOSED",
@@ -151,6 +152,22 @@
           "the D-146-1 race resolved insert-first in all 6 iterations (the delete retried and cascaded); the insert-loses ordering is proven only by the non-racing baseline test",
           "api::memory::tests::proposal_delete_race_never_leaves_workspace_orphans (LIB, 8-16 min) was not rerun by the lane - the KERNEL_BUILDER runs it before handoff since it exercises the exact path changed"
         ]
+      },
+      "I-152-2": {
+        "status": "CLOSED",
+        "at_utc": "2026-09-12T01:15:18.291Z",
+        "shared_helper": "SurrealDatabase::guarded_mutation / guarded_storage_mutation (database.rs:96-206): keyed acquire_many_with_deadline + RetryPolicy::CONTRACT + with_operation_deadline, Replay passed explicitly; knowledge.rs keeps its own guarded_mutation (duplication noted for a later tidy). keyed_lock::static_lock_test_support became race_test_support (pause hook kept; a Disabled registry is now the bypass).",
+        "keys_per_static": {
+          "LOOM_MUTATION_LOCK": "15 sites: blocks/pins/edges/collections/media tier -> Record of the mutated row; journal -> NaturalKey(ws, loom_journal_date, date); folder create -> NaturalKey(ws, loom_folder_sibling_name, parent/name); folder update -> Record(folder) plus Record(storage_graph_anchors, loom_folder_tree|ws) only when re-parenting, sorted; members -> Record(loom_folder_members, id); recompute_all_metrics -> Workspace (the one workspace-spanning sweep, now bounded by one statement_timeout where it was unbounded)",
+          "CANVAS_MUTATION_LOCK": "9 sites: boards -> Record(board); placements -> Record(placement); place_block -> Record(loom_blocks, placed_block) which keeps the compensation-first ordering deterministic; Stage card -> NaturalKey(ws, canvas_stage_provenance, canvas|key); compensation -> [placement, placed block] sorted; visual edge add -> both endpoint placements sorted; edge remove -> Record(visual_edge)",
+          "WIKI_LOCKS": "OVERLAY/MARKDOWN_IMPORT/WIKI_COMPILE, 4 sites: compile -> NaturalKey(ws, wiki_projection_title, title) with own_index uq_knowledge_wiki_projections_identity; overlay add -> Record(projection); overlay delete -> Record(overlay); import -> Record(rich_document, fresh id)",
+          "BLOCK_VIEW_MUTATION_LOCK": "Record(loom_blocks, block_id)",
+          "BRIDGE_MUTATION_LOCK": "Record(bridge, block_id)",
+          "DEPENDENCY_MUTATION_LOCK": "add -> Record(storage_graph_anchors, work_packet_dependencies|global); remove -> Record(dependencies, id)"
+        },
+        "statics_gone": "zero occurrences of the eight names in src/ except two byte-pinned historical comments (schema.surql:449, schema.rs:4550 JOURNAL_KEY_BLOCK) compared byte-exact by MT-151's upgrade test - deliberately left",
+        "pin_removal_conflict_finding": "one in-crate unit test (loom_store.rs:4159 concurrent_pin_removals_...) called the module-level remove_loom_block_pin directly beneath SurrealDatabase - an unwrapped TEST caller, not a product entry point and not a decoding gap: every store helper already routes through decode_query_values (surreal.rs:493-512) and the only raw .client.query().check() calls in the six store files are cfg(test) failpoint DDL. The test now drives Database::remove_loom_block_pin.",
+        "proofs": "mt152_lock_migration_tests ok. 6 passed (lease_high_water 16 for Loom/Canvas/Wiki); loom_canvas_board_tests 13/13; mt151_early_lock_release_race_tests 3/3; loom_atomic_receipt 9/9; loom_folder 10/10; loom_media_tiers 6/6; loom_search_v2 6/6; loom_wiki_boundary 5/5; loom_knowledge_bridge 8/8; loom_block_collection_views 10/10; wp_kernel_012_native_editor_routes 14/14; LIB exact_ (all upgrade hops + receipt tests) 22/22; warnings 241 baseline; CHECK clean"
       }
     },
     "findings_20260911": [
@@ -166,8 +183,15 @@
           "answer": "Nothing rejected a duplicate root before the migration. create_loom_folder at 98353583 is: acquire mutex, trim and validate the name, parent-exists read, one CREATE $folder SET ... - no Rust-side duplicate pre-check exists in that function or anywhere in loom_store.rs, and the migration diff removed only the mutex line. No run of loom_folder_tests exists in the MT-142 or MT-151 evidence, so the test's status at HEAD is UNVERIFIED by run; by construction (the engine skips UNIQUE on NONE tuples) it could not have passed.",
           "reclassification": "NOT a migration regression. A pre-existing unguarded invariant with a pre-existing test nobody had run, surfaced by the MT-152 regression sweep. The MT-151 audit recorded the composite index as covering it in error - the same root cause its own journal_key block documents."
         }
+      },
+      {
+        "id": "FIND-152-FOURTH-FINGERPRINT-PIN",
+        "at_utc": "2026-09-12T01:15:18.291Z",
+        "finding": "bootstrap_loom_receipt_test_schema::EXPECTED_CATALOG_SHA256 (schema.rs:674) is a fourth pinned fingerprint over the Loom receipt-test table set. It had been DRIFTING since MT-151's journal_key landed inside that table set, unnoticed because the two unit tests that check it had not been run by any MT in this packet. Re-pinned by MT-152 (6d54790e...). Lesson recorded: the schema has FOUR pins, not three, and the loom_store/loom_canvas_store unit tests must be in the proof set of any DDL change."
       }
-    ]
+    ],
+    "ready_for_validation_at_utc": "2026-09-12T01:15:18.291Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260910-073935"
   },
   "scope": {
     "summary": "Four closures: (1) safe reclamation of knowledge_rich_document_title_anchors rows using the anchor row itself as the conflict key; (2) migrate the eight remaining product-data process-global storage mutexes onto the MT-142 primitives so disjoint records and workspaces no longer serialise; (3) turn the RSS finding into a measured answer and, if the engine exposes them, a bounded memory configuration; (4) audit FEMS_MUTATION_LOCK and STAGE_INSERT_LOCK under the caller-side statement bound the way MT-151 audited the others, and guard any lock-only invariant database-side.",
@@ -255,7 +279,68 @@
       "MT-150",
       "MT-142",
       "MT-151"
-    ]
+    ],
+    "product_commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+    "product_branch": "feat/WP-KERNEL-012",
+    "base_commit": "98353583742437f1ebf4ccba5950938927af59da",
+    "kb_ready_checklist_receipt": {
+      "overall_verdict": "WAIVED_BY_OPERATOR",
+      "waiver": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
+      "note": "light ceremony by Operator direction; typed dispositions and verbatim proof lines stand in"
+    },
+    "warnings": "241 on LIB runs, the pre-existing baseline; none in changed files",
+    "anti_laundering_scan": "no PostgreSQL or SQLite token introduced (same pre-existing hits as 98353583)",
+    "closes": [
+      "FOLLOW-ON-MT142-TITLE-ANCHOR-RECLAMATION",
+      "D-142-1 follow-on (all ten product-data statics migrated)",
+      "RSS finding (measured: fixed engine overhead; no supported SDK bound)",
+      "owner decision on FEMS_MUTATION_LOCK and STAGE_INSERT_LOCK (audited, guarded, migrated)",
+      "FIND-152-ROOT-FOLDER-UNIQUENESS-NEVER-GUARDED (database-side guard added)"
+    ],
+    "stated_limits": [
+      "the D-146-1 race resolved insert-first in all 6 iterations; the insert-loses ordering is proven only by the non-racing baseline test",
+      "api::memory::tests::proposal_delete_race_never_leaves_workspace_orphans is NOT RUN: it sits behind the duckdb-flight-recorder cargo feature, outside the proof feature set used by MT-142/151/152, and was never compiled by any of those runs; Lane A's mt152_fems_stage_guard_tests (3/3) and the non-racing baseline cover the changed path",
+      "knowledge_delete_title_race_tests phase 1 changed from 'anchor survives' to 'anchor reclaimed' by AC-152-1 - a spec-driven assertion change, recorded as such",
+      "recompute_all_metrics has no test caller (unchanged behaviour apart from now being bounded)",
+      "loom_block_collection_views_tests' two inspector-decoding failures are pre-existing by construction (SDK tagging contract) but not run-verified at the base commit, since no prior run of that target exists",
+      "HTTP routes still build a SurrealDatabase per request, so the keyed registry shapes in-process callers only; correctness never depends on it (contract not_in_scope)"
+    ],
+    "coder_handoff": {
+      "receipt_kind": "CODER_HANDOFF",
+      "timestamp_utc": "2026-09-12T01:15:18.291Z",
+      "correlation_id": "review:mt152-closure-20260911",
+      "target_role": "INTEGRATION_VALIDATOR",
+      "target_session": "PENDING"
+    },
+    "validate_at_commit": {
+      "commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+      "instruction": "Validate MT-152 at this exact commit."
+    }
   },
-  "updated_at_utc": "2026-09-11T21:56:41.653Z"
+  "updated_at_utc": "2026-09-12T01:15:18.291Z",
+  "owned_files": [
+    "src/backend/handshake_core/src/storage/surreal/database.rs",
+    "src/backend/handshake_core/src/storage/surreal/keyed_lock.rs",
+    "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+    "src/backend/handshake_core/src/storage/surreal/loom_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/loom_canvas_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/wiki_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/block_view_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/bridge_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/locus_store.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "src/backend/handshake_core/src/storage/surreal/schema.surql",
+    "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+    "src/backend/handshake_core/src/storage/fems_memory.rs",
+    "src/backend/handshake_core/src/storage/stage_artifacts.rs",
+    "src/backend/handshake_core/src/user_manual/seed.rs",
+    "src/backend/handshake_core/tests/mt152_anchor_reclamation_tests.rs",
+    "src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs",
+    "src/backend/handshake_core/tests/mt152_lock_migration_tests.rs",
+    "src/backend/handshake_core/tests/knowledge_delete_title_race_tests.rs",
+    "src/backend/handshake_core/tests/loom_block_collection_views_tests.rs",
+    "src/backend/handshake_core/tests/mt151_early_lock_release_race_tests.rs",
+    "src/backend/handshake_core/tests/surreal_swarm_load_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ]
 }
