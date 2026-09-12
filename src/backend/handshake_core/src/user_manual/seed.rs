@@ -1623,6 +1623,32 @@ struct MemoryEnvelopePoint {
     run_id: &'static str,
 }
 
+/// MT-152 I-152-2 / I-152-4: the ten process-global storage mutexes that no
+/// longer exist in `src/` (pinned absent by `mt152_manual_lock_migration_pins_code`).
+const MT152_RETIRED_STORAGE_MUTEXES: &[&str] = &[
+    "LOOM_MUTATION_LOCK",
+    "CANVAS_MUTATION_LOCK",
+    "OVERLAY_MUTATION_LOCK",
+    "MARKDOWN_IMPORT_LOCK",
+    "WIKI_COMPILE_LOCK",
+    "BLOCK_VIEW_MUTATION_LOCK",
+    "BRIDGE_MUTATION_LOCK",
+    "DEPENDENCY_MUTATION_LOCK",
+    "FEMS_MUTATION_LOCK",
+    "STAGE_INSERT_LOCK",
+];
+
+/// Database-side guards that replaced lock-only invariants: MT-151 added the
+/// first three, MT-152 the last two (pinned present in `schema.surql` / the
+/// store sources).
+const MT152_DATABASE_GUARDS: &[(&str, &str)] = &[
+    ("MT-151", "uq_loom_blocks_journal_key"),
+    ("MT-151", "storage_graph_anchors"),
+    ("MT-151", "HSK-LOOM-FOLDER-TREE-STALE"),
+    ("MT-152", "fems_workspace_write_anchors"),
+    ("MT-152", "uq_loom_folders_sibling_key"),
+];
+
 /// MT-152 I-152-3 measured curve, ascending by operation count. Every entry
 /// is evidence: the run id names the report the numbers were copied from.
 const MEMORY_ENVELOPE_CURVE: &[MemoryEnvelopePoint] = &[
@@ -1740,6 +1766,60 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
          freshly bootstrapped store, and the semantics proofs assert clones are mutually isolated. The one-time \
          apply prints `SWARM_TEMPLATE_BOOTSTRAP_MS` and each open prints `SWARM_STORE_OPEN_MS` - about 6 s per \
          test in the measured runs, against ~360 s if every test paid a cold apply."
+    );
+    // MT-152 I-152-2 / I-152-4 lock migration. Names are rendered from the
+    // pinned constants so the page cannot list a mutex that still exists or a
+    // guard that does not.
+    let retired_mutexes = MT152_RETIRED_STORAGE_MUTEXES
+        .iter()
+        .map(|name| format!("`{name}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let lock_migration_md = format!(
+        "Gone (MT-152 I-152-2 and I-152-4): every process-global storage mutex. The ten statics {retired} no \
+         longer exist anywhere in `src/` (the only remaining mentions are history comments in `schema.surql`); \
+         MT-142 had already removed `RICH_DOCUMENT_MUTATION_LOCK` and `KNOWLEDGE_UPSERT_LOCK`. Nothing in the \
+         process serializes writes to unrelated records any more.\n\n\
+         What shapes contention now: the per-`SurrealDatabase` `KeyedLockRegistry` \
+         (`storage/surreal/keyed_lock.rs`; one registry per wrapper, `SurrealDatabase::new` uses \
+         `KeyedLockRegistry::keyed()`, `database.rs:53-54`) on the NARROWEST stable key: `LockKey::Record` for a \
+         single-record mutation, `LockKey::NaturalKey` for a uniqueness or upsert race decided before the record id \
+         exists, and `LockKey::Workspace` only for an invariant that genuinely spans a workspace - in the migrated \
+         stores that is the Loom metrics recompute sweep alone (`database.rs:985-992`). Every migrated store \
+         goes through `SurrealDatabase::guarded_mutation` (`database.rs:118`) or its lease-bound twin \
+         `guarded_storage_mutation`: keys are sorted and deduplicated before acquisition so opposite-order \
+         callers cannot deadlock (`keyed_lock.rs:39`, `:365-366`), one wall-clock budget covers the lock wait, \
+         every retry attempt and the sleeps between them (`RetryPolicy::CONTRACT`; the deadline is the store's \
+         `statement_timeout`), the lock wait observes the store's shutdown cancellation, and the closure runs \
+         its pre-reads INSIDE the retried attempt so a re-run observes what the winning writer committed. A \
+         caller whose replay safety is not proven passes `Replay::NotIdempotent`: it gets the keyed lock and the \
+         bounded wait, never a second attempt.\n\n\
+         Two facts an operator needs:\n\
+         1. Correctness never depends on the registry. It only shapes contention; the database guards own the \
+         invariants, which is what the `KeyedLockRegistry::disabled()` proofs demonstrate. Where MT-151 found an \
+         invariant that a mutex alone used to hold, it gained a database-side guard: the computed \
+         `loom_blocks.journal_key` with `uq_loom_blocks_journal_key` UNIQUE (`schema.surql:446-458`), and the \
+         `storage_graph_anchors` version CAS for the Loom folder tree (`THROW 'HSK-LOOM-FOLDER-TREE-STALE'`, \
+         `loom_store.rs`) and for work-packet dependencies (`THROW 'HSK-LOCUS-DEPENDENCY-GRAPH-STALE'`, \
+         `locus_store.rs`). MT-152 added two more: `fems_workspace_write_anchors` (one UPSERTed write anchor per \
+         workspace, so the D-146-1 workspace-delete ordering that `FEMS_MUTATION_LOCK` alone used to hold is \
+         decided at commit, `schema.surql:5015-5027`) and `loom_folders.sibling_key` with \
+         `uq_loom_folders_sibling_key` UNIQUE (sibling-name uniqueness including ROOT folders, \
+         `schema.surql:4211-4227`). `STAGE_INSERT_LOCK` was covered already by \
+         `uq_stage_capture_artifacts_idempotency`.\n\
+         2. The registry shapes in-process callers only. HTTP handlers build a fresh \
+         `SurrealDatabase::new(state.surreal.clone())` per request (`api/knowledge_documents.rs:290-291`, \
+         `api/knowledge_code_nav.rs:115-116`, `api/code_nav_index.rs:261`, `api/knowledge_ingestion.rs:114`), \
+         each with its own registry, so two HTTP requests on the same record are shaped by the engine's \
+         commit-time conflict detection and the bounded retry, not by a shared process-local lock. Moving the \
+         API layer to one wrapper per app state is a recorded follow-on, not a correctness requirement.\n\n\
+         Also new in MT-152 (I-152-1): title anchors are reclaimed. The atomic delete and the rename (for the \
+         OLD title) UPSERT the `knowledge_rich_document_title_anchors` row into their write set, count the live \
+         holders after their own tombstone or retitle, and DELETE the anchor when that count is zero \
+         (`knowledge.rs` `title_anchor_reclaim_statement`); a reclaim racing a create collides at commit and the \
+         loser's bounded retry re-decides, so an anchor exists for a title iff a live document holds it, with the \
+         transient window bounded by one conflicting transaction.",
+        retired = retired_mutexes,
     );
     // MT-152 I-152-3 memory envelope. The points come from MEMORY_ENVELOPE_CURVE
     // (copied from the measurement reports the run ids name) and the
@@ -2498,6 +2578,27 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                         "budgets and budget_verdict are recorded, never gating",
                         "a report is evidence only with the producing test's result line"
                     ]
+                }),
+            ),
+            section_with_json(
+                "workflows",
+                "MT-152 lock migration: what shapes contention now",
+                &lock_migration_md,
+                json!({
+                    "retired_process_global_mutexes": MT152_RETIRED_STORAGE_MUTEXES,
+                    "remaining_static_storage_mutexes": 0,
+                    "contention_shaper": "per-SurrealDatabase KeyedLockRegistry (storage/surreal/keyed_lock.rs) via SurrealDatabase::guarded_mutation / guarded_storage_mutation (storage/surreal/database.rs)",
+                    "key_choice": {
+                        "record": "LockKey::Record - single-record mutations",
+                        "natural_key": "LockKey::NaturalKey - uniqueness / upsert races before the record id exists",
+                        "workspace": "LockKey::Workspace - only the Loom metrics recompute sweep (database.rs recompute path)"
+                    },
+                    "acquisition": "keys sorted and deduplicated, acquired under one deadline shared with the bounded retry (keyed_lock.rs acquire_many)",
+                    "retry": "RetryPolicy::CONTRACT; pre-reads inside the closure; Replay::NotIdempotent gets the lock and the wait but never a second attempt",
+                    "correctness_owner": "database guards, never the registry (KeyedLockRegistry::disabled() proofs)",
+                    "database_guards": MT152_DATABASE_GUARDS.iter().map(|(mt, guard)| json!({"added_by": mt, "guard": guard})).collect::<Vec<_>>(),
+                    "http_scope": "api handlers construct SurrealDatabase::new(state.surreal.clone()) per request, so the registry shapes in-process callers only",
+                    "title_anchor_reclamation": "atomic delete and rename (old title) reclaim knowledge_rich_document_title_anchors inside their own transaction (knowledge.rs title_anchor_reclaim_statement)"
                 }),
             ),
             section_with_json(
@@ -4216,6 +4317,111 @@ mod tests {
             assert!(
                 corpus.contains(marker),
                 "swarm test sources neither print nor write documented marker {marker}; sources: {files:?}"
+            );
+        }
+    }
+
+    /// MT-152 AC-152-5: the lock-migration section states code facts, so the
+    /// code is pinned here. Every retired process-global mutex must be absent
+    /// from `src/` as a definition or an acquisition (history comments are
+    /// allowed), every named database guard must exist in the schema or store
+    /// sources, the HTTP per-request wrapper claim must hold, and the section
+    /// must name each of them.
+    #[test]
+    fn mt152_manual_lock_migration_pins_code() {
+        let page = mt142_page();
+        let body = mt142_body(&page);
+        let section = mt142_section_json(&page, "MT-152 lock migration: what shapes contention now");
+        let crate_root = mt142_crate_root();
+        let src_root = crate_root.join("src");
+
+        fn rs_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+            let Ok(entries) = std::fs::read_dir(dir) else {
+                return;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    rs_files(&path, out);
+                } else if path.extension().is_some_and(|ext| ext == "rs") {
+                    out.push(path);
+                }
+            }
+        }
+        let mut files = Vec::new();
+        rs_files(&src_root, &mut files);
+        assert!(!files.is_empty(), "no .rs files under {}", src_root.display());
+        // The manual's own source carries the pinned names as string literals.
+        let manual_dir = src_root.join("user_manual");
+        let sources: Vec<(std::path::PathBuf, String)> = files
+            .into_iter()
+            .filter(|path| !path.starts_with(&manual_dir))
+            .map(|path| (path.clone(), mt142_read(&path)))
+            .collect();
+
+        let documented: Vec<&str> = section["retired_process_global_mutexes"]
+            .as_array()
+            .expect("retired_process_global_mutexes")
+            .iter()
+            .map(|value| value.as_str().expect("mutex name"))
+            .collect();
+        assert_eq!(documented, MT152_RETIRED_STORAGE_MUTEXES.to_vec());
+        assert_eq!(documented.len(), 10, "the contract retires exactly ten mutexes");
+        for name in MT152_RETIRED_STORAGE_MUTEXES {
+            assert!(body.contains(&format!("`{name}`")), "section does not name {name}");
+            for (path, source) in &sources {
+                for line in source.lines() {
+                    let code = line.split("//").next().unwrap_or("");
+                    if !code.contains(name) {
+                        continue;
+                    }
+                    let trimmed = code.trim_start();
+                    let is_sql_comment = trimmed.starts_with("\"--") || trimmed.starts_with("--");
+                    assert!(
+                        is_sql_comment,
+                        "{name} still appears in code at {}: {line}",
+                        path.display()
+                    );
+                }
+            }
+        }
+
+        let schema = mt142_read(&crate_root.join("src/storage/surreal/schema.surql"));
+        let store_sources = [
+            mt142_read(&crate_root.join("src/storage/surreal/loom_store.rs")),
+            mt142_read(&crate_root.join("src/storage/surreal/locus_store.rs")),
+        ]
+        .join("\n");
+        let guards_json = section["database_guards"].as_array().expect("database_guards");
+        assert_eq!(guards_json.len(), MT152_DATABASE_GUARDS.len());
+        for (mt, guard) in MT152_DATABASE_GUARDS {
+            assert!(
+                schema.contains(guard) || store_sources.contains(guard),
+                "documented {mt} guard {guard} is not defined in schema.surql or the store sources"
+            );
+            assert!(body.contains(guard), "section does not name guard {guard}");
+            assert!(
+                guards_json.iter().any(|entry| entry["guard"] == *guard && entry["added_by"] == *mt),
+                "body_json database_guards lacks {mt} {guard}"
+            );
+        }
+        for present in ["fems_workspace_write_anchors", "sibling_key"] {
+            assert!(schema.contains(present), "schema.surql lacks MT-152 guard {present}");
+        }
+
+        let database = mt142_read(&crate_root.join("src/storage/surreal/database.rs"));
+        assert!(database.contains("async fn guarded_mutation"), "SurrealDatabase::guarded_mutation moved");
+        assert!(database.contains("KeyedLockRegistry::keyed()"), "SurrealDatabase::new no longer uses the keyed registry");
+        let keyed_lock = mt142_read(&crate_root.join("src/storage/surreal/keyed_lock.rs"));
+        assert!(keyed_lock.contains("keys.sort();") && keyed_lock.contains("keys.dedup();"));
+        let knowledge = mt142_read(&crate_root.join("src/storage/surreal/knowledge.rs"));
+        assert!(knowledge.contains("fn title_anchor_reclaim_statement"), "title anchor reclamation moved");
+        let per_request = ["src/api/knowledge_documents.rs", "src/api/knowledge_code_nav.rs"];
+        for file in per_request {
+            let source = mt142_read(&crate_root.join(file));
+            assert!(
+                source.contains("SurrealDatabase::new(state.surreal.clone())"),
+                "{file} no longer builds a SurrealDatabase per request; update the MT-152 section"
             );
         }
     }
