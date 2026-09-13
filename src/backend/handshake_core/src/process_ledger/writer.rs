@@ -625,42 +625,47 @@ const APPLY_PROCESS_BATCH_ATOMIC: &str = r#"
 BEGIN TRANSACTION;
 FOR $event IN $events {
   LET $outcome = {
-    LET $exact_reclaim_stop = $event.reclaim_claimed_at != NONE;
+    LET $record = $event.record;
+    LET $incoming = $event.incoming;
+    LET $reclaim_claimed_at = $event.reclaim_claimed_at;
+    LET $reclaim_expected_reason = $event.reclaim_expected_reason;
+    LET $reclaim_expected_killed_reason = $event.reclaim_expected_killed_reason;
+    LET $exact_reclaim_stop = $reclaim_claimed_at != NONE;
     LET $existing = SELECT process_uuid, os_pid, parent_session_id,
         parent_process_id, sandbox_adapter_id, sandbox_internal_id,
         engine_kind, started_at, stopped_at, exit_code, stop_reason,
         model_artifact_sha256, work_profile_id, owner_role, owner_wp,
         role_id, wp_id, mt_id, sandbox_capabilities_snapshot, metadata
-        FROM ONLY $event.record;
+        FROM ONLY $record;
     IF $existing = NONE {
         IF $exact_reclaim_stop {
             RETURN 'ignored_conflict';
         };
-        CREATE $event.record CONTENT $event.incoming RETURN NONE;
+        CREATE $record CONTENT $incoming RETURN NONE;
         RETURN 'inserted';
     };
     IF $event.is_start {
-        UPDATE $event.record SET
-            os_pid = $event.incoming.os_pid ?? $existing.os_pid,
-            parent_session_id = $event.incoming.parent_session_id ?? $existing.parent_session_id,
-            parent_process_id = $event.incoming.parent_process_id ?? $existing.parent_process_id,
-            sandbox_adapter_id = $event.incoming.sandbox_adapter_id ?? $existing.sandbox_adapter_id,
-            sandbox_internal_id = $event.incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
-            engine_kind = $event.incoming.engine_kind,
-            started_at = IF $event.incoming.started_at < $existing.started_at {
-                $event.incoming.started_at
+        UPDATE $record SET
+            os_pid = $incoming.os_pid ?? $existing.os_pid,
+            parent_session_id = $incoming.parent_session_id ?? $existing.parent_session_id,
+            parent_process_id = $incoming.parent_process_id ?? $existing.parent_process_id,
+            sandbox_adapter_id = $incoming.sandbox_adapter_id ?? $existing.sandbox_adapter_id,
+            sandbox_internal_id = $incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
+            engine_kind = $incoming.engine_kind,
+            started_at = IF $incoming.started_at < $existing.started_at {
+                $incoming.started_at
             } ELSE {
                 $existing.started_at
             },
-            model_artifact_sha256 = $event.incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
-            work_profile_id = $event.incoming.work_profile_id ?? $existing.work_profile_id,
-            owner_role = $event.incoming.owner_role,
-            owner_wp = $event.incoming.owner_wp ?? $existing.owner_wp,
-            role_id = $event.incoming.role_id ?? $existing.role_id,
-            wp_id = $event.incoming.wp_id ?? $existing.wp_id,
-            mt_id = $event.incoming.mt_id ?? $existing.mt_id,
-            sandbox_capabilities_snapshot = $event.incoming.sandbox_capabilities_snapshot,
-            metadata = $event.incoming.metadata
+            model_artifact_sha256 = $incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
+            work_profile_id = $incoming.work_profile_id ?? $existing.work_profile_id,
+            owner_role = $incoming.owner_role,
+            owner_wp = $incoming.owner_wp ?? $existing.owner_wp,
+            role_id = $incoming.role_id ?? $existing.role_id,
+            wp_id = $incoming.wp_id ?? $existing.wp_id,
+            mt_id = $incoming.mt_id ?? $existing.mt_id,
+            sandbox_capabilities_snapshot = $incoming.sandbox_capabilities_snapshot,
+            metadata = $incoming.metadata
             RETURN NONE;
         RETURN 'started';
     };
@@ -674,8 +679,8 @@ FOR $event IN $events {
         );
     IF $exact_reclaim_stop AND $reclaim_sentinel = false {
         IF $existing.stopped_at != NONE
-            AND $existing.exit_code = $event.incoming.exit_code
-            AND $existing.stop_reason = $event.incoming.stop_reason
+            AND $existing.exit_code = $incoming.exit_code
+            AND $existing.stop_reason = $incoming.stop_reason
         {
             RETURN 'stopped_idempotent';
         };
@@ -683,32 +688,32 @@ FOR $event IN $events {
     };
     IF $reclaim_sentinel AND (
         $exact_reclaim_stop = false
-        OR $existing.stopped_at != $event.reclaim_claimed_at
-        OR $event.reclaim_expected_reason = NONE
-        OR $event.reclaim_expected_killed_reason = NONE
+        OR $existing.stopped_at != $reclaim_claimed_at
+        OR $reclaim_expected_reason = NONE
+        OR $reclaim_expected_killed_reason = NONE
         OR (
-            $existing.stop_reason != $event.reclaim_expected_reason
-            AND $existing.stop_reason != $event.reclaim_expected_killed_reason
+            $existing.stop_reason != $reclaim_expected_reason
+            AND $existing.stop_reason != $reclaim_expected_killed_reason
         )
     ) {
         RETURN 'ignored_conflict';
     };
-    UPDATE $event.record SET
-        os_pid = $event.incoming.os_pid ?? $existing.os_pid,
-        parent_process_id = $event.incoming.parent_process_id ?? $existing.parent_process_id,
-        sandbox_internal_id = $event.incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
-        stopped_at = $event.incoming.stopped_at,
-        exit_code = $event.incoming.exit_code,
-        stop_reason = $event.incoming.stop_reason,
-        model_artifact_sha256 = $event.incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
-        work_profile_id = $event.incoming.work_profile_id ?? $existing.work_profile_id,
-        owner_role = $event.incoming.owner_role,
-        owner_wp = $event.incoming.owner_wp ?? $existing.owner_wp,
-        role_id = $event.incoming.role_id ?? $existing.role_id,
-        wp_id = $event.incoming.wp_id ?? $existing.wp_id,
-        mt_id = $event.incoming.mt_id ?? $existing.mt_id,
-        sandbox_capabilities_snapshot = $event.incoming.sandbox_capabilities_snapshot,
-        metadata = $event.incoming.metadata
+    UPDATE $record SET
+        os_pid = $incoming.os_pid ?? $existing.os_pid,
+        parent_process_id = $incoming.parent_process_id ?? $existing.parent_process_id,
+        sandbox_internal_id = $incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
+        stopped_at = $incoming.stopped_at,
+        exit_code = $incoming.exit_code,
+        stop_reason = $incoming.stop_reason,
+        model_artifact_sha256 = $incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
+        work_profile_id = $incoming.work_profile_id ?? $existing.work_profile_id,
+        owner_role = $incoming.owner_role,
+        owner_wp = $incoming.owner_wp ?? $existing.owner_wp,
+        role_id = $incoming.role_id ?? $existing.role_id,
+        wp_id = $incoming.wp_id ?? $existing.wp_id,
+        mt_id = $incoming.mt_id ?? $existing.mt_id,
+        sandbox_capabilities_snapshot = $incoming.sandbox_capabilities_snapshot,
+        metadata = $incoming.metadata
         RETURN NONE;
     RETURN 'stopped';
   };
