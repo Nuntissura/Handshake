@@ -31,14 +31,16 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V6",
     "depends_on": [
       "MT-142",
       "MT-151"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "PASS_V6",
+    "validated_by": "WP_VALIDATOR:/root/wpv_v6_151_152",
+    "validated_at_utc": "2026-09-13T03:01:30.558Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260910-073935",
     "claimed_at_utc": "2026-09-11T14:37:56.168Z",
@@ -317,7 +319,222 @@
       "instruction": "Validate MT-152 at this exact commit."
     }
   },
-  "updated_at_utc": "2026-09-12T01:15:18.291Z",
+  "validation_v4": {
+    "status": "FAIL_V4",
+    "risk_tier": "HIGH",
+    "validated_commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+    "authority": [
+      "scope.items.I-152-2",
+      "scope.acceptance_criteria.AC-152-2 and AC-152-5",
+      "packet.scope.acceptance_criteria Obsidian-class folder tree plus SurrealDB/EventLedger durability and concurrency",
+      "Master Spec v02.206 02-system-architecture.md:2270-2275, 2349-2360, 2472-2475"
+    ],
+    "tests": {
+      "status": "NOT_RUN",
+      "reason": "This delegated validator assignment prohibited Cargo execution. The finding is a direct deterministic collision in the shipped key function and write path."
+    },
+    "diff_attack_surfaces": [
+      "producer/schema agreement for the new sibling_key",
+      "sentinel and delimiter collisions across legal folder identities",
+      "migration backfill versus create/rename/re-parent encoding drift"
+    ],
+    "independent_checks_run": [
+      "Compared loom_folder_sibling_key with the inline SurrealQL create encoding and the UNIQUE schema index.",
+      "Inspected NewLoomFolder and create_loom_folder for restrictions that would reserve the 'root' id or delimiter; none is present."
+    ],
+    "counterfactual_checks": [
+      "If a legal parent folder has folder_id='root', a child beneath it and a true root with the same name produce the same sibling_key and the UNIQUE index rejects one valid folder.",
+      "If any workspace id, parent id, or name contains '|', concatenation without escaping or length framing can alias a different legal tuple."
+    ],
+    "boundary_probes": [
+      "Producer/schema boundary: loom_store.rs:75-84 and :3292-3336 versus schema.surql:4211-4227.",
+      "Public-input/producer boundary: storage/loom.rs:1224-1233 permits caller-supplied folder_id while loom_store.rs:3304-3306 does not reserve 'root'."
+    ],
+    "negative_path_checks": [
+      "Create root folder name='N', create a parent folder with folder_id='root', then create child name='N' beneath that parent: both legal sibling scopes encode as workspace|root|N.",
+      "Delimiter-bearing identifiers or names are accepted by the inspected path but the key encoding has no escaping or framing."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT152-V4-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "I-152-2 narrowest stable-key requirement",
+          "AC-152-2",
+          "AC-152-5"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:75-84 encodes workspace_id, parent_folder_id.unwrap_or('root'), and trimmed name with raw '|' delimiters.",
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:3304-3306 accepts an arbitrary caller-provided folder_id, including 'root'.",
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:3316 independently reproduces the same ambiguous sentinel/delimiter encoding in SurrealQL.",
+          "src/backend/handshake_core/src/storage/surreal/schema.surql:4217 and :4227 require the ambiguous sibling_key and enforce it globally as UNIQUE.",
+          "src/backend/handshake_core/src/storage/loom.rs:1224-1233 declares no reserved-id or delimiter restriction."
+        ],
+        "failure_scenario": "Within workspace W, a true root named N has key W|root|N. A child named N under a different folder whose legal folder_id is 'root' has the identical key. The database therefore reports a sibling-name conflict across two different parent scopes, breaking valid folder creation. Raw delimiter-bearing components create additional aliases.",
+        "remediation": [
+          "Replace the sentinel/delimiter encoding with an injective, versioned sibling-scope representation. Prefer length-prefixed components including an explicit root-versus-parent variant; do not rely on a reserved human string or escaping that is not enforced at every input boundary.",
+          "Use loom_folder_sibling_key as the sole encoder. Compute and bind the value for create, rename, and re-parent operations instead of duplicating string::concat in SurrealQL. Ensure any read needed to compute the post-update tuple occurs inside the same guarded retry/transaction boundary so concurrent moves cannot install a stale key.",
+          "Change the in-place rollout/backfill to call the same canonical encoder for every existing row before rebuilding uq_loom_folders_sibling_key. Preserve stable record ids and visible names; deterministically handle only true duplicate sibling tuples.",
+          "Add pure injectivity tests for root versus parent-id='root', delimiter-bearing components, empty/edge components permitted by current contracts, and tuple-boundary ambiguities.",
+          "Add real managed-SurrealDB create, rename, re-parent, concurrent same-scope, and close/reopen tests. Prove different scopes succeed; exact same scope yields one winner and a typed conflict; persisted sibling_key equals the canonical encoder after reopen and after the upgrade path."
+        ],
+        "pass_conditions": "All legal folder-scope tuples map injectively through one production encoder across create/update/re-parent/backfill; the UNIQUE index rejects only true same-scope duplicates; adversarial collision, concurrency, upgrade, and close/reopen tests pass on the final commit."
+      }
+    ],
+    "residual_uncertainty": "Cargo proof remains unexecuted in this delegated lane. After repair, the full MT-152 store-family and migration proof set must run from the unchanged final candidate using the shared validator cache."
+  },
+  "validation_v5": {
+    "status": "FAIL_V5",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "risk_tier": "HIGH",
+    "validated_commit": "428e610fa0ddc7aa55308afd18f58f721de7251d",
+    "remediation_commit_reviewed": "38051d86e2a0ab34d0e109274c349357f748418a",
+    "authority": [
+      "scope.items.I-152-2",
+      "scope.acceptance_criteria.AC-152-2 and AC-152-5",
+      "Master Spec v02.206 02-system-architecture.md:2270-2275, 2349-2360, 2472-2475"
+    ],
+    "tests": {
+      "status": "FAILED",
+      "green": [
+        "loom_folder_sibling_identity_is_injective_concurrent_and_durable: 1 passed",
+        "mt152_lock_migration_tests: 6 passed in the batch plus 1 focused sibling-identity test",
+        "storage::surreal::schema: 27 passed, including MT-152 exact-pin sibling-key backfill and restart",
+        "mt152_manual_lock_migration_pins_code passed",
+        "all remaining MT-152 store-family integration targets passed"
+      ],
+      "red": "user_manual::seed::tests::mt142_manual_covers_surreal_swarm_concurrency_and_load: storage sources no longer define conflict code HSK-STORAGE-RETRY-EXHAUSTED; user_manual result 25 passed, 1 failed",
+      "logs": [
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/folder-sibling-focused.log",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/mt151-mt152-integration-batch.log",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/lib-schema.log",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/lib-user-manual.log"
+      ]
+    },
+    "diff_attack_surfaces": [
+      "injective sibling identity across create/update/backfill",
+      "required manual source-contract proof after retry mapper relocation",
+      "all changed-target final-commit gate"
+    ],
+    "independent_findings": [
+      {
+        "id": "MT152-V5-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "AC-152-5: every changed target has a green result at the final commit"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/retry.rs:70 is the canonical owner of HSK-STORAGE-RETRY-EXHAUSTED after the V4 remediation.",
+          "src/backend/handshake_core/src/user_manual/seed.rs:4219-4224 omits retry.rs from the storage_sources corpus used to validate the manual against product code.",
+          "src/backend/handshake_core/src/user_manual/seed.rs:4234-4238 consequently fails the exact-code source check.",
+          "The required serialized user_manual target reports 25 passed and 1 failed, even though mt152_manual_lock_migration_pins_code itself passes."
+        ],
+        "failure_scenario": "MT-152's folder-key and lock-migration repairs are correct in focused and migration proof, but the same final candidate changes the manual source pointer without updating its executable source corpus. The changed user_manual target is therefore not green as AC-152-5 requires.",
+        "remediation": [
+          "Extend user_manual/seed.rs storage_sources with src/storage/surreal/retry.rs so the executable manual contract follows the canonical retry mapper and code constants.",
+          "Do not duplicate the retry constant into an old source file and do not weaken the assertion; preserve the single production owner introduced by the V4 remediation.",
+          "Rerun the serialized user_manual lib target on the new exact candidate and require 26 passed, 0 failed.",
+          "Because the repair should touch only user_manual/seed.rs, reuse the still-valid MT-152 folder, schema, migration, concurrency, and close/reopen proof unless another relevant input changes."
+        ],
+        "pass_conditions": "The user_manual source-contract corpus includes retry.rs and all 26 serialized user_manual tests pass at the new exact commit; no MT-152 implementation/test/Cargo input changes beyond the narrow manual repair."
+      }
+    ],
+    "counterfactual_checks": [
+      "A copied literal in database.rs or knowledge.rs could manufacture green without fixing source ownership and is rejected.",
+      "The passing mt152_manual_lock_migration_pins_code alone cannot replace the full changed-target gate required by AC-152-5."
+    ],
+    "residual_uncertainty": "The sibling-key V4 defect is fully remediated by the versioned, variant-tagged, byte-length-framed production encoder shared by create, update, migration backfill, and the UNIQUE index proof. Commits 38051d86..428e610f do not touch any MT-151/152 proof input, so eligible evidence is rebound to clean HEAD 428e610f."
+  },
+  "validation_v6": {
+    "status": "PASS_V6",
+    "blocking": false,
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "risk_tier": "HIGH",
+    "validated_commit": "75a5c637d4bf3067d95975a9bcc4ad7571fef075",
+    "authority": [
+      "scope.items.I-152-2",
+      "scope.acceptance_criteria.AC-152-2 and AC-152-5",
+      "packet.scope.acceptance_criteria SurrealDB/EventLedger durability and concurrency",
+      "Master Spec v02.206 02-system-architecture.md:2270-2275, 2349-2360, 2472-2475"
+    ],
+    "tests": {
+      "status": "PASSED",
+      "command": "cargo +1.97.1 test --locked --manifest-path ../wtc-native-editors-v1/src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --jobs 2 --lib user_manual -- --nocapture --test-threads=1",
+      "result": "test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 2021 filtered out; finished in 2.43s",
+      "warnings": "239 pre-existing crate warnings; the semantic repair introduced no new warning-producing code",
+      "log": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v6/logs/lib-user-manual-v6.log"
+    },
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-151-152-USER-MANUAL-001",
+        "command": "cargo +1.97.1 test --locked --manifest-path ../wtc-native-editors-v1/src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --jobs 2 --lib user_manual -- --nocapture --test-threads=1",
+        "cwd": ".",
+        "commit": "75a5c637d4bf3067d95975a9bcc4ad7571fef075",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_v6_151_152",
+        "target_dir": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/kb-v5/target",
+        "started_utc": "2026-09-13T03:01:28.057Z",
+        "finished_utc": "2026-09-13T03:01:30.558Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 2021 filtered out; finished in 2.43s",
+        "log_path": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v6/logs/lib-user-manual-v6.log",
+        "features": [
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/kb-v5/target",
+          "TMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v6/tmp",
+          "TEMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v6/tmp"
+        },
+        "covers": [
+          "MT-151",
+          "MT-152"
+        ]
+      }
+    ],
+    "reused_validator_evidence": {
+      "source": "validation_v5.tests.green and validation_v5.tests.logs",
+      "source_commit": "428e610fa0ddc7aa55308afd18f58f721de7251d",
+      "eligibility": "The V5-to-V6 diff changes only user_manual/seed.rs. Removing the one retry.rs corpus expression and rustfmt-normalizing both revisions produces identical SHA-256 A20963A442FC2A7589A20B0D72A235B1D908C628C56E8B387DC105459539060; storage, retry, schema, integration, concurrency, durability, migration, and close/reopen inputs are unchanged.",
+      "reused": [
+        "validation_v5.tests.green",
+        "validation_v5.tests.logs"
+      ],
+      "invalidated_and_rerun": "user_manual lib target only"
+    },
+    "diff_attack_surfaces": [
+      "canonical retry-error conversion ownership",
+      "manual/runtime source-contract coupling after symbol relocation",
+      "format-only expansion concealing manual content or assertion drift"
+    ],
+    "independent_checks_run": [
+      "Verified clean candidate HEAD equals 75a5c637d4bf3067d95975a9bcc4ad7571fef075.",
+      "Verified the range 428e610f..75a5c637 changes only src/backend/handshake_core/src/user_manual/seed.rs.",
+      "Removed exactly one retry.rs mt142_read expression from the candidate, rustfmt-normalized base and candidate, and obtained identical SHA-256 hashes.",
+      "Inspected retry.rs and confirmed RETRY_EXHAUSTED_CONFLICT_CODE remains solely owned by the canonical retry mapper.",
+      "Executed the invalidated serialized user_manual target as WP Validator and obtained 26/26."
+    ],
+    "counterfactual_checks": [
+      "If retry.rs were removed from storage_sources, mt142_manual_covers_surreal_swarm_concurrency_and_load would again fail on the exact HSK-STORAGE-RETRY-EXHAUSTED source check.",
+      "If the constant were copied into database.rs or knowledge.rs instead, the test could turn green while violating canonical mapper ownership; the inspected diff does not do that.",
+      "If the formatting expansion changed any manual content, assertion, or other Rust token, the normalized base and candidate hashes after removing the one intended expression would differ; they are identical."
+    ],
+    "boundary_probes": [
+      "Producer/manual-contract boundary: retry.rs:70 and retry_error_to_storage remain the product owner; seed.rs:4285-4291 now includes retry.rs in the exact source corpus.",
+      "Manual/assertion boundary: the full serialized user_manual module exercised the runtime-symbol, exact-code, runbook, lock-migration, and corpus consistency assertions."
+    ],
+    "negative_path_checks": [
+      "Rejected copied-literal remediation by inspecting the only semantic change and the unchanged retry.rs owner.",
+      "Rejected weakened-assertion remediation because normalization proves the assertion bodies are unchanged apart from the corpus addition."
+    ],
+    "independent_findings": [],
+    "residual_uncertainty": "The V6 run intentionally does not repeat unchanged MT-152 folder, schema, migration, store-family, concurrency, durability, or close/reopen proofs. Those validator-owned V5 inputs are unchanged and remain eligible for reuse; only the manual corpus input changed and was rerun."
+  },
+  "updated_at_utc": "2026-09-13T03:01:30.558Z",
   "owned_files": [
     "src/backend/handshake_core/src/storage/surreal/database.rs",
     "src/backend/handshake_core/src/storage/surreal/keyed_lock.rs",

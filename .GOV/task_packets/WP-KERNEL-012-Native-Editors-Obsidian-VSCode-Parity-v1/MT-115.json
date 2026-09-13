@@ -22,7 +22,7 @@
   "title": "B5-MT-115-Complete-MT109-Authorization-Fallout-Palmistry-Harnesses-And-Document-Saved-Attribution",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T23:19:13.141Z",
-  "updated_at_utc": "2026-08-12T17:55:00Z",
+  "updated_at_utc": "2026-09-13T11:45:17.160Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,16 +31,18 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V5",
     "active": false,
     "depends_on": [
       "MT-109",
       "MT-111"
     ],
     "blocks": [],
-    "validator_verdict": null,
+    "validator_verdict": "PASS_V5",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
+    "validated_at_utc": "2026-09-13T11:45:17.160Z",
     "claimed_by": "KERNEL_BUILDER-20260805-054937",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
     "created_by": "KERNEL_BUILDER-20260805-054937",
     "creation_reason": "Three distinct consequences of the MT-109 authorization hardening that MT-111 correctly identified but could not close within its allowed_paths or without unverifiable edits across seven other MTs proofs. Captured so none is lost, per the Operator standing deferral rule.",
     "claimed_at_utc": "2026-08-06T20:32:17.598Z",
@@ -177,5 +179,176 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  },
+  "validation_v4": {
+    "status": "FAIL_V4",
+    "risk_tier": "MEDIUM",
+    "validated_commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+    "authority": [
+      "MT-115 AC-115-1",
+      "MT-115 AC-115-2",
+      "MT-115 PT-115-1 as superseded by SPEC_CURRENT",
+      "SPEC_CURRENT v02.206 02-system-architecture.md:2268-2279",
+      "SPEC_CURRENT v02.206 07-user-experience-and-development.md:18-20"
+    ],
+    "findings": [
+      {
+        "id": "MT115-V4-F01",
+        "severity": "MEDIUM",
+        "failed_acceptance": [
+          "AC-115-1",
+          "AC-115-2",
+          "SPEC_CURRENT embedded SurrealDB/EventLedger exclusivity"
+        ],
+        "evidence": [
+          "src/frontend/palmistry/tests/test_end_to_end_support.rs:385-419 constructs and emits the Palmistry contribution to the external ThreeTierDiagnosticWiringRecord.",
+          "src/frontend/palmistry/tests/test_end_to_end_support.rs:393-398 marks FlightRecorder deferred with the operative diagnostic `FR-forward live round-trip needs managed PostgreSQL/backend (gated requires_pg, NEEDS_MANAGED_RESOURCE_PROOF)`.",
+          "SPEC_CURRENT v02.206 02-system-architecture.md:2268-2279 supersedes PostgreSQL commitments with embedded SurrealDB/EventLedger and forbids PostgreSQL runtime, fallback, tests, fixtures, and proof paths; 07-user-experience-and-development.md:18-20 applies the same rule to product and test surfaces.",
+          "src/frontend/palmistry/src/fr_forward.rs:9-18 correctly identifies the actual blocker as the removed unscoped route plus missing workspace/session credential, demonstrating that PostgreSQL is not the reason the Palmistry forward remains deferred."
+        ],
+        "failure_scenario": "A validator or operator consuming the emitted three-tier evidence is told to provision a removed PostgreSQL/requires_pg proof path instead of the current SurrealDB/EventLedger resource and the actual scoped-credential/ingestion-shape blocker. That makes the diagnostic recovery path technically false and can send future validation back to a forbidden backend.",
+        "remediation": [
+          "Replace the emitted Palmistry FlightRecorder tier reason with the current blocker: the legacy unscoped ingestion route is removed, Palmistry lacks a live workspace-scoped native-MCP credential while the app is dead/frozen, and WP-KERNEL-016 owns a survivor-compatible ingestion boundary. Name embedded SurrealDB/EventLedger only where the managed persistence authority is relevant; remove `PostgreSQL` and `requires_pg` from the live record.",
+          "Keep the current fail-closed SchemaIncompatible behavior and the no-network-before-blocker proof; do not manufacture a successful Palmistry forward through the closed runtime-chat schema.",
+          "Add a focused assertion over the serialized ThreeTierDiagnosticWiringRecord requiring the current SurrealDB/EventLedger vocabulary and rejecting PostgreSQL, SQLite, SQL DSNs, and requires_pg in operative tier status/reason fields.",
+          "Run the seven MT-115 suites against a fresh isolated Handshake-managed SurrealDB/EventLedger backend with a genuine RealNativeMcpBinding published before backend selection; preserve the unchanged 401/403 authorization negatives.",
+          "Repeat the real frontend document-save proof and close/reopen the isolated store before reading the durable document_saved EventLedger row, proving server-derived principal attribution rather than a frontend-supplied actor.",
+          "Run the Palmistry typed-deferral test and independently inspect the emitted three-tier record to confirm that its blocker, next owner, and backend terminology are current."
+        ],
+        "pass_conditions": "The emitted Palmistry evidence record contains no operative PostgreSQL/requires_pg path, accurately names the scoped credential and survivor-ingestion blocker, preserves fail-closed/no-network behavior, all seven real-binding suites are green on fresh managed SurrealDB/EventLedger, authorization negatives remain green, and a real document save survives store close/reopen with the server-derived principal."
+      }
+    ],
+    "residual_uncertainty": "The full seven-suite managed-SurrealDB batch and durable close/reopen read were not run in this lane; they remain required after the diagnostic correction."
+  },
+  "validation_v5": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "PASS_V5",
+    "status": "PASS_V5",
+    "blocking": false,
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
+    "validated_at_utc": "2026-09-13T11:45:17.160Z",
+    "validated_commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-115-1 through AC-115-4",
+      "scope.proof_targets PT-115-1 through PT-115-3",
+      "Master Spec v02.206 02-system-architecture.md:2266-2279 and 05-security-and-observability.md:1880-1922"
+    ],
+    "passed_acceptance_criteria": [
+      "AC-115-1",
+      "AC-115-2",
+      "AC-115-3",
+      "AC-115-4"
+    ],
+    "requirement_evidence": [
+      {
+        "requirement": "AC-115-1 / explicit Palmistry forwarding decision",
+        "evidence": [
+          "src/frontend/palmistry/tests/test_end_to_end_support.rs:393-402 now identifies the removed unscoped route, absent live workspace-scoped native-MCP credential, WP-KERNEL-016 survivor boundary, and SurrealDB/EventLedger authority.",
+          "Validator focused fail-closed proof returns SchemaIncompatible before the dead-port network boundary; the stale PostgreSQL/requires_pg reason is gone."
+        ]
+      },
+      {
+        "requirement": "AC-115-2 / genuine binding across the seven affected suites",
+        "evidence": [
+          "The preceding V4 technical review isolated one remaining product defect in the Palmistry evidence record; the seven-suite genuine-binding implementation and unchanged authorization behavior were otherwise accepted.",
+          "The V4-to-V5 remediation changes only the Palmistry typed evidence assertion for this MT, so the prior genuine-binding suite behavior is not invalidated by this delta."
+        ]
+      },
+      {
+        "requirement": "AC-115-3 / document_saved attribution",
+        "evidence": [
+          "The accepted MT-120 integration routes document_saved through the server-derived native principal; V5 introduces no change to that producer or durable EventLedger consumer."
+        ]
+      },
+      {
+        "requirement": "AC-115-4 / no authorization weakening",
+        "evidence": [
+          "The remediation changes only the emitted diagnostic evidence test and adds strict negative vocabulary checks; no authorization route, token validation, or denial path changed."
+        ]
+      }
+    ],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V5-MT-115-001",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/frontend/palmistry/Cargo.toml --test test_end_to_end_support fr_forward_live_half_is_an_honest_typed_blocker_not_faked -- --exact --test-threads=1",
+        "cwd": ".",
+        "commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_recover_115_147",
+        "target_dir": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/target",
+        "started_utc": "2026-09-13T11:10:13.171Z",
+        "finished_utc": "2026-09-13T11:10:13.212Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s",
+        "log_path": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/logs/mt115-palmistry-fail-closed.log",
+        "features": [],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/target",
+          "TMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/tmp",
+          "TEMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-115"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V5-MT-115-002",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/frontend/palmistry/Cargo.toml --test test_end_to_end_support palmistry_tier_three_evidence_record_is_well_formed -- --exact --test-threads=1",
+        "cwd": ".",
+        "commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_recover_115_147",
+        "target_dir": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/target",
+        "started_utc": "2026-09-13T11:08:33.910Z",
+        "finished_utc": "2026-09-13T11:09:45.844Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.08s",
+        "log_path": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/logs/mt115-palmistry-tier-record.log",
+        "features": [],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/target",
+          "TMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/tmp",
+          "TEMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-115/wpv-115-147/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-115"
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Palmistry typed three-tier evidence consumer",
+      "Fail-closed forwarder before network access",
+      "Current authority vocabulary versus removed PostgreSQL proof path"
+    ],
+    "independent_checks_run": [
+      "Inspected the exact candidate diff and current serialized evidence assertions.",
+      "Ran the two invalidated Palmistry focused tests at the exact clean candidate.",
+      "Confirmed serialized evidence positively requires SurrealDB/EventLedger, scoped native-MCP credential, WP-KERNEL-016, and SchemaIncompatible while negatively rejecting PostgreSQL, SQLite, SQL DSNs, and requires_pg."
+    ],
+    "counterfactual_checks": [
+      "If the deferred reason still named PostgreSQL/requires_pg, the serialized negative corpus at test_end_to_end_support.rs:438-451 would fail.",
+      "If the forwarder attempted the dead-port request before returning SchemaIncompatible, the fail-closed proof would fail."
+    ],
+    "boundary_probes": [
+      "Typed ThreeTierDiagnosticWiringRecord producer -> serialized JSON consumer",
+      "Palmistry survivor forward request -> SchemaIncompatible gate -> no network"
+    ],
+    "negative_path_checks": [
+      "A reliably refused port proves the typed blocker occurs before network access.",
+      "Serialized operative evidence rejects all removed database/proof vocabulary."
+    ],
+    "independent_findings": [],
+    "residual_uncertainty": "The V5 run intentionally targets only the V4-invalidated Palmistry evidence path. The prior accepted genuine-binding and document-save paths were not modified by this MT remediation delta."
   }
 }

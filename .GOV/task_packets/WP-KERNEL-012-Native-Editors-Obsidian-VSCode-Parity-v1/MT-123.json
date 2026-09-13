@@ -22,7 +22,7 @@
   "title": "B8-MT-123-Make-Isolated-Test-Store-Teardown-Crash-Safe-And-Reclaim-Stranded-Embedded-Store-Directories",
   "group": "B-Backend",
   "created_at_utc": "2026-08-12T11:50:00Z",
-  "updated_at_utc": "2026-09-04T00:45:07.022Z",
+  "updated_at_utc": "2026-09-13T11:45:17.160Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-123.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,15 +31,17 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V2",
     "active": false,
     "depends_on": [],
     "blocks": [],
-    "validator_verdict": null,
+    "validator_verdict": "PASS_V2",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
+    "validated_at_utc": "2026-09-13T11:45:17.160Z",
     "claimed_by": "KERNEL_BUILDER-20260831-145417",
     "claimed_at_utc": "2026-08-31T18:02:30.393Z",
     "parallel_coder_agent": "019ffd4c-8a78-7821-afc4-d453853d4b34",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
     "created_by": "KERNEL_BUILDER-20260812-113007",
     "creation_reason": "Measured directly on 2026-08-12 while bringing the managed cluster up for MT-118 proof. The managed_pgdata directory for database handshake (oid 16384) holds 1,814,397 files / 19.1 GB, and an unclean-shutdown recovery spent over 900 seconds fsyncing it before accepting a single connection. Every PostgreSQL-backed proof in this work packet pays that startup tax, including the MT-108 capstone sweep.",
     "pivot_impact_2026_08_16": "PIVOT IMPACT 2026-08-16: this microtask was written against PostgreSQL. Its premise - isolated PER-TEST POSTGRESQL SCHEMA teardown and a 1009-schema backlog to reclaim - no longer exists. PostgreSQL has been physically deleted from the product (storage/postgres.rs, managed_postgres.rs, the .sqlx cache and the sqlx dependency are gone) and Handshake now uses an EMBEDDED SurrealDB store whose test isolation is a per-run HANDSHAKE_DATA_DIR directory, not a schema name. There are no schemas to leak and no pg_class rows to count, so proof targets PT-123-1 (schema count, pg_class relation count, cluster directory size) and PT-123-3 (parallel-run schema reclamation) are VOID as written. The underlying risk is REAL and CARRIED FORWARD: an aborted test process can still leave an embedded store directory behind, and crash-safe teardown plus reclamation of orphaned stores is still required. The 2026-08-13 session already began this work - tests/surreal_test_store_crash_safety_tests.rs and tests/surreal_test_store_support/ exist and are committed. This contract must be re-scoped to the embedded store before implementation resumes: restate the acceptance criteria and proof targets in terms of store DIRECTORIES, and note that the six acceptance_criteria entries below are empty in the source contract and must be authored.",
@@ -163,5 +165,165 @@
       "AC-123-5 plus PT-123-3 require a refusal proof for paths outside the artifacts root.",
       "AC-123-4 plus PT-123-4 require a report with real counts."
     ]
+  },
+  "validation_v1": {
+    "status": "FAIL_V1",
+    "risk_tier": "HIGH",
+    "validated_commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+    "authority": [
+      "MT-123 AC-123-5",
+      "MT-123 PT-123-3",
+      "WP-KERNEL-012 storage and durability acceptance surface",
+      "SPEC_CURRENT v02.206"
+    ],
+    "findings": [
+      {
+        "id": "MT123-V1-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "AC-123-5",
+          "PT-123-3"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs:314-318 defaults the test-store root to std::env::temp_dir()/handshake-surreal-test-stores rather than a canonical Handshake artifacts root.",
+          "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs:350-355 accepts any caller-supplied root and passes it directly to prepare_root before sweeping.",
+          "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs:596-612 creates the supplied directory and accepts it whenever it is a real directory; it never proves that the root is equal to or below the canonical artifacts root.",
+          "src/backend/handshake_core/tests/surreal_test_store_support/mod.rs:614-630 checks only that a candidate scope is an immediate child of the caller-supplied root, so an arbitrary repository, governance-runtime, or operator directory can become the accepted sweep boundary.",
+          "src/backend/handshake_core/tests/surreal_test_store_crash_safety_tests.rs:300-333 proves rejection of a nested reparse point, but does not execute PT-123-3 by passing a root outside the artifacts root and requiring refusal."
+        ],
+        "failure_scenario": "A misconfigured or hostile HANDSHAKE_TEST_STORE_ROOT, or any direct sweep_stale_orphans caller, can designate an arbitrary real directory as the trusted root. prepare_root creates/canonicalizes that directory and the reclaimer then treats matching store-* children as eligible; the contracted outer containment boundary is therefore absent even though nested reparse containment is implemented.",
+        "remediation": [
+          "Resolve one canonical artifacts root through the existing Handshake artifact-root configuration and make the default test-store root a descendant of that root; remove the std::env::temp_dir fallback.",
+          "Change sweep_stale_orphans/prepare_root so the canonical artifacts root is an independent authority input, not the same caller-controlled path being validated. Canonicalize the authority root first and reject an empty, missing, non-directory, reparse, non-canonical, or outside candidate root before creating, enumerating, renaming, or deleting anything.",
+          "Require the canonical candidate root to be equal to or a strict descendant of the canonical artifacts root using path-component-aware comparison; preserve the existing immediate-child, identity, ownership-marker, quarantine, and nested reparse checks beneath that accepted boundary.",
+          "Add PT-123-3 as a direct negative test: create a sentinel directory outside the canonical artifacts root containing a matching store-* candidate, call the public reclaimer with that directory, require InvalidInput/typed refusal, and prove the sentinel tree and metadata remain unchanged. Also prove a nonexistent outside path is not created.",
+          "Add a configuration test proving configured_test_store_root() resolves under the canonical artifacts root both with normal configuration and with a rejected outside override.",
+          "Rerun the killed-owner reclamation, live-owner survival, dual-sweeper/startup race, bounded-report/bytes-freed, ordinary harness teardown, and new outside-root refusal proofs against isolated managed SurrealDB stores."
+        ],
+        "pass_conditions": "The public reclaimer cannot create, enumerate, quarantine, or delete outside the independently resolved canonical Handshake artifacts root; PT-123-3 produces a typed refusal with an untouched external sentinel; the default and configured store roots are artifact-contained; and all existing crash, liveness, concurrency, accounting, and inherited teardown proofs remain green."
+      }
+    ],
+    "residual_uncertainty": "No Cargo proof was run in this validation lane. After remediation, the owning focused test target and the shared SurrealDB-backed boundary proofs must be run from the frozen repaired candidate with WP/MT/owner-scoped external artifacts."
+  },
+  "validation_v2": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "PASS_V2",
+    "status": "PASS_V2",
+    "blocking": false,
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
+    "validated_at_utc": "2026-09-13T11:45:17.160Z",
+    "validated_commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-123-1 through AC-123-6",
+      "scope.proof_targets PT-123-1 through PT-123-4",
+      "Master Spec v02.206 02-system-architecture.md:2349-2360"
+    ],
+    "passed_acceptance_criteria": [
+      "AC-123-1",
+      "AC-123-2",
+      "AC-123-3",
+      "AC-123-4",
+      "AC-123-5",
+      "AC-123-6"
+    ],
+    "requirement_evidence": [
+      {
+        "requirement": "AC-123-1 / killed owner reclamation",
+        "evidence": [
+          "surreal_test_store_crash_safety_tests.rs:125 onward launches and kills a child holding a real embedded store, then reclaims its stranded directory without graceful teardown.",
+          "Validator batch passed killed_child_orphan_is_reclaimed_without_touching_live_owners."
+        ]
+      },
+      {
+        "requirement": "AC-123-2 and AC-123-3 / liveness and concurrency safety",
+        "evidence": [
+          "surreal_test_store_support/mod.rs keeps the zero-share owner marker through plain drop/unwind and validates identity before quarantine.",
+          "Validator batch passed live-owner, dual-sweep/startup, quarantine, and unwind safety tests against the real embedded store."
+        ]
+      },
+      {
+        "requirement": "AC-123-4 / bounded accounting",
+        "evidence": [
+          "Validator batch passed bounded_backlog_recovery_records_counts_bytes_and_open_timings, covering examined/reclaimed/skipped-live counts and bytes."
+        ]
+      },
+      {
+        "requirement": "AC-123-5 / independently anchored containment",
+        "evidence": [
+          "surreal_test_store_support/mod.rs:606-701 resolves an independent canonical HANDSHAKE_ARTIFACTS_ROOT, requires an existing real strict descendant, and rejects every reparse component before enumeration or mutation.",
+          "Validator batch passed outside repository sentinel, nonexistent-root no-create, cleanup-root reparse, and nested candidate reparse negatives."
+        ]
+      },
+      {
+        "requirement": "AC-123-6 / inherited harness teardown",
+        "evidence": [
+          "IsolatedSurrealTestStore::create routes ordinary creation through the configured artifact-contained root and automatic shutdown/removal path; graceful_shutdown_removes_the_owned_scope passed."
+        ]
+      }
+    ],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V2-MT-123-001",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --test surreal_test_store_crash_safety_tests --jobs 2 -- --test-threads=1",
+        "cwd": ".",
+        "commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_recover_115_147",
+        "target_dir": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/target",
+        "started_utc": "2026-09-13T10:40:41.097Z",
+        "finished_utc": "2026-09-13T11:02:06.224Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.77s",
+        "log_path": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/logs/mt123-crash-safety-subst-retry.log",
+        "features": [
+          "app-runtime",
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/target",
+          "TMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/tmp",
+          "TEMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-123"
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Caller-controlled cleanup root versus independent artifact authority",
+      "Reparse/junction traversal",
+      "Live-owner and concurrent-sweeper race",
+      "Crash without destructor or async shutdown"
+    ],
+    "independent_checks_run": [
+      "Inspected final containment implementation and candidate diff.",
+      "Ran the complete 15-entry crash-safety target at the exact clean candidate; 14 executable tests passed and the subprocess-only helper remained intentionally ignored."
+    ],
+    "counterfactual_checks": [
+      "Without independent canonical_artifacts_root validation, the repository sentinel test would permit traversal of an arbitrary caller root.",
+      "Without zero-share owner-marker liveness, the parallel sweep could quarantine a live RocksDB directory.",
+      "Without pre-mutation nonexistent-root refusal, a hostile outside path would be created as a side effect."
+    ],
+    "boundary_probes": [
+      "Configured/caller root -> independent canonical artifacts root -> strict-descendant and reparse checks -> sweeper",
+      "Killed process -> stranded RocksDB directory -> ownership probe -> quarantine -> measured deletion"
+    ],
+    "negative_path_checks": [
+      "Repository outside-root sentinel remained byte-identical after PermissionDenied.",
+      "Nonexistent candidate root was rejected and not created.",
+      "Root and nested reparse boundaries were rejected without touching target sentinels.",
+      "Live owner survived reclamation and became reclaimable only after release."
+    ],
+    "independent_findings": [],
+    "residual_uncertainty": "The proof is Windows-specific where zero-share marker semantics are available, matching this packet’s native Windows crash-reclamation surface."
   }
 }

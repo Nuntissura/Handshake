@@ -25,20 +25,20 @@
   "title": "B11-MT-138-Port-The-Atelier-Subsystem-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
   "group": "B11",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-25T09:11:42Z",
+  "updated_at_utc": "2026-09-13T10:03:21.641Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V7",
     "depends_on": [
       "MT-136"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
-    "completed_by": null,
+    "validator_verdict": "PASS_V7",
+    "completed_by": "WP_VALIDATOR-CODEX-V7-20260913",
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T13:45:00Z",
     "ready_for_validation_at_utc": "2026-08-25T09:11:42Z",
@@ -137,10 +137,368 @@
   },
   "hbr_obligations": [],
   "hbr_int_009_tier_obligations": [],
+  "validation_v4": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V4",
+    "validated_by": "WP_VALIDATOR-CODEX-WAVE1-20260913",
+    "validated_at_utc": "2026-09-12T23:16:41.1179912Z",
+    "candidate_worktree": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-native-editors-v1",
+    "spec_version": "v02.206",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria."
+    ],
+    "diff_attack_surfaces": [
+      "AtelierStore construction from application state",
+      "Embedded Surreal schema bootstrap/restart",
+      "Legacy PostgreSQL test gating"
+    ],
+    "independent_checks_run": [
+      "Scanned the Atelier source surface for forbidden backend symbols.",
+      "Compared AtelierStore::with_event_ledger signature with Tauri consumers.",
+      "Compared ControlPlaneStorage fields with stealth_ref initialization."
+    ],
+    "counterfactual_checks": [
+      "A complete Atelier port passes SurrealStorage to with_event_ledger and compiles.",
+      "An embedded idempotence proof owns a Surreal namespace/database and does not skip behind DATABASE_URL."
+    ],
+    "boundary_probes": [
+      "ControlPlaneStorage-to-AtelierStore constructor",
+      "Tauri stealth-reference runtime/test initialization"
+    ],
+    "negative_path_checks": [
+      "Runtime and test initialization access absent postgres_pool.",
+      "The test retains DATABASE_URL/PostgreSQL gating rather than embedded authority ownership."
+    ],
+    "independent_findings": [
+      {
+        "severity": "BLOCKING",
+        "failed_acceptance_criteria": [
+          "AC-138-3"
+        ],
+        "wp_requirements": [
+          "Atelier persistence must use the typed embedded SurrealDB/EventLedger authority.",
+          "Stateful proof must bootstrap an isolated Surreal namespace/database and prove restart/idempotence without PostgreSQL."
+        ],
+        "master_spec_requirements": [
+          "14-studio-creative-suite.md:26 onward - Studio/Atelier uses shared Surreal authority through AppState, without PostgreSQL URL/connectivity/fallback/proof.",
+          "02-system-architecture.md:2275 - schema evolution is replay-safe and independently verified.",
+          "02-system-architecture.md:2490 - the second schema pass has no error and no schema change."
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/atelier/mod.rs:818-822 - AtelierStore stores SurrealStorage.",
+          "src/backend/handshake_core/src/atelier/mod.rs:976-980 - with_event_ledger requires SurrealStorage plus Arc<dyn Database>.",
+          "app/src-tauri/src/commands/stealth_ref.rs:46-58 - runtime passes control_plane.postgres_pool to the Surreal constructor.",
+          "app/src-tauri/src/commands/stealth_ref.rs:193-204 - test repeats the absent field access and retains DATABASE_URL/PostgreSQL gating.",
+          "src/backend/handshake_core/src/storage/mod.rs:3525-3532 - ControlPlaneStorage has database and surreal only."
+        ],
+        "failure_scenario": "Opening the stealth-reference/Atelier path attempts to read a removed postgres_pool field and pass it where SurrealStorage is required. The product boundary cannot compile/start, so embedded schema bootstrap and idempotent restart cannot occur through the application.",
+        "required_product_changes": [
+          "Pass control_plane.surreal (cloned as needed) and control_plane.database to AtelierStore::with_event_ledger; never restore postgres_pool.",
+          "Update every Atelier/stealth-reference constructor and state holder to Surreal types and accurate naming.",
+          "Remove DATABASE_URL/PostgreSQL test skips; create an owned embedded namespace/database per test.",
+          "Bootstrap Atelier schema twice against the same authority and assert the second pass leaves the schema fingerprint unchanged.",
+          "Close/reopen the store and verify Atelier records plus EventLedger identity/order through product APIs.",
+          "Prove unavailable authority returns typed failure without fallback."
+        ],
+        "focused_negative_runtime_proof": [
+          "Compile handshake_core and Tauri at the same candidate commit.",
+          "Run first/second Atelier bootstrap against isolated embedded Surreal and prove second-pass no-op.",
+          "Persist Atelier data/EventLedger evidence, close/reopen, and read exact identities/order.",
+          "Prove unavailable authority fails closed without DATABASE_URL, PostgreSQL, SQLite, mock, or in-memory success."
+        ],
+        "pass_conditions": [
+          "Tauri Atelier compiles and initializes using shared SurrealStorage/AppState.",
+          "No live PostgreSQL field, type, URL, gate, or runtime language remains in the Atelier path.",
+          "Bootstrap is replay-safe/idempotent and close/reopen preserves exact data/evidence.",
+          "Validator-owned focused and bundled proof passes on the remediated commit."
+        ]
+      }
+    ],
+    "residual_uncertainty": [
+      "Cargo was intentionally not run in this lane; more runtime defects may appear after the constructor mismatch is repaired."
+    ]
+  },
+  "validation_v5": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V5",
+    "validated_by": "WP_VALIDATOR-CODEX-V5-20260913",
+    "validated_at_utc": "2026-09-13T03:12:32.685Z",
+    "validated_commit": "75a5c637d4bf3067d95975a9bcc4ad7571fef075",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria."
+    ],
+    "failed_acceptance_criteria": [
+      "AC-138-3"
+    ],
+    "findings": [
+      {
+        "severity": "BLOCKING",
+        "title": "Tauri stealth-reference authorization trusts caller-supplied actor identity",
+        "authority": [
+          "AC-138-3 application/runtime Atelier boundary",
+          "Master Spec v02.206 02-system-architecture.md:2273-2277 and 14-studio-creative-suite.md:26-44",
+          "Codex CX-132A through CX-132G"
+        ],
+        "evidence": [
+          "app/src-tauri/src/commands/stealth_ref.rs:50-55 accepts any non-empty actor_id as authority.",
+          "app/src-tauri/src/commands/stealth_ref.rs:58-72 compares the durable owner only with that untrusted string.",
+          "app/src-tauri/src/commands/stealth_ref.rs:119-145 exposes actor_id directly on all three Tauri commands.",
+          "app/src-tauri/src/commands/stealth_ref.rs:155-247 tests chosen actor strings without authenticating a session, so impersonation is untested.",
+          "src/backend/handshake_core/src/api/atelier.rs:203-214 derives actor identity from capture_context, showing the canonical session-derived path the Tauri adapter bypasses."
+        ],
+        "failure_scenario": "A caller supplies another window owner as actor_id and passes assert_window_owner, allowing list/resolve access to foreign stealth refs because the claimant controls the asserted identity.",
+        "required_product_changes": [
+          "Remove actor_id from public Tauri command payloads and derive immutable Principal/actor identity from authenticated native session/AppState authority.",
+          "Pass that derived principal into Atelier queries and retain non-enumerating denial responses.",
+          "Add missing-session, forged-metadata, cross-account, revoked/rotated-session, and valid-owner tests through the public Tauri boundary.",
+          "Exercise the real embedded Atelier store, close/reopen it, and prove ownership plus EventLedger identity remain stable."
+        ]
+      },
+      {
+        "severity": "BLOCKING",
+        "title": "Tauri Atelier boundary cannot compile with the committed lockfile",
+        "evidence": [
+          "cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2 exited 101 because app/src-tauri/Cargo.lock requires update.",
+          "Validator log: Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136/wpv-v5/logs/tauri-check-locked.log"
+        ],
+        "required_product_changes": [
+          "Resolve and commit app/src-tauri/Cargo.lock against current manifests, retain --locked validation, and exclude PostgreSQL/sqlx dependencies."
+        ]
+      }
+    ],
+    "required_revalidation": [
+      "cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2",
+      "Validator-owned Atelier schema bootstrap twice against one isolated authority with unchanged second-pass fingerprint.",
+      "Validator-owned atelier_stealth_window_tests plus public Tauri command session/ownership negative tests.",
+      "Close/reopen proof for Atelier record and correlated EventLedger identity/order."
+    ],
+    "pass_conditions": [
+      "Locked Tauri boundary compiles and initializes from shared SurrealStorage/AppState.",
+      "No caller-controlled actor identifier grants Atelier/stealth authority.",
+      "Missing, forged, cross-account, and revoked sessions deny without leakage; valid owner succeeds.",
+      "Atelier bootstrap is replay-safe and close/reopen preserves exact records/evidence.",
+      "All validator-owned focused proof passes on the unchanged candidate."
+    ]
+  },
+  "validation_v6": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V6",
+    "validated_by": "WP_VALIDATOR-CODEX-V6-20260913",
+    "validated_at_utc": "2026-09-13T08:26:13.460Z",
+    "validated_commit": "f5f41d3f8e78242cac5b93966e209d00a4bfffa5",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria by Operator direction."
+    ],
+    "failed_acceptance_criteria": [
+      "AC-138-3"
+    ],
+    "findings": [
+      {
+        "severity": "BLOCKING",
+        "title": "Mandatory V6 Atelier bootstrap/reopen and public Tauri authorization proofs were not reached after the preceding decisive MT-137 red",
+        "authority": [
+          "AC-138-3",
+          "PT-138-3 real embedded bootstrap executed twice",
+          "WP Atelier storage and stealth-reference principal requirements",
+          "Master Spec v02.206 02-system-architecture.md:2273-2277,2490 and 14-studio-creative-suite.md:26-44"
+        ],
+        "evidence": [
+          "Static inspection confirms app/src-tauri/src/commands/stealth_ref.rs:18-35 uses deny_unknown_fields and exposes session_token rather than actor_id in every public request DTO.",
+          "app/src-tauri/src/commands/stealth_ref.rs:75-132 derives actor identity through authenticate_native_session_token before owner-scoped list/resolve operations.",
+          "app/src-tauri/src/commands/stealth_ref.rs:318-363 covers constant denial for missing/forged/cross-account, rotated-token revocation, and rejection of injected actor_id metadata.",
+          "src/backend/handshake_core/src/api/stage.rs:466-502 validates the live process binding and derives immutable actor/session identity from PID, process-birth fingerprint, and token digest.",
+          "No validator-owned atelier_stealth_window_tests or Tauri commands::stealth_ref::tests result exists for V6 because the prescribed sequence stopped on MT-137's repeated focused failure."
+        ],
+        "failure_scenario": "Static corrections may be present, but without the mandatory real-store bootstrap-twice, close/reopen, and public-command negative-path execution, V6 cannot establish that schema replay is idempotent or that missing, forged, revoked, and cross-account callers are denied with constant shape at the shipped boundary.",
+        "required_product_changes": [
+          "First repair MT-137's stale reclaim conflict mapping and restore the preceding required proof lane to green; no speculative MT-138 source rewrite is authorized by this finding.",
+          "Run atelier_stealth_window_tests with an isolated HANDSHAKE_WORKSPACE_ROOT and app-runtime,surreal-test-support,test-utils against the exact candidate.",
+          "The Atelier proof must bootstrap the same embedded authority twice, assert no second-pass schema fingerprint change, close it, reopen the same namespace/database, and verify exact records plus EventLedger identity/order.",
+          "Run Tauri commands::stealth_ref::tests with --locked and prove valid owner success plus identical non-enumerating denial for missing, forged, revoked/rotated, and cross-account sessions.",
+          "If either target fails, remediate only the observed product behavior; preserve caller actor_id removal, deny_unknown_fields, session-derived principal authority, and fail-closed storage behavior."
+        ],
+        "focused_negative_runtime_proof": [
+          "atelier_stealth_window_tests passes with isolated workspace state and genuine embedded close/reopen.",
+          "Tauri stealth_ref module tests pass with no caller-controlled actor authority.",
+          "Second Atelier schema bootstrap leaves the catalog fingerprint unchanged.",
+          "All invalid-session classes return the same public denial value and do not reveal ownership/existence."
+        ],
+        "pass_conditions": [
+          "Both mandatory MT-138 targets pass on one unchanged candidate after the preceding proof lane is green.",
+          "Bootstrap is replay-safe across the same embedded authority and close/reopen preserves exact data/evidence.",
+          "No public actor_id authority exists; session-derived principal controls every stealth-reference operation.",
+          "Missing, forged, revoked/rotated, and cross-account requests deny with constant shape and no enumeration."
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Tauri request deserialization boundary",
+      "Native-session binding and principal derivation",
+      "Stealth ownership enumeration resistance",
+      "Atelier schema bootstrap and physical reopen"
+    ],
+    "independent_checks_run": [
+      "Inspected final session-auth and stealth-reference production/test source.",
+      "Verified caller actor_id is absent from public request DTOs and rejected as an unknown field.",
+      "Verified candidate remained at the exact validated commit with no tracked test mutation."
+    ],
+    "counterfactual_checks": [
+      "Caller-injected actor_id cannot deserialize because all public DTOs deny unknown fields.",
+      "A copied token without the matching live PID/process-birth binding is rejected by native-session authentication.",
+      "Static inspection cannot substitute for the required embedded restart and public-command runtime proof."
+    ],
+    "boundary_probes": [
+      "Public Tauri JSON -> deny_unknown_fields/session token -> derived actor",
+      "Derived actor -> Atelier owner query/resolve",
+      "Atelier bootstrap -> same-store second pass -> close/reopen"
+    ],
+    "negative_path_checks": [
+      "Missing, forged, cross-account, and rotated-token cases are present in source but were not executed in V6.",
+      "Injected actor_id metadata has an explicit rejection assertion in source but was not executed in V6.",
+      "Broad MT-138 execution stopped after the decisive MT-137 red as required."
+    ],
+    "proof_results": [
+      {
+        "command": "cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2",
+        "result": "PASS shared predecessor",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136/wpv-v6/logs/tauri-check-locked-shortpath.log"
+      },
+      {
+        "command": "atelier_stealth_window_tests and Tauri commands::stealth_ref::tests",
+        "result": "NOT RUN after decisive MT-137 red; therefore FAIL_V6, not PASS",
+        "log": null
+      }
+    ],
+    "residual_uncertainty": [
+      "No V6 runtime verdict is available for Atelier idempotence, close/reopen, or Tauri authorization behavior until the ordered proof lane resumes after MT-137 remediation."
+    ]
+  },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "validation_v7": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "PASS_V7",
+    "validated_by": "WP_VALIDATOR-CODEX-V7-20260913",
+    "validated_at_utc": "2026-09-13T10:03:21.641Z",
+    "validated_commit": "7922ea60349ec7c294ca75c61b180aaf197cf441",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria by Operator direction."
+    ],
+    "passed_acceptance_criteria": [
+      "AC-138-1",
+      "AC-138-2",
+      "AC-138-3"
+    ],
+    "requirement_evidence": [
+      {
+        "requirement": "AC-138-1 / Operator-authorized WP scope",
+        "evidence": [
+          "The MT contract records the Operator decision assigning the complete PostgreSQL retirement and Surreal-only Atelier port to WP-KERNEL-012."
+        ]
+      },
+      {
+        "requirement": "AC-138-2 / Atelier contains no sqlx",
+        "evidence": [
+          "Validator rg scan over src/backend/handshake_core/src/atelier returned zero sqlx hits.",
+          "Locked handshake_core and Tauri boundaries compiled at the exact candidate."
+        ]
+      },
+      {
+        "requirement": "AC-138-3 / embedded Atelier schema bootstrap is replay-safe across restart",
+        "evidence": [
+          "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs:159-204 opens the real embedded store, bootstraps and verifies Atelier schema, shuts it down, and can reopen the same physical directory.",
+          "Validator exact-current schema rebootstrap proof passed with unchanged EXPECTED_SCHEMA_INFO_SHA256 and table set.",
+          "Validator Atelier character/EventLedger proof passed after physical close/reopen; atelier_stealth_window_tests passed 15/15 against isolated embedded authority."
+        ]
+      },
+      {
+        "requirement": "Public stealth-reference authorization boundary",
+        "evidence": [
+          "app/src-tauri/src/commands/stealth_ref.rs:18-35 rejects unknown fields and accepts session_token, not caller actor_id.",
+          "app/src-tauri/src/commands/stealth_ref.rs:75-132 derives actor identity through authenticate_native_session_token before every owner-scoped operation.",
+          "app/src-tauri/src/commands/stealth_ref.rs:317-363 proves constant denial for missing, forged, cross-account, and rotated sessions and rejects injected actor_id metadata; validator Tauri module test passed."
+        ]
+      },
+      {
+        "requirement": "MT-138 manual obligation",
+        "evidence": [
+          "src/backend/handshake_core/src/user_manual/seed.rs:630-650 documents the exclusive embedded SurrealDB/EventLedger authority and restart behavior.",
+          "Validator manual filter passed mt138_manual_covers_atelier_storage_authority_and_restart_gate."
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Atelier schema first/second bootstrap against one authority",
+      "Physical close/reopen with Atelier domain and EventLedger data",
+      "Tauri request deserialization and native-session principal derivation",
+      "Cross-account and rotated-session non-enumeration"
+    ],
+    "independent_checks_run": [
+      "Scanned Atelier source for sqlx.",
+      "Inspected the embedded Atelier harness and confirmed the required suite itself did not use reopen helpers.",
+      "Added existing exact-current schema fingerprint and Atelier/EventLedger physical-reopen targets rather than accepting incomplete green proof.",
+      "Ran Atelier stealth integration, Tauri stealth_ref module, locked Tauri check, and manual guards."
+    ],
+    "counterfactual_checks": [
+      "If AtelierSurrealHarness::open_existing did not bootstrap and ensure schema on the same data directory, the physical reopen/EventLedger test would fail.",
+      "If public Tauri DTOs accepted actor_id, a caller could impersonate another owner; deny_unknown_fields rejects that payload.",
+      "If native session rotation did not revoke the old binding, the rotated-token negative assertion would expose prior-owner refs."
+    ],
+    "boundary_probes": [
+      "Global Surreal schema bootstrap -> exact-current second bootstrap -> catalog fingerprint",
+      "Atelier mutation -> shared EventLedger -> physical shutdown/reopen -> aggregate query",
+      "Tauri JSON DTO -> native-session authentication -> derived actor -> owner-scoped Atelier query"
+    ],
+    "negative_path_checks": [
+      "Missing, forged, cross-account, and rotated sessions return the same non-enumerating denial.",
+      "Injected actor_id metadata fails request deserialization.",
+      "Replacement principal cannot enumerate prior-principal windows.",
+      "Second exact-current bootstrap reports reused schema and identical fingerprint/table set."
+    ],
+    "proof_results": [
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --test atelier_stealth_window_tests --jobs 2 -- --test-threads=1",
+        "result": "PASS: 15 passed; 0 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138/wpv-v7/logs/atelier-stealth-window-tests.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path app/src-tauri/Cargo.toml --lib commands::stealth_ref::tests --jobs 2 -- --test-threads=1",
+        "result": "PASS: 1 passed; 0 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138/wpv-v7/logs/tauri-stealth-ref-tests.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --test knowledge_migration_tests exact_current_embedded_schema_rebootstrap_preserves_catalog_fingerprint --jobs 2 -- --exact --test-threads=1",
+        "result": "PASS after supplying required HANDSHAKE_ARTIFACTS_ROOT: 1 passed; 0 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138/wpv-v7/logs/schema-rebootstrap-fingerprint-rerun.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --test atelier_event_ledger_tests atelier_character_create_appends_kernel_event_ledger_row --jobs 2 -- --exact --test-threads=1",
+        "result": "PASS: 1 passed; 0 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138/wpv-v7/logs/atelier-event-ledger-reopen.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib user_manual::seed::tests::mt13 --jobs 2 -- --test-threads=1",
+        "result": "PASS: MT-137, MT-138, and MT-139 manual guards passed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-138/wpv-v7/logs/mt137-mt138-manual-guards.log"
+      }
+    ],
+    "independent_findings": [],
+    "residual_uncertainty": [
+      "The Tauri authorization module currently concentrates all invalid-session classes in one integration-style unit test; it exercises the shipped state boundary with real embedded storage, and the separate 15-test Atelier target broadens storage behavior sufficiently for this MT."
+    ],
+    "pass_conditions": [
+      "Atelier and Tauri compile from the committed lock graph.",
+      "No sqlx remains under Atelier.",
+      "Schema second bootstrap preserves the exact catalog fingerprint.",
+      "Atelier domain and EventLedger records survive genuine physical close/reopen.",
+      "No caller-controlled actor authority exists and invalid sessions deny without enumeration."
+    ]
   }
 }

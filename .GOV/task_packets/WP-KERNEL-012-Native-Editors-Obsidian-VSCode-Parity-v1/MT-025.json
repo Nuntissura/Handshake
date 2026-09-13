@@ -25,16 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V7",
     "active": false,
     "depends_on": [
       "MT-021"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "PASS_V7",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-31T20:55:07.0130837Z",
+    "validated_by": "WP_VALIDATOR /root/wpv_validate_025_v7",
+    "validated_at_utc": "2026-09-13T15:36:54.013Z",
     "claimed_by": "KERNEL_BUILDER-20260705-013720",
     "ready_for_validation_at_utc": "2026-07-24T16:35:00.000Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
@@ -85,7 +85,7 @@
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-020817",
     "remediation_v3_in_progress": false,
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR /root/wpv_validate_025_v7",
     "ready_for_validation_summary": "MT-025 V4: mounted wiki Edit, Cancel, and Save actions emit exact generation-bound terminal receipts; Cancel proves zero writes and immutable source state, while Save proves one atomic overlay write followed by GET-only persisted readback on managed PostgreSQL. Failure and partial-success recovery preserve the draft and lock duplicate mutation; settings, Editors menu, and the internal UserManual expose the feature and truthful EventLedger/Flight Recorder recovery posture. Focused, integration, managed-PostgreSQL, hardware-WGPU canonical Argus, and manual/menu/settings gates pass; independent adversarial re-review found no blocking defect. Official validator verdict remains FAIL_V4 pending independent V4 validation; completed_by remains null."
   },
   "scope": {
@@ -503,5 +503,272 @@
       "Open the regenerated pre/edit/post trees, receipts, and screenshot, then rerun focused overlay save/reload/cancel/error/conflict tests to prove no source-projection mutation and no silent write fallback."
     ],
     "no_context_instruction": "Read MT-025.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the read-only projection plus additive overlay model. Add authoritative terminal receipts for Edit, Cancel, and Save/failure bound to projection/draft/revision state; repair canonical Argus predicates; rerun focused real-PostgreSQL and mounted proofs from committed current HEAD with external artifacts; open every regenerated receipt/tree/screenshot; then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "validated_by": "WP_VALIDATOR /root/wpv_wave2_001_036",
+    "validated_at_utc": "2026-09-12T23:29:15.4894386Z",
+    "spec_version": "v02.206",
+    "source_state": {
+      "worktree": "wtc-native-editors-v1",
+      "inspection_mode": "read_only_absolute_paths",
+      "runtime_proof_run": false
+    },
+    "method": "Independent MT/WP/current-Master-Spec static validation of the mounted wiki edit path, canonical Argus proof, and shared ActionChannel terminal-receipt contract. Cargo and Argus execution were deliberately deferred to the deduplicated batch requested by the orchestrator.",
+    "requirement_map": [
+      "MT-025 scope acceptance AC3/PROOF3 requires a model-driven edit-area mutation followed by Save of that exact draft.",
+      "WP packet acceptance requires every editor and knowledge action to be exposed through the AccessKit surface so a swarm agent can author/edit notes by stable id, with that capability proven.",
+      "The current ActionChannel contract reserves Applied for action-specific causal observation and states that an echoed requested SetValue alone terminates Indeterminate and never means success."
+    ],
+    "source_evidence": [
+      "src/frontend/handshake_native/src/mcp/action.rs:87-151 defines the sibling handshake.set-value-completion/v1 token and parser for causally acknowledging SetValue.",
+      "src/frontend/handshake_native/src/mcp/action.rs:747-759 states that a visible requested SetValue alone is not causal proof, terminates Indeterminate, and never means success.",
+      "src/frontend/handshake_native/src/graph/wiki_page_panel.rs:1477-1511 consumes AccessKit SetValue and republishes only the editor value; it has no completion generation, applied-value record, or .set-value-completion sibling node.",
+      "src/frontend/handshake_native/src/graph/wiki_page_panel.rs:1696-1722 exposes the MultilineTextInput and SetValue action but still emits no SetValue completion node.",
+      "src/frontend/handshake_native/tests/test_wiki_page_panel_argus.rs:357-372 accepts either applied or indeterminate for the model-authored save draft.",
+      "src/frontend/handshake_native/tests/test_wiki_page_panel_argus.rs:480 closes with argus.finish() rather than finish_require_no_indeterminate(), so the proof can pass with an unacknowledged mutation."
+    ],
+    "fail_report": "MT-025 FAIL_V5. Edit, Cancel, and Save clicks now have causal terminal receipts, but the model-driven edit-area SetValue still does not. The real widget consumes the requested draft without publishing the action-specific sibling completion token required by ActionChannel; the canonical proof explicitly accepts the resulting indeterminate receipt and uses the non-strict finish gate. The test can therefore pass while an agent cannot distinguish an applied draft mutation from a terminal action whose success was never established.",
+    "remediation_plan": [
+      "Add product-owned SetValue acknowledgement state to LoomWikiPagePanel: a monotonically advancing edit-buffer SetValue generation plus the exact bounded value consumed for that generation. Reset or rebind it only on an authoritative pane/projection generation change, not on incidental repaint.",
+      "When accesskit_string_set_value consumes a request for wiki.edit-area.{projection_id}, apply the same bounded editor mutation, advance the SetValue generation exactly once, and retain the exact applied value for causal readback.",
+      "Emit the canonical sibling Status node at wiki.edit-area.{projection_id}.set-value-completion using serialize_set_value_completion(target, generation, applied_value). Keep its author_id, role, target identity, and generation stable long enough for ActionChannel reinspection; disabled/saving states must not fabricate a completion.",
+      "Harden both Cancel and Save paths in the canonical mounted test: require every SetValue receipt to become terminal applied, bind the completion token to the exact edit-area author_id, successor generation, and unique requested draft, and replace argus.finish() with argus.finish_require_no_indeterminate().",
+      "Retain the existing independent semantic checks: Cancel must issue zero writes and preserve source projection bytes/revision; Save must persist exactly the unique applied draft as one additive overlay, read it back from the current SurrealDB/EventLedger authority, and leave source projection content immutable.",
+      "Add a negative mounted assertion that SetValue while the editor is disabled or no longer mounted is rejected or remains unapplied without advancing the completion generation, preventing stale requests from acknowledging a different pane generation."
+    ],
+    "pass_conditions": [
+      "A fresh canonical mounted Argus run observes terminal applied, never indeterminate, receipts for both unique draft SetValue actions and for Edit, Cancel, and Save.",
+      "Each SetValue Applied receipt is causally bound to the exact edit-area target, pre-dispatch generation plus one, and exact requested bounded value through handshake.set-value-completion/v1.",
+      "The strict no-indeterminate closeout passes and the saved overlay's fresh backend readback equals the acknowledged draft exactly, while Cancel proves zero writes and source immutability.",
+      "Focused wiki state-machine tests, the mounted MT-025 test, current SurrealDB/EventLedger close-reopen durability proof, and direct inspection of terminal trees/receipts/GPU frame all pass from unchanged candidate inputs under the external WP/MT/owner artifact hierarchy."
+    ],
+    "next_actor": "KERNEL_BUILDER",
+    "blocking": true
+  },
+  "validation_v6": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V6",
+    "validated_by": "WP_VALIDATOR /root/wpv_recheck_025",
+    "validated_at_utc": "2026-09-13T10:30:26.3181675Z",
+    "spec_version": "v02.206",
+    "risk_tier": "HIGH",
+    "source_state": {
+      "worktree": "wtc-native-editors-v1",
+      "head_sha": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+      "clean_product_tree": true,
+      "remediation_commit": "90fe49e89095a6bcf4ed814731c278d5ae332ed7",
+      "later_commits_affecting_mt025_remediation_files": []
+    },
+    "method": "Fresh adversarial static review of the V5 remediation producer/consumer boundary at current clean HEAD. Cargo was not run because another validator owns the serialized Cargo lane; no implementer proof was accepted as verdict evidence.",
+    "requirement_map": [
+      "MT-025.json:107,117 requires a model-authored edit-area mutation whose exact draft is saved and read back; MT-025.json:131 establishes a 50 KiB editable boundary.",
+      "packet.json:159 requires every editor and knowledge action to be operable through stable AccessKit identity by a model, and packet.json:160 requires runtime parity without placeholder proof.",
+      "master-spec-v02.206/spec-modules/07-user-experience-and-development.md:267 requires stable visual-debug identifiers and rejects JSON/unit-only editor verification; lines 273 and 291 require one operator/model work surface over the same canonical state.",
+      "master-spec-v02.206/spec-modules/02-system-architecture.md:2697 and 2712 keep wiki pages as projections over SurrealDB/EventLedger authority and require fail-closed staleness and replayable regeneration evidence."
+    ],
+    "diff_attack_surfaces": [
+      "Producer/consumer size mismatch between LoomWikiPagePanel's 50 KiB applied editor value and ActionChannel's 8 KiB serialized completion-token ceiling.",
+      "Requested-versus-applied mismatch when an over-cap SetValue request is silently truncated by the widget but acknowledgement compares against the original unbounded request.",
+      "Mounted proof boundary coverage: short unique strings exercise the happy path but not the declared editor cap, JSON escaping expansion, or over-cap rejection semantics."
+    ],
+    "independent_checks_run": [
+      "Inspected remediation commit 90fe49e8 directly and confirmed no later commit through ff2eda5d changes either remediation file.",
+      "Traced the production SetValue request from ActionChannel enqueue/dispatch through accesskit_string_set_value, cap_on_char_boundary, completion serialization, and acknowledge_set_value_completion.",
+      "Compared the declared 50 KiB editor limit to both the applied_value limit and complete JSON token limit in the shared completion protocol."
+    ],
+    "counterfactual_checks": [
+      "If serialize_set_value_completion returns None after a valid large wiki SetValue is consumed, the sibling completion node disappears and ActionChannel terminates the request as non-Applied despite the editor mutation.",
+      "If a request exceeds OVERLAY_INPUT_CAP, LoomWikiPagePanel stores the capped value while acknowledge_set_value_completion requires the uncapped requested text, so causal Applied is impossible even if token capacity is enlarged."
+    ],
+    "boundary_probes": [
+      "50 KiB widget cap versus 8 KiB completion-token protocol cap.",
+      "Widget-applied bounded value versus ActionChannel's original requested value.",
+      "Short mounted test drafts versus full-cap, escape-heavy, and over-cap model input."
+    ],
+    "negative_path_checks": [
+      "A SetValue payload larger than the completion-token ceiling is accepted by the action validator and consumed by the widget, but cannot retain a serializable completion node.",
+      "A SetValue payload larger than 50 KiB is dispatched rather than rejected, then truncated by the widget; the completion verifier rejects the truthful bounded result because it compares to the original request.",
+      "The mounted V6 candidate test has no full-cap, escape-expansion, or over-cap rejection assertion, so its strict finish gate covers only short inputs."
+    ],
+    "source_evidence": [
+      "src/frontend/handshake_native/src/graph/wiki_page_panel.rs:94 declares OVERLAY_INPUT_CAP as 50 * 1024 bytes; lines 558-563 accept and truncate input to that boundary.",
+      "src/frontend/handshake_native/src/mcp/action.rs:92 limits the entire SetValue completion token to 8192 bytes; lines 108-109 also limit applied_value to 8192 bytes and lines 142-143 drop any JSON encoding beyond that same total budget.",
+      "src/frontend/handshake_native/src/graph/wiki_page_panel.rs:1561-1568 consumes an arbitrary accepted request, applies the 50 KiB cap, and records the post-cap value; lines 1579-1587 silently omit the sibling node when serialization returns None.",
+      "src/frontend/handshake_native/src/mcp/action.rs:1992-2053 performs no wiki edit-area length validation before dispatch.",
+      "src/frontend/handshake_native/src/mcp/action.rs:1873-1882 requires the completion applied_value and visible target value to equal the original requested text, which makes an intentionally capped result non-Applied.",
+      "src/frontend/handshake_native/tests/test_wiki_page_panel_argus.rs:317-340 and 409-437 use only short draft strings; lines 546-547 enforce strict terminality but do not exercise either size boundary."
+    ],
+    "independent_findings": [
+      "The V5 remediation is correct for short drafts, but it does not provide causal SetValue completion across the wiki editor's declared 50 KiB input domain. The protocol silently loses completion above approximately 8 KiB and cannot acknowledge intentional truncation above 50 KiB."
+    ],
+    "fail_report": "MT-025 FAIL_V6. The mounted wiki editor's model-facing SetValue acknowledgement is only valid for short values. The product accepts up to 50 KiB, while handshake.set-value-completion/v1 can serialize at most 8 KiB including JSON overhead; serialization then returns None and removes the observer node after the mutation. Over-cap requests are also dispatched and truncated, but the verifier compares the bounded result to the original request. Agents therefore still cannot reliably distinguish an applied wiki draft mutation from an indeterminate one across the declared input boundary.",
+    "remediation_plan": [
+      "Make the SetValue completion representation cover the full accepted widget domain without embedding an unbounded value in an 8 KiB token. Prefer a versioned bounded token carrying target, successor generation, applied byte length, and SHA-256 of the exact applied UTF-8 value; retain inline applied_value only when it fits. Validate schema/version and deny unknown fields.",
+      "Update acknowledge_set_value_completion to verify target and generation, compare the token's applied length/hash to the requested value, and still compare the live target value exactly. Do not treat a digest alone as proof; the changed product-owned generation is the causal signal and exact live-value equality closes collision/substitution risk.",
+      "Define explicit over-cap semantics before dispatch. Preferred: reject wiki.edit-area SetValue requests larger than OVERLAY_INPUT_CAP with InvalidValue so no mutation occurs and no ambiguous receipt is created. If bounded application is intentionally retained, the action request/receipt contract must explicitly return the exact bounded value and the caller must not compare it to the original unbounded request.",
+      "Keep completion state pane/projection-bound and monotonic across ordinary Edit/Cancel cycles. Preserve the current NodeId fencing so stale or unmounted requests cannot advance a newly mounted editor.",
+      "Add shared ActionChannel unit coverage for: an exact 50 KiB ASCII value; an escape-heavy value whose JSON encoding would exceed 8 KiB; one-byte-over-cap rejection with unchanged target/generation; generation overflow; malformed/unknown-field token; and observer/target identity drift.",
+      "Extend the mounted MT-025 Argus test to SetValue and save/read back a boundary-size draft through the real current SurrealDB/EventLedger authority, assert terminal Applied and exact persisted bytes/hash, then dispatch an over-cap value and assert terminal Rejected, unchanged editor value, unchanged completion generation, and no backend write. Retain Cancel zero-write/source-immutability and stale/unmounted-node assertions."
+    ],
+    "verification_required": [
+      "Run cargo +1.97.1 test --manifest-path src/frontend/handshake_native/Cargo.toml --lib mcp::action::tests::set_value_completion -- --nocapture in the canonical WP-KERNEL-012/MT-025 validator-owned external target.",
+      "Run cargo +1.97.1 test --manifest-path src/frontend/handshake_native/Cargo.toml --lib graph::wiki_page_panel -- --nocapture in the same validator target.",
+      "Run cargo +1.97.1 test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_wiki_page_panel_argus mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback -- --nocapture --test-threads=1 against the current Handshake-managed SurrealDB/EventLedger boundary despite the legacy test name.",
+      "Open the generated Argus tree, action receipts, persisted readback evidence, and GPU frame; confirm zero indeterminate receipts and bind every proof record to the clean candidate commit."
+    ],
+    "residual_uncertainty": "No Cargo or mounted Argus execution was performed in this assignment. The static size and requested/applied mismatches are deterministic and block PASS independently of runtime availability.",
+    "next_actor": "KERNEL_BUILDER",
+    "blocking": true
+  },
+  "validation_v7": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "PASS_V7",
+    "validated_by": "WP_VALIDATOR /root/wpv_validate_025_v7",
+    "validated_at_utc": "2026-09-13T15:36:54.013Z",
+    "validated_commit": "0d479fdcc9632a7d17cb3cbd6b9224cd86147128",
+    "validated_range": "605c6cf4..0d479fdcc9632a7d17cb3cbd6b9224cd86147128",
+    "spec_version": "v02.206",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria by Operator direction."
+    ],
+    "passed_acceptance_criteria": [
+      "AC1",
+      "AC2",
+      "AC3",
+      "AC4",
+      "AC5",
+      "AC6",
+      "AC7",
+      "AC8",
+      "FAIL_V6 completion-token remediation"
+    ],
+    "requirement_evidence": [
+      {
+        "requirement": "The 50 KiB accepted editor domain has bounded exact causal SetValue completion.",
+        "evidence": [
+          "src/frontend/handshake_native/src/mcp/action.rs:97 defines a deny-unknown-fields token carrying target, generation, applied_byte_len, applied_sha256, and optional inline applied_value.",
+          "src/frontend/handshake_native/src/mcp/action.rs:145 compacts large or escape-heavy values to bounded length/hash evidence rather than dropping the completion node.",
+          "src/frontend/handshake_native/src/mcp/action.rs:1915 requires exact requested length/hash and src/frontend/handshake_native/src/mcp/action.rs:1924 independently requires exact live target equality before Applied.",
+          "src/frontend/handshake_native/src/graph/wiki_page_panel.rs:1092 publishes pane/projection-bound completion state after src/frontend/handshake_native/src/graph/wiki_page_panel.rs:1569 records the genuinely consumed editor mutation."
+        ]
+      },
+      {
+        "requirement": "Over-cap model input fails before dispatch without target, generation, backend-write, or receipt ambiguity.",
+        "evidence": [
+          "src/frontend/handshake_native/src/mcp/action.rs:2085 rejects wiki.edit-area SetValue text above OVERLAY_INPUT_CAP before enqueue.",
+          "src/frontend/handshake_native/src/mcp/action.rs:2453 proves one-byte-over-cap leaves the queue empty, target unchanged, and completion generation unchanged.",
+          "src/frontend/handshake_native/tests/test_wiki_page_panel_argus.rs:415 drives the over-cap rejection through canonical Argus and proves empty live value, unchanged generation, and zero overlays."
+        ]
+      },
+      {
+        "requirement": "Malformed, unknown-field, overflow, stale, unmounted, and identity-drift observations fail closed.",
+        "evidence": [
+          "src/frontend/handshake_native/src/mcp/action.rs:2349 rejects malformed, unknown-field, and incoherent completion tokens.",
+          "src/frontend/handshake_native/src/mcp/action.rs:2363 requires the successor generation and exact live identity; src/frontend/handshake_native/src/mcp/action.rs:2429 rejects generation overflow.",
+          "src/frontend/handshake_native/src/graph/wiki_page_panel.rs:1541 binds the backing NodeId to pane/edit generation.",
+          "src/frontend/handshake_native/tests/test_wiki_page_panel_argus.rs:369 proves an unmounted edit area cannot retain completion state capable of acknowledging a stale request."
+        ]
+      },
+      {
+        "requirement": "Mounted full-cap save/readback uses the current Handshake-managed SurrealDB/EventLedger authority and preserves projection immutability.",
+        "evidence": [
+          "src/frontend/handshake_native/tests/test_wiki_page_panel_argus.rs:428 constructs an exact 51,200-byte draft, requires terminal Applied, and verifies compact completion length/hash.",
+          "src/frontend/handshake_native/tests/test_wiki_page_panel_argus.rs:456 saves through the mounted product path and verifies the overlay by fresh backend GET.",
+          "Inspected evidence records owned=true, storage_mode=surreal_embedded, store_path_present=true, cancel write_count=0, save write_count=1, and canonical overlay annotation length=51200 bytes.",
+          "Master Spec module 02-system-architecture.md:2697 and :2712 require wiki projections to remain non-authoritative, source-stamped, fail-closed projections over SurrealDB/EventLedger authority; the mounted proof leaves source fields unchanged and persists only the overlay."
+        ]
+      },
+      {
+        "requirement": "The model-facing and operator-facing surface share stable identity and observable canonical state.",
+        "evidence": [
+          "Master Spec module 07-user-experience-and-development.md:267 requires stable visual-debug identifiers and non-unit runtime proof; :291 requires models and operators to observe the same canonical SurrealDB state.",
+          "The inspected 1100x850 real-GPU PNG visibly shows the mounted Wiki Page, fresh status, one source, and the persisted boundary overlay; the paired Argus evidence contains 1,861 live nodes and terminal action receipts."
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "50 KiB UTF-8 editor input versus bounded AccessKit completion-token serialization",
+      "Digest evidence versus exact live target equality",
+      "Successor generation overflow and observer/target identity drift",
+      "Pre-dispatch over-cap rejection versus accidental widget truncation",
+      "Mounted Argus save/cancel behavior against the owned embedded SurrealDB backend"
+    ],
+    "counterfactual_checks": [
+      "If the compact token were accepted on digest alone, a substituted live value could pass; exact target.value equality is also required.",
+      "If generation wrapped from u64::MAX, a stale completion could become causal; checked_add rejects the transition.",
+      "If over-cap text reached the widget, truncation could mutate state without exact acknowledgement; validation rejects it before queueing.",
+      "If Cancel or rejected SetValue wrote through the backend, the fresh overlays GET would be non-empty; both paths remained at zero overlays."
+    ],
+    "proof_results": [
+      {
+        "proof_record_id": "MT025-V7-ACTION-UNIT",
+        "command": "cargo +1.97.1 test --manifest-path src/frontend/handshake_native/Cargo.toml --lib mcp::action::tests::set_value_completion -- --nocapture",
+        "result": "PASS: 5 passed; 0 failed",
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/target",
+        "log": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/logs/action-set-value-completion.log"
+      },
+      {
+        "proof_record_id": "MT025-V7-PANEL-UNIT",
+        "command": "cargo +1.97.1 test --manifest-path src/frontend/handshake_native/Cargo.toml --lib graph::wiki_page_panel -- --nocapture",
+        "result": "PASS: 23 passed; 0 failed",
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/target",
+        "log": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/logs/wiki-page-panel-lib.log"
+      },
+      {
+        "proof_record_id": "MT025-V7-CURRENT-SOURCE-BACKEND",
+        "command": "cargo +1.97.1 build --locked -j 2 --target-dir <MT-025-wpv-v7-target> --manifest-path src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime",
+        "result": "PASS",
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/target",
+        "log": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/logs/backend-current-source-build.log",
+        "binary_sha256": "3df494e5b8aebc42836e6f6fa9e8526dfc0600f7f0748a6151e439d1f0615ace"
+      },
+      {
+        "proof_record_id": "MT025-V7-MOUNTED-ARGUS",
+        "command": "cargo +1.97.1 test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_wiki_page_panel_argus mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback -- --nocapture --test-threads=1",
+        "environment": {
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "HSK_TEST_BACKEND_BIN": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/target/debug/handshake_core.exe",
+          "HSK_TEST_BACKEND_TARGET_ROOT": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/target"
+        },
+        "result": "PASS: 1 passed; 0 failed",
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/target",
+        "log": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/logs/mounted-argus-boundary-gpu.log"
+      },
+      {
+        "proof_record_id": "MT025-V7-INTEGRATION-CHECK",
+        "command": "cargo +1.97.1 check --manifest-path src/frontend/handshake_native/Cargo.toml --all-targets --features integration",
+        "result": "PASS",
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/target",
+        "log": "Handshake_Artifacts/WP-KERNEL-012/MT-025/wpv-v7/logs/integration-all-targets-check.log"
+      }
+    ],
+    "artifact_inspection": {
+      "manifest": "Handshake_Artifacts/wp-kernel-012/wp-kernel-012-mt-025/canonical-argus-v4-runs/run-106ffdef-39a9-438f-b404-a6a5f9faa13c/manifest.json",
+      "terminal_receipts": "Handshake_Artifacts/wp-kernel-012/wp-kernel-012-mt-025/canonical-argus-v4-runs/run-106ffdef-39a9-438f-b404-a6a5f9faa13c/mt025-wiki-terminal-receipts.json",
+      "gpu_frame": "Handshake_Artifacts/wp-kernel-012/wp-kernel-012-mt-025/canonical-argus-v4-runs/run-106ffdef-39a9-438f-b404-a6a5f9faa13c/mt025-wiki-save-readback.png",
+      "evidence_sha256": "7cf6766f7f5bfc176b0a6d157bef401208d3065778030c21550fe5eb41f633d7",
+      "gpu_frame_sha256": "d92c252415276eebb14cd0b40731d167a4752210ae9792499e5010c26d40dc2e",
+      "visual_observation": "The 1100x850 native frame visibly shows the mounted Wiki Page, fresh badge, one source, source content, and the persisted 50 KiB overlay text. Unrelated existing Memory/Runtime Chat error UI is also visible but does not hide or invalidate the tested wiki save/readback state."
+    },
+    "setup_failures_resolved": [
+      "The first mounted attempt failed before product behavior because HSK_TEST_BACKEND_BIN was absent; the exact current-source backend was then built and explicitly bound.",
+      "The second mounted attempt correctly emitted DEFERRED at the visual gate because HANDSHAKE_GPU_SCREENSHOT was absent; the final run set the explicit real-GPU contract and captured a PNG."
+    ],
+    "independent_findings": [],
+    "residual_uncertainty": [
+      "The completion token retains schema id handshake.set-value-completion/v1 while extending it with optional bounded evidence fields. Producer and consumer are lockstep and deny unknown fields; no persisted cross-version token boundary exists for this transient AccessKit state.",
+      "The generated screenshot/evidence helper still uses its legacy external subpath below Handshake_Artifacts; Operator explicitly waived repository-governance/path adherence as an MT pass criterion."
+    ],
+    "pass_conditions": [
+      "Exact full-cap and escape-heavy SetValue requests produce bounded causal completion evidence.",
+      "One-byte-over-cap, malformed, unknown-field, overflow, stale, unmounted, and identity-drift paths fail closed.",
+      "The mounted real-GPU path saves and reads back exactly 51,200 bytes through an owned current-source SurrealDB backend.",
+      "The exact candidate remains clean and integration all-target compilation passes."
+    ],
+    "next_actor": "ORCHESTRATOR",
+    "blocking": false
   }
 }

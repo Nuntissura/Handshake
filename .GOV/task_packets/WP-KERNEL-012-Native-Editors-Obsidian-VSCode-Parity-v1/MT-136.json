@@ -25,18 +25,18 @@
   "title": "B9-MT-136-Port-The-Storage-Layer-Off-sqlx-Onto-The-Embedded-SurrealDB-Store",
   "group": "B9",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-23T14:40:52Z",
+  "updated_at_utc": "2026-09-13T08:26:13.460Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V6",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
-    "completed_by": null,
+    "validator_verdict": "PASS_V6",
+    "completed_by": "WP_VALIDATOR-CODEX-V6-20260913",
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T13:30:00Z",
     "ready_for_validation_at_utc": "2026-08-23T14:40:52Z",
@@ -137,6 +137,246 @@
   },
   "hbr_obligations": [],
   "hbr_int_009_tier_obligations": [],
+  "validation_v4": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V4",
+    "validated_by": "WP_VALIDATOR-CODEX-WAVE1-20260913",
+    "validated_at_utc": "2026-09-12T23:16:41.1179912Z",
+    "candidate_worktree": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-native-editors-v1",
+    "spec_version": "v02.206",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria."
+    ],
+    "diff_attack_surfaces": [
+      "ControlPlaneStorage public shape versus application consumers",
+      "Tauri memory/native-editor initialization",
+      "Legacy PostgreSQL type and fallback removal"
+    ],
+    "independent_checks_run": [
+      "Compared ControlPlaneStorage fields with observed postgres_pool consumers.",
+      "Compared handshake_core memory exports with Tauri imports and constructors.",
+      "Scanned the MT storage surface for sqlx/PgPool/PostgresDatabase/postgres_pool."
+    ],
+    "counterfactual_checks": [
+      "A complete port leaves every ControlPlaneStorage consumer compiling against database/surreal without postgres_pool.",
+      "Complete PostgreSQL retirement uses exported Surreal persistence types and has no production in-memory success fallback."
+    ],
+    "boundary_probes": [
+      "Storage-to-Tauri constructor boundary",
+      "Core memory export-to-Tauri import boundary"
+    ],
+    "negative_path_checks": [
+      "Memory capsule authority unavailability still has an in-memory backend path.",
+      "Stale PostgreSQL consumers cannot be satisfied by the current storage producer."
+    ],
+    "independent_findings": [
+      {
+        "severity": "BLOCKING",
+        "failed_acceptance_criteria": [
+          "AC-136-2"
+        ],
+        "wp_requirements": [
+          "Editor persistence/settings must use the typed handshake_core SurrealDB/EventLedger storage boundary.",
+          "PostgreSQL must not remain a supported runtime backend, adapter, DSN, or fallback."
+        ],
+        "master_spec_requirements": [
+          "02-system-architecture.md:2270-2272 - SurrealDB/EventLedger is the exclusive typed runtime authority.",
+          "02-system-architecture.md:2277 - PostgreSQL dependencies, drivers, URLs, configuration, tests, and network assumptions are retired.",
+          "02-system-architecture.md:2623-2629 - unavailable Surreal authority fails closed without alternate-backend or fixture success."
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/storage/mod.rs:3525-3532 - ControlPlaneStorage exposes database and surreal only; postgres_pool does not exist.",
+          "app/src-tauri/src/commands/stealth_ref.rs:52,203 - runtime/test code dereferences control_plane.postgres_pool.",
+          "app/src-tauri/src/commands/swarm_runtime.rs:1531-1536 - runtime constructs a PostgreSQL recorder from the nonexistent field.",
+          "app/src-tauri/src/commands/memory_pin.rs:13,25,47 - Tauri imports and constructs removed PostgresKernelActionSubmitter.",
+          "app/src-tauri/src/commands/memory_capsule.rs:24,39-47,69-74 - Tauri imports removed PostgreSQL persistence types and retains an in-memory backend branch.",
+          "src/backend/handshake_core/src/memory/mod.rs:42-47 and memory/persistence.rs:169-206 - core exports/implements SurrealKernelActionSubmitter instead."
+        ],
+        "failure_scenario": "Core removes postgres_pool and PostgreSQL memory types while the shipped Tauri application still references them. The app cannot compile across this boundary; restoring old types violates exclusive Surreal authority, and the retained in-memory branch can report success without durable EventLedger authority.",
+        "required_product_changes": [
+          "Update every ControlPlaneStorage consumer to use SurrealStorage plus the typed Database boundary; do not reintroduce postgres_pool.",
+          "Replace PostgresKernelActionSubmitter with SurrealKernelActionSubmitter and implement/use a durable Surreal MemoryCapsuleIpcStore.",
+          "Remove the production/default in-memory success backend; unavailable authority must return a typed fail-closed error.",
+          "Rename PostgreSQL-specific constructors, variants, comments, and errors.",
+          "Inventory and repair every application consumer of ControlPlaneStorage and removed PostgreSQL symbols, not only cited files."
+        ],
+        "focused_negative_runtime_proof": [
+          "Compile handshake_core and the Tauri application against the same candidate commit/features.",
+          "Write through the Tauri/Core boundary, close the owned embedded store, reopen the same namespace/database, and read exact state plus EventLedger evidence.",
+          "Prove unavailable authority fails closed without in-memory, SQLite, or PostgreSQL behavior.",
+          "Rerun the MT-136 declaration-count test and forbidden-symbol scan."
+        ],
+        "pass_conditions": [
+          "All storage and Tauri consumers compile without PostgreSQL symbols or nonexistent fields.",
+          "Editor state and EventLedger evidence survive close/reopen through the single Surreal authority.",
+          "Authority unavailability produces typed failure with no alternate success path.",
+          "Validator-owned focused and bundled proof passes on the remediated commit."
+        ]
+      }
+    ],
+    "residual_uncertainty": [
+      "Cargo was intentionally not run in this lane; more compiler failures may appear after the cited type mismatches are repaired."
+    ]
+  },
+  "validation_v5": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V5",
+    "validated_by": "WP_VALIDATOR-CODEX-V5-20260913",
+    "validated_at_utc": "2026-09-13T03:12:32.685Z",
+    "validated_commit": "75a5c637d4bf3067d95975a9bcc4ad7571fef075",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria."
+    ],
+    "failed_acceptance_criteria": [
+      "AC-136-2",
+      "AC-136-4"
+    ],
+    "findings": [
+      {
+        "severity": "BLOCKING",
+        "title": "Memory-capsule Flight Recorder success remains process-local rather than durable SurrealDB/EventLedger state",
+        "authority": [
+          "WP storage_contract typed-api and close/reopen durability requirements",
+          "Master Spec v02.206 02-system-architecture.md:2270-2272,2623-2630,2660-2662"
+        ],
+        "evidence": [
+          "app/src-tauri/src/commands/memory_capsule.rs:24-30 stores flight_recorder_events in Mutex<Vec<CapsuleFlightRecorderEvent>> inside the Surreal backend variant.",
+          "app/src-tauri/src/commands/memory_capsule.rs:106-126 returns FemsFlightRecorder success after pushing only to that process-local vector, without an EventLedger write."
+        ],
+        "failure_scenario": "A suppression can durably change capsule/action state while its claimed Flight Recorder evidence exists only in memory; a crash or restart loses the evidence, so recovery cannot be reconstructed from durable records.",
+        "required_product_changes": [
+          "Replace the production Mutex<Vec<CapsuleFlightRecorderEvent>> adapter with the canonical durable SurrealDB/EventLedger Flight Recorder writer through the typed Database boundary.",
+          "Propagate event persistence failure as FemsFlightRecorderError and do not acknowledge the authoritative operation when required evidence did not commit.",
+          "Keep any recording vector cfg(test)-only; it cannot be the shipped adapter.",
+          "Add a real Tauri/core proof that writes a capsule action, closes the owning store, reopens the same namespace/database, and reads exact capsule/action state plus correlated EventLedger evidence."
+        ]
+      },
+      {
+        "severity": "BLOCKING",
+        "title": "Tauri crate is not reproducibly buildable with its committed lockfile",
+        "authority": [
+          "AC-136-2",
+          "WP runtime/full-parity proof requirement"
+        ],
+        "evidence": [
+          "cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2 exited 101 because app/src-tauri/Cargo.lock requires update.",
+          "Validator log: Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136/wpv-v5/logs/tauri-check-locked.log"
+        ],
+        "required_product_changes": [
+          "Resolve current manifest/lock drift and commit the correctly generated app/src-tauri/Cargo.lock; retain --locked validation.",
+          "Confirm the lock delta contains only current dependency resolution and restores no PostgreSQL/sqlx dependency."
+        ]
+      }
+    ],
+    "required_revalidation": [
+      "cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2",
+      "Validator-owned real-store capsule close/reopen plus EventLedger correlation proof.",
+      "Validator-owned MT-136 storage surface, DECLARED_NOT_IMPLEMENTED, and forbidden executable backend-symbol checks."
+    ],
+    "pass_conditions": [
+      "Tauri and handshake_core compile at the same clean commit under --locked.",
+      "No production capsule success evidence is process-local only.",
+      "Capsule state and correlated EventLedger evidence survive close/reopen.",
+      "Authority or event-write failure is typed and fail-closed.",
+      "All validator-owned focused proof passes on the unchanged candidate."
+    ]
+  },
+  "validation_v6": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "PASS_V6",
+    "validated_by": "WP_VALIDATOR-CODEX-V6-20260913",
+    "validated_at_utc": "2026-09-13T08:26:13.460Z",
+    "validated_commit": "f5f41d3f8e78242cac5b93966e209d00a4bfffa5",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria by Operator direction."
+    ],
+    "passed_acceptance_criteria": [
+      "AC-136-1",
+      "AC-136-2",
+      "AC-136-3",
+      "AC-136-4"
+    ],
+    "requirement_evidence": [
+      {
+        "requirement": "AC-136-1 / exclusive embedded storage graph",
+        "evidence": [
+          "app/src-tauri/Cargo.lock package-name scan found no sqlx, postgres, tokio-postgres, rusqlite, or libsqlite3-sys package.",
+          "Owned storage/Atelier executable-symbol scan found no live sqlx/PgPool/PostgresDatabase/postgres_pool implementation; the remaining Atelier postgres strings are rejection guards, comments, or negative fixtures."
+        ]
+      },
+      {
+        "requirement": "AC-136-2 / native-editor database methods and durable capsule evidence",
+        "evidence": [
+          "app/src-tauri/src/commands/memory_capsule.rs:28,45,106-115 constructs and delegates to SurrealKernelActionSubmitter; the former production Mutex<Vec<...>> recorder is absent.",
+          "src/backend/handshake_core/src/memory/persistence.rs:267-288,343-366 reads/writes capsule Flight Recorder mirrors through KernelEventType::FlightRecorderMirrorRecorded and Database::append_kernel_event.",
+          "src/backend/handshake_core/src/memory/persistence.rs:398-401,467 uses atomic action-plus-manifest EventLedger appends for durable mutation paths."
+        ]
+      },
+      {
+        "requirement": "AC-136-4 / real store close and reopen",
+        "evidence": [
+          "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:50-120 explicitly shuts down and reopens the same embedded Surreal store before verifying capsule suppression and correlated Flight Recorder evidence.",
+          "Validator-owned memory_capsule_recorder_surreal_tests passed 3/3, including capsule_suppression_and_flight_recorder_evidence_survive_store_reopen."
+        ]
+      },
+      {
+        "requirement": "Stable idempotent replay",
+        "evidence": [
+          "src/backend/handshake_core/src/memory/persistence.rs:911-912,1151 derives receipt identifiers deterministically from the capsule record/idempotency key.",
+          "Validator-owned capsule_recorder_dedup_collapses_duplicate_submissions passed against embedded SurrealDB."
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Tauri capsule adapter to typed Surreal/EventLedger boundary",
+      "Idempotency-key and deterministic receipt replay",
+      "Committed Tauri dependency lock graph",
+      "Physical close/reopen durability"
+    ],
+    "independent_checks_run": [
+      "Inspected diff 75a5c637..f5f41d3 and final production/test source.",
+      "Scanned locked Tauri package names and owned source for forbidden PostgreSQL/SQLite dependencies and adapters.",
+      "Ran final Tauri cargo check --locked with Rust 1.97.1.",
+      "Ran memory_capsule_recorder_surreal_tests against the real embedded store."
+    ],
+    "counterfactual_checks": [
+      "A process-local success recorder would lose evidence after shutdown; the close/reopen test recovered the exact correlated event.",
+      "A replay using random receipt identifiers would not be stable; production receipt identifiers are derived deterministically from the record and purpose.",
+      "A stale lock graph would make --locked resolution fail; the committed graph compiled unchanged."
+    ],
+    "boundary_probes": [
+      "Tauri command adapter -> SurrealKernelActionSubmitter -> EventLedger",
+      "Capsule mutation -> atomic manifest/event append -> reopened read model"
+    ],
+    "negative_path_checks": [
+      "Duplicate capsule submission collapsed in the embedded authority.",
+      "No production Mutex-backed Flight Recorder success path remains in memory_capsule.rs.",
+      "No forbidden database driver package was admitted by app/src-tauri/Cargo.lock."
+    ],
+    "proof_results": [
+      {
+        "command": "cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2",
+        "result": "PASS",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136/wpv-v6/logs/tauri-check-locked-shortpath.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --test memory_capsule_recorder_surreal_tests --jobs 2 -- --test-threads=1",
+        "result": "PASS: 3 passed; 0 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136/wpv-v6/logs/mt136-memory-capsule.log"
+      }
+    ],
+    "independent_findings": [],
+    "residual_uncertainty": [
+      "The existing duplicate-submission target proves collapsed durable events but does not independently assert equality of every returned receipt field; deterministic receipt-ID construction was therefore also inspected in production source."
+    ],
+    "pass_conditions": [
+      "Locked Tauri boundary compiles on the exact candidate.",
+      "Capsule state and Flight Recorder evidence survive genuine embedded-store shutdown and reopen.",
+      "No process-local production success recorder or forbidden database dependency remains in the validated surfaces."
+    ]
+  },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

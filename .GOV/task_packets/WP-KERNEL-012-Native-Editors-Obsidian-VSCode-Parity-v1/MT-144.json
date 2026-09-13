@@ -31,14 +31,16 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V7",
     "depends_on": [],
     "blocks": [
       "MT-118"
     ],
     "active": false,
-    "validator_verdict": null,
-    "completed_by": null,
+    "validator_verdict": "PASS_V7",
+    "validated_by": "WP_VALIDATOR:/root/wpv_validate_129_144_v7",
+    "validated_at_utc": "2026-09-13T14:37:25.334Z",
+    "completed_by": "WP_VALIDATOR:/root/wpv_validate_129_144_v7",
     "claimed_by": "KERNEL_BUILDER-20260903-170735",
     "origin": "Created 2026-09-03 by KERNEL_BUILDER-20260903-170735 under the Operator instruction to open a lane that unblocks MT-118. MT-118 was moved to BLOCKED_ON_DEPENDENCY on 2026-09-02 because its proof targets (PT-118-1, PT-118-2, PT-118-3) all live in the handshake_core LIB test target, which no longer compiles after the PostgreSQL removal.",
     "why_not_mt_141": "MT-141 (B14, port the backend test SUITE off sqlx) cannot absorb this work: its contract allows only `src/backend/handshake_core/tests/` and explicitly lists `src/backend/handshake_core/src/**` under forbidden_paths. The failures blocking MT-118 are in cfg(test) modules INSIDE `src/`, which the LIB test target compiles and the `tests/` tree does not. The two microtasks are therefore disjoint by design and can run in parallel: MT-141 owns the integration-test tree, MT-144 owns the in-crate unit-test modules.",
@@ -325,5 +327,319 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-04T02:31:10.495Z"
+  "validation_v4": {
+    "status": "FAIL_V4",
+    "risk_tier": "MEDIUM",
+    "validated_commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+    "authority": [
+      "scope.acceptance_criteria.AC-144-3",
+      "WP-KERNEL-012 storage_contract SurrealDB/EventLedger-only implementation",
+      "Master Spec v02.206 spec-modules/02-system-architecture.md:2277-2279"
+    ],
+    "tests": {
+      "status": "NOT_RUN",
+      "reason": "The root validator scheduler prohibited Cargo execution in this delegated lane; the rejection is a deterministic source-contract failure."
+    },
+    "independent_checks_run": [
+      "Scanned every MT-144-owned active source module for sqlx, PostgreSQL, PgPool, SQLite, and SqlitePool identifiers.",
+      "Inspected each non-detector hit in the two active in-crate test modules and distinguished it from the permitted fail-closed stale-setting detector."
+    ],
+    "counterfactual_checks": [
+      "A source-conformance check implementing AC-144-3 verbatim still rejects the restored in-crate test modules even though their runtime backend is embedded SurrealDB.",
+      "Removing executable legacy dependencies is insufficient because AC-144-3 separately requires zero legacy identifiers in active test code except named negative tripwires."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT144-V4-F01",
+        "severity": "MEDIUM",
+        "failed_acceptance": [
+          "AC-144-3"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/api/jobs.rs:392-397 retains the former helper name and three PostgreSQL identifiers in the active test module's setup documentation.",
+          "src/backend/handshake_core/src/api/workspaces.rs:1469-1470 retains PostgreSQL terminology in the active test module's setup documentation.",
+          "These are historical implementation comments, not deliberately named negative-path tripwires; the permitted fail-closed detector is separately visible at src/backend/handshake_core/src/storage/mod.rs:195-204."
+        ],
+        "failure_scenario": "The exact AC-144-3 forbidden-identifier scan remains red on active in-crate test code, so the restored tests do not satisfy the contracted SurrealDB-only source surface even if they execute correctly.",
+        "remediation": [
+          "Rewrite the two setup_state comments in storage-neutral terms without retaining a forbidden identifier or historical helper symbol.",
+          "Keep the explicit unsupported-mode fail-closed detector in storage/mod.rs only if the MT detector inventory classifies it as a deliberate negative-path tripwire; otherwise centralize its legacy input literal in the existing detector fixture.",
+          "Run a focused forbidden-identifier scan over all MT-144-owned active test code and classify every remaining hit.",
+          "Compile and run api::jobs, api::workspaces, api::loom, api::memory, kernel::exporter, and storage in-crate tests against isolated managed SurrealDB, then build the product binary."
+        ],
+        "pass_conditions": "Zero forbidden legacy identifiers remain in MT-144 active test code except enumerated negative-path detectors, and the restored in-crate tests plus product binary pass using an isolated managed SurrealDB store."
+      }
+    ],
+    "residual_uncertainty": "Cargo compilation and execution remain centrally scheduled; no PASS is available until those runtime proofs are green on the repaired candidate."
+  },
+  "updated_at_utc": "2026-09-13T14:37:25.334Z",
+  "validation_v5": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V5",
+    "status": "FAIL_V5",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "risk_tier": "MEDIUM",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
+    "validated_at_utc": "2026-09-13T11:45:17.160Z",
+    "validated_commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-144-1 through AC-144-6",
+      "Master Spec v02.206 02-system-architecture.md:2266-2279 and 07-user-experience-and-development.md:18-20"
+    ],
+    "failed_acceptance_criteria": [
+      "AC-144-3"
+    ],
+    "findings": [
+      {
+        "id": "MT144-V5-F01",
+        "severity": "MEDIUM",
+        "failed_acceptance": [
+          "AC-144-3"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/bundles/exporter.rs:2478-2479 retains active test-module prose naming a PostgreSQL resolution chain.",
+          "AC-144-3 forbids SQLite or PostgreSQL identifiers, helpers, environment variables, or language in touched modules except deliberate forbidden-technology tripwires. This comment is explanatory legacy language, not a tripwire.",
+          "The same stale wording was removed from api/jobs.rs and api/workspaces.rs in this candidate but was missed in exporter.rs."
+        ],
+        "failure_scenario": "The supposedly SurrealDB-only in-crate test layer continues to teach future maintainers that the helper descends from a PostgreSQL resolution path, violating the exact cleanup contract and enabling stale backend language to persist or be copied back into executable test infrastructure.",
+        "remediation": [
+          "Change only the two-line exporter setup_state comment to the same current wording already used in jobs.rs/workspaces.rs: state creation is unconditional from an isolated authoritative embedded store and there is no skip branch.",
+          "Do not rename the removed backend, retain its vocabulary as history, or add a generic database abstraction explanation; AC-144-3 requires the obsolete identifier to disappear.",
+          "Run a case-insensitive source scan over all MT-144 touched modules for postgres, PostgreSQL, sqlite, PgPool, PostgresDatabase, postgres_pool, SQL DSNs, and removed helper names. Classify only explicit forbidden-technology negative tripwires as permitted and report every remaining hit.",
+          "After the static predecessor is clean, reuse the current all-targets/all-features compiler cache and run the contracted in-crate no-run gate, full lib target, api::memory filter, and product binary build with Rust 1.97.1 in one MT-144 owner target."
+        ],
+        "pass_conditions": "No non-tripwire legacy SQLite/PostgreSQL language remains in any touched MT-144 module, and all AC-144 compile/run/build commands succeed without weakened or ignored assertions."
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Retired-backend language surviving in active in-crate test modules",
+      "Equivalent helper comments diverging across jobs/workspaces/exporter"
+    ],
+    "independent_checks_run": [
+      "Compared the three equivalent setup_state helpers after remediation.",
+      "Scanned MT-144 touched modules for forbidden backend vocabulary and found the exporter survivor."
+    ],
+    "counterfactual_checks": [
+      "If exporter.rs were omitted from the corpus scan, the exact stale resolution-chain wording would survive despite the jobs/workspaces cleanup."
+    ],
+    "boundary_probes": [
+      "MT-144 zero-legacy-language contract -> active test-module source corpus"
+    ],
+    "negative_path_checks": [
+      "The candidate fails the explicit static forbidden-vocabulary gate before broad Cargo proof is relevant."
+    ],
+    "residual_uncertainty": "No broad MT-144 suite was launched because AC-144-3 is already red and the focused-to-broad rule forbids spending the successor build first."
+  },
+  "validation_v6": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V6",
+    "status": "FAIL_V6",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "risk_tier": "MEDIUM",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_129_144_v6",
+    "validated_at_utc": "2026-09-13T13:20:37.923Z",
+    "validated_commit": "0bafff37be596721c8bb6658a3daa69723f9e7e4",
+    "tree_clean": true,
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-144-1 through AC-144-6",
+      "Master Spec v02.206 spec-modules/02-system-architecture.md:2266-2279",
+      "Master Spec v02.206 spec-modules/07-user-experience-and-development.md:16-20"
+    ],
+    "failed_acceptance_criteria": [
+      "AC-144-3"
+    ],
+    "findings": [
+      {
+        "id": "MT144-V6-F01",
+        "severity": "MEDIUM",
+        "failed_acceptance": [
+          "AC-144-3"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/api/memory.rs:23-24 states that durable writes use embedded SurrealDB/EventLedger and then appends the active prose sentence No SQLite.",
+          "AC-144-3 forbids SQLite or PostgreSQL identifiers, DSNs, environment variables, helpers, or language in touched modules except a deliberate forbidden-technology tripwire whose stated purpose is detection.",
+          "The memory.rs module-level documentation is descriptive product prose, not a detector, assertion, fixture, or fail-closed tripwire.",
+          "Master Spec v02.206 02-system-architecture.md:2266-2279 and 07-user-experience-and-development.md:16-20 establish SurrealDB/EventLedger as the exclusive current authority and treat legacy backend terminology as historical inventory only, while AC-144-3 imposes the stricter zero-language rule on these touched modules."
+        ],
+        "failure_scenario": "The active backend module continues to carry non-tripwire retired-backend language after MT-144 claims a clean SurrealDB-only source surface. A future corpus check or maintainer can copy this stale contrast wording into runtime/test logic, and the exact AC-144-3 source gate remains red.",
+        "remediation": [
+          "Edit only src/backend/handshake_core/src/api/memory.rs:23-24 to describe the current positive authority path without naming the retired backend; for example: All durable writes use the embedded SurrealDB FEMS store plus durable kernel EventLedger receipts; review decisions are mirrored to Flight Recorder.",
+          "Do not replace the phrase with another historical comparison or add an explanatory legacy-backend note. This is not a permitted forbidden-technology tripwire.",
+          "Run a case-insensitive source scan over every MT-144 allowed module for sqlite, postgres, PostgreSQL, PgPool, PostgresDatabase, postgres_pool, SQL DSNs, and removed helper names. Permit only explicit executable negative-path detectors whose purpose is stated at the hit.",
+          "Only after the static scan is clean, run the contracted in-crate no-run gate, the api::memory filter, the full lib target with its pass/fail tally, and the product binary build using Rust 1.97.1 and one external MT-144 owner target. Do not run the broad Cargo successor while the static predecessor is red."
+        ],
+        "pass_conditions": "Zero non-tripwire retired-backend language remains in every MT-144 touched module, then AC-144-1, AC-144-5, PT-144-2, and AC-144-6 execute successfully or report only explicitly attributed downstream assertion failures allowed by the contract."
+      }
+    ],
+    "proof_records": [],
+    "diff_attack_surfaces": [
+      "Non-tripwire retired-backend terminology in active backend module documentation",
+      "Cross-MT source drift after prior MT-144 cleanup"
+    ],
+    "independent_checks_run": [
+      "Inspected the exact clean candidate at 0bafff37be596721c8bb6658a3daa69723f9e7e4.",
+      "Compared src/backend/handshake_core/src/api/memory.rs:23-24 directly with AC-144-3 and the current Master Spec SurrealDB supersession clauses."
+    ],
+    "counterfactual_checks": [
+      "Treating the phrase as a tripwire would be false: it performs no detection and has no negative-path assertion.",
+      "Running the expensive lib suite cannot cure or supersede the explicit source-language failure."
+    ],
+    "boundary_probes": [
+      "AC-144-3 zero-legacy-language contract -> active MT-144-owned source corpus"
+    ],
+    "negative_path_checks": [
+      "The focused static predecessor is red, so broader Cargo proof was not launched."
+    ],
+    "residual_uncertainty": "Runtime compile/run/build proof remains intentionally deferred behind the red AC-144-3 predecessor."
+  },
+  "validation_v7": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "PASS_V7",
+    "status": "PASS_V7",
+    "blocking": false,
+    "next_actor": "ORCHESTRATOR",
+    "risk_tier": "MEDIUM",
+    "validated_by": "WP_VALIDATOR:/root/wpv_validate_129_144_v7",
+    "validated_at_utc": "2026-09-13T14:37:25.334Z",
+    "validated_commit": "605c6cf4fa6897f884d6c3a46d52be41a000d5a2",
+    "tree_clean": true,
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-144-1 through AC-144-6",
+      "Master Spec v02.206 spec-modules/02-system-architecture.md:2266-2279",
+      "Master Spec v02.206 spec-modules/07-user-experience-and-development.md:16-20"
+    ],
+    "satisfied_acceptance_criteria": [
+      "AC-144-1",
+      "AC-144-2",
+      "AC-144-3",
+      "AC-144-4",
+      "AC-144-5",
+      "AC-144-6"
+    ],
+    "failed_acceptance_criteria": [],
+    "findings": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V7-MT-144-001",
+        "command": "rg -n -i '(sqlite|postgres|pgpool|postgresdatabase|postgres_pool|postgres_test_url|database_url)' <MT-144 original five-file corpus>",
+        "cwd": ".",
+        "commit": "605c6cf4fa6897f884d6c3a46d52be41a000d5a2",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_validate_129_144_v7",
+        "target_dir": null,
+        "exit_code": 1,
+        "result_line": "MT144_CORPUS_SCAN CLEAN: zero matches in jobs.rs, loom.rs, memory.rs, workspaces.rs, and exporter.rs",
+        "log_path": null,
+        "features": [],
+        "env_knobs": {},
+        "covers": [
+          "MT-144"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V7-MT-144-002",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --features app-runtime,test-utils,surreal-test-support --no-run --jobs 2",
+        "cwd": ".",
+        "commit": "605c6cf4fa6897f884d6c3a46d52be41a000d5a2",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_validate_129_144_v7",
+        "target_dir": "WP-KERNEL-012/MT-129/wpv-v7/backend-target",
+        "exit_code": 0,
+        "result_line": "Finished test profile [unoptimized + debuginfo] target(s) in 19m 37s; emitted handshake_core lib-test executable",
+        "log_path": "WP-KERNEL-012/MT-144/wpv-v7/logs/mt144-lib-no-run.log",
+        "features": [
+          "app-runtime",
+          "test-utils",
+          "surreal-test-support"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-129/wpv-v7/backend-target",
+          "TMP": "WP-KERNEL-012/MT-144/wpv-v7/tmp",
+          "TEMP": "WP-KERNEL-012/MT-144/wpv-v7/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "Handshake_Artifacts",
+          "PROOF_BATCH_OWNER": "MT-129",
+          "PROOF_BATCH_COVERS": "MT-129,MT-144"
+        },
+        "covers": [
+          "MT-144"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V7-MT-144-003",
+        "command": "cargo +1.97.1 build --locked --manifest-path src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime --jobs 2",
+        "cwd": ".",
+        "commit": "605c6cf4fa6897f884d6c3a46d52be41a000d5a2",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_validate_129_144_v7",
+        "target_dir": "WP-KERNEL-012/MT-129/wpv-v7/backend-target",
+        "exit_code": 0,
+        "result_line": "Finished dev profile [unoptimized + debuginfo] target(s) in 37m 17s",
+        "log_path": "WP-KERNEL-012/MT-129/wpv-v7/logs/final-backend-build.log",
+        "features": [
+          "app-runtime"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-129/wpv-v7/backend-target",
+          "PROOF_BATCH_OWNER": "MT-129",
+          "PROOF_BATCH_COVERS": "MT-129,MT-144"
+        },
+        "covers": [
+          "MT-129",
+          "MT-144"
+        ]
+      }
+    ],
+    "change_to_validation_mapping": [
+      "The only MT-144 delta from FAIL_V6 is the module-level documentation edit in api/memory.rs; it removes the final non-tripwire retired-backend term without changing executable behavior.",
+      "The exact original MT-144 five-file corpus was derived from git show e2365695 and scanned clean.",
+      "The full handshake_core lib-test target compiled with the contracted features at the final candidate, and the product binary built from the same final candidate.",
+      "The unchanged runtime behavior evidence from the implementation remains applicable; per parent validator direction, no unrelated 30-minute runtime filter was repeated for a comment-only delta."
+    ],
+    "diff_attack_surfaces": [
+      "Final non-tripwire retired-backend terminology in the exact MT-owned corpus",
+      "Accidental compile drift in the full in-crate test target after the documentation-only correction"
+    ],
+    "independent_checks_run": [
+      "Derived the exact MT-owned corpus from the original implementation commit e2365695 rather than scanning an over-broad allowed subtree.",
+      "Ran a case-insensitive forbidden-backend scan over all five original MT-owned files and observed zero matches.",
+      "Executed the exact all-or-nothing handshake_core lib-test no-run compile gate at the clean final candidate."
+    ],
+    "counterfactual_checks": [
+      "If api/memory.rs retained the removed contrast sentence, AC-144-3 would remain red even though runtime behavior compiled.",
+      "If any of the five original MT-owned files were omitted from the scan, the earlier jobs/workspaces/exporter survivors could recur undetected.",
+      "If the restored helper lifetime or cfg(test) wiring regressed, the full lib-test no-run command would fail to emit the handshake_core test executable."
+    ],
+    "boundary_probes": [
+      "MT-144 original implementation commit file list -> current five-file source corpus -> zero forbidden-backend hits",
+      "Restored embedded-test helpers and call sites -> full handshake_core cfg(test) compile boundary"
+    ],
+    "negative_path_checks": [
+      "An intentionally over-broad preliminary scan was not used as verdict evidence because it included unrelated storage tripwires and historical migration literals.",
+      "The verdict uses the exact original MT-owned corpus, preventing both false positives from unrelated files and false negatives from omitting an owned file."
+    ],
+    "evidence_map": [
+      "src/backend/handshake_core/src/api/memory.rs:23-24 now states only the positive SurrealDB/EventLedger/Flight Recorder authority path.",
+      "git show e2365695 identifies jobs.rs, loom.rs, memory.rs, workspaces.rs, and exporter.rs as the exact original MT-144 implementation corpus.",
+      "Master Spec v02.206 spec-modules/02-system-architecture.md:2266-2279 requires SurrealDB-exclusive authority and retires legacy proof paths.",
+      "Master Spec v02.206 spec-modules/07-user-experience-and-development.md:16-20 forbids legacy backend tests and proof paths."
+    ],
+    "residual_uncertainty": "The V7 delta is documentation-only and the exact owned corpus plus full lib-test compile boundary are green. Runtime assertions outside MT-144's compile-restoration responsibility may still fail under their owning MTs; none were weakened, ignored, or hidden by this change."
+  }
 }

@@ -25,20 +25,20 @@
   "title": "B10-MT-137-Port-Backend-Infrastructure-Modules-Off-sqlx",
   "group": "B10",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-25T00:49:38Z",
+  "updated_at_utc": "2026-09-13T10:03:21.641Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V7",
     "depends_on": [
       "MT-136"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
-    "completed_by": null,
+    "validator_verdict": "PASS_V7",
+    "completed_by": "WP_VALIDATOR-CODEX-V7-20260913",
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T13:45:00Z",
     "ready_for_validation_at_utc": "2026-08-25T00:49:38Z",
@@ -158,10 +158,344 @@
   },
   "hbr_obligations": [],
   "hbr_int_009_tier_obligations": [],
+  "validation_v4": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V4",
+    "validated_by": "WP_VALIDATOR-CODEX-WAVE1-20260913",
+    "validated_at_utc": "2026-09-12T23:16:41.1179912Z",
+    "candidate_worktree": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-native-editors-v1",
+    "spec_version": "v02.206",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria."
+    ],
+    "diff_attack_surfaces": [
+      "Crash-recovery scenario model",
+      "Public-to-internal recovery conversion",
+      "Durable checkpoint/EventLedger close-reopen boundary",
+      "Flight Recorder preservation"
+    ],
+    "independent_checks_run": [
+      "Scanned MT-137 infrastructure directories for forbidden backend symbols.",
+      "Inspected the public recovery scenario enum and its event mapping.",
+      "Compared public scenarios with crash_recovery_e2e::from_public exhaustiveness."
+    ],
+    "counterfactual_checks": [
+      "A Surreal recovery implementation exercises a real embedded authority and durable records rather than mapping PostgreSQL loss to an empty vector.",
+      "A supported public scenario converts deterministically and never reaches a wildcard panic."
+    ],
+    "boundary_probes": [
+      "Public CrashRecoveryScenario to executable E2E conversion",
+      "Authority-loss event generation to recovery input"
+    ],
+    "negative_path_checks": [
+      "PostgresLoss is public but from_public does not handle it.",
+      "PostgresLoss yields no durable events and proves neither authority loss nor recovery."
+    ],
+    "independent_findings": [
+      {
+        "severity": "BLOCKING",
+        "failed_acceptance_criteria": [
+          "AC-137-2"
+        ],
+        "wp_requirements": [
+          "Process-ledger and session-checkpoint state must survive embedded SurrealDB/EventLedger close/reopen.",
+          "Stateful proofs must use isolated Surreal namespace/database authority without PostgreSQL compatibility paths."
+        ],
+        "master_spec_requirements": [
+          "02-system-architecture.md:2270-2277 - SurrealDB/EventLedger is exclusive and PostgreSQL is retired.",
+          "02-system-architecture.md:2349-2360 - proof must use real Handshake-managed SurrealDB/EventLedger; alternate/mock proof is insufficient.",
+          "02-system-architecture.md:2662 - recovery and validation must be possible from durable product records."
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/session_checkpoint/crash_recovery.rs:3-7 - documentation points to a PostgreSQL E2E harness and POSTGRES_TEST_URL.",
+          "src/backend/handshake_core/src/session_checkpoint/crash_recovery.rs:20-28,71-74 - public scenario and documentation still expose PostgreSQL loss.",
+          "src/backend/handshake_core/src/session_checkpoint/crash_recovery.rs:93-100 - PostgresLoss maps to an empty event list.",
+          "src/backend/handshake_core/tests/crash_recovery_e2e/mod.rs:61-74 - from_public panics for unhandled variants, including PostgresLoss."
+        ],
+        "failure_scenario": "Selecting the advertised authority-loss case names PostgreSQL and supplies no events; E2E conversion then panics. This neither exercises nor recovers a closed/reopened Surreal authority and can turn required recovery into a crash or vacuous result.",
+        "required_product_changes": [
+          "Replace PostgresLoss and PostgreSQL harness language with a canonical Surreal authority-loss scenario backed by embedded SurrealDB.",
+          "Make public-to-E2E conversion exhaustive; unsupported input returns a typed error, never panic.",
+          "Seed real process-ledger events and checkpoints, close, reopen the same namespace/database, and recover exact durable records.",
+          "Represent unavailable/corrupt authority as typed fail-closed behavior, not an empty event stream.",
+          "Remove POSTGRES_TEST_URL and retired PostgreSQL harness dependencies.",
+          "Preserve and assert Flight Recorder append/query behavior in the real-authority proof."
+        ],
+        "focused_negative_runtime_proof": [
+          "Seed ordered process events plus checkpoint, close/reopen, and recover exact session state and EventLedger IDs/order.",
+          "Prove unavailable Surreal authority returns typed failure without panic, empty-stream substitution, or fallback.",
+          "Invoke every public CrashRecoveryScenario through from_public and prove exhaustive handling.",
+          "Append a Flight Recorder record before close, reopen, and query the same identity."
+        ],
+        "pass_conditions": [
+          "No live PostgreSQL recovery scenario, harness, environment gate, or documentation remains.",
+          "Every public recovery scenario has a deterministic typed path.",
+          "Real embedded Surreal close/reopen recovery preserves exact durable records.",
+          "Authority loss fails closed; Flight Recorder behavior remains intact.",
+          "Validator-owned focused and bundled proof passes on the remediated commit."
+        ]
+      }
+    ],
+    "residual_uncertainty": [
+      "Cargo was intentionally not run in this lane; the static defect is decisive, while other runtime defects may remain."
+    ]
+  },
+  "validation_v5": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V5",
+    "validated_by": "WP_VALIDATOR-CODEX-V5-20260913",
+    "validated_at_utc": "2026-09-13T03:12:32.685Z",
+    "validated_commit": "75a5c637d4bf3067d95975a9bcc4ad7571fef075",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria."
+    ],
+    "failed_acceptance_criteria": [
+      "AC-137-2",
+      "AC-137-3"
+    ],
+    "findings": [
+      {
+        "severity": "BLOCKING_PROOF",
+        "title": "Required validator-owned recovery, atomicity, and Flight Recorder proof could not run after the mandatory Tauri predecessor failed",
+        "authority": [
+          "AC-137-2 and AC-137-3",
+          "Master Spec v02.206 02-system-architecture.md:2349-2360,2660-2662"
+        ],
+        "evidence": [
+          "The mandatory first cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2 exited 101 because app/src-tauri/Cargo.lock requires update.",
+          "Focused-to-broad sequencing therefore prohibited launching memory_capsule_recorder_surreal_tests, crash_recovery_e2e, atelier_stealth_window_tests, and process_ledger::writer::surreal_restart_tests.",
+          "src/backend/handshake_core/src/process_ledger/writer.rs:624-728 declares one explicit transaction and line 814 onward contains real-store rollback tests, but unexecuted tests do not prove AC-137-2.",
+          "src/backend/handshake_core/src/session_checkpoint/crash_recovery.rs:20-28,77-106 now exposes SurrealAuthorityLoss with typed fail-closed behavior and runtime_chaos.rs contains embedded reopen/backoff paths; V5 execution proof is absent."
+        ],
+        "required_product_changes": [
+          "Resolve and commit app/src-tauri/Cargo.lock drift without removing --locked or restoring legacy-backend dependencies.",
+          "Then execute the real-store injected-mid-batch rollback case and prove no committed prefix before retry plus exactly-once rows after retry and reopen.",
+          "Execute every public CrashRecoveryScenario conversion, the SurrealAuthorityLoss negative path, transient authority backoff/recovery, and hard-kill close/reopen recovery.",
+          "Prove Flight Recorder append/query identity and order survive close/reopen in the same validator-owned batch."
+        ]
+      }
+    ],
+    "required_revalidation": [
+      "cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2",
+      "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --test crash_recovery_e2e --jobs 2 -- --test-threads=1",
+      "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib process_ledger::writer::surreal_restart_tests --jobs 2 -- --test-threads=1",
+      "Validator-owned Flight Recorder append/read close-reopen proof."
+    ],
+    "pass_conditions": [
+      "Locked Tauri boundary compiles on the same clean candidate.",
+      "Failed process-ledger batch exposes no prefix; retry/reopen yields exactly one of each row.",
+      "Surreal authority loss is typed with no panic, empty-success substitution, or alternate backend.",
+      "Checkpoint, process-ledger, recovery-report, and Flight Recorder evidence survive close/reopen.",
+      "All validator-owned focused proof passes on the unchanged candidate."
+    ]
+  },
+  "validation_v6": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V6",
+    "validated_by": "WP_VALIDATOR-CODEX-V6-20260913",
+    "validated_at_utc": "2026-09-13T08:26:13.460Z",
+    "validated_commit": "f5f41d3f8e78242cac5b93966e209d00a4bfffa5",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria by Operator direction."
+    ],
+    "failed_acceptance_criteria": [
+      "AC-137-2"
+    ],
+    "findings": [
+      {
+        "severity": "BLOCKING",
+        "title": "Stale exact reclaim STOP does not surface the required durable-sentinel ownership conflict",
+        "authority": [
+          "MT-137 restart/recovery and exactly-once process-ledger acceptance contract",
+          "WP process_ledger_contract atomic batch, durable recovery, and replay requirements",
+          "Master Spec v02.206 EventLedger durability and fail-closed recovery requirements"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/process_ledger/writer.rs:619-729 implements one explicit Surreal transaction and throws HSK-PROCESS-LEDGER-RECLAIM-CONFLICT when a stale reclaim owner attempts STOP.",
+          "src/backend/handshake_core/src/process_ledger/writer.rs:749-800 converts every storage error through generic ProcessLedgerError::from and contains no branch that maps the Surreal reclaim-conflict sentinel to the required process-ledger conflict.",
+          "src/backend/handshake_core/src/process_ledger/writer.rs:1366-1413 constructs equal-time, distinct-owner claims and requires the stale STOP error to contain `exact reclaim STOP did not own the current durable sentinel`.",
+          "Validator-owned focused suite failed that assertion after 8 other restart/rollback tests passed; an exact rerun failed identically."
+        ],
+        "failure_scenario": "Two recovery owners claim the same abandoned process at the same timestamp. Owner A's stale exact STOP is rejected by SurrealDB, but the typed process-ledger layer erases the contract-specific conflict classification. Callers cannot distinguish stale ownership from generic storage failure, and the mandatory negative-path proof aborts before verifying that owner B's durable sentinel remains intact and can finalize exactly once.",
+        "required_product_changes": [
+          "In SurrealProcessLedgerStore::write_batch_inner, preserve and classify the HSK-PROCESS-LEDGER-RECLAIM-CONFLICT result before generic StorageError-to-ProcessLedgerError conversion.",
+          "Return a deterministic typed ProcessLedgerError whose display contract includes `exact reclaim STOP did not own the current durable sentinel`; do not weaken the test and do not convert the conflict to success.",
+          "Prefer a structured query outcome/error classification over brittle free-text parsing if the Surreal adapter exposes one; keep the transaction rollback boundary unchanged.",
+          "Retain the equal-timestamp/distinct-owner adversarial case and prove after the stale failure that the row is still owned by owner B, owner B can finalize it, and close/reopen shows exactly one terminal result with unchanged chronology/metadata.",
+          "After the source change, rerun the full nine-test process_ledger::writer::surreal_restart_tests target, then crash_recovery_e2e with app-runtime,surreal-test-support,test-utils, because both consume the changed writer semantics."
+        ],
+        "focused_negative_runtime_proof": [
+          "The exact stale-owner target must pass twice or once after a deterministic code fix without timing dependence.",
+          "The full focused module must report 9 passed, 0 failed.",
+          "The injected partial-batch failure must still leave no prefix; retry plus physical close/reopen must show each event exactly once.",
+          "Crash recovery must still hard-kill the owned child, reopen the same embedded authority, and persist checkpoint/process/recovery-report/Flight Recorder evidence."
+        ],
+        "pass_conditions": [
+          "Stale exact reclaim STOP returns the specified typed ownership conflict and never durable success.",
+          "The replacement owner's sentinel remains unchanged after stale failure and finalizes exactly once.",
+          "All nine focused writer tests and crash_recovery_e2e pass on one unchanged commit."
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Atomic multi-event Surreal transaction",
+      "Failure rollback and retry replay",
+      "Equal-timestamp reclaim-owner disambiguation",
+      "Storage-error to process-ledger error boundary"
+    ],
+    "independent_checks_run": [
+      "Inspected transactional query and final writer error conversion.",
+      "Ran all process_ledger::writer::surreal_restart_tests sequentially.",
+      "Reran only the failing stale exact reclaim target against the warm unchanged binary."
+    ],
+    "counterfactual_checks": [
+      "Timestamp-only claim authority would accept the stale owner; the test uses equal timestamps and different UUID owners.",
+      "A generic error is not equivalent to the contract-specific reclaim conflict; the exact typed display assertion failed twice."
+    ],
+    "boundary_probes": [
+      "Surreal THROW sentinel -> SurrealStorage error -> ProcessLedgerError",
+      "Recovery owner A stale STOP -> owner B durable sentinel"
+    ],
+    "negative_path_checks": [
+      "Injected transaction failure rollback/retry passed.",
+      "Stale exact reclaim ownership conflict failed twice.",
+      "Broader crash-recovery expansion stopped after the decisive red as required."
+    ],
+    "proof_results": [
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib process_ledger::writer::surreal_restart_tests --jobs 2 -- --test-threads=1",
+        "result": "FAIL: 8 passed; 1 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136/wpv-v6/logs/mt137-process-ledger.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib process_ledger::writer::surreal_restart_tests::mt137_stale_exact_reclaim_stop_surfaces_claim_conflict --jobs 2 -- --exact --test-threads=1",
+        "result": "FAIL: deterministic repeat of the same assertion",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-136/wpv-v6/logs/mt137-stale-conflict-rerun.log"
+      }
+    ],
+    "residual_uncertainty": [
+      "crash_recovery_e2e was not run after the decisive focused red, so additional MT-137 runtime failures may remain behind this blocker."
+    ]
+  },
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "validation_v7": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "PASS_V7",
+    "validated_by": "WP_VALIDATOR-CODEX-V7-20260913",
+    "validated_at_utc": "2026-09-13T10:03:21.641Z",
+    "validated_commit": "7922ea60349ec7c294ca75c61b180aaf197cf441",
+    "risk_tier": "HIGH",
+    "operator_waivers": [
+      "Repo-governance ceremony, paperwork, and path-governance adherence were excluded from product pass criteria by Operator direction."
+    ],
+    "passed_acceptance_criteria": [
+      "AC-137-1",
+      "AC-137-2",
+      "AC-137-3"
+    ],
+    "requirement_evidence": [
+      {
+        "requirement": "AC-137-1 / infrastructure modules contain no sqlx",
+        "evidence": [
+          "Validator rg scan over all MT-137 owned source directories returned zero sqlx hits.",
+          "Locked handshake_core and Tauri boundaries compiled at the exact candidate."
+        ]
+      },
+      {
+        "requirement": "AC-137-2 / process-ledger and checkpoint durability across reopen",
+        "evidence": [
+          "src/backend/handshake_core/src/process_ledger/writer.rs:62-104 preserves the thrown Surreal reclaim sentinel as a typed ReclaimConflict while retaining the original SurrealStorageError source.",
+          "src/backend/handshake_core/src/process_ledger/writer.rs:737-818 keeps the atomic transaction and maps only the exact thrown reclaim sentinel before generic error conversion.",
+          "Validator exact stale-owner proof passed; full writer restart module passed 9/9; dedicated mt137_restart_recovery_tests passed 8/8; crash_recovery_e2e passed 13/13 executable tests with one internal child entrypoint intentionally ignored."
+        ]
+      },
+      {
+        "requirement": "AC-137-3 / Flight Recorder consumer behavior preserved",
+        "evidence": [
+          "src/backend/handshake_core/tests/mt137_restart_recovery_tests.rs:645-715 appends SpanStarted/SpanEnded, shuts down the real store, reopens it, and reads the ordered events through SessionAggregateQueries.",
+          "Validator-owned mt137_restart_recovery_tests passed 8/8, including flight_recorder_append_is_consumer_visible_after_reopen."
+        ]
+      },
+      {
+        "requirement": "MT-137 manual obligation",
+        "evidence": [
+          "src/backend/handshake_core/src/user_manual/seed.rs:3629-3642 guards the process-ledger, checkpoint, EventLedger, idempotency, and no-fallback semantics.",
+          "Validator manual filter passed mt137_manual_covers_embedded_lifecycle_persistence."
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Surreal THROW classification at the storage-to-process-ledger error boundary",
+      "Equal-timestamp distinct-owner reclaim conflict",
+      "Atomic batch rollback and retry replay",
+      "Physical store reopen for process, checkpoint, and Flight Recorder state"
+    ],
+    "independent_checks_run": [
+      "Inspected diff f5f41d3f..7922ea60 and current writer source.",
+      "Scanned all MT-137 owned modules for sqlx.",
+      "Ran the exact stale reclaim conflict test before the broader module.",
+      "Ran the full writer restart module, dedicated MT-137 restart target, crash-recovery E2E target, locked Tauri check, and manual guards."
+    ],
+    "counterfactual_checks": [
+      "Without classify_process_batch_error, the Surreal thrown sentinel degrades to generic ProcessLedgerError::Surreal and the stale-owner contract fails.",
+      "Without reclaim_owner identity in addition to the equal timestamp, stale owner A could finalize owner B's durable sentinel.",
+      "Without physical shutdown/reopen, process, checkpoint, and Flight Recorder tests would not prove durable authority."
+    ],
+    "boundary_probes": [
+      "Surreal THROW sentinel -> SurrealStorageError::Database -> typed ProcessLedgerError::ReclaimConflict",
+      "Stale owner A STOP -> owner B durable sentinel -> owner B exactly-once finalization",
+      "Flight Recorder producer -> embedded EventLedger -> reopened SessionAggregateQueries consumer",
+      "Checkpoint writer -> embedded authority shutdown -> typed readback after reopen"
+    ],
+    "negative_path_checks": [
+      "Stale exact reclaim STOP returns conflict and preserves replacement owner state.",
+      "Injected partial-batch failure rolls back with no durable prefix, then retry converges.",
+      "Forced-cancel projection rejects recovery success while an owned process survives.",
+      "Transient embedded authority unavailability backs off and resumes without alternate-backend fallback."
+    ],
+    "proof_results": [
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib process_ledger::writer::surreal_restart_tests::mt137_stale_exact_reclaim_stop_surfaces_claim_conflict --jobs 2 -- --exact --test-threads=1",
+        "result": "PASS: 1 passed; 0 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137/wpv-v7/logs/mt137-stale-exact-reclaim.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --lib process_ledger::writer::surreal_restart_tests --jobs 2 -- --test-threads=1",
+        "result": "PASS: 9 passed; 0 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137/wpv-v7/logs/mt137-process-ledger-full.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --test mt137_restart_recovery_tests --jobs 2 -- --test-threads=1",
+        "result": "PASS: 8 passed; 0 failed",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137/wpv-v7/logs/mt137-restart-recovery.log"
+      },
+      {
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --test crash_recovery_e2e --jobs 2 -- --test-threads=1",
+        "result": "PASS: 13 passed; 0 failed; 1 internal child entrypoint ignored",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137/wpv-v7/logs/mt137-crash-recovery-e2e.log"
+      },
+      {
+        "command": "cargo +1.97.1 check --locked --manifest-path app/src-tauri/Cargo.toml --jobs 2",
+        "result": "PASS",
+        "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-137/wpv-v7/logs/tauri-check-locked.log"
+      }
+    ],
+    "independent_findings": [],
+    "residual_uncertainty": [
+      "The sentinel classification necessarily recognizes a stable Surreal thrown-error code in the SDK error message; it is constrained by is_thrown() plus the exact stable sentinel and preserves the original typed source, making the residual coupling acceptable."
+    ],
+    "pass_conditions": [
+      "Exact reclaim conflict remains typed and source-preserving.",
+      "Process, checkpoint, and Flight Recorder state survive genuine embedded-store close/reopen.",
+      "Crash recovery and locked shipped boundary pass on the unchanged candidate.",
+      "No sqlx remains in MT-137 owned modules."
+    ]
   }
 }

@@ -22,7 +22,7 @@
   "title": "E11-MT-129-Make-The-MCP-Discovery-Binding-Publish-Windows-Long-Path-Safe",
   "group": "E11-Argus",
   "created_at_utc": "2026-08-13T09:40:00Z",
-  "updated_at_utc": "2026-08-13T17:20:00Z",
+  "updated_at_utc": "2026-09-13T14:37:25.334Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -65,11 +65,13 @@
   },
   "lifecycle": {
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "PASS_V7",
+    "validated_by": "WP_VALIDATOR:/root/wpv_validate_129_144_v7",
+    "validated_at_utc": "2026-09-13T14:37:25.334Z",
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR:/root/wpv_validate_129_144_v7",
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V7",
     "depends_on": [],
     "blocks": [
       "MT-116",
@@ -97,5 +99,428 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  },
+  "validation_v4": {
+    "status": "FAIL_V4",
+    "risk_tier": "HIGH",
+    "validated_commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+    "authority": [
+      "MT-129 AC-129-1",
+      "MT-129 AC-129-2",
+      "MT-129 AC-129-3",
+      "WP-KERNEL-012 binding-publication acceptance surface"
+    ],
+    "findings": [
+      {
+        "id": "MT129-V4-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "AC-129-1",
+          "AC-129-2"
+        ],
+        "evidence": [
+          "src/frontend/handshake_native/src/mcp/binding.rs:428-431 imports MoveFileExW but not GetFullPathNameW.",
+          "src/frontend/handshake_native/src/mcp/binding.rs:453-459 implements operand resolution with Path::canonicalize and, on failure, current_dir().join(path). The destination normally does not exist on first publication, so the fallback does not resolve dot segments or otherwise perform the contracted Win32 full-path normalization.",
+          "src/frontend/handshake_native/src/mcp/binding.rs:460-480 converts the unresolved fallback through to_string_lossy, replaces slash characters, and adds the verbatim prefix. A verbatim Win32 path disables normal dot-segment normalization, so a relative destination containing `.` or `..` can be published with the wrong or invalid object-manager path.",
+          "src/frontend/handshake_native/src/mcp/binding.rs:483-487 acknowledges that the destination may not exist, but still uses the current-directory join fallback rather than the AC-required GetFullPathNameW resolution for both operands."
+        ],
+        "failure_scenario": "With a caller-supplied relative binding root that contains `.` or `..`, the temporary source may canonicalize because it exists while the first-publish destination cannot. The two operands are therefore resolved by different rules; the destination receives a verbatim prefix while retaining unresolved components, and MoveFileExW can fail, address a different path, or reproduce the publication gap AC-129 exists to close. Non-Unicode Windows paths are also corrupted by to_string_lossy before the OS call.",
+        "remediation": [
+          "Replace the canonicalize/current_dir/to_string_lossy helper with a UTF-16 Win32 helper that calls GetFullPathNameW for each operand independently using the documented size-query/retry pattern and propagates a typed operand-specific error.",
+          "Apply the extended-length prefix only after GetFullPathNameW returns an absolute normalized path: preserve an existing `\\?\\` form, translate a normalized UNC path to `\\?\\UNC\\...`, and translate a normalized drive path to `\\?\\C:\\...`. Keep the transformation in UTF-16 so no OsStr data passes through lossy Unicode conversion.",
+          "Reject unsupported device/relative results explicitly before MoveFileExW; keep MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH and retain source plus destination names/lengths in failure diagnostics.",
+          "Add a Windows regression that publishes through a non-existing relative destination rooted through both `.` and `..`, with mixed input separators and total operand length beyond 260, then proves exact binding JSON at the normalized destination and no unpublished temp residue.",
+          "Keep the existing ordinary absolute long-path test, add a focused UTF-16 helper test for drive and UNC prefix formation, and preserve the wrong-operand diagnostic test.",
+          "Rerun the real test_block_collection_view path with the binding-root override unset, plus the binding ownership/concurrent publication tests, using an external WP/MT/owner Cargo target."
+        ],
+        "pass_conditions": "Both MoveFileExW operands are independently resolved through GetFullPathNameW and converted losslessly to valid extended-length UTF-16 paths before the OS call; first publication succeeds for long relative roots containing dot segments; diagnostics identify the failing operand; no temp credential remains after failure; and the real block-collection binding path passes with its override unset."
+      }
+    ],
+    "residual_uncertainty": "No Cargo or live Win32 publication proof was run in this lane. The repaired helper requires focused Windows tests and the real consuming binary before PASS can be assigned."
+  },
+  "validation_v5": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V5",
+    "status": "FAIL_V5",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
+    "validated_at_utc": "2026-09-13T11:45:17.160Z",
+    "validated_commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-129-1 through AC-129-4",
+      "scope.proof_targets PT-129-1 and PT-129-2"
+    ],
+    "failed_acceptance_criteria": [
+      "AC-129-1",
+      "AC-129-2",
+      "AC-129-4"
+    ],
+    "findings": [
+      {
+        "id": "MT129-V5-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "AC-129-1",
+          "AC-129-2",
+          "AC-129-4"
+        ],
+        "evidence": [
+          "src/frontend/handshake_native/src/mcp/binding.rs:1255 constructs the new in-crate Windows regression with tempfile::Builder.",
+          "src/frontend/handshake_native/Cargo.toml dev-dependencies do not declare tempfile.",
+          "Validator cargo test --lib fails E0433 before any binding regression can execute: cannot find module or crate tempfile in this scope."
+        ],
+        "failure_scenario": "The production helper may be correct, but the only new first-publication relative/dot/mixed-separator/>260 regression does not compile. AC-129-2 therefore has no executable green proof, and the real no-override acceptance surface cannot legally run behind a red predecessor.",
+        "remediation": [
+          "Keep the production GetFullPathNameW two-pass UTF-16 implementation and operand-specific diagnostics unchanged unless a focused test exposes a defect.",
+          "Because MT-129 allowed_paths excludes Cargo.toml, remove the undeclared tempfile dependency from the in-crate regression rather than widening dependency scope: create a collision-resistant directory below the existing external Handshake_Artifacts root with std::fs, and guard it with a local RAII cleanup type that restores LOCALAPPDATA and removes only that owned directory.",
+          "Ensure the test creates the artifacts parent if and only if it is the already-authorized external artifact root; never create or clean a repo-local target/data directory.",
+          "Preserve the exact stress shape: relative root, mixed separators, both dot and dot-dot components, first publication to a nonexistent destination, source and destination operand lengths above 260, exact parsed JSON at the normalized destination, and zero temporary binding residue after removal.",
+          "Run cargo +1.97.1 test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --lib mcp::binding::tests --jobs 2 -- --test-threads=1 first. Only after it is green, run test_block_collection_view with HANDSHAKE_ARGUS_BINDING_ROOT explicitly unset and capture the real binding publication/read/remove result."
+        ],
+        "pass_conditions": "The binding unit target compiles and executes the long relative first-publication regression; both operands remain lossless GetFullPathNameW-normalized UTF-16; and test_block_collection_view passes with the binding-root override unset."
+      }
+    ],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V5-MT-129-001",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --lib mcp::binding::tests --jobs 2 -- --test-threads=1",
+        "cwd": ".",
+        "commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_recover_115_147",
+        "target_dir": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129/wpv-115-147/target",
+        "started_utc": "2026-09-13T11:03:04.774Z",
+        "finished_utc": "2026-09-13T11:08:10.686Z",
+        "exit_code": 101,
+        "result_line": "FAIL E0433 at src/mcp/binding.rs:1255: cannot find module or crate tempfile in this scope",
+        "log_path": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129/wpv-115-147/logs/mt129-binding-lib.log",
+        "features": [],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129/wpv-115-147/target",
+          "TMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129/wpv-115-147/tmp",
+          "TEMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-129/wpv-115-147/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-129"
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Win32 source/destination normalization",
+      "Lossless UTF-16 and verbatim-prefix construction",
+      "Executable coverage of nonexistent relative long-path publication"
+    ],
+    "independent_checks_run": [
+      "Inspected both Win32 helper and new regression source.",
+      "Ran the narrow binding lib-test predecessor at the exact clean candidate; compilation failed before test execution."
+    ],
+    "counterfactual_checks": [
+      "If the production helper regressed to lossy String conversion, non-Unicode operands would be corrupted.",
+      "If the regression cannot compile, it proves none of AC-129-2’s runtime path regardless of how plausible the helper looks."
+    ],
+    "boundary_probes": [
+      "Rust Path/OsStr -> GetFullPathNameW -> verbatim UTF-16 -> MoveFileExW"
+    ],
+    "negative_path_checks": [
+      "Compilation itself rejected the undeclared test dependency; broader runtime proof was correctly not attempted behind the red predecessor."
+    ],
+    "residual_uncertainty": "No behavior verdict is inferred for the new relative-path test because it never executed."
+  },
+  "validation_v6": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V6",
+    "status": "FAIL_V6",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_129_144_v6",
+    "validated_at_utc": "2026-09-13T13:20:37.923Z",
+    "validated_commit": "0bafff37be596721c8bb6658a3daa69723f9e7e4",
+    "tree_clean": true,
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-129-1 through AC-129-4",
+      "scope.proof_targets PT-129-1 and PT-129-2",
+      "WP_VALIDATOR_PROTOCOL VPX-001 through VPX-008"
+    ],
+    "satisfied_acceptance_criteria": [
+      "AC-129-1",
+      "AC-129-2",
+      "AC-129-3"
+    ],
+    "failed_acceptance_criteria": [
+      "AC-129-4"
+    ],
+    "findings": [
+      {
+        "id": "MT129-V6-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "AC-129-4"
+        ],
+        "evidence": [
+          "src/frontend/handshake_native/src/mcp/binding.rs:284-350 implements two-pass GetFullPathNameW and lossless UTF-16 verbatim-path construction; src/frontend/handshake_native/src/mcp/binding.rs:588-595 applies it independently to both MoveFileExW operands.",
+          "Validator binding unit proof at the exact clean candidate ran 11 tests and passed, including write_binding_survives_a_root_past_the_legacy_max_path_limit, relative_dot_mixed_separator_long_publish_normalizes_and_cleans_up, UTF-16 drive/UNC prefixing, concurrency, cleanup, and idempotency.",
+          "The correctly feature-enabled real acceptance command ran exactly one block_collection_views_live_surrealdb_self_seed_full_round_trip test and failed before backend startup at src/frontend/handshake_native/tests/backend_proof_support/mod.rs:536-544.",
+          "resolve_backend_binary hardcodes ../../../../Handshake_Artifacts/handshake-cargo-target and rejects the validator-owned current-source backend at Handshake_Artifacts/WP-KERNEL-012/MT-129/wpv-v6/backend-target/debug/handshake_core.exe as outside that obsolete shared root.",
+          "HANDSHAKE_ARGUS_BINDING_ROOT was explicitly unset. The test therefore reached the required no-override configuration but the proof harness blocked the product path before binding publication could execute."
+        ],
+        "failure_scenario": "A compliant validator build placed under the required WP/MT/owner artifact hierarchy cannot be consumed by the real block-collection proof because the shared fixture accepts only an obsolete root-level Cargo target. AC-129-4 therefore remains red even though the direct binding implementation and focused Windows regressions pass.",
+        "remediation": [
+          "In src/frontend/handshake_native/tests/backend_proof_support/mod.rs, replace the hardcoded Handshake_Artifacts/handshake-cargo-target ancestry assertion with an explicit fail-closed target-root contract that supports isolated WP/MT/owner builds.",
+          "Recommended shape: require HSK_TEST_BACKEND_TARGET_ROOT, canonicalize it and HANDSHAKE_ARTIFACTS_ROOT, require the target root to be a strict descendant of HANDSHAKE_ARTIFACTS_ROOT with WP, MT, and owner components, then require the canonical HSK_TEST_BACKEND_BIN to be beneath that declared target. Do not silently accept repo-local target output or any arbitrary executable.",
+          "Preserve assert_backend_binary_is_current_source and the exact executable-name check so a stale or foreign handshake_core binary remains rejected.",
+          "Add focused positive coverage for a canonical WP/MT/owner backend target and negative coverage for a repo-local target, an outside-artifact-root target, a mismatched declared target, and a stale binary.",
+          "Reuse the already-built validator backend rather than rebuilding. Rerun cargo +1.97.1 test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_block_collection_view block_collection_views_live_surrealdb_self_seed_full_round_trip --jobs 2 -- --test-threads=1 with HSK_TEST_BACKEND_BIN and HSK_TEST_BACKEND_TARGET_ROOT pointing to the same MT-129 owner backend target and HANDSHAKE_ARGUS_BINDING_ROOT explicitly unset; require running 1 test and 1 passed.",
+          "Rerun the 11-test mcp::binding::tests target only if the remediation changes binding.rs; otherwise retain this validator-owned green proof because its source inputs remain unchanged."
+        ],
+        "pass_conditions": "The shared fixture accepts only a verified current-source handshake_core executable inside the declared external WP/MT/owner target, the exact integration command runs one test with HANDSHAKE_ARGUS_BINDING_ROOT unset and passes, and the existing 11-test binding proof remains valid."
+      }
+    ],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-129-001",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --lib mcp::binding::tests --jobs 2 -- --test-threads=1",
+        "cwd": ".",
+        "commit": "0bafff37be596721c8bb6658a3daa69723f9e7e4",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_validate_115_147",
+        "target_dir": "WP-KERNEL-012/MT-129/wpv-v6/target",
+        "exit_code": 0,
+        "result_line": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 2085 filtered out",
+        "log_path": "WP-KERNEL-012/MT-129/wpv-v6/logs/mt129-binding-lib.log",
+        "features": [],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-129/wpv-v6/target",
+          "TMP": "WP-KERNEL-012/MT-129/wpv-v6/tmp",
+          "TEMP": "WP-KERNEL-012/MT-129/wpv-v6/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-129"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-129-002",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_block_collection_view block_collection_views_live_surrealdb_self_seed_full_round_trip --jobs 2 -- --test-threads=1",
+        "cwd": ".",
+        "commit": "0bafff37be596721c8bb6658a3daa69723f9e7e4",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_recover_129_144_v6",
+        "target_dir": "WP-KERNEL-012/MT-129/wpv-v6/target",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 42 filtered out",
+        "diagnostic": "HSK_TEST_BACKEND_BIN under WP-KERNEL-012/MT-129/wpv-v6/backend-target was rejected as outside hardcoded Handshake_Artifacts/handshake-cargo-target",
+        "log_path": "WP-KERNEL-012/MT-129/wpv-v6/logs/mt129-block-collection-real-integration.log",
+        "features": [
+          "integration"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-129/wpv-v6/target",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-129/wpv-v6/backend-target/debug/handshake_core.exe",
+          "HANDSHAKE_ARGUS_BINDING_ROOT": "UNSET",
+          "HANDSHAKE_ARTIFACTS_ROOT": "Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-129"
+        ]
+      }
+    ],
+    "discarded_attempts": [
+      {
+        "reason": "Feature flag omitted, so Cargo reported success while running 0 tests; this attempt is not acceptance evidence.",
+        "result_line": "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out",
+        "log_path": "WP-KERNEL-012/MT-129/wpv-v6/logs/mt129-block-collection-real-rerun.log"
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Win32 full-path normalization and lossless verbatim UTF-16 operands",
+      "Long relative first publication with dot segments and mixed separators",
+      "Shared backend proof fixture versus isolated WP/MT/owner artifact targets"
+    ],
+    "independent_checks_run": [
+      "Inspected the exact clean candidate at 0bafff37be596721c8bb6658a3daa69723f9e7e4.",
+      "Recovered the completed validator unit log and backend build log from the external MT-129 owner directory.",
+      "Executed the exact feature-enabled real consumer test with the binding-root override unset and the current-source validator backend supplied."
+    ],
+    "counterfactual_checks": [
+      "A green 0-test Cargo result was explicitly discarded rather than accepted.",
+      "Pointing HSK_TEST_BACKEND_BIN at a compliant isolated target exposes the hardcoded legacy-root guard before product execution.",
+      "Using the old shared target would evade the fixture guard but violate the required isolation model and would not prove the configured production path."
+    ],
+    "boundary_probes": [
+      "Path/OsStr -> GetFullPathNameW -> verbatim UTF-16 -> MoveFileExW",
+      "External WP/MT/owner backend binary -> shared frontend integration fixture -> no-override binding publication"
+    ],
+    "negative_path_checks": [
+      "The fixture failed closed on a backend binary outside its hardcoded legacy target, proving the current guard is active but incompatible with the required isolated target.",
+      "The invalid 0-test run was not counted."
+    ],
+    "residual_uncertainty": "The binding implementation is green in focused Windows tests. The real consumer path remains unexecuted beyond fixture validation until the hardcoded target-root guard is repaired."
+  },
+  "validation_v7": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "PASS_V7",
+    "status": "PASS_V7",
+    "blocking": false,
+    "next_actor": "ORCHESTRATOR",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR:/root/wpv_validate_129_144_v7",
+    "validated_at_utc": "2026-09-13T14:37:25.334Z",
+    "validated_commit": "605c6cf4fa6897f884d6c3a46d52be41a000d5a2",
+    "tree_clean": true,
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-129-1 through AC-129-4",
+      "scope.proof_targets PT-129-1 and PT-129-2",
+      "WP_VALIDATOR_PROTOCOL validator-executed focused proof and adversarial review"
+    ],
+    "satisfied_acceptance_criteria": [
+      "AC-129-1",
+      "AC-129-2",
+      "AC-129-3",
+      "AC-129-4"
+    ],
+    "failed_acceptance_criteria": [],
+    "findings": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V7-MT-129-001",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_block_collection_view backend_binary_guard_tests --jobs 2 -- --test-threads=1",
+        "cwd": ".",
+        "commit": "605c6cf4fa6897f884d6c3a46d52be41a000d5a2",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_validate_129_144_v7",
+        "target_dir": "WP-KERNEL-012/MT-129/wpv-v7/target",
+        "exit_code": 0,
+        "result_line": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 43 filtered out",
+        "log_path": "WP-KERNEL-012/MT-129/wpv-v7/logs/mt129-backend-guard-tests.log",
+        "features": [
+          "integration"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-129/wpv-v7/target",
+          "TMP": "WP-KERNEL-012/MT-129/wpv-v7/tmp",
+          "TEMP": "WP-KERNEL-012/MT-129/wpv-v7/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-129"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V7-MT-129-002",
+        "command": "cargo +1.97.1 build --locked --manifest-path src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime --jobs 2",
+        "cwd": ".",
+        "commit": "605c6cf4fa6897f884d6c3a46d52be41a000d5a2",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_validate_129_144_v7",
+        "target_dir": "WP-KERNEL-012/MT-129/wpv-v7/backend-target",
+        "exit_code": 0,
+        "result_line": "Finished dev profile [unoptimized + debuginfo] target(s) in 37m 17s",
+        "log_path": "WP-KERNEL-012/MT-129/wpv-v7/logs/final-backend-build.log",
+        "features": [
+          "app-runtime"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-129/wpv-v7/backend-target",
+          "TMP": "WP-KERNEL-012/MT-129/wpv-v7/tmp",
+          "TEMP": "WP-KERNEL-012/MT-129/wpv-v7/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-129",
+          "MT-144"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V7-MT-129-003",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_block_collection_view block_collection_views_live_surrealdb_self_seed_full_round_trip --jobs 2 -- --test-threads=1",
+        "cwd": ".",
+        "commit": "605c6cf4fa6897f884d6c3a46d52be41a000d5a2",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_validate_129_144_v7",
+        "target_dir": "WP-KERNEL-012/MT-129/wpv-v7/target",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 47 filtered out",
+        "log_path": "WP-KERNEL-012/MT-129/wpv-v7/logs/mt129-block-collection-real-integration.log",
+        "features": [
+          "integration"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-129/wpv-v7/target",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-129/wpv-v7/backend-target/debug/handshake_core.exe",
+          "HSK_TEST_BACKEND_TARGET_ROOT": "WP-KERNEL-012/MT-129/wpv-v7/backend-target",
+          "HANDSHAKE_ARGUS_BINDING_ROOT": "UNSET",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "WP-KERNEL-012/MT-129/wpv-v7/runtime",
+          "HANDSHAKE_ARTIFACTS_ROOT": "Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-129"
+        ]
+      }
+    ],
+    "reused_proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-129-001",
+        "reason": "The candidate diff 0bafff37..605c6cf4 changes only backend_proof_support/mod.rs and api/memory.rs; src/frontend/handshake_native/src/mcp/binding.rs and its 11-test input surface are byte-unchanged.",
+        "result_line": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 2085 filtered out"
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Canonicalized artifact root, declared backend target, and executable containment at the frontend/backend process boundary",
+      "Stale-current-source executable rejection",
+      "Real relative fallback discovery-binding publication with HANDSHAKE_ARGUS_BINDING_ROOT unset"
+    ],
+    "independent_checks_run": [
+      "Inspected exact diff 0bafff37be596721c8bb6658a3daa69723f9e7e4..605c6cf4fa6897f884d6c3a46d52be41a000d5a2 on a clean tree.",
+      "Executed five positive/negative backend binary guard tests independently.",
+      "Built handshake_core from the final candidate and executed the exact real block-collection consumer proof with the binding override unset."
+    ],
+    "counterfactual_checks": [
+      "If validate_canonical_backend_binary_location stopped requiring the declared target beneath the canonical artifact root, a repo-local or foreign executable could satisfy the fixture.",
+      "If resolve_backend_binary omitted the freshness walk, a correctly located but stale handshake_core executable could be accepted.",
+      "If HANDSHAKE_ARGUS_BINDING_ROOT were set, the test would bypass the exact relative fallback path required by AC-129-4."
+    ],
+    "boundary_probes": [
+      "HSK_TEST_BACKEND_BIN plus HSK_TEST_BACKEND_TARGET_ROOT -> canonical containment guard -> current-source freshness walk",
+      "Final-source backend process -> frontend block_collection integration fixture -> relative MCP discovery binding publication"
+    ],
+    "negative_path_checks": [
+      "Repo-local target rejected.",
+      "Target outside artifact root rejected.",
+      "Binary outside declared target rejected.",
+      "Stale backend binary rejected."
+    ],
+    "evidence_map": [
+      "src/frontend/handshake_native/tests/backend_proof_support/mod.rs:512-560 resolves and validates the configured binary, target, and artifact root before process launch.",
+      "src/frontend/handshake_native/tests/backend_proof_support/mod.rs:564-611 enforces strict descendant shape and binary containment.",
+      "src/frontend/handshake_native/tests/backend_proof_support/mod.rs:614-669 retains current-source freshness rejection.",
+      "src/frontend/handshake_native/tests/backend_proof_support/mod.rs:671-775 covers positive and negative target/freshness cases.",
+      "src/frontend/handshake_native/src/mcp/binding.rs:284-350 and 588-595 remain byte-unchanged from the validator-green V6 binding proof."
+    ],
+    "residual_uncertainty": "The production binding implementation is directly covered by the unchanged 11-test Windows suite and the real consumer path. Remaining risk is limited to Windows path forms not represented by the drive/UNC, relative-dot, mixed-separator, long-path, concurrency, cleanup, and idempotency cases already covered."
   }
 }

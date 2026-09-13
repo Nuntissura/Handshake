@@ -31,13 +31,15 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V6",
     "depends_on": [
       "MT-142"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "PASS_V6",
+    "validated_by": "WP_VALIDATOR:/root/wpv_v6_151_152",
+    "validated_at_utc": "2026-09-13T03:01:30.558Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260910-073935",
     "claimed_at_utc": "2026-09-11T11:39:06.634Z",
@@ -259,7 +261,243 @@
       "instruction": "Validate MT-151 at this exact commit; MT-152 commits after it on the same branch by Operator decision (2026-09-11, added scope granted)."
     }
   },
-  "updated_at_utc": "2026-09-11T14:37:56.168Z",
+  "validation_v4": {
+    "status": "FAIL_V4",
+    "risk_tier": "HIGH",
+    "validated_commit": "98353583742437f1ebf4ccba5950938927af59da",
+    "authority": [
+      "scope.items.I-151-4 and I-151-5",
+      "scope.acceptance_criteria.AC-151-3 and AC-151-4",
+      "packet.scope.acceptance_criteria Obsidian-class folder tree and SurrealDB/EventLedger durability/concurrency requirements",
+      "Master Spec v02.206 02-system-architecture.md:2270-2275, 2349-2360, 2472-2475"
+    ],
+    "tests": {
+      "status": "NOT_RUN",
+      "reason": "This delegated validator assignment prohibited Cargo execution. The findings are direct contract-to-code counterexamples; implementer logs were not used as PASS evidence."
+    },
+    "diff_attack_surfaces": [
+      "process-global lock released while an abandoned SurrealDB statement can still commit",
+      "nullable-parent uniqueness at the root-folder boundary",
+      "test-owned retry-error conversion diverging from the production converter"
+    ],
+    "independent_checks_run": [
+      "Inspected the exact MT-151 commit's folder create transaction and schema index together.",
+      "Inspected the exact MT-151 commit's live conflict test, its local conversion helper, and the production retry conversion boundary."
+    ],
+    "counterfactual_checks": [
+      "If LOOM_MUTATION_LOCK is released by the caller-side timeout before the statement completes, schema.surql:4219 is the only remaining sibling-name guard; because a root row contains parent_folder_id=NONE, that index does not enforce the claimed root invariant.",
+      "If knowledge.rs:136-159 changes its NoRetryWindow mapping, surreal_swarm_semantics_tests.rs:1581-1608 can remain green because the test recreates rather than calls that production mapping."
+    ],
+    "boundary_probes": [
+      "Writer/schema boundary: loom_store.rs:3281-3327 versus schema.surql:4205-4221 at commit 98353583.",
+      "Retry/runtime-test boundary: knowledge.rs:136-159 versus surreal_swarm_semantics_tests.rs:1581-1608 and 1641-1765 at commit 98353583."
+    ],
+    "negative_path_checks": [
+      "Two root folders in one workspace with the same visible name have no database-side rejection at the validated commit.",
+      "A production NoRetryWindow conversion regression is not detected because the integration test calls exhaustion_to_storage_error, a test-owned duplicate."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT151-V4-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "I-151-4",
+          "AC-151-3"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:3286 at commit 98353583 acquires the process-global guard, but :3306 creates the folder without a duplicate-root precondition or stored non-null discriminator.",
+          "src/backend/handshake_core/src/storage/surreal/schema.surql:4209 and :4219 at commit 98353583 leave root parent_folder_id as NONE and rely on a composite UNIQUE containing that nullable field.",
+          "MT-152's own FIND-152-ROOT-FOLDER-UNIQUENESS-NEVER-GUARDED confirms the engine skips UNIQUE tuples containing NONE and corrects MT-151's audit claim."
+        ],
+        "failure_scenario": "A workspace can persist two same-name root folders. Under the MT-151 timeout model, concurrent abandoned statements can also outlive the released process lock, so the claimed database-side invariant is absent exactly where AC-151-3 requires it.",
+        "remediation": [
+          "Replace the nullable composite as the effective root/sibling guard with one injective, non-null sibling-scope identity enforced by a UNIQUE index.",
+          "Do not use an unescaped delimiter or a sentinel that can equal a legal folder id. Encode workspace_id, the root/parent variant, parent id, and normalized name with an unambiguous versioned representation such as length-prefixed components; compute it through one canonical Rust function and bind the computed value into create, rename, and re-parent writes.",
+          "Use the same canonical function during the replay-safe in-place backfill before installing the UNIQUE index. Preserve visible names while deterministically disambiguating only genuinely pre-existing duplicates and recording those collisions.",
+          "Add managed-SurrealDB tests proving duplicate roots and duplicate children in the same sibling scope fail with the existing typed conflict, while a root named N and a child named N beneath a legal parent id of 'root' both succeed. Add delimiter-bearing workspace/folder/name cases and close/reopen readback.",
+          "Re-audit every row in lifecycle.i_151_4_audit against the actual database guard rather than accepting the prior audit prose."
+        ],
+        "pass_conditions": "A new commit contains an injective database-enforced sibling identity; all create/rename/re-parent/backfill paths share it; adversarial collision cases and close/reopen durability pass on Handshake-managed SurrealDB; no remaining lock-only invariant is exposed by timeout release."
+      },
+      {
+        "id": "MT151-V4-F02",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "I-151-5",
+          "AC-151-4"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/tests/surreal_swarm_semantics_tests.rs:1581-1608 at commit 98353583 explicitly mirrors the private production retry_error_to_storage conversion.",
+          "src/backend/handshake_core/tests/surreal_swarm_semantics_tests.rs:1752-1763 calls that test-owned converter before asserting HSK-STORAGE-NO-RETRY-WINDOW.",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs:136-159 contains the separate converter actually used by product callers."
+        ],
+        "failure_scenario": "The production conversion can emit the wrong code, detail, or exhaustion classification while the test remains green because the test manufactures the expected StorageError itself. The live engine conflict proves RetryError::Exhausted(NoRetryWindow), not the required product-visible HSK-STORAGE-NO-RETRY-WINDOW outcome.",
+        "remediation": [
+          "Delete exhaustion_to_storage_error from the integration test.",
+          "Refactor the production RetryError-to-StorageError conversion into one canonical product function used by every guarded mutation path; expose it to integration proof only under the existing test-support boundary if necessary.",
+          "Make the live conflict test pass its real RetryError through that production function, then through the real swarm classifier. Assert attempts=1, bound=no_retry_window, exact HSK-STORAGE-NO-RETRY-WINDOW, no HSK-STORAGE-RETRY-EXHAUSTED classification, and no expected-stale/conflict bucket.",
+          "Add a focused product-module test covering Terminal, Cancelled, MaxAttempts/MaxElapsed, and NoRetryWindow so future mapping drift cannot be hidden by a second implementation. Do not weaken the shared operation deadline or statement timeout to make the test easier."
+        ],
+        "pass_conditions": "The deterministic live SurrealDB saturation proof reaches the single production conversion and real classifier with no duplicated mapping in test code, and the exact distinct outcome/count assertions pass."
+      }
+    ],
+    "residual_uncertainty": "Cargo proof remains unexecuted in this delegated lane. After repair, all MT-151 declared targets must run from the final candidate commit; prior implementer results cannot establish PASS_V5."
+  },
+  "validation_v5": {
+    "status": "FAIL_V5",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "risk_tier": "HIGH",
+    "validated_commit": "428e610fa0ddc7aa55308afd18f58f721de7251d",
+    "remediation_commit_reviewed": "38051d86e2a0ab34d0e109274c349357f748418a",
+    "authority": [
+      "scope.items.I-151-5",
+      "scope.acceptance_criteria.AC-151-4 and AC-151-6",
+      "Master Spec v02.206 02-system-architecture.md:2270-2275, 2349-2360, 2472-2475"
+    ],
+    "tests": {
+      "status": "FAILED",
+      "green": [
+        "canonical_storage_mapper_covers_terminal_cancelled_and_all_exhaustion_bounds: 1 passed",
+        "first_attempt_consuming_the_retry_budget_reports_no_retry_window: 1 passed; HSK-STORAGE-NO-RETRY-WINDOW attempts=1 and distinct diagnostics",
+        "engine_conflict_retry_lane_bypassing_the_keyed_registry serialized retry: 1 passed; exhausted=0",
+        "storage::surreal::schema: 27 passed",
+        "storage::surreal::retry: 30 passed",
+        "all remaining integration targets in the validator batch passed"
+      ],
+      "red": "user_manual::seed::tests::mt142_manual_covers_surreal_swarm_concurrency_and_load: storage sources no longer define conflict code HSK-STORAGE-RETRY-EXHAUSTED; user_manual result 25 passed, 1 failed",
+      "logs": [
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/retry-mapper-rust-1.97.1-short-target.log",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/retry-live-no-window-rust-1.97.1-artifact-root.log",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/retry-lane-focused-after-batch.log",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/lib-schema.log",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/lib-retry.log",
+        "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v5/logs/lib-user-manual.log"
+      ]
+    },
+    "diff_attack_surfaces": [
+      "canonical retry-error conversion ownership",
+      "manual/runtime source-contract coupling after symbol relocation",
+      "serialized versus parallel embedded-store contention"
+    ],
+    "independent_findings": [
+      {
+        "id": "MT151-V5-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "AC-151-6: every changed target has a green result at the final commit"
+        ],
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/retry.rs:70 is now the sole canonical owner of RETRY_EXHAUSTED_CONFLICT_CODE.",
+          "src/backend/handshake_core/src/user_manual/seed.rs:4219-4224 builds storage_sources from surreal.rs, database.rs, and knowledge.rs only; it omits retry.rs.",
+          "src/backend/handshake_core/src/user_manual/seed.rs:4234-4238 requires storage_sources to contain the exact quoted HSK-STORAGE-RETRY-EXHAUSTED code.",
+          "The required serialized user_manual target fails deterministically at seed.rs:4235 with 25 passed and 1 failed."
+        ],
+        "failure_scenario": "The production mapper is correctly consolidated into retry.rs, but the shipped manual's source-of-truth drift test still assumes retry codes live in the former three-file corpus. A valid production relocation therefore leaves the required manual target red and prevents final-commit proof.",
+        "remediation": [
+          "Add mt142_read(&crate_root.join(\"src/storage/surreal/retry.rs\")) to the storage_sources corpus in user_manual/seed.rs beside surreal.rs, database.rs, and knowledge.rs.",
+          "Do not copy RETRY_EXHAUSTED_CONFLICT_CODE back into knowledge.rs/database.rs and do not weaken, remove, or special-case the assertion; retry.rs is the canonical product owner required by the V4 remediation.",
+          "Keep the runtime-symbol and exact-code checks operating on the expanded corpus so future mapper/code relocation drift remains detectable.",
+          "Run cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --jobs 2 --lib user_manual -- --test-threads=1 --nocapture and retain the complete green result."
+        ],
+        "pass_conditions": "The unchanged canonical mapper remains in storage/surreal/retry.rs, the manual source-contract corpus includes that file, and the serialized user_manual target passes all 26 tests at the new exact candidate commit."
+      }
+    ],
+    "counterfactual_checks": [
+      "Duplicating the constant into a previously scanned file would make the test green while undoing single ownership; that is explicitly not an acceptable repair.",
+      "Weakening the source-contract assertion would hide future documentation/runtime drift and does not satisfy AC-151-6."
+    ],
+    "residual_uncertainty": "The parallel integration batch produced one retry exhaustion and repeated embedded-store teardown diagnostics, but the exact retry-lane test passed under the packet-required serialized setting. These are harness/contention observations, not the deterministic blocking finding. Commits 38051d86..428e610f do not touch any MT-151/152 proof input, so eligible evidence is rebound to clean HEAD 428e610f."
+  },
+  "validation_v6": {
+    "status": "PASS_V6",
+    "blocking": false,
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "risk_tier": "HIGH",
+    "validated_commit": "75a5c637d4bf3067d95975a9bcc4ad7571fef075",
+    "authority": [
+      "scope.items.I-151-5",
+      "scope.acceptance_criteria.AC-151-4 and AC-151-6",
+      "packet.scope.acceptance_criteria SurrealDB/EventLedger durability and concurrency",
+      "Master Spec v02.206 02-system-architecture.md:2270-2275, 2349-2360, 2472-2475"
+    ],
+    "tests": {
+      "status": "PASSED",
+      "command": "cargo +1.97.1 test --locked --manifest-path ../wtc-native-editors-v1/src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --jobs 2 --lib user_manual -- --nocapture --test-threads=1",
+      "result": "test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 2021 filtered out; finished in 2.43s",
+      "warnings": "239 pre-existing crate warnings; the semantic repair introduced no new warning-producing code",
+      "log": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v6/logs/lib-user-manual-v6.log"
+    },
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-151-152-USER-MANUAL-001",
+        "command": "cargo +1.97.1 test --locked --manifest-path ../wtc-native-editors-v1/src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --jobs 2 --lib user_manual -- --nocapture --test-threads=1",
+        "cwd": ".",
+        "commit": "75a5c637d4bf3067d95975a9bcc4ad7571fef075",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_v6_151_152",
+        "target_dir": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/kb-v5/target",
+        "started_utc": "2026-09-13T03:01:28.057Z",
+        "finished_utc": "2026-09-13T03:01:30.558Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 2021 filtered out; finished in 2.43s",
+        "log_path": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v6/logs/lib-user-manual-v6.log",
+        "features": [
+          "surreal-test-support",
+          "test-utils"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/kb-v5/target",
+          "TMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v6/tmp",
+          "TEMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-152/wpv-v6/tmp"
+        },
+        "covers": [
+          "MT-151",
+          "MT-152"
+        ]
+      }
+    ],
+    "reused_validator_evidence": {
+      "source": "validation_v5.tests.green and validation_v5.tests.logs",
+      "source_commit": "428e610fa0ddc7aa55308afd18f58f721de7251d",
+      "eligibility": "The V5-to-V6 diff changes only user_manual/seed.rs. Removing the one retry.rs corpus expression and rustfmt-normalizing both revisions produces identical SHA-256 A20963A442FC2A7589A20B0D72A235B1D908C628C56E8B387DC105459539060; storage, retry, schema, integration, concurrency, durability, migration, and close/reopen inputs are unchanged.",
+      "reused": [
+        "validation_v5.tests.green",
+        "validation_v5.tests.logs"
+      ],
+      "invalidated_and_rerun": "user_manual lib target only"
+    },
+    "diff_attack_surfaces": [
+      "canonical retry-error conversion ownership",
+      "manual/runtime source-contract coupling after symbol relocation",
+      "format-only expansion concealing manual content or assertion drift"
+    ],
+    "independent_checks_run": [
+      "Verified clean candidate HEAD equals 75a5c637d4bf3067d95975a9bcc4ad7571fef075.",
+      "Verified the range 428e610f..75a5c637 changes only src/backend/handshake_core/src/user_manual/seed.rs.",
+      "Removed exactly one retry.rs mt142_read expression from the candidate, rustfmt-normalized base and candidate, and obtained identical SHA-256 hashes.",
+      "Inspected retry.rs and confirmed RETRY_EXHAUSTED_CONFLICT_CODE remains solely owned by the canonical retry mapper.",
+      "Executed the invalidated serialized user_manual target as WP Validator and obtained 26/26."
+    ],
+    "counterfactual_checks": [
+      "If retry.rs were removed from storage_sources, mt142_manual_covers_surreal_swarm_concurrency_and_load would again fail on the exact HSK-STORAGE-RETRY-EXHAUSTED source check.",
+      "If the constant were copied into database.rs or knowledge.rs instead, the test could turn green while violating canonical mapper ownership; the inspected diff does not do that.",
+      "If the formatting expansion changed any manual content, assertion, or other Rust token, the normalized base and candidate hashes after removing the one intended expression would differ; they are identical."
+    ],
+    "boundary_probes": [
+      "Producer/manual-contract boundary: retry.rs:70 and retry_error_to_storage remain the product owner; seed.rs:4285-4291 now includes retry.rs in the exact source corpus.",
+      "Manual/assertion boundary: the full serialized user_manual module exercised the runtime-symbol, exact-code, runbook, lock-migration, and corpus consistency assertions."
+    ],
+    "negative_path_checks": [
+      "Rejected copied-literal remediation by inspecting the only semantic change and the unchanged retry.rs owner.",
+      "Rejected weakened-assertion remediation because normalization proves the assertion bodies are unchanged apart from the corpus addition."
+    ],
+    "independent_findings": [],
+    "residual_uncertainty": "The V6 run intentionally does not repeat unchanged MT-151 storage, retry, schema, integration, race, or durability proofs. Those validator-owned V5 inputs are unchanged and remain eligible for reuse; only the manual corpus input changed and was rerun."
+  },
+  "updated_at_utc": "2026-09-13T03:01:30.558Z",
   "owned_files": [
     "src/backend/handshake_core/src/storage/surreal/schema.rs",
     "src/backend/handshake_core/src/storage/surreal/schema.surql",

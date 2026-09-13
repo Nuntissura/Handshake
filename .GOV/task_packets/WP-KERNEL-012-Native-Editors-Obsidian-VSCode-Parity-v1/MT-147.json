@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "FAIL_V5",
     "depends_on": [],
     "blocks": [
       "MT-118",
@@ -40,7 +40,9 @@
       "MT-146"
     ],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V5",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
+    "validated_at_utc": "2026-09-13T11:45:17.160Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260903-213930",
     "claimed_at_utc": "2026-09-03T23:37:02.315Z",
@@ -409,5 +411,167 @@
     "review_response_receipt_id": null,
     "baseline_failing_run": "33666580708"
   },
-  "updated_at_utc": "2026-09-04T01:10:16.295Z"
+  "validation_v4": {
+    "status": "FAIL_V4",
+    "risk_tier": "HIGH",
+    "validated_commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+    "authority": [
+      "scope.acceptance_criteria.AC-147-1",
+      "scope.acceptance_criteria.AC-147-6",
+      "WP-KERNEL-012 verification boundary",
+      "Master Spec v02.206 spec-modules/02-system-architecture.md:2270-2279"
+    ],
+    "tests": {
+      "status": "NOT_RUN",
+      "reason": "No Cargo or remote CI execution was authorized for this delegated lane; the workflow command itself contradicts AC-147-1."
+    },
+    "diff_attack_surfaces": [
+      "GitHub Actions target coverage versus local implementation claims",
+      "feature-gated integration-test compilation on Ubuntu",
+      "infrastructure attribution versus suppressing an owned compile failure"
+    ],
+    "independent_checks_run": [
+      "Inspected the complete candidate .github/workflows/ci.yml and mapped cross-platform-build to AC-147-1.",
+      "Compared the validate job's all-target clippy command with cross-platform-build and confirmed it does not replace the missing all-target build check."
+    ],
+    "counterfactual_checks": [
+      "A broken integration-test target can pass cross-platform-build because that job compiles only --lib --bins.",
+      "The accompanying comment treats an MT-owned integration-test compile failure as a reason to omit that target instead of fail the gate."
+    ],
+    "negative_path_checks": [
+      "An integration-test-only compile error must make cross-platform-build fail.",
+      "An in-crate cargo test --lib --no-run must not be mistaken for integration-target coverage."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT147-V4-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "AC-147-1"
+        ],
+        "evidence": [
+          ".github/workflows/ci.yml:369-374 explicitly says --all-targets is avoided because an integration test did not compile.",
+          ".github/workflows/ci.yml:375-376 runs cargo check with --lib --bins --all-features, not --all-targets --all-features.",
+          ".github/workflows/ci.yml:378-379 compiles only the library test layer and still excludes integration-test targets."
+        ],
+        "failure_scenario": "An Ubuntu-only or feature-gated compile break in any integration test remains merge-green in cross-platform-build, exactly the blind spot AC-147-1 requires this MT to close.",
+        "remediation": [
+          "Replace the scoped cross-platform command with cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features.",
+          "Remove the comment that normalizes excluding an owned failing target and repair resulting integration-test compile defects in their owning product MT.",
+          "Retain Ubuntu dbus/pkg-config dependencies and existing Node setup in jobs that execute just or Node-backed checks.",
+          "Run the exact all-target command in Ubuntu CI and prove an intentionally broken integration-test-only probe fails before reverting the probe.",
+          "Capture the final green workflow run, exact head SHA, command, negative probe, and isolated CARGO_TARGET_DIR."
+        ],
+        "pass_conditions": "cross-platform-build compiles every backend target with every feature on Ubuntu, fails for an integration-test-only compile defect, and passes on the unchanged final candidate."
+      }
+    ],
+    "residual_uncertainty": "After repair, the scheduler must inspect the real GitHub Actions run and attribute any remaining action/tool-install failures."
+  },
+  "updated_at_utc": "2026-09-13T11:45:17.160Z",
+  "validation_v5": {
+    "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
+    "verdict": "FAIL_V5",
+    "status": "FAIL_V5",
+    "blocking": true,
+    "next_actor": "ORCHESTRATOR",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
+    "validated_at_utc": "2026-09-13T11:45:17.160Z",
+    "validated_commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+    "operator_waivers": [
+      "Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-147-1 through AC-147-6",
+      "scope.proof_targets PT-147-1 through PT-147-4",
+      "Master Spec v02.206 07-user-experience-and-development.md:2790 and 3296-3317"
+    ],
+    "failed_acceptance_criteria": [
+      "AC-147-1",
+      "PT-147-2",
+      "PT-147-3",
+      "PT-147-4"
+    ],
+    "findings": [
+      {
+        "id": "MT147-V5-F01",
+        "severity": "HIGH",
+        "failed_acceptance": [
+          "AC-147-1",
+          "PT-147-2",
+          "PT-147-3",
+          "PT-147-4"
+        ],
+        "evidence": [
+          ".github/workflows/ci.yml:369-389 now correctly requires a nonzero integration-test target count, an integration-test-only compile_error negative probe, and cargo check --all-targets --all-features.",
+          "Validator-owned Windows execution of the exact positive Cargo command finished successfully after 31m17s and compiled the integration-test targets.",
+          "gh run list --commit ff2eda5d9cad299ed9b899c11aea85fc22140634 returned an empty list: no GitHub Actions run exists for the exact candidate.",
+          "AC-147-1 and PT-147-2 through PT-147-4 explicitly require the cross-platform-build job to complete on ubuntu-latest and a post-repair per-job run comparison; a Windows local compile cannot manufacture that Linux result."
+        ],
+        "failure_scenario": "Linux-only dependency, linker, shell, workflow-expression, or cleanup errors can remain invisible while the Windows compiler is green. Declaring PASS without the exact Ubuntu job would repeat the original defect: citing a cross-platform build artifact that does not exist for the reviewed candidate.",
+        "remediation": [
+          "Do not change product code or weaken the all-targets/all-features workflow. Preserve the nonzero target assertion and integration-only negative probe exactly.",
+          "Publish the exact candidate commit, or a remediation commit containing no behavior change beyond any required MT-129/MT-144 fixes, to the existing feat/WP-KERNEL-012 branch through the authorized source-control lane.",
+          "Trigger the repository CI workflow on that exact commit and wait for cross-platform-build on ubuntu-latest. Capture run id, job URL, head SHA, conclusion, integration_test_targets count, the expected failure output from the intentional compile_error probe, proof that the trap removed the probe, and the final positive cargo check completion line.",
+          "Capture the per-job before/after table required by PT-147-4. Any red job must be attributed to a concrete product cause and owner; infrastructure failures must be fixed rather than waived.",
+          "Revalidate only after the GitHub run head SHA exactly matches the candidate and the worktree remains clean. The existing successful Windows all-targets compile may be reused as supplementary proof but cannot replace Linux."
+        ],
+        "pass_conditions": "A GitHub Actions run at the exact reviewed head has a green cross-platform-build ubuntu-latest job that executes the nonzero target assertion, observes the intentional integration-only compile failure, removes the probe, and finishes the real --all-targets --all-features check; the required per-job comparison is recorded."
+      }
+    ],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V5-MT-147-LOCAL-001",
+        "command": "cargo +1.97.1 check --locked --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features --jobs 2",
+        "cwd": ".",
+        "commit": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "/root/wpv_recover_115_147",
+        "target_dir": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/target",
+        "started_utc": "2026-09-13T11:10:28.176Z",
+        "finished_utc": "2026-09-13T11:41:42.720Z",
+        "exit_code": 0,
+        "result_line": "Finished dev profile [unoptimized + debuginfo] target(s) in 31m 17s",
+        "log_path": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/logs/mt147-all-targets-all-features.log",
+        "features": [
+          "all-features",
+          "all-targets"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/target",
+          "TMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/tmp",
+          "TEMP": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-144/wpv-115-147/tmp",
+          "HANDSHAKE_ARTIFACTS_ROOT": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-147"
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "CI claimed target breadth versus actually compiled integration targets",
+      "Linux-only dependency and shell behavior",
+      "Negative-probe cleanup and false-green risk",
+      "Exact commit-to-run binding"
+    ],
+    "independent_checks_run": [
+      "Inspected the final workflow commands and their sequencing.",
+      "Recovered the validator-owned exact positive all-targets/all-features local build; it finished green after 31m17s.",
+      "Queried GitHub Actions for the exact candidate SHA; no run exists."
+    ],
+    "counterfactual_checks": [
+      "If --all-targets were removed, integration-only defects would again escape the job.",
+      "If the compile_error probe or its cleanup trap were malformed on bash, only the required Ubuntu execution would expose it.",
+      "If a run from an older SHA were cited, it would not prove this workflow revision."
+    ],
+    "boundary_probes": [
+      "Workflow YAML/bash steps -> cargo metadata target inventory -> intentional integration compile failure -> cleanup -> positive Linux build"
+    ],
+    "negative_path_checks": [
+      "No exact-SHA GitHub run exists, so Linux acceptance is explicitly rejected rather than inferred from Windows."
+    ],
+    "residual_uncertainty": "The local Windows compiler result substantially reduces source-level risk, but Linux package/linker/shell behavior and the actual job conclusion remain unproven until the exact-SHA Actions run."
+  }
 }

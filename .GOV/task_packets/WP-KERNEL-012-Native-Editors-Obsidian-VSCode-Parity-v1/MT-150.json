@@ -31,13 +31,15 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V2",
     "depends_on": [
       "MT-141"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V2",
+    "validated_by": "WP_VALIDATOR-20260913-RECHECK-109-150",
+    "validated_at_utc": "2026-09-13T10:27:45.433Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260910-073935",
     "created_by": "KERNEL_BUILDER-20260909-212427",
@@ -1449,7 +1451,92 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-10T09:49:18.678Z",
+  "validation_v1": {
+    "status": "FAIL_V1",
+    "risk_tier": "HIGH",
+    "validated_commit": "2dfb51c1d53e895e94f3e7e81af9c3717c566e91",
+    "authority": [
+      "scope.acceptance_criteria.AC-150-1 and AC-150-4",
+      "WP-KERNEL-012 shared EventLedger durability contract",
+      "Master Spec v02.206 spec-modules/02-system-architecture.md:2270-2277, 2621-2631, 2650-2662, 2682-2705"
+    ],
+    "tests": {
+      "status": "IMPLEMENTER_RED_CONFIRMED_BY_SOURCE",
+      "reason": "The lifecycle records memory_capsule_recorder_surreal_tests as 1 passed / 1 failed; delegated Cargo execution was prohibited, and source inspection confirms the unstable-payload mechanism."
+    },
+    "diff_attack_surfaces": [
+      "idempotency-key versus canonical-payload stability",
+      "test-only memory IPC stores versus a production durable adapter",
+      "Loom mutation and EventLedger atomicity",
+      "UserManual claims versus executable behavior"
+    ],
+    "independent_checks_run": [
+      "Compared the red duplicate-submission test with CapsuleRecorder payload/receipt construction and its deterministic idempotency key.",
+      "Scanned production source and tests separately for MemoryCapsuleIpcStore implementations.",
+      "Compared update_loom_block and create_loom_edge transaction text with the atomic-receipt UserManual claim and blocked test dispositions."
+    ],
+    "counterfactual_checks": [
+      "Replaying one CapsuleRecord generates new receipt UUIDs and timestamp before submission, pairing a stable key with changed bytes.",
+      "No shipped type can instantiate MemoryIpcService over durable product storage.",
+      "A favorite or tag/mention mutation can commit with no EventLedger row because its transaction never appends one."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT150-V1-F01",
+        "severity": "HIGH",
+        "failed_acceptance": ["AC-150-4", "AC-150-1"],
+        "evidence": [
+          "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:109-124 expects identical replay to succeed.",
+          "src/backend/handshake_core/src/memory/persistence.rs:687-702 generates fresh receipt, envelope, and timestamp fields before constructing every submission.",
+          "src/backend/handshake_core/src/memory/persistence.rs:921-925 derives the stable idempotency key only from capsule_id and capsule_source_hash.",
+          "MT-150 lifecycle evidence records this focused target as 1 passed / 1 failed."
+        ],
+        "failure_scenario": "After a lost response, an identical retry uses the same idempotency key with different receipt-local bytes and is rejected as divergent replay instead of returning idempotent success.",
+        "remediation": [
+          "Create one canonical replay identity before submission: derive receipt/envelope identity deterministically or exclude attempt-local fields from idempotency comparison.",
+          "Return the original durable outcome for identical replay while preserving fail-closed conflict for materially different same-key content.",
+          "Require exactly one durable event for sequential and concurrent identical retries; add changed-payload conflict and close/reopen replay proofs."
+        ],
+        "pass_conditions": "Identical capsule retries succeed with one durable event and stable replay outcome; divergent same-key content conflicts without residue; the focused target is green after close/reopen."
+      },
+      {
+        "id": "MT150-V1-F02",
+        "severity": "HIGH",
+        "failed_acceptance": ["AC-150-1", "WP-KERNEL-012 durable product behavior"],
+        "evidence": [
+          "src/backend/handshake_core/src/memory/ipc.rs:37-42 defines MemoryCapsuleIpcStore.",
+          "src/backend/handshake_core/src/memory/ipc.rs:48-67 requires it to construct MemoryIpcService.",
+          "Production source has no implementation; only tests/memory_capsule_e2e_tests.rs:332-336 and tests/memory_ipc_tests.rs:18-43 provide in-memory implementations."
+        ],
+        "failure_scenario": "The shipped app has no durable store behind capsule list/get/suppress IPC, so the restored tests cannot exercise production behavior and suppression state cannot survive restart.",
+        "remediation": [
+          "Implement MemoryCapsuleIpcStore for a production typed SurrealDB adapter and wire the actual IPC/runtime construction path to it without a local fallback.",
+          "Add list/get/suppress-item/suppress-capsule tests with workspace isolation, missing-record failure, append/write rollback, and real close/reopen durability."
+        ],
+        "pass_conditions": "The shipped IPC path uses durable managed SurrealDB; all blocked IPC tests execute against it, negative paths fail closed, and state survives close/reopen."
+      },
+      {
+        "id": "MT150-V1-F03",
+        "severity": "HIGH",
+        "failed_acceptance": ["AC-150-1", "WP-KERNEL-012 shared EventLedger contract"],
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:1092-1121 updates block/search state without an EventLedger append or event_ledger_event_id.",
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:1309-1346 creates an edge and updates counts without an EventLedger append or event_ledger_event_id.",
+          "src/backend/handshake_core/src/user_manual/seed.rs:1122-1134 claims tag-edge mutation and receipt are atomic.",
+          "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:30-55 leaves five receipt tests blocked on these product gaps."
+        ],
+        "failure_scenario": "A favorite or tag/mention edge persists without authority evidence; replay cannot reconstruct it, and ledger failure cannot roll it back because no append is attempted.",
+        "remediation": [
+          "Append the typed Loom block/tag/mention receipt and bind its exact event id inside the same SurrealDB transaction as the domain mutation.",
+          "Cover update/favorite and create/delete edge paths so every success has one receipt and append failure rolls back domain state and derived counts.",
+          "Enable the five blocked tests and prove success, injected append failure, retry/idempotency, isolation, and close/reopen replay."
+        ],
+        "pass_conditions": "No Loom receipt test remains blocked; favorite, tag, and mention mutations atomically commit one typed EventLedger receipt, roll back cleanly, and replay after close/reopen."
+      }
+    ],
+    "residual_uncertainty": "The central Cargo batch must rerun all seven MT-150 targets after repair; static evidence does not replace managed-store rollback and durability proof."
+  },
+  "updated_at_utc": "2026-09-13T00:00:00Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
@@ -1482,5 +1569,136 @@
     "src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs",
     "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs",
     "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs"
-  ]
+  ],
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "WP_VALIDATOR-20260913-RECHECK-109-150",
+    "validated_at_utc": "2026-09-13T10:27:45.433Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "risk_tier": "HIGH",
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "ff2eda5d9cad299ed9b899c11aea85fc22140634",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN"
+    },
+    "tests": {
+      "status": "NOT_RUN_BY_ASSIGNMENT",
+      "reason": "Another validator owns the serialized Cargo lane. Static inspection independently proves five restoration items remain blocked on missing production behavior, so execution cannot make AC-150-1/4 pass at this head."
+    },
+    "method": "Fresh adversarial source revalidation of the three FAIL_V1 product findings after intervening commits. Compared current production writer/store/runtime wiring and restored tests against AC-150-1..6, the recovered original duplicate-submission assertions, and current SurrealDB/EventLedger authority clauses.",
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: newer folder/pin mutation APIs append atomic receipts while legacy generic block/edge writers still do not",
+        "documentation/protocol drift: the restored test file and UserManual describe receipt behavior that the current block/edge transactions do not implement",
+        "clock/staleness drift: two FAIL_V1 findings may have been repaired transitively by later MT-136 work and required current-source reinspection",
+        "scope/worktree drift: intervening commits changed memory persistence and Loom sibling-key logic but did not repair the blocked Loom receipt paths",
+        "session/ACP drift: prior handoff dispositions remained BLOCKED_ON_PRODUCT_SEAM after product source evolved, requiring direct source rather than handoff-text trust"
+      ],
+      "cheapest_deterministic_reads": [
+        "git diff --name-status and --numstat from 2dfb51c1 to ff2eda5d",
+        "current symbol/source reads for SurrealMemoryCapsuleStore, CapsuleRecorder, Tauri MemoryCapsuleIpcState, update_loom_block, create_loom_edge, and loom_atomic_receipt_tests"
+      ],
+      "result": "FAIL_V1 findings F01 and F02 have source-visible repairs but require later runtime proof; F03 remains an unchanged reachable product defect and is independently decisive."
+    },
+    "diff_attack_surfaces": [
+      "stable capsule idempotency key versus receipt/payload determinism",
+      "production MemoryCapsuleIpcStore implementation and actual Tauri construction",
+      "favorite block mutation versus EventLedger atomicity",
+      "tag/mention edge create/delete versus EventLedger atomicity and derived counts",
+      "typed blocked dispositions versus AC-150-1 requirement to port every restored test or name a still-real defect"
+    ],
+    "independent_checks_run": [
+      "Compared current CapsuleRecorder deterministic receipt construction with the recovered deleted duplicate-submission body.",
+      "Traced SurrealMemoryCapsuleStore through MemoryCapsuleIpcState::with_surreal and the Tauri builder-managed production state.",
+      "Read current update_loom_block and create_loom_edge transaction text and compared it with the five explicit BLOCKED_ON_PRODUCT_SEAM dispositions in loom_atomic_receipt_tests.rs.",
+      "Resolved current Master Spec v02.206 and read the exclusive SurrealDB/EventLedger, recovery-authority, WriteBox/catalog, and ProjectKnowledgeIndex receipt clauses in 02-system-architecture.md:2270-2277,2621-2631,2650-2678,2682-2705."
+    ],
+    "counterfactual_checks": [
+      "If deterministic_receipt_uuid were removed from CapsuleRecorder::record, identical retries would again pair one stable idempotency key with divergent receipt-local payload bytes.",
+      "If MemoryCapsuleIpcState::with_surreal were replaced by its Unavailable default at Tauri startup, shipped list/get/suppress commands would fail closed rather than silently succeed process-locally.",
+      "If update_loom_block changes favorite at the current head, the transaction updates the domain/search rows without creating a kernel_event_ledger row or binding event_ledger_event_id.",
+      "If create_loom_edge creates a tag or mention edge, the transaction creates the edge and derived counts without an EventLedger receipt, leaving no atomic rollback target when ledger append is faulted."
+    ],
+    "boundary_probes": [
+      "CapsuleRecord -> deterministic receipt/write-box -> SurrealKernelActionSubmitter -> manifest replay -> production Tauri IPC store",
+      "Database trait favorite/edge call -> loom_store writer transaction -> kernel_event_ledger row -> event_ledger_event_id -> close/reopen replay"
+    ],
+    "negative_path_checks": [
+      "The Loom receipt test target itself documents five omitted tests because no product receipt exists; this is not a mock/proof limitation.",
+      "Ledger-append failure cannot roll back favorite/tag/mention mutations because those transactions never attempt the append."
+    ],
+    "resolved_prior_findings": [
+      {
+        "id": "MT150-V1-F01",
+        "status": "SOURCE_REMEDIATED_RUNTIME_UNPROVEN",
+        "evidence": [
+          "src/backend/handshake_core/src/memory/persistence.rs:907-947 now builds deterministic record/write-box receipt UUIDs and uses record.recorded_at_utc.",
+          "src/backend/handshake_core/src/memory/persistence.rs:1144-1159 derives receipt identities from the stable capsule idempotency key.",
+          "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:187-220 retains the recovered duplicate-submission assertions."
+        ]
+      },
+      {
+        "id": "MT150-V1-F02",
+        "status": "SOURCE_REMEDIATED_RUNTIME_UNPROVEN",
+        "evidence": [
+          "src/backend/handshake_core/src/memory/persistence.rs:179-249 provides the production SurrealMemoryCapsuleStore implementation.",
+          "app/src-tauri/src/commands/memory_capsule.rs:24-115 wires that store and SurrealKernelActionSubmitter with fail-closed Unavailable behavior.",
+          "app/src-tauri/src/lib.rs:978-983 and 1003-1013 construct and manage the Surreal-backed state at product startup.",
+          "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:49-123 adds real close/reopen suppression and Flight Recorder evidence readback."
+        ]
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "MT150-V2-F01",
+        "severity": "HIGH",
+        "failed_acceptance": ["AC-150-1", "AC-150-3", "AC-150-4"],
+        "summary": "Five required Loom favorite/tag/mention restoration tests remain omitted because the production mutations still do not append atomic EventLedger receipts.",
+        "evidence": [
+          "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:30-55 explicitly leaves tag-edge create success/rollback, mention-edge backlink durability, and favorite success/rollback unported as BLOCKED_ON_PRODUCT_SEAM.",
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:1075-1130 update_loom_block changes favorite and search state in one transaction but has no prepared ledger binding, kernel_event_ledger CREATE, or event_ledger_event_id assignment.",
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:1295-1354 create_loom_edge creates the edge and recomputes mention/tag/backlink counts but has no prepared ledger binding, kernel_event_ledger CREATE, or event_ledger_event_id field.",
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs:3139-3195 demonstrates the correct adjacent pattern: mutate_pin prepares a typed event, appends the ledger row and binds event_ledger_event_id inside the same transaction.",
+          "src/backend/handshake_core/src/user_manual/seed.rs:1128-1131 claims tag mutation emits KNOWLEDGE_LOOM_TAG_MUTATED and stores the receipt on loom_edges, but the writer above cannot satisfy that claim.",
+          ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md:2650-2662 and 2682-2705 require EventLedger-backed durable authority, restart replay, and actor/source/validation/promotion receipts for Loom/ProjectKnowledgeIndex mutations."
+        ],
+        "failure_scenario": "A favorite, tag, or mention mutation can commit domain state and derived counts without authoritative evidence. It cannot be reconstructed from EventLedger, and an injected ledger failure cannot roll the mutation back because no append is attempted.",
+        "blocking": true
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "required_behavioral_changes": [
+        "Implement one canonical typed Loom mutation-event builder and EventLedger append path for favorite block updates and tag/mention edge create/delete, reusing event_ledger::prepare_event and the adjacent mutate_pin/folder transaction pattern rather than duplicating receipt logic.",
+        "For favorite updates, prepare the exact block mutation event before execution, create or idempotently reuse its kernel_event_ledger row inside the same SurrealDB transaction as the block/search update, and bind the exact ledger record to loom_blocks.event_ledger_event_id.",
+        "For tag and mention edges, add the ledger binding and event_ledger_event_id row field, append the typed edge event inside the same transaction as edge creation/deletion and all mention/tag/backlink count updates, and return/read the durable receipt identity.",
+        "Use deterministic idempotency keys tied to workspace, exact resource, operation, edit/request identity, actor context, and payload hash. An identical retry must return the original durable outcome; a same-key different payload must conflict with zero domain/count/ledger residue.",
+        "Make the central test-support ledger fault seam fail the real append statement. The entire favorite/edge mutation and every derived-count change must roll back atomically when that append fails.",
+        "Enable all five currently omitted restoration cases in loom_atomic_receipt_tests.rs. Remove BLOCKED_ON_PRODUCT_SEAM only when the real product path exists; do not replace the cases with source-text assertions, mocks, fixtures, or a weaker disposition.",
+        "Keep the UserManual receipt/event-type description aligned with the actual emitted event family, aggregate type/id, stored event_ledger_event_id, failure mode, and replay/recovery path.",
+        "Preserve the source-visible capsule idempotency and production IPC repairs; do not regress fail-closed unavailable behavior, manifest replay, suppression persistence, or Flight Recorder evidence."
+      ],
+      "adversarial_tests": [
+        "Favorite set/unset: success appends exactly one typed receipt, binds its ID to the block, identical retry is idempotent, divergent same-key retry conflicts, append failure leaves favorite/search state unchanged, and close/reopen reconstructs the accepted value.",
+        "Tag edge create/delete: success appends exactly one typed receipt per accepted mutation, binds it to the edge or deletion receipt, updates counts atomically, duplicate/retry does not duplicate edge or ledger state, and close/reopen preserves edge/count/receipt linkage.",
+        "Mention edge create/delete: same success, rollback, retry, and close/reopen matrix while proving backlink/mention counts on both endpoints cannot partially commit.",
+        "Concurrent identical and conflicting edge/favorite requests: prove one stable accepted outcome or deterministic conflict with no orphan ledger row, edge, block update, search projection, or derived-count drift.",
+        "Fault each statement boundary through the single central seam and verify all-or-nothing behavior using real embedded SurrealDB and EventLedger, not mocks.",
+        "Re-run the capsule duplicate and production IPC close/reopen tests to convert their SOURCE_REMEDIATED_RUNTIME_UNPROVEN state into validator-owned runtime proof."
+      ],
+      "acceptance_proof": [
+        "A complete 47-item disposition table with every former Loom blocked item now PORTED and mapped to its current test path; no silent drop or weakened assertion.",
+        "Validator-owned nonzero execution of all seven MT-150 Cargo targets at the exact clean remediation commit with HANDSHAKE_WORKSPACE_ROOT isolation and the required Surreal features.",
+        "Real close/reopen durability and real ledger-failure rollback for all restored survives_restart and rolls_back cases.",
+        "Forbidden-database scan over all changed tests and product paths shows no active sqlx/PostgreSQL/SQLite import, DSN, fixture, fallback, or proof wording.",
+        "PASS_V3 is legal only after AC-150-1..6 are all satisfied and the complete validator-owned focused proof batch is green."
+      ]
+    },
+    "residual_uncertainty": "Cargo was not run in this assignment. The two source-visible memory repairs remain runtime-unproven, and additional failures may surface after the decisive Loom receipt defect is fixed."
+  }
 }
