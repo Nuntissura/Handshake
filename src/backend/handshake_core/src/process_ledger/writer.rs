@@ -72,6 +72,13 @@ pub enum ProcessLedgerError {
         #[source]
         source: SurrealStorageError,
     },
+    #[error(
+        "PROCESS_LEDGER_RECLAIM_CONFLICT: exact reclaim STOP did not own the current durable sentinel"
+    )]
+    ReclaimConflict {
+        #[source]
+        source: SurrealStorageError,
+    },
     #[error("PROCESS_LEDGER_EVENT: {0}")]
     Event(String),
 }
@@ -79,6 +86,22 @@ pub enum ProcessLedgerError {
 impl From<SurrealStorageError> for ProcessLedgerError {
     fn from(source: SurrealStorageError) -> Self {
         Self::Surreal { source }
+    }
+}
+
+const RECLAIM_CONFLICT_SENTINEL: &str = "HSK-PROCESS-LEDGER-RECLAIM-CONFLICT";
+
+fn classify_process_batch_error(source: SurrealStorageError) -> ProcessLedgerError {
+    let is_reclaim_conflict = matches!(
+        &source,
+        SurrealStorageError::Database(error)
+            if error.details().is_thrown()
+                && error.message().contains(RECLAIM_CONFLICT_SENTINEL)
+    );
+    if is_reclaim_conflict {
+        ProcessLedgerError::ReclaimConflict { source }
+    } else {
+        ProcessLedgerError::from(source)
     }
 }
 
@@ -791,7 +814,7 @@ impl SurrealProcessLedgerStore {
                 })
             })
             .await
-            .map_err(ProcessLedgerError::from)?;
+            .map_err(classify_process_batch_error)?;
         match outcome.as_deref() {
             Some("committed") => Ok(()),
             _ => Err(ProcessLedgerError::Event(format!(
