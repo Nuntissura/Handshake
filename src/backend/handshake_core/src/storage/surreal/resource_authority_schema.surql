@@ -180,7 +180,7 @@ DEFINE FUNCTION OVERWRITE fn::mt109_live_session() {
 
 DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, $action: string, $capability: string) {
     RETURN fn::mt109_live_session()
-        AND (array::contains($auth.delegated_capabilities, '*') OR array::contains($auth.delegated_capabilities, $capability))
+        AND (array::includes($auth.delegated_capabilities, '*') OR array::includes($auth.delegated_capabilities, $capability))
         AND array::len((SELECT id FROM resource_grants
             WHERE status = 'active'
               AND revoked_at = NONE
@@ -194,8 +194,8 @@ DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, 
               AND resource_id.resource_kind = $kind
               AND resource_id.external_resource_id = $external
               AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
-              AND array::contains(actions, $action)
-              AND array::contains(capability_ids, $capability)
+              AND array::includes(actions, $action)
+              AND array::includes(capability_ids, $capability)
               AND delegation_chain = $auth.delegation_chain)) > 0;
 };
 
@@ -231,10 +231,10 @@ DEFINE FUNCTION OVERWRITE fn::mt109_ledger_access($resource: option<record<prote
               AND resource_id.owner_account_id = $auth.account_id
               AND resource_id.access_space_id = $auth.access_space_id
               AND $action != NONE
-              AND array::contains(actions, $action)
+              AND array::includes(actions, $action)
               AND $capability != NONE
-              AND array::contains(capability_ids, $capability)
-              AND (array::contains($auth.delegated_capabilities, '*') OR array::contains($auth.delegated_capabilities, $capability))
+              AND array::includes(capability_ids, $capability)
+              AND (array::includes($auth.delegated_capabilities, '*') OR array::includes($auth.delegated_capabilities, $capability))
               AND delegation_chain = $auth.delegation_chain)) > 0;
 };
 
@@ -243,12 +243,13 @@ DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
 
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
     PERMISSIONS FOR select WHERE fn::mt109_ledger_access(authority_resource_id, authority_session_id, authority_capability_id, 'read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'fr.ingest.native_editor') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'memory.commit')
-                FOR create WHERE fn::mt109_ledger_access(authority_resource_id, authority_session_id, authority_capability_id, authority_action) AND ((authority_action = 'reconcile' AND (fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'fr.ingest.native_editor') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'memory.commit'))) OR (authority_action != 'reconcile' AND array::contains(wsids, authority_resource_id.external_resource_id)))
+                FOR create WHERE fn::mt109_ledger_access(authority_resource_id, authority_session_id, authority_capability_id, authority_action) AND ((authority_action = 'reconcile' AND (fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'fr.ingest.native_editor') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'memory.commit'))) OR (authority_action != 'reconcile' AND array::includes(wsids, authority_resource_id.external_resource_id)))
                 FOR update, delete NONE;
 DEFINE FIELD OVERWRITE authority_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FULL;
 DEFINE FIELD OVERWRITE authority_session_id ON TABLE kernel_event_ledger TYPE option<record<authenticated_sessions>> PERMISSIONS FULL;
 DEFINE FIELD OVERWRITE authority_capability_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FULL;
 DEFINE FIELD OVERWRITE authority_action ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE wsids ON TABLE kernel_event_ledger TYPE array<string> PERMISSIONS FULL;
 
 DEFINE TABLE OVERWRITE fems_memory_packs SCHEMAFULL
     PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_pack', record::id(workspace_id), 'read', 'memory.read')

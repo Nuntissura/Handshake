@@ -13,8 +13,74 @@ use surrealdb::types::{RecordId, SurrealValue, Value};
 struct OperationalProbeBindings {
     table: String,
     record_id: String,
+    sentinel_id: String,
     workspace: RecordId,
     workspace_key: String,
+    authority_resource: RecordId,
+    authority_session: RecordId,
+    hash: String,
+}
+
+const OPERATIONAL_SENTINEL_ID: &str = "mt109-v12-sentinel";
+const OPERATIONAL_HASH: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+async fn privileged_operational_rows(
+    storage: &super::SurrealStorage,
+    statement: &'static str,
+    bindings: OperationalProbeBindings,
+) -> Result<Vec<Value>, Box<dyn std::error::Error>> {
+    Ok(storage
+        .with_data_operation(move |database| {
+            Box::pin(async move { database.query_values::<Value, _>(statement, bindings).await })
+        })
+        .await?)
+}
+
+async fn seed_operational_sentinels(
+    storage: &super::SurrealStorage,
+    workspace_id: &str,
+    authority_resource_id: &str,
+    authority_session_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let bindings = OperationalProbeBindings {
+        table: String::new(),
+        record_id: String::new(),
+        sentinel_id: OPERATIONAL_SENTINEL_ID.to_owned(),
+        workspace: RecordId::new("workspaces", workspace_id),
+        workspace_key: workspace_id.to_owned(),
+        authority_resource: RecordId::new("protected_resources", authority_resource_id),
+        authority_session: RecordId::new("authenticated_sessions", authority_session_id),
+        hash: OPERATIONAL_HASH.to_owned(),
+    };
+    privileged_operational_rows(
+        storage,
+        "UPSERT type::record('kernel_event_ledger', $sentinel_id) CONTENT { event_id: $sentinel_id, event_version: 'v1', kernel_task_run_id: 'mt109-v12', session_run_id: 'mt109-v12', aggregate_type: 'native_editor', aggregate_id: $workspace_key, idempotency_key: $sentinel_id, event_type: 'MT109_V12_SENTINEL', actor_kind: 'SYSTEM', actor_id: 'mt109-v12', payload_hash: $hash, source_component: 'mt109-v12-test', payload: { marker: 'sentinel' }, wsids: [$workspace_key], authority_resource_id: $authority_resource, authority_session_id: $authority_session, authority_capability_id: 'fr.read', authority_action: 'read' } RETURN AFTER; \
+         UPSERT type::record('fems_memory_packs', $sentinel_id) CONTENT { pack_id: $sentinel_id, workspace_id: $workspace, scope_key: 'mt109-v12', pack: { items: [] }, generated_at: time::now() } RETURN AFTER; \
+         UPSERT type::record('fems_memory_proposals', $sentinel_id) CONTENT { proposal_id: $sentinel_id, request_id: $sentinel_id, workspace_id: $workspace, document_id: 'mt109-v12-document', selection_start: 0, selection_end: 1, content_hash: $hash, memory_class: 'episodic', status: 'pending_review', review_gated: true, proposal: { marker: 'sentinel' } } RETURN AFTER; \
+         UPSERT type::record('fems_memory_items', $sentinel_id) CONTENT { memory_id: $sentinel_id, workspace_id: $workspace, item: { marker: 'sentinel' } } RETURN AFTER; \
+         UPSERT type::record('fems_memory_commit_reports', $sentinel_id) CONTENT { commit_id: $sentinel_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $sentinel_id), memory_id: type::record('fems_memory_items', $sentinel_id), report: { marker: 'sentinel' }, report_hash: $hash, created_at: time::now() } RETURN AFTER; \
+         UPSERT type::record('fems_memory_commit_fr_outbox', $sentinel_id) CONTENT { event_id: $sentinel_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $sentinel_id), commit_id: type::record('fems_memory_commit_reports', $sentinel_id), event_code: 'FR-EVT-MEM-003', event: { marker: 'sentinel' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER; \
+         UPSERT type::record('fems_memory_lifecycle_fr_outbox', $sentinel_id) CONTENT { event_id: $sentinel_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $sentinel_id), event_code: 'FR-EVT-MEM-001', event: { marker: 'sentinel' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER; \
+         UPSERT type::record('fems_workspace_write_anchors', $sentinel_id) CONTENT { anchor_key: $sentinel_id, workspace_key: $workspace_key, claim_nonce: 'mt109-v12-sentinel' } RETURN AFTER;",
+        bindings,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn seed_operational_probe_dependencies(
+    storage: &super::SurrealStorage,
+    bindings: OperationalProbeBindings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    privileged_operational_rows(
+        storage,
+        "UPSERT type::record('fems_memory_proposals', $record_id + '-proposal-dep') CONTENT { proposal_id: $record_id + '-proposal-dep', request_id: $record_id + '-proposal-dep', workspace_id: $workspace, document_id: 'mt109-v12-document', selection_start: 0, selection_end: 1, content_hash: $hash, memory_class: 'episodic', status: 'pending_review', review_gated: true, proposal: { marker: 'dependency' } } RETURN AFTER; \
+         UPSERT type::record('fems_memory_items', $record_id + '-item-dep') CONTENT { memory_id: $record_id + '-item-dep', workspace_id: $workspace, item: { marker: 'dependency' } } RETURN AFTER; \
+         UPSERT type::record('fems_memory_commit_reports', $record_id + '-report-dep') CONTENT { commit_id: $record_id + '-report-dep', workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), memory_id: type::record('fems_memory_items', $record_id + '-item-dep'), report: { marker: 'dependency' }, report_hash: $hash, created_at: time::now() } RETURN AFTER;",
+        bindings,
+    )
+    .await?;
+    Ok(())
 }
 
 async fn assert_record_user_operation_has_zero_effect(
@@ -23,6 +89,37 @@ async fn assert_record_user_operation_has_zero_effect(
     statement: &'static str,
     bindings: OperationalProbeBindings,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let before_rows = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::table($table) ORDER BY id;",
+        bindings.clone(),
+    )
+    .await?;
+    let sentinel_before = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::record($table, $sentinel_id);",
+        bindings.clone(),
+    )
+    .await?;
+    assert_eq!(
+        sentinel_before.len(),
+        1,
+        "{} denial probe has no privileged sentinel row",
+        bindings.table
+    );
+    if bindings.record_id != bindings.sentinel_id {
+        let candidate_before = privileged_operational_rows(
+            storage,
+            "SELECT * FROM type::record($table, $record_id);",
+            bindings.clone(),
+        )
+        .await?;
+        assert!(
+            candidate_before.is_empty(),
+            "{} denial candidate already exists",
+            bindings.table
+        );
+    }
     let result = storage
         .with_record_user_scope(
             scope,
@@ -49,6 +146,157 @@ async fn assert_record_user_operation_has_zero_effect(
             );
         }
     }
+    let after_rows = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::table($table) ORDER BY id;",
+        bindings.clone(),
+    )
+    .await?;
+    let sentinel_after = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::record($table, $sentinel_id);",
+        bindings.clone(),
+    )
+    .await?;
+    assert_eq!(
+        after_rows, before_rows,
+        "{} denial changed privileged table state",
+        bindings.table
+    );
+    assert_eq!(
+        sentinel_after, sentinel_before,
+        "{} denial changed or deleted its sentinel",
+        bindings.table
+    );
+    if bindings.record_id != bindings.sentinel_id {
+        let candidate_after = privileged_operational_rows(
+            storage,
+            "SELECT * FROM type::record($table, $record_id);",
+            bindings.clone(),
+        )
+        .await?;
+        assert!(
+            candidate_after.is_empty(),
+            "{} denial created candidate residue",
+            bindings.table
+        );
+    }
+    Ok(())
+}
+
+async fn assert_record_user_select_matches_privileged(
+    storage: &super::SurrealStorage,
+    scope: RecordUserScope,
+    bindings: OperationalProbeBindings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let expected = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::record($table, $sentinel_id);",
+        bindings.clone(),
+    )
+    .await?;
+    assert_eq!(expected.len(), 1, "authorized probe sentinel is missing");
+    let actual = storage
+        .with_record_user_scope(
+            scope,
+            storage.with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_values::<Value, _>(
+                            "SELECT * FROM type::record($table, $sentinel_id);",
+                            bindings,
+                        )
+                        .await
+                })
+            }),
+        )
+        .await?;
+    assert_eq!(actual, expected, "authorized record-user read drifted");
+    Ok(())
+}
+
+async fn assert_record_user_update_matches_privileged(
+    storage: &super::SurrealStorage,
+    scope: RecordUserScope,
+    statement: &'static str,
+    bindings: OperationalProbeBindings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let readback_bindings = bindings.clone();
+    let before = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::record($table, $sentinel_id);",
+        bindings.clone(),
+    )
+    .await?;
+    assert_eq!(before.len(), 1, "authorized update sentinel is missing");
+    let returned = storage
+        .with_record_user_scope(
+            scope,
+            storage.with_data_operation(move |database| {
+                Box::pin(
+                    async move { database.query_values::<Value, _>(statement, bindings).await },
+                )
+            }),
+        )
+        .await?;
+    assert_eq!(returned.len(), 1, "authorized update returned no exact row");
+    let after = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::record($table, $sentinel_id);",
+        readback_bindings,
+    )
+    .await?;
+    assert_ne!(after, before, "authorized update made no data change");
+    assert_eq!(after, returned, "authorized update/readback diverged");
+    Ok(())
+}
+
+async fn assert_record_user_create_matches_privileged(
+    storage: &super::SurrealStorage,
+    scope: RecordUserScope,
+    statement: &'static str,
+    bindings: OperationalProbeBindings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let readback_bindings = bindings.clone();
+    let before = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::record($table, $record_id);",
+        bindings.clone(),
+    )
+    .await?;
+    assert!(
+        before.is_empty(),
+        "authorized create candidate already exists"
+    );
+    let returned = storage
+        .with_record_user_scope(
+            scope,
+            storage.with_data_operation(move |database| {
+                Box::pin(
+                    async move { database.query_values::<Value, _>(statement, bindings).await },
+                )
+            }),
+        )
+        .await?;
+    assert_eq!(returned.len(), 1, "authorized create returned no exact row");
+    let after = privileged_operational_rows(
+        storage,
+        "SELECT * FROM type::record($table, $record_id);",
+        readback_bindings,
+    )
+    .await?;
+    assert_eq!(after, returned, "authorized create/readback diverged");
+    Ok(())
+}
+
+#[tokio::test]
+async fn production_resource_authority_schema_bootstraps_on_embedded_surrealdb_3_2(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let backend = embedded_test_backend().await?;
+    backend
+        .storage
+        .bootstrap_resource_authority_schema()
+        .await?;
     Ok(())
 }
 
@@ -792,6 +1040,22 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
         capability_id: "memory.read".to_owned(),
         action: ResourceAction::Read,
     };
+    let foreign_resource = storage
+        .register_protected_resource(
+            &principal.identity,
+            ResourceKind::FlightRecorder,
+            &foreign_workspace.id,
+            None,
+            "account_private",
+        )
+        .await?;
+    seed_operational_sentinels(
+        storage,
+        &foreign_workspace.id,
+        &foreign_resource.resource_id,
+        &principal.session.session_id,
+    )
+    .await?;
     let workspace = RecordId::new("workspaces", foreign_workspace.id.as_str());
 
     assert_record_user_operation_has_zero_effect(
@@ -801,8 +1065,18 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
         OperationalProbeBindings {
             table: "workspaces".to_owned(),
             record_id: "foreign-workspace-probe".to_owned(),
+            sentinel_id: foreign_workspace.id.clone(),
             workspace: workspace.clone(),
             workspace_key: foreign_workspace.id.clone(),
+            authority_resource: RecordId::new(
+                "protected_resources",
+                foreign_resource.resource_id.clone(),
+            ),
+            authority_session: RecordId::new(
+                "authenticated_sessions",
+                principal.session.session_id.clone(),
+            ),
+            hash: OPERATIONAL_HASH.to_owned(),
         },
     )
     .await?;
@@ -819,8 +1093,18 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
             OperationalProbeBindings {
                 table: "workspaces".to_owned(),
                 record_id: "mt109-foreign-workspace-write".to_owned(),
+                sentinel_id: foreign_workspace.id.clone(),
                 workspace: workspace.clone(),
                 workspace_key: foreign_workspace.id.clone(),
+                authority_resource: RecordId::new(
+                    "protected_resources",
+                    foreign_resource.resource_id.clone(),
+                ),
+                authority_session: RecordId::new(
+                    "authenticated_sessions",
+                    principal.session.session_id.clone(),
+                ),
+                hash: OPERATIONAL_HASH.to_owned(),
             },
         )
         .await?;
@@ -830,19 +1114,19 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
         (
             "kernel_event_ledger",
             [
-                "SELECT * FROM kernel_event_ledger WHERE array::contains(wsids, $workspace_key);",
-                "CREATE type::record($table, $record_id) SET wsids = [$workspace_key] RETURN AFTER;",
-                "UPSERT type::record($table, $record_id) SET wsids = [$workspace_key] RETURN AFTER;",
-                "UPDATE kernel_event_ledger SET wsids = [$workspace_key] WHERE array::contains(wsids, $workspace_key) RETURN AFTER;",
-                "DELETE kernel_event_ledger WHERE array::contains(wsids, $workspace_key) RETURN BEFORE;",
+                "SELECT * FROM kernel_event_ledger WHERE array::includes(wsids, $workspace_key);",
+                "CREATE type::record($table, $record_id) CONTENT { event_id: $record_id, event_version: 'v1', kernel_task_run_id: 'mt109-v12', session_run_id: 'mt109-v12', aggregate_type: 'native_editor', aggregate_id: $workspace_key, idempotency_key: $record_id, event_type: 'MT109_V12_DENIED', actor_kind: 'SYSTEM', actor_id: 'mt109-v12', payload_hash: $hash, source_component: 'mt109-v12-test', payload: { marker: 'denied' }, wsids: [$workspace_key], authority_resource_id: $authority_resource, authority_session_id: $authority_session, authority_capability_id: 'fr.ingest.native_editor', authority_action: 'create' } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { event_id: $record_id, event_version: 'v1', kernel_task_run_id: 'mt109-v12', session_run_id: 'mt109-v12', aggregate_type: 'native_editor', aggregate_id: $workspace_key, idempotency_key: $record_id, event_type: 'MT109_V12_DENIED', actor_kind: 'SYSTEM', actor_id: 'mt109-v12', payload_hash: $hash, source_component: 'mt109-v12-test', payload: { marker: 'denied' }, wsids: [$workspace_key], authority_resource_id: $authority_resource, authority_session_id: $authority_session, authority_capability_id: 'fr.ingest.native_editor', authority_action: 'create' } RETURN AFTER;",
+                "UPDATE kernel_event_ledger SET payload = { marker: 'denied-update' } WHERE array::includes(wsids, $workspace_key) RETURN AFTER;",
+                "DELETE kernel_event_ledger WHERE array::includes(wsids, $workspace_key) RETURN BEFORE;",
             ],
         ),
         (
             "fems_memory_packs",
             [
                 "SELECT * FROM fems_memory_packs WHERE workspace_id = $workspace;",
-                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
-                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "CREATE type::record($table, $record_id) CONTENT { pack_id: $record_id, workspace_id: $workspace, scope_key: $record_id, pack: { marker: 'denied-create' }, generated_at: time::now() } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { pack_id: $record_id, workspace_id: $workspace, scope_key: $record_id, pack: { marker: 'denied-upsert-new' }, generated_at: time::now() } RETURN AFTER;",
                 "UPDATE fems_memory_packs SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
                 "DELETE fems_memory_packs WHERE workspace_id = $workspace RETURN BEFORE;",
             ],
@@ -851,8 +1135,8 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
             "fems_memory_proposals",
             [
                 "SELECT * FROM fems_memory_proposals WHERE workspace_id = $workspace;",
-                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
-                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "CREATE type::record($table, $record_id) CONTENT { proposal_id: $record_id, request_id: $record_id, workspace_id: $workspace, document_id: 'mt109-v12-document', selection_start: 0, selection_end: 1, content_hash: $hash, memory_class: 'episodic', status: 'pending_review', review_gated: true, proposal: { marker: 'denied-create' } } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { proposal_id: $record_id, request_id: $record_id, workspace_id: $workspace, document_id: 'mt109-v12-document', selection_start: 0, selection_end: 1, content_hash: $hash, memory_class: 'episodic', status: 'pending_review', review_gated: true, proposal: { marker: 'denied-upsert-new' } } RETURN AFTER;",
                 "UPDATE fems_memory_proposals SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
                 "DELETE fems_memory_proposals WHERE workspace_id = $workspace RETURN BEFORE;",
             ],
@@ -861,8 +1145,8 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
             "fems_memory_items",
             [
                 "SELECT * FROM fems_memory_items WHERE workspace_id = $workspace;",
-                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
-                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "CREATE type::record($table, $record_id) CONTENT { memory_id: $record_id, workspace_id: $workspace, item: { marker: 'denied-create' } } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { memory_id: $record_id, workspace_id: $workspace, item: { marker: 'denied-upsert-new' } } RETURN AFTER;",
                 "UPDATE fems_memory_items SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
                 "DELETE fems_memory_items WHERE workspace_id = $workspace RETURN BEFORE;",
             ],
@@ -871,8 +1155,8 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
             "fems_memory_commit_reports",
             [
                 "SELECT * FROM fems_memory_commit_reports WHERE workspace_id = $workspace;",
-                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
-                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "CREATE type::record($table, $record_id) CONTENT { commit_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), memory_id: type::record('fems_memory_items', $record_id + '-item-dep'), report: { marker: 'denied-create' }, report_hash: $hash, created_at: time::now() } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { commit_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), memory_id: type::record('fems_memory_items', $record_id + '-item-dep'), report: { marker: 'denied-upsert-new' }, report_hash: $hash, created_at: time::now() } RETURN AFTER;",
                 "UPDATE fems_memory_commit_reports SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
                 "DELETE fems_memory_commit_reports WHERE workspace_id = $workspace RETURN BEFORE;",
             ],
@@ -881,8 +1165,8 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
             "fems_memory_commit_fr_outbox",
             [
                 "SELECT * FROM fems_memory_commit_fr_outbox WHERE workspace_id = $workspace;",
-                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
-                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "CREATE type::record($table, $record_id) CONTENT { event_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), commit_id: type::record('fems_memory_commit_reports', $record_id + '-report-dep'), event_code: 'FR-EVT-MEM-003', event: { marker: 'denied-create' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { event_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), commit_id: type::record('fems_memory_commit_reports', $record_id + '-report-dep'), event_code: 'FR-EVT-MEM-003', event: { marker: 'denied-upsert-new' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER;",
                 "UPDATE fems_memory_commit_fr_outbox SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
                 "DELETE fems_memory_commit_fr_outbox WHERE workspace_id = $workspace RETURN BEFORE;",
             ],
@@ -891,8 +1175,8 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
             "fems_memory_lifecycle_fr_outbox",
             [
                 "SELECT * FROM fems_memory_lifecycle_fr_outbox WHERE workspace_id = $workspace;",
-                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
-                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "CREATE type::record($table, $record_id) CONTENT { event_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), event_code: 'FR-EVT-MEM-001', event: { marker: 'denied-create' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { event_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), event_code: 'FR-EVT-MEM-001', event: { marker: 'denied-upsert-new' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER;",
                 "UPDATE fems_memory_lifecycle_fr_outbox SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
                 "DELETE fems_memory_lifecycle_fr_outbox WHERE workspace_id = $workspace RETURN BEFORE;",
             ],
@@ -901,8 +1185,8 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
             "fems_workspace_write_anchors",
             [
                 "SELECT * FROM fems_workspace_write_anchors WHERE workspace_key = $workspace_key;",
-                "CREATE type::record($table, $record_id) SET workspace_key = $workspace_key RETURN AFTER;",
-                "UPSERT type::record($table, $record_id) SET workspace_key = $workspace_key RETURN AFTER;",
+                "CREATE type::record($table, $record_id) CONTENT { anchor_key: $record_id, workspace_key: $workspace_key, claim_nonce: 'denied-create' } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { anchor_key: $record_id, workspace_key: $workspace_key, claim_nonce: 'denied-upsert-new' } RETURN AFTER;",
                 "UPDATE fems_workspace_write_anchors SET workspace_key = $workspace_key WHERE workspace_key = $workspace_key RETURN AFTER;",
                 "DELETE fems_workspace_write_anchors WHERE workspace_key = $workspace_key RETURN BEFORE;",
             ],
@@ -911,9 +1195,20 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
         let bindings = OperationalProbeBindings {
             table: table.to_owned(),
             record_id: format!("mt109-foreign-{}", table.replace('_', "-")),
+            sentinel_id: OPERATIONAL_SENTINEL_ID.to_owned(),
             workspace: workspace.clone(),
             workspace_key: foreign_workspace.id.clone(),
+            authority_resource: RecordId::new(
+                "protected_resources",
+                foreign_resource.resource_id.clone(),
+            ),
+            authority_session: RecordId::new(
+                "authenticated_sessions",
+                principal.session.session_id.clone(),
+            ),
+            hash: OPERATIONAL_HASH.to_owned(),
         };
+        seed_operational_probe_dependencies(storage, bindings.clone()).await?;
         for statement in statements {
             assert_record_user_operation_has_zero_effect(
                 storage,
@@ -965,6 +1260,21 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
         )
         .await?;
     grant_every_route(storage, &owner, &workspace.id).await?;
+    let sentinel_decision = storage
+        .authorize_protected_resource(request(
+            &owner.session.token,
+            Some("direct-negative-binding"),
+            "fr.read",
+            &workspace.id,
+        ))
+        .await?;
+    seed_operational_sentinels(
+        storage,
+        &workspace.id,
+        &sentinel_decision.resource_id,
+        &sentinel_decision.session_id,
+    )
+    .await?;
     let member_without_grant = storage
         .provision_principal(
             "direct-negative-account",
@@ -1018,6 +1328,48 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
         wrong_space.identity.access_space_id,
         owner.identity.access_space_id
     );
+    let wrong_resource_workspace = database
+        .create_workspace(
+            &WriteContext::human(Some("direct-negative-wrong-resource".to_owned())),
+            NewWorkspace {
+                name: "MT-109 wrong resource".to_owned(),
+            },
+        )
+        .await?;
+    let wrong_resource = storage
+        .provision_principal(
+            "direct-negative-account",
+            "direct-negative-wrong-resource",
+            "human_account",
+            "direct-negative-wrong-resource",
+            "Operator",
+            &capabilities,
+            "direct-negative-space-a",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    grant_every_route(storage, &wrong_resource, &wrong_resource_workspace.id).await?;
+    let stale_space = storage
+        .provision_principal(
+            "direct-negative-account",
+            "direct-negative-stale-space",
+            "human_account",
+            "direct-negative-stale-space",
+            "Operator",
+            &capabilities,
+            "direct-negative-space-a",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    grant_every_route(storage, &stale_space, &workspace.id).await?;
+    storage
+        .switch_session_access_space(
+            &stale_space.session.session_id,
+            &wrong_space.identity.access_space_id,
+        )
+        .await?;
     let foreign = storage
         .provision_principal(
             "direct-negative-foreign-account",
@@ -1071,6 +1423,8 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
             "grant-without-delegated-capability",
             grant_without_capability.session.token,
         ),
+        ("wrong-resource", wrong_resource.session.token),
+        ("stale-post-space-switch", stale_space.session.token),
         ("wrong-access-space", wrong_space.session.token),
         ("cross-account", foreign.session.token),
         ("revoked-session", revoked.session.token),
@@ -1080,50 +1434,214 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
     let probes = [
         (
             "workspaces",
-            "SELECT * FROM workspaces WHERE id = $workspace;",
-            "UPDATE workspaces SET name = 'bulk bypass' WHERE id = $workspace RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { name: 'denied-create' } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { name: 'denied-upsert-new' } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) CONTENT { name: 'denied-upsert-existing' } RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET name = 'denied-update' RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
         (
             "kernel_event_ledger",
-            "SELECT * FROM kernel_event_ledger WHERE array::contains(wsids, $workspace_key);",
-            "UPDATE kernel_event_ledger SET wsids = [$workspace_key] WHERE array::contains(wsids, $workspace_key) RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { event_id: $record_id, event_version: 'v1', kernel_task_run_id: 'mt109-v12', session_run_id: 'mt109-v12', aggregate_type: 'native_editor', aggregate_id: $workspace_key, idempotency_key: $record_id, event_type: 'MT109_V12_DENIED', actor_kind: 'SYSTEM', actor_id: 'mt109-v12', payload_hash: $hash, source_component: 'mt109-v12-test', payload: { marker: 'denied' }, wsids: [$workspace_key], authority_resource_id: $authority_resource, authority_session_id: $authority_session, authority_capability_id: 'fr.ingest.native_editor', authority_action: 'create' } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { event_id: $record_id, event_version: 'v1', kernel_task_run_id: 'mt109-v12', session_run_id: 'mt109-v12', aggregate_type: 'native_editor', aggregate_id: $workspace_key, idempotency_key: $record_id, event_type: 'MT109_V12_DENIED', actor_kind: 'SYSTEM', actor_id: 'mt109-v12', payload_hash: $hash, source_component: 'mt109-v12-test', payload: { marker: 'denied' }, wsids: [$workspace_key], authority_resource_id: $authority_resource, authority_session_id: $authority_session, authority_capability_id: 'fr.ingest.native_editor', authority_action: 'create' } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) SET payload = { marker: 'denied-upsert-existing' } RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET payload = { marker: 'denied-update' } RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
         (
             "fems_memory_packs",
-            "SELECT * FROM fems_memory_packs WHERE workspace_id = $workspace;",
-            "UPDATE fems_memory_packs SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { pack_id: $record_id, workspace_id: $workspace, scope_key: $record_id, pack: { marker: 'denied-create' }, generated_at: time::now() } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { pack_id: $record_id, workspace_id: $workspace, scope_key: $record_id, pack: { marker: 'denied-upsert-new' }, generated_at: time::now() } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) SET scope_key = 'denied-upsert-existing' RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET scope_key = 'denied-update' RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
         (
             "fems_memory_proposals",
-            "SELECT * FROM fems_memory_proposals WHERE workspace_id = $workspace;",
-            "UPDATE fems_memory_proposals SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { proposal_id: $record_id, request_id: $record_id, workspace_id: $workspace, document_id: 'mt109-v12-document', selection_start: 0, selection_end: 1, content_hash: $hash, memory_class: 'episodic', status: 'pending_review', review_gated: true, proposal: { marker: 'denied-create' } } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { proposal_id: $record_id, request_id: $record_id, workspace_id: $workspace, document_id: 'mt109-v12-document', selection_start: 0, selection_end: 1, content_hash: $hash, memory_class: 'episodic', status: 'pending_review', review_gated: true, proposal: { marker: 'denied-upsert-new' } } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) SET status = 'denied-upsert-existing' RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET status = 'denied-update' RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
         (
             "fems_memory_items",
-            "SELECT * FROM fems_memory_items WHERE workspace_id = $workspace;",
-            "UPDATE fems_memory_items SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { memory_id: $record_id, workspace_id: $workspace, item: { marker: 'denied-create' } } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { memory_id: $record_id, workspace_id: $workspace, item: { marker: 'denied-upsert-new' } } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) SET item = { marker: 'denied-upsert-existing' } RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET item = { marker: 'denied-update' } RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
         (
             "fems_memory_commit_reports",
-            "SELECT * FROM fems_memory_commit_reports WHERE workspace_id = $workspace;",
-            "UPDATE fems_memory_commit_reports SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { commit_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), memory_id: type::record('fems_memory_items', $record_id + '-item-dep'), report: { marker: 'denied-create' }, report_hash: $hash, created_at: time::now() } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { commit_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), memory_id: type::record('fems_memory_items', $record_id + '-item-dep'), report: { marker: 'denied-upsert-new' }, report_hash: $hash, created_at: time::now() } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) SET report = { marker: 'denied-upsert-existing' } RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET report = { marker: 'denied-update' } RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
         (
             "fems_memory_commit_fr_outbox",
-            "SELECT * FROM fems_memory_commit_fr_outbox WHERE workspace_id = $workspace;",
-            "UPDATE fems_memory_commit_fr_outbox SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { event_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), commit_id: type::record('fems_memory_commit_reports', $record_id + '-report-dep'), event_code: 'FR-EVT-MEM-003', event: { marker: 'denied-create' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { event_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), commit_id: type::record('fems_memory_commit_reports', $record_id + '-report-dep'), event_code: 'FR-EVT-MEM-003', event: { marker: 'denied-upsert-new' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) SET attempt_count = 10 RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET attempt_count = 11 RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
         (
             "fems_memory_lifecycle_fr_outbox",
-            "SELECT * FROM fems_memory_lifecycle_fr_outbox WHERE workspace_id = $workspace;",
-            "UPDATE fems_memory_lifecycle_fr_outbox SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { event_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), event_code: 'FR-EVT-MEM-001', event: { marker: 'denied-create' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { event_id: $record_id, workspace_id: $workspace, proposal_id: type::record('fems_memory_proposals', $record_id + '-proposal-dep'), event_code: 'FR-EVT-MEM-001', event: { marker: 'denied-upsert-new' }, event_hash: $hash, created_at: time::now(), published_at: NONE, attempt_count: 0, last_error: NONE, last_error_at: NONE, quarantined_at: NONE } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) SET attempt_count = 10 RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET attempt_count = 11 RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
         (
             "fems_workspace_write_anchors",
-            "SELECT * FROM fems_workspace_write_anchors WHERE workspace_key = $workspace_key;",
-            "UPDATE fems_workspace_write_anchors SET workspace_key = $workspace_key WHERE workspace_key = $workspace_key RETURN AFTER;",
+            [
+                "SELECT * FROM type::record($table, $sentinel_id);",
+                "CREATE type::record($table, $record_id) CONTENT { anchor_key: $record_id, workspace_key: $workspace_key, claim_nonce: 'denied-create' } RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) CONTENT { anchor_key: $record_id, workspace_key: $workspace_key, claim_nonce: 'denied-upsert-new' } RETURN AFTER;",
+                "UPSERT type::record($table, $sentinel_id) SET claim_nonce = 'denied-upsert-existing' RETURN AFTER;",
+                "UPDATE type::record($table, $sentinel_id) SET claim_nonce = 'denied-update' RETURN AFTER;",
+                "DELETE type::record($table, $sentinel_id) RETURN BEFORE;",
+            ],
         ),
     ];
+    let authorized_scope = RecordUserScope {
+        session_token: owner.session.token.clone(),
+        channel_binding_hash: Some("direct-negative-binding".to_owned()),
+        resource_id: sentinel_decision.resource_id.clone(),
+        session_id: sentinel_decision.session_id.clone(),
+        capability_id: "memory.commit".to_owned(),
+        action: ResourceAction::Update,
+    };
+    for (table, statements) in &probes {
+        let base_bindings = OperationalProbeBindings {
+            table: (*table).to_owned(),
+            record_id: format!("authorized-create-{}", table.replace('_', "-")),
+            sentinel_id: if *table == "workspaces" {
+                workspace.id.clone()
+            } else {
+                OPERATIONAL_SENTINEL_ID.to_owned()
+            },
+            workspace: RecordId::new("workspaces", workspace.id.as_str()),
+            workspace_key: workspace.id.clone(),
+            authority_resource: RecordId::new(
+                "protected_resources",
+                sentinel_decision.resource_id.clone(),
+            ),
+            authority_session: RecordId::new(
+                "authenticated_sessions",
+                sentinel_decision.session_id.clone(),
+            ),
+            hash: OPERATIONAL_HASH.to_owned(),
+        };
+        assert_record_user_select_matches_privileged(
+            storage,
+            authorized_scope.clone(),
+            base_bindings.clone(),
+        )
+        .await?;
+
+        if *table == "workspaces" {
+            assert_record_user_operation_has_zero_effect(
+                storage,
+                authorized_scope.clone(),
+                statements[1],
+                base_bindings.clone(),
+            )
+            .await?;
+        } else {
+            seed_operational_probe_dependencies(storage, base_bindings.clone()).await?;
+            assert_record_user_create_matches_privileged(
+                storage,
+                authorized_scope.clone(),
+                statements[1],
+                base_bindings.clone(),
+            )
+            .await?;
+        }
+
+        let mut upsert_new = base_bindings.clone();
+        upsert_new.record_id = format!("authorized-upsert-new-{}", table.replace('_', "-"));
+        if *table == "workspaces" {
+            assert_record_user_operation_has_zero_effect(
+                storage,
+                authorized_scope.clone(),
+                statements[2],
+                upsert_new,
+            )
+            .await?;
+        } else {
+            seed_operational_probe_dependencies(storage, upsert_new.clone()).await?;
+            assert_record_user_create_matches_privileged(
+                storage,
+                authorized_scope.clone(),
+                statements[2],
+                upsert_new,
+            )
+            .await?;
+        }
+
+        let mut existing = base_bindings.clone();
+        existing.record_id = existing.sentinel_id.clone();
+        if matches!(
+            *table,
+            "workspaces" | "kernel_event_ledger" | "fems_memory_commit_reports"
+        ) {
+            for statement in [statements[3], statements[4]] {
+                assert_record_user_operation_has_zero_effect(
+                    storage,
+                    authorized_scope.clone(),
+                    statement,
+                    existing.clone(),
+                )
+                .await?;
+            }
+        } else {
+            for statement in [statements[3], statements[4]] {
+                assert_record_user_update_matches_privileged(
+                    storage,
+                    authorized_scope.clone(),
+                    statement,
+                    existing.clone(),
+                )
+                .await?;
+            }
+        }
+        assert_record_user_operation_has_zero_effect(
+            storage,
+            authorized_scope.clone(),
+            statements[5],
+            existing,
+        )
+        .await?;
+    }
     for (label, token) in denied_scopes {
         let scope = RecordUserScope {
             session_token: token,
@@ -1133,14 +1651,29 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
             capability_id: "forged.capability".to_owned(),
             action: ResourceAction::Delete,
         };
-        for (table, read, bulk_or_recovery) in probes {
+        for (table, statements) in probes {
             let bindings = OperationalProbeBindings {
                 table: table.to_owned(),
                 record_id: format!("{label}-{}", table.replace('_', "-")),
+                sentinel_id: if table == "workspaces" {
+                    workspace.id.clone()
+                } else {
+                    OPERATIONAL_SENTINEL_ID.to_owned()
+                },
                 workspace: RecordId::new("workspaces", workspace.id.as_str()),
                 workspace_key: workspace.id.clone(),
+                authority_resource: RecordId::new(
+                    "protected_resources",
+                    sentinel_decision.resource_id.clone(),
+                ),
+                authority_session: RecordId::new(
+                    "authenticated_sessions",
+                    sentinel_decision.session_id.clone(),
+                ),
+                hash: OPERATIONAL_HASH.to_owned(),
             };
-            for statement in [read, bulk_or_recovery] {
+            seed_operational_probe_dependencies(storage, bindings.clone()).await?;
+            for statement in statements {
                 assert_record_user_operation_has_zero_effect(
                     storage,
                     scope.clone(),
