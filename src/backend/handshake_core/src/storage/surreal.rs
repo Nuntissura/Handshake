@@ -62,6 +62,7 @@ mod mt136_registry_integrity_proof;
 mod mt136_rich_document_delete_proof;
 mod preferences;
 mod promotion_store;
+pub mod resource_authority;
 pub mod retry;
 mod schema;
 mod search_store;
@@ -75,6 +76,9 @@ mod visual_debug_store;
 mod wiki_store;
 mod workflow_store;
 mod workspaces;
+
+#[cfg(test)]
+mod resource_authority_tests;
 
 pub use database::SurrealDatabase;
 #[cfg(feature = "surreal-test-support")]
@@ -990,8 +994,7 @@ impl SurrealStorage {
         let engine_config = EngineConfig::new()
             .query_timeout(config.engine_query_timeout())
             .transaction_timeout(config.engine_transaction_timeout());
-        let client =
-            Surreal::new::<RocksDb>((config.path().to_path_buf(), engine_config)).await?;
+        let client = Surreal::new::<RocksDb>((config.path().to_path_buf(), engine_config)).await?;
         client
             .use_ns(config.namespace())
             .use_db(config.database())
@@ -1424,8 +1427,7 @@ impl SurrealStorage {
             cancelled: false,
             elapsed: Duration::ZERO,
         };
-        let guard = match tokio::time::timeout(inner.config.drain_grace, inner.client.write())
-            .await
+        let guard = match tokio::time::timeout(inner.config.drain_grace, inner.client.write()).await
         {
             Ok(guard) => guard,
             Err(_) => {
@@ -1720,8 +1722,7 @@ mod windows_path_tests {
             .expect("hold exclusive RocksDB-style lock");
 
         let started = Instant::now();
-        let outcome =
-            wait_for_engine_release(temp.path(), Duration::from_millis(120)).await;
+        let outcome = wait_for_engine_release(temp.path(), Duration::from_millis(120)).await;
         assert!(
             matches!(
                 outcome,

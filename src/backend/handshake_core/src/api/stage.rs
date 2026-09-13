@@ -49,6 +49,7 @@ const PRE_AUTH_DENIAL_AGGREGATE_AT: u32 = 8;
 const PRE_AUTH_DENIAL_WINDOW: Duration = Duration::from_secs(60);
 
 const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
+pub(crate) const HSK_HEADER_CHANNEL_BINDING_TOKEN: &str = "x-hsk-channel-binding-token";
 
 static CAPTURE_RATE: Lazy<Mutex<HashMap<String, (Instant, u32)>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -138,6 +139,17 @@ pub(crate) struct CaptureContext {
     pub(crate) kernel_task_run_id: String,
     pub(crate) session_run_id: String,
     pub(crate) binding_token: String,
+}
+
+/// Proof that the request arrived through the currently live native MCP process.
+///
+/// This is deliberately not an account, principal, session, capability, or resource grant. The
+/// shared ResourceBroker binds this proof to an independently issued persisted session before it
+/// authorizes a protected resource.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChannelBindingContext {
+    pub(crate) binding_hash: String,
+    pub(crate) limiter_principal: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -453,6 +465,29 @@ pub(crate) fn capture_context(
         .filter(|value| value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit()))
         .ok_or(CaptureContextFailure::InvalidSession)?;
     capture_context_for_token(presented)
+}
+
+pub(crate) fn capture_channel_binding(
+    headers: &HeaderMap,
+) -> Result<ChannelBindingContext, CaptureContextFailure> {
+    let presented = header_str(headers, HSK_HEADER_CHANNEL_BINDING_TOKEN)
+        .filter(|value| value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit()))
+        .ok_or(CaptureContextFailure::InvalidSession)?;
+    let binding_bytes = std::fs::read(native_mcp_binding_path())
+        .map_err(|_| CaptureContextFailure::InvalidSession)?;
+    let binding: NativeMcpBinding = serde_json::from_slice(&binding_bytes)
+        .map_err(|_| CaptureContextFailure::InvalidSession)?;
+    if binding.token.len() != 64 || !token_matches(&binding.token, presented) {
+        return Err(CaptureContextFailure::InvalidSession);
+    }
+    if process_birth_identity(binding.pid).as_ref() != Some(&binding.process_birth) {
+        return Err(CaptureContextFailure::StaleBinding);
+    }
+    let binding_hash = hex::encode(Sha256::digest(binding.token.as_bytes()));
+    Ok(ChannelBindingContext {
+        limiter_principal: binding_hash.clone(),
+        binding_hash,
+    })
 }
 
 fn capture_context_for_token(presented: &str) -> Result<CaptureContext, CaptureContextFailure> {

@@ -1706,6 +1706,10 @@ pub async fn bootstrap_schema(
         info_fingerprint_sha256 = %report.info_fingerprint_sha256,
         "surreal_schema_bootstrap_complete"
     );
+    // Identity and protected-resource authorization live in a separate embedded database so
+    // ordinary record-user permissions cannot be bypassed by the privileged product schema.
+    // Bootstrap remains coupled to the canonical migration entrypoint and fails startup closed.
+    storage.bootstrap_resource_authority_schema().await?;
     Ok(report)
 }
 
@@ -2351,8 +2355,7 @@ COMMIT TRANSACTION;\n"
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
-                predecessor_generated_surql_sha256: PRE_MT142_GENERATED_SURREALQL_SHA256
-                    .to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT142_GENERATED_SURREALQL_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT142_SCHEMA_INFO_SHA256.to_owned(),
                 generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
                 pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
@@ -2464,8 +2467,7 @@ COMMIT TRANSACTION;\n"
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
-                predecessor_generated_surql_sha256: PRE_MT151_GENERATED_SURREALQL_SHA256
-                    .to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT151_GENERATED_SURREALQL_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT151_SCHEMA_INFO_SHA256.to_owned(),
                 generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
                 pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
@@ -2569,8 +2571,7 @@ COMMIT TRANSACTION;\n"
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
-                predecessor_generated_surql_sha256: PRE_MT152_GENERATED_SURREALQL_SHA256
-                    .to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT152_GENERATED_SURREALQL_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT152_SCHEMA_INFO_SHA256.to_owned(),
                 generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
                 pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
@@ -3540,11 +3541,17 @@ mod tests {
     }
 
     /// Prints every catalog entry that differs from the fresh reference.
-    fn report_catalog_drift(label: &str, reference: &BTreeMap<String, String>, observed: &BTreeMap<String, String>) {
+    fn report_catalog_drift(
+        label: &str,
+        reference: &BTreeMap<String, String>,
+        observed: &BTreeMap<String, String>,
+    ) {
         for (key, expected) in reference {
             match observed.get(key) {
                 Some(actual) if actual == expected => {}
-                Some(actual) => eprintln!("{label} DRIFT {key}\n  fresh:    {expected}\n  observed: {actual}"),
+                Some(actual) => {
+                    eprintln!("{label} DRIFT {key}\n  fresh:    {expected}\n  observed: {actual}")
+                }
                 None => eprintln!("{label} MISSING {key}"),
             }
         }
@@ -3877,7 +3884,11 @@ mod tests {
             MT152_LOOM_FOLDER_SIBLING_KEY_BLOCK,
             MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_LINE,
         ] {
-            assert_eq!(SCHEMA.matches(block).count(), 1, "MT-152 block drifted: {block}");
+            assert_eq!(
+                SCHEMA.matches(block).count(),
+                1,
+                "MT-152 block drifted: {block}"
+            );
         }
         let pinned = SCHEMA
             .replace(MT152_FEMS_WRITE_ANCHORS_BLOCK, "")
@@ -3913,16 +3924,24 @@ mod tests {
         let schema = statements(SCHEMA);
         for statement in &upgrade {
             assert!(
-                schema.iter().any(|schema_statement| schema_statement == statement),
+                schema
+                    .iter()
+                    .any(|schema_statement| schema_statement == statement),
                 "MT-152 upgrade DDL drifted from schema.surql: {statement}"
             );
         }
         assert!(TABLE_NAMES.contains(&"fems_workspace_write_anchors"));
         assert!(!MT152_FEMS_WRITE_ANCHORS_BLOCK.contains("REFERENCE"));
-        assert_ne!(PRE_MT152_GENERATED_SURREALQL_SHA256, GENERATED_SURREALQL_SHA256);
+        assert_ne!(
+            PRE_MT152_GENERATED_SURREALQL_SHA256,
+            GENERATED_SURREALQL_SHA256
+        );
         assert_ne!(PRE_MT152_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
         // The MT-152 predecessor is the MT-151 current pin, so the two hops chain.
-        assert_ne!(PRE_MT152_GENERATED_SURREALQL_SHA256, PRE_MT151_GENERATED_SURREALQL_SHA256);
+        assert_ne!(
+            PRE_MT152_GENERATED_SURREALQL_SHA256,
+            PRE_MT151_GENERATED_SURREALQL_SHA256
+        );
         let _ = mt151_pin_schema();
     }
 
@@ -3949,9 +3968,18 @@ mod tests {
         assert_eq!(field, statements(MT152_LOOM_FOLDER_SIBLING_KEY_BLOCK));
         assert_eq!(index, statements(MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_LINE));
         let schema = statements(SCHEMA);
-        let field_at = schema.iter().position(|s| s == &field[0]).expect("field in schema");
-        let index_at = schema.iter().position(|s| s == &index[0]).expect("index in schema");
-        assert!(field_at < index_at, "sibling_key field must precede its UNIQUE index");
+        let field_at = schema
+            .iter()
+            .position(|s| s == &field[0])
+            .expect("field in schema");
+        let index_at = schema
+            .iter()
+            .position(|s| s == &index[0])
+            .expect("index in schema");
+        assert!(
+            field_at < index_at,
+            "sibling_key field must precede its UNIQUE index"
+        );
         assert_eq!(
             super::super::loom_store::loom_folder_sibling_key("ws-1", None, " Root "),
             "v1|w4:ws-1|r|n4:Root"
@@ -3969,7 +3997,8 @@ mod tests {
     /// root with that name through the product path with the same typed conflict as a nested
     /// duplicate.
     #[tokio::test]
-    async fn mt152_exact_mt151_pin_upgrade_backfills_folder_sibling_keys_and_rejects_root_duplicates() {
+    async fn mt152_exact_mt151_pin_upgrade_backfills_folder_sibling_keys_and_rejects_root_duplicates(
+    ) {
         let mt151_pin_schema = mt151_pin_schema();
         let directory = tempfile::tempdir().expect("temporary MT-151-pin store");
         let storage = open_test_storage(&directory)
@@ -4035,7 +4064,10 @@ mod tests {
             upgraded.outcome,
             SchemaBootstrapOutcome::UpgradedSupportedPredecessor
         );
-        assert_eq!(upgraded.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
         reopened
             .with_admin_operation(|database| {
                 Box::pin(async move {
@@ -4055,7 +4087,11 @@ mod tests {
                             "v1|w13:mt152_folders|r|n6:Shared#dup1".to_owned(),
                         ]
                     );
-                    assert_eq!(names, vec!["Shared"; 3], "visible names are never rewritten");
+                    assert_eq!(
+                        names,
+                        vec!["Shared"; 3],
+                        "visible names are never rewritten"
+                    );
                     Ok(())
                 })
             })
@@ -4079,7 +4115,10 @@ mod tests {
             .await
             .expect_err("a third root 'Shared' must hit uq_loom_folders_sibling_key");
         assert!(
-            matches!(duplicate_root, StorageError::Conflict("loom_folder_sibling_name")),
+            matches!(
+                duplicate_root,
+                StorageError::Conflict("loom_folder_sibling_name")
+            ),
             "root duplicate must surface the typed sibling-name conflict, got {duplicate_root}"
         );
         let renamed_into_collision = db
@@ -4133,12 +4172,16 @@ mod tests {
                 .collect()
         }
         let mut upgrade = statements(MT151_JOURNAL_KEY_MATERIALISE_STATEMENTS);
-        upgrade.extend(statements(MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS));
+        upgrade.extend(statements(
+            MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS,
+        ));
         assert_eq!(upgrade.len(), 9);
         let schema = statements(SCHEMA);
         for statement in &upgrade {
             assert!(
-                schema.iter().any(|schema_statement| schema_statement == statement),
+                schema
+                    .iter()
+                    .any(|schema_statement| schema_statement == statement),
                 "MT-151 upgrade DDL drifted from schema.surql: {statement}"
             );
         }
@@ -4146,7 +4189,10 @@ mod tests {
             "UPDATE loom_blocks SET updated_at = updated_at WHERE content_type = 'journal' AND journal_date != NONE RETURN NONE;"
         ));
         assert!(TABLE_NAMES.contains(&"storage_graph_anchors"));
-        assert_ne!(PRE_MT151_GENERATED_SURREALQL_SHA256, GENERATED_SURREALQL_SHA256);
+        assert_ne!(
+            PRE_MT151_GENERATED_SURREALQL_SHA256,
+            GENERATED_SURREALQL_SHA256
+        );
         assert_ne!(PRE_MT151_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
     }
 
@@ -4574,7 +4620,11 @@ mod tests {
             "DEFINE INDEX OVERWRITE pk_storage_graph_anchors ON TABLE storage_graph_anchors FIELDS anchor_key UNIQUE;\n",
         );
         for block in [JOURNAL_KEY_BLOCK, JOURNAL_INDEX_LINE, GRAPH_ANCHORS_BLOCK] {
-            assert_eq!(SCHEMA.matches(block).count(), 1, "MT-151 block drifted: {block}");
+            assert_eq!(
+                SCHEMA.matches(block).count(),
+                1,
+                "MT-151 block drifted: {block}"
+            );
         }
         // The MT-152 block sits on top of the MT-151 pin, so the MT-142 pin is the current
         // script minus both; the pre-MT-151 path now applies MT-151 and MT-152 together.
@@ -4708,9 +4758,7 @@ mod tests {
                         .await?
                         .expect("upgraded state survives reopen");
                     assert!(state.is_exact_current());
-                    let mut sentinel = database
-                        .query("RETURN workspaces:mt151_pin.name;")
-                        .await?;
+                    let mut sentinel = database.query("RETURN workspaces:mt151_pin.name;").await?;
                     let name: Option<String> = sentinel.take(0)?;
                     assert_eq!(name.as_deref(), Some("sentinel"));
                     Ok(())
@@ -4837,9 +4885,7 @@ mod tests {
                         .await?
                         .expect("upgraded state survives reopen");
                     assert!(state.is_exact_current());
-                    let mut sentinel = database
-                        .query("RETURN workspaces:mt152_pin.name;")
-                        .await?;
+                    let mut sentinel = database.query("RETURN workspaces:mt152_pin.name;").await?;
                     let name: Option<String> = sentinel.take(0)?;
                     assert_eq!(name.as_deref(), Some("sentinel"));
                     Ok(())

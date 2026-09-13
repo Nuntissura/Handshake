@@ -3,6 +3,7 @@ use axum::{routing::get, Router};
 use crate::AppState;
 
 pub mod atelier;
+pub mod authority;
 pub mod bundles;
 pub mod calendar;
 pub mod canvases;
@@ -32,6 +33,7 @@ pub mod user_manual;
 pub mod workspaces;
 
 pub fn routes(state: AppState) -> Router {
+    let authority_routes = authority::routes(state.clone());
     let workspace_routes = workspaces::routes(state.clone());
     let preferences_routes = preferences::routes(state.clone());
     let calendar_routes = calendar::routes(state.clone());
@@ -62,7 +64,8 @@ pub fn routes(state: AppState) -> Router {
         .route("/logs/tail", get(logs::tail_logs))
         .with_state(state.clone());
 
-    workspace_routes
+    authority_routes
+        .merge(workspace_routes)
         .merge(preferences_routes)
         .merge(calendar_routes)
         .merge(code_nav_index_routes)
