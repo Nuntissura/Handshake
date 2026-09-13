@@ -1840,14 +1840,21 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
             )
         })
         .collect();
-    let first = MEMORY_ENVELOPE_CURVE.first().expect("at least one measured point");
-    let last = MEMORY_ENVELOPE_CURVE.last().expect("at least one measured point");
+    let first = MEMORY_ENVELOPE_CURVE
+        .first()
+        .expect("at least one measured point");
+    let last = MEMORY_ENVELOPE_CURVE
+        .last()
+        .expect("at least one measured point");
     // Two-point linear fit through the first and last measured points: the
     // intercept is the fixed part, the slope the ingest-proportional tail.
     let (slope_bytes_per_op, intercept_bytes) = if last.operations > first.operations {
         let slope = (last.growth_bytes as f64 - first.growth_bytes as f64)
             / (last.operations - first.operations) as f64;
-        (slope, first.growth_bytes as f64 - slope * first.operations as f64)
+        (
+            slope,
+            first.growth_bytes as f64 - slope * first.operations as f64,
+        )
     } else {
         (0.0, first.growth_bytes as f64)
     };
@@ -1957,7 +1964,8 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
     );
     // Timeout defaults are rendered from the storage constants so this page can
     // never state a value the code does not have (MT-142 review R2-1-1, D-142-4).
-    let millis = |duration: std::time::Duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
+    let millis =
+        |duration: std::time::Duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
     let shutdown_wait_s = DEFAULT_SHUTDOWN_WAIT.as_secs();
     let drain_grace_s = DEFAULT_DRAIN_GRACE.as_secs();
     let statement_timeout_s = DEFAULT_STATEMENT_TIMEOUT.as_secs();
@@ -3906,7 +3914,10 @@ mod tests {
                 }
                 let candidates = match pending_path.take() {
                     Some(relative) => vec![dir.join(relative)],
-                    None => vec![dir.join(format!("{name}.rs")), dir.join(name).join("mod.rs")],
+                    None => vec![
+                        dir.join(format!("{name}.rs")),
+                        dir.join(name).join("mod.rs"),
+                    ],
                 };
                 for candidate in candidates {
                     if candidate.is_file() {
@@ -3965,7 +3976,8 @@ mod tests {
 
         // Report fields come from the schema source so a field added, renamed
         // or removed by the storage lane fails this test.
-        let report_source = mt142_read(&mt142_crate_root().join("src/storage/surreal/swarm_load_report.rs"));
+        let report_source =
+            mt142_read(&mt142_crate_root().join("src/storage/surreal/swarm_load_report.rs"));
         let fields = mt142_struct_fields(&report_source, "pub struct SwarmLoadReport {");
         assert!(
             fields.len() >= 31,
@@ -4042,7 +4054,9 @@ mod tests {
                     "missing MT-142 manual text for {json_key} value: {snake}"
                 );
                 assert!(
-                    listed.iter().any(|value| value.as_str() == Some(snake.as_str())),
+                    listed
+                        .iter()
+                        .any(|value| value.as_str() == Some(snake.as_str())),
                     "body_json {json_key} lacks {snake}"
                 );
             }
@@ -4058,12 +4072,26 @@ mod tests {
 
         // Retry policy numbers and schedule come from the code constant.
         let policy = RetryPolicy::CONTRACT;
-        let retry_json = &mt142_section_json(&page, "Contention, retry, and retry exhaustion")["retry_policy"];
-        let millis = |duration: std::time::Duration| u64::try_from(duration.as_millis()).expect("fits u64");
-        assert_eq!(retry_json["base_delay_ms"].as_u64(), Some(millis(policy.base_delay)));
-        assert_eq!(retry_json["maximum_delay_ms"].as_u64(), Some(millis(policy.maximum_delay)));
-        assert_eq!(retry_json["maximum_attempts"].as_u64(), Some(u64::from(policy.maximum_attempts)));
-        assert_eq!(retry_json["maximum_elapsed_ms"].as_u64(), Some(millis(policy.maximum_elapsed)));
+        let retry_json =
+            &mt142_section_json(&page, "Contention, retry, and retry exhaustion")["retry_policy"];
+        let millis =
+            |duration: std::time::Duration| u64::try_from(duration.as_millis()).expect("fits u64");
+        assert_eq!(
+            retry_json["base_delay_ms"].as_u64(),
+            Some(millis(policy.base_delay))
+        );
+        assert_eq!(
+            retry_json["maximum_delay_ms"].as_u64(),
+            Some(millis(policy.maximum_delay))
+        );
+        assert_eq!(
+            retry_json["maximum_attempts"].as_u64(),
+            Some(u64::from(policy.maximum_attempts))
+        );
+        assert_eq!(
+            retry_json["maximum_elapsed_ms"].as_u64(),
+            Some(millis(policy.maximum_elapsed))
+        );
         let schedule: Vec<u64> = (0..policy.effective_maximum_attempts().saturating_sub(1))
             .map(|retry_index| millis(policy.backoff_upper_bound(retry_index)))
             .collect();
@@ -4073,7 +4101,10 @@ mod tests {
             .iter()
             .map(|value| value.as_u64().expect("ms"))
             .collect();
-        assert_eq!(documented_schedule, schedule, "documented sleep schedule drifted");
+        assert_eq!(
+            documented_schedule, schedule,
+            "documented sleep schedule drifted"
+        );
         assert_eq!(
             retry_json["worst_case_sleep_sum_ms"].as_u64(),
             Some(schedule.iter().sum::<u64>())
@@ -4112,7 +4143,10 @@ mod tests {
             format!("worst case {} ms of sleep", schedule.iter().sum::<u64>()),
             "full jitter".to_string(),
         ] {
-            assert!(body.contains(&required), "missing MT-142 manual text: {required}");
+            assert!(
+                body.contains(&required),
+                "missing MT-142 manual text: {required}"
+            );
         }
 
         // Codes, commands, prohibitions, report rules, shutdown symbols.
@@ -4179,26 +4213,55 @@ mod tests {
         for command in commands {
             let text = command["command"].as_str().expect("command string");
             assert!(text.starts_with("cargo test "), "{text}");
-            assert!(text.contains("--features surreal-test-support,test-utils"), "{text}");
-            assert!(body.contains(text), "command not in the page text verbatim: {text}");
+            assert!(
+                text.contains("--features surreal-test-support,test-utils"),
+                "{text}"
+            );
+            assert!(
+                body.contains(text),
+                "command not in the page text verbatim: {text}"
+            );
         }
         // Shutdown defaults, the ShutdownReport shape and every runtime symbol the
         // page names come from the storage sources.
         let shutdown_json = mt142_section_json(&page, "Shutdown under load and the ShutdownReport");
         for (key, default, symbol) in [
-            ("shutdown_wait_default_ms", DEFAULT_SHUTDOWN_WAIT, "DEFAULT_SHUTDOWN_WAIT"),
-            ("drain_grace_default_ms", DEFAULT_DRAIN_GRACE, "DEFAULT_DRAIN_GRACE"),
-            ("statement_timeout_default_ms", DEFAULT_STATEMENT_TIMEOUT, "DEFAULT_STATEMENT_TIMEOUT"),
-            ("engine_query_timeout_opt_in_ms", DEFAULT_ENGINE_QUERY_TIMEOUT, "DEFAULT_ENGINE_QUERY_TIMEOUT"),
+            (
+                "shutdown_wait_default_ms",
+                DEFAULT_SHUTDOWN_WAIT,
+                "DEFAULT_SHUTDOWN_WAIT",
+            ),
+            (
+                "drain_grace_default_ms",
+                DEFAULT_DRAIN_GRACE,
+                "DEFAULT_DRAIN_GRACE",
+            ),
+            (
+                "statement_timeout_default_ms",
+                DEFAULT_STATEMENT_TIMEOUT,
+                "DEFAULT_STATEMENT_TIMEOUT",
+            ),
+            (
+                "engine_query_timeout_opt_in_ms",
+                DEFAULT_ENGINE_QUERY_TIMEOUT,
+                "DEFAULT_ENGINE_QUERY_TIMEOUT",
+            ),
             (
                 "engine_transaction_timeout_opt_in_ms",
                 DEFAULT_ENGINE_TRANSACTION_TIMEOUT,
                 "DEFAULT_ENGINE_TRANSACTION_TIMEOUT",
             ),
         ] {
-            assert_eq!(shutdown_json[key].as_u64(), Some(millis(default)), "body_json {key} drifted");
+            assert_eq!(
+                shutdown_json[key].as_u64(),
+                Some(millis(default)),
+                "body_json {key} drifted"
+            );
             let required = format!("`{symbol}` {} s", default.as_secs());
-            assert!(body.contains(&required), "missing MT-142 manual text: {required}");
+            assert!(
+                body.contains(&required),
+                "missing MT-142 manual text: {required}"
+            );
         }
         let crate_root = mt142_crate_root();
         let surreal_source = mt142_read(&crate_root.join("src/storage/surreal.rs"));
@@ -4209,7 +4272,10 @@ mod tests {
             .iter()
             .map(|value| value.as_str().expect("field name"))
             .collect();
-        assert_eq!(documented_report_fields, report_fields, "ShutdownReport fields drifted");
+        assert_eq!(
+            documented_report_fields, report_fields,
+            "ShutdownReport fields drifted"
+        );
         for field in &report_fields {
             assert!(
                 body.contains(&format!("`{field}")),
@@ -4220,18 +4286,28 @@ mod tests {
             surreal_source,
             mt142_read(&crate_root.join("src/storage/surreal/database.rs")),
             mt142_read(&crate_root.join("src/storage/surreal/knowledge.rs")),
+            mt142_read(&crate_root.join("src/storage/surreal/retry.rs")),
         ]
         .join("\n");
-        for symbol in shutdown_json["runtime_symbols"].as_array().expect("runtime_symbols") {
+        for symbol in shutdown_json["runtime_symbols"]
+            .as_array()
+            .expect("runtime_symbols")
+        {
             let symbol = symbol.as_str().expect("symbol");
             let leaf = symbol.rsplit("::").next().expect("symbol leaf");
             assert!(
                 storage_sources.contains(leaf),
                 "storage sources no longer define {symbol}; update the MT-142 manual"
             );
-            assert!(body.contains(leaf), "manual text does not name runtime symbol {symbol}");
+            assert!(
+                body.contains(leaf),
+                "manual text does not name runtime symbol {symbol}"
+            );
         }
-        for code in ["HSK-STORAGE-RETRY-EXHAUSTED", "HSK-STORAGE-LOCK-WAIT-TIMEOUT"] {
+        for code in [
+            "HSK-STORAGE-RETRY-EXHAUSTED",
+            "HSK-STORAGE-LOCK-WAIT-TIMEOUT",
+        ] {
             assert!(
                 storage_sources.contains(&format!("\"{code}\"")),
                 "storage sources no longer define conflict code {code}"
@@ -4279,7 +4355,10 @@ mod tests {
                 text.contains(&format!("--test {target} ")),
                 "command does not run --test {target}: {text}"
             );
-            assert!(body.contains(text), "command not in the page text verbatim: {text}");
+            assert!(
+                body.contains(text),
+                "command not in the page text verbatim: {text}"
+            );
             if let Some(filter) = command["test_filter"].as_str() {
                 let source = mt142_read(&target_file);
                 assert!(
@@ -4295,7 +4374,10 @@ mod tests {
 
         for env in runbook["env_vars"].as_array().expect("env_vars") {
             let name = env["name"].as_str().expect("env var name");
-            assert!(body.contains(name), "env var {name} not named in the page text");
+            assert!(
+                body.contains(name),
+                "env var {name} not named in the page text"
+            );
             if env["read_by_swarm_tests"].as_bool() == Some(true) {
                 assert!(
                     corpus.contains(name),
@@ -4311,9 +4393,15 @@ mod tests {
             }
         }
 
-        for marker in runbook["printed_markers"].as_array().expect("printed_markers") {
+        for marker in runbook["printed_markers"]
+            .as_array()
+            .expect("printed_markers")
+        {
             let marker = marker.as_str().expect("marker");
-            assert!(body.contains(marker), "marker {marker} not in the page text");
+            assert!(
+                body.contains(marker),
+                "marker {marker} not in the page text"
+            );
             assert!(
                 corpus.contains(marker),
                 "swarm test sources neither print nor write documented marker {marker}; sources: {files:?}"
@@ -4331,7 +4419,8 @@ mod tests {
     fn mt152_manual_lock_migration_pins_code() {
         let page = mt142_page();
         let body = mt142_body(&page);
-        let section = mt142_section_json(&page, "MT-152 lock migration: what shapes contention now");
+        let section =
+            mt142_section_json(&page, "MT-152 lock migration: what shapes contention now");
         let crate_root = mt142_crate_root();
         let src_root = crate_root.join("src");
 
@@ -4350,7 +4439,11 @@ mod tests {
         }
         let mut files = Vec::new();
         rs_files(&src_root, &mut files);
-        assert!(!files.is_empty(), "no .rs files under {}", src_root.display());
+        assert!(
+            !files.is_empty(),
+            "no .rs files under {}",
+            src_root.display()
+        );
         // The manual's own source carries the pinned names as string literals.
         let manual_dir = src_root.join("user_manual");
         let sources: Vec<(std::path::PathBuf, String)> = files
@@ -4366,9 +4459,16 @@ mod tests {
             .map(|value| value.as_str().expect("mutex name"))
             .collect();
         assert_eq!(documented, MT152_RETIRED_STORAGE_MUTEXES.to_vec());
-        assert_eq!(documented.len(), 10, "the contract retires exactly ten mutexes");
+        assert_eq!(
+            documented.len(),
+            10,
+            "the contract retires exactly ten mutexes"
+        );
         for name in MT152_RETIRED_STORAGE_MUTEXES {
-            assert!(body.contains(&format!("`{name}`")), "section does not name {name}");
+            assert!(
+                body.contains(&format!("`{name}`")),
+                "section does not name {name}"
+            );
             for (path, source) in &sources {
                 for line in source.lines() {
                     let code = line.split("//").next().unwrap_or("");
@@ -4392,7 +4492,9 @@ mod tests {
             mt142_read(&crate_root.join("src/storage/surreal/locus_store.rs")),
         ]
         .join("\n");
-        let guards_json = section["database_guards"].as_array().expect("database_guards");
+        let guards_json = section["database_guards"]
+            .as_array()
+            .expect("database_guards");
         assert_eq!(guards_json.len(), MT152_DATABASE_GUARDS.len());
         for (mt, guard) in MT152_DATABASE_GUARDS {
             assert!(
@@ -4401,22 +4503,39 @@ mod tests {
             );
             assert!(body.contains(guard), "section does not name guard {guard}");
             assert!(
-                guards_json.iter().any(|entry| entry["guard"] == *guard && entry["added_by"] == *mt),
+                guards_json
+                    .iter()
+                    .any(|entry| entry["guard"] == *guard && entry["added_by"] == *mt),
                 "body_json database_guards lacks {mt} {guard}"
             );
         }
         for present in ["fems_workspace_write_anchors", "sibling_key"] {
-            assert!(schema.contains(present), "schema.surql lacks MT-152 guard {present}");
+            assert!(
+                schema.contains(present),
+                "schema.surql lacks MT-152 guard {present}"
+            );
         }
 
         let database = mt142_read(&crate_root.join("src/storage/surreal/database.rs"));
-        assert!(database.contains("async fn guarded_mutation"), "SurrealDatabase::guarded_mutation moved");
-        assert!(database.contains("KeyedLockRegistry::keyed()"), "SurrealDatabase::new no longer uses the keyed registry");
+        assert!(
+            database.contains("async fn guarded_mutation"),
+            "SurrealDatabase::guarded_mutation moved"
+        );
+        assert!(
+            database.contains("KeyedLockRegistry::keyed()"),
+            "SurrealDatabase::new no longer uses the keyed registry"
+        );
         let keyed_lock = mt142_read(&crate_root.join("src/storage/surreal/keyed_lock.rs"));
         assert!(keyed_lock.contains("keys.sort();") && keyed_lock.contains("keys.dedup();"));
         let knowledge = mt142_read(&crate_root.join("src/storage/surreal/knowledge.rs"));
-        assert!(knowledge.contains("fn title_anchor_reclaim_statement"), "title anchor reclamation moved");
-        let per_request = ["src/api/knowledge_documents.rs", "src/api/knowledge_code_nav.rs"];
+        assert!(
+            knowledge.contains("fn title_anchor_reclaim_statement"),
+            "title anchor reclamation moved"
+        );
+        let per_request = [
+            "src/api/knowledge_documents.rs",
+            "src/api/knowledge_code_nav.rs",
+        ];
         for file in per_request {
             let source = mt142_read(&crate_root.join(file));
             assert!(
