@@ -244,6 +244,18 @@ struct PrincipalLookupRow {
 }
 
 #[derive(SurrealValue)]
+struct CanonicalPrincipalRow {
+    account_id: RecordId,
+    principal_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct CanonicalAccessSpaceRow {
+    account_id: RecordId,
+    access_space_id: RecordId,
+}
+
+#[derive(SurrealValue)]
 struct SessionIssueRow {
     account_epoch: i64,
     principal_epoch: i64,
@@ -274,6 +286,19 @@ struct SessionAuthorityRow {
     session_id: RecordId,
     access_space_id: RecordId,
     delegation_chain: Vec<String>,
+    policy_version: i64,
+}
+
+#[derive(SurrealValue)]
+struct SessionAccessSpaceRow {
+    account_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct AccessSpaceSwitchRow {
+    account_id: RecordId,
+    status: String,
+    revocation_epoch: i64,
     policy_version: i64,
 }
 
@@ -387,7 +412,7 @@ impl SurrealStorage {
                         .use_ns(namespace)
                         .use_db(database.clone())
                         .await?;
-                    let mut response = authority
+                    authority
                         .query(
                             "BEGIN TRANSACTION;\n\
                              LET $existing_account = (SELECT id FROM local_accounts WHERE account_key = $account_key LIMIT 1);\n\
@@ -398,30 +423,70 @@ impl SurrealStorage {
                              IF array::len($existing_principal) = 0 { CREATE $principal SET principal_key = $principal_key, account_id = $resolved_account, principal_kind = $principal_kind, actor_kind = $actor_kind, actor_id = $actor_id, capability_profile_id = $capability_profile_id, delegated_capabilities = $delegated_capabilities, status = 'enabled', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now; };\n\
                              LET $existing_space = (SELECT id FROM access_spaces WHERE account_id = $resolved_account AND space_key = $space_key LIMIT 1);\n\
                              IF array::len($existing_space) = 0 { CREATE $space SET space_key = $space_key, account_id = $resolved_account, name = $space_key, status = 'active', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now; };\n\
-                             COMMIT TRANSACTION;\n\
-                             SELECT account_id, id AS principal_id, (SELECT VALUE id FROM access_spaces WHERE account_id.account_key = $account_key AND space_key = $space_key LIMIT 1)[0] AS access_space_id FROM principals WHERE principal_key = $principal_key AND account_id.account_key = $account_key LIMIT 1;",
+                             COMMIT TRANSACTION;",
                         )
                         .bind(("account", account))
                         .bind(("principal", principal))
                         .bind(("space", space))
-                        .bind(("account_key", account_key))
+                        .bind(("account_key", account_key.clone()))
                         .bind(("account_role", account_role))
-                        .bind(("principal_key", principal_key))
+                        .bind(("principal_key", principal_key.clone()))
                         .bind(("principal_kind", principal_kind))
                         .bind(("actor_kind", actor_kind))
                         .bind(("actor_id", actor_id))
                         .bind(("capability_profile_id", capability_profile_id))
                         .bind(("delegated_capabilities", delegated_capabilities))
-                        .bind(("space_key", space_key))
+                        .bind(("space_key", space_key.clone()))
                         .bind(("now", now))
                         .await?
                         .check()?;
-                    let rows: Vec<PrincipalLookupRow> = response.take(5)?;
-                    rows.into_iter().next().ok_or_else(|| {
-                        surrealdb::Error::internal(
-                            "principal provisioning returned no canonical identity".to_owned(),
+
+                    let mut principal_response = authority
+                        .query(
+                            "SELECT account_id, id AS principal_id FROM principals WHERE principal_key = $principal_key AND account_id.account_key = $account_key LIMIT 2;",
                         )
-                        .into()
+                        .bind(("principal_key", principal_key))
+                        .bind(("account_key", account_key.clone()))
+                        .await?
+                        .check()?;
+                    let principal_rows: Vec<CanonicalPrincipalRow> = principal_response.take(0)?;
+                    if principal_rows.len() != 1 {
+                        return Err(surrealdb::Error::internal(format!(
+                            "principal provisioning returned {} canonical Principal rows",
+                            principal_rows.len()
+                        ))
+                        .into());
+                    }
+                    let principal_row = principal_rows.into_iter().next().expect("length checked");
+
+                    let mut space_response = authority
+                        .query(
+                            "SELECT account_id, id AS access_space_id FROM access_spaces WHERE account_id.account_key = $account_key AND space_key = $space_key LIMIT 2;",
+                        )
+                        .bind(("account_key", account_key))
+                        .bind(("space_key", space_key))
+                        .await?
+                        .check()?;
+                    let space_rows: Vec<CanonicalAccessSpaceRow> = space_response.take(0)?;
+                    if space_rows.len() != 1 {
+                        return Err(surrealdb::Error::internal(format!(
+                            "principal provisioning returned {} canonical AccessSpace rows",
+                            space_rows.len()
+                        ))
+                        .into());
+                    }
+                    let space_row = space_rows.into_iter().next().expect("length checked");
+                    if principal_row.account_id != space_row.account_id {
+                        return Err(surrealdb::Error::internal(
+                            "canonical Principal and AccessSpace belong to different accounts"
+                                .to_owned(),
+                        )
+                        .into());
+                    }
+                    Ok(PrincipalLookupRow {
+                        account_id: principal_row.account_id,
+                        principal_id: principal_row.principal_id,
+                        access_space_id: space_row.access_space_id,
                     })
                 })
             })
@@ -573,11 +638,11 @@ impl SurrealStorage {
                 authority.use_ns(namespace).use_db(database).await?;
                 authority
                     .query(
-                        "BEGIN TRANSACTION; LET $eligible = SELECT VALUE id FROM session_exchange_credentials WHERE token_hash = $credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND account_id = $account AND principal_id = $principal AND access_space_id = $space AND account_id.status = 'enabled' AND principal_id.status = 'enabled' AND access_space_id.status = 'active' AND access_space_id.account_id = account_id LIMIT 1; IF array::len($eligible) = 0 { THROW 'HSK-AUTH-CREDENTIAL-DENIED'; }; UPDATE session_exchange_credentials SET status = 'consumed' WHERE id IN $eligible; CREATE $session SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $session_token_hash, channel_binding_hash = $channel_binding_hash, authentication_strength = 'credential_exchange', delegated_capabilities = $principal.delegated_capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $account.revocation_epoch, principal_revocation_epoch = $principal.revocation_epoch, space_revocation_epoch = $space.revocation_epoch, policy_version = math::max([$account.policy_version, $principal.policy_version, $space.policy_version]), issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE; COMMIT TRANSACTION;",
+                        "BEGIN TRANSACTION; LET $eligible = SELECT VALUE id FROM session_exchange_credentials WHERE token_hash = $credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND account_id = $account AND principal_id = $principal AND access_space_id = $space AND account_id.status = 'enabled' AND principal_id.status = 'enabled' AND access_space_id.status = 'active' AND access_space_id.account_id = account_id LIMIT 1; IF array::len($eligible) = 0 { THROW 'HSK-AUTH-CREDENTIAL-DENIED'; }; UPDATE session_exchange_credentials SET status = 'consumed' WHERE id IN $eligible; CREATE $session_record SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $session_token_hash, channel_binding_hash = $channel_binding_hash, authentication_strength = 'credential_exchange', delegated_capabilities = $principal.delegated_capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $account.revocation_epoch, principal_revocation_epoch = $principal.revocation_epoch, space_revocation_epoch = $space.revocation_epoch, policy_version = math::max([$account.policy_version, $principal.policy_version, $space.policy_version]), issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE; COMMIT TRANSACTION;",
                     )
                     .bind(("credential_token_hash", credential_token_hash))
                     .bind(("session_token_hash", session_token_hash))
-                    .bind(("session", session))
+                    .bind(("session_record", session))
                     .bind(("account", account))
                     .bind(("principal", principal))
                     .bind(("principal_key", principal_key))
@@ -674,9 +739,9 @@ impl SurrealStorage {
                 })?;
                 authority
                     .query(
-                        "CREATE $session SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $token_hash, channel_binding_hash = $channel_binding_hash, authentication_strength = 'local_opaque', delegated_capabilities = $delegated_capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $account_epoch, principal_revocation_epoch = $principal_epoch, space_revocation_epoch = $space_epoch, policy_version = $policy_version, issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE;",
+                        "CREATE $session_record SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $token_hash, channel_binding_hash = $channel_binding_hash, authentication_strength = 'local_opaque', delegated_capabilities = $delegated_capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $account_epoch, principal_revocation_epoch = $principal_epoch, space_revocation_epoch = $space_epoch, policy_version = $policy_version, issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE;",
                     )
-                    .bind(("session", session))
+                    .bind(("session_record", session))
                     .bind(("account", account))
                     .bind(("principal", principal.clone()))
                     .bind(("space", space))
@@ -909,6 +974,25 @@ impl SurrealStorage {
                         .use_ns(namespace.clone())
                         .use_db(database.clone())
                         .await?;
+                    let mut resource_response = authority
+                        .query(
+                            "SELECT VALUE id FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $external LIMIT 2;",
+                        )
+                        .bind(("kind", kind.clone()))
+                        .bind(("external", external))
+                        .await?
+                        .check()?;
+                    let resource_rows: Vec<RecordId> = resource_response.take(0)?;
+                    let resource = match resource_rows.as_slice() {
+                        [] => None,
+                        [resource] => Some(resource.clone()),
+                        _ => {
+                            return Err(surrealdb::Error::internal(
+                                "protected resource lookup was not canonical".to_owned(),
+                            )
+                            .into())
+                        }
+                    };
                     if authority
                         .signin(RecordSignin {
                             namespace,
@@ -937,10 +1021,10 @@ impl SurrealStorage {
                     let session = session_rows.into_iter().next();
                     let mut response = authority
                         .query(
-                            "SELECT id AS grant_id, resource_id, account_id, principal_id, $auth.id AS session_id, access_space_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, principal_id.capability_profile_id AS capability_profile_id, $auth.delegation_chain AS delegation_chain, math::max([policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version]) AS policy_version FROM resource_grants WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id.resource_kind = $kind AND resource_id.external_resource_id = $external AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND array::contains(actions, $action) AND array::contains(capability_ids, $capability) AND (array::contains($auth.delegated_capabilities, '*') OR array::contains($auth.delegated_capabilities, $capability)) AND delegation_chain = $auth.delegation_chain AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')) LIMIT 1;",
+                            "SELECT id AS grant_id, resource_id, account_id, principal_id, $auth.id AS session_id, access_space_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, principal_id.capability_profile_id AS capability_profile_id, $auth.delegation_chain AS delegation_chain, math::max([policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version]) AS policy_version FROM resource_grants WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND actions CONTAINS $action AND capability_ids CONTAINS $capability AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability) AND delegation_chain = $auth.delegation_chain AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')) LIMIT 1;",
                         )
+                        .bind(("resource", resource))
                         .bind(("kind", kind))
-                        .bind(("external", external))
                         .bind(("action", action))
                         .bind(("capability", capability))
                         .await?
@@ -1032,13 +1116,13 @@ impl SurrealStorage {
                     .await?;
                 authority
                     .query(
-                        "CREATE $audit SET decision_id = $decision_id, account_id = $account, principal_id = $principal, session_id = $session, access_space_id = $space, delegation_chain = $delegation_chain, resource_id = $resource, requested_resource_hash = $requested_resource_hash, resource_kind = $resource_kind, action = $action, capability_id = $capability, result = $result, policy_version = $policy_version, occurred_at = time::now();",
+                        "CREATE $audit SET decision_id = $decision_id, account_id = $account, principal_id = $principal, session_id = $session_record, access_space_id = $space, delegation_chain = $delegation_chain, resource_id = $resource, requested_resource_hash = $requested_resource_hash, resource_kind = $resource_kind, action = $action, capability_id = $capability, result = $result, policy_version = $policy_version, occurred_at = time::now();",
                     )
                     .bind(("audit", audit))
                     .bind(("decision_id", decision_id))
                     .bind(("account", account))
                     .bind(("principal", principal))
-                    .bind(("session", session))
+                    .bind(("session_record", session))
                     .bind(("space", space))
                     .bind(("delegation_chain", delegation_chain))
                     .bind(("resource", resource))
@@ -1102,12 +1186,50 @@ impl SurrealStorage {
                     .use_ns(namespace)
                     .use_db(database.clone())
                     .await?;
+                let mut session_response = authority
+                    .query("SELECT account_id FROM $session_record LIMIT 2;")
+                    .bind(("session_record", session.clone()))
+                    .await?
+                    .check()?;
+                let session_rows: Vec<SessionAccessSpaceRow> = session_response.take(0)?;
+                let session_row = match session_rows.as_slice() {
+                    [row] => row,
+                    _ => {
+                        return Err(surrealdb::Error::internal(
+                            "HSK-AUTH-SPACE-SWITCH-DENIED".to_owned(),
+                        )
+                        .into())
+                    }
+                };
+                let mut space_response = authority
+                    .query(
+                        "SELECT account_id, status, revocation_epoch, policy_version FROM $space LIMIT 2;",
+                    )
+                    .bind(("space", space.clone()))
+                    .await?
+                    .check()?;
+                let space_rows: Vec<AccessSpaceSwitchRow> = space_response.take(0)?;
+                let space_row = match space_rows.as_slice() {
+                    [row]
+                        if row.account_id == session_row.account_id && row.status == "active" =>
+                    {
+                        row
+                    }
+                    _ => {
+                        return Err(surrealdb::Error::internal(
+                            "HSK-AUTH-SPACE-SWITCH-DENIED".to_owned(),
+                        )
+                        .into())
+                    }
+                };
                 authority
                     .query(
-                        "IF $space.account_id != $session.account_id OR $space.status != 'active' { THROW 'HSK-AUTH-SPACE-SWITCH-DENIED'; }; UPDATE $session SET access_space_id = $space, space_revocation_epoch = $space.revocation_epoch, policy_version = math::max([policy_version + 1, $space.policy_version]);",
+                        "UPDATE $session_record SET access_space_id = $space, space_revocation_epoch = $space_epoch, policy_version = math::max([policy_version + 1, $space_policy_version]);",
                     )
-                    .bind(("session", session))
+                    .bind(("session_record", session))
                     .bind(("space", space))
+                    .bind(("space_epoch", space_row.revocation_epoch))
+                    .bind(("space_policy_version", space_row.policy_version))
                     .await?
                     .check()?;
                 Ok(())

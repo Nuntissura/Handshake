@@ -2392,105 +2392,145 @@ async fn explicit_session_credentials_are_one_time_revocable_and_channel_bound(
 async fn access_space_switch_is_same_account_only_and_drops_old_space_grants(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let backend = embedded_test_backend().await?;
-    let storage = &backend.storage;
-    let original = storage
-        .provision_principal(
-            "switch-account",
-            "switch-principal",
-            "human_account",
-            "switch-actor",
-            "Operator",
-            &["fr.read".to_owned()],
-            "switch-space-a",
-            None,
-            Duration::from_secs(300),
-        )
-        .await?;
-    let resource = storage
-        .register_protected_resource(
-            &original.identity,
-            ResourceKind::FlightRecorder,
-            "switch-workspace",
-            None,
-            "account_private",
-        )
-        .await?;
-    storage
-        .grant_resource(
-            &original.identity.account_id,
-            &original.identity.access_space_id,
-            ResourceGrantSpec {
-                principal_id: original.identity.principal_id.clone(),
-                resource_id: resource.resource_id,
-                actions: vec![ResourceAction::Read],
-                capability_ids: vec!["fr.read".to_owned()],
-                expires_at: Some(original.session.expires_at),
-                delegation_chain: Vec::new(),
-            },
-        )
-        .await?;
-    storage
-        .authorize_protected_resource(request(
-            &original.session.token,
-            None,
-            "fr.read",
-            "switch-workspace",
-        ))
-        .await?;
-    let second_space = storage
-        .provision_principal(
-            "switch-account",
-            "switch-principal",
-            "human_account",
-            "switch-actor",
-            "Operator",
-            &["fr.read".to_owned()],
-            "switch-space-b",
-            None,
-            Duration::from_secs(300),
-        )
-        .await?;
-    let outsider = storage
-        .provision_principal(
-            "switch-outsider-account",
-            "switch-outsider-principal",
-            "human_account",
-            "switch-outsider",
-            "Operator",
-            &["fr.read".to_owned()],
-            "switch-outsider-space",
-            None,
-            Duration::from_secs(300),
-        )
-        .await?;
-    assert!(storage
-        .switch_session_access_space(
-            &original.session.session_id,
-            &outsider.identity.access_space_id
-        )
-        .await
-        .is_err());
-    storage
-        .switch_session_access_space(
-            &original.session.session_id,
-            &second_space.identity.access_space_id,
-        )
-        .await?;
-    assert!(
-        matches!(
-            storage
-                .authorize_protected_resource(request(
-                    &original.session.token,
-                    None,
-                    "fr.read",
-                    "switch-workspace"
-                ))
-                .await,
-            Err(ResourceAuthorityError::Denied { .. })
-        ),
-        "old-Space grant survived the explicit switch"
-    );
-    Ok(())
+    let body = async {
+        let storage = &backend.storage;
+        let original = storage
+            .provision_principal(
+                "switch-account",
+                "switch-principal",
+                "human_account",
+                "switch-actor",
+                "Operator",
+                &["fr.read".to_owned()],
+                "switch-space-a",
+                None,
+                Duration::from_secs(300),
+            )
+            .await?;
+        let resource = storage
+            .register_protected_resource(
+                &original.identity,
+                ResourceKind::FlightRecorder,
+                "switch-workspace",
+                None,
+                "account_private",
+            )
+            .await?;
+        storage
+            .grant_resource(
+                &original.identity.account_id,
+                &original.identity.access_space_id,
+                ResourceGrantSpec {
+                    principal_id: original.identity.principal_id.clone(),
+                    resource_id: resource.resource_id,
+                    actions: vec![ResourceAction::Read],
+                    capability_ids: vec!["fr.read".to_owned()],
+                    expires_at: Some(original.session.expires_at),
+                    delegation_chain: Vec::new(),
+                },
+            )
+            .await?;
+        storage
+            .authorize_protected_resource(request(
+                &original.session.token,
+                None,
+                "fr.read",
+                "switch-workspace",
+            ))
+            .await?;
+        let second_space = storage
+            .provision_principal(
+                "switch-account",
+                "switch-principal",
+                "human_account",
+                "switch-actor",
+                "Operator",
+                &["fr.read".to_owned()],
+                "switch-space-b",
+                None,
+                Duration::from_secs(300),
+            )
+            .await?;
+        let repeated_space = storage
+            .provision_principal(
+                "switch-account",
+                "switch-principal",
+                "human_account",
+                "switch-actor",
+                "Operator",
+                &["fr.read".to_owned()],
+                "switch-space-b",
+                None,
+                Duration::from_secs(300),
+            )
+            .await?;
+        assert_eq!(repeated_space.identity, second_space.identity);
+        assert!(storage
+            .provision_principal(
+                "switch-other-account",
+                "switch-principal",
+                "human_account",
+                "switch-actor",
+                "Operator",
+                &["fr.read".to_owned()],
+                "switch-other-space",
+                None,
+                Duration::from_secs(300),
+            )
+            .await
+            .is_err());
+        let outsider = storage
+            .provision_principal(
+                "switch-outsider-account",
+                "switch-outsider-principal",
+                "human_account",
+                "switch-outsider",
+                "Operator",
+                &["fr.read".to_owned()],
+                "switch-outsider-space",
+                None,
+                Duration::from_secs(300),
+            )
+            .await?;
+        assert!(storage
+            .switch_session_access_space(
+                &original.session.session_id,
+                &outsider.identity.access_space_id
+            )
+            .await
+            .is_err());
+        storage
+            .switch_session_access_space(
+                &original.session.session_id,
+                &second_space.identity.access_space_id,
+            )
+            .await?;
+        assert!(
+            matches!(
+                storage
+                    .authorize_protected_resource(request(
+                        &original.session.token,
+                        None,
+                        "fr.read",
+                        "switch-workspace"
+                    ))
+                    .await,
+                Err(ResourceAuthorityError::Denied { .. })
+            ),
+            "old-Space grant survived the explicit switch"
+        );
+        Ok::<(), Box<dyn std::error::Error>>(())
+    }
+    .await;
+    let cleanup = backend.close_and_remove().await;
+    match (body, cleanup) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(error), Ok(())) => Err(error),
+        (Ok(()), Err(error)) => Err(Box::new(error) as Box<dyn std::error::Error>),
+        (Err(body_error), Err(cleanup_error)) => Err(Box::new(std::io::Error::other(format!(
+            "test body failed: {body_error}; cleanup also failed: {cleanup_error}"
+        ))) as Box<dyn std::error::Error>),
+    }
 }
 
 #[tokio::test]
