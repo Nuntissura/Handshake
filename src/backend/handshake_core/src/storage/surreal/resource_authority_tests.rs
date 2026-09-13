@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use super::resource_authority::{
-    AuthorizationRequest, RecordUserScope, ResourceAction, ResourceAuthorityError,
+    AuthorizationRequest, RecordUserScope, ResourceAction, ResourceAuthorityError, ResourceGrant,
     ResourceGrantSpec, ResourceKind,
 };
 use super::SurrealDatabase;
@@ -21,8 +21,122 @@ struct OperationalProbeBindings {
     hash: String,
 }
 
+#[derive(SurrealValue)]
+struct GrantPrincipalBinding {
+    principal: RecordId,
+}
+
+struct DeniedOperationalCase {
+    label: &'static str,
+    scope: RecordUserScope,
+    workspace_select_has_target_predicate: bool,
+}
+
 const OPERATIONAL_SENTINEL_ID: &str = "mt109-v12-sentinel";
 const OPERATIONAL_HASH: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+async fn grant_existing_route_resources_to(
+    storage: &super::SurrealStorage,
+    resource_owner: &super::resource_authority::ProvisionedPrincipal,
+    grantee: &super::resource_authority::ProvisionedPrincipal,
+    workspace_id: &str,
+    action_override: Option<ResourceAction>,
+    capability_override: Option<&str>,
+    delegation_chain: Option<&[String]>,
+) -> Result<Vec<ResourceGrant>, ResourceAuthorityError> {
+    let mut grants = Vec::with_capacity(PROTECTED_RESOURCE_ACTIONS.len());
+    for case in PROTECTED_RESOURCE_ACTIONS {
+        let decision = storage
+            .authorize_protected_resource(matrix_request(
+                &resource_owner.session.token,
+                "direct-negative-binding",
+                *case,
+                workspace_id,
+            ))
+            .await?;
+        grants.push(
+            storage
+                .grant_resource(
+                    &grantee.identity.account_id,
+                    &grantee.identity.access_space_id,
+                    ResourceGrantSpec {
+                        principal_id: grantee.identity.principal_id.clone(),
+                        resource_id: decision.resource_id,
+                        actions: vec![action_override.unwrap_or(case.action)],
+                        capability_ids: vec![capability_override
+                            .unwrap_or(case.capability)
+                            .to_owned()],
+                        expires_at: Some(grantee.session.expires_at),
+                        delegation_chain: delegation_chain.unwrap_or_default().to_vec(),
+                    },
+                )
+                .await?,
+        );
+    }
+    Ok(grants)
+}
+
+async fn clear_principal_grant_field(
+    storage: &super::SurrealStorage,
+    principal_id: &str,
+    field: &'static str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let principal = RecordId::new("principals", principal_id);
+    storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                let statement = match field {
+                    "actions" => {
+                        "UPDATE resource_grants SET actions = [] WHERE principal_id = $principal;"
+                    }
+                    "capability_ids" => "UPDATE resource_grants SET capability_ids = [] WHERE principal_id = $principal;",
+                    _ => unreachable!("unsupported grant field"),
+                };
+                database
+                    .query_values::<Value, _>(statement, GrantPrincipalBinding { principal })
+                    .await
+                    .map(|_| ())
+            })
+        })
+        .await?;
+    Ok(())
+}
+
+async fn provision_direct_negative_principal(
+    storage: &super::SurrealStorage,
+    principal_key: &str,
+    capabilities: &[String],
+) -> Result<super::resource_authority::ProvisionedPrincipal, ResourceAuthorityError> {
+    storage
+        .provision_principal(
+            "direct-negative-account",
+            principal_key,
+            "human_account",
+            principal_key,
+            "Operator",
+            capabilities,
+            "direct-negative-space-a",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await
+}
+
+fn direct_negative_scope(
+    principal: &super::resource_authority::ProvisionedPrincipal,
+    resource_id: impl Into<String>,
+    capability_id: impl Into<String>,
+    action: ResourceAction,
+) -> RecordUserScope {
+    RecordUserScope {
+        session_token: principal.session.token.clone(),
+        channel_binding_hash: Some("direct-negative-binding".to_owned()),
+        resource_id: resource_id.into(),
+        session_id: principal.session.session_id.clone(),
+        capability_id: capability_id.into(),
+        action,
+    }
+}
 
 async fn privileged_operational_rows(
     storage: &super::SurrealStorage,
@@ -89,6 +203,7 @@ async fn assert_record_user_operation_has_zero_effect(
     statement: &'static str,
     bindings: OperationalProbeBindings,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let query_bindings = bindings.clone();
     let before_rows = privileged_operational_rows(
         storage,
         "SELECT * FROM type::table($table) ORDER BY id;",
@@ -124,9 +239,11 @@ async fn assert_record_user_operation_has_zero_effect(
         .with_record_user_scope(
             scope,
             storage.with_data_operation(move |database| {
-                Box::pin(
-                    async move { database.query_values::<Value, _>(statement, bindings).await },
-                )
+                Box::pin(async move {
+                    database
+                        .query_values::<Value, _>(statement, query_bindings)
+                        .await
+                })
             }),
         )
         .await;
@@ -1275,19 +1392,9 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
         &sentinel_decision.session_id,
     )
     .await?;
-    let member_without_grant = storage
-        .provision_principal(
-            "direct-negative-account",
-            "direct-negative-member",
-            "human_account",
-            "direct-negative-member",
-            "Operator",
-            &capabilities,
-            "direct-negative-space-a",
-            Some("direct-negative-binding"),
-            Duration::from_secs(300),
-        )
-        .await?;
+    let member_without_grant =
+        provision_direct_negative_principal(storage, "direct-negative-member", &capabilities)
+            .await?;
     assert_eq!(
         member_without_grant.identity.account_id,
         owner.identity.account_id
@@ -1296,20 +1403,148 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
         member_without_grant.identity.access_space_id,
         owner.identity.access_space_id
     );
-    let grant_without_capability = storage
-        .provision_principal(
-            "direct-negative-account",
-            "direct-negative-grant-without-capability",
-            "human_account",
-            "direct-negative-grant-without-capability",
-            "Operator",
-            &[],
-            "direct-negative-space-a",
-            Some("direct-negative-binding"),
-            Duration::from_secs(300),
-        )
-        .await?;
-    grant_every_route(storage, &grant_without_capability, &workspace.id).await?;
+    let capability_without_grant = provision_direct_negative_principal(
+        storage,
+        "direct-negative-capability-without-grant",
+        &capabilities,
+    )
+    .await?;
+    let grant_without_delegated_capability = provision_direct_negative_principal(
+        storage,
+        "direct-negative-grant-without-delegated-capability",
+        &[],
+    )
+    .await?;
+    grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &grant_without_delegated_capability,
+        &workspace.id,
+        None,
+        None,
+        None,
+    )
+    .await?;
+    let forged_capability = provision_direct_negative_principal(
+        storage,
+        "direct-negative-forged-capability",
+        &["forged.capability".to_owned()],
+    )
+    .await?;
+    grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &forged_capability,
+        &workspace.id,
+        None,
+        None,
+        None,
+    )
+    .await?;
+    let wrong_action =
+        provision_direct_negative_principal(storage, "direct-negative-wrong-action", &capabilities)
+            .await?;
+    grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &wrong_action,
+        &workspace.id,
+        Some(ResourceAction::Delete),
+        None,
+        None,
+    )
+    .await?;
+    let missing_action = provision_direct_negative_principal(
+        storage,
+        "direct-negative-missing-action",
+        &capabilities,
+    )
+    .await?;
+    grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &missing_action,
+        &workspace.id,
+        None,
+        None,
+        None,
+    )
+    .await?;
+    clear_principal_grant_field(storage, &missing_action.identity.principal_id, "actions").await?;
+    let wrong_grant_capability = provision_direct_negative_principal(
+        storage,
+        "direct-negative-wrong-grant-capability",
+        &capabilities,
+    )
+    .await?;
+    grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &wrong_grant_capability,
+        &workspace.id,
+        None,
+        Some("forged.capability"),
+        None,
+    )
+    .await?;
+    let missing_grant_capability = provision_direct_negative_principal(
+        storage,
+        "direct-negative-missing-grant-capability",
+        &capabilities,
+    )
+    .await?;
+    grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &missing_grant_capability,
+        &workspace.id,
+        None,
+        None,
+        None,
+    )
+    .await?;
+    clear_principal_grant_field(
+        storage,
+        &missing_grant_capability.identity.principal_id,
+        "capability_ids",
+    )
+    .await?;
+    let mismatched_delegation = provision_direct_negative_principal(
+        storage,
+        "direct-negative-mismatched-delegation",
+        &capabilities,
+    )
+    .await?;
+    let mismatched_chain = ["not-the-session-principal".to_owned()];
+    grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &mismatched_delegation,
+        &workspace.id,
+        None,
+        None,
+        Some(&mismatched_chain),
+    )
+    .await?;
+    let revoked_grant = provision_direct_negative_principal(
+        storage,
+        "direct-negative-revoked-grant",
+        &capabilities,
+    )
+    .await?;
+    let revoked_grants = grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &revoked_grant,
+        &workspace.id,
+        None,
+        None,
+        None,
+    )
+    .await?;
+    for grant in revoked_grants {
+        storage.revoke_grant(&grant.grant_id).await?;
+    }
     let wrong_space = storage
         .provision_principal(
             "direct-negative-account",
@@ -1328,6 +1563,16 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
         wrong_space.identity.access_space_id,
         owner.identity.access_space_id
     );
+    grant_existing_route_resources_to(
+        storage,
+        &owner,
+        &wrong_space,
+        &workspace.id,
+        None,
+        None,
+        None,
+    )
+    .await?;
     let wrong_resource_workspace = database
         .create_workspace(
             &WriteContext::human(Some("direct-negative-wrong-resource".to_owned())),
@@ -1350,6 +1595,14 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
         )
         .await?;
     grant_every_route(storage, &wrong_resource, &wrong_resource_workspace.id).await?;
+    let wrong_resource_decision = storage
+        .authorize_protected_resource(request(
+            &wrong_resource.session.token,
+            Some("direct-negative-binding"),
+            "fr.read",
+            &wrong_resource_workspace.id,
+        ))
+        .await?;
     let stale_space = storage
         .provision_principal(
             "direct-negative-account",
@@ -1383,6 +1636,8 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
             Duration::from_secs(300),
         )
         .await?;
+    grant_existing_route_resources_to(storage, &owner, &foreign, &workspace.id, None, None, None)
+        .await?;
     let revoked = storage
         .provision_principal(
             "direct-negative-account",
@@ -1414,23 +1669,187 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
     grant_every_route(storage, &expired, &workspace.id).await?;
     tokio::time::sleep(Duration::from_millis(5)).await;
 
-    let denied_scopes = [
-        (
-            "same-account-member-without-grant",
-            member_without_grant.session.token,
-        ),
-        (
-            "grant-without-delegated-capability",
-            grant_without_capability.session.token,
-        ),
-        ("wrong-resource", wrong_resource.session.token),
-        ("stale-post-space-switch", stale_space.session.token),
-        ("wrong-access-space", wrong_space.session.token),
-        ("cross-account", foreign.session.token),
-        ("revoked-session", revoked.session.token),
-        ("expired-session", expired.session.token),
-        ("forged-session", "f".repeat(64)),
+    let valid_resource_id = sentinel_decision.resource_id.clone();
+    let mut denied_scopes = vec![
+        DeniedOperationalCase {
+            label: "same-account-member-without-grant",
+            scope: direct_negative_scope(
+                &member_without_grant,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "capability-without-grant",
+            scope: direct_negative_scope(
+                &capability_without_grant,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "grant-without-delegated-capability",
+            scope: direct_negative_scope(
+                &grant_without_delegated_capability,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: false,
+        },
+        DeniedOperationalCase {
+            label: "forged-capability",
+            scope: direct_negative_scope(
+                &forged_capability,
+                valid_resource_id.clone(),
+                "forged.capability",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: false,
+        },
+        DeniedOperationalCase {
+            label: "missing-action-grant",
+            scope: direct_negative_scope(
+                &missing_action,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: false,
+        },
+        DeniedOperationalCase {
+            label: "wrong-action-grant",
+            scope: direct_negative_scope(
+                &wrong_action,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Delete,
+            ),
+            workspace_select_has_target_predicate: false,
+        },
+        DeniedOperationalCase {
+            label: "missing-capability-grant",
+            scope: direct_negative_scope(
+                &missing_grant_capability,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: false,
+        },
+        DeniedOperationalCase {
+            label: "wrong-capability-grant",
+            scope: direct_negative_scope(
+                &wrong_grant_capability,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: false,
+        },
+        DeniedOperationalCase {
+            label: "missing-resource",
+            scope: direct_negative_scope(
+                &wrong_resource,
+                String::new(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "wrong-resource",
+            scope: direct_negative_scope(
+                &wrong_resource,
+                wrong_resource_decision.resource_id,
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "mismatched-delegation-chain",
+            scope: direct_negative_scope(
+                &mismatched_delegation,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "revoked-resource-grant",
+            scope: direct_negative_scope(
+                &revoked_grant,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "stale-post-space-switch",
+            scope: direct_negative_scope(
+                &stale_space,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "wrong-access-space",
+            scope: direct_negative_scope(
+                &wrong_space,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "cross-account",
+            scope: direct_negative_scope(
+                &foreign,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "revoked-session",
+            scope: direct_negative_scope(
+                &revoked,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
+        DeniedOperationalCase {
+            label: "expired-session",
+            scope: direct_negative_scope(
+                &expired,
+                valid_resource_id.clone(),
+                "fr.read",
+                ResourceAction::Read,
+            ),
+            workspace_select_has_target_predicate: true,
+        },
     ];
+    let mut forged_session_scope =
+        direct_negative_scope(&owner, valid_resource_id, "fr.read", ResourceAction::Read);
+    forged_session_scope.session_token = "f".repeat(64);
+    denied_scopes.push(DeniedOperationalCase {
+        label: "forged-session",
+        scope: forged_session_scope,
+        workspace_select_has_target_predicate: true,
+    });
     let probes = [
         (
             "workspaces",
@@ -1642,20 +2061,12 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
         )
         .await?;
     }
-    for (label, token) in denied_scopes {
-        let scope = RecordUserScope {
-            session_token: token,
-            channel_binding_hash: Some("direct-negative-binding".to_owned()),
-            resource_id: owner.identity.principal_id.clone(),
-            session_id: owner.session.session_id.clone(),
-            capability_id: "forged.capability".to_owned(),
-            action: ResourceAction::Delete,
-        };
-        for (table, statements) in probes {
+    for denied_case in denied_scopes {
+        for (table, statements) in &probes {
             let bindings = OperationalProbeBindings {
-                table: table.to_owned(),
-                record_id: format!("{label}-{}", table.replace('_', "-")),
-                sentinel_id: if table == "workspaces" {
+                table: (*table).to_owned(),
+                record_id: format!("{}-{}", denied_case.label, table.replace('_', "-")),
+                sentinel_id: if *table == "workspaces" {
                     workspace.id.clone()
                 } else {
                     OPERATIONAL_SENTINEL_ID.to_owned()
@@ -1673,10 +2084,16 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                 hash: OPERATIONAL_HASH.to_owned(),
             };
             seed_operational_probe_dependencies(storage, bindings.clone()).await?;
-            for statement in statements {
+            for (statement_index, statement) in statements.iter().enumerate() {
+                if *table == "workspaces"
+                    && statement_index == 0
+                    && !denied_case.workspace_select_has_target_predicate
+                {
+                    continue;
+                }
                 assert_record_user_operation_has_zero_effect(
                     storage,
-                    scope.clone(),
+                    denied_case.scope.clone(),
                     statement,
                     bindings.clone(),
                 )
