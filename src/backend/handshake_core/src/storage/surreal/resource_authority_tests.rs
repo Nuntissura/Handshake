@@ -7,6 +7,47 @@ use super::resource_authority::{
 use super::SurrealDatabase;
 use crate::storage::tests::embedded_test_backend;
 use crate::storage::{Database, NewWorkspace, WriteContext};
+use surrealdb::types::{RecordId, SurrealValue, Value};
+
+#[derive(Clone, SurrealValue)]
+struct OperationalProbeBindings {
+    table: String,
+    record_id: String,
+    workspace: RecordId,
+    workspace_key: String,
+}
+
+async fn assert_record_user_operation_has_zero_effect(
+    storage: &super::SurrealStorage,
+    scope: RecordUserScope,
+    statement: &'static str,
+    bindings: OperationalProbeBindings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let result = storage
+        .with_record_user_scope(
+            scope,
+            storage.with_data_operation(move |database| {
+                Box::pin(
+                    async move { database.query_values::<Value, _>(statement, bindings).await },
+                )
+            }),
+        )
+        .await;
+    match result {
+        Ok(rows) => assert!(
+            rows.is_empty(),
+            "record-user operation changed or exposed a foreign row"
+        ),
+        Err(error) => {
+            let error = error.to_string().to_ascii_lowercase();
+            assert!(
+                error.contains("permission") || error.contains("not allowed"),
+                "probe failed for a reason other than authorization: {error}"
+            );
+        }
+    }
+    Ok(())
+}
 
 fn request(
     token: &str,
@@ -336,106 +377,74 @@ async fn expired_session_fails_closed() -> Result<(), Box<dyn std::error::Error>
 }
 
 #[derive(Clone, Copy)]
-struct RouteAuthorityCase {
-    route: &'static str,
+struct ResourceAuthorityCase {
     resource_kind: ResourceKind,
     action: ResourceAction,
     capability: &'static str,
 }
 
-const EVERY_PROTECTED_ROUTE: &[RouteAuthorityCase] = &[
-    RouteAuthorityCase {
-        route: "GET /flight_recorder",
+const PROTECTED_RESOURCE_ACTIONS: &[ResourceAuthorityCase] = &[
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::FlightRecorder,
         action: ResourceAction::Read,
         capability: "fr.read",
     },
-    RouteAuthorityCase {
-        route: "GET /events",
-        resource_kind: ResourceKind::FlightRecorder,
-        action: ResourceAction::Read,
-        capability: "fr.read",
-    },
-    RouteAuthorityCase {
-        route: "POST /workspaces/:workspace_id/flight_recorder/runtime_chat_event",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::FlightRecorder,
         action: ResourceAction::Create,
         capability: "fr.ingest.runtime_chat",
     },
-    RouteAuthorityCase {
-        route: "POST /workspaces/:workspace_id/flight_recorder/native_editor_event",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::FlightRecorder,
         action: ResourceAction::Create,
         capability: "fr.ingest.native_editor",
     },
-    RouteAuthorityCase {
-        route: "GET /workspaces/:workspace_id/memory/pack",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryPack,
         action: ResourceAction::Read,
         capability: "memory.read",
     },
-    RouteAuthorityCase {
-        route: "GET /workspaces/:workspace_id/memory/proposals",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryProposal,
         action: ResourceAction::Read,
         capability: "memory.read",
     },
-    RouteAuthorityCase {
-        route: "POST /workspaces/:workspace_id/memory/proposals",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryProposal,
         action: ResourceAction::Create,
         capability: "memory.propose",
     },
-    RouteAuthorityCase {
-        route: "GET /workspaces/:workspace_id/memory/proposals/:proposal_id",
-        resource_kind: ResourceKind::MemoryProposal,
-        action: ResourceAction::Read,
-        capability: "memory.read",
-    },
-    RouteAuthorityCase {
-        route: "GET /workspaces/:workspace_id/memory/proposals/:proposal_id/artifact",
-        resource_kind: ResourceKind::MemoryProposal,
-        action: ResourceAction::Read,
-        capability: "memory.read",
-    },
-    RouteAuthorityCase {
-        route: "POST /workspaces/:workspace_id/memory/proposals/:proposal_id/review",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryProposal,
         action: ResourceAction::Update,
         capability: "memory.review",
     },
-    RouteAuthorityCase {
-        route: "POST /workspaces/:workspace_id/memory/proposals/:proposal_id/commit",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryProposal,
         action: ResourceAction::Update,
         capability: "memory.commit",
     },
-    RouteAuthorityCase {
-        route: "commit MemoryPack write",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryPack,
         action: ResourceAction::Create,
         capability: "memory.commit",
     },
-    RouteAuthorityCase {
-        route: "commit MemoryItem write",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryItem,
         action: ResourceAction::Create,
         capability: "memory.commit",
     },
-    RouteAuthorityCase {
-        route: "commit MemoryCommitReport write",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryCommitReport,
         action: ResourceAction::Create,
         capability: "memory.commit",
     },
-    RouteAuthorityCase {
-        route: "GET /workspaces/:workspace_id/memory/commits/:commit_id/report",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryCommitReport,
         action: ResourceAction::Read,
         capability: "memory.read",
     },
-    RouteAuthorityCase {
-        route: "GET /workspaces/:workspace_id/memory/items/count",
+    ResourceAuthorityCase {
         resource_kind: ResourceKind::MemoryItemCount,
         action: ResourceAction::Read,
         capability: "memory.read",
@@ -445,7 +454,7 @@ const EVERY_PROTECTED_ROUTE: &[RouteAuthorityCase] = &[
 fn matrix_request(
     session_token: &str,
     binding: &str,
-    case: RouteAuthorityCase,
+    case: ResourceAuthorityCase,
     workspace_id: &str,
 ) -> AuthorizationRequest {
     AuthorizationRequest {
@@ -517,7 +526,7 @@ async fn grant_every_route(
             "account_private",
         )
         .await?;
-    for case in EVERY_PROTECTED_ROUTE {
+    for case in PROTECTED_RESOURCE_ACTIONS {
         let resource_id = match case.resource_kind {
             ResourceKind::FlightRecorder => &flight_recorder.resource_id,
             ResourceKind::MemoryPack => &memory_pack.resource_id,
@@ -548,7 +557,7 @@ async fn grant_every_route(
 }
 
 #[tokio::test]
-async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_closed(
+async fn two_account_two_space_resource_broker_and_record_user_boundary_fail_closed(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let backend = embedded_test_backend().await?;
     let storage = &backend.storage;
@@ -608,7 +617,7 @@ async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_
     grant_every_route(storage, &account_a, &workspace_a.id).await?;
     grant_every_route(storage, &account_b, &workspace_b.id).await?;
 
-    for case in EVERY_PROTECTED_ROUTE {
+    for case in PROTECTED_RESOURCE_ACTIONS {
         let allowed = storage
             .authorize_protected_resource(matrix_request(
                 &account_a.session.token,
@@ -617,11 +626,10 @@ async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_
                 &workspace_a.id,
             ))
             .await
-            .unwrap_or_else(|error| panic!("{} should be authorized: {error}", case.route));
+            .unwrap_or_else(|error| panic!("resource action should be authorized: {error}"));
         assert_eq!(
             allowed.account_id, account_a.identity.account_id,
-            "{} account attribution",
-            case.route
+            "resource action account attribution"
         );
         assert!(
             matches!(
@@ -635,8 +643,7 @@ async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_
                     .await,
                 Err(ResourceAuthorityError::Denied { .. })
             ),
-            "{} forged cross-account selector",
-            case.route
+            "forged cross-account selector"
         );
         assert!(
             matches!(
@@ -650,8 +657,7 @@ async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_
                     .await,
                 Err(ResourceAuthorityError::Denied { .. })
             ),
-            "{} cross-account session",
-            case.route
+            "cross-account session"
         );
         let mut wrong_capability = matrix_request(
             &account_a.session.token,
@@ -665,8 +671,7 @@ async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_
                 storage.authorize_protected_resource(wrong_capability).await,
                 Err(ResourceAuthorityError::Denied { .. })
             ),
-            "{} forged capability",
-            case.route
+            "forged capability"
         );
         let mut wrong_action = matrix_request(
             &account_a.session.token,
@@ -684,8 +689,7 @@ async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_
                 storage.authorize_protected_resource(wrong_action).await,
                 Err(ResourceAuthorityError::Denied { .. })
             ),
-            "{} capability/grant action asymmetry",
-            case.route
+            "capability/grant action asymmetry"
         );
     }
 
@@ -693,7 +697,7 @@ async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_
         .authorize_protected_resource(matrix_request(
             &account_a.session.token,
             "matrix-binding-a",
-            EVERY_PROTECTED_ROUTE[0],
+            PROTECTED_RESOURCE_ACTIONS[0],
             &workspace_a.id,
         ))
         .await?;
@@ -719,6 +723,204 @@ async fn two_account_two_space_every_route_matrix_and_record_user_boundary_fail_
             .any(|workspace| workspace.id == workspace_b.id),
         "record-user direct enumeration exposed another account"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn direct_record_user_foreign_table_operations_are_default_deny(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let backend = embedded_test_backend().await?;
+    let storage = &backend.storage;
+    let database = SurrealDatabase::new(storage.clone());
+    let own_workspace = database
+        .create_workspace(
+            &WriteContext::human(Some("direct-record-user-own".to_owned())),
+            NewWorkspace {
+                name: "MT-109 direct own workspace".to_owned(),
+            },
+        )
+        .await?;
+    let foreign_workspace = database
+        .create_workspace(
+            &WriteContext::human(Some("direct-record-user-foreign".to_owned())),
+            NewWorkspace {
+                name: "MT-109 direct foreign workspace".to_owned(),
+            },
+        )
+        .await?;
+    let capabilities = [
+        "fr.read",
+        "fr.ingest.native_editor",
+        "memory.read",
+        "memory.propose",
+        "memory.review",
+        "memory.commit",
+    ]
+    .map(str::to_owned);
+    let principal = storage
+        .provision_principal(
+            "direct-record-user-account",
+            "direct-record-user-principal",
+            "human_account",
+            "direct-record-user-actor",
+            "Operator",
+            &capabilities,
+            "direct-record-user-space",
+            Some("direct-record-user-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    grant_every_route(storage, &principal, &own_workspace.id).await?;
+    let decision = storage
+        .authorize_protected_resource(AuthorizationRequest {
+            session_token: principal.session.token.clone(),
+            channel_binding_hash: Some("direct-record-user-binding".to_owned()),
+            capability_id: "memory.read".to_owned(),
+            resource_kind: ResourceKind::MemoryProposal,
+            external_resource_id: own_workspace.id.clone(),
+            action: ResourceAction::Read,
+        })
+        .await?;
+    let scope = RecordUserScope {
+        session_token: principal.session.token.clone(),
+        channel_binding_hash: Some("direct-record-user-binding".to_owned()),
+        resource_id: decision.resource_id,
+        session_id: decision.session_id,
+        capability_id: "memory.read".to_owned(),
+        action: ResourceAction::Read,
+    };
+    let workspace = RecordId::new("workspaces", foreign_workspace.id.as_str());
+
+    assert_record_user_operation_has_zero_effect(
+        storage,
+        scope.clone(),
+        "SELECT * FROM workspaces WHERE id = $workspace;",
+        OperationalProbeBindings {
+            table: "workspaces".to_owned(),
+            record_id: "foreign-workspace-probe".to_owned(),
+            workspace: workspace.clone(),
+            workspace_key: foreign_workspace.id.clone(),
+        },
+    )
+    .await?;
+    for statement in [
+        "CREATE type::record('workspaces', $record_id) SET name = 'foreign create probe' RETURN AFTER;",
+        "UPSERT type::record('workspaces', $record_id) SET name = 'foreign upsert probe' RETURN AFTER;",
+        "UPDATE $workspace SET name = 'foreign update probe' RETURN AFTER;",
+        "DELETE $workspace RETURN BEFORE;",
+    ] {
+        assert_record_user_operation_has_zero_effect(
+            storage,
+            scope.clone(),
+            statement,
+            OperationalProbeBindings {
+                table: "workspaces".to_owned(),
+                record_id: "mt109-foreign-workspace-write".to_owned(),
+                workspace: workspace.clone(),
+                workspace_key: foreign_workspace.id.clone(),
+            },
+        )
+        .await?;
+    }
+
+    for (table, statements) in [
+        (
+            "kernel_event_ledger",
+            [
+                "SELECT * FROM kernel_event_ledger WHERE array::contains(wsids, $workspace_key);",
+                "CREATE type::record($table, $record_id) SET wsids = [$workspace_key] RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) SET wsids = [$workspace_key] RETURN AFTER;",
+                "UPDATE kernel_event_ledger SET wsids = [$workspace_key] WHERE array::contains(wsids, $workspace_key) RETURN AFTER;",
+                "DELETE kernel_event_ledger WHERE array::contains(wsids, $workspace_key) RETURN BEFORE;",
+            ],
+        ),
+        (
+            "fems_memory_packs",
+            [
+                "SELECT * FROM fems_memory_packs WHERE workspace_id = $workspace;",
+                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPDATE fems_memory_packs SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+                "DELETE fems_memory_packs WHERE workspace_id = $workspace RETURN BEFORE;",
+            ],
+        ),
+        (
+            "fems_memory_proposals",
+            [
+                "SELECT * FROM fems_memory_proposals WHERE workspace_id = $workspace;",
+                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPDATE fems_memory_proposals SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+                "DELETE fems_memory_proposals WHERE workspace_id = $workspace RETURN BEFORE;",
+            ],
+        ),
+        (
+            "fems_memory_items",
+            [
+                "SELECT * FROM fems_memory_items WHERE workspace_id = $workspace;",
+                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPDATE fems_memory_items SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+                "DELETE fems_memory_items WHERE workspace_id = $workspace RETURN BEFORE;",
+            ],
+        ),
+        (
+            "fems_memory_commit_reports",
+            [
+                "SELECT * FROM fems_memory_commit_reports WHERE workspace_id = $workspace;",
+                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPDATE fems_memory_commit_reports SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+                "DELETE fems_memory_commit_reports WHERE workspace_id = $workspace RETURN BEFORE;",
+            ],
+        ),
+        (
+            "fems_memory_commit_fr_outbox",
+            [
+                "SELECT * FROM fems_memory_commit_fr_outbox WHERE workspace_id = $workspace;",
+                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPDATE fems_memory_commit_fr_outbox SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+                "DELETE fems_memory_commit_fr_outbox WHERE workspace_id = $workspace RETURN BEFORE;",
+            ],
+        ),
+        (
+            "fems_memory_lifecycle_fr_outbox",
+            [
+                "SELECT * FROM fems_memory_lifecycle_fr_outbox WHERE workspace_id = $workspace;",
+                "CREATE type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) SET workspace_id = $workspace RETURN AFTER;",
+                "UPDATE fems_memory_lifecycle_fr_outbox SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+                "DELETE fems_memory_lifecycle_fr_outbox WHERE workspace_id = $workspace RETURN BEFORE;",
+            ],
+        ),
+        (
+            "fems_workspace_write_anchors",
+            [
+                "SELECT * FROM fems_workspace_write_anchors WHERE workspace_key = $workspace_key;",
+                "CREATE type::record($table, $record_id) SET workspace_key = $workspace_key RETURN AFTER;",
+                "UPSERT type::record($table, $record_id) SET workspace_key = $workspace_key RETURN AFTER;",
+                "UPDATE fems_workspace_write_anchors SET workspace_key = $workspace_key WHERE workspace_key = $workspace_key RETURN AFTER;",
+                "DELETE fems_workspace_write_anchors WHERE workspace_key = $workspace_key RETURN BEFORE;",
+            ],
+        ),
+    ] {
+        let bindings = OperationalProbeBindings {
+            table: table.to_owned(),
+            record_id: format!("mt109-foreign-{}", table.replace('_', "-")),
+            workspace: workspace.clone(),
+            workspace_key: foreign_workspace.id.clone(),
+        };
+        for statement in statements {
+            assert_record_user_operation_has_zero_effect(
+                storage,
+                scope.clone(),
+                statement,
+                bindings.clone(),
+            )
+            .await?;
+        }
+    }
     Ok(())
 }
 

@@ -2237,6 +2237,339 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn mt109_every_memory_route_is_mounted_and_fails_closed_for_foreign_or_revoked_scope(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let _env_lock = MEMORY_AUTH_ENV_LOCK.lock().expect("memory auth env lock");
+        let binding_token = "d".repeat(64);
+        let binding_path =
+            std::env::temp_dir().join(format!("hsk-stage-binding-{}.json", Uuid::now_v7()));
+        std::fs::write(
+            &binding_path,
+            serde_json::to_vec(&crate::api::stage::current_process_native_binding(
+                &binding_token,
+            ))?,
+        )?;
+        let _binding_guard = BindingEnvGuard {
+            previous: std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE"),
+            path: binding_path.clone(),
+        };
+        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+
+        let (state, _store) = setup_state().await?;
+        let workspace_id = create_test_workspace(&state, "memory-mounted-matrix").await?;
+        let content = "mounted route matrix";
+        let source = create_test_rich_source(
+            &state,
+            &workspace_id,
+            "memory-mounted-matrix-source",
+            content,
+        )
+        .await?;
+        let session_token =
+            crate::api::authority::test_session_for_binding(&state, &binding_token).await?;
+        // Created after the session grants are materialized: this is a real existing workspace
+        // whose identifier must remain a selector, never an authority grant.
+        let foreign_workspace = create_test_workspace(&state, "memory-mounted-foreign").await?;
+        let (base, client, server) = serve_test_router(routes(state.clone())).await;
+        let authenticated = |builder: reqwest::RequestBuilder| {
+            builder
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &binding_token)
+        };
+
+        assert_eq!(
+            authenticated(client.get(format!("{base}/workspaces/{workspace_id}/memory/pack")))
+                .send()
+                .await?
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            authenticated(client.get(format!("{base}/workspaces/{workspace_id}/memory/proposals")))
+                .send()
+                .await?
+                .status(),
+            StatusCode::OK
+        );
+        let proposal_response = authenticated(
+            client.post(format!("{base}/workspaces/{workspace_id}/memory/proposals")),
+        )
+        .json(&ProposalRequest {
+            request_id: Some(format!("mounted-matrix-{}", Uuid::now_v7())),
+            class: ProposalClass::Semantic,
+            content: content.to_owned(),
+            source,
+            source_document_content: None,
+            review_gated: Some(true),
+            actor_id: Some("forged-client-actor".to_owned()),
+        })
+        .send()
+        .await?;
+        assert_eq!(proposal_response.status(), StatusCode::OK);
+        let proposal: ProposalAck = proposal_response.json().await?;
+        let proposal_url = format!(
+            "{base}/workspaces/{workspace_id}/memory/proposals/{}",
+            proposal.proposal_id
+        );
+        assert_eq!(
+            authenticated(client.get(&proposal_url))
+                .send()
+                .await?
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            authenticated(client.get(format!("{proposal_url}/artifact")))
+                .send()
+                .await?
+                .status(),
+            StatusCode::OK
+        );
+        let review = authenticated(client.post(format!("{proposal_url}/review")))
+            .json(&json!({
+                "decision": "approved",
+                "reviewer_kind": "user",
+                "reason": "mounted route proof"
+            }))
+            .send()
+            .await?;
+        assert_eq!(review.status(), StatusCode::OK);
+        let commit = authenticated(client.post(format!("{proposal_url}/commit")))
+            .json(&json!({}))
+            .send()
+            .await?;
+        assert_eq!(commit.status(), StatusCode::OK);
+        let commit: Value = commit.json().await?;
+        let commit_id = commit["commit_id"]
+            .as_str()
+            .expect("commit route returns commit_id");
+        assert_eq!(
+            authenticated(client.get(format!(
+                "{base}/workspaces/{workspace_id}/memory/commits/{commit_id}/report"
+            )))
+            .send()
+            .await?
+            .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            authenticated(client.get(format!(
+                "{base}/workspaces/{workspace_id}/memory/items/count"
+            )))
+            .send()
+            .await?
+            .status(),
+            StatusCode::OK
+        );
+
+        let denied_paths = |workspace: &str| {
+            vec![
+                (
+                    reqwest::Method::GET,
+                    format!("/workspaces/{workspace}/memory/pack"),
+                ),
+                (
+                    reqwest::Method::GET,
+                    format!("/workspaces/{workspace}/memory/proposals"),
+                ),
+                (
+                    reqwest::Method::POST,
+                    format!("/workspaces/{workspace}/memory/proposals"),
+                ),
+                (
+                    reqwest::Method::GET,
+                    format!("/workspaces/{workspace}/memory/proposals/foreign-proposal"),
+                ),
+                (
+                    reqwest::Method::GET,
+                    format!("/workspaces/{workspace}/memory/proposals/foreign-proposal/artifact"),
+                ),
+                (
+                    reqwest::Method::POST,
+                    format!("/workspaces/{workspace}/memory/proposals/foreign-proposal/review"),
+                ),
+                (
+                    reqwest::Method::POST,
+                    format!("/workspaces/{workspace}/memory/proposals/foreign-proposal/commit"),
+                ),
+                (
+                    reqwest::Method::GET,
+                    format!("/workspaces/{workspace}/memory/commits/foreign-commit/report"),
+                ),
+                (
+                    reqwest::Method::GET,
+                    format!("/workspaces/{workspace}/memory/items/count"),
+                ),
+            ]
+        };
+        for (method, path) in denied_paths(&foreign_workspace) {
+            let response = authenticated(client.request(method, format!("{base}{path}")))
+                .json(&json!({}))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+            assert_eq!(
+                response.json::<Value>().await?,
+                json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+                "{path} must not disclose whether the selector exists"
+            );
+        }
+
+        let revocation_decision = state
+            .surreal
+            .authorize_protected_resource(
+                crate::storage::surreal::resource_authority::AuthorizationRequest {
+                    session_token: session_token.clone(),
+                    channel_binding_hash: Some(hex::encode(Sha256::digest(
+                        binding_token.as_bytes(),
+                    ))),
+                    capability_id: MEMORY_READ_CAPABILITY.to_owned(),
+                    resource_kind:
+                        crate::storage::surreal::resource_authority::ResourceKind::MemoryPack,
+                    external_resource_id: workspace_id.clone(),
+                    action: crate::storage::surreal::resource_authority::ResourceAction::Read,
+                },
+            )
+            .await?;
+        state
+            .surreal
+            .revoke_session(&revocation_decision.session_id)
+            .await?;
+        for (method, path) in denied_paths(&workspace_id) {
+            let response = authenticated(client.request(method, format!("{base}{path}")))
+                .json(&json!({}))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+            assert_eq!(
+                response.json::<Value>().await?,
+                json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+                "{path} revoked-session denial"
+            );
+        }
+        server.abort();
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mt109_memory_reconciler_processes_only_explicitly_granted_pending_workspace(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (state, _store) = setup_state().await?;
+        let granted_workspace = create_test_workspace(&state, "reconcile-granted").await?;
+        let denied_workspace = create_test_workspace(&state, "reconcile-denied").await?;
+        let (granted_proposal, _) = create_and_approve_test_proposal(
+            &state,
+            &granted_workspace,
+            "reconcile-granted",
+            "granted pending memory",
+        )
+        .await?;
+        let (denied_proposal, _) = create_and_approve_test_proposal(
+            &state,
+            &denied_workspace,
+            "reconcile-denied",
+            "denied pending memory",
+        )
+        .await?;
+
+        for (workspace_id, proposal_id) in [
+            (&granted_workspace, &granted_proposal.proposal_id),
+            (&denied_workspace, &denied_proposal.proposal_id),
+        ] {
+            let receipt = NewKernelEvent::builder(
+                format!("reconcile-proof-{workspace_id}"),
+                "reconcile-proof-session".to_owned(),
+                KernelEventType::ArtifactStored,
+                KernelActor::System("reconcile-proof-seeder".to_owned()),
+            )
+            .aggregate("fems_memory_commit", proposal_id.clone())
+            .idempotency_key(format!("fems-memory-commit:{proposal_id}"))
+            .correlation_id(format!("fems-memory-proposal:{proposal_id}"))
+            .source_component("fems_memory_proposal_commit")
+            .payload(json!({"proposal_id": proposal_id}))
+            .build()?;
+            fems_memory::commit_memory_proposal_with_receipt(
+                &state.surreal,
+                workspace_id,
+                proposal_id,
+                receipt,
+            )
+            .await?;
+        }
+        assert_eq!(
+            fems_memory::list_pending_memory_commit_events(
+                &state.surreal,
+                &granted_workspace,
+                200,
+            )
+            .await?
+            .len(),
+            2
+        );
+        assert_eq!(
+            fems_memory::list_pending_memory_commit_events(&state.surreal, &denied_workspace, 200,)
+                .await?
+                .len(),
+            2
+        );
+
+        let service = state
+            .surreal
+            .provision_reconciliation_principal(std::slice::from_ref(&granted_workspace), None)
+            .await?;
+        assert_eq!(
+            service.identity.capability_profile_id,
+            crate::storage::surreal::resource_authority::RECONCILIATION_PROFILE_ID
+        );
+        reconcile_all_memory_commit_events(&state)
+            .await
+            .map_err(|(status, body)| format!("service reconcile failed: {status} {body:?}"))?;
+
+        assert!(
+            fems_memory::list_pending_memory_commit_events(
+                &state.surreal,
+                &granted_workspace,
+                200,
+            )
+            .await?
+            .is_empty(),
+            "the explicitly granted service principal drains its workspace"
+        );
+        assert_eq!(
+            fems_memory::list_pending_memory_commit_events(&state.surreal, &denied_workspace, 200,)
+                .await?
+                .len(),
+            2,
+            "the same worker must neither observe nor mutate an ungranted pending workspace"
+        );
+        let granted_trace = deterministic_uuid_from_seed(&format!(
+            "fems-memory-proposal:{}",
+            granted_proposal.proposal_id
+        ));
+        let denied_trace = deterministic_uuid_from_seed(&format!(
+            "fems-memory-proposal:{}",
+            denied_proposal.proposal_id
+        ));
+        assert!(!state
+            .flight_recorder
+            .list_events(EventFilter {
+                trace_id: Some(granted_trace),
+                ..EventFilter::default()
+            })
+            .await?
+            .is_empty());
+        assert!(state
+            .flight_recorder
+            .list_events(EventFilter {
+                trace_id: Some(denied_trace),
+                ..EventFilter::default()
+            })
+            .await?
+            .is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn concurrent_workspace_commits_publish_a_pack_containing_both_items(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (state, _store) = setup_state().await?;

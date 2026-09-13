@@ -1072,7 +1072,7 @@ impl SurrealStorage {
     pub async fn with_data_operation<T, F>(&self, operation: F) -> Result<T, SurrealStorageError>
     where
         T: Send,
-        F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealOperation<'a, T>,
+        F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealOperation<'a, T> + Send,
     {
         let timeout = self.effective_statement_timeout();
         if timeout.is_zero() {

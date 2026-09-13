@@ -2078,6 +2078,16 @@ mod tests {
         ensure_test_workspace(&state, OTHER_TEST_WORKSPACE_ID)
             .await
             .map_err(|error| error.to_string())?;
+        state
+            .surreal
+            .provision_reconciliation_principal(
+                &[
+                    TEST_WORKSPACE_ID.to_owned(),
+                    OTHER_TEST_WORKSPACE_ID.to_owned(),
+                ],
+                None,
+            )
+            .await?;
         Ok((state, backend))
     }
 
@@ -3952,6 +3962,61 @@ mod tests {
                     "the audit must never carry the session token or request body"
                 );
             }
+        }
+        server.abort();
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mt109_every_flight_recorder_route_rejects_a_revoked_session_through_middleware(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (state, _store) = setup_state().await?;
+        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+        let (binding_token, _binding) = install_native_binding()?;
+        let session_token =
+            crate::api::authority::test_session_for_binding(&state, &binding_token).await?;
+        let revocation_decision = state
+            .surreal
+            .authorize_protected_resource(
+                crate::storage::surreal::resource_authority::AuthorizationRequest {
+                    session_token: session_token.clone(),
+                    channel_binding_hash: Some(hex::encode(Sha256::digest(
+                        binding_token.as_bytes(),
+                    ))),
+                    capability_id: FR_READ_CAPABILITY.to_owned(),
+                    resource_kind:
+                        crate::storage::surreal::resource_authority::ResourceKind::FlightRecorder,
+                    external_resource_id: TEST_WORKSPACE_ID.to_owned(),
+                    action: crate::storage::surreal::resource_authority::ResourceAction::Read,
+                },
+            )
+            .await?;
+        state
+            .surreal
+            .revoke_session(&revocation_decision.session_id)
+            .await?;
+        let (base, http, server) = serve_test_router(routes(state)).await;
+        let requests = vec![
+            http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}")),
+            http.get(format!("{base}/events?wsid={TEST_WORKSPACE_ID}")),
+            http.post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
+                .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None)),
+            http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+                .json(&serde_json::to_value(native_editor_envelope(
+                    &Uuid::now_v7().to_string(),
+                ))?),
+        ];
+        for request in requests {
+            let response = request
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &binding_token)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+            assert_eq!(
+                response.json::<Value>().await?,
+                json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            );
         }
         server.abort();
         Ok(())

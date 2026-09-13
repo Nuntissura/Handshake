@@ -255,7 +255,7 @@ DEFINE TABLE OVERWRITE fems_memory_packs SCHEMAFULL
                 FOR create, update WHERE fn::mt109_has_grant('memory_pack', record::id(workspace_id), 'create', 'memory.commit')
                 FOR delete NONE;
 DEFINE TABLE OVERWRITE fems_memory_proposals SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'read', 'memory.read')
+    PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(workspace_id), 'reconcile', 'memory.commit')
                 FOR create WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'create', 'memory.propose')
                 FOR update WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.review') OR fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.commit')
                 FOR delete NONE;
@@ -264,7 +264,7 @@ DEFINE TABLE OVERWRITE fems_memory_items SCHEMAFULL
                 FOR create, update WHERE fn::mt109_has_grant('memory_item', record::id(workspace_id), 'create', 'memory.commit')
                 FOR delete NONE;
 DEFINE TABLE OVERWRITE fems_memory_commit_reports SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_commit_report', record::id(workspace_id), 'read', 'memory.read')
+    PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_commit_report', record::id(workspace_id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(workspace_id), 'reconcile', 'memory.commit')
                 FOR create WHERE fn::mt109_has_grant('memory_commit_report', record::id(workspace_id), 'create', 'memory.commit')
                 FOR update, delete NONE;
 DEFINE TABLE OVERWRITE fems_memory_commit_fr_outbox SCHEMAFULL
