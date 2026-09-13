@@ -417,16 +417,20 @@ async fn authorize_flight_recorder_request(
         return audit_failed_closed().into_response();
     }
 
+    let record_user_scope = authority.record_user_scope.clone();
     request.extensions_mut().insert(RecorderAuthority {
         ctx,
         workspace_id: Some(workspace_id),
     });
-    next.run(request).await
+    state
+        .surreal
+        .with_record_user_scope(record_user_scope, next.run(request))
+        .await
 }
 
-/// Bind the path workspace to canonical authority BEFORE any durable write. There is no
-/// membership table in this product yet, so "authorized workspace" means: the authenticated
-/// native binding holds the ingest capability AND the path names a real canonical workspace.
+/// Bind the path workspace to canonical authority before any durable write. Authorization is the
+/// conjunction of a live record-user session, the exact delegated capability, and an active grant
+/// for the path workspace; the body can only confirm that workspace and cannot widen it.
 /// A client-asserted workspace that does not resolve is denied, never created implicitly.
 async fn authorize_recorder_workspace(state: &AppState, workspace_id: &str) -> ApiResult<()> {
     if workspace_id.trim().is_empty() {
@@ -1077,7 +1081,13 @@ async fn reconcile_native_editor_pending(state: &AppState) -> Result<(), String>
     let authority =
         crate::api::authority::reconciliation_authority(state, FR_INGEST_NATIVE_EDITOR_CAPABILITY)
             .await?;
-    reconcile_native_editor_pending_authorized(state, &authority).await
+    state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            reconcile_native_editor_pending_authorized(state, &authority),
+        )
+        .await
 }
 
 async fn reconcile_native_editor_pending_authorized(

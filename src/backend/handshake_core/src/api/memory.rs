@@ -236,7 +236,11 @@ async fn authorize_memory_request(
     };
     if request.method() == Method::POST && request.uri().path().ends_with("/commit") {
         use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
-        for resource_kind in [ResourceKind::MemoryItem, ResourceKind::MemoryCommitReport] {
+        for resource_kind in [
+            ResourceKind::MemoryPack,
+            ResourceKind::MemoryItem,
+            ResourceKind::MemoryCommitReport,
+        ] {
             if crate::api::authority::authorize_request(
                 &state,
                 request.headers(),
@@ -297,7 +301,10 @@ async fn authorize_memory_request(
         };
         request.headers_mut().insert(name, value);
     }
-    next.run(request).await
+    state
+        .surreal
+        .with_record_user_scope(authority.record_user_scope, next.run(request))
+        .await
 }
 
 fn spawn_memory_commit_reconciler(state: AppState) {
@@ -381,7 +388,13 @@ async fn reconcile_all_memory_commit_events(state: &AppState) -> Result<(), ApiE
         tracing::error!(target: "handshake_core::memory_api", error = %error, "memory reconciliation authority denied");
         crate::api::authority::constant_denial()
     })?;
-    reconcile_all_memory_commit_events_authorized(state, &authority).await
+    state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            reconcile_all_memory_commit_events_authorized(state, &authority),
+        )
+        .await
 }
 
 async fn reconcile_all_memory_commit_events_authorized(

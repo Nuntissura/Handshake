@@ -11,15 +11,15 @@ use axum::{
     Json, Router,
 };
 use chrono::Duration;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 #[cfg(test)]
 use sha2::{Digest, Sha256};
 
 use crate::kernel::KernelActor;
 use crate::storage::surreal::resource_authority::{
-    AuthorizationRequest, IssuedSession, ProvisionedPrincipal, ResourceAction, ResourceGrantSpec,
-    ResourceKind,
+    AuthorizationRequest, IssuedSession, ProvisionedPrincipal, RecordUserScope, ResourceAction,
+    ResourceGrantSpec, ResourceKind,
 };
 use crate::AppState;
 
@@ -39,28 +39,25 @@ pub(crate) struct AuthorizedResourceContext {
     pub(crate) capability_profile_id: String,
     pub(crate) capability_id: String,
     pub(crate) delegation_chain: Vec<String>,
+    pub(crate) record_user_scope: RecordUserScope,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct ReconciliationAuthority {
     session: IssuedSession,
+    pub(crate) record_user_scope: RecordUserScope,
 }
 
 pub(crate) async fn reconciliation_authority(
     state: &AppState,
     capability_id: &'static str,
 ) -> Result<ReconciliationAuthority, String> {
-    let workspace_resources = state
-        .surreal
-        .list_registered_workspace_resource_ids()
-        .await
-        .map_err(|error| error.to_string())?;
     let principal = state
         .surreal
-        .provision_reconciliation_principal(&workspace_resources, None)
+        .issue_reconciliation_session()
         .await
         .map_err(|error| error.to_string())?;
-    state
+    let decision = state
         .surreal
         .authorize_protected_resource(AuthorizationRequest {
             session_token: principal.session.token.clone(),
@@ -73,6 +70,14 @@ pub(crate) async fn reconciliation_authority(
         .await
         .map_err(|error| error.to_string())?;
     Ok(ReconciliationAuthority {
+        record_user_scope: RecordUserScope {
+            session_token: principal.session.token.clone(),
+            channel_binding_hash: None,
+            resource_id: decision.resource_id,
+            session_id: decision.session_id,
+            capability_id: capability_id.to_owned(),
+            action: ResourceAction::Reconcile,
+        },
         session: principal.session,
     })
 }
@@ -127,6 +132,15 @@ struct LocalSessionResponse {
     expires_at: chrono::DateTime<chrono::Utc>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LocalSessionExchange {
+    account_id: String,
+    principal_id: String,
+    access_space_id: String,
+    authentication_token: String,
+}
+
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/authority/session", post(exchange_local_session))
@@ -153,14 +167,16 @@ pub(crate) async fn authorize_request(
         .and_then(|value| value.to_str().ok())
         .map(str::trim)
         .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
-        .ok_or_else(constant_denial)?;
+        .ok_or_else(constant_denial)?
+        .to_owned();
     let channel =
         crate::api::stage::capture_channel_binding(headers).map_err(|_| constant_denial())?;
+    let channel_binding_hash = channel.binding_hash;
     let decision = state
         .surreal
         .authorize_protected_resource(AuthorizationRequest {
-            session_token: session_token.to_owned(),
-            channel_binding_hash: Some(channel.binding_hash),
+            session_token: session_token.clone(),
+            channel_binding_hash: Some(channel_binding_hash.clone()),
             capability_id: capability_id.to_owned(),
             resource_kind,
             external_resource_id: external_resource_id.to_owned(),
@@ -189,26 +205,42 @@ pub(crate) async fn authorize_request(
         decision_id: decision.decision_id,
         account_id: decision.account_id,
         principal_id: decision.principal_id,
-        session_id: decision.session_id,
+        session_id: decision.session_id.clone(),
         access_space_id: decision.access_space_id,
-        resource_id: decision.resource_id,
+        resource_id: decision.resource_id.clone(),
         actor_kind: decision.actor_kind,
         actor_id: decision.actor_id,
         capability_profile_id: decision.capability_profile_id,
         capability_id: capability_id.to_owned(),
         delegation_chain: decision.delegation_chain,
+        record_user_scope: RecordUserScope {
+            session_token,
+            channel_binding_hash: Some(channel_binding_hash),
+            resource_id: decision.resource_id,
+            session_id: decision.session_id,
+            capability_id: capability_id.to_owned(),
+            action,
+        },
     })
 }
 
 async fn exchange_local_session(
     State(state): State<AppState>,
     headers: HeaderMap,
+    Json(exchange): Json<LocalSessionExchange>,
 ) -> Result<Json<LocalSessionResponse>, (StatusCode, Json<Value>)> {
     let channel =
         crate::api::stage::capture_channel_binding(&headers).map_err(|_| constant_denial())?;
-    let principal = state
+    let session = state
         .surreal
-        .provision_local_operator(Some(&channel.binding_hash))
+        .exchange_session_credential(
+            &exchange.account_id,
+            &exchange.principal_id,
+            &exchange.access_space_id,
+            &exchange.authentication_token,
+            &channel.binding_hash,
+            std::time::Duration::from_secs(LOCAL_SESSION_TTL_HOURS as u64 * 60 * 60),
+        )
         .await
         .map_err(|error| {
             tracing::error!(
@@ -218,18 +250,18 @@ async fn exchange_local_session(
             );
             constant_denial()
         })?;
-    provision_existing_workspace_grants(&state, &principal).await?;
     Ok(Json(LocalSessionResponse {
         schema_version: "hsk.authenticated_session@1",
-        session_token: principal.session.token,
-        account_id: principal.session.account_id,
-        principal_id: principal.session.principal_id,
-        session_id: principal.session.session_id,
-        access_space_id: principal.session.access_space_id,
-        expires_at: principal.session.expires_at,
+        session_token: session.token,
+        account_id: session.account_id,
+        principal_id: session.principal_id,
+        session_id: session.session_id,
+        access_space_id: session.access_space_id,
+        expires_at: session.expires_at,
     }))
 }
 
+#[cfg(test)]
 async fn provision_existing_workspace_grants(
     state: &AppState,
     principal: &ProvisionedPrincipal,
@@ -362,6 +394,7 @@ pub(crate) async fn test_session_for_binding(
     Ok(principal.session.token)
 }
 
+#[cfg(test)]
 async fn grant(
     state: &AppState,
     principal: &ProvisionedPrincipal,

@@ -11,9 +11,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+use sha2::Digest;
 use surrealdb::{
     engine::local::{Db, RocksDb},
-    opt::Config as EngineConfig,
+    opt::{auth::Record as RecordSignin, Config as EngineConfig},
     Surreal,
 };
 use thiserror::Error;
@@ -450,11 +451,16 @@ pub(crate) type SurrealTransactionOperation<'a, T, E> =
 
 tokio::task_local! {
     static INSIDE_SURREAL_OPERATION: ();
+    static RECORD_USER_SCOPE: resource_authority::RecordUserScope;
     /// MT-142: deadline for one logical (possibly retried) storage operation.
     /// Set by [`SurrealStorage::with_operation_deadline`]; every data operation
     /// underneath clamps its own bound to the remaining budget so a retry loop
     /// cannot multiply `statement_timeout` by its attempt count.
     static OPERATION_DEADLINE: Instant;
+}
+
+pub(crate) fn current_record_user_scope() -> Option<resource_authority::RecordUserScope> {
+    RECORD_USER_SCOPE.try_with(Clone::clone).ok()
 }
 
 /// A sealed, lease-bound view for ordinary typed data operations.
@@ -946,6 +952,14 @@ impl SurrealStorageInner {
 }
 
 impl SurrealStorage {
+    pub(crate) async fn with_record_user_scope<T>(
+        &self,
+        scope: resource_authority::RecordUserScope,
+        operation: impl Future<Output = T>,
+    ) -> T {
+        RECORD_USER_SCOPE.scope(scope, operation).await
+    }
+
     /// Returns the feature-gated, read-only test inspection facade.
     ///
     /// The facade exposes only catalog-validated selectors and bound-value
@@ -1069,9 +1083,38 @@ impl SurrealStorage {
                 budget_ms: self.inner.config.statement_timeout.as_millis(),
             });
         }
+        let record_user_scope = current_record_user_scope();
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         match tokio::time::timeout(
             timeout,
-            self.with_lease(|client| operation(SurrealDataContext { client })),
+            self.with_lease(move |client| {
+                Box::pin(async move {
+                    if let Some(scope) = record_user_scope {
+                        let scoped = client.clone();
+                        scoped
+                            .use_ns(namespace.clone())
+                            .use_db(database.clone())
+                            .await?;
+                        scoped
+                            .signin(RecordSignin {
+                                namespace,
+                                database,
+                                access: resource_authority::AUTHORITY_ACCESS_METHOD.to_owned(),
+                                params: resource_authority::SigninParams {
+                                    token_hash: hex::encode(sha2::Sha256::digest(
+                                        scope.session_token.as_bytes(),
+                                    )),
+                                    channel_binding_hash: scope.channel_binding_hash,
+                                },
+                            })
+                            .await?;
+                        operation(SurrealDataContext { client: &scoped }).await
+                    } else {
+                        operation(SurrealDataContext { client }).await
+                    }
+                })
+            }),
         )
         .await
         {

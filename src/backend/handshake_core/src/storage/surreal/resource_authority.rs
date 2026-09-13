@@ -12,161 +12,9 @@ use uuid::Uuid;
 
 use super::{SurrealStorage, SurrealStorageError};
 
-pub const AUTHORITY_DATABASE: &str = "resource_authority";
 pub const AUTHORITY_ACCESS_METHOD: &str = "authenticated_session";
 pub const RECONCILIATION_QUEUE_ID: &str = "mt109-protected-reconciliation";
 pub const RECONCILIATION_PROFILE_ID: &str = "MT109Reconciler";
-
-const AUTHORITY_SCHEMA: &str = r#"
-DEFINE TABLE IF NOT EXISTS local_accounts TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.account_id FOR create, update, delete NONE;
-DEFINE FIELD IF NOT EXISTS account_key ON local_accounts TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
-DEFINE FIELD IF NOT EXISTS account_role ON local_accounts TYPE string ASSERT $value IN ['Owner', 'Admin', 'Member'];
-DEFINE FIELD IF NOT EXISTS status ON local_accounts TYPE string ASSERT $value IN ['enabled', 'disabled'];
-DEFINE FIELD IF NOT EXISTS revocation_epoch ON local_accounts TYPE int ASSERT $value >= 0;
-DEFINE FIELD IF NOT EXISTS policy_version ON local_accounts TYPE int ASSERT $value >= 1;
-DEFINE FIELD IF NOT EXISTS created_at ON local_accounts TYPE datetime;
-DEFINE FIELD IF NOT EXISTS updated_at ON local_accounts TYPE datetime;
-DEFINE INDEX IF NOT EXISTS local_accounts_account_key_unique ON local_accounts FIELDS account_key UNIQUE;
-
-DEFINE TABLE IF NOT EXISTS principals TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.principal_id FOR create, update, delete NONE;
-DEFINE FIELD IF NOT EXISTS principal_key ON principals TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
-DEFINE FIELD IF NOT EXISTS account_id ON principals TYPE record<local_accounts>;
-DEFINE FIELD IF NOT EXISTS principal_kind ON principals TYPE string ASSERT $value IN ['human_account', 'local_model', 'remote_model', 'spawned_agent', 'mcp_client', 'service_identity', 'visitor_pass', 'break_glass_operator'];
-DEFINE FIELD IF NOT EXISTS actor_kind ON principals TYPE string ASSERT string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS actor_id ON principals TYPE string ASSERT string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS capability_profile_id ON principals TYPE string ASSERT string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS delegated_capabilities ON principals TYPE array<string>;
-DEFINE FIELD IF NOT EXISTS status ON principals TYPE string ASSERT $value IN ['enabled', 'disabled'];
-DEFINE FIELD IF NOT EXISTS revocation_epoch ON principals TYPE int ASSERT $value >= 0;
-DEFINE FIELD IF NOT EXISTS policy_version ON principals TYPE int ASSERT $value >= 1;
-DEFINE FIELD IF NOT EXISTS created_at ON principals TYPE datetime;
-DEFINE FIELD IF NOT EXISTS updated_at ON principals TYPE datetime;
-DEFINE INDEX IF NOT EXISTS principals_principal_key_unique ON principals FIELDS principal_key UNIQUE;
-DEFINE INDEX IF NOT EXISTS principals_account_idx ON principals FIELDS account_id;
-
-DEFINE TABLE IF NOT EXISTS access_spaces TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND id = $auth.access_space_id FOR create, update, delete NONE;
-DEFINE FIELD IF NOT EXISTS space_key ON access_spaces TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
-DEFINE FIELD IF NOT EXISTS account_id ON access_spaces TYPE record<local_accounts>;
-DEFINE FIELD IF NOT EXISTS name ON access_spaces TYPE string ASSERT string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS status ON access_spaces TYPE string ASSERT $value IN ['active', 'disabled'];
-DEFINE FIELD IF NOT EXISTS revocation_epoch ON access_spaces TYPE int ASSERT $value >= 0;
-DEFINE FIELD IF NOT EXISTS policy_version ON access_spaces TYPE int ASSERT $value >= 1;
-DEFINE FIELD IF NOT EXISTS created_at ON access_spaces TYPE datetime;
-DEFINE FIELD IF NOT EXISTS updated_at ON access_spaces TYPE datetime;
-DEFINE INDEX IF NOT EXISTS access_spaces_key_unique ON access_spaces FIELDS space_key UNIQUE;
-DEFINE INDEX IF NOT EXISTS access_spaces_account_idx ON access_spaces FIELDS account_id;
-
-DEFINE TABLE IF NOT EXISTS authenticated_sessions TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.id FOR create, update, delete NONE;
-DEFINE FIELD IF NOT EXISTS account_id ON authenticated_sessions TYPE record<local_accounts>;
-DEFINE FIELD IF NOT EXISTS principal_id ON authenticated_sessions TYPE record<principals>;
-DEFINE FIELD IF NOT EXISTS access_space_id ON authenticated_sessions TYPE record<access_spaces>;
-DEFINE FIELD IF NOT EXISTS token_hash ON authenticated_sessions TYPE string ASSERT string::len($value) = 64 PERMISSIONS NONE;
-DEFINE FIELD IF NOT EXISTS channel_binding_hash ON authenticated_sessions TYPE option<string> PERMISSIONS NONE;
-DEFINE FIELD IF NOT EXISTS authentication_strength ON authenticated_sessions TYPE string;
-DEFINE FIELD IF NOT EXISTS delegated_capabilities ON authenticated_sessions TYPE array<string>;
-DEFINE FIELD IF NOT EXISTS delegation_chain ON authenticated_sessions TYPE array<string>;
-DEFINE FIELD IF NOT EXISTS account_revocation_epoch ON authenticated_sessions TYPE int;
-DEFINE FIELD IF NOT EXISTS principal_revocation_epoch ON authenticated_sessions TYPE int;
-DEFINE FIELD IF NOT EXISTS space_revocation_epoch ON authenticated_sessions TYPE int;
-DEFINE FIELD IF NOT EXISTS policy_version ON authenticated_sessions TYPE int ASSERT $value >= 1;
-DEFINE FIELD IF NOT EXISTS issued_at ON authenticated_sessions TYPE datetime;
-DEFINE FIELD IF NOT EXISTS expires_at ON authenticated_sessions TYPE datetime;
-DEFINE FIELD IF NOT EXISTS revoked_at ON authenticated_sessions TYPE option<datetime>;
-DEFINE INDEX IF NOT EXISTS authenticated_sessions_token_hash_unique ON authenticated_sessions FIELDS token_hash UNIQUE;
-DEFINE INDEX IF NOT EXISTS authenticated_sessions_principal_idx ON authenticated_sessions FIELDS principal_id;
-
-DEFINE TABLE IF NOT EXISTS protected_resources TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE
-    lifecycle_state = 'active'
-    AND owner_account_id = $auth.account_id
-    AND access_space_id = $auth.access_space_id
-    AND owner_account_id.status = 'enabled'
-    AND created_by_principal_id.status = 'enabled'
-    AND access_space_id.status = 'active'
-    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
-  FOR create, update, delete NONE;
-DEFINE FIELD IF NOT EXISTS resource_kind ON protected_resources TYPE string ASSERT string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS external_resource_id ON protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
-DEFINE FIELD IF NOT EXISTS owner_account_id ON protected_resources TYPE record<local_accounts>;
-DEFINE FIELD IF NOT EXISTS created_by_principal_id ON protected_resources TYPE record<principals>;
-DEFINE FIELD IF NOT EXISTS created_in_session_id ON protected_resources TYPE option<record<authenticated_sessions>>;
-DEFINE FIELD IF NOT EXISTS access_space_id ON protected_resources TYPE record<access_spaces>;
-DEFINE FIELD IF NOT EXISTS parent_resource_id ON protected_resources TYPE option<record<protected_resources>>;
-DEFINE FIELD IF NOT EXISTS schema_version ON protected_resources TYPE int ASSERT $value >= 1;
-DEFINE FIELD IF NOT EXISTS lifecycle_state ON protected_resources TYPE string ASSERT $value IN ['active', 'quarantined', 'deleted'];
-DEFINE FIELD IF NOT EXISTS policy_version ON protected_resources TYPE int ASSERT $value >= 1;
-DEFINE FIELD IF NOT EXISTS classification ON protected_resources TYPE string ASSERT string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS storage_locator_hash ON protected_resources TYPE string ASSERT string::len($value) = 64 PERMISSIONS NONE;
-DEFINE FIELD IF NOT EXISTS created_at ON protected_resources TYPE datetime;
-DEFINE FIELD IF NOT EXISTS updated_at ON protected_resources TYPE datetime;
-DEFINE INDEX IF NOT EXISTS protected_resources_external_unique ON protected_resources FIELDS resource_kind, external_resource_id UNIQUE;
-DEFINE INDEX IF NOT EXISTS protected_resources_owner_idx ON protected_resources FIELDS owner_account_id, access_space_id;
-
-DEFINE TABLE IF NOT EXISTS resource_grants TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE
-    status = 'active'
-    AND account_id = $auth.account_id
-    AND principal_id = $auth.principal_id
-    AND access_space_id = $auth.access_space_id,
-  FOR create, update, delete NONE;
-DEFINE FIELD IF NOT EXISTS account_id ON resource_grants TYPE record<local_accounts>;
-DEFINE FIELD IF NOT EXISTS principal_id ON resource_grants TYPE record<principals>;
-DEFINE FIELD IF NOT EXISTS access_space_id ON resource_grants TYPE record<access_spaces>;
-DEFINE FIELD IF NOT EXISTS resource_id ON resource_grants TYPE record<protected_resources>;
-DEFINE FIELD IF NOT EXISTS actions ON resource_grants TYPE array<string>;
-DEFINE FIELD IF NOT EXISTS capability_ids ON resource_grants TYPE array<string>;
-DEFINE FIELD IF NOT EXISTS delegation_chain ON resource_grants TYPE array<string>;
-DEFINE FIELD IF NOT EXISTS status ON resource_grants TYPE string ASSERT $value IN ['active', 'revoked'];
-DEFINE FIELD IF NOT EXISTS grant_version ON resource_grants TYPE int ASSERT $value >= 1;
-DEFINE FIELD IF NOT EXISTS policy_version ON resource_grants TYPE int ASSERT $value >= 1;
-DEFINE FIELD IF NOT EXISTS expires_at ON resource_grants TYPE option<datetime>;
-DEFINE FIELD IF NOT EXISTS revoked_at ON resource_grants TYPE option<datetime>;
-DEFINE FIELD IF NOT EXISTS created_at ON resource_grants TYPE datetime;
-DEFINE FIELD IF NOT EXISTS updated_at ON resource_grants TYPE datetime;
-DEFINE INDEX IF NOT EXISTS resource_grants_exact_idx ON resource_grants FIELDS account_id, principal_id, access_space_id, resource_id;
-
-DEFINE TABLE IF NOT EXISTS authorization_audit_events TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id FOR create, update, delete NONE;
-DEFINE FIELD IF NOT EXISTS decision_id ON authorization_audit_events TYPE string ASSERT string::len($value) > 0;
-DEFINE FIELD IF NOT EXISTS account_id ON authorization_audit_events TYPE option<record<local_accounts>>;
-DEFINE FIELD IF NOT EXISTS principal_id ON authorization_audit_events TYPE option<record<principals>>;
-DEFINE FIELD IF NOT EXISTS session_id ON authorization_audit_events TYPE option<record<authenticated_sessions>>;
-DEFINE FIELD IF NOT EXISTS access_space_id ON authorization_audit_events TYPE option<record<access_spaces>>;
-DEFINE FIELD IF NOT EXISTS delegation_chain ON authorization_audit_events TYPE array<string>;
-DEFINE FIELD IF NOT EXISTS resource_id ON authorization_audit_events TYPE option<record<protected_resources>>;
-DEFINE FIELD IF NOT EXISTS requested_resource_hash ON authorization_audit_events TYPE string ASSERT string::len($value) = 64;
-DEFINE FIELD IF NOT EXISTS resource_kind ON authorization_audit_events TYPE string;
-DEFINE FIELD IF NOT EXISTS action ON authorization_audit_events TYPE string;
-DEFINE FIELD IF NOT EXISTS capability_id ON authorization_audit_events TYPE string;
-DEFINE FIELD IF NOT EXISTS result ON authorization_audit_events TYPE string ASSERT $value IN ['allow', 'deny', 'error'];
-DEFINE FIELD IF NOT EXISTS policy_version ON authorization_audit_events TYPE option<int>;
-DEFINE FIELD IF NOT EXISTS occurred_at ON authorization_audit_events TYPE datetime;
-DEFINE INDEX IF NOT EXISTS authorization_audit_decision_unique ON authorization_audit_events FIELDS decision_id UNIQUE;
-
-DEFINE ACCESS IF NOT EXISTS authenticated_session ON DATABASE TYPE RECORD
-  SIGNIN (
-    SELECT * FROM authenticated_sessions
-    WHERE token_hash = $token_hash
-      AND revoked_at = NONE
-      AND expires_at > time::now()
-      AND (channel_binding_hash = NONE OR channel_binding_hash = $channel_binding_hash)
-      AND account_id.status = 'enabled'
-      AND principal_id.status = 'enabled'
-      AND access_space_id.status = 'active'
-      AND account_id.revocation_epoch = account_revocation_epoch
-      AND principal_id.revocation_epoch = principal_revocation_epoch
-      AND access_space_id.revocation_epoch = space_revocation_epoch
-      AND account_id.policy_version <= policy_version
-      AND principal_id.policy_version <= policy_version
-      AND access_space_id.policy_version <= policy_version
-    LIMIT 1
-  )
-  DURATION FOR TOKEN 5m, FOR SESSION 12h;
-"#;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -326,6 +174,16 @@ pub struct IssuedSession {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct IssuedSessionCredential {
+    pub credential_id: String,
+    pub token: String,
+    pub account_id: String,
+    pub principal_id: String,
+    pub access_space_id: String,
+    pub expires_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProvisionedIdentity {
     pub account_id: String,
     pub principal_id: String,
@@ -431,21 +289,31 @@ struct ResourceLookupRow {
 }
 
 #[derive(SurrealValue)]
-struct SigninParams {
-    token_hash: String,
-    channel_binding_hash: Option<String>,
+pub(crate) struct SigninParams {
+    pub(crate) token_hash: String,
+    pub(crate) channel_binding_hash: Option<String>,
+}
+
+const AUTHORITY_SCHEMA: &str = include_str!("resource_authority_schema.surql");
+
+#[derive(Clone, Debug)]
+pub(crate) struct RecordUserScope {
+    pub(crate) session_token: String,
+    pub(crate) channel_binding_hash: Option<String>,
+    pub(crate) resource_id: String,
+    pub(crate) session_id: String,
+    pub(crate) capability_id: String,
+    pub(crate) action: ResourceAction,
 }
 
 impl SurrealStorage {
     pub async fn bootstrap_resource_authority_schema(&self) -> Result<(), ResourceAuthorityError> {
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         self.with_lease(move |client| {
             Box::pin(async move {
                 let authority = client.clone();
-                authority
-                    .use_ns(namespace)
-                    .use_db(AUTHORITY_DATABASE)
-                    .await?;
+                authority.use_ns(namespace).use_db(database.clone()).await?;
                 authority.query(AUTHORITY_SCHEMA).await?.check()?;
                 Ok(())
             })
@@ -488,6 +356,7 @@ impl SurrealStorage {
         let principal = RecordId::new("principals", Uuid::now_v7().to_string());
         let space = RecordId::new("access_spaces", Uuid::now_v7().to_string());
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let account_key = account_key.to_owned();
         let principal_key = principal_key.to_owned();
         let principal_kind = actor_kind.to_owned();
@@ -516,7 +385,7 @@ impl SurrealStorage {
                     let authority = client.clone();
                     authority
                         .use_ns(namespace)
-                        .use_db(AUTHORITY_DATABASE)
+                        .use_db(database.clone())
                         .await?;
                     let mut response = authority
                         .query(
@@ -549,7 +418,7 @@ impl SurrealStorage {
                     let rows: Vec<PrincipalLookupRow> = response.take(5)?;
                     rows.into_iter().next().ok_or_else(|| {
                         surrealdb::Error::internal(
-                            "principal provisioning returned no canonical identity",
+                            "principal provisioning returned no canonical identity".to_owned(),
                         )
                         .into()
                     })
@@ -574,6 +443,7 @@ impl SurrealStorage {
         Ok(ProvisionedPrincipal { identity, session })
     }
 
+    #[cfg(test)]
     pub async fn provision_local_operator(
         &self,
         channel_binding_hash: Option<&str>,
@@ -588,6 +458,157 @@ impl SurrealStorage {
             "installation-owner-default-space",
             channel_binding_hash,
             Duration::from_secs(12 * 60 * 60),
+        )
+        .await
+    }
+
+    pub async fn provision_session_credential(
+        &self,
+        identity: &ProvisionedIdentity,
+        ttl: Duration,
+    ) -> Result<IssuedSessionCredential, ResourceAuthorityError> {
+        validate_uuid(&identity.account_id)?;
+        validate_uuid(&identity.principal_id)?;
+        validate_uuid(&identity.access_space_id)?;
+        if ttl.is_zero() {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "credential TTL must be greater than zero",
+            ));
+        }
+        self.bootstrap_resource_authority_schema().await?;
+        let mut secret = [0_u8; 32];
+        getrandom::getrandom(&mut secret)
+            .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
+        let token = hex::encode(secret);
+        let token_hash = sha256_hex(token.as_bytes());
+        let credential_id = Uuid::now_v7().to_string();
+        let credential = RecordId::new("session_exchange_credentials", credential_id.clone());
+        let account = RecordId::new("local_accounts", identity.account_id.clone());
+        let principal = RecordId::new("principals", identity.principal_id.clone());
+        let space = RecordId::new("access_spaces", identity.access_space_id.clone());
+        let expires_at = Utc::now()
+            + chrono::Duration::from_std(ttl).map_err(|_| {
+                ResourceAuthorityError::InvalidInput("credential TTL is outside chrono range")
+            })?;
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        self.with_lease(move |client| {
+            Box::pin(async move {
+                let authority = client.clone();
+                authority
+                    .use_ns(namespace)
+                    .use_db(database)
+                    .await?;
+                authority
+                    .query(
+                        "LET $eligible = SELECT id FROM principals WHERE id = $principal AND account_id = $account AND status = 'enabled' AND $space.account_id = $account AND $space.status = 'active' LIMIT 1; IF array::len($eligible) = 0 { THROW 'HSK-AUTH-CREDENTIAL-IDENTITY'; }; CREATE $credential SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $token_hash, status = 'active', expires_at = $expires_at, revoked_at = NONE, created_at = time::now();",
+                    )
+                    .bind(("credential", credential))
+                    .bind(("account", account))
+                    .bind(("principal", principal))
+                    .bind(("space", space))
+                    .bind(("token_hash", token_hash))
+                    .bind(("expires_at", Datetime::from(expires_at)))
+                    .await?
+                    .check()?;
+                Ok(())
+            })
+        })
+        .await?;
+        Ok(IssuedSessionCredential {
+            credential_id,
+            token,
+            account_id: identity.account_id.clone(),
+            principal_id: identity.principal_id.clone(),
+            access_space_id: identity.access_space_id.clone(),
+            expires_at,
+        })
+    }
+
+    pub async fn exchange_session_credential(
+        &self,
+        account_id: &str,
+        principal_id: &str,
+        access_space_id: &str,
+        credential_token: &str,
+        channel_binding_hash: &str,
+        ttl: Duration,
+    ) -> Result<IssuedSession, ResourceAuthorityError> {
+        validate_uuid(account_id)?;
+        validate_uuid(principal_id)?;
+        validate_uuid(access_space_id)?;
+        validate_nonempty(credential_token)?;
+        validate_nonempty(channel_binding_hash)?;
+        if ttl.is_zero() {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "session TTL must be greater than zero",
+            ));
+        }
+        self.bootstrap_resource_authority_schema().await?;
+        let mut secret = [0_u8; 32];
+        getrandom::getrandom(&mut secret)
+            .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
+        let token = hex::encode(secret);
+        let session_token_hash = sha256_hex(token.as_bytes());
+        let credential_token_hash = sha256_hex(credential_token.as_bytes());
+        let session_id = Uuid::now_v7().to_string();
+        let now = Utc::now();
+        let expires_at = now
+            + chrono::Duration::from_std(ttl).map_err(|_| {
+                ResourceAuthorityError::InvalidInput("session TTL is outside chrono range")
+            })?;
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let account = RecordId::new("local_accounts", account_id.to_owned());
+        let principal = RecordId::new("principals", principal_id.to_owned());
+        let principal_key = principal_id.to_owned();
+        let space = RecordId::new("access_spaces", access_space_id.to_owned());
+        let session = RecordId::new("authenticated_sessions", session_id.clone());
+        let channel_binding_hash = channel_binding_hash.to_owned();
+
+        self.with_lease(move |client| {
+            Box::pin(async move {
+                let authority = client.clone();
+                authority.use_ns(namespace).use_db(database).await?;
+                authority
+                    .query(
+                        "BEGIN TRANSACTION; LET $eligible = SELECT VALUE id FROM session_exchange_credentials WHERE token_hash = $credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND account_id = $account AND principal_id = $principal AND access_space_id = $space AND account_id.status = 'enabled' AND principal_id.status = 'enabled' AND access_space_id.status = 'active' AND access_space_id.account_id = account_id LIMIT 1; IF array::len($eligible) = 0 { THROW 'HSK-AUTH-CREDENTIAL-DENIED'; }; UPDATE session_exchange_credentials SET status = 'consumed' WHERE id IN $eligible; CREATE $session SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $session_token_hash, channel_binding_hash = $channel_binding_hash, authentication_strength = 'credential_exchange', delegated_capabilities = $principal.delegated_capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $account.revocation_epoch, principal_revocation_epoch = $principal.revocation_epoch, space_revocation_epoch = $space.revocation_epoch, policy_version = math::max([$account.policy_version, $principal.policy_version, $space.policy_version]), issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE; COMMIT TRANSACTION;",
+                    )
+                    .bind(("credential_token_hash", credential_token_hash))
+                    .bind(("session_token_hash", session_token_hash))
+                    .bind(("session", session))
+                    .bind(("account", account))
+                    .bind(("principal", principal))
+                    .bind(("principal_key", principal_key))
+                    .bind(("space", space))
+                    .bind(("channel_binding_hash", channel_binding_hash))
+                    .bind(("issued_at", Datetime::from(now)))
+                    .bind(("expires_at", Datetime::from(expires_at)))
+                    .await?
+                    .check()?;
+                Ok(())
+            })
+        })
+        .await?;
+
+        Ok(IssuedSession {
+            token,
+            account_id: account_id.to_owned(),
+            principal_id: principal_id.to_owned(),
+            session_id,
+            access_space_id: access_space_id.to_owned(),
+            expires_at,
+        })
+    }
+
+    pub async fn revoke_session_credential(
+        &self,
+        credential_id: &str,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.update_authority_record(
+            "session_exchange_credentials",
+            credential_id,
+            "UPDATE $record SET status = 'revoked', revoked_at = time::now();",
         )
         .await
     }
@@ -620,18 +641,20 @@ impl SurrealStorage {
                 ResourceAuthorityError::InvalidInput("session TTL is outside chrono range")
             })?;
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let account = RecordId::new("local_accounts", account_id.to_owned());
         let principal = RecordId::new("principals", principal_id.to_owned());
         let space = RecordId::new("access_spaces", access_space_id.to_owned());
         let session = RecordId::new("authenticated_sessions", session_id.clone());
         let channel_binding_hash = channel_binding_hash.map(str::to_owned);
+        let principal_key = principal_id.to_owned();
 
         self.with_lease(move |client| {
             Box::pin(async move {
                 let authority = client.clone();
                 authority
                     .use_ns(namespace)
-                    .use_db(AUTHORITY_DATABASE)
+                    .use_db(database.clone())
                     .await?;
                 let mut lookup = authority
                         .query(
@@ -644,7 +667,9 @@ impl SurrealStorage {
                     .check()?;
                 let rows: Vec<SessionIssueRow> = lookup.take(0)?;
                 let eligible = rows.into_iter().next().ok_or_else(|| {
-                    surrealdb::Error::internal("session identity is not currently eligible")
+                    surrealdb::Error::internal(
+                        "session identity is not currently eligible".to_owned(),
+                    )
                 })?;
                 authority
                     .query(
@@ -657,7 +682,7 @@ impl SurrealStorage {
                     .bind(("token_hash", token_hash))
                     .bind(("channel_binding_hash", channel_binding_hash))
                     .bind(("delegated_capabilities", eligible.delegated_capabilities))
-                    .bind(("principal_key", principal.to_string()))
+                    .bind(("principal_key", principal_key))
                     .bind(("account_epoch", eligible.account_epoch))
                     .bind(("principal_epoch", eligible.principal_epoch))
                     .bind(("space_epoch", eligible.space_epoch))
@@ -715,6 +740,7 @@ impl SurrealStorage {
         let resource_id = Uuid::now_v7().to_string();
         let resource = RecordId::new("protected_resources", resource_id.clone());
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let account = RecordId::new("local_accounts", owner.account_id.clone());
         let principal = RecordId::new("principals", owner.principal_id.clone());
         let space = RecordId::new("access_spaces", owner.access_space_id.clone());
@@ -732,7 +758,7 @@ impl SurrealStorage {
                     let authority = client.clone();
                     authority
                         .use_ns(namespace)
-                        .use_db(AUTHORITY_DATABASE)
+                        .use_db(database.clone())
                         .await?;
                     let mut response = authority
                         .query(
@@ -753,7 +779,7 @@ impl SurrealStorage {
                     let rows: Vec<ResourceLookupRow> = response.take(1)?;
                     rows.into_iter().next().ok_or_else(|| {
                         surrealdb::Error::internal(
-                            "resource registry collision or ownership mismatch",
+                            "resource registry collision or ownership mismatch".to_owned(),
                         )
                         .into()
                     })
@@ -788,6 +814,7 @@ impl SurrealStorage {
         }
         let grant_id = Uuid::now_v7().to_string();
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let grant = RecordId::new("resource_grants", grant_id.clone());
         let account = RecordId::new("local_accounts", account_id.to_owned());
         let principal = RecordId::new("principals", spec.principal_id.clone());
@@ -800,7 +827,7 @@ impl SurrealStorage {
             .collect::<Vec<_>>();
         let capabilities = spec.capability_ids.clone();
         let delegation_chain = if spec.delegation_chain.is_empty() {
-            vec![RecordId::new("principals", spec.principal_id.clone()).to_string()]
+            vec![spec.principal_id.clone()]
         } else {
             spec.delegation_chain.clone()
         };
@@ -813,7 +840,7 @@ impl SurrealStorage {
                 let authority = client.clone();
                 authority
                     .use_ns(namespace)
-                    .use_db(AUTHORITY_DATABASE)
+                    .use_db(database.clone())
                     .await?;
                 authority
                     .query(
@@ -865,6 +892,7 @@ impl SurrealStorage {
         }
 
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let token_hash = sha256_hex(request.session_token.as_bytes());
         let channel_binding_hash = request.channel_binding_hash.clone();
         let capability = request.capability_id.clone();
@@ -878,12 +906,12 @@ impl SurrealStorage {
                     let authority = client.clone();
                     authority
                         .use_ns(namespace.clone())
-                        .use_db(AUTHORITY_DATABASE)
+                        .use_db(database.clone())
                         .await?;
                     if authority
                         .signin(RecordSignin {
                             namespace,
-                            database: AUTHORITY_DATABASE.to_owned(),
+                            database: database.clone(),
                             access: AUTHORITY_ACCESS_METHOD.to_owned(),
                             params: SigninParams {
                                 token_hash,
@@ -908,7 +936,7 @@ impl SurrealStorage {
                     let session = session_rows.into_iter().next();
                     let mut response = authority
                         .query(
-                            "SELECT id AS grant_id, resource_id, account_id, principal_id, $auth.id AS session_id, access_space_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, principal_id.capability_profile_id AS capability_profile_id, $auth.delegation_chain AS delegation_chain, math::max([policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version]) AS policy_version FROM resource_grants WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id.resource_kind = $kind AND resource_id.external_resource_id = $external AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND array::contains(actions, $action) AND array::contains(capability_ids, $capability) AND (array::contains($auth.delegated_capabilities, '*') OR array::contains($auth.delegated_capabilities, $capability)) AND delegation_chain = $auth.delegation_chain LIMIT 1;",
+                            "SELECT id AS grant_id, resource_id, account_id, principal_id, $auth.id AS session_id, access_space_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, principal_id.capability_profile_id AS capability_profile_id, $auth.delegation_chain AS delegation_chain, math::max([policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version]) AS policy_version FROM resource_grants WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id.resource_kind = $kind AND resource_id.external_resource_id = $external AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND array::contains(actions, $action) AND array::contains(capability_ids, $capability) AND (array::contains($auth.delegated_capabilities, '*') OR array::contains($auth.delegated_capabilities, $capability)) AND delegation_chain = $auth.delegation_chain AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')) LIMIT 1;",
                         )
                         .bind(("kind", kind))
                         .bind(("external", external))
@@ -958,6 +986,7 @@ impl SurrealStorage {
         result: &'static str,
     ) -> Result<(), ResourceAuthorityError> {
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let audit = RecordId::new("authorization_audit_events", Uuid::now_v7().to_string());
         let account = decision
             .map(|value| RecordId::new("local_accounts", value.account_id.clone()))
@@ -998,7 +1027,7 @@ impl SurrealStorage {
                 let authority = client.clone();
                 authority
                     .use_ns(namespace)
-                    .use_db(AUTHORITY_DATABASE)
+                    .use_db(database.clone())
                     .await?;
                 authority
                     .query(
@@ -1062,6 +1091,7 @@ impl SurrealStorage {
         validate_uuid(session_id)?;
         validate_uuid(new_access_space_id)?;
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let session = RecordId::new("authenticated_sessions", session_id.to_owned());
         let space = RecordId::new("access_spaces", new_access_space_id.to_owned());
         self.with_lease(move |client| {
@@ -1069,11 +1099,11 @@ impl SurrealStorage {
                 let authority = client.clone();
                 authority
                     .use_ns(namespace)
-                    .use_db(AUTHORITY_DATABASE)
+                    .use_db(database.clone())
                     .await?;
                 authority
                     .query(
-                        "UPDATE $session SET access_space_id = $space, space_revocation_epoch = $space.revocation_epoch, policy_version = math::max([policy_version + 1, $space.policy_version]);",
+                        "IF $space.account_id != $session.account_id OR $space.status != 'active' { THROW 'HSK-AUTH-SPACE-SWITCH-DENIED'; }; UPDATE $session SET access_space_id = $space, space_revocation_epoch = $space.revocation_epoch, policy_version = math::max([policy_version + 1, $space.policy_version]);",
                     )
                     .bind(("session", session))
                     .bind(("space", space))
@@ -1090,13 +1120,14 @@ impl SurrealStorage {
         &self,
     ) -> Result<Vec<String>, ResourceAuthorityError> {
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let rows = self
             .with_lease(move |client| {
                 Box::pin(async move {
                     let authority = client.clone();
                     authority
                         .use_ns(namespace)
-                        .use_db(AUTHORITY_DATABASE)
+                        .use_db(database.clone())
                         .await?;
                     let mut response = authority
                         .query(
@@ -1187,6 +1218,53 @@ impl SurrealStorage {
         Ok(provisioned)
     }
 
+    pub async fn issue_reconciliation_session(
+        &self,
+    ) -> Result<ReconciliationPrincipal, ResourceAuthorityError> {
+        self.bootstrap_resource_authority_schema().await?;
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let row = self
+            .with_lease(move |client| {
+                Box::pin(async move {
+                    let authority = client.clone();
+                    authority
+                        .use_ns(namespace)
+                        .use_db(database)
+                        .await?;
+                    let mut response = authority
+                        .query(
+                            "SELECT account_id, id AS principal_id, (SELECT VALUE id FROM access_spaces WHERE account_id = $parent.account_id AND status = 'active' ORDER BY created_at ASC LIMIT 1)[0] AS access_space_id FROM principals WHERE principal_key = 'mt109-reconciliation-service-principal' AND principal_kind = 'service_identity' AND status = 'enabled' LIMIT 1;",
+                        )
+                        .await?
+                        .check()?;
+                    let rows: Vec<PrincipalLookupRow> = response.take(0)?;
+                    rows.into_iter().next().ok_or_else(|| {
+                        surrealdb::Error::internal(
+                            "reconciliation Principal is not explicitly provisioned".to_owned(),
+                        )
+                        .into()
+                    })
+                })
+            })
+            .await?;
+        let identity = ProvisionedIdentity {
+            account_id: record_key(row.account_id)?,
+            principal_id: record_key(row.principal_id)?,
+            access_space_id: record_key(row.access_space_id)?,
+        };
+        let session = self
+            .issue_authenticated_session(
+                &identity.account_id,
+                &identity.principal_id,
+                &identity.access_space_id,
+                None,
+                Duration::from_secs(60 * 60),
+            )
+            .await?;
+        Ok(ProvisionedPrincipal { identity, session })
+    }
+
     async fn lookup_registered_resource(
         &self,
         kind: ResourceKind,
@@ -1194,6 +1272,7 @@ impl SurrealStorage {
     ) -> Result<RegisteredResource, ResourceAuthorityError> {
         validate_nonempty(external_resource_id)?;
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let kind_name = kind.as_str().to_owned();
         let external = external_resource_id.to_owned();
         let row = self
@@ -1202,7 +1281,7 @@ impl SurrealStorage {
                     let authority = client.clone();
                     authority
                         .use_ns(namespace)
-                        .use_db(AUTHORITY_DATABASE)
+                        .use_db(database.clone())
                         .await?;
                     let mut response = authority
                         .query(
@@ -1235,14 +1314,12 @@ impl SurrealStorage {
     ) -> Result<(), ResourceAuthorityError> {
         validate_uuid(id)?;
         let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
         let record = RecordId::new(table, id.to_owned());
         self.with_lease(move |client| {
             Box::pin(async move {
                 let authority = client.clone();
-                authority
-                    .use_ns(namespace)
-                    .use_db(AUTHORITY_DATABASE)
-                    .await?;
+                authority.use_ns(namespace).use_db(database.clone()).await?;
                 authority
                     .query(statement)
                     .bind(("record", record))
