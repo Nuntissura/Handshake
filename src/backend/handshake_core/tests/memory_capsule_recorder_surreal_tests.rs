@@ -27,7 +27,9 @@ use handshake_core::{
     memory::{
         persistence::{MEMORY_CAPSULE_AGGREGATE_TYPE, MEMORY_CAPSULE_SOURCE_COMPONENT},
         CapsuleAuditEntry, CapsuleAuditLog, CapsuleRecord, CapsuleRecorder, DegradationTier,
-        RetrievalPolicy, SurrealKernelActionSubmitter, TaskType, MEMORY_CAPSULE_RECORD_ACTION_ID,
+        MemoryCapsuleIpcStore, MemoryIpcService, RetrievalPolicy, SuppressItemRequest,
+        SurrealKernelActionSubmitter, SurrealMemoryCapsuleStore, TaskType,
+        MEMORY_CAPSULE_RECORD_ACTION_ID,
     },
     storage::Database,
 };
@@ -42,6 +44,82 @@ async fn embedded_database() -> (
     let harness = atelier_surreal_support::AtelierSurrealHarness::create().await;
     let database = harness.database.clone();
     (database, harness)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn capsule_suppression_and_flight_recorder_evidence_survive_store_reopen() {
+    let directory = tempfile::tempdir().expect("temporary capsule authority root");
+    let data_dir = directory.path().to_string_lossy().to_string();
+    let config = handshake_core::storage::ControlPlaneStorageConfig::resolve(
+        Some("surreal_embedded"),
+        Some(&data_dir),
+    )
+    .expect("resolve embedded authority configuration");
+    let control_plane = handshake_core::storage::init_control_plane_storage_with_config(&config)
+        .await
+        .expect("initialize embedded authority");
+    let db = control_plane.database.clone();
+    let submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&db));
+    let recorder = CapsuleRecorder {
+        action_catalog: &submitter,
+    };
+    let record = sample_capsule_record();
+    recorder.record(record.clone()).expect("record capsule");
+
+    let store = SurrealMemoryCapsuleStore::with_db(Arc::clone(&db));
+    let service = MemoryIpcService::new(&store, &submitter, &submitter);
+    let receipt = service
+        .suppress_item(SuppressItemRequest {
+            capsule_id: record.capsule_id,
+            item_id: record.audit_log.entries[0].item_id.clone(),
+            reason: "operator removed stale evidence".to_owned(),
+            actor_id: "operator-mt-136".to_owned(),
+            session_id: "session-mt-136".to_owned(),
+        })
+        .expect("durably suppress capsule item");
+    assert_eq!(receipt.suppressed_item_count, 1);
+    assert_eq!(
+        submitter
+            .list_capsule_flight_recorder_events(record.capsule_id)
+            .expect("read durable Flight Recorder evidence")
+            .len(),
+        1
+    );
+
+    drop(service);
+    drop(store);
+    drop(submitter);
+    drop(db);
+    control_plane
+        .surreal
+        .shutdown()
+        .await
+        .expect("close embedded authority");
+
+    let reopened = handshake_core::storage::init_control_plane_storage_with_config(&config)
+        .await
+        .expect("reopen embedded authority");
+    let reopened_store = SurrealMemoryCapsuleStore::with_db(reopened.database.clone());
+    let durable = reopened_store
+        .get_capsule_record(record.capsule_id)
+        .expect("read capsule after reopen")
+        .expect("capsule remains present after reopen");
+    assert!(!durable.audit_log.entries[0].included);
+    assert_eq!(
+        durable.audit_log.entries[0].suppression_reason.as_deref(),
+        Some("operator removed stale evidence")
+    );
+    let reopened_submitter = SurrealKernelActionSubmitter::with_db(reopened.database.clone());
+    let events = reopened_submitter
+        .list_capsule_flight_recorder_events(record.capsule_id)
+        .expect("read Flight Recorder evidence after reopen");
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].event_id(), "FR-EVT-CAPSULE-SUPPRESSED");
+    reopened
+        .surreal
+        .shutdown()
+        .await
+        .expect("close reopened authority");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -123,8 +201,8 @@ async fn capsule_recorder_dedup_collapses_duplicate_submissions() {
     // any other kernel event.
     let second = recorder.record(record.clone()).expect("second record");
 
-    // The recorder generates fresh receipt UUIDs so the two receipts are not
-    // equal, but the persisted ledger rows should collapse to a single event.
+    // The recorder derives receipt identity from the idempotency key, so the
+    // persisted ledger rows collapse to a single event.
     let events = db
         .list_kernel_events_for_aggregate(
             MEMORY_CAPSULE_AGGREGATE_TYPE,

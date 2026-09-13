@@ -12,6 +12,7 @@ use super::hygiene::{
     HYGIENE_PAYLOAD_SCHEMA_ID, HYGIENE_PROMOTE_ACTION_ID, HYGIENE_PRUNE_ACTION_ID,
     MEMORY_HYGIENE_SOURCE_COMPONENT,
 };
+use super::injection::{CapsuleFlightRecorderEvent, FemsFlightRecorder, FemsFlightRecorderError};
 use super::ipc::{MemoryCapsuleIpcStore, MemoryIpcError};
 use super::pinned_core::{
     action_id_for_pin_state, fr_event_for_pin_state, pin_submission, PinError, PinReceipt,
@@ -46,6 +47,7 @@ pub const MEMORY_CAPSULE_AGGREGATE_TYPE: &str = "memory_capsule";
 pub const MEMORY_CAPSULE_MANIFEST_AGGREGATE_TYPE: &str = "memory_capsule_manifest";
 pub const MEMORY_CAPSULE_MANIFEST_AGGREGATE_ID: &str = "canonical";
 pub const MEMORY_CAPSULE_SOURCE_COMPONENT: &str = "memory_capsule_kernel_action_catalog";
+pub const MEMORY_CAPSULE_FLIGHT_RECORDER_SOURCE_COMPONENT: &str = "memory_capsule_flight_recorder";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case", tag = "status")]
@@ -262,6 +264,47 @@ impl SurrealKernelActionSubmitter {
         &self.catalog
     }
 
+    pub fn list_capsule_flight_recorder_events(
+        &self,
+        capsule_id: Uuid,
+    ) -> Result<Vec<CapsuleFlightRecorderEvent>, FemsFlightRecorderError> {
+        let db = Arc::clone(&self.db);
+        let events = block_on_storage(async move {
+            db.list_kernel_events_for_aggregate(
+                MEMORY_CAPSULE_AGGREGATE_TYPE,
+                &capsule_id.to_string(),
+            )
+            .await
+        })
+        .map_err(|error| {
+            FemsFlightRecorderError::new(format!(
+                "reading memory capsule Flight Recorder evidence failed: {error}"
+            ))
+        })?;
+
+        events
+            .into_iter()
+            .filter(|event| {
+                event.event_type == KernelEventType::FlightRecorderMirrorRecorded
+                    && event.source_component == MEMORY_CAPSULE_FLIGHT_RECORDER_SOURCE_COMPONENT
+            })
+            .map(|event| {
+                serde_json::from_value(event.payload.get("event").cloned().ok_or_else(|| {
+                    FemsFlightRecorderError::new(format!(
+                        "memory capsule Flight Recorder event {} has no typed event payload",
+                        event.event_id
+                    ))
+                })?)
+                .map_err(|error| {
+                    FemsFlightRecorderError::new(format!(
+                        "memory capsule Flight Recorder event {} is invalid: {error}",
+                        event.event_id
+                    ))
+                })
+            })
+            .collect()
+    }
+
     fn submit_hygiene_candidate(&self, candidate: HygieneCandidate) -> Result<Uuid, HygieneError> {
         let receipt = RecordReceipt {
             record_id: Uuid::now_v7(),
@@ -275,6 +318,58 @@ impl SurrealKernelActionSubmitter {
                 reason: error.reason,
             })?;
         Ok(receipt.record_id)
+    }
+}
+
+impl FemsFlightRecorder for SurrealKernelActionSubmitter {
+    fn record_event(
+        &self,
+        event: CapsuleFlightRecorderEvent,
+    ) -> Result<(), FemsFlightRecorderError> {
+        let capsule_id = match &event {
+            CapsuleFlightRecorderEvent::CapsuleInjected(event) => event.capsule_id,
+            CapsuleFlightRecorderEvent::CapsuleSuppressed(event) => event.capsule_id,
+        };
+        let event_name = event.event_id();
+        let event_payload = serde_json::to_value(&event).map_err(|error| {
+            FemsFlightRecorderError::new(format!(
+                "serializing memory capsule Flight Recorder event failed: {error}"
+            ))
+        })?;
+        let event_hash = sha256_hex(&canonical_json_bytes(&event_payload));
+        let ledger_event = NewKernelEvent::builder(
+            format!("KTR-MEMORY-CAPSULE-FR-{capsule_id}"),
+            format!("SR-MEMORY-CAPSULE-FR-{capsule_id}"),
+            KernelEventType::FlightRecorderMirrorRecorded,
+            KernelActor::System(MEMORY_CAPSULE_FLIGHT_RECORDER_SOURCE_COMPONENT.to_owned()),
+        )
+        .aggregate(MEMORY_CAPSULE_AGGREGATE_TYPE, capsule_id.to_string())
+        .idempotency_key(format!(
+            "memory_capsule_flight_recorder:{capsule_id}:{event_name}:{event_hash}"
+        ))
+        .correlation_id(format!("memory-capsule:{capsule_id}"))
+        .event_version("kernel_event_v1")
+        .source_component(MEMORY_CAPSULE_FLIGHT_RECORDER_SOURCE_COMPONENT)
+        .payload(json!({
+            "schema_id": "hsk.memory_capsule.flight_recorder_event@1",
+            "capsule_id": capsule_id,
+            "event_id": event_name,
+            "event": event,
+        }))
+        .build()
+        .map_err(|error| {
+            FemsFlightRecorderError::new(format!(
+                "building memory capsule Flight Recorder EventLedger row failed: {error}"
+            ))
+        })?;
+        let db = Arc::clone(&self.db);
+        block_on_storage(async move { db.append_kernel_event(ledger_event).await })
+            .map(|_| ())
+            .map_err(|error| {
+                FemsFlightRecorderError::new(format!(
+                    "persisting memory capsule Flight Recorder evidence failed: {error}"
+                ))
+            })
     }
 }
 
@@ -813,9 +908,9 @@ impl<'a> CapsuleRecorder<'a> {
         validate_record(&record)?;
 
         let receipt = RecordReceipt {
-            record_id: Uuid::now_v7(),
-            write_box_envelope_id: Uuid::now_v7(),
-            persisted_at_utc: Utc::now(),
+            record_id: deterministic_receipt_uuid(&record, "record"),
+            write_box_envelope_id: deterministic_receipt_uuid(&record, "write_box"),
+            persisted_at_utc: record.recorded_at_utc,
         };
         let payload = payload_value(&record, receipt.record_id)?;
         let payload_sha256 = sha256_hex(&canonical_json_bytes(&payload));
@@ -1051,6 +1146,16 @@ fn idempotency_key(record: &CapsuleRecord) -> String {
         "memory_capsule_record:{}:{}",
         record.capsule_id, record.capsule_source_hash
     )
+}
+
+fn deterministic_receipt_uuid(record: &CapsuleRecord, purpose: &str) -> Uuid {
+    let digest = sha256_hex(format!("{purpose}:{}", idempotency_key(record)).as_bytes());
+    let value = u128::from_str_radix(&digest[..32], 16)
+        .expect("sha256 digest prefix must be valid hexadecimal");
+    let mut bytes = value.to_be_bytes();
+    bytes[6] = (bytes[6] & 0x0f) | 0x70;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(bytes)
 }
 
 fn is_sha256_hex(value: &str) -> bool {

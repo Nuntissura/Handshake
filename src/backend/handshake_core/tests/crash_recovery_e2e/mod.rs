@@ -122,7 +122,10 @@ pub fn assert_scenario_matches_golden(scenario: CrashRecoveryScenario) {
     assert_exact_counts(&evidence);
     let actual = serde_json::to_string_pretty(&evidence).unwrap();
     let expected = std::fs::read_to_string(golden_path(scenario)).unwrap();
-    assert_eq!(actual.trim(), expected.trim());
+    assert_eq!(
+        actual.replace("\r\n", "\n").trim(),
+        expected.replace("\r\n", "\n").trim()
+    );
 }
 
 struct ScenarioHarness {

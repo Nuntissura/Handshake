@@ -140,6 +140,12 @@ pub(crate) struct CaptureContext {
     pub(crate) binding_token: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthenticatedNativeSession {
+    pub actor_id: String,
+    pub session_run_id: String,
+}
+
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum ProcessBirthIdentity {
@@ -251,6 +257,18 @@ pub(crate) fn current_process_native_binding(token: &str) -> serde_json::Value {
     let pid = std::process::id();
     let process_birth = process_birth_identity(pid)
         .expect("the current test process has a verifiable birth identity");
+    serde_json::json!({
+        "token": token,
+        "pid": pid,
+        "process_birth": process_birth,
+    })
+}
+
+#[doc(hidden)]
+pub fn current_process_native_session_binding(token: &str) -> serde_json::Value {
+    let pid = std::process::id();
+    let process_birth =
+        process_birth_identity(pid).expect("the current process has a verifiable birth identity");
     serde_json::json!({
         "token": token,
         "pid": pid,
@@ -434,6 +452,10 @@ pub(crate) fn capture_context(
     let presented = header_str(headers, HSK_HEADER_SESSION_TOKEN)
         .filter(|value| value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit()))
         .ok_or(CaptureContextFailure::InvalidSession)?;
+    capture_context_for_token(presented)
+}
+
+fn capture_context_for_token(presented: &str) -> Result<CaptureContext, CaptureContextFailure> {
     let binding_bytes = std::fs::read(native_mcp_binding_path())
         .map_err(|_| CaptureContextFailure::InvalidSession)?;
     let binding: NativeMcpBinding = serde_json::from_slice(&binding_bytes)
@@ -465,6 +487,20 @@ pub(crate) fn capture_context(
         limiter_principal,
         session_run_id,
         binding_token: binding.token,
+    })
+}
+
+pub fn authenticate_native_session_token(
+    presented: Option<&str>,
+) -> Result<AuthenticatedNativeSession, &'static str> {
+    let presented = presented
+        .map(str::trim)
+        .filter(|value| value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit()))
+        .ok_or("invalid_session")?;
+    let context = capture_context_for_token(presented).map_err(|_| "invalid_session")?;
+    Ok(AuthenticatedNativeSession {
+        actor_id: context.actor_id,
+        session_run_id: context.session_run_id,
     })
 }
 

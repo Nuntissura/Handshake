@@ -4,7 +4,7 @@
 //! SurrealDB/EventLedger authority. The default state is unavailable and every
 //! operation fails closed; there is no process-local durable-success fallback.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use handshake_core::{
     memory::{
@@ -26,7 +26,6 @@ enum MemoryCapsuleStoreBackend {
     Surreal {
         store: Arc<SurrealMemoryCapsuleStore>,
         submitter: Arc<SurrealKernelActionSubmitter>,
-        flight_recorder_events: Mutex<Vec<CapsuleFlightRecorderEvent>>,
     },
 }
 
@@ -43,11 +42,11 @@ pub struct MemoryCapsuleIpcState {
 
 impl MemoryCapsuleIpcState {
     pub fn with_surreal(db: Arc<dyn Database>) -> Self {
+        let submitter = Arc::new(SurrealKernelActionSubmitter::with_db(Arc::clone(&db)));
         Self {
             backend: MemoryCapsuleStoreBackend::Surreal {
-                store: Arc::new(SurrealMemoryCapsuleStore::with_db(Arc::clone(&db))),
-                submitter: Arc::new(SurrealKernelActionSubmitter::with_db(db)),
-                flight_recorder_events: Mutex::new(Vec::new()),
+                store: Arc::new(SurrealMemoryCapsuleStore::with_db(db)),
+                submitter,
             },
         }
     }
@@ -108,22 +107,12 @@ impl FemsFlightRecorder for MemoryCapsuleIpcState {
         &self,
         event: CapsuleFlightRecorderEvent,
     ) -> Result<(), FemsFlightRecorderError> {
-        let MemoryCapsuleStoreBackend::Surreal {
-            flight_recorder_events,
-            ..
-        } = &self.backend
-        else {
+        let MemoryCapsuleStoreBackend::Surreal { submitter, .. } = &self.backend else {
             return Err(FemsFlightRecorderError::new(
                 "embedded SurrealDB authority is unavailable",
             ));
         };
-        let Ok(mut events) = flight_recorder_events.lock() else {
-            return Err(FemsFlightRecorderError::new(
-                "memory capsule IPC flight recorder mutex poisoned",
-            ));
-        };
-        events.push(event);
-        Ok(())
+        submitter.record_event(event)
     }
 }
 #[tauri::command]

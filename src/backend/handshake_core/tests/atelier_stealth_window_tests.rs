@@ -50,6 +50,54 @@ use uuid::Uuid;
 mod atelier_surreal_support;
 
 const SIDECAR_VISIBILITY_HEALTH_LOCK_ID: i64 = 5_023_022;
+static NATIVE_BINDING_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+struct NativeSessionBinding {
+    token: String,
+    actor_id: String,
+    binding_path: PathBuf,
+    previous_binding_path: Option<std::ffi::OsString>,
+}
+
+impl NativeSessionBinding {
+    fn install() -> Self {
+        let token = format!("{:064x}", Uuid::new_v4().as_u128());
+        let binding_path = std::env::temp_dir().join(format!(
+            "atelier-native-session-binding-{}.json",
+            Uuid::new_v4()
+        ));
+        std::fs::write(
+            &binding_path,
+            serde_json::to_vec(
+                &handshake_core::api::stage::current_process_native_session_binding(&token),
+            )
+            .expect("serialize native session binding"),
+        )
+        .expect("write native session binding");
+        let previous_binding_path = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
+        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+        let actor_id = handshake_core::api::stage::authenticate_native_session_token(Some(&token))
+            .expect("current-process native session authenticates")
+            .actor_id;
+        Self {
+            token,
+            actor_id,
+            binding_path,
+            previous_binding_path,
+        }
+    }
+}
+
+impl Drop for NativeSessionBinding {
+    fn drop(&mut self) {
+        if let Some(previous) = &self.previous_binding_path {
+            std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous);
+        } else {
+            std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
+        }
+        let _ = std::fs::remove_file(&self.binding_path);
+    }
+}
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -283,9 +331,9 @@ fn stealth_ref_tauri_commands_are_registered_and_embedded_backed() {
     }
 
     assert!(lib_rs.contains("pub mod stealth_ref"));
-    assert!(lib_rs.contains("StealthRefIpcState::from_env_or_unavailable()"));
-    assert!(stealth_ref_rs.contains("init_control_plane_storage"));
-    assert!(stealth_ref_rs.contains("AtelierStore::with_event_ledger"));
+    assert!(lib_rs.contains("init_control_plane_storage"));
+    assert!(lib_rs.contains("AtelierStore::with_event_ledger"));
+    assert!(lib_rs.contains("StealthRefIpcState::with_store(atelier_store)"));
     assert!(stealth_ref_rs.contains("list_stealth_windows"));
     assert!(stealth_ref_rs.contains("list_stealth_refs"));
     assert!(stealth_ref_rs.contains("resolve_stealth_ref"));
@@ -295,12 +343,15 @@ fn stealth_ref_tauri_commands_are_registered_and_embedded_backed() {
 #[tokio::test]
 async fn stealth_window_api_list_is_scoped_to_calling_actor(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _binding_guard = NATIVE_BINDING_ENV_LOCK.lock().await;
+    let binding = NativeSessionBinding::install();
     let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
     let store = AtelierStore::new(state.surreal.clone());
 
-    let caller_input = fresh_window_input();
+    let mut caller_input = fresh_window_input();
+    caller_input.owner_actor.clone_from(&binding.actor_id);
     let caller_actor = caller_input.owner_actor.clone();
     let foreign_input = fresh_window_input();
     let foreign_actor = foreign_input.owner_actor.clone();
@@ -317,7 +368,8 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor(
     let (base_url, server) = start_atelier_api_server(state).await?;
     let response = reqwest::Client::new()
         .get(format!("{base_url}/atelier/stealth/windows"))
-        .header("x-hsk-actor-id", &caller_actor)
+        .header("x-hsk-session-token", &binding.token)
+        .header("x-hsk-actor-id", "forged-caller")
         .send()
         .await?;
 
@@ -352,6 +404,8 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor(
 #[tokio::test]
 async fn atelier_filesystem_health_api_records_read_only_check(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _binding_guard = NATIVE_BINDING_ENV_LOCK.lock().await;
+    let binding = NativeSessionBinding::install();
     let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
@@ -372,6 +426,7 @@ async fn atelier_filesystem_health_api_records_read_only_check(
 
     let check_response_result = client
         .post(format!("{base_url}/atelier/filesystem-health/checks"))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-health")
         .json(&serde_json::json!({ "scope_label": "api-health" }))
         .send()
@@ -389,8 +444,8 @@ async fn atelier_filesystem_health_api_records_read_only_check(
         report
             .get("check")
             .and_then(|check| check.get("requested_by")),
-        Some(&serde_json::json!("operator-health")),
-        "health check route must attribute durable diagnostic snapshot from x-hsk-actor-id"
+        Some(&serde_json::json!(&binding.actor_id)),
+        "health check route must attribute the authenticated native-session principal"
     );
     assert_eq!(
         report
@@ -456,6 +511,8 @@ async fn atelier_filesystem_health_api_records_read_only_check(
 #[tokio::test]
 async fn atelier_deletion_controls_api_preview_archive_and_restore(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _binding_guard = NATIVE_BINDING_ENV_LOCK.lock().await;
+    let binding = NativeSessionBinding::install();
     let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
@@ -486,6 +543,7 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
 
     let preview_response = client
         .post(format!("{base_url}/atelier/deletion/impact-preview"))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-delete")
         .json(&serde_json::json!({
             "targets": targets,
@@ -495,7 +553,7 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
         .await?;
     assert_eq!(preview_response.status(), reqwest::StatusCode::OK);
     let preview: serde_json::Value = preview_response.json().await?;
-    assert_eq!(preview["requested_by"], "operator-delete");
+    assert_eq!(preview["requested_by"], binding.actor_id);
     assert_eq!(preview["target_count"], 2);
     assert_eq!(preview["would_archive_count"], 2);
     assert_eq!(preview["already_archived_count"], 0);
@@ -516,6 +574,7 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
 
     let archive_response = client
         .post(format!("{base_url}/atelier/deletion/archive"))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-delete")
         .json(&serde_json::json!({
             "targets": preview["targets"],
@@ -538,6 +597,7 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
 
     let restore_response = client
         .post(format!("{base_url}/atelier/deletion/restore"))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-delete")
         .json(&serde_json::json!({
             "targets": preview["targets"],
@@ -565,6 +625,8 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
 #[tokio::test]
 async fn atelier_image_import_api_records_clipboard_and_url_imports(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _binding_guard = NATIVE_BINDING_ENV_LOCK.lock().await;
+    let binding = NativeSessionBinding::install();
     let Some(state) = test_app_state_embedded().await else {
         return Ok(());
     };
@@ -580,6 +642,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
 
     let clipboard_response = client
         .post(format!("{base_url}/atelier/image-import/clipboard"))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-import-api")
         .json(&serde_json::json!({
             "idempotency_key": format!("api-clipboard-import-{}", Uuid::new_v4()),
@@ -595,7 +658,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
     let clipboard: serde_json::Value = clipboard_response.json().await?;
     assert_eq!(clipboard["source_kind"], "clipboard");
     assert_eq!(clipboard["status"], "materialized");
-    assert_eq!(clipboard["requested_by"], "operator-import-api");
+    assert_eq!(clipboard["requested_by"], binding.actor_id);
     assert!(
         clipboard
             .get("asset_id")
@@ -607,6 +670,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
     let before_url_rows = embedded_row_count(&count_storage, "atelier_image_import_request").await;
     let url_response = client
         .post(format!("{base_url}/atelier/image-import/url"))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-import-api")
         .json(&serde_json::json!({
             "idempotency_key": format!("api-url-import-{}", Uuid::new_v4()),
@@ -625,7 +689,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
     let url_record: serde_json::Value = url_response.json().await?;
     assert_eq!(url_record["source_kind"], "url");
     assert_eq!(url_record["status"], "queued");
-    assert_eq!(url_record["requested_by"], "operator-import-api");
+    assert_eq!(url_record["requested_by"], binding.actor_id);
     assert_eq!(url_record["asset_id"], serde_json::Value::Null);
     assert!(
         url_record["source_url_hash"]
@@ -643,6 +707,7 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
 
     let rejected_response = client
         .post(format!("{base_url}/atelier/image-import/url"))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-import-api")
         .json(&serde_json::json!({
             "idempotency_key": format!("api-url-import-blocked-{}", Uuid::new_v4()),
@@ -726,6 +791,8 @@ async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_roo
 #[tokio::test]
 async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _binding_guard = NATIVE_BINDING_ENV_LOCK.lock().await;
+    let binding = NativeSessionBinding::install();
     let _ = tracing_subscriber::fmt()
         .with_env_filter("off,handshake_core::atelier=error")
         .with_test_writer()
@@ -796,6 +863,7 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
         .post(format!(
             "{base_url}/atelier/ai-tag-suggestions/{suggestion_id}/accept"
         ))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-api-reviewer")
         .json(&serde_json::json!({ "reason": "matches image" }))
         .send()
@@ -805,8 +873,8 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
     assert_eq!(accepted.get("status"), Some(&serde_json::json!("accepted")));
     assert_eq!(
         accepted.get("decided_by"),
-        Some(&serde_json::json!("operator-api-reviewer")),
-        "decision route must attribute reviewer from x-hsk-actor-id"
+        Some(&serde_json::json!(&binding.actor_id)),
+        "decision route must attribute the authenticated native-session principal"
     );
 
     let reject_record_response = client
@@ -836,6 +904,7 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
         .post(format!(
             "{base_url}/atelier/ai-tag-suggestions/{reject_suggestion_id}/reject"
         ))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-api-rejecter")
         .json(&serde_json::json!({ "reason": "does not match image" }))
         .send()
@@ -845,14 +914,15 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
     assert_eq!(rejected.get("status"), Some(&serde_json::json!("rejected")));
     assert_eq!(
         rejected.get("decided_by"),
-        Some(&serde_json::json!("operator-api-rejecter")),
-        "reject route must attribute reviewer from x-hsk-actor-id"
+        Some(&serde_json::json!(&binding.actor_id)),
+        "reject route must attribute the authenticated native-session principal"
     );
 
     let apply_response = client
         .post(format!(
             "{base_url}/atelier/ai-tag-suggestions/{suggestion_id}/apply"
         ))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "operator-api-reviewer")
         .send()
         .await?;

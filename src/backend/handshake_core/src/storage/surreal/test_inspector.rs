@@ -1236,8 +1236,7 @@ fn parse_projected_row(
         let value = object.get(field).cloned().ok_or_else(|| {
             SurrealTestInspectorError::InvalidRow(format!("missing projected field `{field}`"))
         })?;
-        let value = serde_json::to_value(value)
-            .map_err(|error| SurrealTestInspectorError::InvalidRow(error.to_string()))?;
+        let value = value.into_json_value();
         values.insert(field.clone(), value);
     }
     Ok(ProjectedRow { record_id, values })

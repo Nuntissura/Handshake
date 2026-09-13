@@ -1041,7 +1041,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
-        .setup(|app| {
+        .setup(move |app| {
             let _ = fonts::fonts_bootstrap_pack(app.handle().clone(), None);
             let _ = fonts::fonts_list(app.handle().clone());
 
