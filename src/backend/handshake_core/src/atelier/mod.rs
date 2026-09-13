@@ -1007,8 +1007,9 @@ impl AtelierStore {
     where
         T: Send,
         F: for<'a> FnOnce(
-            SurrealDataContext<'a>,
-        ) -> crate::storage::surreal::SurrealOperation<'a, T>,
+                SurrealDataContext<'a>,
+            ) -> crate::storage::surreal::SurrealOperation<'a, T>
+            + Send,
     {
         Ok(self.store.with_data_operation(operation).await?)
     }

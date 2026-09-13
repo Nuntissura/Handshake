@@ -390,13 +390,14 @@ impl SurrealStorage {
                     let mut response = authority
                         .query(
                             "BEGIN TRANSACTION;\n\
-                             LET $existing_principal = (SELECT * FROM principals WHERE principal_key = $principal_key LIMIT 1);\n\
-                             LET $existing_space = (SELECT * FROM access_spaces WHERE space_key = $space_key LIMIT 1);\n\
-                             IF array::len($existing_principal) = 0 {\n\
-                               CREATE $account SET account_key = $account_key, account_role = $account_role, status = 'enabled', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now;\n\
-                               CREATE $principal SET principal_key = $principal_key, account_id = $account, principal_kind = $principal_kind, actor_kind = $actor_kind, actor_id = $actor_id, capability_profile_id = $capability_profile_id, delegated_capabilities = $delegated_capabilities, status = 'enabled', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now;\n\
-                               CREATE $space SET space_key = $space_key, account_id = $account, name = $space_key, status = 'active', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now;\n\
-                             };\n\
+                             LET $existing_account = (SELECT id FROM local_accounts WHERE account_key = $account_key LIMIT 1);\n\
+                             IF array::len($existing_account) = 0 { CREATE $account SET account_key = $account_key, account_role = $account_role, status = 'enabled', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now; };\n\
+                             LET $resolved_account = (SELECT VALUE id FROM local_accounts WHERE account_key = $account_key LIMIT 1)[0];\n\
+                             LET $existing_principal = (SELECT id, account_id FROM principals WHERE principal_key = $principal_key LIMIT 1);\n\
+                             IF array::len($existing_principal) > 0 AND $existing_principal[0].account_id != $resolved_account { THROW 'HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH'; };\n\
+                             IF array::len($existing_principal) = 0 { CREATE $principal SET principal_key = $principal_key, account_id = $resolved_account, principal_kind = $principal_kind, actor_kind = $actor_kind, actor_id = $actor_id, capability_profile_id = $capability_profile_id, delegated_capabilities = $delegated_capabilities, status = 'enabled', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now; };\n\
+                             LET $existing_space = (SELECT id FROM access_spaces WHERE account_id = $resolved_account AND space_key = $space_key LIMIT 1);\n\
+                             IF array::len($existing_space) = 0 { CREATE $space SET space_key = $space_key, account_id = $resolved_account, name = $space_key, status = 'active', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now; };\n\
                              COMMIT TRANSACTION;\n\
                              SELECT account_id, id AS principal_id, (SELECT VALUE id FROM access_spaces WHERE account_id = $parent.account_id AND space_key = $space_key LIMIT 1)[0] AS access_space_id FROM principals WHERE principal_key = $principal_key LIMIT 1;",
                         )

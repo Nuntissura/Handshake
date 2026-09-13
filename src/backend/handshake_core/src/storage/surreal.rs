@@ -1086,20 +1086,25 @@ impl SurrealStorage {
         let record_user_scope = current_record_user_scope();
         let namespace = self.config().namespace().to_owned();
         let database = self.config().database().to_owned();
-        match tokio::time::timeout(
-            timeout,
-            self.with_lease(move |client| {
-                Box::pin(async move {
+        let leased_operation = async move {
+            if self.inner.lifecycle.load(Ordering::Acquire) != LIFECYCLE_OPEN {
+                return Err(SurrealStorageError::Closed);
+            }
+            let guard = self.inner.client.read().await;
+            if self.inner.lifecycle.load(Ordering::Acquire) != LIFECYCLE_OPEN {
+                return Err(SurrealStorageError::Closed);
+            }
+            let client = guard.as_ref().ok_or(SurrealStorageError::Closed)?;
+            let _lease_count = self.inner.enter_lease();
+            INSIDE_SURREAL_OPERATION
+                .scope((), async move {
                     if let Some(scope) = record_user_scope {
                         let scoped = client.clone();
-                        scoped
-                            .use_ns(namespace.clone())
-                            .use_db(database.clone())
-                            .await?;
+                        scoped.use_ns(namespace).use_db(database).await?;
                         scoped
                             .signin(RecordSignin {
-                                namespace,
-                                database,
+                                namespace: self.config().namespace().to_owned(),
+                                database: self.config().database().to_owned(),
                                 access: resource_authority::AUTHORITY_ACCESS_METHOD.to_owned(),
                                 params: resource_authority::SigninParams {
                                     token_hash: hex::encode(sha2::Sha256::digest(
@@ -1114,10 +1119,9 @@ impl SurrealStorage {
                         operation(SurrealDataContext { client }).await
                     }
                 })
-            }),
-        )
-        .await
-        {
+                .await
+        };
+        match tokio::time::timeout(timeout, leased_operation).await {
             Ok(result) => result,
             Err(_elapsed) => Err(SurrealStorageError::StatementTimeout {
                 waited_ms: timeout.as_millis(),

@@ -41,7 +41,10 @@ async fn assert_record_user_operation_has_zero_effect(
         Err(error) => {
             let error = error.to_string().to_ascii_lowercase();
             assert!(
-                error.contains("permission") || error.contains("not allowed"),
+                error.contains("permission")
+                    || error.contains("not allowed")
+                    || error.contains("auth")
+                    || error.contains("denied"),
                 "probe failed for a reason other than authorization: {error}"
             );
         }
@@ -919,6 +922,233 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
                 bindings.clone(),
             )
             .await?;
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let backend = embedded_test_backend().await?;
+    let storage = &backend.storage;
+    let database = SurrealDatabase::new(storage.clone());
+    let workspace = database
+        .create_workspace(
+            &WriteContext::human(Some("direct-negative-matrix".to_owned())),
+            NewWorkspace {
+                name: "MT-109 direct negative matrix".to_owned(),
+            },
+        )
+        .await?;
+    let capabilities = [
+        "fr.read",
+        "fr.ingest.runtime_chat",
+        "fr.ingest.native_editor",
+        "memory.read",
+        "memory.propose",
+        "memory.review",
+        "memory.commit",
+    ]
+    .map(str::to_owned);
+    let owner = storage
+        .provision_principal(
+            "direct-negative-account",
+            "direct-negative-owner",
+            "human_account",
+            "direct-negative-owner",
+            "Operator",
+            &capabilities,
+            "direct-negative-space-a",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    grant_every_route(storage, &owner, &workspace.id).await?;
+    let member_without_grant = storage
+        .provision_principal(
+            "direct-negative-account",
+            "direct-negative-member",
+            "human_account",
+            "direct-negative-member",
+            "Operator",
+            &capabilities,
+            "direct-negative-space-a",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    assert_eq!(
+        member_without_grant.identity.account_id,
+        owner.identity.account_id
+    );
+    assert_eq!(
+        member_without_grant.identity.access_space_id,
+        owner.identity.access_space_id
+    );
+    let grant_without_capability = storage
+        .provision_principal(
+            "direct-negative-account",
+            "direct-negative-grant-without-capability",
+            "human_account",
+            "direct-negative-grant-without-capability",
+            "Operator",
+            &[],
+            "direct-negative-space-a",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    grant_every_route(storage, &grant_without_capability, &workspace.id).await?;
+    let wrong_space = storage
+        .provision_principal(
+            "direct-negative-account",
+            "direct-negative-owner",
+            "human_account",
+            "direct-negative-owner",
+            "Operator",
+            &capabilities,
+            "direct-negative-space-b",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    assert_eq!(wrong_space.identity.account_id, owner.identity.account_id);
+    assert_ne!(
+        wrong_space.identity.access_space_id,
+        owner.identity.access_space_id
+    );
+    let foreign = storage
+        .provision_principal(
+            "direct-negative-foreign-account",
+            "direct-negative-foreign-principal",
+            "human_account",
+            "direct-negative-foreign-principal",
+            "Operator",
+            &capabilities,
+            "direct-negative-foreign-space",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    let revoked = storage
+        .provision_principal(
+            "direct-negative-account",
+            "direct-negative-revoked",
+            "human_account",
+            "direct-negative-revoked",
+            "Operator",
+            &capabilities,
+            "direct-negative-space-a",
+            Some("direct-negative-binding"),
+            Duration::from_secs(300),
+        )
+        .await?;
+    grant_every_route(storage, &revoked, &workspace.id).await?;
+    storage.revoke_session(&revoked.session.session_id).await?;
+    let expired = storage
+        .provision_principal(
+            "direct-negative-account",
+            "direct-negative-expired",
+            "human_account",
+            "direct-negative-expired",
+            "Operator",
+            &capabilities,
+            "direct-negative-space-a",
+            Some("direct-negative-binding"),
+            Duration::from_millis(1),
+        )
+        .await?;
+    grant_every_route(storage, &expired, &workspace.id).await?;
+    tokio::time::sleep(Duration::from_millis(5)).await;
+
+    let denied_scopes = [
+        (
+            "same-account-member-without-grant",
+            member_without_grant.session.token,
+        ),
+        (
+            "grant-without-delegated-capability",
+            grant_without_capability.session.token,
+        ),
+        ("wrong-access-space", wrong_space.session.token),
+        ("cross-account", foreign.session.token),
+        ("revoked-session", revoked.session.token),
+        ("expired-session", expired.session.token),
+        ("forged-session", "f".repeat(64)),
+    ];
+    let probes = [
+        (
+            "workspaces",
+            "SELECT * FROM workspaces WHERE id = $workspace;",
+            "UPDATE workspaces SET name = 'bulk bypass' WHERE id = $workspace RETURN AFTER;",
+        ),
+        (
+            "kernel_event_ledger",
+            "SELECT * FROM kernel_event_ledger WHERE array::contains(wsids, $workspace_key);",
+            "UPDATE kernel_event_ledger SET wsids = [$workspace_key] WHERE array::contains(wsids, $workspace_key) RETURN AFTER;",
+        ),
+        (
+            "fems_memory_packs",
+            "SELECT * FROM fems_memory_packs WHERE workspace_id = $workspace;",
+            "UPDATE fems_memory_packs SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+        ),
+        (
+            "fems_memory_proposals",
+            "SELECT * FROM fems_memory_proposals WHERE workspace_id = $workspace;",
+            "UPDATE fems_memory_proposals SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+        ),
+        (
+            "fems_memory_items",
+            "SELECT * FROM fems_memory_items WHERE workspace_id = $workspace;",
+            "UPDATE fems_memory_items SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+        ),
+        (
+            "fems_memory_commit_reports",
+            "SELECT * FROM fems_memory_commit_reports WHERE workspace_id = $workspace;",
+            "UPDATE fems_memory_commit_reports SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+        ),
+        (
+            "fems_memory_commit_fr_outbox",
+            "SELECT * FROM fems_memory_commit_fr_outbox WHERE workspace_id = $workspace;",
+            "UPDATE fems_memory_commit_fr_outbox SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+        ),
+        (
+            "fems_memory_lifecycle_fr_outbox",
+            "SELECT * FROM fems_memory_lifecycle_fr_outbox WHERE workspace_id = $workspace;",
+            "UPDATE fems_memory_lifecycle_fr_outbox SET workspace_id = $workspace WHERE workspace_id = $workspace RETURN AFTER;",
+        ),
+        (
+            "fems_workspace_write_anchors",
+            "SELECT * FROM fems_workspace_write_anchors WHERE workspace_key = $workspace_key;",
+            "UPDATE fems_workspace_write_anchors SET workspace_key = $workspace_key WHERE workspace_key = $workspace_key RETURN AFTER;",
+        ),
+    ];
+    for (label, token) in denied_scopes {
+        let scope = RecordUserScope {
+            session_token: token,
+            channel_binding_hash: Some("direct-negative-binding".to_owned()),
+            resource_id: owner.identity.principal_id.clone(),
+            session_id: owner.session.session_id.clone(),
+            capability_id: "forged.capability".to_owned(),
+            action: ResourceAction::Delete,
+        };
+        for (table, read, bulk_or_recovery) in probes {
+            let bindings = OperationalProbeBindings {
+                table: table.to_owned(),
+                record_id: format!("{label}-{}", table.replace('_', "-")),
+                workspace: RecordId::new("workspaces", workspace.id.as_str()),
+                workspace_key: workspace.id.clone(),
+            };
+            for statement in [read, bulk_or_recovery] {
+                assert_record_user_operation_has_zero_effect(
+                    storage,
+                    scope.clone(),
+                    statement,
+                    bindings.clone(),
+                )
+                .await?;
+            }
         }
     }
     Ok(())

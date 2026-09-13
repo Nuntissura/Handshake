@@ -1896,6 +1896,17 @@ mod tests {
         value: String,
     }
 
+    #[derive(SurrealValue)]
+    struct ReconciliationPrincipalProfileRow {
+        capability_profile_id: String,
+        actor_id: String,
+    }
+
+    #[derive(SurrealValue)]
+    struct ReconciliationPrincipalProfileBinding {
+        principal: RecordId,
+    }
+
     // `Send` is required by `with_data_operation`, which drives the query on the storage runtime
     // (WP-KERNEL-012 MT-144).
     async fn memory_test_query_first<R: SurrealValue + Send + 'static>(
@@ -2129,6 +2140,199 @@ mod tests {
         (format!("http://{address}"), reqwest::Client::new(), server)
     }
 
+    #[derive(Clone)]
+    struct Mt109MemoryResources {
+        pack: String,
+        proposal: String,
+        item: String,
+        report: String,
+        count: String,
+    }
+
+    #[derive(Clone, Copy)]
+    enum Mt109GrantMode {
+        Full,
+        WrongAction,
+        WrongCapability,
+        MismatchedDelegation,
+    }
+
+    fn mt109_memory_capabilities() -> Vec<String> {
+        [
+            MEMORY_READ_CAPABILITY,
+            MEMORY_PROPOSE_CAPABILITY,
+            MEMORY_REVIEW_CAPABILITY,
+            MEMORY_COMMIT_CAPABILITY,
+        ]
+        .map(str::to_owned)
+        .to_vec()
+    }
+
+    async fn mt109_memory_principal(
+        state: &AppState,
+        account: &str,
+        principal: &str,
+        space: &str,
+        capabilities: &[String],
+    ) -> Result<
+        crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        Box<dyn std::error::Error>,
+    > {
+        Ok(state
+            .surreal
+            .provision_principal(
+                account,
+                principal,
+                "human_account",
+                principal,
+                "Operator",
+                capabilities,
+                space,
+                None,
+                std::time::Duration::from_secs(300),
+            )
+            .await?)
+    }
+
+    async fn mt109_register_memory_resources(
+        state: &AppState,
+        principal: &crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        workspace_id: &str,
+    ) -> Result<Mt109MemoryResources, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::ResourceKind;
+        let register = |kind| {
+            state.surreal.register_protected_resource(
+                &principal.identity,
+                kind,
+                workspace_id,
+                None,
+                "account_private",
+            )
+        };
+        Ok(Mt109MemoryResources {
+            pack: register(ResourceKind::MemoryPack).await?.resource_id,
+            proposal: register(ResourceKind::MemoryProposal).await?.resource_id,
+            item: register(ResourceKind::MemoryItem).await?.resource_id,
+            report: register(ResourceKind::MemoryCommitReport)
+                .await?
+                .resource_id,
+            count: register(ResourceKind::MemoryItemCount).await?.resource_id,
+        })
+    }
+
+    async fn mt109_grant_memory_resources(
+        state: &AppState,
+        principal: &crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        resources: &Mt109MemoryResources,
+        mode: Mt109GrantMode,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceGrantSpec};
+        let cases = [
+            (
+                resources.pack.as_str(),
+                vec![ResourceAction::Read, ResourceAction::Create],
+                vec![MEMORY_READ_CAPABILITY, MEMORY_COMMIT_CAPABILITY],
+            ),
+            (
+                resources.proposal.as_str(),
+                vec![
+                    ResourceAction::Read,
+                    ResourceAction::Create,
+                    ResourceAction::Update,
+                ],
+                vec![
+                    MEMORY_READ_CAPABILITY,
+                    MEMORY_PROPOSE_CAPABILITY,
+                    MEMORY_REVIEW_CAPABILITY,
+                    MEMORY_COMMIT_CAPABILITY,
+                ],
+            ),
+            (
+                resources.item.as_str(),
+                vec![ResourceAction::Read, ResourceAction::Create],
+                vec![MEMORY_READ_CAPABILITY, MEMORY_COMMIT_CAPABILITY],
+            ),
+            (
+                resources.report.as_str(),
+                vec![ResourceAction::Read, ResourceAction::Create],
+                vec![MEMORY_READ_CAPABILITY, MEMORY_COMMIT_CAPABILITY],
+            ),
+            (
+                resources.count.as_str(),
+                vec![ResourceAction::Read],
+                vec![MEMORY_READ_CAPABILITY],
+            ),
+        ];
+        let mut grant_ids = Vec::new();
+        for (resource_id, expected_actions, expected_capabilities) in cases {
+            let actions = match mode {
+                Mt109GrantMode::WrongAction => vec![ResourceAction::Delete],
+                _ => expected_actions,
+            };
+            let capability_ids = match mode {
+                Mt109GrantMode::WrongCapability => vec!["fr.read".to_owned()],
+                _ => expected_capabilities
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            };
+            let delegation_chain = match mode {
+                Mt109GrantMode::MismatchedDelegation => vec!["forged-delegation".to_owned()],
+                _ => Vec::new(),
+            };
+            let grant = state
+                .surreal
+                .grant_resource(
+                    &principal.identity.account_id,
+                    &principal.identity.access_space_id,
+                    ResourceGrantSpec {
+                        principal_id: principal.identity.principal_id.clone(),
+                        resource_id: resource_id.to_owned(),
+                        actions,
+                        capability_ids,
+                        expires_at: None,
+                        delegation_chain,
+                    },
+                )
+                .await?;
+            grant_ids.push(grant.grant_id);
+        }
+        Ok(grant_ids)
+    }
+
+    async fn mt109_exchange_memory_session(
+        state: &AppState,
+        base: &str,
+        client: &reqwest::Client,
+        principal: &crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        binding_token: &str,
+    ) -> Result<(String, String), Box<dyn std::error::Error>> {
+        let credential = state
+            .surreal
+            .provision_session_credential(&principal.identity, std::time::Duration::from_secs(300))
+            .await?;
+        let response = client
+            .post(format!("{base}/authority/session"))
+            .header("x-hsk-channel-binding-token", binding_token)
+            .json(&json!({
+                "account_id": principal.identity.account_id.clone(),
+                "principal_id": principal.identity.principal_id.clone(),
+                "access_space_id": principal.identity.access_space_id.clone(),
+                "authentication_token": credential.token,
+            }))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK, "credential exchange");
+        let body: Value = response.json().await?;
+        Ok((
+            body["session_token"]
+                .as_str()
+                .expect("session token")
+                .to_owned(),
+            body["session_id"].as_str().expect("session id").to_owned(),
+        ))
+    }
+
     #[tokio::test]
     async fn memory_routes_require_live_binding_ignore_spoofed_actor_and_audit_decisions(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2237,7 +2441,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mt109_every_memory_route_is_mounted_and_fails_closed_for_foreign_or_revoked_scope(
+    async fn mt109_every_memory_route_uses_persisted_credentials_and_full_denial_matrix(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let _env_lock = MEMORY_AUTH_ENV_LOCK.lock().expect("memory auth env lock");
         let binding_token = "d".repeat(64);
@@ -2265,12 +2469,22 @@ mod tests {
             content,
         )
         .await?;
-        let session_token =
-            crate::api::authority::test_session_for_binding(&state, &binding_token).await?;
-        // Created after the session grants are materialized: this is a real existing workspace
-        // whose identifier must remain a selector, never an authority grant.
+        let capabilities = mt109_memory_capabilities();
+        let owner = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-owner",
+            "memory-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        let resources = mt109_register_memory_resources(&state, &owner, &workspace_id).await?;
+        mt109_grant_memory_resources(&state, &owner, &resources, Mt109GrantMode::Full).await?;
         let foreign_workspace = create_test_workspace(&state, "memory-mounted-foreign").await?;
-        let (base, client, server) = serve_test_router(routes(state.clone())).await;
+        let app = crate::api::authority::routes(state.clone()).merge(routes(state.clone()));
+        let (base, client, server) = serve_test_router(app).await;
+        let (session_token, _session_id) =
+            mt109_exchange_memory_session(&state, &base, &client, &owner, &binding_token).await?;
         let authenticated = |builder: reqwest::RequestBuilder| {
             builder
                 .header("x-hsk-session-token", &session_token)
@@ -2415,6 +2629,253 @@ mod tests {
             );
         }
 
+        let member = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-member",
+            "memory-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        assert_eq!(member.identity.account_id, owner.identity.account_id);
+        assert_eq!(
+            member.identity.access_space_id,
+            owner.identity.access_space_id
+        );
+        let wrong_space = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-space-member",
+            "memory-matrix-space-b",
+            &capabilities,
+        )
+        .await?;
+        assert_eq!(wrong_space.identity.account_id, owner.identity.account_id);
+        assert_ne!(
+            wrong_space.identity.access_space_id,
+            owner.identity.access_space_id
+        );
+        let foreign_account = mt109_memory_principal(
+            &state,
+            "memory-matrix-foreign-account",
+            "memory-matrix-foreign-principal",
+            "memory-matrix-foreign-space",
+            &capabilities,
+        )
+        .await?;
+        let without_capability = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-no-capability",
+            "memory-matrix-space-a",
+            &[],
+        )
+        .await?;
+        mt109_grant_memory_resources(
+            &state,
+            &without_capability,
+            &resources,
+            Mt109GrantMode::Full,
+        )
+        .await?;
+        let wrong_action = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-wrong-action",
+            "memory-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_memory_resources(
+            &state,
+            &wrong_action,
+            &resources,
+            Mt109GrantMode::WrongAction,
+        )
+        .await?;
+        let wrong_capability = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-wrong-capability",
+            "memory-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_memory_resources(
+            &state,
+            &wrong_capability,
+            &resources,
+            Mt109GrantMode::WrongCapability,
+        )
+        .await?;
+        let mismatched_delegation = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-bad-delegation",
+            "memory-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_memory_resources(
+            &state,
+            &mismatched_delegation,
+            &resources,
+            Mt109GrantMode::MismatchedDelegation,
+        )
+        .await?;
+        let revoked_grant = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-revoked-grant",
+            "memory-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        let revoked_grant_ids =
+            mt109_grant_memory_resources(&state, &revoked_grant, &resources, Mt109GrantMode::Full)
+                .await?;
+        let stale_space = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-stale-space",
+            "memory-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_memory_resources(&state, &stale_space, &resources, Mt109GrantMode::Full)
+            .await?;
+
+        let mut denied_sessions = Vec::new();
+        for (label, principal) in [
+            ("same-account-member-without-grant", &member),
+            ("wrong-access-space", &wrong_space),
+            ("cross-account", &foreign_account),
+            ("grant-without-capability", &without_capability),
+            ("wrong-action", &wrong_action),
+            ("wrong-capability", &wrong_capability),
+            ("mismatched-delegation", &mismatched_delegation),
+        ] {
+            let (token, _) =
+                mt109_exchange_memory_session(&state, &base, &client, principal, &binding_token)
+                    .await?;
+            denied_sessions.push((label, token));
+        }
+        let (revoked_grant_token, _) =
+            mt109_exchange_memory_session(&state, &base, &client, &revoked_grant, &binding_token)
+                .await?;
+        for grant_id in revoked_grant_ids {
+            state.surreal.revoke_grant(&grant_id).await?;
+        }
+        denied_sessions.push(("revoked-grants", revoked_grant_token));
+        let (stale_token, stale_session_id) =
+            mt109_exchange_memory_session(&state, &base, &client, &stale_space, &binding_token)
+                .await?;
+        let switched = mt109_memory_principal(
+            &state,
+            "memory-matrix-account",
+            "memory-matrix-stale-space",
+            "memory-matrix-space-b",
+            &capabilities,
+        )
+        .await?;
+        state
+            .surreal
+            .switch_session_access_space(&stale_session_id, &switched.identity.access_space_id)
+            .await?;
+        denied_sessions.push(("stale-post-space-switch", stale_token));
+
+        let proposal_count_before_denials =
+            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                .await?
+                .len();
+        for (label, token) in denied_sessions {
+            for (method, path) in denied_paths(&workspace_id) {
+                let response = client
+                    .request(method, format!("{base}{path}"))
+                    .header("x-hsk-session-token", &token)
+                    .header("x-hsk-channel-binding-token", &binding_token)
+                    .json(&json!({"workspace_id": foreign_workspace, "proposal_id": "forged"}))
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::FORBIDDEN, "{label}: {path}");
+                assert_eq!(
+                    response.json::<Value>().await?,
+                    json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+                    "{label}: {path} constant denial"
+                );
+            }
+        }
+        assert_eq!(
+            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                .await?
+                .len(),
+            proposal_count_before_denials,
+            "denied mounted routes leave no proposal residue"
+        );
+
+        let disabled_workspace = create_test_workspace(&state, "memory-mounted-disabled").await?;
+        let disabled = mt109_memory_principal(
+            &state,
+            "memory-matrix-disabled-account",
+            "memory-matrix-disabled-principal",
+            "memory-matrix-disabled-space",
+            &capabilities,
+        )
+        .await?;
+        let disabled_resources =
+            mt109_register_memory_resources(&state, &disabled, &disabled_workspace).await?;
+        mt109_grant_memory_resources(&state, &disabled, &disabled_resources, Mt109GrantMode::Full)
+            .await?;
+        let (disabled_token, _) =
+            mt109_exchange_memory_session(&state, &base, &client, &disabled, &binding_token)
+                .await?;
+        state
+            .surreal
+            .disable_account(&disabled.identity.account_id)
+            .await?;
+        for (method, path) in denied_paths(&disabled_workspace) {
+            let response = client
+                .request(method, format!("{base}{path}"))
+                .header("x-hsk-session-token", &disabled_token)
+                .header("x-hsk-channel-binding-token", &binding_token)
+                .json(&json!({}))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN, "disabled: {path}");
+            assert_eq!(
+                response.json::<Value>().await?,
+                json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            );
+        }
+
+        let binding_hash = hex::encode(Sha256::digest(binding_token.as_bytes()));
+        let expired = state
+            .surreal
+            .provision_principal(
+                "memory-matrix-account",
+                "memory-matrix-expired",
+                "human_account",
+                "memory-matrix-expired",
+                "Operator",
+                &capabilities,
+                "memory-matrix-space-a",
+                Some(&binding_hash),
+                std::time::Duration::from_millis(1),
+            )
+            .await?;
+        mt109_grant_memory_resources(&state, &expired, &resources, Mt109GrantMode::Full).await?;
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        for (method, path) in denied_paths(&workspace_id) {
+            let response = client
+                .request(method, format!("{base}{path}"))
+                .header("x-hsk-session-token", &expired.session.token)
+                .header("x-hsk-channel-binding-token", &binding_token)
+                .json(&json!({}))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN, "expired: {path}");
+        }
+
         let revocation_decision = state
             .surreal
             .authorize_protected_resource(
@@ -2517,10 +2978,28 @@ mod tests {
             .surreal
             .provision_reconciliation_principal(std::slice::from_ref(&granted_workspace), None)
             .await?;
+        let service_principal = RecordId::new("principals", service.identity.principal_id.as_str());
+        let persisted_profile = state
+            .surreal
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first::<ReconciliationPrincipalProfileRow, _>(
+                            "SELECT capability_profile_id, actor_id FROM ONLY $principal;",
+                            ReconciliationPrincipalProfileBinding {
+                                principal: service_principal,
+                            },
+                        )
+                        .await
+                })
+            })
+            .await?
+            .expect("persisted reconciliation Principal");
         assert_eq!(
-            service.identity.capability_profile_id,
+            persisted_profile.capability_profile_id,
             crate::storage::surreal::resource_authority::RECONCILIATION_PROFILE_ID
         );
+        assert_eq!(persisted_profile.actor_id, "mt109_reconciler");
         reconcile_all_memory_commit_events(&state)
             .await
             .map_err(|(status, body)| format!("service reconcile failed: {status} {body:?}"))?;

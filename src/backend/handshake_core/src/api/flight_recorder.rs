@@ -2106,6 +2106,140 @@ mod tests {
         (format!("http://{address}"), reqwest::Client::new(), server)
     }
 
+    #[derive(Clone, Copy)]
+    enum Mt109RecorderGrantMode {
+        Full,
+        WrongAction,
+        WrongCapability,
+        MismatchedDelegation,
+    }
+
+    fn mt109_recorder_capabilities() -> Vec<String> {
+        [
+            FR_READ_CAPABILITY,
+            FR_INGEST_RUNTIME_CHAT_CAPABILITY,
+            FR_INGEST_NATIVE_EDITOR_CAPABILITY,
+        ]
+        .map(str::to_owned)
+        .to_vec()
+    }
+
+    async fn mt109_recorder_principal(
+        state: &AppState,
+        account: &str,
+        principal: &str,
+        space: &str,
+        capabilities: &[String],
+    ) -> Result<
+        crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        Box<dyn std::error::Error>,
+    > {
+        Ok(state
+            .surreal
+            .provision_principal(
+                account,
+                principal,
+                "human_account",
+                TEST_ACTOR_ID,
+                "Operator",
+                capabilities,
+                space,
+                None,
+                std::time::Duration::from_secs(300),
+            )
+            .await?)
+    }
+
+    async fn mt109_register_recorder_resource(
+        state: &AppState,
+        principal: &crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        workspace_id: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(state
+            .surreal
+            .register_protected_resource(
+                &principal.identity,
+                crate::storage::surreal::resource_authority::ResourceKind::FlightRecorder,
+                workspace_id,
+                None,
+                "account_private",
+            )
+            .await?
+            .resource_id)
+    }
+
+    async fn mt109_grant_recorder_resource(
+        state: &AppState,
+        principal: &crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        resource_id: &str,
+        mode: Mt109RecorderGrantMode,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceGrantSpec};
+        let actions = match mode {
+            Mt109RecorderGrantMode::WrongAction => vec![ResourceAction::Delete],
+            _ => vec![ResourceAction::Read, ResourceAction::Create],
+        };
+        let capability_ids = match mode {
+            Mt109RecorderGrantMode::WrongCapability => vec!["memory.read".to_owned()],
+            _ => mt109_recorder_capabilities(),
+        };
+        let delegation_chain = match mode {
+            Mt109RecorderGrantMode::MismatchedDelegation => {
+                vec!["forged-delegation".to_owned()]
+            }
+            _ => Vec::new(),
+        };
+        Ok(state
+            .surreal
+            .grant_resource(
+                &principal.identity.account_id,
+                &principal.identity.access_space_id,
+                ResourceGrantSpec {
+                    principal_id: principal.identity.principal_id.clone(),
+                    resource_id: resource_id.to_owned(),
+                    actions,
+                    capability_ids,
+                    expires_at: None,
+                    delegation_chain,
+                },
+            )
+            .await?
+            .grant_id)
+    }
+
+    async fn mt109_exchange_recorder_session(
+        state: &AppState,
+        base: &str,
+        client: &reqwest::Client,
+        principal: &crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        binding_token: &str,
+    ) -> Result<(String, String), Box<dyn std::error::Error>> {
+        let credential = state
+            .surreal
+            .provision_session_credential(&principal.identity, std::time::Duration::from_secs(300))
+            .await?;
+        let response = client
+            .post(format!("{base}/authority/session"))
+            .header("x-hsk-channel-binding-token", binding_token)
+            .json(&json!({
+                "account_id": principal.identity.account_id.clone(),
+                "principal_id": principal.identity.principal_id.clone(),
+                "access_space_id": principal.identity.access_space_id.clone(),
+                "authentication_token": credential.token,
+            }))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK, "credential exchange");
+        let body: Value = response.json().await?;
+        Ok((
+            body["session_token"]
+                .as_str()
+                .expect("session token")
+                .to_owned(),
+            body["session_id"].as_str().expect("session id").to_owned(),
+        ))
+    }
+
     fn state_with_recorder(state: &AppState, recorder: Arc<DuckDbFlightRecorder>) -> AppState {
         AppState {
             storage: state.storage.clone(),
@@ -3968,13 +4102,69 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mt109_every_flight_recorder_route_rejects_a_revoked_session_through_middleware(
+    async fn mt109_every_flight_recorder_route_uses_persisted_credentials_and_full_denial_matrix(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (binding_token, _binding) = install_native_binding()?;
-        let session_token =
-            crate::api::authority::test_session_for_binding(&state, &binding_token).await?;
+        let capabilities = mt109_recorder_capabilities();
+        let owner = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-owner",
+            "recorder-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        let resource = mt109_register_recorder_resource(&state, &owner, TEST_WORKSPACE_ID).await?;
+        mt109_grant_recorder_resource(&state, &owner, &resource, Mt109RecorderGrantMode::Full)
+            .await?;
+        // A real existing selector with no grant is used for path/query-forgery checks.
+        mt109_register_recorder_resource(&state, &owner, OTHER_TEST_WORKSPACE_ID).await?;
+        let app = crate::api::authority::routes(state.clone()).merge(routes(state.clone()));
+        let (base, http, server) = serve_test_router(app).await;
+        let (session_token, session_id) =
+            mt109_exchange_recorder_session(&state, &base, &http, &owner, &binding_token).await?;
+
+        for alias in ["flight_recorder", "events"] {
+            let response = http
+                .get(format!("{base}/{alias}?wsid={TEST_WORKSPACE_ID}"))
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &binding_token)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK, "authorized {alias}");
+        }
+        let mut native_body =
+            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+        native_body["actor_id"] = Value::Null;
+        native_body["actor_kind"] = Value::Null;
+        native_body["workspace_id"] = Value::Null;
+        let response = http
+            .post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &binding_token)
+            .json(&native_body)
+            .send()
+            .await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "authorized native ingest"
+        );
+        let response = http
+            .post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &binding_token)
+            .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None))
+            .send()
+            .await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "authorized runtime ingest"
+        );
+
         let revocation_decision = state
             .surreal
             .authorize_protected_resource(
@@ -3991,11 +4181,13 @@ mod tests {
                 },
             )
             .await?;
+        assert_eq!(revocation_decision.session_id, session_id);
         state
             .surreal
             .revoke_session(&revocation_decision.session_id)
             .await?;
-        let (base, http, server) = serve_test_router(routes(state)).await;
+        let native_rows_before_denials = native_editor_fr_row_count(&state).await?;
+        let ledger_rows_before_denials = native_editor_ledger_row_count(&state).await?;
         let requests = vec![
             http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}")),
             http.get(format!("{base}/events?wsid={TEST_WORKSPACE_ID}")),
@@ -4018,6 +4210,309 @@ mod tests {
                 json!({"error": "HSK-403-PROTECTED-RESOURCE"})
             );
         }
+
+        let member = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-member",
+            "recorder-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        assert_eq!(member.identity.account_id, owner.identity.account_id);
+        assert_eq!(
+            member.identity.access_space_id,
+            owner.identity.access_space_id
+        );
+        let wrong_space = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-space-member",
+            "recorder-matrix-space-b",
+            &capabilities,
+        )
+        .await?;
+        assert_eq!(wrong_space.identity.account_id, owner.identity.account_id);
+        assert_ne!(
+            wrong_space.identity.access_space_id,
+            owner.identity.access_space_id
+        );
+        let foreign_account = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-foreign-account",
+            "recorder-matrix-foreign-principal",
+            "recorder-matrix-foreign-space",
+            &capabilities,
+        )
+        .await?;
+        let no_capability = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-no-capability",
+            "recorder-matrix-space-a",
+            &[],
+        )
+        .await?;
+        mt109_grant_recorder_resource(
+            &state,
+            &no_capability,
+            &resource,
+            Mt109RecorderGrantMode::Full,
+        )
+        .await?;
+        let wrong_action = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-wrong-action",
+            "recorder-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_recorder_resource(
+            &state,
+            &wrong_action,
+            &resource,
+            Mt109RecorderGrantMode::WrongAction,
+        )
+        .await?;
+        let wrong_capability = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-wrong-capability",
+            "recorder-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_recorder_resource(
+            &state,
+            &wrong_capability,
+            &resource,
+            Mt109RecorderGrantMode::WrongCapability,
+        )
+        .await?;
+        let bad_delegation = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-bad-delegation",
+            "recorder-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_recorder_resource(
+            &state,
+            &bad_delegation,
+            &resource,
+            Mt109RecorderGrantMode::MismatchedDelegation,
+        )
+        .await?;
+        let revoked_grant = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-revoked-grant",
+            "recorder-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        let revoked_grant_id = mt109_grant_recorder_resource(
+            &state,
+            &revoked_grant,
+            &resource,
+            Mt109RecorderGrantMode::Full,
+        )
+        .await?;
+        let stale_space = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-stale-space",
+            "recorder-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_recorder_resource(
+            &state,
+            &stale_space,
+            &resource,
+            Mt109RecorderGrantMode::Full,
+        )
+        .await?;
+        let selector_principal = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-selector",
+            "recorder-matrix-space-a",
+            &capabilities,
+        )
+        .await?;
+        mt109_grant_recorder_resource(
+            &state,
+            &selector_principal,
+            &resource,
+            Mt109RecorderGrantMode::Full,
+        )
+        .await?;
+
+        let mut denied_sessions = Vec::new();
+        for (label, principal) in [
+            ("capability-without-grant/same-account-member", &member),
+            ("wrong-access-space", &wrong_space),
+            ("cross-account", &foreign_account),
+            ("grant-without-capability", &no_capability),
+            ("wrong-action", &wrong_action),
+            ("wrong-capability", &wrong_capability),
+            ("mismatched-delegation", &bad_delegation),
+        ] {
+            let (token, _) =
+                mt109_exchange_recorder_session(&state, &base, &http, principal, &binding_token)
+                    .await?;
+            denied_sessions.push((label, token, TEST_WORKSPACE_ID.to_owned()));
+        }
+        let (revoked_grant_token, _) =
+            mt109_exchange_recorder_session(&state, &base, &http, &revoked_grant, &binding_token)
+                .await?;
+        state.surreal.revoke_grant(&revoked_grant_id).await?;
+        denied_sessions.push((
+            "revoked-grant",
+            revoked_grant_token,
+            TEST_WORKSPACE_ID.to_owned(),
+        ));
+        let (stale_token, stale_session_id) =
+            mt109_exchange_recorder_session(&state, &base, &http, &stale_space, &binding_token)
+                .await?;
+        let switched = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-account",
+            "recorder-matrix-stale-space",
+            "recorder-matrix-space-b",
+            &capabilities,
+        )
+        .await?;
+        state
+            .surreal
+            .switch_session_access_space(&stale_session_id, &switched.identity.access_space_id)
+            .await?;
+        denied_sessions.push((
+            "stale-post-space-switch",
+            stale_token,
+            TEST_WORKSPACE_ID.to_owned(),
+        ));
+        let (selector_token, _) = mt109_exchange_recorder_session(
+            &state,
+            &base,
+            &http,
+            &selector_principal,
+            &binding_token,
+        )
+        .await?;
+        denied_sessions.push((
+            "forged-existing-selector",
+            selector_token,
+            OTHER_TEST_WORKSPACE_ID.to_owned(),
+        ));
+
+        const DISABLED_WORKSPACE: &str = "WS-MT109-DISABLED";
+        ensure_test_workspace(&state, DISABLED_WORKSPACE).await?;
+        let disabled = mt109_recorder_principal(
+            &state,
+            "recorder-matrix-disabled-account",
+            "recorder-matrix-disabled-principal",
+            "recorder-matrix-disabled-space",
+            &capabilities,
+        )
+        .await?;
+        let disabled_resource =
+            mt109_register_recorder_resource(&state, &disabled, DISABLED_WORKSPACE).await?;
+        mt109_grant_recorder_resource(
+            &state,
+            &disabled,
+            &disabled_resource,
+            Mt109RecorderGrantMode::Full,
+        )
+        .await?;
+        let (disabled_token, _) =
+            mt109_exchange_recorder_session(&state, &base, &http, &disabled, &binding_token)
+                .await?;
+        state
+            .surreal
+            .disable_account(&disabled.identity.account_id)
+            .await?;
+        denied_sessions.push((
+            "disabled-account",
+            disabled_token,
+            DISABLED_WORKSPACE.to_owned(),
+        ));
+
+        let binding_hash = hex::encode(Sha256::digest(binding_token.as_bytes()));
+        let expired = state
+            .surreal
+            .provision_principal(
+                "recorder-matrix-account",
+                "recorder-matrix-expired",
+                "human_account",
+                TEST_ACTOR_ID,
+                "Operator",
+                &capabilities,
+                "recorder-matrix-space-a",
+                Some(&binding_hash),
+                std::time::Duration::from_millis(1),
+            )
+            .await?;
+        mt109_grant_recorder_resource(&state, &expired, &resource, Mt109RecorderGrantMode::Full)
+            .await?;
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        denied_sessions.push((
+            "expired-session",
+            expired.session.token,
+            TEST_WORKSPACE_ID.to_owned(),
+        ));
+        denied_sessions.push((
+            "forged-session",
+            "f".repeat(64),
+            TEST_WORKSPACE_ID.to_owned(),
+        ));
+
+        for (label, token, workspace) in denied_sessions {
+            let requests = vec![
+                http.get(format!("{base}/flight_recorder?wsid={workspace}")),
+                http.get(format!(
+                    "{base}/events?wsid={workspace}&event_id={}",
+                    Uuid::now_v7()
+                )),
+                http.post(runtime_chat_endpoint(&base, &workspace))
+                    .json(&runtime_chat_body(
+                        Uuid::now_v7(),
+                        Uuid::now_v7(),
+                        Some(OTHER_TEST_WORKSPACE_ID),
+                    )),
+                http.post(native_editor_endpoint(&base, &workspace))
+                    .json(&serde_json::to_value(native_editor_envelope_in(
+                        OTHER_TEST_WORKSPACE_ID,
+                        &Uuid::now_v7().to_string(),
+                    ))?),
+            ];
+            for request in requests {
+                let response = request
+                    .header("x-hsk-session-token", &token)
+                    .header("x-hsk-channel-binding-token", &binding_token)
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::FORBIDDEN, "{label}");
+                assert_eq!(
+                    response.json::<Value>().await?,
+                    json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+                    "{label} constant denial"
+                );
+            }
+        }
+        assert_eq!(
+            native_editor_fr_row_count(&state).await?,
+            native_rows_before_denials,
+            "all denied route classes leave zero native-editor residue"
+        );
+        assert_eq!(
+            native_editor_ledger_row_count(&state).await?,
+            ledger_rows_before_denials,
+            "all denied route classes leave zero EventLedger residue"
+        );
         server.abort();
         Ok(())
     }
