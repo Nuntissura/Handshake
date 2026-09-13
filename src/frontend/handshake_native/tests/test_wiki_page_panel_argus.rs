@@ -176,6 +176,41 @@ fn exact_value(tree: &serde_json::Value, author_id: &str, value: &str) -> bool {
         == Some(value)
 }
 
+fn set_value_completion(
+    tree: &serde_json::Value,
+    target: &str,
+) -> Option<serde_json::Value> {
+    let author_id = format!("{target}.set-value-completion");
+    let raw = json_node_by_author_id(tree, &author_id)?
+        .get("value")?
+        .as_str()?;
+    serde_json::from_str(raw).ok()
+}
+
+fn set_value_generation(tree: &serde_json::Value, target: &str) -> Option<u64> {
+    set_value_completion(tree, target)?["generation"].as_u64()
+}
+
+fn exact_set_value_terminal(
+    tree: &serde_json::Value,
+    receipt_id: u64,
+    target: &str,
+    expected_generation: u64,
+    expected_value: &str,
+) -> bool {
+    let action_receipt = receipt(tree, receipt_id);
+    let Some(completion) = set_value_completion(tree, target) else {
+        return false;
+    };
+    action_receipt["status"] == "applied"
+        && action_receipt["target"] == target
+        && exact_value(tree, target, expected_value)
+        && completion["schema"] == "handshake.set-value-completion/v1"
+        && completion["target"] == target
+        && completion["generation"] == expected_generation
+        && completion["applied_value"] == expected_value
+}
+
 fn write_atomic(path: &Path, bytes: &[u8]) {
     let file_name = path
         .file_name()
@@ -280,19 +315,29 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
                 && json_has_author_id(tree, &save_author_id(&projection_id))
         });
     let cancelled_draft = "MT-025 exact cancelled draft";
+    let edit_target = edit_area_author_id(&projection_id);
+    let cancel_pre_generation = set_value_generation(&edit_cancel_terminal, &edit_target)
+        .expect("mounted cancel draft exposes its pane-bound completion generation");
     let cancel_value = argus.set_value_and_reinspect(
         &mut harness,
-        &edit_area_author_id(&projection_id),
+        &edit_target,
         cancelled_draft,
+    );
+    assert_eq!(
+        cancel_value.receipt_status, "applied",
+        "Cancel draft SetValue requires causal terminal Applied"
     );
     let cancel_value_terminal = argus.assert_latest_terminal_predicate(
         &mut harness,
-        "cancel-draft-exact-value-visible",
+        "cancel-draft-exact-value-applied",
         |tree| {
-            matches!(
-                receipt(tree, cancel_value.receipt_id)["status"].as_str(),
-                Some("applied" | "indeterminate")
-            ) && exact_value(tree, &edit_area_author_id(&projection_id), cancelled_draft)
+            exact_set_value_terminal(
+                tree,
+                cancel_value.receipt_id,
+                &edit_target,
+                cancel_pre_generation + 1,
+                cancelled_draft,
+            )
         },
     );
     let cancelled = argus.click_and_reinspect(&mut harness, &cancel_author_id(&projection_id));
@@ -324,6 +369,13 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
     assert_eq!(cancel_detail["no_write"], true);
     assert_eq!(cancel_detail["extra"]["draft_discarded"], true);
     assert_eq!(cancel_detail["extra"]["edit_closed"], true);
+    assert!(
+        !json_has_author_id(
+            &cancel_terminal,
+            &format!("{edit_target}.set-value-completion")
+        ),
+        "an unmounted edit area cannot retain a completion node that could acknowledge a stale request"
+    );
     assert_eq!(
         live.get_json(&overlays_path).as_array().map(Vec::len),
         Some(0),
@@ -355,19 +407,33 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
                 && json_has_author_id(tree, &save_author_id(&projection_id))
         });
     let saved_draft = format!("MT-025 persisted Argus overlay {}", uuid::Uuid::new_v4());
+    let save_pre_generation = set_value_generation(&edit_save_terminal, &edit_target)
+        .expect("mounted save draft exposes its pane-bound completion generation");
+    assert_eq!(
+        save_pre_generation,
+        cancel_pre_generation + 1,
+        "ordinary Cancel/Edit repaint cycles retain the monotonic pane-bound generation"
+    );
     let save_value = argus.set_value_and_reinspect(
         &mut harness,
-        &edit_area_author_id(&projection_id),
+        &edit_target,
         &saved_draft,
+    );
+    assert_eq!(
+        save_value.receipt_status, "applied",
+        "Save draft SetValue requires causal terminal Applied"
     );
     let save_value_terminal = argus.assert_latest_terminal_predicate(
         &mut harness,
-        "save-draft-exact-value-visible",
+        "save-draft-exact-value-applied",
         |tree| {
-            matches!(
-                receipt(tree, save_value.receipt_id)["status"].as_str(),
-                Some("applied" | "indeterminate")
-            ) && exact_value(tree, &edit_area_author_id(&projection_id), &saved_draft)
+            exact_set_value_terminal(
+                tree,
+                save_value.receipt_id,
+                &edit_target,
+                save_pre_generation + 1,
+                &saved_draft,
+            )
         },
     );
     let saved = argus.click_and_reinspect(&mut harness, &save_author_id(&projection_id));
@@ -477,7 +543,7 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
     assert_eq!(screenshot_outcome.status, "CAPTURED");
     assert!(screenshot_outcome.gpu_screenshot_enabled);
 
-    argus.finish();
+    argus.finish_require_no_indeterminate();
     live.assert_cleanup();
 
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

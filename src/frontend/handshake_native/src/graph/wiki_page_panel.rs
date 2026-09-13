@@ -79,7 +79,8 @@ use sha2::{Digest, Sha256};
 use crate::backend_client::{WikiOverlay, WikiProjection};
 use crate::mcp::action::{
     accesskit_string_set_value, serialize_observer_click_applied, serialize_observer_click_failure,
-    serialize_observer_click_state, serialize_observer_click_target, ClickCompletionState,
+    serialize_observer_click_state, serialize_observer_click_target,
+    serialize_set_value_completion, set_value_completion_author_id, ClickCompletionState,
 };
 use crate::theme::HsPalette;
 
@@ -468,6 +469,13 @@ pub struct LoomWikiPagePanel {
     /// an earlier A -> B -> A binding from sharing an observer context with the current pane.
     pane_generation: u64,
     edit_mode_generation: u64,
+    /// Pane/projection-bound acknowledgement for the mounted edit area's AccessKit `SetValue` action.
+    /// The displayed editor value is not causal proof; this state advances only when that exact widget
+    /// consumes a request and retains the exact post-cap value that was applied.
+    edit_set_value_target: String,
+    edit_set_value_pane_generation: u64,
+    edit_set_value_generation: u64,
+    edit_set_value_applied: Option<String>,
     action_observer: WikiActionObserver,
     pending_save: Option<PendingWikiSave>,
 }
@@ -476,9 +484,11 @@ impl LoomWikiPagePanel {
     /// A fresh panel for `(workspace_id, projection_id)` with nothing loaded yet (the host calls
     /// `fetch_projection` and sets `loading=true`).
     pub fn new(workspace_id: impl Into<String>, projection_id: impl Into<String>) -> Self {
+        let projection_id = projection_id.into();
+        let edit_set_value_target = edit_area_author_id(&projection_id);
         Self {
             workspace_id: workspace_id.into(),
-            projection_id: projection_id.into(),
+            projection_id,
             page: None,
             edit_mode: false,
             edit_buffer: String::new(),
@@ -490,6 +500,10 @@ impl LoomWikiPagePanel {
             action_error: None,
             pane_generation: 0,
             edit_mode_generation: 0,
+            edit_set_value_target,
+            edit_set_value_pane_generation: 0,
+            edit_set_value_generation: 0,
+            edit_set_value_applied: None,
             action_observer: WikiActionObserver::default(),
             pending_save: None,
         }
@@ -498,6 +512,7 @@ impl LoomWikiPagePanel {
     /// Bind the panel to the mount's exact pane instance before its first render.
     pub fn bind_pane_generation(&mut self, pane_generation: u64) {
         self.pane_generation = pane_generation;
+        self.rebind_edit_set_value_completion_if_needed();
         self.action_observer = WikiActionObserver::default();
         self.pending_save = None;
     }
@@ -1059,10 +1074,52 @@ impl LoomWikiPagePanel {
             .unwrap_or(false)
     }
 
+    /// Rebind the edit-area completion stream only when its authoritative pane/projection identity
+    /// changes. Ordinary repaints and Edit/Cancel cycles retain the monotonic generation.
+    fn rebind_edit_set_value_completion_if_needed(&mut self) {
+        let target = edit_area_author_id(&self.projection_id);
+        if self.edit_set_value_target != target
+            || self.edit_set_value_pane_generation != self.pane_generation
+        {
+            self.edit_set_value_target = target;
+            self.edit_set_value_pane_generation = self.pane_generation;
+            self.edit_set_value_generation = 0;
+            self.edit_set_value_applied = None;
+        }
+    }
+
+    fn edit_set_value_completion(&self) -> Option<String> {
+        serialize_set_value_completion(
+            &self.edit_set_value_target,
+            self.edit_set_value_generation,
+            self.edit_set_value_applied.as_deref(),
+        )
+    }
+
+    /// Record exactly one genuinely consumed model mutation. Disabled, unmounted, or stale-bound
+    /// editors cannot advance this stream and therefore cannot acknowledge another pane generation.
+    fn record_edit_set_value_applied(&mut self, target: &str, applied_value: &str) -> bool {
+        self.rebind_edit_set_value_completion_if_needed();
+        if !self.edit_mode
+            || self.saving
+            || self.saved_awaiting_reload
+            || target != self.edit_set_value_target
+        {
+            return false;
+        }
+        let Some(next_generation) = self.edit_set_value_generation.checked_add(1) else {
+            return false;
+        };
+        self.edit_set_value_generation = next_generation;
+        self.edit_set_value_applied = Some(applied_value.to_owned());
+        true
+    }
+
     /// Render the panel, returning the typed event this frame (if any) for the host to apply. `palette`
     /// supplies every colour (no hardcoded hex — the architecture-guard invariant). The widget never
     /// blocks on the network.
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<WikiPageEvent> {
+        self.rebind_edit_set_value_completion_if_needed();
         self.action_observer.prepare_frame(self.action_context());
         let event = self.show_body(ui, palette);
         self.emit_action_observer(ui);
@@ -1476,9 +1533,16 @@ impl LoomWikiPagePanel {
 
         // The multiline annotation editor — AccessKit Role::MultilineTextInput `wiki.edit-area.{id}`.
         let edit_enabled = !self.saving && !self.saved_awaiting_reload;
+        let edit_target = edit_area_author_id(&self.projection_id);
         let mut buffer = self.edit_buffer.clone();
         let area = egui::ScrollArea::vertical()
-            .id_salt(edit_area_author_id(&self.projection_id))
+            // The public author_id remains stable, while the backing NodeId is bound to the exact
+            // pane/edit generation so a delayed request from an unmounted editor cannot hit a new one.
+            .id_salt((
+                edit_target.as_str(),
+                self.pane_generation,
+                self.edit_mode_generation,
+            ))
             .max_height(ui.available_height() - 10.0)
             .show(ui, |ui| {
                 ui.add_enabled_ui(edit_enabled, |ui| {
@@ -1497,18 +1561,31 @@ impl LoomWikiPagePanel {
         if edit_enabled {
             if let Some(replacement) = accesskit_string_set_value(ui, area.id) {
                 // Model-facing SetValue is the same real editor mutation as keyboard input and keeps
-                // the same bounded-buffer invariant.
+                // the same bounded-buffer invariant. Acknowledge the exact post-cap value, not the
+                // unbounded request and not a later repaint echo.
                 self.set_edit_buffer(replacement);
+                let applied_value = self.edit_buffer.clone();
+                self.record_edit_set_value_applied(&edit_target, &applied_value);
             }
         }
         emit_multiline_input_accesskit(
             ui,
             area.id,
-            &edit_area_author_id(&self.projection_id),
+            &edit_target,
             "Overlay annotation",
             &self.edit_buffer,
             edit_enabled,
         );
+        if let Some(value) = self.edit_set_value_completion() {
+            let completion_author = set_value_completion_author_id(&edit_target);
+            emit_status_accesskit(
+                ui,
+                egui::Id::new(("wiki-set-value-completion", completion_author.as_str())),
+                &completion_author,
+                "Overlay annotation set-value completion",
+                &value,
+            );
+        }
 
         event
     }
