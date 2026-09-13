@@ -1223,4 +1223,96 @@ mod tests {
             .expect("prefixing stays entirely in UTF-16");
         assert_eq!(prefixed[prefixed.len() - 2], 0xd800);
     }
+
+    #[test]
+    #[cfg(windows)]
+    fn relative_dot_mixed_separator_long_publish_normalizes_and_cleans_up() {
+        let _guard = BINDING_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        struct RestoreEnv {
+            key: &'static str,
+            previous: Option<std::ffi::OsString>,
+        }
+        impl Drop for RestoreEnv {
+            fn drop(&mut self) {
+                match self.previous.take() {
+                    Some(value) => std::env::set_var(self.key, value),
+                    None => std::env::remove_var(self.key),
+                }
+            }
+        }
+
+        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(3)
+            .expect("handshake_native remains below the repository root");
+        let artifacts_root = repo_root
+            .parent()
+            .expect("repository worktree has a parent")
+            .join("Handshake_Artifacts");
+        let envelope = tempfile::Builder::new()
+            .prefix("mt129-relative-publish-")
+            .tempdir_in(&artifacts_root)
+            .expect("create MT-129 publication envelope under external artifacts");
+        let envelope_name = envelope
+            .path()
+            .file_name()
+            .expect("temporary envelope has a final component");
+        let relative_envelope =
+            std::path::PathBuf::from(r"..\..\..\..\Handshake_Artifacts").join(envelope_name);
+        let mut deep_tail = std::path::PathBuf::from("live");
+        while envelope.path().join(&deep_tail).as_os_str().len() < 210 {
+            deep_tail.push("mt129_depth_segment");
+        }
+        let mixed_root = format!(
+            "{}/.\\discarded\\..\\{}",
+            relative_envelope.to_string_lossy().replace('\\', "/"),
+            deep_tail.display()
+        );
+        let expected_root = envelope.path().join(&deep_tail);
+        let expected_binding = expected_root.join("handshake").join(BINDING_FILE_NAME);
+        assert!(
+            !expected_binding.exists(),
+            "the regression must exercise first publication to a nonexistent destination"
+        );
+
+        let var = "LOCALAPPDATA";
+        let _restore = RestoreEnv {
+            key: var,
+            previous: std::env::var_os(var),
+        };
+        std::env::set_var(var, &mixed_root);
+        let binding = McpBinding {
+            tcp_addr: "127.0.0.1:9".to_owned(),
+            pipe_name: None,
+            token: "r".repeat(64),
+            pid: std::process::id(),
+            process_birth: process_birth_identity(std::process::id())
+                .expect("current test process birth identity"),
+        };
+
+        let written = write_binding(&binding)
+            .expect("publish through relative dot-segment mixed-separator long root");
+        assert_eq!(
+            std::fs::canonicalize(&written).expect("canonicalize published binding"),
+            std::fs::canonicalize(&expected_binding).expect("canonicalize expected binding"),
+            "GetFullPathNameW must resolve the nonexistent destination by the same rule as the source"
+        );
+        let parsed: McpBinding = serde_json::from_str(
+            &std::fs::read_to_string(&expected_binding).expect("read normalized binding"),
+        )
+        .expect("parse normalized binding JSON");
+        assert_eq!(parsed, binding);
+        remove_binding(&binding).expect("remove normalized binding through the same relative root");
+        assert!(!expected_binding.exists());
+        let residue = std::fs::read_dir(expected_root.join("handshake"))
+            .expect("inspect binding directory after cleanup")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "tmp"))
+            .map(|entry| entry.path())
+            .collect::<Vec<_>>();
+        assert!(residue.is_empty(), "unpublished temp residue: {residue:?}");
+    }
 }
