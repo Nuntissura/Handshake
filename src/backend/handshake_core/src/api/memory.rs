@@ -121,6 +121,29 @@ fn capability_for_request(method: &Method, path: &str) -> &'static str {
     }
 }
 
+fn protected_resource_for_request(
+    method: &Method,
+    path: &str,
+) -> (
+    crate::storage::surreal::resource_authority::ResourceKind,
+    crate::storage::surreal::resource_authority::ResourceAction,
+) {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    if path.ends_with("/memory/pack") {
+        (ResourceKind::MemoryPack, ResourceAction::Read)
+    } else if path.ends_with("/report") {
+        (ResourceKind::MemoryCommitReport, ResourceAction::Read)
+    } else if path.ends_with("/items/count") {
+        (ResourceKind::MemoryItemCount, ResourceAction::Read)
+    } else if method == Method::POST && path.ends_with("/memory/proposals") {
+        (ResourceKind::MemoryProposal, ResourceAction::Create)
+    } else if method == Method::POST {
+        (ResourceKind::MemoryProposal, ResourceAction::Update)
+    } else {
+        (ResourceKind::MemoryProposal, ResourceAction::Read)
+    }
+}
+
 async fn record_memory_capability_decision(
     state: &AppState,
     ctx: Option<&crate::api::stage::CaptureContext>,
@@ -175,57 +198,82 @@ async fn authorize_memory_request(
 ) -> Response {
     let capability_id = capability_for_request(request.method(), request.uri().path());
     let workspace_id = workspace_id_from_memory_path(request.uri().path());
-    let ctx = match crate::api::stage::capture_context(request.headers()) {
-        Ok(ctx) => ctx,
-        Err(_) => {
-            if let Err(error) =
-                record_memory_capability_decision(&state, None, capability_id, "deny", workspace_id)
-                    .await
+    let Some(workspace_id) = workspace_id else {
+        return crate::api::authority::constant_denial().into_response();
+    };
+    let (resource_kind, action) =
+        protected_resource_for_request(request.method(), request.uri().path());
+    let authority = match crate::api::authority::authorize_request(
+        &state,
+        request.headers(),
+        capability_id,
+        resource_kind,
+        &workspace_id,
+        action,
+    )
+    .await
+    {
+        Ok(authority) => authority,
+        Err(error) => {
+            if record_memory_capability_decision(
+                &state,
+                None,
+                capability_id,
+                "deny",
+                Some(workspace_id.clone()),
+            )
+            .await
+            .is_err()
             {
-                tracing::error!(
-                    target: "handshake_core::memory_api",
-                    capability_id,
-                    error = ?error,
-                    "memory_unauthenticated_capability_audit_failed"
-                );
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(json!({"error": "memory capability audit failed closed"})),
                 )
                     .into_response();
             }
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({"error": "HSK-401-MEMORY-SESSION"})),
-            )
-                .into_response();
+            return error.into_response();
         }
     };
-    let allowed = state
-        .capability_registry
-        .profile_can("Operator", capability_id)
-        .unwrap_or(false);
-    let outcome = if allowed { "allow" } else { "deny" };
-    if let Err(error) =
-        record_memory_capability_decision(&state, Some(&ctx), capability_id, outcome, workspace_id)
+    if request.method() == Method::POST && request.uri().path().ends_with("/commit") {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        for resource_kind in [ResourceKind::MemoryItem, ResourceKind::MemoryCommitReport] {
+            if crate::api::authority::authorize_request(
+                &state,
+                request.headers(),
+                capability_id,
+                resource_kind,
+                &workspace_id,
+                ResourceAction::Create,
+            )
             .await
+            .is_err()
+            {
+                let _ = record_memory_capability_decision(
+                    &state,
+                    None,
+                    capability_id,
+                    "deny",
+                    Some(workspace_id.clone()),
+                )
+                .await;
+                return crate::api::authority::constant_denial().into_response();
+            }
+        }
+    }
+    let ctx = authority.capture_context();
+    if record_memory_capability_decision(
+        &state,
+        Some(&ctx),
+        capability_id,
+        "allow",
+        Some(workspace_id),
+    )
+    .await
+    .is_err()
     {
-        tracing::error!(
-            target: "handshake_core::memory_api",
-            capability_id,
-            error = ?error,
-            "memory_capability_audit_failed"
-        );
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": "memory capability audit failed closed"})),
-        )
-            .into_response();
-    }
-    if !allowed {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({"error": "HSK-403-MEMORY-CAPABILITY"})),
         )
             .into_response();
     }
@@ -324,6 +372,22 @@ async fn project_commit_event(
 }
 
 async fn reconcile_all_memory_commit_events(state: &AppState) -> Result<(), ApiError> {
+    let authority = crate::api::authority::reconciliation_authority(
+        state,
+        MEMORY_COMMIT_CAPABILITY,
+    )
+    .await
+    .map_err(|error| {
+        tracing::error!(target: "handshake_core::memory_api", error = %error, "memory reconciliation authority denied");
+        crate::api::authority::constant_denial()
+    })?;
+    reconcile_all_memory_commit_events_authorized(state, &authority).await
+}
+
+async fn reconcile_all_memory_commit_events_authorized(
+    state: &AppState,
+    authority: &crate::api::authority::ReconciliationAuthority,
+) -> Result<(), ApiError> {
     fems_memory::recover_missing_memory_lifecycle_outbox_events(&state.surreal)
         .await
         .map_err(storage_error)?;
@@ -337,6 +401,17 @@ async fn reconcile_all_memory_commit_events(state: &AppState) -> Result<(), ApiE
             .map_err(storage_error)?;
         let lifecycle_len = lifecycle.len();
         for (workspace_id, event) in lifecycle {
+            if crate::api::authority::authorize_reconciliation_workspace(
+                state,
+                authority,
+                &workspace_id,
+                MEMORY_COMMIT_CAPABILITY,
+            )
+            .await
+            .is_err()
+            {
+                continue;
+            }
             if let Err(error) = project_lifecycle_event(state, &workspace_id, event).await {
                 tracing::error!(
                     target: "handshake_core::memory_api",
@@ -355,6 +430,17 @@ async fn reconcile_all_memory_commit_events(state: &AppState) -> Result<(), ApiE
         }
         let batch_len = pending.len();
         for (workspace_id, event) in pending {
+            if crate::api::authority::authorize_reconciliation_workspace(
+                state,
+                authority,
+                &workspace_id,
+                MEMORY_COMMIT_CAPABILITY,
+            )
+            .await
+            .is_err()
+            {
+                continue;
+            }
             if let Err(error) = project_commit_event(state, &workspace_id, event).await {
                 tracing::error!(
                     target: "handshake_core::memory_api",
@@ -2049,6 +2135,7 @@ mod tests {
 
         let (state, _store) = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "memory-route-auth").await?;
+        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let source = create_test_rich_source(
             &state,
             &workspace_id,
@@ -2060,16 +2147,18 @@ mod tests {
         let list_url = format!("{base}/workspaces/{workspace_id}/memory/proposals");
 
         let missing = client.get(&list_url).send().await?;
-        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(missing.status(), StatusCode::FORBIDDEN);
         let forged = client
             .get(&list_url)
             .header("x-hsk-session-token", "b".repeat(64))
+            .header("x-hsk-channel-binding-token", &token)
             .send()
             .await?;
-        assert_eq!(forged.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(forged.status(), StatusCode::FORBIDDEN);
         let allowed = client
             .get(&list_url)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .send()
             .await?;
         assert_eq!(allowed.status(), StatusCode::OK);
@@ -2085,7 +2174,8 @@ mod tests {
         };
         let response = client
             .post(format!("{base}/workspaces/{workspace_id}/memory/proposals"))
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .header(HSK_HEADER_ACTOR_ID, "spoofed-header-actor")
             .header(HSK_HEADER_ACTOR_KIND, "system")
             .json(&proposal)
@@ -2099,7 +2189,7 @@ mod tests {
         let actor_id = stored.proposal["actor_id"]
             .as_str()
             .expect("stored proposal actor id");
-        assert!(actor_id.starts_with("handshake-native:"));
+        assert_eq!(actor_id, "local_operator");
         assert_ne!(actor_id, "spoofed-body-actor");
         assert_ne!(actor_id, "spoofed-header-actor");
 

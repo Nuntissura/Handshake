@@ -168,6 +168,16 @@ async fn cross_account_and_capability_without_grant_fail_closed(
             Duration::from_secs(300),
         )
         .await?;
+    assert!(storage
+        .issue_authenticated_session(
+            &owner.identity.account_id,
+            &owner.identity.principal_id,
+            &outsider.identity.access_space_id,
+            None,
+            Duration::from_secs(300),
+        )
+        .await
+        .is_err());
     assert!(matches!(
         storage
             .authorize_protected_resource(request(
@@ -188,6 +198,37 @@ async fn revoked_session_and_disabled_account_fail_closed() -> Result<(), Box<dy
     let backend = embedded_test_backend().await?;
     let storage = &backend.storage;
     let principal = storage.provision_local_operator(None).await?;
+    let resource = storage
+        .register_protected_resource(
+            &principal.identity,
+            ResourceKind::FlightRecorder,
+            "authority-revocation-workspace",
+            None,
+            "account_private",
+        )
+        .await?;
+    storage
+        .grant_resource(
+            &principal.identity.account_id,
+            &principal.identity.access_space_id,
+            ResourceGrantSpec {
+                principal_id: principal.identity.principal_id.clone(),
+                resource_id: resource.resource_id,
+                actions: vec![ResourceAction::Read],
+                capability_ids: vec!["fr.read".to_owned()],
+                expires_at: Some(principal.session.expires_at),
+                delegation_chain: Vec::new(),
+            },
+        )
+        .await?;
+    storage
+        .authorize_protected_resource(request(
+            &principal.session.token,
+            None,
+            "fr.read",
+            "authority-revocation-workspace",
+        ))
+        .await?;
     storage
         .revoke_session(&principal.session.session_id)
         .await?;
@@ -197,13 +238,96 @@ async fn revoked_session_and_disabled_account_fail_closed() -> Result<(), Box<dy
                 &principal.session.token,
                 None,
                 "fr.read",
-                "unregistered",
+                "authority-revocation-workspace",
             ))
             .await,
         Err(ResourceAuthorityError::Denied { .. })
     ));
+    let replacement = storage
+        .issue_authenticated_session(
+            &principal.identity.account_id,
+            &principal.identity.principal_id,
+            &principal.identity.access_space_id,
+            None,
+            Duration::from_secs(300),
+        )
+        .await?;
+    storage
+        .authorize_protected_resource(request(
+            &replacement.token,
+            None,
+            "fr.read",
+            "authority-revocation-workspace",
+        ))
+        .await?;
     storage
         .disable_account(&principal.identity.account_id)
         .await?;
+    assert!(matches!(
+        storage
+            .authorize_protected_resource(request(
+                &replacement.token,
+                None,
+                "fr.read",
+                "authority-revocation-workspace",
+            ))
+            .await,
+        Err(ResourceAuthorityError::Denied { .. })
+    ));
+    Ok(())
+}
+
+#[tokio::test]
+async fn expired_session_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
+    let backend = embedded_test_backend().await?;
+    let storage = &backend.storage;
+    let principal = storage
+        .provision_principal(
+            "authority-expiry-account",
+            "authority-expiry-principal",
+            "human_account",
+            "authority-expiry-actor",
+            "Operator",
+            &["fr.read".to_owned()],
+            "authority-expiry-space",
+            None,
+            Duration::from_millis(1),
+        )
+        .await?;
+    let resource = storage
+        .register_protected_resource(
+            &principal.identity,
+            ResourceKind::FlightRecorder,
+            "authority-expiry-workspace",
+            None,
+            "account_private",
+        )
+        .await?;
+    storage
+        .grant_resource(
+            &principal.identity.account_id,
+            &principal.identity.access_space_id,
+            ResourceGrantSpec {
+                principal_id: principal.identity.principal_id.clone(),
+                resource_id: resource.resource_id,
+                actions: vec![ResourceAction::Read],
+                capability_ids: vec!["fr.read".to_owned()],
+                expires_at: Some(principal.session.expires_at),
+                delegation_chain: Vec::new(),
+            },
+        )
+        .await?;
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert!(matches!(
+        storage
+            .authorize_protected_resource(request(
+                &principal.session.token,
+                None,
+                "fr.read",
+                "authority-expiry-workspace",
+            ))
+            .await,
+        Err(ResourceAuthorityError::Denied { .. })
+    ));
     Ok(())
 }

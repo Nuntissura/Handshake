@@ -13,6 +13,8 @@ use axum::{
 use chrono::Duration;
 use serde::Serialize;
 use serde_json::{json, Value};
+#[cfg(test)]
+use sha2::{Digest, Sha256};
 
 use crate::kernel::KernelActor;
 use crate::storage::surreal::resource_authority::{
@@ -301,6 +303,15 @@ async fn provision_existing_workspace_grants(
                 vec!["memory.read", "memory.commit"],
             ),
             (
+                ResourceKind::MemoryItem,
+                vec![
+                    ResourceAction::Read,
+                    ResourceAction::Create,
+                    ResourceAction::Update,
+                ],
+                vec!["memory.read", "memory.commit"],
+            ),
+            (
                 ResourceKind::MemoryItemCount,
                 vec![ResourceAction::Read, ResourceAction::Create],
                 vec!["memory.read", "memory.commit"],
@@ -332,6 +343,23 @@ async fn provision_existing_workspace_grants(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+pub(crate) async fn test_session_for_binding(
+    state: &AppState,
+    binding_token: &str,
+) -> Result<String, String> {
+    let binding_hash = hex::encode(Sha256::digest(binding_token.as_bytes()));
+    let principal = state
+        .surreal
+        .provision_local_operator(Some(&binding_hash))
+        .await
+        .map_err(|error| error.to_string())?;
+    provision_existing_workspace_grants(state, &principal)
+        .await
+        .map_err(|(_, body)| body.0.to_string())?;
+    Ok(principal.session.token)
 }
 
 async fn grant(

@@ -353,7 +353,14 @@ async fn authorize_flight_recorder_request(
     next: Next,
 ) -> Response {
     let path = request.uri().path().to_owned();
-    let workspace_id = workspace_id_from_recorder_path(&path);
+    let workspace_id = workspace_id_from_recorder_path(&path).or_else(|| {
+        request.uri().query().and_then(|query| {
+            query.split('&').find_map(|pair| {
+                let (key, value) = pair.split_once('=')?;
+                (key == "wsid" && !value.trim().is_empty()).then(|| value.trim().to_owned())
+            })
+        })
+    });
     let Some(capability_id) = flight_recorder_capability_for_request(request.method(), &path)
     else {
         // An unmapped path under this router has no capability contract; deny rather than
@@ -361,49 +368,59 @@ async fn authorize_flight_recorder_request(
         return capability_denied().into_response();
     };
 
-    let ctx = match crate::api::stage::capture_context(request.headers()) {
-        Ok(ctx) => ctx,
-        Err(_) => {
+    // An omitted selector is still sent through the broker as a non-existent exact resource so
+    // the denial is durable and constant-shape rather than becoming an unaudited early return.
+    let workspace_id = workspace_id.unwrap_or_else(|| "__unscoped__".to_owned());
+    let action = if request.method() == Method::GET {
+        crate::storage::surreal::resource_authority::ResourceAction::Read
+    } else {
+        crate::storage::surreal::resource_authority::ResourceAction::Create
+    };
+    let authority = match crate::api::authority::authorize_request(
+        &state,
+        request.headers(),
+        capability_id,
+        crate::storage::surreal::resource_authority::ResourceKind::FlightRecorder,
+        &workspace_id,
+        action,
+    )
+    .await
+    {
+        Ok(authority) => authority,
+        Err(error) => {
             if record_flight_recorder_capability_decision(
                 &state,
                 None,
                 capability_id,
                 "deny",
-                workspace_id,
+                Some(workspace_id.clone()),
             )
             .await
             .is_err()
             {
                 return audit_failed_closed().into_response();
             }
-            return unauthenticated_recorder().into_response();
+            return error.into_response();
         }
     };
-
-    let allowed = state
-        .capability_registry
-        .profile_can(FR_CAPABILITY_PROFILE, capability_id)
-        .unwrap_or(false);
-    let outcome = if allowed { "allow" } else { "deny" };
+    let ctx = authority.capture_context();
     if record_flight_recorder_capability_decision(
         &state,
         Some(&ctx),
         capability_id,
-        outcome,
-        workspace_id.clone(),
+        "allow",
+        Some(workspace_id.clone()),
     )
     .await
     .is_err()
     {
         return audit_failed_closed().into_response();
     }
-    if !allowed {
-        return capability_denied().into_response();
-    }
 
-    request
-        .extensions_mut()
-        .insert(RecorderAuthority { ctx, workspace_id });
+    request.extensions_mut().insert(RecorderAuthority {
+        ctx,
+        workspace_id: Some(workspace_id),
+    });
     next.run(request).await
 }
 
@@ -1057,6 +1074,16 @@ fn spawn_native_editor_reconciler(state: AppState) {
 }
 
 async fn reconcile_native_editor_pending(state: &AppState) -> Result<(), String> {
+    let authority =
+        crate::api::authority::reconciliation_authority(state, FR_INGEST_NATIVE_EDITOR_CAPABILITY)
+            .await?;
+    reconcile_native_editor_pending_authorized(state, &authority).await
+}
+
+async fn reconcile_native_editor_pending_authorized(
+    state: &AppState,
+    authority: &crate::api::authority::ReconciliationAuthority,
+) -> Result<(), String> {
     let mut after_event_sequence = 0_i64;
     loop {
         let pending = state
@@ -1070,6 +1097,25 @@ async fn reconcile_native_editor_pending(state: &AppState) -> Result<(), String>
         let batch_len = pending.len();
         for pending_receipt in pending {
             after_event_sequence = after_event_sequence.max(pending_receipt.event_sequence);
+            let workspace_id = pending_receipt
+                .payload
+                .get("envelope")
+                .and_then(|value| value.get("workspace_id"))
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    "pending native-editor receipt lacks workspace authority".to_owned()
+                })?;
+            if let Err(error) = crate::api::authority::authorize_reconciliation_workspace(
+                state,
+                authority,
+                workspace_id,
+                FR_INGEST_NATIVE_EDITOR_CAPABILITY,
+            )
+            .await
+            {
+                tracing::error!(workspace_id, error = %error, "native-editor reconciliation workspace denied");
+                continue;
+            }
             if let Err(error) =
                 reconcile_native_editor_pending_receipt(state, pending_receipt).await
             {
@@ -1532,23 +1578,9 @@ async fn list_events(
         .map(str::trim)
         .filter(|wsid| !wsid.is_empty())
         .map(str::to_owned);
-    if workspace_scope.is_none() {
-        let global_allowed = state
-            .capability_registry
-            .profile_can(FR_CAPABILITY_PROFILE, FR_READ_GLOBAL_CAPABILITY)
-            .unwrap_or(false);
-        let outcome = if global_allowed { "allow" } else { "deny" };
-        audit_recorder_decision(
-            &state,
-            Some(&authority.ctx),
-            FR_READ_GLOBAL_CAPABILITY,
-            outcome,
-            None,
-        )
-        .await?;
-        if !global_allowed {
-            return Err(capability_denied());
-        }
+    let workspace_scope = workspace_scope.ok_or_else(workspace_denied)?;
+    if authority.workspace_id.as_deref() != Some(workspace_scope.as_str()) {
+        return Err(workspace_denied());
     }
 
     let actor_lane = filter
@@ -1573,7 +1605,7 @@ async fn list_events(
         surface: filter.surface.clone(),
         event_type: filter.event_type.clone(),
         // Authoritative scope, not the raw query value (a blank `?wsid=` must not read as "all").
-        wsid: workspace_scope.clone(),
+        wsid: Some(workspace_scope.clone()),
     };
 
     let mut events = state
@@ -1647,9 +1679,12 @@ async fn list_events(
     // LAST and unconditional: the authenticated workspace scope. Applying it after every other
     // filter is what makes filter-bypass impossible — a scoped caller cannot widen the result set
     // with any query parameter, and an event carrying no workspace attribution is excluded.
-    if let Some(wsid) = workspace_scope.as_ref() {
-        events.retain(|event| event.wsids.iter().any(|candidate| candidate == wsid));
-    }
+    events.retain(|event| {
+        event
+            .wsids
+            .iter()
+            .any(|candidate| candidate == &workspace_scope)
+    });
 
     let api_events = events
         .into_iter()
@@ -3104,6 +3139,7 @@ mod tests {
         let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
+        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let before_fr = native_editor_fr_row_count(&state).await?;
         let before_ledger = native_editor_ledger_row_count(&state).await?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
@@ -3115,7 +3151,8 @@ mod tests {
         unknown_kind["kind"] = json!("smuggled_editor_kind");
         let response = http
             .post(&endpoint)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&unknown_kind)
             .send()
             .await?;
@@ -3130,7 +3167,8 @@ mod tests {
         unknown_field["smuggled"] = json!("free text");
         let response = http
             .post(&endpoint)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&unknown_field)
             .send()
             .await?;
@@ -3768,16 +3806,9 @@ mod tests {
     // MT-109 FAIL_V4 remediation: HTTP-level authorization proofs against the REAL router.
     // =====================================================================================
 
-    /// The `handshake-native:<pid>:<birth>` identity `capture_context` mints for this process.
-    fn authenticated_actor_id(token: &str) -> String {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "x-hsk-session-token",
-            HeaderValue::from_str(token).expect("session token header"),
-        );
-        crate::api::stage::capture_context(&headers)
-            .expect("live native binding")
-            .actor_id
+    /// The persisted local principal identity resolved by the shared ResourceBroker.
+    fn authenticated_actor_id(_token: &str) -> String {
+        "local_operator".to_owned()
     }
 
     fn native_editor_endpoint(base: &str, workspace_id: &str) -> String {
@@ -3813,6 +3844,7 @@ mod tests {
         let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
+        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let before_fr = native_editor_fr_row_count(&state).await?;
         let before_ledger = native_editor_ledger_row_count(&state).await?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
@@ -3865,11 +3897,14 @@ mod tests {
         ] {
             assert_eq!(
                 response.status(),
-                StatusCode::UNAUTHORIZED,
-                "{label} must be 401"
+                StatusCode::FORBIDDEN,
+                "{label} must use the constant protected-resource denial"
             );
             let body: Value = response.json().await?;
-            assert_eq!(body["error"], "HSK-401-FR-SESSION", "{label} error code");
+            assert_eq!(
+                body["error"], "HSK-403-PROTECTED-RESOURCE",
+                "{label} error code"
+            );
         }
 
         assert_eq!(
@@ -3921,7 +3956,7 @@ mod tests {
         let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
-        let actor_id = authenticated_actor_id(&token);
+        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let before_fr = native_editor_fr_row_count(&state).await?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
 
@@ -3933,7 +3968,8 @@ mod tests {
         ] {
             let response = http
                 .get(&url)
-                .header("x-hsk-session-token", &token)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
                 .send()
                 .await?;
             assert_eq!(
@@ -3942,29 +3978,19 @@ mod tests {
                 "unscoped recorder enumeration must be 403 at {url}"
             );
             let body: Value = response.json().await?;
-            assert_eq!(body["error"], "HSK-403-FR-CAPABILITY");
+            assert_eq!(body["error"], "HSK-403-PROTECTED-RESOURCE");
         }
 
-        let denies = capability_decisions(&state, FR_READ_GLOBAL_CAPABILITY, "deny").await?;
+        let denies = capability_decisions(&state, FR_READ_CAPABILITY, "deny").await?;
         assert_eq!(
             denies.len(),
             3,
             "one exact deny audit per unscoped read attempt"
         );
         for deny in &denies {
-            assert_eq!(deny.payload["actor_id"], actor_id);
-            assert_eq!(
-                deny.capability_id.as_deref(),
-                Some(FR_READ_GLOBAL_CAPABILITY)
-            );
+            assert_eq!(deny.payload["actor_id"], "unauthenticated-native-client");
+            assert_eq!(deny.capability_id.as_deref(), Some(FR_READ_CAPABILITY));
         }
-        assert!(
-            capability_decisions(&state, FR_READ_CAPABILITY, "allow")
-                .await?
-                .len()
-                >= 3,
-            "the base read capability was allowed before the scope escalation was denied"
-        );
         assert_eq!(
             native_editor_fr_row_count(&state).await?,
             before_fr,
@@ -3982,8 +4008,9 @@ mod tests {
         let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
+        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let actor_id = authenticated_actor_id(&token);
-        assert!(actor_id.starts_with("handshake-native:"));
+        assert_eq!(actor_id, "local_operator");
         let before_fr = native_editor_fr_row_count(&state).await?;
         let before_ledger = native_editor_ledger_row_count(&state).await?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
@@ -3994,7 +4021,8 @@ mod tests {
         spoofed_actor["actor_id"] = json!("operator-i-am-not");
         let response = http
             .post(&endpoint)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&spoofed_actor)
             .send()
             .await?;
@@ -4010,7 +4038,8 @@ mod tests {
         spoofed_kind["actor_kind"] = json!("system");
         let response = http
             .post(&endpoint)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&spoofed_kind)
             .send()
             .await?;
@@ -4026,7 +4055,8 @@ mod tests {
         spoofed_workspace["workspace_id"] = json!(OTHER_TEST_WORKSPACE_ID);
         let response = http
             .post(&endpoint)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&spoofed_workspace)
             .send()
             .await?;
@@ -4059,7 +4089,8 @@ mod tests {
         clean["workspace_id"] = Value::Null;
         let response = http
             .post(&endpoint)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&clean)
             .send()
             .await?;
@@ -4121,6 +4152,7 @@ mod tests {
         let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
+        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
 
         // The attacker pre-seeds a client event id inside the workspace it DOES hold.
@@ -4133,7 +4165,8 @@ mod tests {
         attacker["actor_id"] = Value::Null;
         let response = http
             .post(native_editor_endpoint(&base, OTHER_TEST_WORKSPACE_ID))
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&attacker)
             .send()
             .await?;
@@ -4153,7 +4186,8 @@ mod tests {
         victim["actor_id"] = Value::Null;
         let response = http
             .post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&victim)
             .send()
             .await?;
@@ -4189,7 +4223,8 @@ mod tests {
             .get(format!(
                 "{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}&event_id={attacker_durable}"
             ))
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .send()
             .await?;
         assert_eq!(leaked.status(), StatusCode::OK);
@@ -4204,7 +4239,8 @@ mod tests {
             .get(format!(
                 "{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}&event_id={victim_durable}"
             ))
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .send()
             .await?;
         let rows: Vec<FlightEvent> = own.json().await?;
@@ -4222,6 +4258,7 @@ mod tests {
         let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
+        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let actor_id = authenticated_actor_id(&token);
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
 
@@ -4233,7 +4270,8 @@ mod tests {
             body["actor_id"] = Value::Null;
             let response = http
                 .post(native_editor_endpoint(&base, workspace_id))
-                .header("x-hsk-session-token", &token)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
                 .json(&body)
                 .send()
                 .await?;
@@ -4250,7 +4288,8 @@ mod tests {
             ] {
                 let response = http
                     .get(format!("{base}/{alias}?{query}"))
-                    .header("x-hsk-session-token", &token)
+                    .header("x-hsk-session-token", &session_token)
+                    .header("x-hsk-channel-binding-token", &token)
                     .send()
                     .await?;
                 assert_eq!(response.status(), StatusCode::OK, "{alias}?{query}");
@@ -4279,6 +4318,7 @@ mod tests {
         let (state, _store) = setup_state().await?;
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
+        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
         let endpoint = runtime_chat_endpoint(&base, TEST_WORKSPACE_ID);
 
@@ -4289,7 +4329,8 @@ mod tests {
         );
         let response = http
             .post(&endpoint)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&mismatched)
             .send()
             .await?;
@@ -4302,7 +4343,8 @@ mod tests {
         let unknown_workspace = runtime_chat_endpoint(&base, "WS-DOES-NOT-EXIST");
         let response = http
             .post(&unknown_workspace)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None))
             .send()
             .await?;
@@ -4311,7 +4353,8 @@ mod tests {
         let session_id = Uuid::now_v7();
         let response = http
             .post(&endpoint)
-            .header("x-hsk-session-token", &token)
+            .header("x-hsk-session-token", &session_token)
+            .header("x-hsk-channel-binding-token", &token)
             .json(&runtime_chat_body(session_id, Uuid::now_v7(), None))
             .send()
             .await?;

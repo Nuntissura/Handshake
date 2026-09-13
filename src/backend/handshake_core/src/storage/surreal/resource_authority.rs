@@ -19,7 +19,7 @@ pub const RECONCILIATION_PROFILE_ID: &str = "MT109Reconciler";
 
 const AUTHORITY_SCHEMA: &str = r#"
 DEFINE TABLE IF NOT EXISTS local_accounts TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.account_id, FOR create, update, delete NONE;
+  PERMISSIONS FOR select WHERE id = $auth.account_id FOR create, update, delete NONE;
 DEFINE FIELD IF NOT EXISTS account_key ON local_accounts TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
 DEFINE FIELD IF NOT EXISTS account_role ON local_accounts TYPE string ASSERT $value IN ['Owner', 'Admin', 'Member'];
 DEFINE FIELD IF NOT EXISTS status ON local_accounts TYPE string ASSERT $value IN ['enabled', 'disabled'];
@@ -30,7 +30,7 @@ DEFINE FIELD IF NOT EXISTS updated_at ON local_accounts TYPE datetime;
 DEFINE INDEX IF NOT EXISTS local_accounts_account_key_unique ON local_accounts FIELDS account_key UNIQUE;
 
 DEFINE TABLE IF NOT EXISTS principals TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.principal_id, FOR create, update, delete NONE;
+  PERMISSIONS FOR select WHERE id = $auth.principal_id FOR create, update, delete NONE;
 DEFINE FIELD IF NOT EXISTS principal_key ON principals TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
 DEFINE FIELD IF NOT EXISTS account_id ON principals TYPE record<local_accounts>;
 DEFINE FIELD IF NOT EXISTS principal_kind ON principals TYPE string ASSERT $value IN ['human_account', 'local_model', 'remote_model', 'spawned_agent', 'mcp_client', 'service_identity', 'visitor_pass', 'break_glass_operator'];
@@ -47,7 +47,7 @@ DEFINE INDEX IF NOT EXISTS principals_principal_key_unique ON principals FIELDS 
 DEFINE INDEX IF NOT EXISTS principals_account_idx ON principals FIELDS account_id;
 
 DEFINE TABLE IF NOT EXISTS access_spaces TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND id = $auth.access_space_id, FOR create, update, delete NONE;
+  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND id = $auth.access_space_id FOR create, update, delete NONE;
 DEFINE FIELD IF NOT EXISTS space_key ON access_spaces TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
 DEFINE FIELD IF NOT EXISTS account_id ON access_spaces TYPE record<local_accounts>;
 DEFINE FIELD IF NOT EXISTS name ON access_spaces TYPE string ASSERT string::len($value) > 0;
@@ -60,7 +60,7 @@ DEFINE INDEX IF NOT EXISTS access_spaces_key_unique ON access_spaces FIELDS spac
 DEFINE INDEX IF NOT EXISTS access_spaces_account_idx ON access_spaces FIELDS account_id;
 
 DEFINE TABLE IF NOT EXISTS authenticated_sessions TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.id, FOR create, update, delete NONE;
+  PERMISSIONS FOR select WHERE id = $auth.id FOR create, update, delete NONE;
 DEFINE FIELD IF NOT EXISTS account_id ON authenticated_sessions TYPE record<local_accounts>;
 DEFINE FIELD IF NOT EXISTS principal_id ON authenticated_sessions TYPE record<principals>;
 DEFINE FIELD IF NOT EXISTS access_space_id ON authenticated_sessions TYPE record<access_spaces>;
@@ -130,7 +130,7 @@ DEFINE FIELD IF NOT EXISTS updated_at ON resource_grants TYPE datetime;
 DEFINE INDEX IF NOT EXISTS resource_grants_exact_idx ON resource_grants FIELDS account_id, principal_id, access_space_id, resource_id;
 
 DEFINE TABLE IF NOT EXISTS authorization_audit_events TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id, FOR create, update, delete NONE;
+  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id FOR create, update, delete NONE;
 DEFINE FIELD IF NOT EXISTS decision_id ON authorization_audit_events TYPE string ASSERT string::len($value) > 0;
 DEFINE FIELD IF NOT EXISTS account_id ON authorization_audit_events TYPE option<record<local_accounts>>;
 DEFINE FIELD IF NOT EXISTS principal_id ON authorization_audit_events TYPE option<record<principals>>;
@@ -198,6 +198,7 @@ pub enum ResourceKind {
     MemoryPack,
     MemoryProposal,
     MemoryCommitReport,
+    MemoryItem,
     MemoryItemCount,
     ReconciliationQueue,
 }
@@ -210,6 +211,7 @@ impl ResourceKind {
             Self::MemoryPack => "memory_pack",
             Self::MemoryProposal => "memory_proposal",
             Self::MemoryCommitReport => "memory_commit_report",
+            Self::MemoryItem => "memory_item",
             Self::MemoryItemCount => "memory_item_count",
             Self::ReconciliationQueue => "reconciliation_queue",
         }
@@ -488,7 +490,20 @@ impl SurrealStorage {
         let namespace = self.config().namespace().to_owned();
         let account_key = account_key.to_owned();
         let principal_key = principal_key.to_owned();
-        let actor_kind = actor_kind.to_owned();
+        let principal_kind = actor_kind.to_owned();
+        let actor_kind = match actor_kind {
+            "human_account" | "break_glass_operator" => "operator",
+            "local_model" | "remote_model" | "spawned_agent" | "mcp_client" => "agent",
+            "service_identity" => "system",
+            other => other,
+        }
+        .to_owned();
+        let account_role = if principal_kind == "service_identity" {
+            "Member"
+        } else {
+            "Owner"
+        }
+        .to_owned();
         let actor_id = actor_id.to_owned();
         let capability_profile_id = capability_profile_id.to_owned();
         let delegated_capabilities = delegated_capabilities.to_vec();
@@ -509,7 +524,7 @@ impl SurrealStorage {
                              LET $existing_principal = (SELECT * FROM principals WHERE principal_key = $principal_key LIMIT 1);\n\
                              LET $existing_space = (SELECT * FROM access_spaces WHERE space_key = $space_key LIMIT 1);\n\
                              IF array::len($existing_principal) = 0 {\n\
-                               CREATE $account SET account_key = $account_key, account_role = 'Member', status = 'enabled', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now;\n\
+                               CREATE $account SET account_key = $account_key, account_role = $account_role, status = 'enabled', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now;\n\
                                CREATE $principal SET principal_key = $principal_key, account_id = $account, principal_kind = $principal_kind, actor_kind = $actor_kind, actor_id = $actor_id, capability_profile_id = $capability_profile_id, delegated_capabilities = $delegated_capabilities, status = 'enabled', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now;\n\
                                CREATE $space SET space_key = $space_key, account_id = $account, name = $space_key, status = 'active', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now;\n\
                              };\n\
@@ -520,8 +535,9 @@ impl SurrealStorage {
                         .bind(("principal", principal))
                         .bind(("space", space))
                         .bind(("account_key", account_key))
+                        .bind(("account_role", account_role))
                         .bind(("principal_key", principal_key))
-                        .bind(("principal_kind", actor_kind.clone()))
+                        .bind(("principal_kind", principal_kind))
                         .bind(("actor_kind", actor_kind))
                         .bind(("actor_id", actor_id))
                         .bind(("capability_profile_id", capability_profile_id))
@@ -1135,7 +1151,7 @@ impl SurrealStorage {
             &provisioned.identity.access_space_id,
             ResourceGrantSpec {
                 principal_id: provisioned.identity.principal_id.clone(),
-                resource_id: queue.resource_id,
+                resource_id: queue.resource_id.clone(),
                 actions: vec![ResourceAction::Reconcile],
                 capability_ids: capabilities.clone(),
                 expires_at: Some(provisioned.session.expires_at),
