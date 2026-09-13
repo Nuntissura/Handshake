@@ -132,7 +132,7 @@ const SWARM_COMMITTED_MEMORY_CEILING_BYTES_ENV: &str =
 
 /// In-process [`ProcessLedgerStore`] the app owns for the swarm coordinator. Not
 /// a fake: it durably accumulates every START/STOP row for the running session
-/// so the orchestration ledger is real and inspectable. A Postgres-backed store
+/// so the orchestration ledger is real and inspectable. A SurrealDB-backed store
 /// replaces this when the app gains a configured pool (out of MT-204 scope).
 #[derive(Clone, Default)]
 pub struct InProcessLedgerStore {
@@ -1523,23 +1523,20 @@ pub trait CloudAssistanceReceiptRecorder: Send + Sync {
     ) -> Result<CloudAssistanceReceiptRefIpc, String>;
 }
 
-pub struct PostgresCloudAssistanceReceiptRecorder {
+pub struct SurrealCloudAssistanceReceiptRecorder {
     store: ParallelSwarmStateRecoveryStore,
 }
 
-impl PostgresCloudAssistanceReceiptRecorder {
+impl SurrealCloudAssistanceReceiptRecorder {
     pub fn from_control_plane(control_plane: ControlPlaneStorage) -> Self {
         Self {
-            store: ParallelSwarmStateRecoveryStore::new(
-                control_plane.postgres_pool,
-                control_plane.database,
-            ),
+            store: ParallelSwarmStateRecoveryStore::new(control_plane.surreal),
         }
     }
 }
 
 #[async_trait]
-impl CloudAssistanceReceiptRecorder for PostgresCloudAssistanceReceiptRecorder {
+impl CloudAssistanceReceiptRecorder for SurrealCloudAssistanceReceiptRecorder {
     async fn record_cloud_fallback_basis(
         &self,
         request: CloudFallbackBasisRuntimeRequest,

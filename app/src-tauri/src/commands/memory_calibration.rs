@@ -1,7 +1,7 @@
 //! MT-162 FEMS calibration snapshot IPC.
 //!
-//! The command is read-only. Production binds to Postgres FEMS metrics when
-//! storage initializes; otherwise the command returns a typed unavailable
+//! The command is read-only. Production binds to the shared embedded SurrealDB
+//! FEMS metrics authority; otherwise the command returns a typed unavailable
 //! error rather than a placeholder healthy snapshot.
 
 use std::sync::Arc;
@@ -36,14 +36,14 @@ impl Default for MemoryCalibrationIpcState {
     fn default() -> Self {
         Self {
             backend: MemoryCalibrationBackend::Unavailable {
-                reason: "Postgres memory calibration state has not been initialized".to_string(),
+                reason: "embedded SurrealDB calibration authority has not initialized".to_string(),
             },
         }
     }
 }
 
 impl MemoryCalibrationIpcState {
-    pub fn with_postgres(db: Arc<dyn Database>) -> Self {
+    pub fn with_surreal(db: Arc<dyn Database>) -> Self {
         Self::with_source(
             Arc::new(SurrealBitemporalMemoryIndex::with_db(db)),
             CalibrationThresholds::default(),
@@ -63,17 +63,6 @@ impl MemoryCalibrationIpcState {
     ) -> Self {
         Self {
             backend: MemoryCalibrationBackend::Source { source, thresholds },
-        }
-    }
-
-    pub fn from_env_or_unavailable() -> Self {
-        match tauri::async_runtime::block_on(handshake_core::storage::init_storage()) {
-            Ok(db) => Self::with_postgres(db),
-            Err(error) => Self {
-                backend: MemoryCalibrationBackend::Unavailable {
-                    reason: format!("Postgres memory calibration state unavailable: {error}"),
-                },
-            },
         }
     }
 

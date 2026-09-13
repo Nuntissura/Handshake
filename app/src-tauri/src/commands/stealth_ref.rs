@@ -1,25 +1,20 @@
 //! Stealth Reference Window IPC.
 //!
-//! Read commands are backed by the real PostgreSQL AtelierStore plus the kernel
-//! EventLedger database handle. There is no in-memory success path: if the app
-//! cannot initialize Postgres, commands return a typed error instead of
+//! Read commands are backed by the shared embedded SurrealDB AtelierStore and
+//! EventLedger handle. There is no in-memory success path: if the authority
+//! cannot initialize, commands return a typed error instead of
 //! pretending that stealth-ref state is durable.
 
-use handshake_core::{
-    atelier::{
-        stealth_window::{
-            ContentRef, ResolvedContentRef, StealthRefStatus, StealthReferenceWindow,
-        },
-        AtelierStore,
-    },
-    storage::init_control_plane_storage,
+use handshake_core::atelier::{
+    stealth_window::{ContentRef, ResolvedContentRef, StealthRefStatus, StealthReferenceWindow},
+    AtelierStore,
 };
 use tauri::State;
 use uuid::Uuid;
 
 enum StealthRefBackend {
     Unavailable { reason: String },
-    Postgres { store: AtelierStore },
+    Surreal { store: AtelierStore },
 }
 
 pub struct StealthRefIpcState {
@@ -30,7 +25,7 @@ impl Default for StealthRefIpcState {
     fn default() -> Self {
         Self {
             backend: StealthRefBackend::Unavailable {
-                reason: "Postgres stealth-ref state has not been initialized".to_string(),
+                reason: "embedded SurrealDB stealth-ref authority has not initialized".to_string(),
             },
         }
     }
@@ -39,42 +34,16 @@ impl Default for StealthRefIpcState {
 impl StealthRefIpcState {
     pub fn with_store(store: AtelierStore) -> Self {
         Self {
-            backend: StealthRefBackend::Postgres { store },
-        }
-    }
-
-    pub fn from_env_or_unavailable() -> Self {
-        let state = tauri::async_runtime::block_on(async {
-            let control_plane = init_control_plane_storage()
-                .await
-                .map_err(|error| error.to_string())?;
-            let store = AtelierStore::with_event_ledger(
-                control_plane.postgres_pool,
-                control_plane.database,
-            );
-            store
-                .ensure_schema()
-                .await
-                .map_err(|error| error.to_string())?;
-            Ok::<Self, String>(Self::with_store(store))
-        });
-
-        match state {
-            Ok(state) => state,
-            Err(error) => Self {
-                backend: StealthRefBackend::Unavailable {
-                    reason: format!("Postgres stealth-ref state unavailable: {error}"),
-                },
-            },
+            backend: StealthRefBackend::Surreal { store },
         }
     }
 
     fn store(&self) -> Result<AtelierStore, String> {
         match &self.backend {
             StealthRefBackend::Unavailable { reason } => {
-                Err(format!("stealth_ref_postgres_unavailable: {reason}"))
+                Err(format!("stealth_ref_surreal_unavailable: {reason}"))
             }
-            StealthRefBackend::Postgres { store } => Ok(store.clone()),
+            StealthRefBackend::Surreal { store } => Ok(store.clone()),
         }
     }
 
@@ -183,24 +152,21 @@ mod tests {
         ContentRefKind, NewContentRef, NewStealthWindow, QuietFlags, VisibilityFlag,
     };
 
-    fn database_url() -> Option<String> {
-        std::env::var("DATABASE_URL")
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    }
-
     #[tokio::test]
-    async fn state_lists_refs_and_resolves_through_live_postgres_with_actor_scope() {
-        let Some(_) = database_url() else {
-            eprintln!("SKIP stealth_ref IPC state test: DATABASE_URL not set");
-            return;
-        };
-
-        let control_plane = init_control_plane_storage()
-            .await
-            .expect("initialize live Postgres control plane storage");
+    async fn state_lists_refs_and_resolves_through_embedded_surreal_with_actor_scope() {
+        let directory = tempfile::tempdir().expect("temporary stealth-ref authority root");
+        let data_dir = directory.path().to_string_lossy();
+        let config = handshake_core::storage::ControlPlaneStorageConfig::resolve(
+            Some("surreal_embedded"),
+            Some(&data_dir),
+        )
+        .expect("resolve embedded SurrealDB configuration");
+        let control_plane =
+            handshake_core::storage::init_control_plane_storage_with_config(&config)
+                .await
+                .expect("initialize embedded SurrealDB control plane storage");
         let store =
-            AtelierStore::with_event_ledger(control_plane.postgres_pool, control_plane.database);
+            AtelierStore::with_event_ledger(control_plane.surreal.clone(), control_plane.database);
         store.ensure_schema().await.expect("ensure atelier schema");
         let state = StealthRefIpcState::with_store(store.clone());
 
@@ -279,5 +245,10 @@ mod tests {
                 .contains("stealth_ref_forbidden"),
             "foreign-window access returns a typed forbidden error"
         );
+        control_plane
+            .surreal
+            .shutdown()
+            .await
+            .expect("close embedded stealth-ref authority");
     }
 }

@@ -12,6 +12,7 @@ use super::hygiene::{
     HYGIENE_PAYLOAD_SCHEMA_ID, HYGIENE_PROMOTE_ACTION_ID, HYGIENE_PRUNE_ACTION_ID,
     MEMORY_HYGIENE_SOURCE_COMPONENT,
 };
+use super::ipc::{MemoryCapsuleIpcStore, MemoryIpcError};
 use super::pinned_core::{
     action_id_for_pin_state, fr_event_for_pin_state, pin_submission, PinError, PinReceipt,
     PinSubmitter, PinnedItem, MEMORY_PIN_AGGREGATE_TYPE, MEMORY_PIN_MANIFEST_AGGREGATE_ID,
@@ -42,6 +43,8 @@ pub const KERNEL_ACTION_REQUEST_SCHEMA_ID: &str = "hsk.kernel_action_request@1";
 pub const WRITE_BOX_V1_ENVELOPE_SCHEMA_ID: &str = "hsk.write_box_v1_envelope@1";
 pub const MEMORY_WRITE_BOX_SCHEMA_ID: &str = "hsk.write_box.memory@1";
 pub const MEMORY_CAPSULE_AGGREGATE_TYPE: &str = "memory_capsule";
+pub const MEMORY_CAPSULE_MANIFEST_AGGREGATE_TYPE: &str = "memory_capsule_manifest";
+pub const MEMORY_CAPSULE_MANIFEST_AGGREGATE_ID: &str = "canonical";
 pub const MEMORY_CAPSULE_SOURCE_COMPONENT: &str = "memory_capsule_kernel_action_catalog";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -171,6 +174,78 @@ pub struct SurrealKernelActionSubmitter {
     catalog: KernelActionCatalogV1,
 }
 
+pub struct SurrealMemoryCapsuleStore {
+    db: Arc<dyn Database>,
+}
+
+impl SurrealMemoryCapsuleStore {
+    pub fn with_db(db: Arc<dyn Database>) -> Self {
+        Self { db }
+    }
+
+    fn replay_records(&self) -> Result<BTreeMap<Uuid, CapsuleRecord>, MemoryIpcError> {
+        let db = Arc::clone(&self.db);
+        let events = block_on_storage(async move {
+            db.list_kernel_events_for_aggregate(
+                MEMORY_CAPSULE_MANIFEST_AGGREGATE_TYPE,
+                MEMORY_CAPSULE_MANIFEST_AGGREGATE_ID,
+            )
+            .await
+        })
+        .map_err(|error| MemoryIpcError::Store {
+            message: format!("reading memory capsule manifest failed: {error}"),
+        })?;
+        let mut records = BTreeMap::new();
+        for event in events {
+            let record =
+                event
+                    .payload
+                    .get("record")
+                    .cloned()
+                    .ok_or_else(|| MemoryIpcError::Store {
+                        message: format!(
+                            "memory capsule manifest event {} has no record",
+                            event.event_id
+                        ),
+                    })?;
+            let record: CapsuleRecord =
+                serde_json::from_value(record).map_err(|error| MemoryIpcError::Store {
+                    message: format!(
+                        "memory capsule manifest event {} is invalid: {error}",
+                        event.event_id
+                    ),
+                })?;
+            records.insert(record.capsule_id, record);
+        }
+        Ok(records)
+    }
+}
+
+impl MemoryCapsuleIpcStore for SurrealMemoryCapsuleStore {
+    fn all_capsule_records(&self) -> Result<Vec<CapsuleRecord>, MemoryIpcError> {
+        Ok(self.replay_records()?.into_values().collect())
+    }
+
+    fn get_capsule_record(
+        &self,
+        capsule_id: Uuid,
+    ) -> Result<Option<CapsuleRecord>, MemoryIpcError> {
+        Ok(self.replay_records()?.remove(&capsule_id))
+    }
+
+    fn save_capsule_record(&self, record: CapsuleRecord) -> Result<(), MemoryIpcError> {
+        match self.get_capsule_record(record.capsule_id)? {
+            Some(durable) if durable == record => Ok(()),
+            Some(_) => Err(MemoryIpcError::Store {
+                message: "memory capsule durable state does not match submitted state".to_owned(),
+            }),
+            None => Err(MemoryIpcError::Store {
+                message: "memory capsule action did not create durable state".to_owned(),
+            }),
+        }
+    }
+}
+
 impl SurrealKernelActionSubmitter {
     pub fn with_db(db: Arc<dyn Database>) -> Self {
         Self {
@@ -220,8 +295,18 @@ impl KernelActionSubmitter for SurrealKernelActionSubmitter {
         let target = primary_action_target(&submission)?;
         let aggregate_type = aggregate_type_for_target_kind(&target.target_kind)?;
         let event = build_catalog_action_event(&submission, action)?;
+        let manifest_event = build_capsule_manifest_event(&submission)?;
         let db = Arc::clone(&self.db);
-        match block_on_storage(async move { db.append_kernel_event(event).await }) {
+        let append_result = block_on_storage(async move {
+            match manifest_event {
+                Some(manifest_event) => db
+                    .append_kernel_events_atomic(vec![event, manifest_event])
+                    .await
+                    .map(|_| ()),
+                None => db.append_kernel_event(event).await.map(|_| ()),
+            }
+        });
+        match append_result {
             Ok(_) => Ok(()),
             Err(error) if is_kernel_event_idempotency_conflict(&error) => {
                 let db = Arc::clone(&self.db);
@@ -674,6 +759,49 @@ fn build_catalog_action_event(
         code: "kernel_action_event_build_failed".to_owned(),
         reason: format!("failed to build kernel event for memory action: {error}"),
     })
+}
+
+fn build_capsule_manifest_event(
+    submission: &KernelActionSubmission,
+) -> Result<Option<NewKernelEvent>, KernelActionRejection> {
+    let target = primary_action_target(submission)?;
+    if target.target_kind != MEMORY_CAPSULE_AGGREGATE_TYPE {
+        return Ok(None);
+    }
+    let record = submission
+        .write_box_envelope
+        .payload
+        .get("record")
+        .cloned()
+        .ok_or_else(|| KernelActionRejection {
+            code: "memory_capsule_record_missing".to_owned(),
+            reason: "memory capsule action payload has no complete record".to_owned(),
+        })?;
+    let event = NewKernelEvent::builder(
+        format!("KTR-MEMORY-CAPSULE-MANIFEST-{}", target.target_id),
+        format!("SR-MEMORY-CAPSULE-MANIFEST-{}", target.target_id),
+        KernelEventType::ArtifactProposed,
+        KernelActor::ModelAdapter(submission.request.actor.actor_id.clone()),
+    )
+    .aggregate(
+        MEMORY_CAPSULE_MANIFEST_AGGREGATE_TYPE,
+        MEMORY_CAPSULE_MANIFEST_AGGREGATE_ID,
+    )
+    .idempotency_key(format!("{}:manifest", submission.request.idempotency_key))
+    .correlation_id(submission.request.trace_id.clone())
+    .event_version("kernel_event_v1")
+    .source_component(MEMORY_CAPSULE_SOURCE_COMPONENT)
+    .payload(json!({
+        "schema_id": "hsk.memory_capsule.manifest_event@1",
+        "capsule_id": target.target_id,
+        "record": record,
+    }))
+    .build()
+    .map_err(|error| KernelActionRejection {
+        code: "memory_capsule_manifest_event_build_failed".to_owned(),
+        reason: format!("failed to build memory capsule manifest event: {error}"),
+    })?;
+    Ok(Some(event))
 }
 
 pub struct CapsuleRecorder<'a> {

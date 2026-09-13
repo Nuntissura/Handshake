@@ -412,7 +412,7 @@ fn mt_195_crash_recovery_scenarios() {
         CrashRecoveryScenario::EventSeqGap,
     ] {
         let h = CrashRecoveryHarness::new(scenario);
-        let ev = h.simulate();
+        let ev = h.simulate().unwrap();
         // Each scenario must produce a report (even if recovery_failed populated).
         assert_eq!(ev.report.sessions_examined, 1);
     }

@@ -7,8 +7,8 @@ use std::{
 use chrono::Utc;
 use handshake_core::atelier::AtelierStore;
 use handshake_core::storage::artifacts::{
-    artifact_root_dir, resolve_workspace_root, write_file_artifact, ArtifactClassification, ArtifactLayer,
-    ArtifactManifest, ArtifactPayloadKind,
+    artifact_root_dir, resolve_workspace_root, write_file_artifact, ArtifactClassification,
+    ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
 };
 use handshake_core::storage::surreal::{
     bootstrap_schema, RowFilter, ScalarValue, SurrealDatabase, SurrealStorage, SurrealStorageConfig,
@@ -37,8 +37,7 @@ pub struct NativeMediaArtifact {
 
 pub fn write_native_media_artifact(payload: &[u8]) -> NativeMediaArtifact {
     assert!(
-        std::env::var("HANDSHAKE_WORKSPACE_ROOT")
-            .is_ok_and(|value| !value.trim().is_empty()),
+        std::env::var("HANDSHAKE_WORKSPACE_ROOT").is_ok_and(|value| !value.trim().is_empty()),
         "native artifact fixtures require an isolated HANDSHAKE_WORKSPACE_ROOT"
     );
     let workspace_root = resolve_workspace_root()

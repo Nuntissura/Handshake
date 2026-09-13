@@ -975,6 +975,28 @@ pub fn run() {
         }
     };
 
+    let control_plane_storage =
+        tauri::async_runtime::block_on(handshake_core::storage::init_control_plane_storage())
+            .expect("embedded SurrealDB control-plane authority must initialize");
+    let memory_capsule_state = commands::memory_capsule::MemoryCapsuleIpcState::with_surreal(
+        control_plane_storage.database.clone(),
+    );
+    let memory_calibration_state =
+        commands::memory_calibration::MemoryCalibrationIpcState::with_surreal(
+            control_plane_storage.database.clone(),
+        );
+    let memory_pin_state = commands::memory_pin::MemoryPinIpcState::with_surreal(
+        control_plane_storage.database.clone(),
+    );
+    let atelier_store = handshake_core::atelier::AtelierStore::with_event_ledger(
+        control_plane_storage.surreal.clone(),
+        control_plane_storage.database.clone(),
+    );
+    tauri::async_runtime::block_on(atelier_store.ensure_schema())
+        .expect("embedded SurrealDB Atelier schema must initialize");
+    let stealth_ref_state = commands::stealth_ref::StealthRefIpcState::with_store(atelier_store);
+    let control_plane_for_setup = control_plane_storage.clone();
+
     let builder = tauri::Builder::default()
         .manage(visual_debug_state)
         // NATIVE focus-safe visual debugger: shared console ring buffer drained by
@@ -986,10 +1008,10 @@ pub fn run() {
         .manage(commands::model_runtime::ModelRuntimeState::default())
         .manage(commands::speculative::SpeculativeModeOverrides::default())
         .manage(steering_store_state)
-        .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
-        .manage(commands::memory_calibration::MemoryCalibrationIpcState::from_env_or_unavailable())
-        .manage(commands::memory_pin::MemoryPinIpcState::from_env_or_unavailable())
-        .manage(commands::stealth_ref::StealthRefIpcState::from_env_or_unavailable())
+        .manage(memory_capsule_state)
+        .manage(memory_calibration_state)
+        .manage(memory_pin_state)
+        .manage(stealth_ref_state)
         .manage(commands::session_distill::SessionDistillState::default())
         // MT-124: Distillation Queue UI (DistillationQueue.tsx) reads
         // through the production CandidateRegistry (MT-123). The
@@ -1096,9 +1118,8 @@ pub fn run() {
             // same DuckDB Flight Recorder. Clone the handle before the match below
             // consumes `swarm_recorder` into the swarm runtime constructor.
             let schedule_recorder = swarm_recorder.clone();
-            let control_plane_storage_result = tauri::async_runtime::block_on(async {
-                handshake_core::storage::init_control_plane_storage().await
-            });
+            let control_plane_storage_result: Result<_, handshake_core::storage::StorageError> =
+                Ok(control_plane_for_setup.clone());
             let terminal_event_ledger_database = match &control_plane_storage_result {
                 Ok(control_plane) => Some(control_plane.database.clone()),
                 Err(error) => {
@@ -1167,7 +1188,7 @@ pub fn run() {
                 tauri::async_runtime::block_on(async move {
                     let cloud_assistance_recorder = match control_plane_storage_result {
                         Ok(control_plane) => Some(Arc::new(
-                            commands::swarm_runtime::PostgresCloudAssistanceReceiptRecorder::from_control_plane(
+                            commands::swarm_runtime::SurrealCloudAssistanceReceiptRecorder::from_control_plane(
                                 control_plane,
                             ),
                         )

@@ -601,61 +601,66 @@ impl ProcessLifecycleRow {
 }
 
 #[derive(SurrealValue)]
-struct ProcessApplyBindings {
+struct ProcessBatchEvent {
     record: RecordId,
     incoming: ProcessLifecycleRow,
     is_start: bool,
     reclaim_claimed_at: Option<DateTime<Utc>>,
     reclaim_expected_reason: Option<String>,
     reclaim_expected_killed_reason: Option<String>,
+    inject_failure: bool,
 }
 
-// One statement means the read, merge decision, and write share the same
-// SurrealDB transaction snapshot. The update lists intentionally reproduce the
-// former PostgreSQL ON CONFLICT clauses field-for-field. START coalesces every
-// optional identity column, takes the earliest started_at, replaces the
-// incoming-owned fields, and never touches the terminal triple. STOP
-// unconditionally replaces the terminal triple, coalesces its optional fields,
-// and preserves the START-owned fields. The only additional guard protects an
-// in-flight reclaim sentinel from an ordinary or stale STOP.
-const APPLY_PROCESS_EVENT_ATOMIC: &str = r#"
-RETURN {
-    LET $exact_reclaim_stop = $reclaim_claimed_at != NONE;
+#[derive(SurrealValue)]
+struct ProcessBatchBindings {
+    events: Vec<ProcessBatchEvent>,
+}
+
+// One explicit transaction makes a writer batch visible together or not at all.
+// START coalesces optional identity fields, keeps the earliest started_at, and
+// never touches the terminal triple. STOP replaces the terminal triple while
+// preserving START-owned fields. Reclaim STOPs additionally require ownership
+// of the current durable sentinel.
+const APPLY_PROCESS_BATCH_ATOMIC: &str = r#"
+BEGIN TRANSACTION;
+FOR $event IN $events {
+  LET $outcome = {
+    LET $exact_reclaim_stop = $event.reclaim_claimed_at != NONE;
     LET $existing = SELECT process_uuid, os_pid, parent_session_id,
         parent_process_id, sandbox_adapter_id, sandbox_internal_id,
         engine_kind, started_at, stopped_at, exit_code, stop_reason,
         model_artifact_sha256, work_profile_id, owner_role, owner_wp,
         role_id, wp_id, mt_id, sandbox_capabilities_snapshot, metadata
-        FROM ONLY $record;
+        FROM ONLY $event.record;
     IF $existing = NONE {
         IF $exact_reclaim_stop {
             RETURN 'ignored_conflict';
         };
-        CREATE $record CONTENT $incoming RETURN NONE;
+        CREATE $event.record CONTENT $event.incoming RETURN NONE;
         RETURN 'inserted';
     };
-    IF $is_start {
-        UPDATE $record SET
-            os_pid = $incoming.os_pid ?? $existing.os_pid,
-            parent_session_id = $incoming.parent_session_id ?? $existing.parent_session_id,
-            parent_process_id = $incoming.parent_process_id ?? $existing.parent_process_id,
-            sandbox_adapter_id = $incoming.sandbox_adapter_id ?? $existing.sandbox_adapter_id,
-            sandbox_internal_id = $incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
-            engine_kind = $incoming.engine_kind,
-            started_at = IF $incoming.started_at < $existing.started_at {
-                $incoming.started_at
+    IF $event.is_start {
+        UPDATE $event.record SET
+            os_pid = $event.incoming.os_pid ?? $existing.os_pid,
+            parent_session_id = $event.incoming.parent_session_id ?? $existing.parent_session_id,
+            parent_process_id = $event.incoming.parent_process_id ?? $existing.parent_process_id,
+            sandbox_adapter_id = $event.incoming.sandbox_adapter_id ?? $existing.sandbox_adapter_id,
+            sandbox_internal_id = $event.incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
+            engine_kind = $event.incoming.engine_kind,
+            started_at = IF $event.incoming.started_at < $existing.started_at {
+                $event.incoming.started_at
             } ELSE {
                 $existing.started_at
             },
-            model_artifact_sha256 = $incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
-            work_profile_id = $incoming.work_profile_id ?? $existing.work_profile_id,
-            owner_role = $incoming.owner_role,
-            owner_wp = $incoming.owner_wp ?? $existing.owner_wp,
-            role_id = $incoming.role_id ?? $existing.role_id,
-            wp_id = $incoming.wp_id ?? $existing.wp_id,
-            mt_id = $incoming.mt_id ?? $existing.mt_id,
-            sandbox_capabilities_snapshot = $incoming.sandbox_capabilities_snapshot,
-            metadata = $incoming.metadata
+            model_artifact_sha256 = $event.incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
+            work_profile_id = $event.incoming.work_profile_id ?? $existing.work_profile_id,
+            owner_role = $event.incoming.owner_role,
+            owner_wp = $event.incoming.owner_wp ?? $existing.owner_wp,
+            role_id = $event.incoming.role_id ?? $existing.role_id,
+            wp_id = $event.incoming.wp_id ?? $existing.wp_id,
+            mt_id = $event.incoming.mt_id ?? $existing.mt_id,
+            sandbox_capabilities_snapshot = $event.incoming.sandbox_capabilities_snapshot,
+            metadata = $event.incoming.metadata
             RETURN NONE;
         RETURN 'started';
     };
@@ -669,8 +674,8 @@ RETURN {
         );
     IF $exact_reclaim_stop AND $reclaim_sentinel = false {
         IF $existing.stopped_at != NONE
-            AND $existing.exit_code = $incoming.exit_code
-            AND $existing.stop_reason = $incoming.stop_reason
+            AND $existing.exit_code = $event.incoming.exit_code
+            AND $existing.stop_reason = $event.incoming.stop_reason
         {
             RETURN 'stopped_idempotent';
         };
@@ -678,48 +683,51 @@ RETURN {
     };
     IF $reclaim_sentinel AND (
         $exact_reclaim_stop = false
-        OR $existing.stopped_at != $reclaim_claimed_at
-        OR $reclaim_expected_reason = NONE
-        OR $reclaim_expected_killed_reason = NONE
+        OR $existing.stopped_at != $event.reclaim_claimed_at
+        OR $event.reclaim_expected_reason = NONE
+        OR $event.reclaim_expected_killed_reason = NONE
         OR (
-            $existing.stop_reason != $reclaim_expected_reason
-            AND $existing.stop_reason != $reclaim_expected_killed_reason
+            $existing.stop_reason != $event.reclaim_expected_reason
+            AND $existing.stop_reason != $event.reclaim_expected_killed_reason
         )
     ) {
         RETURN 'ignored_conflict';
     };
-    UPDATE $record SET
-        os_pid = $incoming.os_pid ?? $existing.os_pid,
-        parent_process_id = $incoming.parent_process_id ?? $existing.parent_process_id,
-        sandbox_internal_id = $incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
-        stopped_at = $incoming.stopped_at,
-        exit_code = $incoming.exit_code,
-        stop_reason = $incoming.stop_reason,
-        model_artifact_sha256 = $incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
-        work_profile_id = $incoming.work_profile_id ?? $existing.work_profile_id,
-        owner_role = $incoming.owner_role,
-        owner_wp = $incoming.owner_wp ?? $existing.owner_wp,
-        role_id = $incoming.role_id ?? $existing.role_id,
-        wp_id = $incoming.wp_id ?? $existing.wp_id,
-        mt_id = $incoming.mt_id ?? $existing.mt_id,
-        sandbox_capabilities_snapshot = $incoming.sandbox_capabilities_snapshot,
-        metadata = $incoming.metadata
+    UPDATE $event.record SET
+        os_pid = $event.incoming.os_pid ?? $existing.os_pid,
+        parent_process_id = $event.incoming.parent_process_id ?? $existing.parent_process_id,
+        sandbox_internal_id = $event.incoming.sandbox_internal_id ?? $existing.sandbox_internal_id,
+        stopped_at = $event.incoming.stopped_at,
+        exit_code = $event.incoming.exit_code,
+        stop_reason = $event.incoming.stop_reason,
+        model_artifact_sha256 = $event.incoming.model_artifact_sha256 ?? $existing.model_artifact_sha256,
+        work_profile_id = $event.incoming.work_profile_id ?? $existing.work_profile_id,
+        owner_role = $event.incoming.owner_role,
+        owner_wp = $event.incoming.owner_wp ?? $existing.owner_wp,
+        role_id = $event.incoming.role_id ?? $existing.role_id,
+        wp_id = $event.incoming.wp_id ?? $existing.wp_id,
+        mt_id = $event.incoming.mt_id ?? $existing.mt_id,
+        sandbox_capabilities_snapshot = $event.incoming.sandbox_capabilities_snapshot,
+        metadata = $event.incoming.metadata
         RETURN NONE;
     RETURN 'stopped';
+  };
+  IF $outcome = 'ignored_conflict' AND $event.reclaim_claimed_at != NONE {
+    THROW 'HSK-PROCESS-LEDGER-RECLAIM-CONFLICT';
+  };
+  IF $event.inject_failure {
+    THROW 'HSK-PROCESS-LEDGER-INJECTED-PARTIAL-FAILURE';
+  };
 };
+COMMIT TRANSACTION;
+RETURN 'committed';
 "#;
 
-/// `ProcessLedgerStore` backed by the Handshake-managed embedded SurrealDB
-/// store.
+/// ProcessLedgerStore backed by the Handshake-managed embedded SurrealDB store.
 ///
-/// Every row is keyed by `process_uuid` (the record id), so a replayed batch
-/// re-applies the same merge and converges on the same record. That keeps the
-/// retry loop in [`flush_batch`] safe: on a store error the batch is retained
-/// and re-sent whole, and re-sending an already-applied event is a no-op.
-///
-/// The complete merge is one SurrealDB `UPSERT` statement. This matters because
-/// reclaim and direct store callers can update the same row concurrently even
-/// though the RocksDB directory itself has only one owning process.
+/// Every row is keyed by process_uuid, so replaying an already committed batch
+/// converges on the same records. A failed batch is rolled back in full and may
+/// be retried without exposing a committed prefix.
 pub struct SurrealProcessLedgerStore {
     storage: SurrealStorage,
 }
@@ -733,43 +741,56 @@ impl SurrealProcessLedgerStore {
         &self.storage
     }
 
-    async fn apply(
+    async fn write_batch_inner(
         &self,
-        record_id: String,
-        incoming: ProcessLifecycleRow,
-        kind: LedgerEventKind,
-        reclaim_claimed_at: Option<DateTime<Utc>>,
-        reclaim_expected_reason: Option<String>,
-        reclaim_expected_killed_reason: Option<String>,
+        events: Vec<LedgerEvent>,
+        failure_after: Option<usize>,
     ) -> Result<(), ProcessLedgerError> {
-        let exact_reclaim_stop = kind == LedgerEventKind::Stop && reclaim_claimed_at.is_some();
-        let bindings = ProcessApplyBindings {
-            record: RecordId::new(PROCESS_LEDGER_TABLE_NAME, record_id),
-            incoming,
-            is_start: kind == LedgerEventKind::Start,
-            reclaim_claimed_at,
-            reclaim_expected_reason,
-            reclaim_expected_killed_reason,
-        };
+        let events = events
+            .into_iter()
+            .enumerate()
+            .map(|(index, event)| match event {
+                LedgerEvent::Start(start) => ProcessBatchEvent {
+                    record: RecordId::new(
+                        PROCESS_LEDGER_TABLE_NAME,
+                        start.process_uuid.to_string(),
+                    ),
+                    incoming: ProcessLifecycleRow::from_start(&start),
+                    is_start: true,
+                    reclaim_claimed_at: None,
+                    reclaim_expected_reason: None,
+                    reclaim_expected_killed_reason: None,
+                    inject_failure: failure_after == Some(index),
+                },
+                LedgerEvent::Stop(stop) => ProcessBatchEvent {
+                    record: RecordId::new(PROCESS_LEDGER_TABLE_NAME, stop.process_uuid.to_string()),
+                    incoming: ProcessLifecycleRow::from_stop(&stop),
+                    is_start: false,
+                    reclaim_claimed_at: stop.reclaim_claimed_at,
+                    reclaim_expected_reason: stop.reclaim_expected_reason,
+                    reclaim_expected_killed_reason: stop.reclaim_expected_killed_reason,
+                    inject_failure: failure_after == Some(index),
+                },
+            })
+            .collect();
+        let bindings = ProcessBatchBindings { events };
         let outcome: Option<String> = self
             .storage
             .with_data_operation(move |database| {
                 Box::pin(async move {
-                    database
-                        .query_first(APPLY_PROCESS_EVENT_ATOMIC, bindings)
-                        .await
+                    Ok(database
+                        .query_values_at::<String, _>(APPLY_PROCESS_BATCH_ATOMIC, bindings, 3)
+                        .await?
+                        .into_iter()
+                        .next())
                 })
             })
             .await
             .map_err(ProcessLedgerError::from)?;
         match outcome.as_deref() {
-            Some("inserted" | "started" | "stopped" | "stopped_idempotent") => Ok(()),
-            Some("ignored_conflict") if !exact_reclaim_stop => Ok(()),
-            Some("ignored_conflict") => Err(ProcessLedgerError::Event(
-                "exact reclaim STOP did not own the current durable sentinel".to_owned(),
-            )),
+            Some("committed") => Ok(()),
             _ => Err(ProcessLedgerError::Event(format!(
-                "process lifecycle apply returned an invalid outcome: {outcome:?}"
+                "process lifecycle batch returned an invalid outcome: {outcome:?}"
             ))),
         }
     }
@@ -781,40 +802,9 @@ impl ProcessLedgerStore for SurrealProcessLedgerStore {
         if events.is_empty() {
             return Ok(());
         }
-        for event in events {
-            match event {
-                LedgerEvent::Start(start) => {
-                    self.apply(
-                        start.process_uuid.to_string(),
-                        ProcessLifecycleRow::from_start(&start),
-                        LedgerEventKind::Start,
-                        None,
-                        None,
-                        None,
-                    )
-                    .await?
-                }
-                LedgerEvent::Stop(stop) => {
-                    let reclaim_claimed_at = stop.reclaim_claimed_at;
-                    let reclaim_expected_reason = stop.reclaim_expected_reason.clone();
-                    let reclaim_expected_killed_reason =
-                        stop.reclaim_expected_killed_reason.clone();
-                    self.apply(
-                        stop.process_uuid.to_string(),
-                        ProcessLifecycleRow::from_stop(&stop),
-                        LedgerEventKind::Stop,
-                        reclaim_claimed_at,
-                        reclaim_expected_reason,
-                        reclaim_expected_killed_reason,
-                    )
-                    .await?
-                }
-            }
-        }
-        Ok(())
+        self.write_batch_inner(events, None).await
     }
 }
-
 #[cfg(test)]
 mod surreal_restart_tests {
     use super::*;
@@ -863,6 +853,74 @@ mod surreal_restart_tests {
             .await
             .expect("query process lifecycle")
             .expect("process lifecycle exists")
+    }
+
+    async fn process_row_exists(storage: &SurrealStorage, process_uuid: Uuid) -> bool {
+        let record_id = process_uuid.to_string();
+        storage
+            .with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .select_one::<ProcessLifecycleRow>(PROCESS_LEDGER_TABLE_NAME, &record_id)
+                        .await
+                })
+            })
+            .await
+            .expect("query process lifecycle visibility")
+            .is_some()
+    }
+
+    #[tokio::test]
+    async fn mt137_batch_failure_rolls_back_then_retry_survives_reopen() {
+        let directory = tempfile::tempdir().expect("temporary process-ledger root");
+        let path = directory.path().join("store");
+        let storage = open(&path).await;
+        let store = SurrealProcessLedgerStore::new(storage.clone());
+        let first = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-batch-first",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_mt_id("MT-137");
+        let second = ProcessStart::new(
+            ProcessEngineKind::HelperSubprocess,
+            "mt137-batch-second",
+            Some("WP-KERNEL-012".to_owned()),
+        )
+        .with_mt_id("MT-137");
+
+        store
+            .write_batch_inner(
+                vec![
+                    LedgerEvent::Start(first.clone()),
+                    LedgerEvent::Start(second.clone()),
+                ],
+                Some(1),
+            )
+            .await
+            .expect_err("injected second-row failure must abort the batch");
+        assert!(!process_row_exists(&storage, first.process_uuid).await);
+        assert!(!process_row_exists(&storage, second.process_uuid).await);
+
+        store
+            .write_batch(vec![
+                LedgerEvent::Start(first.clone()),
+                LedgerEvent::Start(second.clone()),
+            ])
+            .await
+            .expect("retry complete batch");
+        assert!(process_row_exists(&storage, first.process_uuid).await);
+        assert!(process_row_exists(&storage, second.process_uuid).await);
+
+        drop(store);
+        storage
+            .shutdown()
+            .await
+            .expect("close process-ledger store");
+        let reopened = open(&path).await;
+        assert!(process_row_exists(&reopened, first.process_uuid).await);
+        assert!(process_row_exists(&reopened, second.process_uuid).await);
+        reopened.shutdown().await.expect("close reopened store");
     }
 
     #[tokio::test]

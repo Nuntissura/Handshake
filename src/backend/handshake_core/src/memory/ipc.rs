@@ -368,6 +368,7 @@ fn suppression_payload(
         "reason": receipt.reason,
         "suppressed_at_utc": receipt.suppressed_at_utc,
         "audit_log": record.audit_log,
+        "record": record,
         "flight_recorder_event_id": receipt.flight_recorder_event_id,
     }))
     .map_err(|error| MemoryIpcError::Serialization(error.to_string()))

@@ -139,7 +139,7 @@ pub struct CalibrationSignalError {
     pub message: String,
 }
 
-/// Trait the collector consumes. Production can wire this to a Postgres-backed
+/// Trait the collector consumes. Production wires this to a SurrealDB-backed
 /// FEMS projection; tests inject a fixed metrics snapshot.
 pub trait FemsCalibrationSource: Send + Sync {
     fn calibration_metrics(&self) -> Result<CalibrationMetrics, CalibrationError>;
@@ -628,7 +628,7 @@ fn block_on_calibration<F: std::future::Future>(future: F) -> F::Output {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .expect("calibration Postgres adapter runtime")
+            .expect("calibration SurrealDB adapter runtime")
             .block_on(future)
     }
 }

@@ -18,7 +18,9 @@ pub mod writer;
 pub use checkpoint::{
     CheckpointStateKind, SessionCheckpoint, SessionCheckpointId, CHECKPOINT_MAX_BYTES,
 };
-pub use crash_recovery::{CrashRecoveryHarness, CrashRecoveryScenario, RecoveryEvidence};
+pub use crash_recovery::{
+    CrashRecoveryError, CrashRecoveryHarness, CrashRecoveryScenario, RecoveryEvidence,
+};
 pub use idempotency::{
     ApplyOutcome, IdempotencyKey, IdempotencyLedger, IdempotencyLedgerError, IdempotentApply,
     SideEffectKind,

@@ -115,7 +115,7 @@ pub struct ProceduralPromotion {
     pub candidate_at_utc: DateTime<Utc>,
 }
 
-/// FemsAccessor trait — production wires to Postgres-backed FEMS surface;
+/// FemsAccessor trait - production wires to the embedded SurrealDB FEMS surface;
 /// tests use an in-memory BitemporalIndex + per-item stats.
 pub trait FemsAccessor: Send + Sync {
     fn list_items(&self) -> Result<Vec<HygieneItemView>, HygieneError>;

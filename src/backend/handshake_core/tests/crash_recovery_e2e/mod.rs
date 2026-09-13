@@ -58,19 +58,19 @@ enum EvidenceScenario {
 }
 
 impl EvidenceScenario {
-    fn from_public(scenario: CrashRecoveryScenario) -> Self {
+    fn from_public(scenario: CrashRecoveryScenario) -> Result<Self, &'static str> {
         match scenario {
-            CrashRecoveryScenario::CleanShutdown => Self::CleanShutdown,
-            CrashRecoveryScenario::SigkillMidIteration => Self::SigkillMidIteration,
-            CrashRecoveryScenario::OrphanProcess => Self::OrphanProcess,
-            CrashRecoveryScenario::EventSeqGap => Self::EventSeqGap,
-            CrashRecoveryScenario::IdempotencyConflict => Self::IdempotencyConflict,
+            CrashRecoveryScenario::CleanShutdown => Ok(Self::CleanShutdown),
+            CrashRecoveryScenario::SigkillMidIteration => Ok(Self::SigkillMidIteration),
+            CrashRecoveryScenario::OrphanProcess => Ok(Self::OrphanProcess),
+            CrashRecoveryScenario::EventSeqGap => Ok(Self::EventSeqGap),
+            CrashRecoveryScenario::IdempotencyConflict => Ok(Self::IdempotencyConflict),
             CrashRecoveryScenario::OperatorCancelDuringRecovery => {
-                Self::OperatorCancelDuringRecovery
+                Ok(Self::OperatorCancelDuringRecovery)
             }
-            _ => panic!(
-                "external-backend scenarios are mapped explicitly by runtime_chaos::mt141_runtime_chaos_retirement_mappings_are_explicit"
-            ),
+            CrashRecoveryScenario::SurrealAuthorityLoss => {
+                Err("Surreal authority loss requires the executable embedded close/reopen harness")
+            }
         }
     }
 }
@@ -116,7 +116,8 @@ pub struct CanonicalRecoveryEvidence {
 }
 
 pub fn assert_scenario_matches_golden(scenario: CrashRecoveryScenario) {
-    let scenario = EvidenceScenario::from_public(scenario);
+    let scenario = EvidenceScenario::from_public(scenario)
+        .expect("golden evidence scenarios must have an exhaustive projection");
     let evidence = ScenarioHarness::new(scenario).run();
     assert_exact_counts(&evidence);
     let actual = serde_json::to_string_pretty(&evidence).unwrap();

@@ -5,7 +5,7 @@
 //! `memory_persistence_postgres_tests.rs`: that [`CapsuleRecorder`] bound to
 //! the production kernel-action adapter persists through the real
 //! EventLedger and dedupes on idempotency_key. The deleted tests bound to
-//! `PostgresKernelActionSubmitter` (`#[ignore]`d, required a live PostgreSQL
+//! `SurrealKernelActionSubmitter` against the embedded authority
 //! server); the drop-in production adapter today is
 //! [`SurrealKernelActionSubmitter`] (confirmed by its own in-source proof at
 //! `src/storage/surreal/mt136_kernel_action_submitter_proof.rs`, which
@@ -50,7 +50,7 @@ async fn capsule_recorder_persists_via_kernel_action_catalog_against_embedded_st
 
     // Bind the recorder to the real embedded-Surreal-backed kernel action
     // catalog dispatcher -- the production drop-in for the deleted
-    // `PostgresKernelActionSubmitter`.
+    // `SurrealKernelActionSubmitter`.
     let submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&db));
 
     // Sanity-check the catalog includes the memory_capsule.record action so the

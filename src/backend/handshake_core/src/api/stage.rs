@@ -448,9 +448,15 @@ pub(crate) fn capture_context(
         serde_json::to_vec(&binding.process_birth)
             .map_err(|_| CaptureContextFailure::InvalidSession)?,
     ));
-    let actor_id = format!("handshake-native:{}:{birth_fingerprint}", binding.pid);
-    let session_run_id = format!("native-mcp-session:{}:{birth_fingerprint}", binding.pid);
     let limiter_principal = hex::encode(Sha256::digest(binding.token.as_bytes()));
+    let actor_id = format!(
+        "handshake-native:{}:{birth_fingerprint}:{limiter_principal}",
+        binding.pid
+    );
+    let session_run_id = format!(
+        "native-mcp-session:{}:{birth_fingerprint}:{limiter_principal}",
+        binding.pid
+    );
     Ok(CaptureContext {
         actor_kind: "operator".to_owned(),
         actor: KernelActor::Operator(actor_id.clone()),

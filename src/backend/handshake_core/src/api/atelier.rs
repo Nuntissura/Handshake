@@ -37,8 +37,6 @@ use crate::atelier::{
 };
 use crate::AppState;
 
-const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
-
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/atelier/overview", get(overview))
@@ -203,14 +201,16 @@ fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
 }
 
 fn calling_actor(headers: &HeaderMap) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
-    header_str(headers, HSK_HEADER_ACTOR_ID)
-        .map(ToOwned::to_owned)
-        .ok_or((
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: "missing_actor",
-            }),
-        ))
+    super::stage::capture_context(headers)
+        .map(|context| context.actor_id)
+        .map_err(|_| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    error: "invalid_session",
+                }),
+            )
+        })
 }
 
 /// Map an `AtelierError` to an HTTP status, mirroring `workspaces.rs`
@@ -1157,8 +1157,20 @@ async fn list_stealth_windows(
 async fn resolve_stealth_ref(
     State(state): State<AppState>,
     Path((window_ref_id, ref_id)): Path<(Uuid, Uuid)>,
+    headers: HeaderMap,
 ) -> Result<Json<ResolvedContentRef>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
     let store = atelier_store(&state);
+    let window = store
+        .get_stealth_window(window_ref_id)
+        .await
+        .map_err(atelier_error)?;
+    if window.owner_actor != actor {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse { error: "not_found" }),
+        ));
+    }
     let resolved = store
         .resolve_stealth_ref(window_ref_id, ref_id)
         .await

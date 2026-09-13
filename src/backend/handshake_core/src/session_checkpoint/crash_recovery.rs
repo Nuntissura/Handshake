@@ -1,10 +1,10 @@
 //! MT-195 Crash recovery integration test harness module.
 //!
 //! Provides a `CrashRecoveryHarness` that drives one failure-mode scenario at
-//! a time. The full Postgres-backed harness lives in
-//! `tests/crash_recovery_e2e_postgres_tests.rs` and is `#[ignore]`-gated on
-//! `POSTGRES_TEST_URL`. This module owns the failure-mode taxonomy and a
-//! deterministic in-process simulator suitable for unit-level coverage.
+//! a time. Executable embedded-SurrealDB close/reopen coverage lives in
+//! `tests/crash_recovery_e2e/runtime_chaos.rs`. This module owns the
+//! failure-mode taxonomy and deterministic in-process coverage for scenarios
+//! that do not require taking the storage authority offline.
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ use super::restart::{RestartResumeOrchestrator, ResumableSession, ResumeReport};
 pub enum CrashRecoveryScenario {
     CleanShutdown,
     SigkillMidIteration,
-    PostgresLoss,
+    SurrealAuthorityLoss,
     OrphanProcess,
     EventSeqGap,
     IdempotencyConflict,
@@ -35,6 +35,12 @@ pub struct RecoveryEvidence {
 
 pub struct CrashRecoveryHarness {
     pub scenario: CrashRecoveryScenario,
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum CrashRecoveryError {
+    #[error("embedded SurrealDB authority is unavailable")]
+    AuthorityUnavailable,
 }
 
 struct HarnessBroker {
@@ -69,15 +75,18 @@ impl CrashRecoveryHarness {
     }
 
     /// Run the scenario through the in-process simulator and return the
-    /// recovery evidence. Real Postgres-backed scenarios run via the
-    /// `crash_recovery_e2e_postgres_tests` suite.
-    pub fn simulate(&self) -> RecoveryEvidence {
+    /// recovery evidence. Authority-loss scenarios must run through the real
+    /// embedded store close/reopen harness and fail closed here.
+    pub fn simulate(&self) -> Result<RecoveryEvidence, CrashRecoveryError> {
+        if self.scenario == CrashRecoveryScenario::SurrealAuthorityLoss {
+            return Err(CrashRecoveryError::AuthorityUnavailable);
+        }
         let broker = self.build_broker_for_scenario();
         let report = RestartResumeOrchestrator::run(&broker);
-        RecoveryEvidence {
+        Ok(RecoveryEvidence {
             scenario: self.scenario,
             report,
-        }
+        })
     }
 
     fn build_broker_for_scenario(&self) -> HarnessBroker {
@@ -93,7 +102,9 @@ impl CrashRecoveryHarness {
         let events = match self.scenario {
             CrashRecoveryScenario::CleanShutdown => vec![event(s, 1), event(s, 2)],
             CrashRecoveryScenario::SigkillMidIteration => vec![event(s, 1)],
-            CrashRecoveryScenario::PostgresLoss => vec![],
+            CrashRecoveryScenario::SurrealAuthorityLoss => {
+                unreachable!("authority loss is rejected before an in-memory broker is built")
+            }
             CrashRecoveryScenario::OrphanProcess => vec![event(s, 1)],
             CrashRecoveryScenario::EventSeqGap => vec![event(s, 1), event(s, 3)],
             CrashRecoveryScenario::IdempotencyConflict => vec![event(s, 1)],
@@ -124,7 +135,7 @@ mod tests {
     #[test]
     fn clean_shutdown_resumes_all() {
         let h = CrashRecoveryHarness::new(CrashRecoveryScenario::CleanShutdown);
-        let ev = h.simulate();
+        let ev = h.simulate().unwrap();
         assert_eq!(ev.report.sessions_resumed.len(), 1);
         assert!(ev.report.sessions_recovery_failed.is_empty());
     }
@@ -132,7 +143,13 @@ mod tests {
     #[test]
     fn event_seq_gap_marks_recovery_failed() {
         let h = CrashRecoveryHarness::new(CrashRecoveryScenario::EventSeqGap);
-        let ev = h.simulate();
+        let ev = h.simulate().unwrap();
         assert!(!ev.report.sessions_recovery_failed.is_empty());
+    }
+
+    #[test]
+    fn surreal_authority_loss_is_typed_and_never_empty_success() {
+        let h = CrashRecoveryHarness::new(CrashRecoveryScenario::SurrealAuthorityLoss);
+        assert_eq!(h.simulate(), Err(CrashRecoveryError::AuthorityUnavailable));
     }
 }

@@ -1,16 +1,16 @@
 //! MT-159 pinned core memory IPC.
 //!
-//! Pin/unpin/list commands are backed by the Postgres kernel event ledger via
-//! `PostgresKernelActionSubmitter`. There is no in-memory success path: if the
-//! app has not connected to Postgres, commands return a typed error instead of
+//! Pin/unpin/list commands are backed by the shared embedded SurrealDB kernel
+//! EventLedger. There is no in-memory success path: if the authority has not
+//! initialized, commands return a typed error instead of
 //! pretending that a pin was durable.
 
 use std::sync::Arc;
 
 use handshake_core::{
     memory::{
-        PinError, PinIpcService, PinReceipt, PinSubmitter, PinnedItem,
-        PostgresKernelActionSubmitter, SetPinRequest, PIN_MEMORY_ACTION_ID, UNPIN_MEMORY_ACTION_ID,
+        PinError, PinIpcService, PinReceipt, PinSubmitter, PinnedItem, SetPinRequest,
+        SurrealKernelActionSubmitter, PIN_MEMORY_ACTION_ID, UNPIN_MEMORY_ACTION_ID,
     },
     storage::Database,
 };
@@ -21,8 +21,8 @@ enum MemoryPinBackend {
     Unavailable {
         reason: String,
     },
-    Postgres {
-        submitter: Arc<PostgresKernelActionSubmitter>,
+    Surreal {
+        submitter: Arc<SurrealKernelActionSubmitter>,
     },
 }
 
@@ -34,28 +34,17 @@ impl Default for MemoryPinIpcState {
     fn default() -> Self {
         Self {
             backend: MemoryPinBackend::Unavailable {
-                reason: "Postgres memory pin state has not been initialized".to_string(),
+                reason: "embedded SurrealDB memory pin authority has not initialized".to_string(),
             },
         }
     }
 }
 
 impl MemoryPinIpcState {
-    pub fn with_postgres(db: Arc<dyn Database>) -> Self {
+    pub fn with_surreal(db: Arc<dyn Database>) -> Self {
         Self {
-            backend: MemoryPinBackend::Postgres {
-                submitter: Arc::new(PostgresKernelActionSubmitter::with_db(db)),
-            },
-        }
-    }
-
-    pub fn from_env_or_unavailable() -> Self {
-        match tauri::async_runtime::block_on(handshake_core::storage::init_storage()) {
-            Ok(db) => Self::with_postgres(db),
-            Err(error) => Self {
-                backend: MemoryPinBackend::Unavailable {
-                    reason: format!("Postgres memory pin state unavailable: {error}"),
-                },
+            backend: MemoryPinBackend::Surreal {
+                submitter: Arc::new(SurrealKernelActionSubmitter::with_db(db)),
             },
         }
     }
@@ -69,20 +58,20 @@ impl PinSubmitter for MemoryPinIpcState {
     fn set_pin(&self, item: PinnedItem) -> Result<PinReceipt, PinError> {
         match &self.backend {
             MemoryPinBackend::Unavailable { reason } => Err(PinError::Rejected {
-                code: "memory_pin_postgres_unavailable".to_string(),
+                code: "memory_pin_surreal_unavailable".to_string(),
                 reason: reason.clone(),
             }),
-            MemoryPinBackend::Postgres { submitter } => submitter.set_pin(item),
+            MemoryPinBackend::Surreal { submitter } => submitter.set_pin(item),
         }
     }
 
     fn list_pinned(&self) -> Result<Vec<PinnedItem>, PinError> {
         match &self.backend {
             MemoryPinBackend::Unavailable { reason } => Err(PinError::Rejected {
-                code: "memory_pin_postgres_unavailable".to_string(),
+                code: "memory_pin_surreal_unavailable".to_string(),
                 reason: reason.clone(),
             }),
-            MemoryPinBackend::Postgres { submitter } => submitter.list_pinned(),
+            MemoryPinBackend::Surreal { submitter } => submitter.list_pinned(),
         }
     }
 }

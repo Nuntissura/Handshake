@@ -42,9 +42,11 @@ pub use ipc::{
 pub use persistence::{
     CapsuleOutcome, CapsuleRecord, CapsuleRecorder, KernelActionRejection, KernelActionSubmission,
     KernelActionSubmitter, RecordReceipt, RecorderError, SurrealKernelActionSubmitter,
-    WriteBoxV1Envelope, KERNEL_ACTION_REQUEST_SCHEMA_ID, MEMORY_CAPSULE_RECORD_ACTION_ID,
-    MEMORY_CAPSULE_RECORD_INPUT_SCHEMA_ID, MEMORY_CAPSULE_RECORD_PAYLOAD_SCHEMA_ID,
-    MEMORY_WRITE_BOX_SCHEMA_ID, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
+    SurrealMemoryCapsuleStore, WriteBoxV1Envelope, KERNEL_ACTION_REQUEST_SCHEMA_ID,
+    MEMORY_CAPSULE_MANIFEST_AGGREGATE_ID, MEMORY_CAPSULE_MANIFEST_AGGREGATE_TYPE,
+    MEMORY_CAPSULE_RECORD_ACTION_ID, MEMORY_CAPSULE_RECORD_INPUT_SCHEMA_ID,
+    MEMORY_CAPSULE_RECORD_PAYLOAD_SCHEMA_ID, MEMORY_WRITE_BOX_SCHEMA_ID,
+    WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
 };
 pub use pinned_core::{
     PinError, PinIpcService, PinReceipt, PinSubmitter, PinnedBudget, PinnedCoreSelector,
