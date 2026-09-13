@@ -14,7 +14,7 @@ env:
   SYFT_VERSION: "0.105.0"
   SCANCODE_TOOLKIT_VERSION: "32.2.1"
   # Keep all Rust build/test artifacts out of the repo working tree.
-  CARGO_TARGET_DIR: "${{ github.workspace }}/../Handshake Artifacts/handshake-cargo-target"
+  CARGO_TARGET_DIR: "${{ github.workspace }}/../Handshake_Artifacts/ci/${{ github.run_id }}/${{ github.job }}/target"
   # The embedded SurrealDB test backend refuses to start without an absolute
   # artifacts root and confines every test store beneath it.
   HANDSHAKE_ARTIFACTS_ROOT: "${{ github.workspace }}/../Handshake_Artifacts"
@@ -366,17 +366,27 @@ jobs:
       - name: Install Linux build deps
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
-      # Deliberately scoped to the library and binaries plus the in-crate test
-      # layer. --all-targets would also compile src/backend/handshake_core/tests/**,
-      # which MT-141 owns and which does not currently compile at all: tempfile
-      # resolves to 3.27.0, where TempDir::from_path no longer exists
-      # (tests/atelier_surreal_support/mod.rs:124). Including it here would make
-      # this job report another microtask defect instead of the build result.
-      - name: Cross-platform build check (Linux)
-        run: cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --bins --all-features
+      - name: Assert integration-test target coverage is nonzero
+        run: |
+          set -euo pipefail
+          cargo metadata --manifest-path src/backend/handshake_core/Cargo.toml --no-deps --format-version 1 |
+            python3 -c 'import json,sys; p=json.load(sys.stdin); n=sum("test" in t["kind"] for x in p["packages"] for t in x["targets"]); print(f"integration_test_targets={n}"); sys.exit(0 if n > 0 else 1)'
 
-      - name: Cross-platform in-crate test-layer compile (Linux)
-        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --all-features --no-run
+      - name: Prove all-targets rejects an integration-test-only compile defect
+        run: |
+          set -euo pipefail
+          probe=src/backend/handshake_core/tests/mt147_all_targets_negative_probe.rs
+          trap 'rm -f "$probe"' EXIT
+          printf '%s\n' 'compile_error!("MT-147 intentional all-targets negative probe");' > "$probe"
+          if cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features; then
+            echo "all-targets unexpectedly ignored the integration-test-only compile defect" >&2
+            exit 1
+          fi
+          rm -f "$probe"
+          trap - EXIT
+
+      - name: Cross-platform all-targets all-features build check (Linux)
+        run: cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features
 
   traceability:
     runs-on: ubuntu-latest

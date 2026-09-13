@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 pub const TEST_STORE_ROOT_ENV: &str = "HANDSHAKE_SURREAL_TEST_STORE_ROOT";
 pub const TEST_STORE_STALE_AGE_MS_ENV: &str = "HANDSHAKE_SURREAL_TEST_STORE_STALE_AGE_MS";
+pub const ARTIFACTS_ROOT_ENV: &str = "HANDSHAKE_ARTIFACTS_ROOT";
 pub const DEFAULT_STALE_AGE: Duration = Duration::ZERO;
 
 const SCOPE_PREFIX: &str = "surreal-test-store-";
@@ -100,7 +101,7 @@ pub struct IsolatedSurrealTestStore {
 impl IsolatedSurrealTestStore {
     pub async fn create() -> io::Result<Self> {
         let minimum_age = configured_stale_age()?;
-        Self::create_in_with_policy(configured_test_store_root(), minimum_age).await
+        Self::create_in_with_policy(configured_test_store_root()?, minimum_age).await
     }
 
     pub async fn create_in(root: impl AsRef<Path>) -> io::Result<Self> {
@@ -311,11 +312,20 @@ fn storage_error(error: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::Other, error.to_string())
 }
 
-pub fn configured_test_store_root() -> PathBuf {
-    std::env::var_os(TEST_STORE_ROOT_ENV)
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir().join("handshake-surreal-test-stores"))
+pub fn configured_test_store_root() -> io::Result<PathBuf> {
+    if let Some(configured) =
+        std::env::var_os(TEST_STORE_ROOT_ENV).filter(|value| !value.is_empty())
+    {
+        return Ok(PathBuf::from(configured));
+    }
+    let root = canonical_artifacts_root()?
+        .join("WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1")
+        .join("MT-123")
+        .join("default-test-store");
+    // This is the only creation path: every component is a fixed child of the independently
+    // resolved canonical artifacts root. Explicit caller/env roots are never created here.
+    fs::create_dir_all(&root)?;
+    Ok(root)
 }
 
 fn configured_stale_age() -> io::Result<Duration> {
@@ -600,15 +610,95 @@ fn prepare_root(root: &Path) -> io::Result<PathBuf> {
             "test store root must not be empty",
         ));
     }
-    fs::create_dir_all(root)?;
-    let metadata = fs::symlink_metadata(root)?;
+    let artifacts_root = canonical_artifacts_root()?;
+    let requested = if root.is_absolute() {
+        root.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(root)
+    };
+    let metadata = fs::symlink_metadata(&requested)?;
     if !metadata.is_dir() || is_symlink_or_reparse(&metadata) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "test store root must be a real directory without a reparse boundary",
         ));
     }
-    dunce::canonicalize(root)
+    let canonical_root = dunce::canonicalize(&requested)?;
+    if canonical_root == artifacts_root || !canonical_root.starts_with(&artifacts_root) {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!(
+                "test store root {} is not a strict descendant of canonical {ARTIFACTS_ROOT_ENV} {}",
+                canonical_root.display(),
+                artifacts_root.display()
+            ),
+        ));
+    }
+
+    // Canonical containment alone is insufficient: a junction may resolve to another location that
+    // happens to remain under the artifacts root. Reject every lexical component that crosses a
+    // reparse boundary so the cleanup authority cannot be redirected after configuration.
+    let relative = requested.strip_prefix(&artifacts_root).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "test store root is not lexically contained by the canonical artifacts root",
+        )
+    })?;
+    let mut cursor = artifacts_root.clone();
+    for component in relative.components() {
+        let std::path::Component::Normal(name) = component else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "test store root contains a non-normal path component",
+            ));
+        };
+        cursor.push(name);
+        let component_metadata = fs::symlink_metadata(&cursor)?;
+        if is_symlink_or_reparse(&component_metadata) {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                format!(
+                    "test store root crosses a reparse boundary at {}",
+                    cursor.display()
+                ),
+            ));
+        }
+    }
+    Ok(canonical_root)
+}
+
+pub fn canonical_artifacts_root_for_proof() -> io::Result<PathBuf> {
+    canonical_artifacts_root()
+}
+
+fn canonical_artifacts_root() -> io::Result<PathBuf> {
+    let configured = std::env::var_os(ARTIFACTS_ROOT_ENV)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .ancestors()
+                .nth(3)
+                .expect("handshake_core manifest remains below the repository root");
+            repo_root
+                .parent()
+                .unwrap_or(repo_root)
+                .join("Handshake_Artifacts")
+        });
+    if !configured.is_absolute() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{ARTIFACTS_ROOT_ENV} must be an absolute existing directory"),
+        ));
+    }
+    let metadata = fs::symlink_metadata(&configured)?;
+    if !metadata.is_dir() || is_symlink_or_reparse(&metadata) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{ARTIFACTS_ROOT_ENV} must name a real directory, not a reparse boundary"),
+        ));
+    }
+    dunce::canonicalize(configured)
 }
 
 fn validate_scope(root: &Path, scope_path: &Path, identity: &StoreIdentity) -> Result<(), String> {

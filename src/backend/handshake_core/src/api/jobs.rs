@@ -389,12 +389,10 @@ mod tests {
     use std::sync::Arc;
     use tokio::time::{sleep, timeout, Duration};
 
-    /// WP-KERNEL-012 MT-144. Was `Option<AppState>` gated on
-    /// `optional_postgres_backend_with_pool_from_env`, which returned `None` when no PostgreSQL was
-    /// reachable so every test below silently returned Ok(()). PostgreSQL is gone, and
-    /// `embedded_test_backend` creates its own isolated store, so there is nothing left to resolve
-    /// and nothing left to skip: these tests now either prove behaviour against a real engine or
-    /// fail. That is a STRENGTHENING, not a port-for-port translation.
+    /// WP-KERNEL-012 MT-144. This helper is unconditional: `embedded_test_backend` creates its own
+    /// isolated authoritative store, so there is nothing to resolve and nothing to skip. These
+    /// tests either prove behavior against the real embedded engine or fail. That is a
+    /// strengthening rather than a port-for-port translation.
     /// The `EmbeddedTestBackend` is RETURNED so the caller owns the store for the test's lifetime;
     /// dropping it here closes the database (WP-KERNEL-012 MT-144).
     async fn setup_state(

@@ -280,6 +280,145 @@ fn platform_process_birth_identity(_pid: u32) -> Option<ProcessBirthIdentity> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BindingError(pub String);
 
+#[cfg(windows)]
+fn win32_full_verbatim_path(
+    path: &std::path::Path,
+    operand: &'static str,
+) -> std::io::Result<Vec<u16>> {
+    use std::os::windows::ffi::OsStrExt as _;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetFullPathNameW(
+            file_name: *const u16,
+            buffer_length: u32,
+            buffer: *mut u16,
+            file_part: *mut *mut u16,
+        ) -> u32;
+    }
+
+    let mut input = path.as_os_str().encode_wide().collect::<Vec<_>>();
+    if input.contains(&0) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("{operand} MoveFileExW operand contains an interior NUL"),
+        ));
+    }
+    input.push(0);
+
+    // First pass asks Win32 for the required UTF-16 capacity. The second pass resolves an absolute,
+    // dot-segment-normalized path even when the destination does not exist.
+    let required = unsafe {
+        GetFullPathNameW(
+            input.as_ptr(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+    if required == 0 {
+        return Err(std::io::Error::new(
+            std::io::Error::last_os_error().kind(),
+            format!(
+                "resolve {operand} MoveFileExW operand {} with GetFullPathNameW: {}",
+                path.display(),
+                std::io::Error::last_os_error()
+            ),
+        ));
+    }
+    let mut output = vec![0_u16; required as usize];
+    loop {
+        let written = unsafe {
+            GetFullPathNameW(
+                input.as_ptr(),
+                u32::try_from(output.len()).map_err(|_| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        format!("{operand} MoveFileExW operand is too long for Win32"),
+                    )
+                })?,
+                output.as_mut_ptr(),
+                std::ptr::null_mut(),
+            )
+        };
+        if written == 0 {
+            let error = std::io::Error::last_os_error();
+            return Err(std::io::Error::new(
+                error.kind(),
+                format!(
+                    "resolve {operand} MoveFileExW operand {} with GetFullPathNameW: {error}",
+                    path.display()
+                ),
+            ));
+        }
+        if written as usize >= output.len() {
+            output.resize(written as usize + 1, 0);
+            continue;
+        }
+        output.truncate(written as usize);
+        return win32_apply_verbatim_prefix(output, operand);
+    }
+}
+
+#[cfg(windows)]
+fn win32_apply_verbatim_prefix(
+    mut absolute: Vec<u16>,
+    operand: &'static str,
+) -> std::io::Result<Vec<u16>> {
+    const BACKSLASH: u16 = b'\\' as u16;
+    const SLASH: u16 = b'/' as u16;
+    const COLON: u16 = b':' as u16;
+    const VERBATIM: &[u16] = &[BACKSLASH, BACKSLASH, b'?' as u16, BACKSLASH];
+    const DEVICE: &[u16] = &[BACKSLASH, BACKSLASH, b'.' as u16, BACKSLASH];
+    const UNC: &[u16] = &[BACKSLASH, BACKSLASH];
+    const VERBATIM_UNC: &[u16] = &[
+        BACKSLASH,
+        BACKSLASH,
+        b'?' as u16,
+        BACKSLASH,
+        b'U' as u16,
+        b'N' as u16,
+        b'C' as u16,
+        BACKSLASH,
+    ];
+
+    for unit in &mut absolute {
+        if *unit == SLASH {
+            *unit = BACKSLASH;
+        }
+    }
+    if absolute.starts_with(DEVICE) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("{operand} MoveFileExW operand resolved to an unsupported device path"),
+        ));
+    }
+    let mut result = if absolute.starts_with(VERBATIM) {
+        absolute
+    } else if absolute.starts_with(UNC) {
+        VERBATIM_UNC
+            .iter()
+            .copied()
+            .chain(absolute[UNC.len()..].iter().copied())
+            .collect()
+    } else if absolute.len() >= 3
+        && absolute[1] == COLON
+        && absolute[2] == BACKSLASH
+        && (absolute[0] as u8).is_ascii_alphabetic()
+    {
+        VERBATIM.iter().copied().chain(absolute).collect()
+    } else {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!(
+                "{operand} MoveFileExW operand did not resolve to a drive, UNC, or verbatim path"
+            ),
+        ));
+    };
+    result.push(0);
+    Ok(result)
+}
+
 impl std::fmt::Display for BindingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "mcp binding: {}", self.0)
@@ -423,8 +562,6 @@ fn atomic_replace(path: &std::path::Path, bytes: &[u8]) -> Result<(), BindingErr
 
     #[cfg(windows)]
     let replace_result = {
-        use std::os::windows::ffi::OsStrExt as _;
-
         #[link(name = "kernel32")]
         extern "system" {
             fn MoveFileExW(existing: *const u16, replacement: *const u16, flags: u32) -> i32;
@@ -447,57 +584,23 @@ fn atomic_replace(path: &std::path::Path, bytes: &[u8]) -> Result<(), BindingErr
         // 260 for a 5-digit PID — and Windows test PIDs are 5-6 digits. The affected binaries carry
         // NO application manifest at all, so machine-wide LongPathsEnabled cannot rescue them.
         //
-        // `verbatim_wide` canonicalizes to absolute first (a relative path cannot take the prefix)
-        // and only then applies it, so a caller-supplied relative root behaves the same as an
-        // absolute one.
-        fn verbatim_wide(path: &std::path::Path) -> Vec<u16> {
-            let absolute = path
-                .canonicalize()
-                .unwrap_or_else(|_| match std::env::current_dir() {
-                    Ok(cwd) if path.is_relative() => cwd.join(path),
-                    _ => path.to_path_buf(),
-                });
-            // Verbatim (`\\?\`) paths are passed to the object manager with NO normalization: Win32
-            // does not translate `/` to `\` inside them, and a mixed-separator verbatim path is
-            // simply invalid. A caller-supplied root can legitimately use forward slashes (an env
-            // var like `D:/hsk-bind/...`), and `canonicalize` only fixes that when the path already
-            // exists — which the DESTINATION does not on a first publish. Normalize before
-            // prefixing, or the prefix turns a working path into a broken one.
-            let text = absolute
-                .as_os_str()
-                .to_string_lossy()
-                .replace('/', r"\");
-            let prefixed = if text.starts_with(r"\\?\") {
-                text
-            } else if let Some(unc) = text.strip_prefix(r"\\") {
-                format!(r"\\?\UNC\{unc}")
-            } else {
-                format!(r"\\?\{text}")
+        (|| -> std::io::Result<()> {
+            let from = win32_full_verbatim_path(&temp, "source")?;
+            let to = win32_full_verbatim_path(path, "destination")?;
+            // SAFETY: both pointers reference NUL-terminated UTF-16 buffers for the duration of the call.
+            let replaced = unsafe {
+                MoveFileExW(
+                    from.as_ptr(),
+                    to.as_ptr(),
+                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+                ) != 0
             };
-            std::ffi::OsStr::new(&prefixed)
-                .encode_wide()
-                .chain(Some(0))
-                .collect()
-        }
-
-        // The temp file exists at this point, so `canonicalize` resolves it. The destination may or
-        // may not exist yet, which is exactly why `verbatim_wide` falls back to joining the CWD
-        // instead of requiring the path to be present.
-        let from: Vec<u16> = verbatim_wide(&temp);
-        let to: Vec<u16> = verbatim_wide(path);
-        // SAFETY: both pointers reference NUL-terminated UTF-16 buffers for the duration of the call.
-        let replaced = unsafe {
-            MoveFileExW(
-                from.as_ptr(),
-                to.as_ptr(),
-                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
-            ) != 0
-        };
-        if replaced {
-            Ok(())
-        } else {
-            Err(std::io::Error::last_os_error())
-        }
+            if replaced {
+                Ok(())
+            } else {
+                Err(std::io::Error::last_os_error())
+            }
+        })()
     };
 
     #[cfg(not(windows))]
@@ -1074,10 +1177,14 @@ mod tests {
         // cleanup resolves against the operator REAL app-data path instead of the test root.
         let written = write_binding(&binding)
             .expect("MT-129: publishing under a >MAX_PATH root must succeed");
-        assert!(written.exists(), "binding file exists after a long-path write");
-        let read_back: McpBinding =
-            serde_json::from_str(&std::fs::read_to_string(&written).expect("read long-path binding"))
-                .expect("parse long-path binding");
+        assert!(
+            written.exists(),
+            "binding file exists after a long-path write"
+        );
+        let read_back: McpBinding = serde_json::from_str(
+            &std::fs::read_to_string(&written).expect("read long-path binding"),
+        )
+        .expect("parse long-path binding");
         assert_eq!(read_back, binding);
 
         remove_binding(&binding).expect("remove long-path binding");
@@ -1087,5 +1194,33 @@ mod tests {
             None => std::env::remove_var(var),
         }
         let _ = std::fs::remove_dir_all(&deep);
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn verbatim_prefix_preserves_utf16_and_normalizes_drive_and_unc_forms() {
+        use std::os::windows::ffi::OsStringExt as _;
+
+        let drive =
+            win32_full_verbatim_path(std::path::Path::new(r"C:\hsk\.\one\..\two"), "source")
+                .expect("normalize nonexistent drive operand");
+        let drive_text = std::ffi::OsString::from_wide(&drive[..drive.len() - 1]);
+        assert_eq!(drive_text, std::ffi::OsString::from(r"\\?\C:\hsk\two"));
+
+        let unc = win32_full_verbatim_path(
+            std::path::Path::new(r"\\server\share\hsk\.\one\..\two"),
+            "destination",
+        )
+        .expect("normalize nonexistent UNC operand");
+        let unc_text = std::ffi::OsString::from_wide(&unc[..unc.len() - 1]);
+        assert_eq!(
+            unc_text,
+            std::ffi::OsString::from(r"\\?\UNC\server\share\hsk\two")
+        );
+
+        let non_unicode = vec![b'C' as u16, b':' as u16, b'\\' as u16, 0xd800];
+        let prefixed = win32_apply_verbatim_prefix(non_unicode, "source")
+            .expect("prefixing stays entirely in UTF-16");
+        assert_eq!(prefixed[prefixed.len() - 2], 0xd800);
     }
 }

@@ -390,11 +390,16 @@ fn palmistry_tier_three_evidence_record_is_well_formed() {
         "palmistry_tier3_freeze_crash_capture",
         handshake_diag_ring::run_at_now(),
         vec![
-            // FR forward needs a managed backend -> DEFERRED honestly (NEEDS_MANAGED_RESOURCE_PROOF).
+            // FR forwarding remains fail-closed until the survivor-compatible scoped ingestion
+            // boundary is implemented. Persistence itself is the managed SurrealDB/EventLedger.
             TierWiring::deferred(
                 DiagTier::FlightRecorder,
-                "FR-forward live round-trip needs managed PostgreSQL/backend (gated requires_pg, \
-                 NEEDS_MANAGED_RESOURCE_PROOF); the kept-as-is route returns a typed blocker (AC-016-6)",
+                "FR-forward is fail-closed because the legacy unscoped ingestion route was removed \
+                 and Palmistry has no live workspace-scoped native-MCP credential while Handshake \
+                 is frozen or dead; WP-KERNEL-016 owns the survivor-compatible ingestion boundary. \
+                 Managed persistence authority is SurrealDB/EventLedger \
+                 (NEEDS_MANAGED_RESOURCE_PROOF); the current path returns SchemaIncompatible \
+                 before network access (AC-016-6)",
             ),
             // The Tier-2 internal_diagnostics writer is proven on the handshake-native capstone side.
             TierWiring::not_applicable(
@@ -421,6 +426,29 @@ fn palmistry_tier_three_evidence_record_is_well_formed() {
         written.exists(),
         "the three-tier evidence file was written externally"
     );
+    let serialized = std::fs::read_to_string(&written)
+        .expect("read emitted Palmistry three-tier evidence as serialized JSON");
+    assert!(
+        serialized.contains("SurrealDB/EventLedger")
+            && serialized.contains("workspace-scoped native-MCP credential")
+            && serialized.contains("WP-KERNEL-016")
+            && serialized.contains("SchemaIncompatible"),
+        "serialized Palmistry evidence must name the current authority, blocker, owner, and typed failure: {serialized}"
+    );
+    for forbidden in [
+        "PostgreSQL",
+        "postgresql",
+        "SQLite",
+        "sqlite",
+        "requires_pg",
+        "postgres://",
+        "postgresql://",
+    ] {
+        assert!(
+            !serialized.contains(forbidden),
+            "serialized operative tier evidence retained forbidden backend/proof vocabulary {forbidden:?}: {serialized}"
+        );
+    }
     println!(
         "MT-096 Palmistry three-tier evidence: {}",
         std::fs::canonicalize(&written)

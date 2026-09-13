@@ -7,8 +7,9 @@ use std::process::Stdio;
 use std::time::{Duration, Instant};
 
 use surreal_test_store_support::{
-    measure_owned_scopes, remaining_leak_modes, sweep_stale_orphans, IsolatedSurrealTestStore,
-    TEST_STORE_ROOT_ENV, TEST_STORE_STALE_AGE_MS_ENV,
+    canonical_artifacts_root_for_proof, measure_owned_scopes, remaining_leak_modes,
+    sweep_stale_orphans, IsolatedSurrealTestStore, TEST_STORE_ROOT_ENV,
+    TEST_STORE_STALE_AGE_MS_ENV,
 };
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -21,9 +22,19 @@ const CHILD_SCOPE_PREFIX: &str = "SURREAL_TEST_STORE_SCOPE=";
 const CHILD_BACKLOG_STALE_AGE_MS: &str = "3600000";
 const LIVE_WORKSPACE_PROBE_NAME: &str = "live-owner-populated-workspace";
 
+fn isolated_test_root(label: &str) -> tempfile::TempDir {
+    tempfile::Builder::new()
+        .prefix(label)
+        .tempdir_in(
+            canonical_artifacts_root_for_proof()
+                .expect("canonical HANDSHAKE_ARTIFACTS_ROOT must already exist"),
+        )
+        .expect("create MT-123 root below canonical HANDSHAKE_ARTIFACTS_ROOT")
+}
+
 #[tokio::test]
 async fn graceful_shutdown_removes_the_owned_scope() {
-    let root = tempfile::tempdir().expect("create isolated test root");
+    let root = isolated_test_root("mt123-graceful-");
     let store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open real isolated embedded store");
@@ -41,7 +52,7 @@ async fn graceful_shutdown_removes_the_owned_scope() {
 #[tokio::test]
 #[cfg(windows)]
 async fn parallel_sweep_skips_a_live_owner() {
-    let root = tempfile::tempdir().expect("create isolated test root");
+    let root = isolated_test_root("mt123-live-");
     let store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open real isolated embedded store");
@@ -116,7 +127,7 @@ async fn mt123_surreal_test_store_child_holds_owner_marker() {
 #[tokio::test]
 #[cfg(windows)]
 async fn killed_child_orphan_is_reclaimed_without_touching_live_owners() {
-    let root = tempfile::tempdir().expect("create isolated test root");
+    let root = isolated_test_root("mt123-killed-");
     let live_store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open parallel live embedded store");
@@ -226,7 +237,7 @@ async fn spawn_and_kill_owned_store(
 #[cfg(windows)]
 async fn plain_drop_and_caught_unwind_retain_ownership_until_process_exit() {
     for child_mode in [CHILD_MODE_DROP_GUARD, CHILD_MODE_PANIC_GUARD] {
-        let root = tempfile::tempdir().expect("create drop-guard subprocess root");
+        let root = isolated_test_root("mt123-drop-");
         let scope = spawn_and_kill_owned_store(root.path(), child_mode).await;
         let report = sweep_stale_orphans(root.path(), Duration::ZERO)
             .expect("reclaim drop-guard scope after child process exits");
@@ -238,7 +249,7 @@ async fn plain_drop_and_caught_unwind_retain_ownership_until_process_exit() {
 #[tokio::test]
 #[cfg(windows)]
 async fn interrupted_quarantine_is_recovered_by_the_next_normal_creation() {
-    let root = tempfile::tempdir().expect("create quarantine-recovery root");
+    let root = isolated_test_root("mt123-quarantine-");
     let quarantine = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open real embedded store")
@@ -264,7 +275,7 @@ async fn interrupted_quarantine_is_recovered_by_the_next_normal_creation() {
 #[tokio::test]
 #[cfg(windows)]
 async fn live_quarantine_keeps_its_marker_until_owner_release() {
-    let root = tempfile::tempdir().expect("create live-quarantine root");
+    let root = isolated_test_root("mt123-live-quarantine-");
     let mut store = IsolatedSurrealTestStore::create_in_without_bootstrap_for_proof(root.path())
         .await
         .expect("open real embedded store");
@@ -300,8 +311,8 @@ async fn live_quarantine_keeps_its_marker_until_owner_release() {
 #[test]
 #[cfg(windows)]
 fn reparse_candidate_is_rejected_and_external_content_survives() {
-    let root = tempfile::tempdir().expect("create isolated test root");
-    let outside = tempfile::tempdir().expect("create external sentinel root");
+    let root = isolated_test_root("mt123-nested-reparse-");
+    let outside = isolated_test_root("mt123-reparse-target-");
     let sentinel = outside.path().join("must-survive.txt");
     std::fs::write(&sentinel, b"untouched").expect("write external sentinel");
     let runtime = tokio::runtime::Runtime::new().expect("create proof runtime");
@@ -331,6 +342,63 @@ fn reparse_candidate_is_rejected_and_external_content_survives() {
     let cleanup = sweep_stale_orphans(root.path(), Duration::ZERO)
         .expect("reclaim valid scope after removing reparse boundary");
     assert_eq!(cleanup.reclaimed, vec![scope]);
+}
+
+#[test]
+fn arbitrary_outside_root_is_rejected_without_touching_a_sentinel() {
+    let outside_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let sentinel = outside_root.join("Cargo.toml");
+    let before = std::fs::read(&sentinel).expect("read immutable outside-root sentinel");
+
+    let error = sweep_stale_orphans(outside_root, Duration::ZERO)
+        .expect_err("cleanup authority must reject the repository outside artifacts");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+    assert_eq!(
+        std::fs::read(&sentinel).expect("re-read outside-root sentinel"),
+        before,
+        "outside-root rejection must occur before any mutation"
+    );
+}
+
+#[test]
+fn nonexistent_cleanup_root_is_rejected_without_creating_it() {
+    let envelope = isolated_test_root("mt123-nonexistent-");
+    let missing = envelope.path().join("must-not-be-created");
+
+    let error = sweep_stale_orphans(&missing, Duration::ZERO)
+        .expect_err("a nonexistent cleanup root must be rejected");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+    assert!(
+        !missing.exists(),
+        "validation must not create the cleanup root"
+    );
+}
+
+#[test]
+#[cfg(windows)]
+fn reparse_cleanup_root_is_rejected_even_when_its_target_is_contained() {
+    let envelope = isolated_test_root("mt123-root-reparse-");
+    let target = envelope.path().join("contained-target");
+    std::fs::create_dir(&target).expect("create contained reparse target");
+    let sentinel = target.join("must-survive.txt");
+    std::fs::write(&sentinel, b"untouched").expect("write contained target sentinel");
+    let candidate = envelope.path().join("cleanup-root-junction");
+    create_directory_reparse(&target, &candidate);
+
+    let error = sweep_stale_orphans(&candidate, Duration::ZERO)
+        .expect_err("cleanup root must reject a junction before traversal");
+
+    assert!(matches!(
+        error.kind(),
+        std::io::ErrorKind::InvalidInput | std::io::ErrorKind::PermissionDenied
+    ));
+    assert_eq!(
+        std::fs::read(&sentinel).expect("read target sentinel after rejection"),
+        b"untouched"
+    );
+    std::fs::remove_dir(&candidate).expect("remove proof junction without following it");
 }
 
 #[cfg(windows)]
@@ -365,7 +433,7 @@ async fn bounded_backlog_recovery_records_counts_bytes_and_open_timings() {
     const BACKLOG_SIZE: usize = 3;
     const OPEN_BOUND: Duration = Duration::from_secs(120);
 
-    let root = tempfile::tempdir().expect("create isolated backlog root");
+    let root = isolated_test_root("mt123-backlog-");
     let mut first_cold_open = None;
     for _ in 0..BACKLOG_SIZE {
         let started = Instant::now();
