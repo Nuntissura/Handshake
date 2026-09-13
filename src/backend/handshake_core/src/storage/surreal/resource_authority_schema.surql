@@ -199,8 +199,9 @@ DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, 
               AND delegation_chain = $auth.delegation_chain)) > 0;
 };
 
-DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string) {
+DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $action: string, $capability: string) {
     RETURN fn::mt109_live_session()
+        AND (array::includes($auth.delegated_capabilities, '*') OR array::includes($auth.delegated_capabilities, $capability))
         AND array::len((SELECT id FROM resource_grants
             WHERE status = 'active'
               AND revoked_at = NONE
@@ -211,7 +212,10 @@ DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string) {
               AND resource_id.lifecycle_state = 'active'
               AND resource_id.owner_account_id = $auth.account_id
               AND resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = 'workspace'
               AND resource_id.external_resource_id = $external
+              AND array::includes(actions, $action)
+              AND array::includes(capability_ids, $capability)
               AND delegation_chain = $auth.delegation_chain)) > 0;
 };
 
@@ -239,7 +243,7 @@ DEFINE FUNCTION OVERWRITE fn::mt109_ledger_access($resource: option<record<prote
 };
 
 DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id)) FOR create, update, delete NONE;
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') FOR create, update, delete NONE;
 
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
     PERMISSIONS FOR select WHERE fn::mt109_ledger_access(authority_resource_id, authority_session_id, authority_capability_id, 'read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'fr.ingest.native_editor') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'memory.commit')
@@ -275,4 +279,7 @@ DEFINE TABLE OVERWRITE fems_memory_lifecycle_fr_outbox SCHEMAFULL
     PERMISSIONS FOR select, create, update WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'create', 'memory.propose') OR fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.review') OR fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.commit') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(workspace_id), 'reconcile', 'memory.commit')
                 FOR delete NONE;
 DEFINE TABLE OVERWRITE fems_workspace_write_anchors SCHEMAFULL
-    PERMISSIONS FOR select, create, update WHERE fn::mt109_has_workspace_access(workspace_key) FOR delete NONE;
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(workspace_key, 'read', 'memory.read') OR fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.propose') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.review') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.commit')
+                FOR create WHERE fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.propose') OR fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.commit')
+                FOR update WHERE fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.review') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.commit')
+                FOR delete NONE;

@@ -399,7 +399,7 @@ impl SurrealStorage {
                              LET $existing_space = (SELECT id FROM access_spaces WHERE account_id = $resolved_account AND space_key = $space_key LIMIT 1);\n\
                              IF array::len($existing_space) = 0 { CREATE $space SET space_key = $space_key, account_id = $resolved_account, name = $space_key, status = 'active', revocation_epoch = 0, policy_version = 1, created_at = $now, updated_at = $now; };\n\
                              COMMIT TRANSACTION;\n\
-                             SELECT account_id, id AS principal_id, (SELECT VALUE id FROM access_spaces WHERE account_id = $parent.account_id AND space_key = $space_key LIMIT 1)[0] AS access_space_id FROM principals WHERE principal_key = $principal_key LIMIT 1;",
+                             SELECT account_id, id AS principal_id, (SELECT VALUE id FROM access_spaces WHERE account_id.account_key = $account_key AND space_key = $space_key LIMIT 1)[0] AS access_space_id FROM principals WHERE principal_key = $principal_key AND account_id.account_key = $account_key LIMIT 1;",
                         )
                         .bind(("account", account))
                         .bind(("principal", principal))
