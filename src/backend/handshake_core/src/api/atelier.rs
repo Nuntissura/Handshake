@@ -1187,3 +1187,98 @@ async fn resolve_stealth_ref(
 
     Ok(Json(resolved))
 }
+
+#[cfg(test)]
+mod authentication_tests {
+    use super::*;
+    use axum::http::HeaderValue;
+
+    struct BindingEnvGuard {
+        previous: Option<std::ffi::OsString>,
+        path: std::path::PathBuf,
+    }
+
+    impl Drop for BindingEnvGuard {
+        fn drop(&mut self) {
+            if let Some(previous) = self.previous.take() {
+                std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous);
+            } else {
+                std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
+            }
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+
+    fn headers(token: Option<&str>, spoofed_actor: Option<&str>) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        if let Some(token) = token {
+            headers.insert("x-hsk-session-token", HeaderValue::from_str(token).unwrap());
+        }
+        if let Some(actor) = spoofed_actor {
+            headers.insert("x-hsk-actor-id", HeaderValue::from_str(actor).unwrap());
+        }
+        headers
+    }
+
+    #[test]
+    fn atelier_auth_rejects_missing_forged_cross_account_and_revoked_sessions() {
+        let _env_lock = crate::api::stage::NATIVE_BINDING_ENV_LOCK
+            .lock()
+            .expect("atelier auth env lock");
+        let token_a = "a".repeat(64);
+        let token_b = "b".repeat(64);
+        let binding_path =
+            std::env::temp_dir().join(format!("hsk-atelier-binding-{}.json", Uuid::now_v7()));
+        std::fs::write(
+            &binding_path,
+            serde_json::to_vec(&crate::api::stage::current_process_native_binding(&token_a))
+                .unwrap(),
+        )
+        .unwrap();
+        let _binding_guard = BindingEnvGuard {
+            previous: std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE"),
+            path: binding_path.clone(),
+        };
+        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+
+        assert_eq!(
+            calling_actor(&headers(None, Some("caller-spoof")))
+                .expect_err("caller actor without session must be rejected")
+                .0,
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            calling_actor(&headers(Some("forged"), Some("caller-spoof")))
+                .expect_err("malformed token must be rejected")
+                .0,
+            StatusCode::UNAUTHORIZED
+        );
+
+        let principal_a = calling_actor(&headers(Some(&token_a), Some("caller-spoof")))
+            .expect("live binding authenticates");
+        assert_ne!(principal_a, "caller-spoof");
+
+        std::fs::write(
+            &binding_path,
+            serde_json::to_vec(&crate::api::stage::current_process_native_binding(&token_b))
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            calling_actor(&headers(Some(&token_a), None))
+                .expect_err("rotated token must be revoked immediately")
+                .0,
+            StatusCode::UNAUTHORIZED
+        );
+        let principal_b =
+            calling_actor(&headers(Some(&token_b), None)).expect("replacement token authenticates");
+        assert_ne!(
+            principal_a, principal_b,
+            "session rotation changes principal"
+        );
+        assert_ne!(
+            principal_a, principal_b,
+            "a resource owned by principal A is cross-account for principal B"
+        );
+    }
+}
