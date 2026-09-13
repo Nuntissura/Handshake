@@ -533,17 +533,82 @@ fn resolve_backend_binary() -> PathBuf {
         Some(executable_name),
         "HSK_TEST_BACKEND_BIN must name the handshake_core product executable"
     );
-    let target = Path::new("../../../../Handshake_Artifacts/handshake-cargo-target")
-        .canonicalize()
-        .expect("canonicalize configured canonical Cargo target");
-    assert!(
-        binary.starts_with(&target),
-        "HSK_TEST_BACKEND_BIN {} is outside configured canonical Cargo target {}",
-        binary.display(),
-        target.display()
-    );
+    let configured_target = std::env::var_os("HSK_TEST_BACKEND_TARGET_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            panic!(
+                "owned backend requires explicit HSK_TEST_BACKEND_TARGET_ROOT for its isolated WP/MT/owner build"
+            )
+        });
+    let target = configured_target.canonicalize().unwrap_or_else(|error| {
+        panic!(
+            "canonicalize HSK_TEST_BACKEND_TARGET_ROOT {}: {error}",
+            configured_target.display()
+        )
+    });
+    let configured_artifacts = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| panic!("owned backend requires explicit HANDSHAKE_ARTIFACTS_ROOT"));
+    let artifacts = configured_artifacts.canonicalize().unwrap_or_else(|error| {
+        panic!(
+            "canonicalize HANDSHAKE_ARTIFACTS_ROOT {}: {error}",
+            configured_artifacts.display()
+        )
+    });
+    validate_canonical_backend_binary_location(&binary, &target, &artifacts)
+        .unwrap_or_else(|error| panic!("invalid isolated backend target: {error}"));
     assert_backend_binary_is_current_source(&binary);
     binary
+}
+
+fn validate_canonical_backend_binary_location(
+    binary: &Path,
+    target: &Path,
+    artifacts: &Path,
+) -> Result<(), String> {
+    if target == artifacts || !target.starts_with(artifacts) {
+        return Err(format!(
+            "HSK_TEST_BACKEND_TARGET_ROOT {} is not a strict descendant of HANDSHAKE_ARTIFACTS_ROOT {}",
+            target.display(),
+            artifacts.display()
+        ));
+    }
+
+    let relative_target = target
+        .strip_prefix(artifacts)
+        .map_err(|_| "backend target escaped the artifact root".to_owned())?;
+    let components = relative_target
+        .components()
+        .map(|component| {
+            component.as_os_str().to_str().ok_or_else(|| {
+                format!(
+                    "backend target component is not valid UTF-8: {}",
+                    component.as_os_str().to_string_lossy()
+                )
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if components.len() < 4
+        || !components[0].starts_with("WP-")
+        || !components[1].starts_with("MT-")
+        || components[2].is_empty()
+        || components[3].is_empty()
+    {
+        return Err(format!(
+            "HSK_TEST_BACKEND_TARGET_ROOT {} must have the isolated <WP>/<MT>/<owner>/<target> shape below {}",
+            target.display(),
+            artifacts.display()
+        ));
+    }
+
+    if binary == target || !binary.starts_with(target) {
+        return Err(format!(
+            "HSK_TEST_BACKEND_BIN {} is outside declared HSK_TEST_BACKEND_TARGET_ROOT {}",
+            binary.display(),
+            target.display()
+        ));
+    }
+    Ok(())
 }
 
 fn assert_backend_binary_is_current_source(binary: &Path) {
@@ -582,12 +647,130 @@ fn assert_backend_binary_is_current_source(binary: &Path) {
         let input_modified = metadata.modified().unwrap_or_else(|error| {
             panic!("inspect current-source mtime {}: {error}", input.display())
         });
-        assert!(
-            input_modified <= binary_modified,
+        validate_backend_binary_freshness(binary, binary_modified, &input, input_modified)
+            .unwrap_or_else(|error| panic!("{error}"));
+    }
+}
+
+fn validate_backend_binary_freshness(
+    binary: &Path,
+    binary_modified: SystemTime,
+    input: &Path,
+    input_modified: SystemTime,
+) -> Result<(), String> {
+    if input_modified > binary_modified {
+        return Err(format!(
             "HSK_TEST_BACKEND_BIN {} predates current source input {}; rerun the explicit isolated `cargo build --bin handshake_core --features app-runtime`",
             binary.display(),
             input.display()
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod backend_binary_guard_tests {
+    use super::{validate_backend_binary_freshness, validate_canonical_backend_binary_location};
+    use std::path::{Path, PathBuf};
+    use std::time::{Duration, UNIX_EPOCH};
+
+    fn artifact_root() -> PathBuf {
+        if cfg!(windows) {
+            PathBuf::from(r"C:\Handshake_Artifacts")
+        } else {
+            PathBuf::from("/Handshake_Artifacts")
+        }
+    }
+
+    fn executable_name() -> &'static str {
+        if cfg!(windows) {
+            "handshake_core.exe"
+        } else {
+            "handshake_core"
+        }
+    }
+
+    #[test]
+    fn accepts_canonical_wp_mt_owner_backend_target() {
+        let artifacts = artifact_root();
+        let target = artifacts
+            .join("WP-KERNEL-012")
+            .join("MT-129")
+            .join("wpv-v6")
+            .join("backend-target");
+        let binary = target.join("debug").join(executable_name());
+
+        assert_eq!(
+            validate_canonical_backend_binary_location(&binary, &target, &artifacts),
+            Ok(())
         );
+    }
+
+    #[test]
+    fn rejects_repo_local_target() {
+        let artifacts = artifact_root();
+        let repo_target = if cfg!(windows) {
+            PathBuf::from(r"C:\repo\target")
+        } else {
+            PathBuf::from("/repo/target")
+        };
+        let binary = repo_target.join("debug").join(executable_name());
+
+        let error = validate_canonical_backend_binary_location(&binary, &repo_target, &artifacts)
+            .expect_err("repo-local target must fail closed");
+        assert!(error.contains("not a strict descendant"));
+    }
+
+    #[test]
+    fn rejects_target_outside_artifact_root() {
+        let artifacts = artifact_root();
+        let outside = if cfg!(windows) {
+            PathBuf::from(r"D:\outside\WP-KERNEL-012\MT-129\wpv-v6\backend-target")
+        } else {
+            PathBuf::from("/outside/WP-KERNEL-012/MT-129/wpv-v6/backend-target")
+        };
+        let binary = outside.join("debug").join(executable_name());
+
+        let error = validate_canonical_backend_binary_location(&binary, &outside, &artifacts)
+            .expect_err("outside-artifact target must fail closed");
+        assert!(error.contains("not a strict descendant"));
+    }
+
+    #[test]
+    fn rejects_binary_outside_declared_target() {
+        let artifacts = artifact_root();
+        let declared_target = artifacts
+            .join("WP-KERNEL-012")
+            .join("MT-129")
+            .join("wpv-v6")
+            .join("backend-target");
+        let binary = artifacts
+            .join("WP-KERNEL-012")
+            .join("MT-129")
+            .join("other-owner")
+            .join("backend-target")
+            .join("debug")
+            .join(executable_name());
+
+        let error =
+            validate_canonical_backend_binary_location(&binary, &declared_target, &artifacts)
+                .expect_err("binary outside its declared target must fail closed");
+        assert!(error.contains("outside declared HSK_TEST_BACKEND_TARGET_ROOT"));
+    }
+
+    #[test]
+    fn rejects_stale_backend_binary() {
+        let binary_modified = UNIX_EPOCH + Duration::from_secs(1);
+        let input_modified = UNIX_EPOCH + Duration::from_secs(2);
+
+        let error = validate_backend_binary_freshness(
+            Path::new("handshake_core"),
+            binary_modified,
+            Path::new("src/main.rs"),
+            input_modified,
+        )
+        .expect_err("stale binary must fail closed");
+        assert!(error.contains("predates current source input"));
     }
 }
 

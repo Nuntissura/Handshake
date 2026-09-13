@@ -20,8 +20,8 @@
 //!   approved proposal and atomically writes the canonical `MemoryItem`, `MemoryCommitReport`,
 //!   strict `MemoryPack`, and EventLedger commit receipt; FR-EVT-MEM-003 is projected from it.
 //!
-//! All durable writes go through the embedded SurrealDB FEMS store plus a durable
-//! kernel EventLedger receipt; review decisions are mirrored to Flight Recorder. No SQLite.
+//! All durable writes use the embedded SurrealDB FEMS store plus durable kernel EventLedger
+//! receipts; review decisions are mirrored to Flight Recorder.
 
 use axum::{
     extract::Request,
@@ -2774,7 +2774,10 @@ mod tests {
             "SELECT published_at != NONE AS value FROM fems_memory_lifecycle_fr_outbox \
              WHERE proposal_id = $proposal AND event_code = 'FR-EVT-MEM-001' LIMIT 1;",
             MemoryTestBindings {
-                proposal: Some(RecordId::new("fems_memory_proposals", ack.proposal_id.as_str())),
+                proposal: Some(RecordId::new(
+                    "fems_memory_proposals",
+                    ack.proposal_id.as_str(),
+                )),
                 ..MemoryTestBindings::default()
             },
         )
@@ -2887,7 +2890,10 @@ mod tests {
                 "UPDATE fems_memory_proposals SET status = 'approved' \
                  WHERE id = $proposal RETURN AFTER;",
                 MemoryTestBindings {
-                    proposal: Some(RecordId::new("fems_memory_proposals", first.proposal_id.as_str())),
+                    proposal: Some(RecordId::new(
+                        "fems_memory_proposals",
+                        first.proposal_id.as_str()
+                    )),
                     ..MemoryTestBindings::default()
                 },
             )
