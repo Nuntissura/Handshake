@@ -77,6 +77,14 @@ mod workflow_store;
 mod workspaces;
 
 pub use database::SurrealDatabase;
+#[cfg(feature = "surreal-test-support")]
+pub fn loom_folder_sibling_key_for_test(
+    workspace_id: &str,
+    parent_folder_id: Option<&str>,
+    name: &str,
+) -> String {
+    loom_store::loom_folder_sibling_key(workspace_id, parent_folder_id, name)
+}
 pub use kb003_store::SurrealKb003Storage;
 pub(crate) use knowledge::KnowledgeRichDocumentDeleteOutcome;
 pub use schema::{

@@ -25,11 +25,13 @@ mod swarm_support;
 use std::sync::Arc;
 use std::time::Duration;
 
-use handshake_core::storage::surreal::SurrealDatabase;
+use handshake_core::storage::surreal::{
+    loom_folder_sibling_key_for_test, RowFilter, SurrealDatabase, SurrealStorage,
+};
 use handshake_core::storage::{
     Database, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate,
-    LoomCanvasBoard, LoomWikiProjection, NewLoomBlock, StorageError, WriteContext,
-    LOOM_CANVAS_BOARD_SCHEMA_ID,
+    LoomCanvasBoard, LoomFolderSortMode, LoomFolderUpdate, LoomWikiProjection, NewLoomBlock,
+    NewLoomFolder, StorageError, WriteContext, LOOM_CANVAS_BOARD_SCHEMA_ID,
 };
 use serde_json::json;
 use swarm_support::*;
@@ -76,6 +78,52 @@ fn new_block(workspace_id: &str, content_type: LoomBlockContentType, title: &str
         imported_at: None,
         derived: LoomBlockDerived::default(),
     }
+}
+
+fn new_folder(
+    workspace_id: &str,
+    folder_id: impl Into<String>,
+    parent_folder_id: Option<&str>,
+    name: &str,
+) -> NewLoomFolder {
+    NewLoomFolder {
+        folder_id: Some(folder_id.into()),
+        workspace_id: workspace_id.to_owned(),
+        parent_folder_id: parent_folder_id.map(str::to_owned),
+        name: name.to_owned(),
+        color: None,
+        sort_mode: LoomFolderSortMode::UpdatedDesc,
+        sort_order: None,
+        project_ref: None,
+    }
+}
+
+async fn persisted_folder_sibling_key(storage: &SurrealStorage, folder_id: &str) -> String {
+    let inspector = storage.test_inspector();
+    let table = inspector
+        .table_selector("loom_folders")
+        .await
+        .expect("loom_folders selector");
+    let field = table.field("sibling_key").expect("sibling_key selector");
+    let rows = inspector
+        .project(&table, &[field], RowFilter::IdEquals(folder_id.to_owned()))
+        .await
+        .expect("project persisted sibling_key");
+    let value = rows
+        .first()
+        .and_then(|row| row.values.get("sibling_key"))
+        .expect("one persisted sibling_key");
+    value
+        .as_str()
+        .or_else(|| {
+            value
+                .as_object()
+                .filter(|tagged| tagged.len() == 1)
+                .and_then(|tagged| tagged.values().next())
+                .and_then(serde_json::Value::as_str)
+        })
+        .unwrap_or_else(|| panic!("sibling_key is not a string scalar: {value}"))
+        .to_owned()
 }
 
 async fn create_blocks(
@@ -576,5 +624,141 @@ async fn wiki_same_record_races_have_one_winner() {
             .await
             .expect("close store");
     })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn loom_folder_sibling_identity_is_injective_concurrent_and_durable() {
+    run_bounded_test(
+        "loom_folder_sibling_identity_is_injective_concurrent_and_durable",
+        async {
+            let store = open_store_measured().await;
+            let workspace_id =
+                op_within("create workspace", SETUP_BOUND, store.create_workspace()).await;
+            let parent_id = "root";
+            store
+                .db
+                .create_loom_folder(
+                    &workspace_id,
+                    new_folder(&workspace_id, parent_id, None, "parent|root"),
+                )
+                .await
+                .expect("a legal folder id may equal the retired root sentinel");
+            let adversarial_name = "same|name:with-delimiters";
+            let true_root = store
+                .db
+                .create_loom_folder(
+                    &workspace_id,
+                    new_folder(&workspace_id, "true|root", None, adversarial_name),
+                )
+                .await
+                .expect("create true root with delimiter-bearing components");
+            let child = store
+                .db
+                .create_loom_folder(
+                    &workspace_id,
+                    new_folder(&workspace_id, "child|under-root", Some(parent_id), adversarial_name),
+                )
+                .await
+                .expect("same name under parent id 'root' is a different legal scope");
+
+            let second_parent = store
+                .db
+                .create_loom_folder(
+                    &workspace_id,
+                    new_folder(&workspace_id, "parent|two", None, "parent:two"),
+                )
+                .await
+                .expect("create second parent");
+            let moved = store
+                .db
+                .create_loom_folder(
+                    &workspace_id,
+                    new_folder(&workspace_id, "move|me", None, "before"),
+                )
+                .await
+                .expect("create folder to rename and re-parent");
+            let moved = store
+                .db
+                .update_loom_folder(
+                    &workspace_id,
+                    &moved.folder_id,
+                    LoomFolderUpdate {
+                        name: Some("renamed|after:move".to_owned()),
+                        parent_folder_id: Some(Some(second_parent.folder_id.clone())),
+                        ..LoomFolderUpdate::default()
+                    },
+                )
+                .await
+                .expect("rename and re-parent through the canonical sibling key");
+
+            for (folder, parent, name) in [
+                (&true_root, None, adversarial_name),
+                (&child, Some(parent_id), adversarial_name),
+                (&moved, Some(second_parent.folder_id.as_str()), "renamed|after:move"),
+            ] {
+                let persisted = persisted_folder_sibling_key(&store.storage, &folder.folder_id).await;
+                assert_eq!(
+                    persisted,
+                    loom_folder_sibling_key_for_test(&workspace_id, parent, name)
+                );
+            }
+
+            let race_name = "concurrent|same-scope";
+            let inputs: Vec<usize> = (0..RACERS).collect();
+            let ws = workspace_id.clone();
+            let outcomes = timeout(
+                RACE_BOUND,
+                barrier_race(&store.db, inputs, "folder same-scope create", move |db, racer| {
+                    let ws = ws.clone();
+                    async move {
+                        db.create_loom_folder(
+                            &ws,
+                            new_folder(&ws, format!("race|{racer}"), None, race_name),
+                        )
+                        .await
+                    }
+                }),
+            )
+            .await
+            .expect("same-scope folder race finishes inside its bound");
+            assert_one_winner(outcomes, "folder same-scope create", |error| {
+                matches!(error, StorageError::Conflict("loom_folder_sibling_name"))
+            });
+
+            op_within("shutdown for reopen", STORE_LIFECYCLE_BOUND, store.shutdown())
+                .await
+                .expect("shutdown store");
+            let reopened = op_within(
+                "reopen folder store",
+                STORE_LIFECYCLE_BOUND,
+                store.reopen_database(),
+            )
+            .await
+            .expect("reopen same managed SurrealDB store");
+            let reopened_child = reopened
+                .get_loom_folder(&workspace_id, &child.folder_id)
+                .await
+                .expect("child survives reopen");
+            assert_eq!(reopened_child.parent_folder_id.as_deref(), Some(parent_id));
+            assert_eq!(
+                persisted_folder_sibling_key(reopened.storage(), &moved.folder_id).await,
+                loom_folder_sibling_key_for_test(
+                    &workspace_id,
+                    Some(second_parent.folder_id.as_str()),
+                    "renamed|after:move",
+                )
+            );
+            reopened
+                .storage()
+                .shutdown()
+                .await
+                .expect("shutdown reopened store");
+            drop(reopened);
+            op_within("close store", STORE_LIFECYCLE_BOUND, store.close_and_remove())
+                .await
+                .expect("close store");
+        },
+    )
     .await;
 }

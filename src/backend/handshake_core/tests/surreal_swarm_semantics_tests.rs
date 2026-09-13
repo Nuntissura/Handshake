@@ -31,8 +31,8 @@ use handshake_core::storage::knowledge::{
 };
 use handshake_core::storage::surreal::keyed_lock::{KeyedLockRegistry, LockKey, LockMode};
 use handshake_core::storage::surreal::retry::{
-    classify_storage_error, retry, ExhaustionBound, Replay, RetryClass, RetryContext, RetryError,
-    RetryPolicy, SystemJitter, TokioClock,
+    classify_storage_error, retry, retry_error_to_storage, ExhaustionBound, Replay, RetryClass,
+    RetryContext, RetryError, RetryPolicy, SystemJitter, TokioClock,
 };
 use handshake_core::storage::surreal::swarm_load_report::{FailureClass, OperationClass};
 use handshake_core::storage::surreal::{SurrealDatabase, SurrealStorage};
@@ -1578,36 +1578,6 @@ async fn rename_workspace_bounded(
         .map_err(|error| StorageError::Database(error.to_string()))
 }
 
-/// The store-level rendering of a retry outcome, mirroring the knowledge
-/// store's private `retry_error_to_storage` (`storage/surreal/knowledge.rs`):
-/// `ExhaustionBound::NoRetryWindow` becomes [`NO_RETRY_WINDOW_CODE`], every
-/// other exhaustion becomes [`RETRY_EXHAUSTED_CODE`], with the same detail
-/// text. The mapping itself is product-private, so the proof of the code
-/// string rests on the bound being typed here and the constant being pinned
-/// in `swarm_support` (review R3-1-1).
-fn exhaustion_to_storage_error(error: RetryError<StorageError>) -> StorageError {
-    match error {
-        RetryError::Exhausted {
-            attempts,
-            elapsed,
-            last,
-            bound,
-        } => StorageError::ConflictDetails {
-            code: if bound.is_no_retry_window() {
-                NO_RETRY_WINDOW_CODE
-            } else {
-                RETRY_EXHAUSTED_CODE
-            },
-            detail: format!(
-                "attempts={attempts} elapsed_ms={} bound={} last={last}",
-                elapsed.as_millis(),
-                bound.as_str()
-            ),
-        },
-        other => panic!("expected an exhausted retry, got {other}"),
-    }
-}
-
 /// MT-151 I-151-5 (closes MT-142's stated limit "no_retry_window unexercised"):
 /// a retryable engine conflict whose FIRST attempt alone consumed the whole
 /// retry budget is reported as `ExhaustionBound::NoRetryWindow` with
@@ -1751,7 +1721,7 @@ async fn first_attempt_consuming_the_retry_budget_reports_no_retry_window_body()
 
     // 2. The same outcome as store callers see it, through the swarm
     //    classifier: its own code, its own count, never expected contention.
-    let storage_error = exhaustion_to_storage_error(error);
+    let storage_error = retry_error_to_storage(error);
     assert!(is_no_retry_window(&storage_error), "{storage_error}");
     assert!(
         !is_retry_exhausted(&storage_error),

@@ -67,6 +67,8 @@ pub const TRANSACTION_CONFLICT_MARKER: &str = "Transaction conflict:";
 /// Marker suffix of the retryable engine error
 /// (`surrealdb-core-3.2.0/src/kvs/err.rs:47-49`).
 pub const TRANSACTION_RETRYABLE_MARKER: &str = "This transaction can be retried";
+pub const RETRY_EXHAUSTED_CONFLICT_CODE: &str = "HSK-STORAGE-RETRY-EXHAUSTED";
+pub const NO_RETRY_WINDOW_CONFLICT_CODE: &str = "HSK-STORAGE-NO-RETRY-WINDOW";
 /// Raw RocksDB status prefix parsed to `ErrorKind::Busy`
 /// (`surrealdb-rocksdb-0.24.0-surreal.5/src/lib.rs:231`).
 const ROCKSDB_BUSY_STATUS: &str = "Resource busy";
@@ -466,6 +468,35 @@ impl<E: fmt::Display> fmt::Display for RetryError<E> {
 impl<E: std::error::Error + 'static> std::error::Error for RetryError<E> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.error().map(|error| error as &(dyn std::error::Error + 'static))
+    }
+}
+
+/// Canonical product-visible conversion for every guarded SurrealDB mutation.
+/// Keeping this at the retry boundary prevents store implementations and integration tests from
+/// independently recreating the externally observable exhaustion classification.
+pub fn retry_error_to_storage(error: RetryError<StorageError>) -> StorageError {
+    match error {
+        RetryError::Terminal { error, .. } => error,
+        RetryError::Exhausted {
+            attempts,
+            elapsed,
+            last,
+            bound,
+        } => StorageError::ConflictDetails {
+            code: if bound.is_no_retry_window() {
+                NO_RETRY_WINDOW_CONFLICT_CODE
+            } else {
+                RETRY_EXHAUSTED_CONFLICT_CODE
+            },
+            detail: format!(
+                "attempts={attempts} elapsed_ms={} bound={} last={last}",
+                elapsed.as_millis(),
+                bound.as_str()
+            ),
+        },
+        RetryError::Cancelled { .. } => {
+            StorageError::Database(SurrealStorageError::Closed.to_string())
+        }
     }
 }
 
@@ -1121,6 +1152,57 @@ mod tests {
         }
         assert_eq!(seen.len(), 1);
         assert!(clock.recorded_sleeps().is_empty());
+    }
+
+    #[test]
+    fn canonical_storage_mapper_covers_terminal_cancelled_and_all_exhaustion_bounds() {
+        let terminal = retry_error_to_storage(RetryError::Terminal {
+            attempts: 1,
+            elapsed: ms(3),
+            error: StorageError::Conflict("terminal-marker"),
+        });
+        assert!(matches!(terminal, StorageError::Conflict("terminal-marker")));
+
+        let cancelled = retry_error_to_storage(RetryError::Cancelled {
+            attempts: 2,
+            elapsed: ms(7),
+        });
+        assert!(
+            matches!(cancelled, StorageError::Database(ref detail) if detail.to_ascii_lowercase().contains("closed")),
+            "cancelled guarded mutations expose the closed-store contract: {cancelled}"
+        );
+
+        for bound in [ExhaustionBound::MaxAttempts, ExhaustionBound::MaxElapsed] {
+            let mapped = retry_error_to_storage(RetryError::Exhausted {
+                attempts: 3,
+                elapsed: ms(11),
+                last: StorageError::Conflict("transient-marker"),
+                bound,
+            });
+            assert!(
+                matches!(
+                    mapped,
+                    StorageError::ConflictDetails { code: RETRY_EXHAUSTED_CONFLICT_CODE, ref detail }
+                        if detail.contains("attempts=3") && detail.contains(bound.as_str())
+                ),
+                "{bound:?} must use the canonical retry-exhausted product shape: {mapped}"
+            );
+        }
+
+        let no_window = retry_error_to_storage(RetryError::Exhausted {
+            attempts: 1,
+            elapsed: ms(19),
+            last: StorageError::Conflict("transient-marker"),
+            bound: ExhaustionBound::NoRetryWindow,
+        });
+        assert!(
+            matches!(
+                no_window,
+                StorageError::ConflictDetails { code: NO_RETRY_WINDOW_CONFLICT_CODE, ref detail }
+                    if detail.contains("attempts=1") && detail.contains("bound=no_retry_window")
+            ),
+            "NoRetryWindow must remain distinct through the production mapper: {no_window}"
+        );
     }
 
     #[tokio::test]

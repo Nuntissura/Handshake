@@ -3954,11 +3954,11 @@ mod tests {
         assert!(field_at < index_at, "sibling_key field must precede its UNIQUE index");
         assert_eq!(
             super::super::loom_store::loom_folder_sibling_key("ws-1", None, " Root "),
-            "ws-1|root|Root"
+            "v1|w4:ws-1|r|n4:Root"
         );
         assert_eq!(
             super::super::loom_store::loom_folder_sibling_key("ws-1", Some("LFD-p"), "Child"),
-            "ws-1|LFD-p|Child"
+            "v1|w4:ws-1|p5:LFD-p|n5:Child"
         );
     }
 
@@ -4050,9 +4050,9 @@ mod tests {
                     assert_eq!(
                         sibling_keys,
                         vec![
-                            "mt152_folders|mt152_root_a|Shared".to_owned(),
-                            "mt152_folders|root|Shared".to_owned(),
-                            "mt152_folders|root|Shared#dup1".to_owned(),
+                            "v1|w13:mt152_folders|p12:mt152_root_a|n6:Shared".to_owned(),
+                            "v1|w13:mt152_folders|r|n6:Shared".to_owned(),
+                            "v1|w13:mt152_folders|r|n6:Shared#dup1".to_owned(),
                         ]
                     );
                     assert_eq!(names, vec!["Shared"; 3], "visible names are never rewritten");

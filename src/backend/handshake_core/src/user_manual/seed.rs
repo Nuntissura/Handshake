@@ -2282,8 +2282,8 @@ fn page_surreal_swarm_concurrency_and_load() -> NewUserManualPage {
                  `surreal retry exhausted` carrying `attempts`, `elapsed_ms`, `bound`, `replay_key` and \
                  `last_error` (`:584-606`). Store callers see \
                  `StorageError::ConflictDetails { code: \"HSK-STORAGE-RETRY-EXHAUSTED\", detail: \"attempts=.. \
-                 elapsed_ms=.. bound=.. last=..\" }` (`RETRY_EXHAUSTED_CONFLICT_CODE`, `knowledge.rs:95`; \
-                 `retry_error_to_storage`, `:130-150`), which the knowledge API maps to `409` with the code as \
+                 elapsed_ms=.. bound=.. last=..\" }` (`RETRY_EXHAUSTED_CONFLICT_CODE`; \
+                 `storage/surreal/retry.rs::retry_error_to_storage`), which the knowledge API maps to `409` with the code as \
                  `detail` (`api/knowledge_documents.rs:399-401`). Nothing was written by the exhausted attempts. \
                  Cancellation before an attempt or during a sleep returns \
                  `RetryError::Cancelled { attempts, elapsed }` and reaches callers as the closed-store error \

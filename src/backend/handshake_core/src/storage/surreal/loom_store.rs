@@ -66,22 +66,30 @@ pub(crate) fn folder_tree_anchor_id(workspace_id: &str) -> String {
 
 pub(crate) const FOLDER_MEMBERS_TABLE: &str = "loom_folder_members";
 
-/// `loom_folders.sibling_key` (MT-152): `workspace|parent-or-root|name`, the stored
-/// discriminator behind `uq_loom_folders_sibling_key`, which is what actually rejects a
-/// duplicate ROOT name - the composite `uq_loom_folders_sibling_name` is skipped by the engine
-/// for any tuple containing NONE (surrealdb-core-3.2.0/src/idx/index.rs:190-197). The SQL in
-/// `create_loom_folder` / `update_loom_folder` (a `string::concat` over the row) computes the same
-/// value from the row; the schema upgrade backfill computes it here.
+/// Canonical `loom_folders.sibling_key` encoder (MT-152).
+///
+/// The version tag, explicit root/parent variant, and byte-length-framed components make the
+/// representation injective without reserving any legal workspace, folder, or name string.
+/// Every writer, migration/backfill, and sibling natural-key lock uses this function.
 pub(crate) fn loom_folder_sibling_key(
     workspace_id: &str,
     parent_folder_id: Option<&str>,
     name: &str,
 ) -> String {
-    format!(
-        "{workspace_id}|{}|{}",
-        parent_folder_id.unwrap_or("root"),
-        name.trim()
-    )
+    let name = name.trim();
+    match parent_folder_id {
+        Some(parent_folder_id) => format!(
+            "v1|w{}:{workspace_id}|p{}:{parent_folder_id}|n{}:{name}",
+            workspace_id.len(),
+            parent_folder_id.len(),
+            name.len()
+        ),
+        None => format!(
+            "v1|w{}:{workspace_id}|r|n{}:{name}",
+            workspace_id.len(),
+            name.len()
+        ),
+    }
 }
 
 /// Key of the `loom_folder_members` row for (folder, block); length-prefixed so
@@ -3282,6 +3290,7 @@ struct FolderCreateBinding {
     workspace: RecordId,
     parent: Option<RecordId>,
     name: String,
+    sibling_key: String,
     color: Option<String>,
     sort_mode: String,
     sort_order: Option<i64>,
@@ -3307,19 +3316,25 @@ pub(crate) async fn create_loom_folder(
     let event =
         build_loom_mutation_event(workspace_id, "loom_folder", &folder_id, "create", json!({}))?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
+    let sibling_key = loom_folder_sibling_key(
+        workspace_id,
+        folder.parent_folder_id.as_deref(),
+        name,
+    );
     let rows = db
         .query_values_at::<FolderRow, _>(
             "BEGIN TRANSACTION; \
              IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] = NONE { \
                 CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, created_at: $ledger.created_at }; \
              }; \
-             CREATE $folder SET folder_id = record::id($folder), workspace_id = $workspace, parent_folder_id = $parent, name = $name, sibling_key = string::concat(record::id($workspace), '|', (IF $parent = NONE { 'root' } ELSE { record::id($parent) }), '|', $name), color = $color, sort_mode = $sort_mode, sort_order = $sort_order, project_ref = $project_ref, event_ledger_event_id = $ledger.record RETURN AFTER; \
+             CREATE $folder SET folder_id = record::id($folder), workspace_id = $workspace, parent_folder_id = $parent, name = $name, sibling_key = $sibling_key, color = $color, sort_mode = $sort_mode, sort_order = $sort_order, project_ref = $project_ref, event_ledger_event_id = $ledger.record RETURN AFTER; \
              COMMIT TRANSACTION;",
             FolderCreateBinding {
                 folder: thing("loom_folders", folder_id),
                 workspace: thing("workspaces", workspace_id),
                 parent: folder.parent_folder_id.map(|id| thing("loom_folders", id)),
                 name: name.to_owned(),
+                sibling_key,
                 color: folder.color.map(|value| value.trim().to_owned()),
                 sort_mode: folder.sort_mode.as_str().to_owned(),
                 sort_order: folder.sort_order.map(i64::from),
@@ -3411,6 +3426,7 @@ struct FolderUpdateBinding {
     folder: RecordId,
     workspace: RecordId,
     name: Option<String>,
+    sibling_key: String,
     set_color: bool,
     color: Option<String>,
     sort_mode: Option<String>,
@@ -3443,10 +3459,10 @@ pub(crate) async fn update_loom_folder(
     folder_id: &str,
     update: LoomFolderUpdate,
 ) -> StorageResult<LoomFolder> {
-    get_loom_folder(db, workspace_id, folder_id).await?;
+    let current = get_loom_folder(db, workspace_id, folder_id).await?;
     let anchor = folder_tree_anchor(workspace_id);
     let expected_anchor_version = read_graph_anchor_version(db, anchor.clone()).await?;
-    let reparent = matches!(update.parent_folder_id, Some(Some(_)));
+    let reparent = update.parent_folder_id.is_some();
     if let Some(Some(parent_id)) = update.parent_folder_id.as_ref() {
         if parent_id == folder_id {
             return Err(StorageError::Validation(
@@ -3480,6 +3496,15 @@ pub(crate) async fn update_loom_folder(
     if name.is_some_and(str::is_empty) {
         return Err(StorageError::Validation("loom folder name is required"));
     }
+    let target_parent_folder_id = match update.parent_folder_id.as_ref() {
+        Some(parent_folder_id) => parent_folder_id.as_deref(),
+        None => current.parent_folder_id.as_deref(),
+    };
+    let sibling_key = loom_folder_sibling_key(
+        workspace_id,
+        target_parent_folder_id,
+        name.unwrap_or(current.name.as_str()),
+    );
     let event =
         build_loom_mutation_event(workspace_id, "loom_folder", folder_id, "update", json!({}))?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
@@ -3491,7 +3516,7 @@ pub(crate) async fn update_loom_folder(
                 CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, created_at: $ledger.created_at }; \
              }; \
              UPDATE $folder SET name = $name ?? name, color = IF $set_color { $color } ELSE { color }, sort_mode = $sort_mode ?? sort_mode, sort_order = IF $set_sort_order { $sort_order } ELSE { sort_order }, parent_folder_id = IF $set_parent { $parent } ELSE { parent_folder_id }, project_ref = IF $set_project_ref { $project_ref } ELSE { project_ref }, event_ledger_event_id = $ledger.record, updated_at = time::now() RETURN AFTER; \
-             UPDATE $folder SET sibling_key = string::concat(record::id(workspace_id), '|', (IF parent_folder_id = NONE { 'root' } ELSE { record::id(parent_folder_id) }), '|', name) RETURN NONE; \
+             UPDATE $folder SET sibling_key = $sibling_key RETURN NONE; \
              IF $reparent { \
                 LET $anchor_version = (SELECT VALUE version FROM $anchor)[0] ?? 0; \
                 IF $anchor_version != $expected_anchor_version { THROW 'HSK-LOOM-FOLDER-TREE-STALE'; }; \
@@ -3502,6 +3527,7 @@ pub(crate) async fn update_loom_folder(
                 folder: thing("loom_folders", folder_id),
                 workspace: thing("workspaces", workspace_id),
                 name: name.map(str::to_owned),
+                sibling_key,
                 set_color: update.color.is_some(),
                 color: update
                     .color
@@ -3922,6 +3948,26 @@ pub(crate) async fn test_insert_loom_traversal_perf_fixture(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn loom_folder_sibling_key_is_injective_for_legal_adversarial_components() {
+        let root = loom_folder_sibling_key("workspace|one", None, " Name|A ");
+        let parent_named_root =
+            loom_folder_sibling_key("workspace|one", Some("root"), "Name|A");
+        let shifted_boundaries = loom_folder_sibling_key("workspace", Some("one|root"), "Name|A");
+        let empty_parent = loom_folder_sibling_key("workspace|one", Some(""), "Name|A");
+
+        assert_ne!(root, parent_named_root);
+        assert_ne!(parent_named_root, shifted_boundaries);
+        assert_ne!(root, shifted_boundaries);
+        assert_ne!(root, empty_parent);
+        assert_eq!(
+            root,
+            loom_folder_sibling_key("workspace|one", None, "Name|A"),
+            "name trimming is the only normalization"
+        );
+        assert!(root.starts_with("v1|"));
+    }
 
     #[test]
     fn whole_word_match_preserves_internal_punctuation() {

@@ -36,8 +36,8 @@ use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue, Value as S
 
 use super::keyed_lock::{LockKey, LockWaitTimeout};
 use super::retry::{
-    classify_storage_error, is_unique_index_violation, retry, Replay, RetryClass, RetryContext,
-    RetryError, RetryPolicy, SystemJitter, TokioClock,
+    classify_storage_error, is_unique_index_violation, retry, retry_error_to_storage, Replay,
+    RetryClass, RetryContext, RetryPolicy, SystemJitter, TokioClock,
 };
 use super::{schema::parse_named_array, SurrealDatabase, SurrealStorage, SurrealStorageError};
 use crate::kernel::{KernelEventType, NewKernelEvent};
@@ -92,7 +92,6 @@ const KNOWLEDGE_WIKI_PROJECTIONS_TABLE: &str = "knowledge_wiki_projections";
 /// bounded MT-142 retry budget (research basis
 /// `selected_design.retry_policy.exhaustion`; D-142-2 keeps `StorageError`
 /// unchanged, so the existing `ConflictDetails` variant carries it).
-pub const RETRY_EXHAUSTED_CONFLICT_CODE: &str = "HSK-STORAGE-RETRY-EXHAUSTED";
 /// Typed 409-class code returned when an optional keyed-lock wait exceeded the
 /// configured statement timeout instead of hanging.
 pub const LOCK_WAIT_TIMEOUT_CONFLICT_CODE: &str = "HSK-STORAGE-LOCK-WAIT-TIMEOUT";
@@ -101,7 +100,6 @@ pub const LOCK_WAIT_TIMEOUT_CONFLICT_CODE: &str = "HSK-STORAGE-LOCK-WAIT-TIMEOUT
 /// budget. Distinct from [`RETRY_EXHAUSTED_CONFLICT_CODE`] so a no-context
 /// model can tell a load-budget problem (raise the budget, or reduce
 /// contention) from replays that genuinely did not converge.
-pub const NO_RETRY_WINDOW_CONFLICT_CODE: &str = "HSK-STORAGE-NO-RETRY-WINDOW";
 const TITLE_ANCHOR_LOCK_KIND: &str = "rich_document_title";
 
 static RETRY_JITTER: LazyLock<SystemJitter> = LazyLock::new(SystemJitter::new);
@@ -130,32 +128,6 @@ fn classify_knowledge_error(error: &StorageError, own_index: Option<&str>) -> Re
             _ => RetryClass::Terminal,
         },
         class => class,
-    }
-}
-
-fn retry_error_to_storage(error: RetryError<StorageError>) -> StorageError {
-    match error {
-        RetryError::Terminal { error, .. } => error,
-        RetryError::Exhausted {
-            attempts,
-            elapsed,
-            last,
-            bound,
-        } => StorageError::ConflictDetails {
-            code: if bound.is_no_retry_window() {
-                NO_RETRY_WINDOW_CONFLICT_CODE
-            } else {
-                RETRY_EXHAUSTED_CONFLICT_CODE
-            },
-            detail: format!(
-                "attempts={attempts} elapsed_ms={} bound={} last={last}",
-                elapsed.as_millis(),
-                bound.as_str()
-            ),
-        },
-        // The store's cancellation token fires only from shutdown, so callers
-        // see the same closed-store error the lease path returns.
-        RetryError::Cancelled { .. } => closed_store_error(),
     }
 }
 

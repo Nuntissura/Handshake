@@ -17,8 +17,8 @@ use async_trait::async_trait;
 
 use super::keyed_lock::{KeyedLockRegistry, LockKey, LockWaitTimeout};
 use super::retry::{
-    classify_storage_error, is_unique_index_violation, retry, Replay, RetryClass, RetryContext,
-    RetryError, RetryPolicy, SystemJitter, TokioClock,
+    classify_storage_error, is_unique_index_violation, retry, retry_error_to_storage, Replay,
+    RetryClass, RetryContext, RetryPolicy, SystemJitter, TokioClock,
 };
 use super::{SurrealDataContext, SurrealStorage, SurrealStorageError, SurrealStorageOperation};
 use crate::storage::{Database, StorageError};
@@ -208,32 +208,6 @@ fn classify_mutation_error(error: &StorageError, own_index: Option<&str>) -> Ret
             _ => RetryClass::Terminal,
         },
         class => class,
-    }
-}
-
-fn retry_error_to_storage(error: RetryError<StorageError>) -> StorageError {
-    match error {
-        RetryError::Terminal { error, .. } => error,
-        RetryError::Exhausted {
-            attempts,
-            elapsed,
-            last,
-            bound,
-        } => StorageError::ConflictDetails {
-            code: if bound.is_no_retry_window() {
-                super::knowledge::NO_RETRY_WINDOW_CONFLICT_CODE
-            } else {
-                super::knowledge::RETRY_EXHAUSTED_CONFLICT_CODE
-            },
-            detail: format!(
-                "attempts={attempts} elapsed_ms={} bound={} last={last}",
-                elapsed.as_millis(),
-                bound.as_str()
-            ),
-        },
-        // The store's cancellation token fires only from shutdown, so callers
-        // see the same closed-store error the lease path returns.
-        RetryError::Cancelled { .. } => closed_store_error(),
     }
 }
 
@@ -1779,12 +1753,10 @@ impl Database for SurrealDatabase {
         folder: NewLoomFolder,
     ) -> StorageResult<LoomFolder> {
         let workspace_id = workspace_id.to_owned();
-        // The uniqueness race is the sibling name under one parent
-        // (`uq_loom_folders_sibling_name`); the folder id itself is fresh.
-        let sibling_key = format!(
-            "{}/{}",
-            folder.parent_folder_id.as_deref().unwrap_or(""),
-            folder.name.trim()
+        let sibling_key = super::loom_store::loom_folder_sibling_key(
+            &workspace_id,
+            folder.parent_folder_id.as_deref(),
+            &folder.name,
         );
         self.guarded_storage_mutation(
             vec![LockKey::natural_key(
@@ -1840,13 +1812,32 @@ impl Database for SurrealDatabase {
     ) -> StorageResult<LoomFolder> {
         let workspace_id = workspace_id.to_owned();
         let folder_id = folder_id.to_owned();
+        // This read only selects contention keys. Correctness remains database-enforced, and the
+        // guarded store closure re-reads the row and computes the persisted key on every retry.
+        let current = self.get_loom_folder(&workspace_id, &folder_id).await?;
         let mut keys = vec![LockKey::record(LOOM_FOLDERS_TABLE, folder_id.clone())];
-        if matches!(update.parent_folder_id, Some(Some(_))) {
+        if update.parent_folder_id.is_some() {
             // A re-parent's acyclicity check spans the workspace tree; the row it is
             // proven on is the per-workspace anchor the transaction compare-and-sets.
             keys.push(LockKey::record(
                 super::loom_store::GRAPH_ANCHORS_TABLE,
                 super::loom_store::folder_tree_anchor_id(&workspace_id),
+            ));
+        }
+        if update.name.is_some() || update.parent_folder_id.is_some() {
+            let target_parent_folder_id = match update.parent_folder_id.as_ref() {
+                Some(parent_folder_id) => parent_folder_id.as_deref(),
+                None => current.parent_folder_id.as_deref(),
+            };
+            let sibling_key = super::loom_store::loom_folder_sibling_key(
+                &workspace_id,
+                target_parent_folder_id,
+                update.name.as_deref().unwrap_or(current.name.as_str()),
+            );
+            keys.push(LockKey::natural_key(
+                workspace_id.clone(),
+                "loom_folder_sibling_name",
+                sibling_key,
             ));
         }
         self.guarded_storage_mutation(
