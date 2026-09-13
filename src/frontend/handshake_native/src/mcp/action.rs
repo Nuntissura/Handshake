@@ -28,6 +28,7 @@ use std::time::{Duration, Instant};
 
 use egui::accesskit;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::accessibility::UiTreeSnapshot;
 
@@ -98,6 +99,10 @@ struct SetValueCompletionToken {
     target: String,
     generation: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
+    applied_byte_len: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    applied_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     applied_value: Option<String>,
 }
 
@@ -105,10 +110,32 @@ impl SetValueCompletionToken {
     fn valid(&self) -> bool {
         self.schema == SET_VALUE_COMPLETION_SCHEMA
             && valid_click_token_field(&self.target, MAX_CLICK_COMPLETION_AUTHOR_BYTES)
-            && self.applied_value.as_deref().map_or(true, |value| {
-                value.len() <= MAX_SET_VALUE_COMPLETION_TOKEN_BYTES
-            })
+            && match (
+                self.applied_byte_len,
+                self.applied_sha256.as_deref(),
+                self.applied_value.as_deref(),
+            ) {
+                (None, None, None) => true,
+                (Some(byte_len), Some(sha256), inline) => {
+                    valid_sha256_hex(sha256)
+                        && inline.is_none_or(|value| {
+                            value.len() as u64 == byte_len && set_value_sha256(value) == sha256
+                        })
+                }
+                _ => false,
+            }
     }
+}
+
+fn valid_sha256_hex(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn set_value_sha256(value: &str) -> String {
+    format!("{:x}", Sha256::digest(value.as_bytes()))
 }
 
 pub(crate) fn set_value_completion_author_id(target: &str) -> String {
@@ -120,10 +147,12 @@ pub(crate) fn serialize_set_value_completion(
     generation: u64,
     applied_value: Option<&str>,
 ) -> Option<String> {
-    let token = SetValueCompletionToken {
+    let mut token = SetValueCompletionToken {
         schema: SET_VALUE_COMPLETION_SCHEMA.to_owned(),
         target: target.to_owned(),
         generation,
+        applied_byte_len: applied_value.map(|value| value.len() as u64),
+        applied_sha256: applied_value.map(set_value_sha256),
         applied_value: applied_value.map(str::to_owned),
     };
     if token.target.len() > MAX_CLICK_COMPLETION_AUTHOR_BYTES {
@@ -139,7 +168,14 @@ pub(crate) fn serialize_set_value_completion(
     if !token.valid() {
         return None;
     }
-    let encoded = serde_json::to_string(&token).ok()?;
+    let mut encoded = serde_json::to_string(&token).ok()?;
+    if encoded.len() > MAX_SET_VALUE_COMPLETION_TOKEN_BYTES && token.applied_value.is_some() {
+        // Large and escape-heavy values retain bounded, exact evidence without expanding the
+        // AccessKit tree by the full editor payload. The consumer still requires exact live-target
+        // equality and the successor generation, so the digest is never accepted as proof alone.
+        token.applied_value = None;
+        encoded = serde_json::to_string(&token).ok()?;
+    }
     (encoded.len() <= MAX_SET_VALUE_COMPLETION_TOKEN_BYTES).then_some(encoded)
 }
 
@@ -1875,10 +1911,17 @@ fn acknowledge_set_value_completion(
         .generation
         .checked_add(1)
         .is_some_and(|generation| observed_completion.generation == generation);
+    let requested_sha256 = set_value_sha256(text);
+    let completion_value_matches = observed_completion.applied_byte_len == Some(text.len() as u64)
+        && observed_completion.applied_sha256.as_deref() == Some(requested_sha256.as_str())
+        && observed_completion
+            .applied_value
+            .as_deref()
+            .is_none_or(|value| value == text);
     if observed_completion.target == pending.author_id
         && generation_matches
-        && observed_completion.applied_value.as_deref() == Some(text.as_str())
-        && observed_value_matches(&pending.author_id, &target.value, text)
+        && completion_value_matches
+        && target.value.as_deref() == Some(text.as_str())
     {
         return SetValueCompletionAcknowledgement::Terminal {
             status: ActionReceiptStatus::Applied,
@@ -2038,6 +2081,11 @@ fn validate_target_value(
             return Err(invalid(
                 "expected #RRGGBB, #RRGGBBAA, or a JSON [r,g,b,a] byte array",
             ))
+        }
+        _ if author_id.starts_with("wiki.edit-area.")
+            && text.len() > crate::graph::wiki_page_panel::OVERLAY_INPUT_CAP =>
+        {
+            return Err(invalid("expected a UTF-8 value at most 51200 bytes"));
         }
         _ if matches!(node.role.as_str(), "SpinButton" | "Slider") => {
             text.parse::<f64>()
@@ -2228,6 +2276,215 @@ mod tests {
             bounds: None,
             children: Vec::new(),
         }
+    }
+
+    fn set_value_completion_snapshot(
+        target: &str,
+        current_value: &str,
+        generation: u64,
+    ) -> UiTreeSnapshot {
+        let mut snapshot = fixture_snapshot();
+        let input = &mut snapshot.root.children[1];
+        input.id = target.to_owned();
+        input.author_id = Some(target.to_owned());
+        input.value = Some(current_value.to_owned());
+        let observer_author = set_value_completion_author_id(target);
+        let mut observer = observer_node(
+            &observer_author,
+            13,
+            serialize_set_value_completion(target, generation, None)
+                .expect("baseline SetValue completion serializes"),
+        );
+        observer.role = "Status".to_owned();
+        snapshot.root.children.push(observer);
+        snapshot.widget_count += 1;
+        snapshot
+    }
+
+    fn publish_set_value_completion(
+        snapshot: &mut UiTreeSnapshot,
+        target: &str,
+        generation: u64,
+        value: &str,
+    ) {
+        top_level_node_mut(snapshot, target).value = Some(value.to_owned());
+        let observer_author = set_value_completion_author_id(target);
+        top_level_node_mut(snapshot, &observer_author).value = Some(
+            serialize_set_value_completion(target, generation, Some(value))
+                .expect("applied SetValue completion serializes"),
+        );
+    }
+
+    #[test]
+    fn set_value_completion_compacts_full_cap_and_escape_heavy_values() {
+        let target = "wiki.edit-area.projection-a";
+        for value in [
+            "x".repeat(crate::graph::wiki_page_panel::OVERLAY_INPUT_CAP),
+            "\\\"".repeat(4096),
+        ] {
+            let encoded = serialize_set_value_completion(target, 1, Some(&value))
+                .expect("bounded completion covers the accepted value");
+            assert!(encoded.len() <= MAX_SET_VALUE_COMPLETION_TOKEN_BYTES);
+            let token = parse_set_value_completion(&encoded).expect("completion parses");
+            assert_eq!(token.applied_byte_len, Some(value.len() as u64));
+            assert_eq!(
+                token.applied_sha256.as_deref(),
+                Some(set_value_sha256(&value).as_str())
+            );
+            assert_eq!(
+                token.applied_value, None,
+                "large values use compact evidence"
+            );
+        }
+
+        let short = "short exact value";
+        let token = parse_set_value_completion(
+            &serialize_set_value_completion(target, 2, Some(short)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(token.applied_value.as_deref(), Some(short));
+    }
+
+    #[test]
+    fn set_value_completion_rejects_malformed_unknown_and_incoherent_tokens() {
+        let target = "wiki.edit-area.projection-a";
+        let encoded = serialize_set_value_completion(target, 1, Some("exact")).unwrap();
+        let mut unknown: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+        unknown["surprise"] = serde_json::json!(true);
+        assert!(parse_set_value_completion(&unknown.to_string()).is_none());
+
+        let mut wrong_hash: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+        wrong_hash["applied_sha256"] = serde_json::json!("0".repeat(64));
+        assert!(parse_set_value_completion(&wrong_hash.to_string()).is_none());
+        assert!(parse_set_value_completion("{not-json").is_none());
+    }
+
+    #[test]
+    fn set_value_completion_requires_successor_generation_and_exact_live_identity() {
+        let target = "wiki.edit-area.projection-a";
+        let requested = "x".repeat(crate::graph::wiki_page_panel::OVERLAY_INPUT_CAP);
+        let snapshot = set_value_completion_snapshot(target, "", 7);
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(
+                &snapshot,
+                target,
+                UiAction::SetValue {
+                    text: requested.clone(),
+                },
+            )
+            .unwrap();
+        assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
+        let mut applied = snapshot.clone();
+        publish_set_value_completion(&mut applied, target, 8, &requested);
+        channel.acknowledge_after_render(&applied);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Applied
+        );
+
+        let snapshot = set_value_completion_snapshot(target, "", 7);
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(
+                &snapshot,
+                target,
+                UiAction::SetValue {
+                    text: "generation-drift".to_owned(),
+                },
+            )
+            .unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        let mut drifted = snapshot.clone();
+        publish_set_value_completion(&mut drifted, target, 9, "generation-drift");
+        channel.acknowledge_after_render(&drifted);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate
+        );
+
+        let snapshot = set_value_completion_snapshot(target, "", 7);
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(
+                &snapshot,
+                target,
+                UiAction::SetValue {
+                    text: "identity-drift".to_owned(),
+                },
+            )
+            .unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        let mut drifted = snapshot.clone();
+        publish_set_value_completion(&mut drifted, target, 8, "identity-drift");
+        top_level_node_mut(&mut drifted, target).node_id += 1;
+        channel.acknowledge_after_render(&drifted);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Rejected
+        );
+    }
+
+    #[test]
+    fn set_value_completion_generation_overflow_never_acknowledges() {
+        let target = "wiki.edit-area.projection-a";
+        let snapshot = set_value_completion_snapshot(target, "", u64::MAX);
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(
+                &snapshot,
+                target,
+                UiAction::SetValue {
+                    text: "must-not-wrap".to_owned(),
+                },
+            )
+            .unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        let mut wrapped = snapshot.clone();
+        publish_set_value_completion(&mut wrapped, target, 0, "must-not-wrap");
+        channel.acknowledge_after_render(&wrapped);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate
+        );
+    }
+
+    #[test]
+    fn set_value_completion_rejects_over_cap_before_enqueue_without_mutation() {
+        let target = "wiki.edit-area.projection-a";
+        let snapshot = set_value_completion_snapshot(target, "unchanged", 12);
+        let original = snapshot.clone();
+        let mut channel = ActionChannel::new();
+        let error = channel
+            .enqueue(
+                &snapshot,
+                target,
+                UiAction::SetValue {
+                    text: "x".repeat(crate::graph::wiki_page_panel::OVERLAY_INPUT_CAP + 1),
+                },
+            )
+            .unwrap_err();
+        assert!(matches!(error, ActionError::InvalidValue { .. }));
+        assert_eq!(channel.pending(), 0);
+        assert_eq!(
+            snapshot
+                .find_unique_by_author_id(target)
+                .and_then(|node| node.value.as_deref()),
+            original
+                .find_unique_by_author_id(target)
+                .and_then(|node| node.value.as_deref()),
+            "rejection cannot mutate the target value"
+        );
+        let observer = set_value_completion_author_id(target);
+        assert_eq!(
+            snapshot
+                .find_unique_by_author_id(&observer)
+                .and_then(|node| node.value.as_deref()),
+            original
+                .find_unique_by_author_id(&observer)
+                .and_then(|node| node.value.as_deref()),
+            "rejection cannot advance the completion generation"
+        );
     }
 
     fn top_level_node_mut<'a>(

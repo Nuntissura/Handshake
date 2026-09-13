@@ -554,7 +554,8 @@ impl LoomWikiPagePanel {
     }
 
     /// Set the edit buffer (the overlay annotation text), capped at [`OVERLAY_INPUT_CAP`] bytes on a char
-    /// boundary (RISK-2). Pure so the cap is testable standalone.
+    /// boundary (RISK-2). Direct keyboard/paste input uses this bounded path; model SetValue requests
+    /// are rejected before dispatch when over cap so they can never cause a truncating mutation.
     pub fn set_edit_buffer(&mut self, text: impl Into<String>) {
         if self.saving || self.saved_awaiting_reload {
             return;
@@ -1560,9 +1561,9 @@ impl LoomWikiPagePanel {
         }
         if edit_enabled {
             if let Some(replacement) = accesskit_string_set_value(ui, area.id) {
-                // Model-facing SetValue is the same real editor mutation as keyboard input and keeps
-                // the same bounded-buffer invariant. Acknowledge the exact post-cap value, not the
-                // unbounded request and not a later repaint echo.
+                // Model-facing SetValue is the same real editor mutation as keyboard input. The
+                // ActionChannel rejects over-cap requests before dispatch, so every value reaching
+                // this widget is applied exactly rather than silently truncated.
                 self.set_edit_buffer(replacement);
                 let applied_value = self.edit_buffer.clone();
                 self.record_edit_set_value_applied(&edit_target, &applied_value);
@@ -2262,6 +2263,32 @@ mod tests {
             OVERLAY_INPUT_CAP,
             "buffer capped at OVERLAY_INPUT_CAP bytes"
         );
+    }
+
+    #[test]
+    fn set_value_completion_tracks_full_cap_value_without_unbounded_inline_payload() {
+        let mut panel = loaded_panel();
+        panel.bind_pane_generation(4);
+        assert!(panel.begin_edit());
+        let target = edit_area_author_id(&panel.projection_id);
+        let full_cap = "x".repeat(OVERLAY_INPUT_CAP);
+        panel.set_edit_buffer(full_cap.clone());
+        assert!(panel.record_edit_set_value_applied(&target, &full_cap));
+
+        let completion: serde_json::Value = serde_json::from_str(
+            &panel
+                .edit_set_value_completion()
+                .expect("full-cap completion stays representable"),
+        )
+        .unwrap();
+        assert_eq!(completion["generation"], 1);
+        assert_eq!(completion["applied_byte_len"], OVERLAY_INPUT_CAP as u64);
+        assert_eq!(
+            completion["applied_sha256"],
+            sha256_hex(full_cap.as_bytes())
+        );
+        assert!(completion.get("applied_value").is_none());
+        assert_eq!(panel.edit_buffer, full_cap);
     }
 
     /// RISK-2: display_content truncates a huge page on a char boundary with the truncated flag set.

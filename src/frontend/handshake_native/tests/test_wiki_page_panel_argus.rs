@@ -28,6 +28,7 @@ use handshake_native::editor_pane_factories::{placeholder_pane_type, WIKI_PAGE_P
 use handshake_native::graph::wiki_page_panel::{
     action_status_author_id, cancel_author_id, content_author_id, edit_area_author_id,
     edit_author_id, metadata_author_id, overlay_author_id, save_author_id, title_author_id,
+    OVERLAY_INPUT_CAP,
 };
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
@@ -176,10 +177,7 @@ fn exact_value(tree: &serde_json::Value, author_id: &str, value: &str) -> bool {
         == Some(value)
 }
 
-fn set_value_completion(
-    tree: &serde_json::Value,
-    target: &str,
-) -> Option<serde_json::Value> {
+fn set_value_completion(tree: &serde_json::Value, target: &str) -> Option<serde_json::Value> {
     let author_id = format!("{target}.set-value-completion");
     let raw = json_node_by_author_id(tree, &author_id)?
         .get("value")?
@@ -208,7 +206,11 @@ fn exact_set_value_terminal(
         && completion["schema"] == "handshake.set-value-completion/v1"
         && completion["target"] == target
         && completion["generation"] == expected_generation
-        && completion["applied_value"] == expected_value
+        && completion["applied_byte_len"] == expected_value.len() as u64
+        && completion["applied_sha256"] == sha256_bytes(expected_value.as_bytes())
+        && completion
+            .get("applied_value")
+            .is_none_or(|value| value == expected_value)
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) {
@@ -318,11 +320,7 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
     let edit_target = edit_area_author_id(&projection_id);
     let cancel_pre_generation = set_value_generation(&edit_cancel_terminal, &edit_target)
         .expect("mounted cancel draft exposes its pane-bound completion generation");
-    let cancel_value = argus.set_value_and_reinspect(
-        &mut harness,
-        &edit_target,
-        cancelled_draft,
-    );
+    let cancel_value = argus.set_value_and_reinspect(&mut harness, &edit_target, cancelled_draft);
     assert_eq!(
         cancel_value.receipt_status, "applied",
         "Cancel draft SetValue requires causal terminal Applied"
@@ -406,7 +404,6 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
                 && json_has_author_id(tree, &cancel_author_id(&projection_id))
                 && json_has_author_id(tree, &save_author_id(&projection_id))
         });
-    let saved_draft = format!("MT-025 persisted Argus overlay {}", uuid::Uuid::new_v4());
     let save_pre_generation = set_value_generation(&edit_save_terminal, &edit_target)
         .expect("mounted save draft exposes its pane-bound completion generation");
     assert_eq!(
@@ -414,11 +411,33 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
         cancel_pre_generation + 1,
         "ordinary Cancel/Edit repaint cycles retain the monotonic pane-bound generation"
     );
-    let save_value = argus.set_value_and_reinspect(
+
+    let over_cap = "z".repeat(OVERLAY_INPUT_CAP + 1);
+    let rejected_tree = argus.set_value_expect_rpc_rejected_and_reinspect(
         &mut harness,
         &edit_target,
-        &saved_draft,
+        &over_cap,
+        "at most 51200 bytes",
     );
+    assert!(exact_value(&rejected_tree, &edit_target, ""));
+    assert_eq!(
+        set_value_generation(&rejected_tree, &edit_target),
+        Some(save_pre_generation),
+        "over-cap rejection cannot advance the completion generation"
+    );
+    assert_eq!(
+        live.get_json(&overlays_path).as_array().map(Vec::len),
+        Some(0),
+        "over-cap SetValue cannot cause a backend write"
+    );
+
+    let saved_prefix = format!("MT-025 boundary overlay {}\n", uuid::Uuid::new_v4());
+    let saved_draft = format!(
+        "{saved_prefix}{}",
+        "x".repeat(OVERLAY_INPUT_CAP - saved_prefix.len())
+    );
+    assert_eq!(saved_draft.len(), OVERLAY_INPUT_CAP);
+    let save_value = argus.set_value_and_reinspect(&mut harness, &edit_target, &saved_draft);
     assert_eq!(
         save_value.receipt_status, "applied",
         "Save draft SetValue requires causal terminal Applied"
@@ -436,6 +455,17 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
             )
         },
     );
+    let boundary_completion = set_value_completion(&save_value_terminal, &edit_target)
+        .expect("boundary SetValue publishes compact completion evidence");
+    assert_eq!(
+        boundary_completion["applied_byte_len"],
+        OVERLAY_INPUT_CAP as u64
+    );
+    assert_eq!(
+        boundary_completion["applied_sha256"],
+        sha256_bytes(saved_draft.as_bytes())
+    );
+    assert!(boundary_completion.get("applied_value").is_none());
     let saved = argus.click_and_reinspect(&mut harness, &save_author_id(&projection_id));
     assert_eq!(
         saved.receipt_status, "applied",

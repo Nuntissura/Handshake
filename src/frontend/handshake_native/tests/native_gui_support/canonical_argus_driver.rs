@@ -871,6 +871,45 @@ impl CanonicalArgusDriver {
         observation
     }
 
+    /// Prove a SetValue is rejected at the RPC/enqueue boundary. No receipt or egui event exists for
+    /// this path because product validation rejects the value before mutation is queued.
+    pub fn set_value_expect_rpc_rejected_and_reinspect(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        value: &str,
+        expected_message: &str,
+    ) -> serde_json::Value {
+        let before = self.inspect(harness);
+        let before_value = json_author_value(&before, author_id)
+            .expect("canonical argus.inspect sees rejected value target");
+        let before_receipt_count = before["action_receipts"].as_array().map_or(0, Vec::len);
+        let response = self.rpc_unchecked(
+            ARGUS_SET_VALUE_METHOD,
+            serde_json::json!({ "target": author_id, "value": value }),
+        );
+        let error = response
+            .get("error")
+            .expect("invalid SetValue returns a typed JSON-RPC error");
+        assert!(
+            error.to_string().contains(expected_message),
+            "typed SetValue rejection must contain {expected_message:?}: {response}"
+        );
+
+        let after = self.inspect(harness);
+        assert_eq!(
+            json_author_value(&after, author_id).expect("rejected value target remains mounted"),
+            before_value,
+            "pre-dispatch rejection cannot mutate the live target"
+        );
+        assert_eq!(
+            after["action_receipts"].as_array().map_or(0, Vec::len),
+            before_receipt_count,
+            "pre-dispatch rejection cannot create an ambiguous action receipt"
+        );
+        after
+    }
+
     /// Replace the latest action's provisional three-frame observation with
     /// a fresh snapshot captured after the caller has awaited the product's
     /// authoritative terminal state.
