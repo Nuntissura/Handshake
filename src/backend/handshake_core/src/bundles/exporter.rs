@@ -2475,8 +2475,8 @@ mod tests {
         sibling_node: WorkflowNodeExecution,
     }
 
-    /// WP-KERNEL-012 MT-144: see the note on the equivalent helper in `api::jobs`. The PostgreSQL
-    /// resolution chain that made this `Option` is gone, so the skip branch is gone with it.
+    /// WP-KERNEL-012 MT-144: see the equivalent helper in `api::jobs`. The state is now created
+    /// unconditionally from an isolated authoritative store, so there is no skip branch.
     async fn setup_state(
     ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
     {

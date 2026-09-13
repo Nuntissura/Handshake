@@ -1231,16 +1231,18 @@ mod tests {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-        struct RestoreEnv {
+        struct OwnedArtifactEnv {
             key: &'static str,
             previous: Option<std::ffi::OsString>,
+            path: std::path::PathBuf,
         }
-        impl Drop for RestoreEnv {
+        impl Drop for OwnedArtifactEnv {
             fn drop(&mut self) {
                 match self.previous.take() {
                     Some(value) => std::env::set_var(self.key, value),
                     None => std::env::remove_var(self.key),
                 }
+                let _ = std::fs::remove_dir_all(&self.path);
             }
         }
 
@@ -1252,18 +1254,43 @@ mod tests {
             .parent()
             .expect("repository worktree has a parent")
             .join("Handshake_Artifacts");
-        let envelope = tempfile::Builder::new()
-            .prefix("mt129-relative-publish-")
-            .tempdir_in(&artifacts_root)
-            .expect("create MT-129 publication envelope under external artifacts");
+        assert!(
+            artifacts_root.is_dir(),
+            "the authorized external Handshake_Artifacts root must already exist: {}",
+            artifacts_root.display()
+        );
+        let mt_root = artifacts_root
+            .join("WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1")
+            .join("MT-129");
+        std::fs::create_dir_all(&mt_root).expect("create external MT-129 artifact directory");
+        static NEXT_ENVELOPE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let sequence = NEXT_ENVELOPE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock remains after Unix epoch")
+            .as_nanos();
+        let envelope = mt_root.join(format!(
+            "binding-test-{}-{timestamp}-{sequence}",
+            std::process::id()
+        ));
+        std::fs::create_dir(&envelope)
+            .expect("create collision-resistant MT-129 publication envelope");
         let envelope_name = envelope
-            .path()
             .file_name()
             .expect("temporary envelope has a final component");
-        let relative_envelope =
-            std::path::PathBuf::from(r"..\..\..\..\Handshake_Artifacts").join(envelope_name);
+        let relative_envelope = std::path::PathBuf::from(
+            r"..\..\..\..\Handshake_Artifacts\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\MT-129",
+        )
+        .join(envelope_name);
         let mut deep_tail = std::path::PathBuf::from("live");
-        while envelope.path().join(&deep_tail).as_os_str().len() < 210 {
+        while envelope
+            .join(&deep_tail)
+            .join("handshake")
+            .join(BINDING_FILE_NAME)
+            .as_os_str()
+            .len()
+            <= 260
+        {
             deep_tail.push("mt129_depth_segment");
         }
         let mixed_root = format!(
@@ -1271,17 +1298,22 @@ mod tests {
             relative_envelope.to_string_lossy().replace('\\', "/"),
             deep_tail.display()
         );
-        let expected_root = envelope.path().join(&deep_tail);
+        let expected_root = envelope.join(&deep_tail);
         let expected_binding = expected_root.join("handshake").join(BINDING_FILE_NAME);
+        assert!(
+            expected_binding.as_os_str().len() > 260,
+            "the first-publish destination itself must exceed MAX_PATH"
+        );
         assert!(
             !expected_binding.exists(),
             "the regression must exercise first publication to a nonexistent destination"
         );
 
         let var = "LOCALAPPDATA";
-        let _restore = RestoreEnv {
+        let _owned_artifact = OwnedArtifactEnv {
             key: var,
             previous: std::env::var_os(var),
+            path: envelope.clone(),
         };
         std::env::set_var(var, &mixed_root);
         let binding = McpBinding {
