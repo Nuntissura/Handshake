@@ -3338,6 +3338,14 @@
         "result": "BUILDER_SOURCE_MAPPING_F39_F41_RESTART_PENDING_AUTHORITY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log",
         "observed": "Source plus isolated RED mapping shows both restart fixtures append native_editor_pending_event outside any record-user scope. event_ledger::prepare_event therefore stores wsids=[] and authority_resource_id, session_id, capability_id, and action as NONE. Current EventLedger SELECT correctly requires exactly one wsid plus composed reader authority, so the reconciler sees zero eligible rows and returns Ok; restart assertions then observe zero FR rows. The bounded repair is fixture-only: seed pending rows under exact FlightRecorder/Create/fr.ingest.native_editor producer scope while retaining separate exact reconciliation-queue authority and explicit teardown."
+      },
+      {
+        "proof_id": "MT109-V16-PR-136",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F41_PASS_PARTIAL_F44_RESTART_FOCUSED",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log",
+        "observed": "The corrected focused startup-reconciler restart test selected one and exited normally 101 after 22.55 seconds with a single body failure: at flight_recorder.rs:3116, expected one startup-reconciled FR row and observed 0. No HANDSHAKE_TEST_STORE_CLEANUP_FAILURE was emitted, so the class-wide explicit teardown prevented the prior double panic for this case. F41 remains behavior-red; F44 has builder-only cleanup evidence but remains unresolved pending full and independent proof."
       }
     ],
     "resolved_prior_findings": [
@@ -3785,6 +3793,12 @@
             "status": "FAIL",
             "observed": "exact focused startup-reconciler test reproduces fallback cleanup timeout after body failure, preserving store-01a0a1a825017461aa8fa5f97dbe945e and aborting 0xc0000409",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
+          },
+          {
+            "attempt": 74,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused startup-reconciler body failure remains reportable and emits no cleanup failure after explicit teardown; full suite and independent cleanup proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
           }
         ],
         "remaining_remediation": "Commit a clean candidate, then independently rerun required Memory and focused teardown gates and verify no cleanup marker plus physical absence of every validator-owned success store."
@@ -5632,8 +5646,8 @@
         "finding_id": "MT109-V16-F41",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The durable-pending startup reconciliation test fails at flight_recorder.rs:2986: startup reconciliation restored zero FR rows instead of one.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "observed_proof": "Focused startup-reconciler restart proof still restores zero FR rows instead of one after the first exact producer-scope fixture correction; cleanup now succeeds, exposing an unresolved behavior cause.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -5652,9 +5666,15 @@
             "status": "FAIL_SOURCE_REVIEW_MAPPING",
             "observed": "source mapping: pending EventLedger row was seeded outside record-user scope, persisting wsids=[] and four authority fields NONE; correct SELECT hides it from reconciler, causing observed zero FR rows; fixture must seed under exact producer scope",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
+          },
+          {
+            "attempt": 4,
+            "status": "FAIL",
+            "observed": "focused test still restores zero FR rows instead of one at flight_recorder.rs:3116 after initial fixture-scope repair; exact deeper cause remains unresolved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Diagnose the preserved runtime evidence and exact startup reconciler authority/lifecycle path; repair the smallest cause without weakening the one-row recovery assertion, prove focused restart behavior, full PT-109-1, and independent proof."
+        "remaining_remediation": "Inspect the exact persisted pending row and reconciler query/session response after scoped seeding, identify why the service still sees or materializes zero FR rows, apply only the evidenced correction, then pass focused, full PT-109-1, and independent proof."
       },
       {
         "finding_id": "MT109-V16-F42",
@@ -5696,6 +5716,12 @@
             "status": "FAIL_REPRODUCTION_PARTIAL",
             "observed": "exact one-test reproduction confirms body panic followed by cleanup panic can abort the test process 0xc0000409; full PT-109-1 remains invalid",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused restart test now exits normally 101 with one body failure and no 0xc0000409 double panic; full 40-test PT-109-1 remains required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
           }
         ],
         "remaining_remediation": "Resolve every PT-109-1 body and cleanup blocker, then rerun the complete api::flight_recorder:: target with --test-threads=4 to a normal nonzero 40-test summary and exit 0; repeat independently on the clean candidate."
@@ -5718,6 +5744,12 @@
             "status": "FAIL_SOURCE_REVIEW_MAPPING",
             "observed": "same restart fixture class also uses implicit fallback cleanup; planned repair retains body error while applying explicit owned-task/state teardown and centralized cleanup; prior cleanup failure remains unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "explicit teardown eliminates cleanup failure/double panic for the focused startup-reconciler test; no cleanup marker emitted; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert this exact test to panic-preserving explicit owned-task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; after F41 behavior is fixed, pass focused, full PT-109-1, and independent clean-candidate proof."
