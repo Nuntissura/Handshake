@@ -3362,6 +3362,14 @@
         "result": "BUILDER_GATE_FAIL_F03_DECLARATIVE_SCHEMA_PIN",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-7.log",
         "observed": "The declarative schema pin gate failed 0/1 with exit 101 at schema.rs:4606 after the intended ledger-reader authorization change. Observed hash 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6 differs from expected 4bfd32d7062fd5a83ef1e507bbe766628a82c35936914f080439a52643635fe2. This is an ordered attempt under existing F03 pending derivation from current canonical schema bytes and a green rerun."
+      },
+      {
+        "proof_id": "MT109-V16-PR-139",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_F03_DECLARATIVE_SCHEMA_PIN",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-8.log",
+        "observed": "The declarative schema pin gate passed 1/1 with exit 0 and 2205 filtered after deriving the exact current canonical schema.surql fingerprint 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6. Current-schema INFO, bounded catalogs, migration, and independent clean-candidate verification remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -4116,6 +4124,12 @@
             "status": "FAIL",
             "observed": "declarative schema pin gate fails after ledger-reader change: observed 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6 versus expected 4bfd32d7062fd5a83ef1e507bbe766628a82c35936914f080439a52643635fe2",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-7.log"
+          },
+          {
+            "attempt": 13,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "declarative schema pin passes at exact canonical hash 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6; remaining schema/catalog/migration and independent gates remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-8.log"
           }
         ],
         "remaining_remediation": "Derive the declarative pin from current canonical schema bytes, rerun declarative/current/bounded catalog and predecessor migration gates, then independently verify all schema fingerprints on the clean candidate."
