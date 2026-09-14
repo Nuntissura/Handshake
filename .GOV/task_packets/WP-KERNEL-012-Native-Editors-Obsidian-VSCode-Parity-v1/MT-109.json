@@ -3234,6 +3234,14 @@
         "result": "SOURCE_REVIEW_F20_OWNER_COLLISION_MAPPED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log",
         "observed": "The collision is the same protected Workspace resource key/workspace_id. Its existing owner is canonical-proposer under create-account/create-space; the second helper requested native_editor under reject-account/reject-space. The -32000 ownership collision is therefore correct fail-closed behavior. The bounded fixture repair is to reuse the first exact identity/account/space and add only the rejected_source RichDocument grant."
+      },
+      {
+        "proof_id": "MT109-V16-PR-123",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_SOURCE_MAPPING_F20_EXACT_OWNER_COLLISION_KEYS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log",
+        "observed": "Exact deterministic helper inputs identify resource kind Workspace and external key equal to the test single workspace_id. Existing owner/account/space are canonical-proposer / proposal-review-create-account / proposal-review-create-space. The rejected request used native_editor / proposal-review-reject-account / proposal-review-reject-space. The correct bounded fixture change reuses the existing canonical identity and adds only the second RichDocument grant."
       }
     ],
     "resolved_prior_findings": [
@@ -4941,6 +4949,12 @@
             "attempt": 3,
             "status": "FAIL_SOURCE_REVIEW_MAPPING",
             "observed": "same Workspace resource key is already owned by canonical-proposer/create-account/create-space; second helper requested native_editor/reject-account/reject-space, so -32000 collision is correct; remediation must reuse first owner and grant only rejected_source RichDocument",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log"
+          },
+          {
+            "attempt": 4,
+            "status": "FAIL_SOURCE_REVIEW_MAPPING",
+            "observed": "exact collision: Workspace resource at the single workspace_id is owned by canonical-proposer/proposal-review-create-account/proposal-review-create-space; rejected request was native_editor/proposal-review-reject-account/proposal-review-reject-space; reuse existing owner and add only second RichDocument grant",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log"
           }
         ],
