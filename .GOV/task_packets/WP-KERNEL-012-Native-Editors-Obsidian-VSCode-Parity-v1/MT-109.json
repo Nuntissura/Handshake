@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:53:32.379Z",
+  "updated_at_utc": "2026-09-14T17:54:57.892Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2874,6 +2874,14 @@
         "result": "BUILDER_GATE_FAIL_F01_F06_DERIVATIVE_REQUEST_TIMEOUT_UNDER_LOAD",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
         "observed": "During the live fifth complete api::memory:: four-thread attempt, mt109_memory_derivatives_do_not_widen_source_read_authority failed in owner_proposal with reqwest TimedOut on the proposal POST. The same run had already passed the five former full-4 failures, the full mounted-route authority matrix, reconciliation isolation, and revoke-before-write zero-residue. The process remained active when recorded; final suite verdict is still pending."
+      },
+      {
+        "proof_id": "MT109-V16-PR-078",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_V15_F01_F06_FOUR_NEW_CLEANUP_PATHS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "observed": "The live fifth complete four-thread Memory run exposed four additional deterministic teardown failures: proposal_cannot_mutate_committed_memory preserved store-01a0a10c7dda72a08d27ce719ef4431c; non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path preserved store-01a0a10c05e57593bf8fd3bccadf7847; proposal_delete_race_never_leaves_workspace_orphans preserved store-01a0a10c89997c2098a5f2f066d3d49e; proposal_insert_rolls_back_when_receipt_phase_fails preserved store-01a0a10d4b2c7833bda27d18368ae3e4. Each shutdown was still draining operations after 30000 ms. The process remained active when recorded."
       }
     ],
     "resolved_prior_findings": [
@@ -2881,8 +2889,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Legacy retry teardown is repaired in focused builder proof, and proposal listing now preserves its underlying 403 behavior failure through cleanup. Three other full-suite cleanup paths and independent proof remain.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/legacy-retry-narrow-1.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log",
+        "observed_proof": "The fifth complete four-thread Memory run exposed four new shutdown-draining cleanup failures and preserved all four failed stores. Prior narrow cleanup greens do not resolve these paths.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3039,9 +3047,33 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "exact memory pack/item cross-workspace ID reassignment behavior passes with centralized teardown/root absence; complete four-thread suite and independent proof remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-id-reassignment-narrow-1.log"
+          },
+          {
+            "attempt": 27,
+            "status": "FAIL",
+            "observed": "proposal_cannot_mutate_committed_memory reached deterministic teardown but shutdown was still draining operations after 30000 ms; failed store store-01a0a10c7dda72a08d27ce719ef4431c is preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 28,
+            "status": "FAIL",
+            "observed": "non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path reached deterministic teardown but shutdown was still draining operations after 30000 ms; failed store store-01a0a10c05e57593bf8fd3bccadf7847 is preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 29,
+            "status": "FAIL",
+            "observed": "proposal_delete_race_never_leaves_workspace_orphans reached deterministic teardown but shutdown was still draining operations after 30000 ms; failed store store-01a0a10c89997c2098a5f2f066d3d49e is preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 30,
+            "status": "FAIL",
+            "observed": "proposal_insert_rolls_back_when_receipt_phase_fails reached deterministic teardown but shutdown was still draining operations after 30000 ms; failed store store-01a0a10d4b2c7833bda27d18368ae3e4 is preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
           }
         ],
-        "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
+        "remaining_remediation": "For each of the four new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3577,6 +3609,12 @@
             "attempt": 35,
             "status": "FAIL",
             "observed": "the fifth complete four-thread suite has a derivative-authority proposal POST reqwest timeout under load; no valid complete-suite pass exists and final process result remains pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 36,
+            "status": "FAIL",
+            "observed": "the fifth complete four-thread suite has four additional shutdown-draining cleanup failures with preserved stores, in addition to the derivative-authority request timeout; no valid full-suite pass exists",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
           }
         ],
