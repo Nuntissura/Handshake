@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:27:29.976Z",
+  "updated_at_utc": "2026-09-14T17:30:41.515Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2802,6 +2802,14 @@
         "result": "BUILDER_GATE_FAIL_F08_PROPOSAL_LIST_TRANSACTION_VISIBILITY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log",
         "observed": "The exact proposal-list test advanced past its missing-scope 403 but remained RED 0/1 in 30.89 seconds. The first proposal returned HTTP 500 because lifecycle outbox field proposal_id failed record::exists for the proposal created earlier in the same atomic transaction. The exact producer proposal row was not visible to the active scope, so list ordering/bound/workspace isolation assertions still did not execute. Cleanup preserved this body diagnostic."
+      },
+      {
+        "proof_id": "MT109-V16-PR-069",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F08_SECOND_PROPOSAL_TRANSACTION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log",
+        "observed": "The exact proposal-list test advanced its first proposal but remained RED 0/1 in 32.89 seconds. The second proposal returned HTTP 500 with resource authority storage failed: embedded database error: The query was not executed due to a failed transaction. This public error does not identify the earlier failed statement or constraint, so exact internal diagnostic remains required before remediation. Cleanup succeeded."
       }
     ],
     "resolved_prior_findings": [
@@ -2937,6 +2945,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "proposal-list narrow-2 preserved its transaction-visibility body error through centralized cleanup; other teardown paths and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log"
+          },
+          {
+            "attempt": 22,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "proposal-list narrow-3 preserved its second-proposal transaction failure and completed cleanup; other teardown paths and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log"
           }
         ],
         "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
@@ -3422,6 +3436,12 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "proposal-list isolation advanced to HTTP 500 because outbox record::exists cannot see the just-created proposal under its active producer scope; complete suite remains unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log"
+          },
+          {
+            "attempt": 28,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "proposal-list isolation advances first proposal but second fails with a generic failed-transaction HTTP 500; exact internal cause and complete suite remain unresolved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3476,8 +3496,8 @@
         "finding_id": "MT109-V16-F08",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The fixture now reaches proposal creation, but transaction-time internal visibility fails: lifecycle outbox record::exists rejects the just-created proposal and the public request returns HTTP 500.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log",
+        "observed_proof": "Proposal-list isolation now creates the first row, but the second proposal fails its atomic transaction with a generic public 500. The exact internal failed statement/constraint is not yet known.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3490,9 +3510,15 @@
             "status": "FAIL",
             "observed": "exact per-workspace/per-source scope removed the 403, but first proposal now returns HTTP 500 because lifecycle outbox proposal_id record::exists cannot see the just-created proposal under the active producer scope",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log"
+          },
+          {
+            "attempt": 3,
+            "status": "FAIL",
+            "observed": "first proposal now succeeds; second returns HTTP 500 because an earlier transaction statement failed, but the public error does not identify the exact statement or constraint; cleanup succeeds",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Align the submit helper actor identity and exact producer scope with the source-composed proposal SELECT predicate so same-transaction record::exists can see only its own just-created proposal. Preserve atomicity and bounded/workspace isolation assertions; pass focused proof, then independently rerun."
+        "remaining_remediation": "Expose the exact owned internal statement/constraint that fails during the second proposal while preserving the public error contract; correct only that cause, retain atomicity and bounded/workspace isolation assertions, pass focused proof, then independently rerun."
       }
     ],
     "independent_findings": [
