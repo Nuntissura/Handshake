@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:27:53.4401079Z",
+  "updated_at_utc": "2026-09-14T14:30:26.2056800Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2514,6 +2514,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_LOOM_CATALOG",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-loom-catalog-3.log",
         "observed": "The bounded Loom catalog proof passed 1/1 in 1.63 seconds with two independently constructed catalogs equal at 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 and missing dependency rejection. This builder result does not clear MT109-V16-F03."
+      },
+      {
+        "proof_id": "MT109-V16-PR-033",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_COMBINED_SCHEMA_BATCH",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-4.log",
+        "observed": "The combined three-test schema batch passed 3/3 in 79.74 seconds: current and predecessor authority pins, two internal clean-upgrade/exact-rollback/reopen/cleanup variants, and the bounded Loom catalog all passed together. This builder result clears neither MT109-V16-F03 nor MT109-V16-F04."
       }
     ],
     "resolved_prior_findings": [
@@ -2632,6 +2640,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "two bounded Loom catalogs were equal at 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 and missing dependency rejection passed; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-loom-catalog-3.log"
+          },
+          {
+            "attempt": 11,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "combined authority pins, two migration variants, and Loom catalog passed 3/3; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-4.log"
           }
         ],
         "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh schema containing both the exact reconciler predicate and source-composed ordinary reader/producer predicate, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
@@ -2654,6 +2668,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "clean upgrade/replay, exact rollback sequence 149/150/151, reopen state, and centralized removal of success and rollback roots passed in both internal repetitions; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-migration-separated-stores-6.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "combined schema batch passed both internal migration variants with exact rollback, reopen, and cleanup alongside authority pins and Loom catalog; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-4.log"
           }
         ],
         "remaining_remediation": "Map index149 to the injected marker from the constructed statement sequence and verify the one-position shift comes only from the intended schema statement. Update the exact expected sequence, then prove clean upgrade/replay, rollback rows/schema marker/keys/catalogs after close/reopen, and centralized removal of both store roots."
