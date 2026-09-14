@@ -3314,6 +3314,14 @@
         "result": "FINALIZED_BUILDER_GATE_FAIL_F38_F39_F40_F41_F42_PT_109_1",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
         "observed": "Direct final-log enumeration shows PT-109-1 selected 40 tests but terminated without a suite summary at exit 0xc0000409 STATUS_STACK_BUFFER_OVERRUN. The log contains exactly 19 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE markers, all preserving stores under kb-v17/runtime. Seventeen are already tracked as F22-F38. New cleanup blockers are F40 legacy pending without expected hash, store-01a0a1a46ea873e2b8d00fc817c26994, and F42 persistent restart, store-01a0a1a4b2c97ef39662f5b2678ec360. New behavior blockers are F39 persistent restart repairs both partial-write windows at flight_recorder.rs:3212, expected one FR row and observed 0, and F41 startup reconciler repairs durable pending at flight_recorder.rs:2986, expected one FR row and observed 0. F38 spoofed-identity attribution cleanup preserved store-01a0a1a425e576728dbb4efca421b107. F39 then entered fallback cleanup after its body assertion, causing a double panic and abnormal process termination. No valid PT-109-1 verdict exists."
+      },
+      {
+        "proof_id": "MT109-V16-PR-133",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "FINALIZED_BUILDER_GATE_FAIL_F43_PT_109_1_ABNORMAL_EXIT",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "observed": "PT-109-1 selected 40 Flight Recorder tests but produced no normal suite summary. The test process exited 0xc0000409 STATUS_STACK_BUFFER_OVERRUN after a product-body panic was followed by TestStoreCleanupGuard fallback panic. This aggregate acceptance-gate failure is distinct from F39 restart behavior and F42 test cleanup: PT-109-1 has no valid pass/fail test-count verdict until the full process exits normally."
       }
     ],
     "resolved_prior_findings": [
@@ -5617,6 +5625,22 @@
           }
         ],
         "remaining_remediation": "After F39 behavior is corrected, convert this test to panic-preserving explicit task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; then pass full PT-109-1 and independent proof."
+      },
+      {
+        "finding_id": "MT109-V16-F43",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "Required PT-109-1 selected 40 tests but aborted with exit 0xc0000409 STATUS_STACK_BUFFER_OVERRUN and no normal suite summary, so the acceptance gate has no valid verdict.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "40 tests selected; product-body panic followed by fallback cleanup panic aborts process 0xc0000409; no suite summary or valid PT-109-1 verdict",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          }
+        ],
+        "remaining_remediation": "Resolve every PT-109-1 body and cleanup blocker, then rerun the complete api::flight_recorder:: target with --test-threads=4 to a normal nonzero 40-test summary and exit 0; repeat independently on the clean candidate."
       }
     ],
     "independent_findings": [
@@ -5909,6 +5933,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T20:41:16.290402Z",
         "summary": "native_editor_persistent_restart_repairs_both_partial_write_windows cleanup/double-panic failure"
+      },
+      {
+        "id": "MT109-V16-F43",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T20:41:42.426494Z",
+        "summary": "Required PT-109-1 aborts with STATUS_STACK_BUFFER_OVERRUN and no normal suite summary, leaving the Flight Recorder acceptance gate without a valid verdict."
       }
     ],
     "remediation_required": {
@@ -5953,9 +5984,10 @@
         "Resolve MT109-V16-F39: Diagnose from the preserved store and exact startup/reconciliation path why each partial-write window restores zero FR rows; repair the smallest product or fixture cause without weakening restart assertions, prove both windows focused, full PT-109-1, and independent proof.",
         "Resolve MT109-V16-F40: Convert the test to panic-preserving explicit owned-task/state shutdown and centralized cleanup while retaining legacy recovery assertions; prove focused root absence, full PT-109-1, and independent proof.",
         "Resolve MT109-V16-F41: Diagnose the preserved runtime evidence and exact startup reconciler authority/lifecycle path; repair the smallest cause without weakening the one-row recovery assertion, prove focused restart behavior, full PT-109-1, and independent proof.",
-        "Resolve MT109-V16-F42: After F39 behavior is corrected, convert this test to panic-preserving explicit task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; then pass full PT-109-1 and independent proof."
+        "Resolve MT109-V16-F42: After F39 behavior is corrected, convert this test to panic-preserving explicit task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; then pass full PT-109-1 and independent proof.",
+        "Resolve MT109-V16-F43 by fixing all PT-109-1 body/cleanup blockers and producing a normal 40-test/4-thread exit-0 suite result, followed by independent clean-SHA proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-four blocking finding IDs are unresolved. Final PT-109-1 ended 0xc0000409 with 19 cleanup failures and two restart-recovery body failures; no valid Flight Recorder suite verdict exists."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-five blocking finding IDs are unresolved. PT-109-1 ended 0xc0000409 with no valid suite verdict; its behavior and cleanup defects remain separately tracked."
   }
 }
