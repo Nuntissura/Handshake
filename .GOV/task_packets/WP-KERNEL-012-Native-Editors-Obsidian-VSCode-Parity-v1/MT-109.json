@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:06:26.825Z",
+  "updated_at_utc": "2026-09-14T18:10:34.964Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2930,6 +2930,14 @@
         "result": "INVALID_BUILDER_INVOCATION_F09_ZERO_TESTS_SECOND_ATTEMPT",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-2.log",
         "observed": "The second focused F09 invocation compiled for 5 minutes 32 seconds but again selected 0 tests (2057 filtered out). The memory test module is gated by duckdb-flight-recorder, so test-utils alone did not include this test. It provides no product behavior or cleanup evidence and clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-085",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F09_EXACT_PROTECTED_RESOURCE_DENIAL",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log",
+        "observed": "The valid focused F09 run selected exactly one test and failed 0/1 in 29.50 seconds. It captured MT109_PROPOSAL_OUTBOX_INJECTED_FAILURE=(403, {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}) instead of the intended injected recorder HTTP 500. The panic-preserving wrapper exposed the body failure and centralized cleanup/root absence passed."
       }
     ],
     "resolved_prior_findings": [
@@ -3143,6 +3151,12 @@
             "status": "FAIL_DIAGNOSIS",
             "observed": "source/backtrace mapping confirms all seven full-5 failures use fallback backend Drop while AppState/database clients are still alive; each needs the existing panic-preserving explicit teardown pattern and any owned task drain before close",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 35,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the outbox-retry test now preserves its real 403 body failure through centralized teardown and removes its store; six other full-5 cleanup paths and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log"
           }
         ],
         "remaining_remediation": "For each of the seven new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
@@ -3706,6 +3720,12 @@
             "status": "FAIL_DIAGNOSIS",
             "observed": "seven full-suite shutdown failures are mapped to fallback cleanup running before live AppState/client owners drop; focused body-preserving teardown reruns and complete suite remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 40,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "valid focused F09 proof confirms exact protected-resource 403 before intended recorder-failure path; the full suite remains unresolved, though this focused test now cleans its store deterministically",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
@@ -3818,8 +3838,8 @@
         "finding_id": "MT109-V16-F09",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event expected the injected post-commit recorder failure to return HTTP 500 but received HTTP 403 before the intended retry/dedup path executed.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "observed_proof": "Focused proof confirms exact HSK-403-PROTECTED-RESOURCE denial before the injected recorder failure. Exact principal/workspace/source resource and grant rows must be inspected before fixture repair.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3844,9 +3864,15 @@
             "status": "INVALID_ZERO_TESTS",
             "observed": "second focused invocation compiled but selected 0 tests because its feature set still did not include the duckdb-flight-recorder-gated memory test module; no F09 evidence",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-2.log"
+          },
+          {
+            "attempt": 5,
+            "status": "FAIL",
+            "observed": "valid focused run selected one test and captured exact 403 HSK-403-PROTECTED-RESOURCE before intended injected recorder 500; body assertions failed, while explicit cleanup/root absence passed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Inspect the exact source/workspace/proposal authority fixture and public 403 body, provide only the missing exact current grants required to reach the intended recorder-failure path, then prove initial 500, retry recovery, no duplicate event, deterministic cleanup, full-suite behavior, and independent clean-SHA behavior."
+        "remaining_remediation": "Inspect exact principal, workspace, proposal, source resource, grant, and active scope rows for the focused 403. Add only the missing current authority, then prove injected 500, in-call retry, no duplicate event, cleanup, full-suite behavior, and independent clean-SHA behavior."
       }
     ],
     "independent_findings": [
