@@ -3114,6 +3114,14 @@
         "result": "BUILDER_GATE_FAIL_F15_CORRUPT_RECEIPT_PROOF_UNAUTHORIZED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-2.log",
         "observed": "The valid focused corrupt-receipt retry test selected one test and failed 0/1 in 28.94 seconds before the intended corrupt-receipt assertions. Its first proposal returned 403 Forbidden with HSK-403-PROTECTED-RESOURCE. Explicit centralized cleanup succeeded, exposing that the prior full-suite cleanup failure had hidden a stale positive fixture with no exact current proposal/source authority."
+      },
+      {
+        "proof_id": "MT109-V16-PR-108",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F15_CORRUPT_RECEIPT_ACTOR_SCOPE_MISMATCH",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-3.log",
+        "observed": "The focused corrupt-receipt test advanced past the prior 403 but failed 0/1 with public 500 because lifecycle outbox proposal_id record::exists($value) could not see the just-created proposal in the same transaction. Explicit cleanup succeeded. Builder source inspection attributes this to an exact fixture identity mismatch: proposal_create_test_scope authenticated principal actor native_editor while the first request declared original-operator, so producer-bound proposal SELECT hid the row. This diagnosis remains unproven until the identity-aligned focused test passes."
       }
     ],
     "resolved_prior_findings": [
@@ -3417,6 +3425,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused corrupt-receipt test exits through explicit centralized cleanup with no cleanup failure; body remains blocked by stale authority and independent cleanup proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-2.log"
+          },
+          {
+            "attempt": 50,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "corrupt-receipt narrow-3 exits through explicit centralized cleanup without a cleanup failure; body remains red and independent cleanup proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-3.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4184,6 +4198,12 @@
             "status": "FAIL",
             "observed": "focused corrupt-receipt test reaches behavior but its first proposal returns 403 before the intended assertions; full suite cannot pass until exact fixture authority is repaired",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-2.log"
+          },
+          {
+            "attempt": 57,
+            "status": "FAIL",
+            "observed": "corrupt-receipt narrow-3 reaches storage but returns 500 before its intended corrupt-receipt assertions because same-transaction proposal existence is hidden under mismatched fixture identity",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-3.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4512,17 +4532,23 @@
         "finding_id": "MT109-V16-F15",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The corrupt-receipt retry test cannot reach its intended retry assertions because its first proposal is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this stale positive authority fixture.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-2.log",
+        "observed_proof": "The corrupt-receipt retry test now reaches proposal storage but still cannot reach its intended retry assertions: producer-bound same-transaction proposal visibility fails under a fixture actor/scope mismatch and returns public 500.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
             "status": "FAIL",
             "observed": "valid focused test selects one and fails before corrupt-receipt manipulation: first proposal returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL",
+            "observed": "focused test advances past 403 but returns 500 when lifecycle outbox proposal_id record::exists cannot see the just-created proposal; builder maps fixture scope actor native_editor versus request actor original-operator; explicit cleanup succeeds",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Provision only the exact current workspace/proposal Create and canonical source Read authority needed by the fixture, retain corrupt-receipt rejection and new-retry-header assertions, prove focused cleanup/root absence, pass the complete Memory suite, then pass independent clean-candidate proof."
+        "remaining_remediation": "Align the exact fixture scope actor with the authoritative original proposal actor while keeping later retry headers changed and the authenticated scope stable; retain corrupt-receipt rejection, canonical receipt assertions, explicit cleanup/root absence, full-suite proof, and independent clean-candidate proof."
       }
     ],
     "independent_findings": [
