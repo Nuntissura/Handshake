@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:02:04.2353234Z",
+  "updated_at_utc": "2026-09-14T14:04:07.7072651Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2490,6 +2490,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_RECONCILER_REVOCATION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-16.log",
         "observed": "The complete focused reconciliation service test passed 1/1 in 40.98 seconds. It proved the granted workspace drained; ungranted proposal, memory, outbox, anchor, ledger, and Flight Recorder state remained unchanged; a fresh service session enumerated only the exact granted workspace; and revoking the exact queue grant immediately removed authorization and visibility. This builder result does not clear MT109-V16-F05."
+      },
+      {
+        "proof_id": "MT109-V16-PR-030",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_MIGRATION_INDEX_AND_LOOM_CATALOG",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-3.log",
+        "observed": "The three-test batch finished 1 passed/2 failed in 61.52 seconds. Clean migration reached the injected marker, whose exact primary sequence moved to marker149/cancelled150/COMMIT151 from expected 148/149/150. The bounded Loom catalog observed 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 versus expected 21ff646911d98425f13a6697de431d355d46f9ae9d099ac40b9495e0f8be5d97. Failed stores mt109-migration-f9rwgf and mt109-migration-rollback-G55wrB were preserved."
       }
     ],
     "resolved_prior_findings": [
@@ -2595,6 +2603,13 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "source-composed current-schema catalog passed 1/1 at 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388 after declarative pin also passed; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-7.log"
+          },
+          {
+            "attempt": 9,
+            "failed_attempt_ordinal": 6,
+            "status": "FAIL",
+            "observed": "bounded Loom catalog changed after the intended source-composition statement: observed 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 vs expected 21ff646911d98425f13a6697de431d355d46f9ae9d099ac40b9495e0f8be5d97",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-3.log"
           }
         ],
         "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh schema containing both the exact reconciler predicate and source-composed ordinary reader/producer predicate, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
@@ -2603,9 +2618,17 @@
         "finding_id": "MT109-V16-F04",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The production predecessor upgrade fails before the injected rollback marker: response 146 reports NONE, response 147 is cancelled, and COMMIT aborts. The separated-store rerun also failed before success and absence assertions.",
-        "test_or_log": "MT109-V16-PR-004 and MT109-V16-PR-005",
-        "remaining_remediation": "Repair the Loom backfill so a clean predecessor upgrade succeeds. Then prove the injected failure is reached at its exact statement position and that rows, schema marker, keys, catalogs, and both store paths are unchanged or removed as required."
+        "observed_proof": "The initial production predecessor upgrade failed before the injected rollback marker at response 146. After repairing the Loom backfill, clean migration reached the intended injected marker, but the exact marker sequence moved to 149/150/151 while the test still expected 148/149/150.",
+        "test_or_log": "MT109-V16-PR-004, MT109-V16-PR-005, and MT109-V16-PR-030",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "clean migration reached injected rollback marker; exact marker/cancel/COMMIT sequence was 149/150/151 vs stale expected 148/149/150; failed success and rollback stores preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-3.log"
+          }
+        ],
+        "remaining_remediation": "Map index149 to the injected marker from the constructed statement sequence and verify the one-position shift comes only from the intended schema statement. Update the exact expected sequence, then prove clean upgrade/replay, rollback rows/schema marker/keys/catalogs after close/reopen, and centralized removal of both store roots."
       },
       {
         "finding_id": "MT109-V16-F05",
