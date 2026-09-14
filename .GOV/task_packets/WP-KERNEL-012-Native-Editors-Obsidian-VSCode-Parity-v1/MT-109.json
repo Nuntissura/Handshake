@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:35:49.2326420Z",
+  "updated_at_utc": "2026-09-14T14:38:28.2565317Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2530,6 +2530,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_MIXED_SOURCE_AUTHORITY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-7.log",
         "observed": "The strengthened derived-source test passed 1/1 in 42.81 seconds. It added an explicit mixed-source failure where the first source was readable and the second canonical source was inaccessible, while retaining cross-principal creator denial, producer revoke/regrant identity, all six endpoint denial/regrant checks, and zero read mutation. This builder result does not clear MT109-V16-F01."
+      },
+      {
+        "proof_id": "MT109-V16-PR-035",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_AUTHORITY_SENTINEL_SOURCE_FIXTURE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-2.log",
+        "observed": "The full authority target finished 13 passed/1 failed in 67.25 seconds. The sole failure, direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny, expected its authorized sentinel proposal row but observed an empty list because the fixture referenced mt109-v12-document without registering that RichDocument or granting the owner source Read/memory.read authority now required by the corrected source-composed SELECT rule."
       }
     ],
     "resolved_prior_findings": [
@@ -2573,9 +2581,15 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "strengthened derivative test also passed explicit mixed-source fail-closed with one readable and one inaccessible canonical source, retaining all prior denial/regrant/no-mutation checks; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-7.log"
+          },
+          {
+            "attempt": 4,
+            "status": "FAIL",
+            "observed": "full authority target passed 13/14; authorized proposal sentinel returned [] because its fixture lacked the now-required canonical source document and exact owner source grant",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-2.log"
           }
         ],
-        "remaining_remediation": "Compose ordinary reader and producer proposal SELECT with current source-document authority; keep the exact reconciliation-queue service branch separate and bounded. Independently prove denial for all six derivative surfaces and direct proposal SELECT, mixed-source fail-closed behavior, zero mutation during denied reads, unchanged public MemoryPack shape, no proposal-create requirement for read-only users, and identical results after regrant."
+        "remaining_remediation": "Register the exact mt109-v12-document RichDocument and grant only its owner Read/memory.read in the positive sentinel fixture; keep production authority unchanged. Rerun the failed test and full authority target, then independently prove all derivative, direct SELECT, mixed-source, regrant, no-mutation, and read-only-user boundaries."
       },
       {
         "finding_id": "MT109-V16-F02",
