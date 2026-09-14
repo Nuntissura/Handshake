@@ -3130,6 +3130,14 @@
         "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F15_CORRUPT_RECEIPT",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-4.log",
         "observed": "The corrected focused corrupt-receipt retry test passed 1/1 in 32.27 seconds. Its exact principal/source scope is aligned to the original authoritative actor; it reaches the corrupt-receipt conflict, permits replay with changed non-authoritative retry headers under the stable authenticated scope, preserves canonical proposal/receipt identity, and completes explicit cleanup. This clears no finding before the full suite and independent clean-candidate proof."
+      },
+      {
+        "proof_id": "MT109-V16-PR-110",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F16_SURREAL_IDENTITY_PROOF_UNAUTHORIZED",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log",
+        "observed": "The focused Surreal identity/exact retry test selected one and failed 0/1 because its first proposal returned 403 HSK-403-PROTECTED-RESOURCE before identity/retry convergence assertions. Explicit centralized cleanup succeeded. Source inspection found that the fixture created its workspace and source but provisioned no exact proposal/source grants or record-user scope for either direct create call."
       }
     ],
     "resolved_prior_findings": [
@@ -3445,6 +3453,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused corrupt-receipt test passes explicit cleanup without a cleanup failure or preserved root; remaining teardown cases/full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-4.log"
+          },
+          {
+            "attempt": 52,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused Surreal identity test completes explicit centralized cleanup without cleanup failure; product proof is blocked at authority and independent cleanup proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4224,6 +4238,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused corrupt-receipt behavior and cleanup pass; seven other converted teardown cases and complete Memory suite remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-4.log"
+          },
+          {
+            "attempt": 59,
+            "status": "FAIL",
+            "observed": "focused Surreal identity test reaches behavior but its first proposal returns 403 before identity/retry assertions; full suite remains blocked",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4575,6 +4595,22 @@
           }
         ],
         "remaining_remediation": "Retain the exact aligned scope, corrupt-receipt conflict, changed retry-header replay, canonical proposal/receipt assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
+      },
+      {
+        "finding_id": "MT109-V16-F16",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The Surreal identity/exact retry test cannot reach its intended convergence assertions because its first proposal is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this separate stale positive fixture.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "valid focused test selects one and fails before Surreal identity/retry convergence: first proposal returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log"
+          }
+        ],
+        "remaining_remediation": "Provision only exact current proposal Create and canonical source Read authority for the fixture, keep both direct retry calls under one stable authenticated scope, retain stable request identity and single-row convergence assertions, prove focused cleanup/root absence, pass the complete Memory suite, then pass independent clean-candidate proof."
       }
     ],
     "independent_findings": [
@@ -4678,6 +4714,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T19:22:14.5524669Z",
         "summary": "The corrupt-receipt retry proof is not reachable because its first proposal is denied by protected-resource authority; prior cleanup failure masked the stale positive fixture."
+      },
+      {
+        "id": "MT109-V16-F16",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T19:33:00.000Z",
+        "summary": "The separate Surreal identity/exact retry proof is unreachable because its first proposal lacks exact protected-resource authority; prior cleanup failure masked the fixture defect."
       }
     ],
     "remediation_required": {
@@ -4695,9 +4738,10 @@
         "Retain MT109-V16-F12 exact-authorized retry/idempotency and payload-drift proof in the complete Memory suite, then provide clean-SHA independent proof.",
         "Retain MT109-V16-F13 exact-authorized delete race, zero-orphan, and post-delete proof in the complete Memory suite, then provide clean-SHA independent proof.",
         "Retain MT109-V16-F14 malformed-provenance 400 matrix and exact-authorized UTF-8 byte-range control in the complete Memory suite, then provide clean-SHA independent proof.",
-        "Resolve MT109-V16-F15 by giving the corrupt-receipt fixture only exact current proposal/source authority, then prove corrupt receipt rejection, new retry headers, cleanup, full-suite behavior, and independent clean-SHA proof."
+        "Resolve MT109-V16-F15 by giving the corrupt-receipt fixture only exact current proposal/source authority, then prove corrupt receipt rejection, new retry headers, cleanup, full-suite behavior, and independent clean-SHA proof.",
+        "Resolve MT109-V16-F16 with only exact proposal/source authority under one stable scope, then prove Surreal identity/retry single-row convergence, cleanup, full-suite behavior, and independent clean-SHA proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All seventeen blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All eighteen blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
