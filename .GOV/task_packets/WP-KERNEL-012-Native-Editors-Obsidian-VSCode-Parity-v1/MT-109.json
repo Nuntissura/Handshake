@@ -3162,6 +3162,14 @@
         "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F17_RICH_REPLAY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log",
         "observed": "The corrected focused rich replay drift test passed 1/1 in 32.08 seconds with exact document proposal/source scope. The valid proposal and both code-only snapshot-drift rejections execute, durable state remains bounded to one proposal and one receipt, and explicit cleanup succeeds. Full-suite and independent clean-candidate proof remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-114",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F18_SIMULTANEOUS_RETRY_PROOF_UNAUTHORIZED",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log",
+        "observed": "The focused simultaneous-retries test selected one and failed because the first concurrent proposal create returned 403 HSK-403-PROTECTED-RESOURCE before convergence assertions. Explicit centralized cleanup succeeded. Source inspection found a workspace/source fixture without exact authority scope, so prior implicit teardown failure masked this separate concurrency-proof reachability defect."
       }
     ],
     "resolved_prior_findings": [
@@ -3501,6 +3509,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused rich replay test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log"
+          },
+          {
+            "attempt": 56,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused simultaneous-retries test completes explicit cleanup without cleanup failure; concurrency proof is blocked at authority and independent cleanup proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4304,6 +4318,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused rich replay behavior and cleanup pass; other converted teardown cases and full Memory suite remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log"
+          },
+          {
+            "attempt": 63,
+            "status": "FAIL",
+            "observed": "focused simultaneous-retries test returns 403 in the first concurrent create before convergence assertions; full suite remains blocked",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4699,6 +4719,22 @@
           }
         ],
         "remaining_remediation": "Retain exact scope, both drift rejections, durable-state bounds, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
+      },
+      {
+        "finding_id": "MT109-V16-F18",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The simultaneous proposal-retry convergence test cannot reach its one-proposal/one-receipt assertions because the first concurrent create is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this separate stale fixture.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "valid focused test fails before simultaneous retry convergence: first concurrent create returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log"
+          }
+        ],
+        "remaining_remediation": "Provision one exact proposal/source scope and enter it independently for each concurrent handler future without serializing the futures; retain simultaneous execution and one-proposal/one-receipt assertions, prove cleanup/root absence, pass the complete Memory suite, then pass independent clean-candidate proof."
       }
     ],
     "independent_findings": [
@@ -4816,6 +4852,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T19:34:13.856418Z",
         "summary": "The separate rich replay drift proof is unreachable because its baseline valid proposal lacks exact protected-resource authority; prior cleanup failure masked the fixture defect."
+      },
+      {
+        "id": "MT109-V16-F18",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T19:37:44.900393Z",
+        "summary": "The simultaneous retry convergence proof is unreachable because its concurrent creates lack exact protected-resource authority; prior cleanup failure masked the fixture defect."
       }
     ],
     "remediation_required": {
@@ -4835,9 +4878,10 @@
         "Retain MT109-V16-F14 malformed-provenance 400 matrix and exact-authorized UTF-8 byte-range control in the complete Memory suite, then provide clean-SHA independent proof.",
         "Resolve MT109-V16-F15 by giving the corrupt-receipt fixture only exact current proposal/source authority, then prove corrupt receipt rejection, new retry headers, cleanup, full-suite behavior, and independent clean-SHA proof.",
         "Resolve MT109-V16-F16 with only exact proposal/source authority under one stable scope, then prove Surreal identity/retry single-row convergence, cleanup, full-suite behavior, and independent clean-SHA proof.",
-        "Resolve MT109-V16-F17 with only exact proposal/source authority under one stable scope, then prove rich replay snapshot-drift rejections, durable-row/receipt bounds, cleanup, full-suite behavior, and independent clean-SHA proof."
+        "Resolve MT109-V16-F17 with only exact proposal/source authority under one stable scope, then prove rich replay snapshot-drift rejections, durable-row/receipt bounds, cleanup, full-suite behavior, and independent clean-SHA proof.",
+        "Resolve MT109-V16-F18 with one exact proposal/source scope independently applied to both concurrent futures, then prove simultaneous one-row/one-receipt convergence, cleanup, full-suite behavior, and independent clean-SHA proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All nineteen blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All twenty blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
