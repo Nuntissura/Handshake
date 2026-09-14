@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:56:44.459Z",
+  "updated_at_utc": "2026-09-14T18:00:40.573Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2906,6 +2906,22 @@
         "result": "BUILDER_GATE_FAIL_F06_FULL_MEMORY_FIFTH_ATTEMPT_ABORTED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
         "observed": "The fifth complete api::memory:: run at four threads finalized without a valid suite verdict and exited 0xc0000409 STATUS_STACK_BUFFER_OVERRUN. Body failures were the derivative owner-proposal fixed-30-second request timeout and outbox-retry HTTP 403 versus intended injected HTTP 500. Seven shutdown-draining cleanup failures preserved stores, adding proposal_retry_is_idempotent_and_payload_drift_conflicts at store-01a0a10e12747d019df0755b010ed997. The log also emitted MEMORY_STORAGE_ERROR=Serialization(\"missing field `type`\") around the non-UUID legacy test; whether that is expected test-path telemetry or another body defect remains under source inspection."
+      },
+      {
+        "proof_id": "MT109-V16-PR-082",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "INVALID_BUILDER_INVOCATION_F09_ZERO_TESTS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-1.log",
+        "observed": "The first focused F09 invocation omitted the test-utils feature and selected 0 tests (2057 filtered out). It provides no product behavior or cleanup evidence and clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-083",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "READ_ONLY_SOURCE_MAPPING_V15_F01_SEVEN_FALLBACK_DROP_PATHS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "observed": "Read-only source and backtrace inspection confirms all seven full-5 teardown failures still bind (_store, state) and leave AppState/database clients alive when EmbeddedTestBackend fallback Drop begins shutdown. The backtrace ends through test return into TestStoreCleanupGuard::drop at storage/tests.rs:177. The bounded repair is the already-proven panic-preserving body, explicit owned-task drain where applicable, drop(state), then finish_mt109_memory_test; body outcomes must remain independently visible."
       }
     ],
     "resolved_prior_findings": [
@@ -3112,6 +3128,12 @@
             "attempt": 33,
             "status": "FAIL",
             "observed": "proposal_retry_is_idempotent_and_payload_drift_conflicts reached teardown but shutdown was still draining operations after 30000 ms; failed store store-01a0a10e12747d019df0755b010ed997 is preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 34,
+            "status": "FAIL_DIAGNOSIS",
+            "observed": "source/backtrace mapping confirms all seven full-5 failures use fallback backend Drop while AppState/database clients are still alive; each needs the existing panic-preserving explicit teardown pattern and any owned task drain before close",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
           }
         ],
@@ -3670,6 +3692,12 @@
             "status": "FAIL",
             "observed": "fifth complete 33-test four-thread attempt finalized with derivative request timeout, outbox-retry 403 body failure, seven cleanup failures, no valid suite verdict, and exit 0xc0000409; missing-field-type telemetry near non-UUID legacy path remains under inspection",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 39,
+            "status": "FAIL_DIAGNOSIS",
+            "observed": "seven full-suite shutdown failures are mapped to fallback cleanup running before live AppState/client owners drop; focused body-preserving teardown reruns and complete suite remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
@@ -3796,6 +3824,12 @@
             "status": "FAIL_FULL_SUITE_FINAL",
             "observed": "full run finalized with the same HTTP 403 before the intended injected recorder HTTP 500; retry/no-duplicate-event behavior did not execute and this test also failed deterministic teardown",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 3,
+            "status": "INVALID_ZERO_TESTS",
+            "observed": "focused invocation omitted test-utils, selected 0 tests, and provides no F09 evidence",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-1.log"
           }
         ],
         "remaining_remediation": "Inspect the exact source/workspace/proposal authority fixture and public 403 body, provide only the missing exact current grants required to reach the intended recorder-failure path, then prove initial 500, retry recovery, no duplicate event, deterministic cleanup, full-suite behavior, and independent clean-SHA behavior."
