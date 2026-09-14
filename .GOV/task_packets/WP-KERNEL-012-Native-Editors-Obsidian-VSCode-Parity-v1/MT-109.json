@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T12:51:02.2327926Z",
+  "updated_at_utc": "2026-09-14T12:57:34.0696073Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2338,6 +2338,14 @@
         "result": "BUILDER_GATE_FAIL_MEMORY_RECONCILIATION_OUTBOX_PROPOSAL_REFERENCE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-6.log",
         "observed": "The exact internal diagnostic showed fems_memory_lifecycle_fr_outbox.proposal_id rejected by record::exists($value) for the fems_memory_proposals record created in the same proposal transaction; the public response remained 500 internal_error and the test failed 0 passed/1 failed."
+      },
+      {
+        "proof_id": "MT109-V16-PR-011",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_MEMORY_RECONCILIATION_COMPILE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-1.log",
+        "observed": "The next repair could not compile the lib test target: Rust E0609 reported no field actor_id on ProvisionedIdentity, so the declarative pin test never ran."
       }
     ],
     "resolved_prior_findings": [
@@ -2425,9 +2433,15 @@
             "status": "FAIL",
             "observed": "outbox proposal_id failed record::exists($value) for the fems_memory_proposals record created in the same transaction",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-6.log"
+          },
+          {
+            "attempt": 6,
+            "status": "FAIL",
+            "observed": "compile error E0609: ProvisionedIdentity has no actor_id field",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-1.log"
           }
         ],
-        "remaining_remediation": "Repair the proposal/outbox same-transaction reference contract so proposal creation remains atomic and the outbox can validly reference the newly created proposal; do not weaken record assertions, split atomicity, or broaden authority. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
+        "remaining_remediation": "Fix the fixture to use the canonical identity field, then repair the proposal/outbox same-transaction reference contract so proposal creation remains atomic and the outbox can validly reference the newly created proposal; do not weaken record assertions, split atomicity, or broaden authority. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
       }
     ],
     "independent_findings": [
