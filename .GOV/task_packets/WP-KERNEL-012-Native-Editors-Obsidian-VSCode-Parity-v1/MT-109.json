@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:46:59.491Z",
+  "updated_at_utc": "2026-09-14T17:47:35.267Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2850,6 +2850,22 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F08_PROPOSAL_LIST",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-7.log",
         "observed": "The exact bounded deterministic workspace-scoped proposal-list test passed 1/1 in 37.28 seconds. One canonical principal/account/space serves target and control workspaces while resource grants remain exact per workspace and source; the workspace isolation assertion and centralized cleanup/root absence pass. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-075",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_LOOM_REFERENCE_TEARDOWN",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/loom-reference-narrow-1.log",
+        "observed": "The exact Loom block reference proposal test passed 1/1 in 18.97 seconds with centralized cleanup/root absence. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-076",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_MEMORY_ID_REASSIGNMENT_TEARDOWN",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-id-reassignment-narrow-1.log",
+        "observed": "The exact memory pack/item cross-workspace ID reassignment test passed 1/1 in 20.43 seconds with centralized cleanup/root absence. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -3003,6 +3019,18 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "proposal-list focused behavior and centralized teardown/root absence pass; remaining isolated cleanup paths, the complete four-thread suite, and independent proof remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-7.log"
+          },
+          {
+            "attempt": 25,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "exact Loom block-reference behavior passes with centralized teardown/root absence; complete four-thread suite and independent proof remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/loom-reference-narrow-1.log"
+          },
+          {
+            "attempt": 26,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "exact memory pack/item cross-workspace ID reassignment behavior passes with centralized teardown/root absence; complete four-thread suite and independent proof remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-id-reassignment-narrow-1.log"
           }
         ],
         "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
@@ -3518,6 +3546,18 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the corrected proposal-list suite member passes its bounded deterministic workspace-scoped behavior and cleanup; remaining cleanup-isolation tests and the complete 33-test four-thread suite are still required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-7.log"
+          },
+          {
+            "attempt": 33,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the corrected Loom reference suite member passes behavior and cleanup; complete 33-test four-thread suite remains required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/loom-reference-narrow-1.log"
+          },
+          {
+            "attempt": 34,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the corrected memory ID reassignment suite member passes behavior and cleanup; all five former full-4 failures are narrowly green, but the complete 33-test four-thread suite remains required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-id-reassignment-narrow-1.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
