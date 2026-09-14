@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:32:14.171Z",
+  "updated_at_utc": "2026-09-14T21:14:23.500Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -3410,6 +3410,14 @@
         "result": "BUILDER_GREEN_PARTIAL_F39_F41_RECONCILIATION_AUTHORITY_NEGATIVE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciliation-authority-negative-1.log",
         "observed": "The unique exact authorization negative passed 1/1 in 2.16 seconds with exit 0: reconciliation requires service identity plus the exact workspace queue grant. Direct artifact SHA-256 is A14E190983880F1E70C1206789E736DC1631654FE7CACC40022D32E273CFBEA1. Full PT-109-1 and independent adversarial negatives remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-145",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "BUILDER_RED_F46_SAME_ID_MUTATED_ENVELOPE_CONFLICT",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log",
+        "observed": "Required PT-109-1 full-3 reached native_editor_same_id_mutated_envelope_conflicts and failed at flight_recorder.rs:2731 because the changed-pane request with the same event_id did not conflict. Panic-preserving teardown reported no cleanup timeout for this test. The full suite was still active when this finding was appended; exact response and persisted identity require diagnosis before remediation."
       }
     ],
     "resolved_prior_findings": [
@@ -5929,6 +5937,22 @@
           }
         ],
         "remaining_remediation": "Preserve the overwritten file as observed. Use verified unique immutable log paths for every subsequent builder and validator attempt. Before clean-SHA acceptance, enumerate every cited resolution log, prove no path reuse/overwrite, and independently rerun the affected schema proof."
+      },
+      {
+        "finding_id": "MT109-V16-F46",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "native_editor_same_id_mutated_envelope_conflicts panicked at flight_recorder.rs:2731 because the changed-pane same-event_id request did not conflict.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "required full PT-109-1 run reached the changed-pane replay assertion; the request failed to return the required conflict; explicit teardown preserved the body panic without a cleanup timeout",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
+          }
+        ],
+        "remaining_remediation": "Inspect the exact changed-pane response and persisted canonical identity, identify why the same event_id mutation does not conflict, repair the smallest product or fixture cause without weakening identity or replay semantics, pass the focused test and complete PT-109-1, then reprove independently on the clean candidate."
       }
     ],
     "independent_findings": [
@@ -6242,6 +6266,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T21:03:10.556091Z",
         "summary": "A cited schema GREEN log path was reused and overwritten by a later RED, invalidating prior artifact-backed claims and requiring unique immutable evidence recovery."
+      },
+      {
+        "id": "MT109-V16-F46",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T21:14:23.500Z",
+        "summary": "Same event_id with a mutated native-editor envelope did not produce the required conflict in PT-109-1 full-3."
       }
     ],
     "remediation_required": {
@@ -6289,9 +6320,10 @@
         "Resolve MT109-V16-F42: After F39 behavior is corrected, convert this test to panic-preserving explicit task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; then pass full PT-109-1 and independent proof.",
         "Resolve MT109-V16-F43 by fixing all PT-109-1 body/cleanup blockers and producing a normal 40-test/4-thread exit-0 suite result, followed by independent clean-SHA proof.",
         "Resolve MT109-V16-F44 with panic-preserving explicit startup-task/state teardown for the reconciler restart test, then prove root absence focused, full PT-109-1, and independently.",
-        "Resolve MT109-V16-F45 by preserving the overwritten RED, using unique immutable log paths for all new attempts, inventorying cited artifacts for reuse, and independently verifying clean-SHA evidence lineage."
+        "Resolve MT109-V16-F45 by preserving the overwritten RED, using unique immutable log paths for all new attempts, inventorying cited artifacts for reuse, and independently verifying clean-SHA evidence lineage.",
+        "Resolve MT109-V16-F46 by diagnosing the exact changed-pane response and stored canonical identity for the same event_id, repairing the smallest product or fixture cause without weakening replay conflict semantics, and passing focused, full PT-109-1, and independent clean-candidate proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-seven blocking finding IDs are unresolved. A reused schema log invalidated PR018/F03 attempt6; PT-109-1 also remains invalid."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-eight blocking finding IDs are unresolved. A reused schema log invalidated PR018/F03 attempt6; PT-109-1 full-3 has a new same-event-id mutated-envelope conflict failure and has not produced a valid complete suite verdict."
   }
 }
