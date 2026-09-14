@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:04:35.2106215Z",
+  "updated_at_utc": "2026-09-14T13:07:00.9272801Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2370,6 +2370,22 @@
         "result": "BUILDER_GATE_FAIL_CURRENT_SCHEMA_INFO_HASH",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-2.log",
         "observed": "The declarative pin predecessor passed in schema-declarative-pin-4.log, then mt139_current_schema_info_pin_matches_fresh_mem_catalog failed 0 passed/1 failed because observed fresh-catalog hash 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024 did not match expected b877e7c359d296223e4f6c352bde71b5ed05c13ea71901cb9019a9c7a42e4c4e."
+      },
+      {
+        "proof_id": "MT109-V16-PR-015",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_RECONCILER_WORKSPACE_REFERENCE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-7.log",
+        "observed": "Proposal creation and review completed, then least-privilege service reconciliation failed 0 passed/1 failed because fems_memory_commit_fr_outbox.workspace_id was rejected by record::exists for the exact workspace; the public response was 500 internal_error."
+      },
+      {
+        "proof_id": "MT109-V16-PR-016",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_SCHEMA_CURRENT_CATALOG",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-3.log",
+        "observed": "The corrected current-schema catalog gate passed 1/1 at hash 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024. This builder result does not clear MT109-V16-F03."
       }
     ],
     "resolved_prior_findings": [
@@ -2429,6 +2445,12 @@
             "status": "FAIL",
             "observed": "declarative pin passed; fresh current-schema hash observed 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024 vs expected b877e7c359d296223e4f6c352bde71b5ed05c13ea71901cb9019a9c7a42e4c4e",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-2.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "current-schema catalog passed 1/1 at 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-3.log"
           }
         ],
         "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh intended schema catalog, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
@@ -2483,9 +2505,15 @@
             "status": "FAIL",
             "observed": "compile error E0609: ProvisionedIdentity has no actor_id field",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-1.log"
+          },
+          {
+            "attempt": 7,
+            "status": "FAIL",
+            "observed": "least-privilege reconciler reached commit outbox, where workspace_id failed record::exists for the exact workspace; public 500 internal_error",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-7.log"
           }
         ],
-        "remaining_remediation": "Fix the fixture to use the canonical identity field, then repair the proposal/outbox same-transaction reference contract so proposal creation remains atomic and the outbox can validly reference the newly created proposal; do not weaken record assertions, split atomicity, or broaden authority. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
+        "remaining_remediation": "Allow Workspace SELECT for record existence only when the same service identity has the exact mt109-protected-reconciliation:<workspace> Reconcile/memory.commit grant; do not grant workspace enumeration or weaken record assertions. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
       }
     ],
     "independent_findings": [
