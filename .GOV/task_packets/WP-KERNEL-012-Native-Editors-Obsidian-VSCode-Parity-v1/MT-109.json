@@ -3266,6 +3266,14 @@
         "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F21_ALL_EIGHT_TEARDOWNS",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log",
         "observed": "The corrected focused quarantined-outbox test passed 1/1 in 35.77 seconds with one stable exact scope matching native-process-a across changed process headers; quarantine, no-false-success-ack, healthy recovery, spoofed-body-actor, and explicit cleanup assertions pass. Together with PR109, PR111, PR113, PR115, PR118, PR119, and PR124, all eight formerly implicit-teardown tests are now focused green with explicit cleanup. Builder source search reports no remaining let (_store, state) = setup_state() binding. Full-suite and independent clean-candidate proof remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-127",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PT_109_2_FULL_MEMORY_33_OF_33",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log",
+        "observed": "Required PT-109-2 selected all 33 api::memory:: tests with --test-threads=4 and passed 33/33, 0 failed, 2173 filtered, in 1905.91 seconds with exit 0. The run jointly exercises derivative source authority, revoke-before-write zero residue, reconciliation isolation, mounted authority, proposal list, outbox retry, rollback, no-mutation, retry, race, provenance, and every repaired teardown/body fixture through F21. No cleanup failure or new preserved store was emitted. Builder evidence clears no finding until independent proof on the clean committed candidate."
       }
     ],
     "resolved_prior_findings": [
@@ -3273,8 +3281,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The required 33-test Memory run now passes every product-body assertion but eight remaining tests still fail deterministic cleanup because AppState/client owners outlive implicit TestStoreCleanupGuard fallback Drop.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log",
+        "observed_proof": "Builder PT-109-2 now passes all 33 Memory tests at four threads with exit 0 and no cleanup failure/new store after explicit teardown conversion. Independent clean-candidate physical cleanup proof remains required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3671,9 +3679,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "all eight formerly implicit teardown tests are focused green with explicit cleanup and builder source search finds no remaining old binding; complete suite and independent physical-root proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log"
+          },
+          {
+            "attempt": 67,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "required 33-test/4-thread Memory suite passes 33/33 with exit 0 and no cleanup failure or new preserved store; independent physical-root proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
-        "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
+        "remaining_remediation": "Commit a clean candidate, then independently rerun required Memory and focused teardown gates and verify no cleanup marker plus physical absence of every validator-owned success store."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3693,6 +3707,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "all eight failed-run stores are preserved beneath the configured MT-109/kb-v17/runtime root; independent clean-candidate root-isolation proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "full Memory suite uses the configured MT-109 owner artifact/runtime hierarchy and emits no cleanup failure or new preserved store; independent root-isolation proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Independently verify physical store paths and absence after exit under HANDSHAKE_SURREAL_TEST_STORE_ROOT."
@@ -3787,6 +3807,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "derivative source-authority behavior passes inside the complete 33-test/4-thread Memory run, including the owner proposal under contention and all denial checks; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 15,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F01 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain the bounded test-only contention timeout and unchanged derivative authority assertions, pass the complete four-thread suite, commit a clean candidate, and pass independent proof."
@@ -3833,6 +3859,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "revoke-before-write reaches operation_joined and DENIED_ZERO_RESIDUE inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 7,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F02 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Align only the revoke-before-write test join bound with the existing bounded 300-second embedded-storage contention budget while retaining operation/revocation/lease timeout diagnostics and all zero-residue assertions; rerun exact four-way, full Memory suite, and independent clean-candidate proof."
@@ -4092,6 +4124,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "exact-grant reconciliation and denied-state/trace isolation pass inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 24,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F05 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
@@ -4100,8 +4138,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "PT-109-2 now reaches all 33 tests with every product-body assertion passing, but exits 101 because eight remaining tests fail cleanup through the old implicit fallback-Drop pattern.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log",
+        "observed_proof": "Builder PT-109-2 now passes the complete 33-test api::memory:: suite at --test-threads=4 with exit 0 and no cleanup failure. Independent clean-candidate proof remains required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -4540,9 +4578,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "all eight formerly cleanup-failing tests are focused green with their intended bodies and explicit cleanup; required full 33-test/4-thread suite remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log"
+          },
+          {
+            "attempt": 74,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "required PT-109-2 complete api::memory:: suite passes all 33 tests at --test-threads=4 in 1905.91s with exit 0; independent clean-candidate rerun remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
-        "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
+        "remaining_remediation": "Commit a clean candidate and independently rerun the complete 33-test api::memory:: suite at --test-threads=4 with compliant validator-owned artifacts/runtime."
       },
       {
         "finding_id": "MT109-V16-F07",
@@ -4592,6 +4636,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "authenticated live-binding route authority test passes inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 8,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F07 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Pass the complete four-thread Memory suite, commit and hand off a clean candidate, then independently rerun this focused route and its live-binding/spoofed-actor/source-authority assertions."
@@ -4656,6 +4706,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "bounded deterministic workspace-scoped proposal-list test passes inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 10,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F08 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain this focused behavior in the complete four-thread Memory suite, commit a clean candidate, and pass independent clean-SHA proof."
@@ -4720,6 +4776,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "outbox retry test reaches the intended 500 flight_recorder_error and passes retry/dedup assertions inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 10,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F09 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain the focused behavior in the complete four-thread Memory suite, commit a clean candidate, and pass independent clean-SHA proof."
@@ -4748,6 +4810,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "post-insert forced-failure rollback and zero proposal/receipt residue pass inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F10 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain exact post-insert marker reachability and zero-residue assertions in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
@@ -4776,6 +4844,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "complete source-backed item no-mutation byte/count/pending-only proof passes inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F11 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain the complete item, exact authority, byte-identity, count, and pending-only assertions in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
@@ -4804,6 +4878,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "exact-authorized retry/idempotency and payload-drift behavior passes inside the complete 33-test/4-thread Memory run; a separate corrupt-receipt test then fails cleanup only; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F12 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain exact scope and all retry/idempotency/drift assertions in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
@@ -4832,6 +4912,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "exact-authorized delete race, zero-orphan, and post-delete behavior passes inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F13 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain exact concurrent race/orphan/post-delete behavior in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
@@ -4860,6 +4946,12 @@
             "status": "PASS_BUILDER_ONLY_FULL_SUITE",
             "observed": "malformed-provenance 400 matrix and exact-authorized UTF-8 control pass inside the complete 33-test/4-thread Memory run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F14 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain malformed-input 400 behavior and the exact-authorized UTF-8 positive control in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
@@ -4888,6 +4980,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "exact aligned authority reaches corrupt-receipt conflict, changed retry-header replay, and canonical proposal/receipt assertions; explicit cleanup passes; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-4.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F15 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain the exact aligned scope, corrupt-receipt conflict, changed retry-header replay, canonical proposal/receipt assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
@@ -4910,6 +5008,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "exact workspace/source/proposal scope reaches stable retry identity and one-row convergence; explicit cleanup/root absence passes; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-2.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F16 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain exact scope, stable identity, single-row convergence, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
@@ -4932,6 +5036,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "exact document proposal/source scope reaches the valid proposal and both code-only drift rejections; one proposal/receipt and explicit cleanup pass; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F17 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain exact scope, both drift rejections, durable-state bounds, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
@@ -4954,6 +5064,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "both exact scoped handler futures remain concurrent and converge to one proposal/receipt; explicit cleanup passes; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F18 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain independent scope entry for both concurrent futures, convergence bounds, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
@@ -4982,6 +5098,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "canonical principal with exact separate target/control workspace-source grants passes deletion scoping, control preservation, receipt retention, and explicit cleanup; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F19 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain canonical principal, exact separate grants, deletion/preservation assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
@@ -5022,6 +5144,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "one canonical proposer owns workspace and both exact sources; review/replay/opposite conflict/policy rejection/audit and explicit cleanup pass; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log"
+          },
+          {
+            "attempt": 6,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F20 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain canonical ownership, exact source grants, all transition/conflict/policy/audit assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
@@ -5044,6 +5172,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "stable exact native-process-a proposal/source scope reaches quarantine, no-false-ack, changed process-header retry, recovery, spoofed-body-actor, and explicit cleanup assertions; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY_FULL_SUITE",
+            "observed": "MT109-V16-F21 behavior passes inside required PT-109-2 full 33-test/4-thread Memory suite with exit 0; independent clean-candidate proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-7.log"
           }
         ],
         "remaining_remediation": "Retain stable scope, varied-header and spoofed-body checks, quarantine/recovery assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
