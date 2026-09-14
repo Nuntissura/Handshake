@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:13:52.804Z",
+  "updated_at_utc": "2026-09-14T17:18:20.382Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2762,6 +2762,14 @@
         "result": "BUILDER_GATE_FAIL_F07_REORDER_DISPROVED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-2.log",
         "observed": "The exact authenticated live-binding route test remained RED 0/1 after reordering rich-source creation before bound-session provisioning. It returned the identical HTTP 400 provenance source-not-resolved body, disproving fixture order alone as the cause. Panic-preserving centralized cleanup again succeeded."
+      },
+      {
+        "proof_id": "MT109-V16-PR-064",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F07_SOURCE_AUTHORITY_EMPTY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-3.log",
+        "observed": "The exact F07 diagnostic rerun failed 0/1 in 29.81 seconds and printed MT109_MEMORY_ROUTE_SOURCE_AUTHORITY=[]. The exact RichDocument protected_resources row was absent, so no source resource grant could exist for the bound session. The earlier authenticated proposal-list request passed, isolating the defect from the bound session and memory-resource grant path. Cleanup succeeded."
       }
     ],
     "resolved_prior_findings": [
@@ -2867,6 +2875,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "second exact live-binding failure again completed centralized cleanup without masking its identical HTTP 400 body; other teardown failures and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-2.log"
+          },
+          {
+            "attempt": 17,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "row-level F07 diagnostic retained the real behavior failure and completed centralized cleanup; other teardown failures and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-3.log"
           }
         ],
         "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
@@ -3322,6 +3336,12 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "F07 exact rerun remains HTTP 400 after fixture reorder, so full-suite behavior is unresolved; cleanup passed",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-2.log"
+          },
+          {
+            "attempt": 23,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "F07 diagnostic proves the bound session source-authority query is empty and the exact RichDocument resource row is absent; focused behavior and full suite remain unresolved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-3.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3330,8 +3350,8 @@
         "finding_id": "MT109-V16-F07",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Exact rerun disproves fixture creation order as the sole cause: the same source-not-resolved HTTP 400 remains after creating the rich source before the bound session. Cleanup passes.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-2.log",
+        "observed_proof": "Exact row-level proof isolates the HTTP 400 to absent canonical RichDocument authority: the source protected-resource/grant set is empty while the same bound session can list proposals.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3356,9 +3376,15 @@
             "status": "FAIL",
             "observed": "creating the rich source before bound-session provisioning still returns the identical provenance source-not-resolved HTTP 400; fixture order alone is disproved and exact resource/grant/session rows must be compared to fn::mt109_source_read inputs",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-2.log"
+          },
+          {
+            "attempt": 5,
+            "status": "FAIL",
+            "observed": "row-level diagnostic printed an empty source-authority set; the exact RichDocument protected resource row is absent, while authenticated proposal listing passes and proves the bound session plus memory-resource grants work",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Inspect and compare the exact protected resource, grant, and bound-session authority rows for the source against fn::mt109_source_read inputs; correct the smallest fixture defect without broadening production authority, pass the focused test, then independently rerun."
+        "remaining_remediation": "Determine why create_test_rich_source did not register the exact protected RichDocument row, then register and grant only that canonical source to the intended bound principal. Preserve the passing session/list path and spoofed-actor assertions; remove diagnostic-only output, pass focused proof, then independently rerun."
       }
     ],
     "independent_findings": [
