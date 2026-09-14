@@ -3370,6 +3370,14 @@
         "result": "BUILDER_GREEN_PARTIAL_F03_DECLARATIVE_SCHEMA_PIN",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-8.log",
         "observed": "The declarative schema pin gate passed 1/1 with exit 0 and 2205 filtered after deriving the exact current canonical schema.surql fingerprint 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6. Current-schema INFO, bounded catalogs, migration, and independent clean-candidate verification remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-140",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "EVIDENCE_INVALIDATION_F03_F45_REUSED_SCHEMA_LOG_PATH",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log",
+        "observed": "Direct artifact inspection proves schema-current-catalog-5.log was reused. It was created at 2026-09-14 15:10:20 and cited by PR018/F03 attempt 6 as a GREEN hash 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3, but its last write is 2026-09-14 22:59:32 and current bytes contain a later RED: observed f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384 versus expected 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388 at schema.rs:4477, 0/1 exit 101. PR018 and F03 attempt 6 are explicitly invalidated because their cited artifact no longer contains their claimed result. The current RED file must remain preserved, and every later attempt must use a verified unique immutable log path."
       }
     ],
     "resolved_prior_findings": [
@@ -4047,8 +4055,8 @@
         "finding_id": "MT109-V16-F03",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Latest intended ledger-reader authorization change deterministically changes the declarative schema fingerprint; current pin is stale and must be derived from canonical schema bytes before independent proof.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-7.log",
+        "observed_proof": "Latest current-schema INFO fingerprint is RED, and reuse of schema-current-catalog-5.log invalidated its earlier GREEN claim. F03 requires fresh uniquely named immutable schema evidence plus independent proof.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -4130,9 +4138,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "declarative schema pin passes at exact canonical hash 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6; remaining schema/catalog/migration and independent gates remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-8.log"
+          },
+          {
+            "attempt": 14,
+            "status": "FAIL_EVIDENCE_INVALIDATED",
+            "observed": "current-schema gate is RED: observed f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384 vs expected 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388. The reused schema-current-catalog-5.log overwrote prior GREEN evidence, so PR018 and F03 attempt6 are invalid",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log"
           }
         ],
-        "remaining_remediation": "Derive the declarative pin from current canonical schema bytes, rerun declarative/current/bounded catalog and predecessor migration gates, then independently verify all schema fingerprints on the clean candidate."
+        "remaining_remediation": "Preserve the current RED file; derive the intended current INFO pin; run every later declarative/current/bounded catalog and migration attempt under verified unique immutable log names; then independently verify hashes and artifact uniqueness on the clean candidate."
       },
       {
         "finding_id": "MT109-V16-F04",
@@ -5795,6 +5809,22 @@
           }
         ],
         "remaining_remediation": "Convert this exact test to panic-preserving explicit owned-task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; after F41 behavior is fixed, pass focused, full PT-109-1, and independent clean-candidate proof."
+      },
+      {
+        "finding_id": "MT109-V16-F45",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "Builder reused schema-current-catalog-5.log after it had been cited as GREEN. Current bytes now contain a later RED, invalidating PR018 and F03 attempt 6 and breaking immutable proof lineage.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "artifact creation time 15:10:20 and last write 22:59:32; current content is RED f58198... vs 5507a..., while PR018/F03 attempt6 cite the same path as earlier GREEN 62b6...; earlier claims explicitly invalid",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log"
+          }
+        ],
+        "remaining_remediation": "Preserve the overwritten file as observed. Use verified unique immutable log paths for every subsequent builder and validator attempt. Before clean-SHA acceptance, enumerate every cited resolution log, prove no path reuse/overwrite, and independently rerun the affected schema proof."
       }
     ],
     "independent_findings": [
@@ -6101,6 +6131,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T20:46:16.105416Z",
         "summary": "The startup-reconciler restart test also has a distinct fallback cleanup/double-panic failure that preserves its store and aborts the focused process."
+      },
+      {
+        "id": "MT109-V16-F45",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T21:03:10.556091Z",
+        "summary": "A cited schema GREEN log path was reused and overwritten by a later RED, invalidating prior artifact-backed claims and requiring unique immutable evidence recovery."
       }
     ],
     "remediation_required": {
@@ -6147,9 +6184,10 @@
         "Resolve MT109-V16-F41: Diagnose the preserved runtime evidence and exact startup reconciler authority/lifecycle path; repair the smallest cause without weakening the one-row recovery assertion, prove focused restart behavior, full PT-109-1, and independent proof.",
         "Resolve MT109-V16-F42: After F39 behavior is corrected, convert this test to panic-preserving explicit task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; then pass full PT-109-1 and independent proof.",
         "Resolve MT109-V16-F43 by fixing all PT-109-1 body/cleanup blockers and producing a normal 40-test/4-thread exit-0 suite result, followed by independent clean-SHA proof.",
-        "Resolve MT109-V16-F44 with panic-preserving explicit startup-task/state teardown for the reconciler restart test, then prove root absence focused, full PT-109-1, and independently."
+        "Resolve MT109-V16-F44 with panic-preserving explicit startup-task/state teardown for the reconciler restart test, then prove root absence focused, full PT-109-1, and independently.",
+        "Resolve MT109-V16-F45 by preserving the overwritten RED, using unique immutable log paths for all new attempts, inventorying cited artifacts for reuse, and independently verifying clean-SHA evidence lineage."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-six blocking finding IDs are unresolved. Exact focused F41 still restores zero FR rows and also exposes F44 cleanup double panic; PT-109-1 remains without a valid verdict."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-seven blocking finding IDs are unresolved. A reused schema log invalidated PR018/F03 attempt6; PT-109-1 also remains invalid."
   }
 }
