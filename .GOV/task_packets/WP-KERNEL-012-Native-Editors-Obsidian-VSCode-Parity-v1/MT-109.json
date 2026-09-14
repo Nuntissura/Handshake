@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:47:35.267Z",
+  "updated_at_utc": "2026-09-14T17:53:32.379Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2866,6 +2866,14 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_MEMORY_ID_REASSIGNMENT_TEARDOWN",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-id-reassignment-narrow-1.log",
         "observed": "The exact memory pack/item cross-workspace ID reassignment test passed 1/1 in 20.43 seconds with centralized cleanup/root absence. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-077",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F01_F06_DERIVATIVE_REQUEST_TIMEOUT_UNDER_LOAD",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "observed": "During the live fifth complete api::memory:: four-thread attempt, mt109_memory_derivatives_do_not_widen_source_read_authority failed in owner_proposal with reqwest TimedOut on the proposal POST. The same run had already passed the five former full-4 failures, the full mounted-route authority matrix, reconciliation isolation, and revoke-before-write zero-residue. The process remained active when recorded; final suite verdict is still pending."
       }
     ],
     "resolved_prior_findings": [
@@ -3055,8 +3063,8 @@
         "finding_id": "MT109-V16-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Direct source review found proposal list/detail/artifact, pack, item-count, and commit-report readers could expose source-derived content to a principal with memory-object grants but no current source-document grant. A later negative proved the new producer SELECT predicate also retained direct proposal visibility after source revocation.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-4.log and MT109-V16-PR-021",
+        "observed_proof": "The fifth complete four-thread Memory run invalidated the earlier focused builder green: the derivative authority test timed out during its owner proposal POST under concurrent load. Exact isolation must distinguish a fixed client deadline from a deadlock without weakening authority assertions.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3099,9 +3107,15 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "mounted Memory route passed 1/1 with ordinary credential lifetime and full denial matrix; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mounted-routes-2.log"
+          },
+          {
+            "attempt": 8,
+            "status": "FAIL",
+            "observed": "in the complete four-thread Memory run, the derivative authority test reached owner_proposal then its proposal POST failed with reqwest TimedOut; focused green is invalid as broad proof until timeout versus deadlock is isolated",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
           }
         ],
-        "remaining_remediation": "Register the exact mt109-v12-document RichDocument and grant only its owner Read/memory.read in the positive sentinel fixture; keep production authority unchanged. Rerun the failed test and full authority target, then independently prove all derivative, direct SELECT, mixed-source, regrant, no-mutation, and read-only-user boundaries."
+        "remaining_remediation": "Preserve the full-suite result, isolate the exact derivative proposal timeout under representative four-thread interaction, fix only the observed deadline/deadlock cause without weakening the six endpoint, mixed-source, revoke/regrant, cross-principal, or zero-mutation assertions, then pass focused, full, and independent proof."
       },
       {
         "finding_id": "MT109-V16-F02",
@@ -3558,6 +3572,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the corrected memory ID reassignment suite member passes behavior and cleanup; all five former full-4 failures are narrowly green, but the complete 33-test four-thread suite remains required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-id-reassignment-narrow-1.log"
+          },
+          {
+            "attempt": 35,
+            "status": "FAIL",
+            "observed": "the fifth complete four-thread suite has a derivative-authority proposal POST reqwest timeout under load; no valid complete-suite pass exists and final process result remains pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3672,7 +3692,7 @@
         "id": "MT109-V16-F01",
         "severity": "BLOCKER",
         "blocking": true,
-        "summary": "Derived memory readers widened access beyond the current source-document grant."
+        "summary": "The fifth complete four-thread Memory run timed out the derivative-authority owner proposal POST under load, invalidating focused-only proof until timeout versus deadlock is isolated and the complete suite passes."
       },
       {
         "id": "MT109-V16-F02",
