@@ -3402,6 +3402,14 @@
         "result": "BUILDER_GREEN_PARTIAL_F39_F42_PERSISTENT_RESTART",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log",
         "observed": "The unique focused persistent-restart log passed 1/1 in 20.23 seconds with exit 0, both partial-write windows converged to one FR row, and explicit cleanup/root absence passed. Direct artifact SHA-256 is 9392B7940FE011C71A8F99E0FED6CC9355742780DF628AFFB61DBAFC1702D961. Full authority-negative, PT-109-1, and independent clean-candidate proof remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-144",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_F39_F41_RECONCILIATION_AUTHORITY_NEGATIVE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciliation-authority-negative-1.log",
+        "observed": "The unique exact authorization negative passed 1/1 in 2.16 seconds with exit 0: reconciliation requires service identity plus the exact workspace queue grant. Direct artifact SHA-256 is A14E190983880F1E70C1206789E736DC1631654FE7CACC40022D32E273CFBEA1. Full PT-109-1 and independent adversarial negatives remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -5720,6 +5728,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "both persistent partial-write windows restore exactly one FR row after restart; focused cleanup passes; negatives/full suite/independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "exact authority negative passes: reconciliation requires service identity plus exact workspace grant; broader cross-workspace/revocation/resource-state and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciliation-authority-negative-1.log"
           }
         ],
         "remaining_remediation": "Retain exact producer scope and bounded service reader branch, prove service grant absence/revocation/wrong workspace/identity/resource negatives, pass full PT-109-1, then pass independent clean-candidate proof."
@@ -5782,6 +5796,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "exact startup-reconciler restart test passes 1/1, restoring one FR row under bounded exact service reader branch; full negative/full suite/independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log"
+          },
+          {
+            "attempt": 7,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "exact authority negative passes: reconciliation requires service identity plus exact workspace grant; broader cross-workspace/revocation/resource-state and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciliation-authority-negative-1.log"
           }
         ],
         "remaining_remediation": "Retain ordinary owner equality and exact service_identity/MT109Reconciler/workspace-queue/resource-wsid matching. Prove grant absence, revocation, wrong workspace, wrong identity and inactive resource negatives, then pass full PT-109-1 and independent clean-candidate proof."
