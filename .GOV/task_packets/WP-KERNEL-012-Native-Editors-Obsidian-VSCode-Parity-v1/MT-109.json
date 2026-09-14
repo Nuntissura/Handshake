@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:18:46.041Z",
+  "updated_at_utc": "2026-09-14T18:19:53.471Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2962,6 +2962,22 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F09_OUTBOX_RETRY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-5.log",
         "observed": "The valid focused F09 test passed 1/1 in 33.53 seconds. Exact scoped proposal creation reached the intended HTTP 500 flight_recorder_error; in-call retry, reconciliation, and duplicate-event assertions passed; centralized cleanup/root absence passed. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-089",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "INDEPENDENT_SOURCE_FAIL_F10_ROLLBACK_PROOF_COULD_SHORT_CIRCUIT",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log",
+        "observed": "Diff inspection found the prior proposal_insert_rolls_back_when_receipt_phase_fails fixture used a nonexistent doc-rollback source, incomplete proposal payload, and only expect_err. It could therefore pass on a provenance/canonical-artifact error before reaching the intended injected post-insert receipt-phase failure. This is a distinct proof-validity blocker."
+      },
+      {
+        "proof_id": "MT109-V16-PR-090",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F10_POST_INSERT_ROLLBACK",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log",
+        "observed": "The corrected focused rollback test passed 1/1 in 20.06 seconds. It uses a real RichDocument, exact proposal/source scope, a production-derived canonical artifact, asserts the exact injected forced failure after proposal insert, proves zero proposal and receipt residue, and completes centralized cleanup/root absence. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -3193,6 +3209,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "outbox-retry behavior now passes and centralized teardown removes its store; six other full-5 cleanup paths and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-5.log"
+          },
+          {
+            "attempt": 38,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "corrected post-insert rollback test passes its exact behavior and centralized cleanup/root absence; five other full-5 cleanup paths and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log"
           }
         ],
         "remaining_remediation": "For each of the seven new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
@@ -3774,6 +3796,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "F09 outbox retry now passes exact injected 500, retry/dedup, reconciliation, and cleanup; remaining teardown paths, derivative timeout, and complete suite remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-5.log"
+          },
+          {
+            "attempt": 43,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "corrected rollback suite member reaches exact post-insert forced failure, proves zero proposal/receipt residue, and cleans its store; remaining focused/full-suite work remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
@@ -3939,6 +3967,28 @@
           }
         ],
         "remaining_remediation": "Retain the focused behavior in the complete four-thread Memory suite, commit a clean candidate, and pass independent clean-SHA proof."
+      },
+      {
+        "finding_id": "MT109-V16-F10",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The prior rollback test could satisfy expect_err on invalid provenance/artifact before the intended post-insert failure. Builder-focused proof now reaches the exact injected marker and proves rollback, but independent committed-SHA proof remains required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL_SOURCE_REVIEW",
+            "observed": "prior fixture used nonexistent source, incomplete proposal artifact, and generic expect_err, so it could pass before proposal insertion or the injected receipt-phase failure",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "corrected focused test passes with real source, exact authority, production-derived canonical artifact, exact forced-failure marker after insert, zero proposal/receipt residue, and cleanup/root absence",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log"
+          }
+        ],
+        "remaining_remediation": "Retain exact post-insert marker reachability and zero-residue assertions in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
       }
     ],
     "independent_findings": [
@@ -4000,6 +4050,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T17:55:43.584Z",
         "summary": "Builder-focused outbox-retry proof now reaches injected 500 and passes retry, reconciliation, no-duplicate-event, and cleanup assertions with exact authority; independent clean-SHA proof remains required."
+      },
+      {
+        "id": "MT109-V16-F10",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T18:19:53.471Z",
+        "summary": "The rollback proof previously could pass on invalid provenance/artifact before reaching the intended injected post-insert failure; builder-focused corrected proof is green pending independent verification."
       }
     ],
     "remediation_required": {
@@ -4011,7 +4068,8 @@
         "Resolve MT109-V16-F06 and produce a valid required PT-109-2 full api::memory:: suite pass before candidate handoff.",
         "Resolve MT109-V16-F07 authenticated proposal-route HTTP 400 with exact diagnostic and focused proof before candidate handoff.",
         "Retain the MT109-V16-F08 builder-green proposal-list behavior in the complete four-thread Memory suite, then provide a clean committed candidate for independent proof.",
-        "Resolve MT109-V16-F09 by giving the outbox-retry fixture only its exact current source/workspace/proposal authority, then prove injected 500, retry recovery, and no duplicate event without weakening authorization."
+        "Resolve MT109-V16-F09 by giving the outbox-retry fixture only its exact current source/workspace/proposal authority, then prove injected 500, retry recovery, and no duplicate event without weakening authorization.",
+        "Retain MT109-V16-F10 exact post-insert failure reachability and zero proposal/receipt residue in the complete Memory suite, then provide clean-SHA independent proof."
       ]
     },
     "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All ten blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
