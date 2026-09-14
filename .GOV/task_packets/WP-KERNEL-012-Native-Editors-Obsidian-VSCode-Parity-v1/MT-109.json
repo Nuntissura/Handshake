@@ -3218,6 +3218,14 @@
         "result": "BUILDER_GATE_FAIL_F20_REVIEW_TRANSITIONS_PROOF_UNAUTHORIZED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-1.log",
         "observed": "The focused proposal review-transitions test selected one and failed because its baseline proposal returned 403 HSK-403-PROTECTED-RESOURCE before review, replay, conflict, and audit assertions. Explicit cleanup succeeded. Source inspection found two proposal creates with no exact scope: one effective actor canonical-proposer and one empty-header request deriving native_editor."
+      },
+      {
+        "proof_id": "MT109-V16-PR-121",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F20_REVIEW_TRANSITIONS_RESOURCE_OWNER_COLLISION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log",
+        "observed": "The second focused review-transitions test advanced through the first proposal and review, then failed while provisioning the second source scope with storage -32000 resource registry collision or ownership mismatch. Explicit cleanup succeeded. Builder inspection maps this to provisioning native_editor under a different account for an already owned workspace. The next correction must reuse the first canonical proposer principal/account/space and add only the second exact source grant."
       }
     ],
     "resolved_prior_findings": [
@@ -3599,6 +3607,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused review-transitions test completes explicit cleanup without cleanup failure; product proof is blocked at authority and independent cleanup proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-1.log"
+          },
+          {
+            "attempt": 63,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "review-transitions narrow-2 exits through explicit cleanup without cleanup failure; product proof remains red and independent cleanup proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4444,6 +4458,12 @@
             "status": "FAIL",
             "observed": "focused review-transitions test baseline proposal returns 403 before transition/replay/conflict/audit assertions; full suite remains blocked",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-1.log"
+          },
+          {
+            "attempt": 70,
+            "status": "FAIL",
+            "observed": "review-transitions narrow-2 reaches the first proposal/review but fails second-source scope provisioning with resource owner collision; full suite remains blocked",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4894,17 +4914,23 @@
         "finding_id": "MT109-V16-F20",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The proposal review-transitions proof cannot reach review/replay/conflict/audit assertions because its baseline create is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked two separate actor-specific stale creation scopes.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-1.log",
+        "observed_proof": "The review-transitions proof now reaches the first proposal and review but fails second-source scope provisioning with resource registry ownership mismatch because a different account/principal attempts to own the existing workspace.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
             "status": "FAIL",
             "observed": "valid focused test fails before review transition assertions: baseline proposal returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL",
+            "observed": "first create/review passes, but second source scope provisioning fails -32000 because a different account/principal attempts to own the existing workspace; explicit cleanup succeeds",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Provision separate exact workspace/source proposal scopes matching canonical-proposer and native_editor and apply them only to their corresponding create calls; retain all review transition, replay, conflict, audit, explicit cleanup, full-suite, and independent proof assertions."
+        "remaining_remediation": "Reuse the first canonical-proposer principal/account/space for the second source, add only that source grant, keep the same canonical actor for both creates, and retain reviewer/policy identity separation plus all transition/replay/conflict/audit/cleanup/full/independent assertions."
       }
     ],
     "independent_findings": [
