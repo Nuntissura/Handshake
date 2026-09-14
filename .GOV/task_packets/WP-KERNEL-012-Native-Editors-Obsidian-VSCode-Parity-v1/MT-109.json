@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-07-31T23:49:39.7809912Z",
+  "updated_at_utc": "2026-09-14T12:15:23.1043026Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,7 +35,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "FAIL_V14",
+    "status": "FAIL_V16",
     "depends_on": [],
     "blocks": [
       "MT-036",
@@ -43,15 +43,15 @@
       "MT-064",
       "MT-074"
     ],
-    "active": false,
-    "validator_verdict": "FAIL_V14",
+    "active": true,
+    "validator_verdict": "FAIL_V16",
     "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
     "ready_for_validation_at_utc": "2026-07-24T15:45:00.000Z",
     "proof_status": "PASS_REMEDIATION_V2: real managed-PostgreSQL/EventLedger native-editor ingestion, readback, strict decoding, idempotency, reconciliation, real ace::MemoryPack readback, review-gated proposal provenance, immutable committed memory before approval, and typed zero-residue rejection were implemented and independently adversarially reviewed. Historical FAIL_V1 remains preserved for independent V2 validation.",
     "post_implementation_adversarial_review_status": "PASS_2026-07-17_NO_SOURCE_BLOCKERS_AND_REQUIRED_RUNTIME_PROOFS_GREEN",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V13",
-    "validated_at_utc": "2026-09-13T20:55:56.850Z",
+    "validated_by": "WP_VALIDATOR-20260914-AUDIT-109-V16",
+    "validated_at_utc": "2026-09-14T12:15:23.1043026Z",
     "remediation_appendage": "Build the backend routes that E5/E9/E10 native-editor work is typed-blocked on: (1) FR native-editor ingestion - extend api/flight_recorder.rs beyond the closed RuntimeChatEventV0_1 shape (deny_unknown_fields, 3-variant enum, hardcoded actor_id runtime_chat, UUID-only session_id) to accept a versioned native-editor event family covering NativeEditorAction kinds plus the 5 un-emitted interop kinds (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP); (2) GET /memory/pack returning the REAL ace::MemoryPack shape (memory_id/memory_class/source_refs - the native client model must be aligned in the paired frontend change); (3) POST /memory/proposals review-gated intake (proposals land as pending review items, NEVER direct memory commits). All PostgreSQL/EventLedger-backed, no SQLite. Frontend pairing (emit variants + client model alignment + un-ignoring the gated E9 proofs) is wave-2 native work that this MT unblocks.",
     "completed_by": null,
     "implementation_evidence": "PROVEN on real managed PostgreSQL 2026-07-02 (durable log MT-109-managed-pg-verify-kb.log): api::memory::tests 6/6 (incl. proposal_cannot_mutate_committed_memory + missing-provenance fail-closed negatives), api::flight_recorder native_editor 4/4 (unknown-kind rejection, all documented kinds, ledger mirror, fail-closed). Ran with --features runtime-full,duckdb-flight-recorder,test-utils. No SQLite. Committed product 2fe559ed. Unblocks frontend MT-036/063/064/074 (their live proofs run in the managed-PG proof day).",
@@ -2238,5 +2238,152 @@
       ]
     },
     "residual_uncertainty": "The validator stopped after the first teardown gate failure. Ten focused authority tests, all mounted route tests, direct record-user completion, reconciliation workers, PT-109-1 through PT-109-4, and cargo check remain unexecuted and must not be inferred green."
+  },
+  "validation_v16": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V16",
+    "verdict_label": "FAIL V16",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260914-AUDIT-109-V16",
+    "validated_at_utc": "2026-09-14T12:15:23.1043026Z",
+    "fresh_run": false,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "2aa0c6d3153b0b9964de8b08203d5614d48df029",
+      "candidate_commit": null,
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "DIRTY_CODER_OWNED_UNCOMMITTED",
+      "note": "Append-only state-recovery verdict. The coder has not handed off a clean committed candidate, so builder runs are diagnostic evidence only and clear no finding."
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V16-PR-001",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_COMPILED_MANIFEST_DRIFT",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-2.log",
+        "observed": "The exact derived-source test selected one test and failed before behavior because catalog 9be37486 did not match generated 8b2dc77e."
+      },
+      {
+        "proof_id": "MT109-V16-PR-002",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_SCHEMA_INFO_PIN_DRIFT",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-3.log",
+        "observed": "The exact derived-source test selected one test and failed before behavior because expected schema INFO f4e35d1d did not match observed b877e7c3."
+      },
+      {
+        "proof_id": "MT109-V16-PR-003",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_STACK_OVERFLOW",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-source-revocation-1.log",
+        "observed": "The revoke-before-write proof process exited 0xc00000fd STATUS_STACK_OVERFLOW before any behavioral assertion completed."
+      },
+      {
+        "proof_id": "MT109-V16-PR-004",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_PREDECESSOR_MIGRATION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-migration-clean-upgrade-diagnostic-1.log",
+        "observed": "The clean production predecessor upgrade failed at response 146 with Cannot execute statement using value: NONE; response 147 was cancelled and COMMIT aborted."
+      },
+      {
+        "proof_id": "MT109-V16-PR-005",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_ROLLBACK_PROOF",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-migration-separated-stores-3.log",
+        "observed": "The exact predecessor migration test failed 0 passed/1 failed with a failed transaction and preserved both stores; neither successful-upgrade nor rollback absence assertions completed."
+      }
+    ],
+    "resolved_prior_findings": [
+      {
+        "finding_id": "MT109-V15-F01",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "No independent clean-candidate rerun has established deterministic teardown for the complete authority predecessor. Builder evidence cannot clear the prior validator failure.",
+        "test_or_log": "validation_v15.MT109-V15-PR-001; builder diagnostic ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-1.log",
+        "remaining_remediation": "Hand off a clean committed candidate; independently run the complete authority target and prove every created store is removed without cleanup markers or locks."
+      },
+      {
+        "finding_id": "MT109-V15-F02",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "No independent clean-candidate run has proven that every embedded test store resolves beneath the configured WP/MT/validator runtime root.",
+        "test_or_log": "validation_v15.MT109-V15-PR-001",
+        "remaining_remediation": "Independently verify physical store paths and absence after exit under HANDSHAKE_SURREAL_TEST_STORE_ROOT."
+      },
+      {
+        "finding_id": "MT109-V16-F01",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "Direct source review found proposal list/detail/artifact, pack, item-count, and commit-report readers could expose source-derived content to a principal with memory-object grants but no current source-document grant. A later builder-owned exact test is diagnostic only.",
+        "test_or_log": "builder diagnostic ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-4.log",
+        "remaining_remediation": "Independently prove denial for all six derivative surfaces, mixed-source fail-closed behavior, zero mutation during denied reads, unchanged public MemoryPack shape, no proposal-create requirement for read-only users, and identical results after regrant."
+      },
+      {
+        "finding_id": "MT109-V16-F02",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The initial revoke-before-write proof crashed with STATUS_STACK_OVERFLOW before assertions. Later builder-owned green diagnostics do not independently establish the timing boundary or zero residue.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-source-revocation-1.log",
+        "remaining_remediation": "Independently revoke source authority after authorization and before proposal transaction, then prove denial and zero FEMS, EventLedger, and outbox residue."
+      },
+      {
+        "finding_id": "MT109-V16-F03",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "Builder gates exposed compiled-manifest, full schema INFO, Atelier, and Loom catalog-pin drift while exercising the new proof. Updated pins have not been independently verified at a clean committed candidate.",
+        "test_or_log": "MT109-V16-PR-001, MT109-V16-PR-002, and ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-1.log",
+        "remaining_remediation": "Commit the justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
+      },
+      {
+        "finding_id": "MT109-V16-F04",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The production predecessor upgrade fails before the injected rollback marker: response 146 reports NONE, response 147 is cancelled, and COMMIT aborts. The separated-store rerun also failed before success and absence assertions.",
+        "test_or_log": "MT109-V16-PR-004 and MT109-V16-PR-005",
+        "remaining_remediation": "Repair the Loom backfill so a clean predecessor upgrade succeeds. Then prove the injected failure is reached at its exact statement position and that rows, schema marker, keys, catalogs, and both store paths are unchanged or removed as required."
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V16-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "summary": "Derived memory readers widened access beyond the current source-document grant."
+      },
+      {
+        "id": "MT109-V16-F02",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "summary": "The revocation race between authorization and proposal write lacked passing zero-residue proof."
+      },
+      {
+        "id": "MT109-V16-F03",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "summary": "Schema/catalog fingerprints drifted while validating the repair."
+      },
+      {
+        "id": "MT109-V16-F04",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "summary": "The clean predecessor migration fails in the Loom source backfill before the rollback injection point."
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Repair MT109-V16-F04 first and prove clean-upgrade plus exact injected rollback behavior in separate stores.",
+        "Commit the complete candidate and hand off the exact SHA with a clean tree and released Cargo lane.",
+        "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS."
+      ]
+    },
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All six blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
