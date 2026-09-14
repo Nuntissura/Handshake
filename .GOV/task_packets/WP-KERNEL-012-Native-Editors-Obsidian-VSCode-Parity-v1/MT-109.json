@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:44:06.5496873Z",
+  "updated_at_utc": "2026-09-14T13:45:44.9018004Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2434,6 +2434,22 @@
         "result": "BUILDER_GATE_FAIL_CURRENT_SCHEMA_INFO_HASH_AFTER_SOURCE_COMPOSITION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-6.log",
         "observed": "After source authority was composed into ordinary reader/producer proposal SELECT, the declarative gate passed 1/1 in schema-declarative-pin-6.log, then the current-schema catalog gate failed 0 passed/1 failed because observed hash 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388 did not match expected 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3."
+      },
+      {
+        "proof_id": "MT109-V16-PR-023",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_DERIVED_SOURCE_AUTHORITY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-6.log",
+        "observed": "The exact derived-source test passed 1/1 in 33.87 seconds. It covered cross-principal proposal-creator denial, owner direct-SELECT denial after source revocation, identical canonical row after regrant, all six derivative endpoints fail-closed without source authority, and zero GET mutation. This builder result does not clear MT109-V16-F01."
+      },
+      {
+        "proof_id": "MT109-V16-PR-024",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_SOURCE_COMPOSED_SCHEMA_CATALOG",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-7.log",
+        "observed": "The final source-composed current-schema catalog gate passed 1/1 in 7.93 seconds with observed and expected hash 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388; declarative predecessor schema-declarative-pin-6.log also passed 1/1. This builder result does not clear MT109-V16-F03."
       }
     ],
     "resolved_prior_findings": [
@@ -2465,6 +2481,12 @@
             "status": "FAIL",
             "observed": "proposal producer retained direct proposal SELECT after current source authority was revoked; cross-principal proposal-creator denial passed",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-5.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "exact derivative test passed cross-principal denial, owner post-revocation direct-SELECT denial, identical regrant row, six endpoint denials, and zero GET mutation; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-6.log"
           }
         ],
         "remaining_remediation": "Compose ordinary reader and producer proposal SELECT with current source-document authority; keep the exact reconciliation-queue service branch separate and bounded. Independently prove denial for all six derivative surfaces and direct proposal SELECT, mixed-source fail-closed behavior, zero mutation during denied reads, unchanged public MemoryPack shape, no proposal-create requirement for read-only users, and identical results after regrant."
@@ -2527,6 +2549,12 @@
             "status": "FAIL",
             "observed": "declarative gate passed after source composition; current-schema hash observed 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388 vs expected 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-6.log"
+          },
+          {
+            "attempt": 8,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "source-composed current-schema catalog passed 1/1 at 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388 after declarative pin also passed; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-7.log"
           }
         ],
         "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh schema containing both the exact reconciler predicate and source-composed ordinary reader/producer predicate, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
