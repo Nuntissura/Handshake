@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:46:56.0253026Z",
+  "updated_at_utc": "2026-09-14T13:49:10.1172031Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2458,6 +2458,14 @@
         "result": "BUILDER_GATE_FAIL_RECONCILER_ENUMERATION_STALE_SESSION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-12.log",
         "observed": "Granted reconciliation succeeded and the denied snapshot remained unchanged, then the new enumeration assertion failed 0 passed/1 failed in 27.61 seconds at api/memory.rs:4091: expected the exact granted workspace but observed an empty list because the probe reused a provisioning session superseded by reconcile_all's fresh service session."
+      },
+      {
+        "proof_id": "MT109-V16-PR-026",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_RECONCILER_PROBE_COMPILE_SCOPE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-13.log",
+        "observed": "The fresh-session probe did not compile: Rust E0422 reported RecordUserScope was not found in the test scope. No reconciliation behavior ran."
       }
     ],
     "resolved_prior_findings": [
@@ -2642,6 +2650,13 @@
             "status": "FAIL",
             "observed": "granted reconciliation and denied snapshot checks passed; enumeration probe expected exact granted workspace but got empty because it reused the superseded provisioning session",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-12.log"
+          },
+          {
+            "attempt": 11,
+            "failed_attempt_ordinal": 10,
+            "status": "FAIL",
+            "observed": "compile error E0422: RecordUserScope was not found in the fresh-session probe test scope; no behavior result",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-13.log"
           }
         ],
         "remaining_remediation": "Issue fresh canonical reconciliation authority for the enumeration probe, assert it sees only the exactly granted workspace, revoke the exact queue grant, and assert an immediate empty result with no other workspace visibility. Independently reprove granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
