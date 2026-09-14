@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:10:34.964Z",
+  "updated_at_utc": "2026-09-14T18:12:07.853Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2938,6 +2938,14 @@
         "result": "BUILDER_GATE_FAIL_F09_EXACT_PROTECTED_RESOURCE_DENIAL",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log",
         "observed": "The valid focused F09 run selected exactly one test and failed 0/1 in 29.50 seconds. It captured MT109_PROPOSAL_OUTBOX_INJECTED_FAILURE=(403, {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}) instead of the intended injected recorder HTTP 500. The panic-preserving wrapper exposed the body failure and centralized cleanup/root absence passed."
+      },
+      {
+        "proof_id": "MT109-V16-PR-086",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "READ_ONLY_SOURCE_MAPPING_F09_EMPTY_AUTHORITY_FIXTURE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log",
+        "observed": "Read-only inspection of the exact F09 fixture confirms that before create_memory_proposal it creates only the workspace row and RichDocument row, then invokes the handler with empty headers. It provisions no principal, registers no Workspace/MemoryProposal/RichDocument protected resources, creates no exact grants, and enters no RecordUserScope. The focused constant HSK-403-PROTECTED-RESOURCE denial therefore occurs before FailNextRecordFlightRecorder. The later reconciliation calls also require their own exact workspace queue authority."
       }
     ],
     "resolved_prior_findings": [
@@ -3870,9 +3878,15 @@
             "status": "FAIL",
             "observed": "valid focused run selected one test and captured exact 403 HSK-403-PROTECTED-RESOURCE before intended injected recorder 500; body assertions failed, while explicit cleanup/root absence passed",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log"
+          },
+          {
+            "attempt": 6,
+            "status": "FAIL_DIAGNOSIS",
+            "observed": "source inspection confirms the exact isolated fixture has no principal, protected resource registrations, resource grants, or active RecordUserScope before handler invocation; later reconciliation also has no exact queue principal for this workspace",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Inspect exact principal, workspace, proposal, source resource, grant, and active scope rows for the focused 403. Add only the missing current authority, then prove injected 500, in-call retry, no duplicate event, cleanup, full-suite behavior, and independent clean-SHA behavior."
+        "remaining_remediation": "Use the existing exact proposal-create scope helper for this workspace/source and run only the request within that RecordUserScope; provision only this workspace for reconciliation before later recovery calls. Retain spoofed actor, injected 500, in-call retry, no duplicate event, cleanup, full-suite behavior, and independent proof."
       }
     ],
     "independent_findings": [
