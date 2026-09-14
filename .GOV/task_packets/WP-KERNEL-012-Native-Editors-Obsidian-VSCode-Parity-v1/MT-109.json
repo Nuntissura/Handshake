@@ -3098,6 +3098,14 @@
         "result": "BUILDER_GATE_FAIL_V15_F01_F06_FULL_MEMORY_TEARDOWN",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log",
         "observed": "Required PT-109-2 selected all 33 api::memory:: tests at --test-threads=4 and exited 101 after 2033.30 seconds: 25 passed and 8 failed. Every product-body assertion passed, including the 2,000-read empty-pack test and the MT109 derivative, revocation, reconciliation, route, outbox, rollback, no-mutation, retry, race, and provenance cases. The eight failures were cleanup-only at storage/tests.rs:177 because the remaining tests still bound _store and entered fallback Drop while AppState/client owners were live: corrupt receipt retry, strict route rejection, review transitions, quarantined outbox, rich replay drift, simultaneous retries, Surreal identity, and workspace cleanup. Each shutdown remained draining after 30000 ms and correctly preserved its store under kb-v17/runtime: store-01a0a1412aab73c0b8f9a6be38e4dd5f, store-01a0a141fd2e7831a25ed3d45bd6bc4c, store-01a0a141f7e97f539b1439a87fae1717, store-01a0a14255987980b5cf5d9368c4375d, store-01a0a14303697c5392b1332ad804df93, store-01a0a14304f97161bb42b7026f1eeaba, store-01a0a14355957cd0986f947042bd90ee, store-01a0a1440e697de18b60c859d46ad262. No abnormal process termination occurred."
+      },
+      {
+        "proof_id": "MT109-V16-PR-106",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_INVOCATION_BLOCKED_V15_F01_F06_TEARDOWN_REFACTOR_COMPILE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-1.log",
+        "observed": "The first focused corrupt-receipt teardown proof produced no behavior result because compilation failed with Rust E0382 at api/memory.rs:5636: state was moved into the async body and then used again by the explicit teardown. This run clears no finding; the exact correction is to retain a separate state clone for the body while preserving the explicit final owner drop."
       }
     ],
     "resolved_prior_findings": [
@@ -3389,6 +3397,12 @@
             "status": "FAIL",
             "observed": "full 33-test run exposes eight remaining implicit fallback-Drop teardown failures after their product bodies pass; each shutdown remains draining after 30000ms and preserves its exact store: store-01a0a1412aab73c0b8f9a6be38e4dd5f, store-01a0a141fd2e7831a25ed3d45bd6bc4c, store-01a0a141f7e97f539b1439a87fae1717, store-01a0a14255987980b5cf5d9368c4375d, store-01a0a14303697c5392b1332ad804df93, store-01a0a14304f97161bb42b7026f1eeaba, store-01a0a14355957cd0986f947042bd90ee, store-01a0a1440e697de18b60c859d46ad262",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 48,
+            "status": "BUILD_BLOCKED_NON_EVIDENCE",
+            "observed": "focused corrupt-receipt teardown rerun did not reach behavior because E0382 reports state moved into the async body before explicit teardown; clone ownership must be corrected without changing assertions or cleanup semantics",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4144,6 +4158,12 @@
             "status": "FAIL",
             "observed": "required PT-109-2 runs all 33 tests and exits 101 with 25 passed and 8 cleanup-only failures; no product-body assertion fails, but the required suite is not green",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-6.log"
+          },
+          {
+            "attempt": 55,
+            "status": "BUILD_BLOCKED_NON_EVIDENCE",
+            "observed": "focused corrupt-receipt teardown rerun did not reach behavior because E0382 reports state moved into the async body before explicit teardown; clone ownership must be corrected without changing assertions or cleanup semantics",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-corrupt-receipt-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
