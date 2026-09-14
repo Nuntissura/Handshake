@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:50:01.7220227Z",
+  "updated_at_utc": "2026-09-14T14:51:34.1248431Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2554,6 +2554,22 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_FULL_AUTHORITY_SUITE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-3.log",
         "observed": "The complete authority target passed 14/14 in 291.47 seconds, including direct record-user negative matrices, exact source grants and derived origin, immediate revocation, service reconciliation identity/grant, cleanup-error preservation, Space switching, and two-account/two-Space boundaries. No cleanup-failure marker appeared. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-038",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_REVOKE_BEFORE_WRITE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-source-revocation-4.log",
+        "observed": "The exact revocation timing test passed 1/1 in 21.39 seconds and emitted MT109_SOURCE_REVOCATION_BEFORE_TRANSACTION=DENIED_ZERO_RESIDUE after explicit authorization-ready, operation-construct, and joined-operation phases. This builder result does not clear MT109-V16-F02."
+      },
+      {
+        "proof_id": "MT109-V16-PR-039",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_FINAL_RECONCILIATION_SERVICE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-17.log",
+        "observed": "The final exact reconciliation service test passed 1/1 in 29.22 seconds, retaining exact granted-only enumeration, immediate loss after grant revocation, unchanged denied data state, and identical pre/post single pre-existing trace event. This builder result does not clear MT109-V16-F05."
       }
     ],
     "resolved_prior_findings": [
@@ -2641,6 +2657,14 @@
         "candidate_commit": null,
         "observed_proof": "The initial revoke-before-write proof crashed with STATUS_STACK_OVERFLOW before assertions. Later builder-owned green diagnostics do not independently establish the timing boundary or zero residue.",
         "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-source-revocation-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "exact phased revocation test passed with DENIED_ZERO_RESIDUE after revocation between authorization-ready and proposal transaction; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-source-revocation-4.log"
+          }
+        ],
         "remaining_remediation": "Independently revoke source authority after authorization and before proposal transaction, then prove denial and zero FEMS, EventLedger, and outbox residue."
       },
       {
@@ -2850,6 +2874,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "complete 14-test authority target also passed explicit service identity and exact workspace-grant reconciliation boundary; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-3.log"
+          },
+          {
+            "attempt": 16,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "final exact service test passed granted-only enumeration, immediate loss after exact grant revocation, unchanged denied state, and identical pre/post trace baseline; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-17.log"
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
