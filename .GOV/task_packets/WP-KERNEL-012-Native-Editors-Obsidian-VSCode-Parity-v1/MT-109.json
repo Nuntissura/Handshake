@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T16:58:25.141Z",
+  "updated_at_utc": "2026-09-14T16:59:02.627Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2714,6 +2714,14 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_REAL_PACK_SHAPE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-real-shape-narrow-1.log",
         "observed": "The exact get_memory_pack_returns_real_ace_shape test passed 1/1 in 30.29 seconds after using an actual canonical rich-document source and exact current source authority. Full ace::MemoryPack equality and serialized wire-shape checks passed; panic-preserving centralized cleanup and root-absence assertion also passed. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-058",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_AWAITED_STARTUP_RECOVERY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log",
+        "observed": "The exact commit-outbox restart test passed 1/1 in 29.99 seconds after awaiting the retained one-shot production startup reconciler before asserting FR-EVT-MEM-003. Exact workspace queue authority, projection recovery, and centralized cleanup/root absence passed. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -2721,8 +2729,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The corrected real-pack focused test now passes with explicit centralized cleanup and root absence, but the complete suite and independent clean-candidate teardown proof remain missing.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-real-shape-narrow-1.log",
+        "observed_proof": "Both focused repairs from the third full-suite failure now pass with explicit centralized cleanup and root absence. The complete suite and independent clean-candidate teardown proof remain missing.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -2783,6 +2791,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "real-pack shape test passed with a canonical rich-document source, exact current source authority, full MemoryPack equality, and panic-preserving centralized cleanup/root absence; independent teardown proof remains pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-real-shape-narrow-1.log"
+          },
+          {
+            "attempt": 11,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "awaited startup-recovery test passed with explicit centralized cleanup/root absence; complete-suite and independent teardown proof remain pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log"
           }
         ],
         "remaining_remediation": "Pass the complete suite without a cleanup panic or retained new store, then hand off a clean candidate for independent teardown and filesystem proof."
@@ -3104,8 +3118,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The real-pack fixture and cleanup failure are repaired in a focused builder run. Startup recovery under load and a valid complete 33-test four-thread verdict remain missing, as does independent proof.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-real-shape-narrow-1.log",
+        "observed_proof": "Both failures from the third complete-suite attempt now pass in focused builder runs. A valid complete 33-test four-thread verdict and independent proof remain missing.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3202,9 +3216,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the corrected real-pack test passes against a canonical source with exact current authority and deterministic cleanup; awaited startup recovery and the complete 33-test four-thread suite remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-real-shape-narrow-1.log"
+          },
+          {
+            "attempt": 17,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the corrected commit-outbox restart test awaits the retained one-shot production startup reconciler and passes projection plus cleanup; complete 33-test four-thread suite remains required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Pass the awaited startup-recovery focused test, then pass the complete 33-test api::memory:: suite at four threads and hand off for independent proof."
+        "remaining_remediation": "Pass the complete 33-test api::memory:: suite at four threads and hand off for independent proof."
       }
     ],
     "independent_findings": [
