@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T16:50:42.594893Z",
+  "updated_at_utc": "2026-09-14T16:57:01.856Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2698,6 +2698,14 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_PAIRED_LONG_TESTS",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-empty-outbox-pair-1.log",
         "observed": "The two formerly active long tests passed together 2/2 in one --test-threads=4 process in 1505.30 seconds. Commit-outbox recovery and the 2,000-read empty-pack test both completed, no STATUS_STACK_BUFFER_OVERRUN occurred, and their centralized cleanup/root-absence assertions passed. This builder result does not clear MT109-V16-F06."
+      },
+      {
+        "proof_id": "MT109-V16-PR-056",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_PT_109_2_MEMORY_SUITE_THIRD_CRASH",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-3.log",
+        "observed": "The complete 33-test api::memory:: suite selected all 33 tests but again produced no valid verdict and exited 0xc0000409 STATUS_STACK_BUFFER_OVERRUN. get_memory_pack_returns_real_ace_shape failed because its seeded doc-block-42 lacked current protected-source/read authority and the production reader correctly returned an empty pack; fallback Drop then hit HANDSHAKE_TEST_STORE_CLEANUP_FAILURE after 30000 ms and preserved store-01a0a0d4f57a78a2b90bf9ddb6543cd8. commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits also failed its fixed five-second startup-projection deadline under four-thread load."
       }
     ],
     "resolved_prior_findings": [
@@ -2705,8 +2713,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Builder focused proof now passes with zero active leases and exact store removal, but V15-F01 requires independent clean-candidate teardown proof.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log",
+        "observed_proof": "Focused and paired builder cleanup proofs passed, but the latest complete-suite attempt again hit the deterministic teardown failure path and preserved a store after a body failure. Independent clean-candidate teardown proof remains missing.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -2755,9 +2763,15 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "both long tests passed together and their explicit centralized cleanup/root-absence assertions completed; independent teardown proof remains pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-empty-outbox-pair-1.log"
+          },
+          {
+            "attempt": 9,
+            "status": "FAIL",
+            "observed": "full 33-test run exposed a body failure in get_memory_pack_returns_real_ace_shape, then fallback Drop cleanup panicked after shutdown drained beyond 30000 ms; store-01a0a0d4f57a78a2b90bf9ddb6543cd8 was preserved and the process exited abnormally",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-3.log"
           }
         ],
-        "remaining_remediation": "Hand off a clean committed candidate; independently run focused and complete authority targets and prove all validator-created stores are removed without cleanup markers or locks."
+        "remaining_remediation": "Make the real-pack test fixture satisfy current source authority and route body failure through explicit panic-preserving centralized cleanup; pass the complete suite without a cleanup panic or retained new store, then hand off a clean candidate for independent teardown and filesystem proof."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3076,8 +3090,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "All isolated implicated tests and the paired long-test four-thread interaction now pass as builder proofs. The required complete 33-test four-thread suite and independent proof remain missing.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-empty-outbox-pair-1.log",
+        "observed_proof": "The paired long-test proof passed, but the third required complete-suite attempt still failed and aborted: one positive pack fixture omitted current source authority, startup recovery used a load-sensitive fixed deadline, and fallback teardown crashed after preserving a store.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3162,9 +3176,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the two long tests pass concurrently 2/2 under a four-thread harness with deterministic cleanup and no abnormal exit; complete 33-test suite and independent proof remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-empty-outbox-pair-1.log"
+          },
+          {
+            "attempt": 15,
+            "status": "FAIL",
+            "observed": "the complete 33-test four-thread suite selected all tests but again aborted without a verdict: the real-pack fixture lacked exact current source authority, commit-outbox recovery exceeded its fixed five-second deadline under load, fallback cleanup preserved one store, and the process exited 0xc0000409",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-3.log"
           }
         ],
-        "remaining_remediation": "Pass the complete 33-test api::memory:: suite with four test threads on this stabilized source, commit a clean candidate, and independently rerun the required proof."
+        "remaining_remediation": "Provision the real-pack fixture with its exact protected source/read grant, make startup recovery await the retained one-shot reconciler rather than a fixed load-sensitive poll, preserve explicit cleanup on body failure, then pass the complete 33-test api::memory:: suite at four threads and hand off for independent proof."
       }
     ],
     "independent_findings": [
