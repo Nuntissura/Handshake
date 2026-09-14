@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:12:07.853Z",
+  "updated_at_utc": "2026-09-14T18:15:32.887Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2946,6 +2946,14 @@
         "result": "READ_ONLY_SOURCE_MAPPING_F09_EMPTY_AUTHORITY_FIXTURE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log",
         "observed": "Read-only inspection of the exact F09 fixture confirms that before create_memory_proposal it creates only the workspace row and RichDocument row, then invokes the handler with empty headers. It provisions no principal, registers no Workspace/MemoryProposal/RichDocument protected resources, creates no exact grants, and enters no RecordUserScope. The focused constant HSK-403-PROTECTED-RESOURCE denial therefore occurs before FailNextRecordFlightRecorder. The later reconciliation calls also require their own exact workspace queue authority."
+      },
+      {
+        "proof_id": "MT109-V16-PR-087",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_COMPILE_FAIL_V15_F01_F06_REQUEST_ID_MOVE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-4.log",
+        "observed": "The fourth focused F09 invocation did not reach behavior. The seven-test cleanup refactor failed compilation with E0382 at memory.rs:6105 because proposal_insert_rolls_back_when_receipt_phase_fails moved request_id into StoredMemoryProposal and then borrowed it for the receipt payload. No test executed and no finding cleared."
       }
     ],
     "resolved_prior_findings": [
@@ -3165,6 +3173,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the outbox-retry test now preserves its real 403 body failure through centralized teardown and removes its store; six other full-5 cleanup paths and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log"
+          },
+          {
+            "attempt": 36,
+            "status": "FAIL_COMPILE",
+            "observed": "seven-test explicit-cleanup refactor failed compilation E0382 because proposal_insert rollback fixture moved request_id before using it in receipt payload",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-4.log"
           }
         ],
         "remaining_remediation": "For each of the seven new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
@@ -3734,6 +3748,12 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "valid focused F09 proof confirms exact protected-resource 403 before intended recorder-failure path; the full suite remains unresolved, though this focused test now cleans its store deterministically",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log"
+          },
+          {
+            "attempt": 41,
+            "status": "FAIL_COMPILE",
+            "observed": "cleanup remediation does not compile due E0382 request_id move in proposal_insert rollback fixture; no complete-suite proof can run",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-4.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
@@ -3884,6 +3904,12 @@
             "status": "FAIL_DIAGNOSIS",
             "observed": "source inspection confirms the exact isolated fixture has no principal, protected resource registrations, resource grants, or active RecordUserScope before handler invocation; later reconciliation also has no exact queue principal for this workspace",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log"
+          },
+          {
+            "attempt": 7,
+            "status": "BUILD_BLOCKED_NO_BEHAVIOR",
+            "observed": "focused F09 invocation was blocked before test execution by E0382 in another cleanup-remediated Memory test; no F09 behavior evidence",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-4.log"
           }
         ],
         "remaining_remediation": "Use the existing exact proposal-create scope helper for this workspace/source and run only the request within that RecordUserScope; provision only this workspace for reconciliation before later recovery calls. Retain spoofed actor, injected 500, in-call retry, no duplicate event, cleanup, full-suite behavior, and independent proof."
