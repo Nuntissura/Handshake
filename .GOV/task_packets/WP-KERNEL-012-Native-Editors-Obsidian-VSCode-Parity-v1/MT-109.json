@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:07:00.9272801Z",
+  "updated_at_utc": "2026-09-14T13:11:09.8160397Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2386,6 +2386,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_SCHEMA_CURRENT_CATALOG",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-3.log",
         "observed": "The corrected current-schema catalog gate passed 1/1 at hash 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024. This builder result does not clear MT109-V16-F03."
+      },
+      {
+        "proof_id": "MT109-V16-PR-017",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_CURRENT_SCHEMA_INFO_HASH_AFTER_RECONCILER_PREDICATE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-4.log",
+        "observed": "After the exact reconciliation-workspace predicate was added, the current-schema catalog gate failed 0 passed/1 failed because observed hash 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3 did not match expected 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024."
       }
     ],
     "resolved_prior_findings": [
@@ -2451,9 +2459,16 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "current-schema catalog passed 1/1 at 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-3.log"
+          },
+          {
+            "attempt": 5,
+            "failed_attempt_ordinal": 4,
+            "status": "FAIL",
+            "observed": "after exact reconciliation-workspace predicate, current-schema hash observed 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3 vs expected 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-4.log"
           }
         ],
-        "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh intended schema catalog, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
+        "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh schema containing the exact reconciler predicate, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
       },
       {
         "finding_id": "MT109-V16-F04",
