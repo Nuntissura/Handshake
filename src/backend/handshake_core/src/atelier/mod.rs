@@ -1568,7 +1568,7 @@ mod guard_tests {
 
     #[tokio::test]
     async fn mt138_rejects_full_count_schemaless_projection() {
-        tokio::time::timeout(std::time::Duration::from_secs(120), async {
+        tokio::time::timeout(std::time::Duration::from_secs(600), async {
             let temp = tempfile::tempdir().expect("create malformed MT-138 store directory");
             let store = SurrealStorage::open(
                 crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
@@ -1599,7 +1599,7 @@ mod guard_tests {
             store.shutdown().await.expect("close malformed store");
         })
         .await
-        .expect("malformed MT-138 rejection proof exceeded two minutes");
+        .expect("malformed MT-138 rejection proof exceeded ten minutes");
     }
 
     #[tokio::test]

@@ -4015,6 +4015,9 @@ mod tests {
         use crate::storage::{artifacts, Database, WriteContext};
         let temp = tempfile::tempdir().unwrap();
         let (_, store) = open_store(&temp).await;
+        super::super::schema::bootstrap_schema(&store)
+            .await
+            .expect("bootstrap production schema");
         let root = tempfile::tempdir().unwrap();
         let workspace = Uuid::now_v7().to_string();
         seed_workspace(&store, &workspace).await;
