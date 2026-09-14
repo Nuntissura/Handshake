@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:32:34.967Z",
+  "updated_at_utc": "2026-09-14T17:39:06.858Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2818,6 +2818,22 @@
         "result": "BUILDER_GATE_FAIL_F08_CONTROL_PROPOSAL_TRANSACTION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log",
         "observed": "The exact proposal-list test remained RED 0/1 in 31.51 seconds. The generic failed-transaction HTTP 500 shifted to the control proposal, but the run still did not expose the exact earlier statement or constraint. Cleanup succeeded. No remediation is accepted from this non-actionable diagnostic."
+      },
+      {
+        "proof_id": "MT109-V16-PR-071",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F08_CONTROL_WORKSPACE_ISOLATED",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-5.log",
+        "observed": "The exact proposal-list test remained RED 0/1 in 34.14 seconds. Both target-workspace proposals returned Ok and immediate database health probes returned healthy; the first control-workspace proposal alone returned HTTP 500 with a generic failed-transaction error. Cleanup passed. This isolates the failure to control-workspace authority setup but still does not clear F08 or F06."
+      },
+      {
+        "proof_id": "MT109-V16-PR-072",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "READ_ONLY_SOURCE_MAPPING_F08_PRINCIPAL_ACCOUNT_CONFLICT",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-5.log",
+        "observed": "Read-only source inspection mapped the control-workspace failure: proposal_create_test_scope derives account and space keys from the workspace-specific label but passes the same global principal_key native_editor. Canonical schema defines principals_principal_key_unique globally, and provision_principal statement 5 throws HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH when that principal key is reused with the control workspace account. The multi-statement check currently masks the first meaningful error with a later failed-transaction error. Runtime marker proof is still required before fixture correction."
       }
     ],
     "resolved_prior_findings": [
@@ -3462,6 +3478,12 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "proposal-list isolation remains a generic transaction HTTP 500, now on the control proposal, and still lacks exact internal diagnosis; complete suite remains unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log"
+          },
+          {
+            "attempt": 30,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "proposal-list isolation proves both target proposals and their immediate database health checks pass, while the first control-workspace proposal alone fails authority setup; the required complete four-thread suite remains unresolved under F08",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-5.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3516,8 +3538,8 @@
         "finding_id": "MT109-V16-F08",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Proposal-list isolation remains blocked by a generic transaction failure, now on the control proposal. The exact owned statement or constraint has not been surfaced.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log",
+        "observed_proof": "Both target-workspace proposals and immediate database health probes pass. The first control-workspace authority setup reuses global principal_key native_editor under a different workspace-derived account, mapping to provision_principal statement 5 HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH; the public path still exposes only a later generic failed-transaction 500.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-5.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3542,9 +3564,21 @@
             "status": "FAIL",
             "observed": "generic failed-transaction HTTP 500 moved to the control proposal; exact earlier failed statement/constraint is still not exposed, so further fixture remediation would be guesswork",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log"
+          },
+          {
+            "attempt": 5,
+            "status": "FAIL",
+            "observed": "both target-workspace proposals returned Ok and immediate health probes returned healthy; the first control-workspace proposal alone returned the generic failed-transaction HTTP 500; cleanup passed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-5.log"
+          },
+          {
+            "attempt": 6,
+            "status": "FAIL_DIAGNOSIS",
+            "observed": "read-only source mapping identifies globally unique principal_key native_editor reused under a different workspace-derived account; provision_principal statement 5 must throw HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH, but exact runtime marker capture remains required before remediation",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-5.log"
           }
         ],
-        "remaining_remediation": "Expose the exact owned internal statement/constraint that fails while preserving the public error contract; do not change fixture or production behavior again until the cause is observed. Then correct only that cause, pass focused proof, and independently rerun."
+        "remaining_remediation": "Change internal multi-statement error selection to expose the first meaningful authority error while preserving the public 500, rerun the unchanged conflict to capture HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH, then use one canonical principal/account across both workspace fixtures. Pass focused proof, the full four-thread Memory suite, and independent clean-SHA proof."
       }
     ],
     "independent_findings": [
@@ -3598,7 +3632,7 @@
         "severity": "BLOCKER",
         "blocking": true,
         "discovered_at_utc": "2026-09-14T17:24:26.366Z",
-        "summary": "The bounded workspace-scoped proposal-list test is blocked by a helper that invokes production proposal creation without record-user scope and receives 403."
+        "summary": "The bounded workspace-scoped proposal-list test remains blocked because its control-workspace fixture reuses global principal_key native_editor under a different account; exact runtime capture of HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH is required before canonical-principal fixture repair."
       }
     ],
     "remediation_required": {
@@ -3609,7 +3643,7 @@
         "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS.",
         "Resolve MT109-V16-F06 and produce a valid required PT-109-2 full api::memory:: suite pass before candidate handoff.",
         "Resolve MT109-V16-F07 authenticated proposal-route HTTP 400 with exact diagnostic and focused proof before candidate handoff.",
-        "Resolve MT109-V16-F08 by giving the proposal-list fixture only exact per-workspace/per-source scope and pass its bounded deterministic isolation proof."
+        "Resolve MT109-V16-F08 by first capturing the mapped HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH as the first meaningful internal authority error while preserving the public 500, then reuse one canonical principal/account across both workspace fixtures and pass bounded deterministic isolation proof."
       ]
     },
     "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All ten blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
