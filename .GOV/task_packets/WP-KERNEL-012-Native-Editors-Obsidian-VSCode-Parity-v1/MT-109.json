@@ -3330,6 +3330,14 @@
         "result": "BUILDER_GATE_FAIL_F41_F44_RECONCILER_RESTART_FOCUSED_DOUBLE_PANIC",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log",
         "observed": "The exact focused native_editor_reconciler_repairs_durable_pending_after_restart_window test selected one and reproduced the body failure at flight_recorder.rs:2986: expected one restored FR row, observed 0. Its fallback cleanup then remained draining after 30000 ms, preserved store-01a0a1a825017461aa8fa5f97dbe945e under kb-v17/runtime, and caused exit 0xc0000409 with no normal test summary. This independently separates the restart behavior failure F41 from a new per-test cleanup/double-panic blocker F44."
+      },
+      {
+        "proof_id": "MT109-V16-PR-135",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_SOURCE_MAPPING_F39_F41_RESTART_PENDING_AUTHORITY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log",
+        "observed": "Source plus isolated RED mapping shows both restart fixtures append native_editor_pending_event outside any record-user scope. event_ledger::prepare_event therefore stores wsids=[] and authority_resource_id, session_id, capability_id, and action as NONE. Current EventLedger SELECT correctly requires exactly one wsid plus composed reader authority, so the reconciler sees zero eligible rows and returns Ok; restart assertions then observe zero FR rows. The bounded repair is fixture-only: seed pending rows under exact FlightRecorder/Create/fr.ingest.native_editor producer scope while retaining separate exact reconciliation-queue authority and explicit teardown."
       }
     ],
     "resolved_prior_findings": [
@@ -5594,6 +5602,12 @@
             "status": "FAIL",
             "observed": "persistent restart test body fails: expected one FR row after restart, observed 0",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL_SOURCE_REVIEW_MAPPING",
+            "observed": "source mapping: pending EventLedger row was seeded outside record-user scope, persisting wsids=[] and four authority fields NONE; correct SELECT hides it from reconciler, causing observed zero FR rows; fixture must seed under exact producer scope",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
           }
         ],
         "remaining_remediation": "Diagnose from the preserved store and exact startup/reconciliation path why each partial-write window restores zero FR rows; repair the smallest product or fixture cause without weakening restart assertions, prove both windows focused, full PT-109-1, and independent proof."
@@ -5632,6 +5646,12 @@
             "status": "FAIL",
             "observed": "exact focused test still expects one startup-restored FR row and observes 0 before cleanup",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
+          },
+          {
+            "attempt": 3,
+            "status": "FAIL_SOURCE_REVIEW_MAPPING",
+            "observed": "source mapping: pending EventLedger row was seeded outside record-user scope, persisting wsids=[] and four authority fields NONE; correct SELECT hides it from reconciler, causing observed zero FR rows; fixture must seed under exact producer scope",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
           }
         ],
         "remaining_remediation": "Diagnose the preserved runtime evidence and exact startup reconciler authority/lifecycle path; repair the smallest cause without weakening the one-row recovery assertion, prove focused restart behavior, full PT-109-1, and independent proof."
@@ -5648,6 +5668,12 @@
             "status": "FAIL",
             "observed": "persistent restart body failure is followed by fallback cleanup timeout preserving store-01a0a1a4b2c97ef39662f5b2678ec360; double panic aborts process 0xc0000409",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL_SOURCE_REVIEW_MAPPING",
+            "observed": "same restart fixture class also uses implicit fallback cleanup; planned repair retains body error while applying explicit owned-task/state teardown and centralized cleanup; prior cleanup failure remains unresolved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
           }
         ],
         "remaining_remediation": "After F39 behavior is corrected, convert this test to panic-preserving explicit task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; then pass full PT-109-1 and independent proof."
@@ -5685,6 +5711,12 @@
             "attempt": 1,
             "status": "FAIL",
             "observed": "after expected-one/observed-zero body assertion, fallback cleanup times out at 30000ms, preserves store-01a0a1a825017461aa8fa5f97dbe945e, and double-panics to 0xc0000409",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL_SOURCE_REVIEW_MAPPING",
+            "observed": "same restart fixture class also uses implicit fallback cleanup; planned repair retains body error while applying explicit owned-task/state teardown and centralized cleanup; prior cleanup failure remains unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
           }
         ],
