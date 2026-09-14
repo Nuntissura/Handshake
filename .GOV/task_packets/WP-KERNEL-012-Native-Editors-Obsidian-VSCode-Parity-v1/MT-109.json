@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T21:14:23.500Z",
+  "updated_at_utc": "2026-09-14T21:15:40.802Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -3418,6 +3418,14 @@
         "result": "BUILDER_RED_F46_SAME_ID_MUTATED_ENVELOPE_CONFLICT",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log",
         "observed": "Required PT-109-1 full-3 reached native_editor_same_id_mutated_envelope_conflicts and failed at flight_recorder.rs:2731 because the changed-pane request with the same event_id did not conflict. Panic-preserving teardown reported no cleanup timeout for this test. The full suite was still active when this finding was appended; exact response and persisted identity require diagnosis before remediation."
+      },
+      {
+        "proof_id": "MT109-V16-PR-146",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "BUILDER_RED_PT109_1_FULL_3_39_OF_40_F46_ONLY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log",
+        "observed": "Required PT-109-1 full-3 completed normally with 39 passed, 1 failed, 2166 filtered, 553.96 seconds, exit 101. The sole failure is MT109-V16-F46 at flight_recorder.rs:2731. No cleanup timeout and no abnormal process crash occurred. SHA-256 16BAF914840192AD8426551691806EF71A58E05F021E00EC1A0AAA100FFF1165. This builder run gives passing coverage for prior PT-109-1 behavior/cleanup blockers but does not clear any official finding before clean-candidate independent proof."
       }
     ],
     "resolved_prior_findings": [
@@ -5452,6 +5460,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "document_saved_receipt_without_minted_by_principal_is_unclaimable body reached teardown, then centralized fallback cleanup timed out after 30000ms and preserved store-01a0a19fc26f7ca3a7005f144f5e6592; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve the exact body outcome and store. Convert only the owning document_saved_receipt_without_minted_by_principal_is_unclaimable test to panic-preserving explicit owner/task shutdown plus centralized cleanup; prove focused behavior and root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5468,6 +5482,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "document_saved_receipt_minted_by_another_principal_is_unclaimable body reached teardown, then centralized fallback cleanup timed out after 30000ms and preserved store-01a0a19fc26f7ca3a7005f28282a6846; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve the exact body outcome and store. Convert only the owning document_saved_receipt_minted_by_another_principal_is_unclaimable test to panic-preserving explicit owner/task shutdown plus centralized cleanup; prove focused behavior and root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5484,6 +5504,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "document_saved_requires_exact_canonical_save_receipt body reached teardown, then centralized fallback cleanup timed out after 30000ms and preserved store-01a0a19fc26f7ca3a7005f37f0f6932a; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve the exact body outcome and store. Convert only the owning document_saved_requires_exact_canonical_save_receipt test to panic-preserving explicit owner/task shutdown plus centralized cleanup; prove focused behavior and root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5500,6 +5526,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "cross_workspace_event_id_preemption_cannot_conflict_or_leak body reached teardown, then centralized fallback cleanup timed out after 30000ms and preserved store-01a0a19fc26f7ca3a7005f40b5d9cff0; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve the exact body outcome and store. Convert only the owning cross_workspace_event_id_preemption_cannot_conflict_or_leak test to panic-preserving explicit owner/task shutdown plus centralized cleanup; prove focused behavior and root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5516,6 +5548,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a086247752b65bd5712cf23bf2; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5532,6 +5570,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "list_events_preserves_model_session_id_filter_and_payload reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a0cca878b2a4662b1971ebfbe4; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only list_events_preserves_model_session_id_filter_and_payload to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5548,6 +5592,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "list_events_surface_filter_returns_only_native_system_events_for_that_surface reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a1101e7901b8b02d225f72bb5a; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only list_events_surface_filter_returns_only_native_system_events_for_that_surface to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5564,6 +5614,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_canonical_uuid_and_timestamp_spellings_converge reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a1a2d97191abc5d5559d9f5a1e; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_canonical_uuid_and_timestamp_spellings_converge to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5580,6 +5636,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_completion_with_corrupt_hash_cannot_suppress_recovery reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a1e7657b238ad28e32ffa4a9bc; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_completion_with_corrupt_hash_cannot_suppress_recovery to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5596,6 +5658,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_concurrent_same_id_converges_once_in_both_stores reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a212337fd396dadef95b31fc01; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_concurrent_same_id_converges_once_in_both_stores to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5612,6 +5680,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_decomposed_unicode_retry_matches_normalized_store reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a22fb776f29f02c0639f8e7620; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_decomposed_unicode_retry_matches_normalized_store to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5628,6 +5702,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_event_handler_fails_closed reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a2c38d7cd19ae3a730674fcd66; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_event_handler_fails_closed to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5644,6 +5724,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_event_round_trips_and_mirrors_to_ledger reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a309b17982bffde74b45a62fc5; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_event_round_trips_and_mirrors_to_ledger to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5660,6 +5746,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_handler_accepts_all_documented_kinds_and_persists_each reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a34e0872719c63358345ed8951; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_handler_accepts_all_documented_kinds_and_persists_each to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5676,6 +5768,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a397607bd3b9f6ea89ac0b8255; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5692,6 +5790,12 @@
             "status": "FAIL_ACTIVE_RUN",
             "observed": "native_editor_handler_rejects_every_documented_payload_boundary_corruption reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a3ded875b1abfdbbc6ce279622; full run natural exit pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_handler_rejects_every_documented_payload_boundary_corruption to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
@@ -5708,6 +5812,12 @@
             "status": "FAIL",
             "observed": "spoofed-identity attribution body reaches teardown, then cleanup preserves store-01a0a1a425e576728dbb4efca421b107",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "Convert the test to panic-preserving explicit owned-task/state shutdown and centralized cleanup while retaining spoofed-identity rejection and server-derived attribution assertions; prove focused root absence, full PT-109-1, and independent proof."
@@ -5742,6 +5852,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "exact authority negative passes: reconciliation requires service identity plus exact workspace grant; broader cross-workspace/revocation/resource-state and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciliation-authority-negative-1.log"
+          },
+          {
+            "attempt": 5,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "Retain exact producer scope and bounded service reader branch, prove service grant absence/revocation/wrong workspace/identity/resource negatives, pass full PT-109-1, then pass independent clean-candidate proof."
@@ -5758,6 +5874,12 @@
             "status": "FAIL",
             "observed": "legacy pending recovery body reaches teardown, then cleanup preserves store-01a0a1a46ea873e2b8d00fc817c26994",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "Convert the test to panic-preserving explicit owned-task/state shutdown and centralized cleanup while retaining legacy recovery assertions; prove focused root absence, full PT-109-1, and independent proof."
@@ -5810,6 +5932,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "exact authority negative passes: reconciliation requires service identity plus exact workspace grant; broader cross-workspace/revocation/resource-state and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciliation-authority-negative-1.log"
+          },
+          {
+            "attempt": 8,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "Retain ordinary owner equality and exact service_identity/MT109Reconciler/workspace-queue/resource-wsid matching. Prove grant absence, revocation, wrong workspace, wrong identity and inactive resource negatives, then pass full PT-109-1 and independent clean-candidate proof."
@@ -5838,6 +5966,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "persistent-restart test passes body plus explicit cleanup/root absence with no double panic; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "After F39 behavior is corrected, convert this test to panic-preserving explicit task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; then pass full PT-109-1 and independent proof."
@@ -5878,6 +6012,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused persistent-restart test exits 0 normally; full 40-test PT-109-1 normal exit remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log"
+          },
+          {
+            "attempt": 6,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "PT-109-1 full-3 produced a normal 40-test summary and exit 101 with no 0xc0000409; aggregate crash is absent, but suite remains RED 39/40 because F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "Resolve every PT-109-1 body and cleanup blocker, then rerun the complete api::flight_recorder:: target with --test-threads=4 to a normal nonzero 40-test summary and exit 0; repeat independently on the clean candidate."
@@ -5912,6 +6052,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "focused startup-reconciler test passes body and explicit cleanup/root removal without double panic; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log"
+          },
+          {
+            "attempt": 5,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "the exact formerly failing test passed in PT-109-1 full-3; no cleanup timeout was emitted and the process produced a normal suite summary; overall suite remained 39/40 because unrelated F46 failed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "Convert this exact test to panic-preserving explicit owned-task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; after F41 behavior is fixed, pass focused, full PT-109-1, and independent clean-candidate proof."
@@ -5934,6 +6080,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "overwritten RED and succeeding GREEN bytes are now preserved under unique paths with inspected SHA-256 values; invalidated -5 claim remains invalid and full cited-log inventory/independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-9-preserved-green.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "new PT-109-1 evidence used unique checked-absent log pt-109-1-flight-recorder-full-3.log; inspected final SHA-256 16BAF914840192AD8426551691806EF71A58E05F021E00EC1A0AAA100FFF1165; broader cited-log inventory and independent clean-candidate evidence remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
         "remaining_remediation": "Preserve the overwritten file as observed. Use verified unique immutable log paths for every subsequent builder and validator attempt. Before clean-SHA acceptance, enumerate every cited resolution log, prove no path reuse/overwrite, and independently rerun the affected schema proof."
@@ -5942,13 +6094,19 @@
         "finding_id": "MT109-V16-F46",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "native_editor_same_id_mutated_envelope_conflicts panicked at flight_recorder.rs:2731 because the changed-pane same-event_id request did not conflict.",
+        "observed_proof": "PT-109-1 full-3 completed 39/40; its sole failure was native_editor_same_id_mutated_envelope_conflicts at flight_recorder.rs:2731 because the changed-pane same-event_id request did not conflict.",
         "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
             "status": "FAIL",
             "observed": "required full PT-109-1 run reached the changed-pane replay assertion; the request failed to return the required conflict; explicit teardown preserved the body panic without a cleanup timeout",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL",
+            "observed": "full run completed 39/40; sole failure panicked at flight_recorder.rs:2731 because same event_id with changed pane did not conflict; no cleanup timeout or crash masked the behavior",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
           }
         ],
@@ -6324,6 +6482,6 @@
         "Resolve MT109-V16-F46 by diagnosing the exact changed-pane response and stored canonical identity for the same event_id, repairing the smallest product or fixture cause without weakening replay conflict semantics, and passing focused, full PT-109-1, and independent clean-candidate proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-eight blocking finding IDs are unresolved. A reused schema log invalidated PR018/F03 attempt6; PT-109-1 full-3 has a new same-event-id mutated-envelope conflict failure and has not produced a valid complete suite verdict."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-eight blocking finding IDs remain officially unresolved. PT-109-1 full-3 now exits normally and passes 39/40 with no cleanup failure; MT109-V16-F46 is its sole behavior failure. The reused schema-log claim remains invalid pending final inventory and independent proof."
   }
 }
