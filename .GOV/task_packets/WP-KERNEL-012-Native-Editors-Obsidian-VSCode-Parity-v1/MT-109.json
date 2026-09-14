@@ -3154,6 +3154,14 @@
         "result": "BUILDER_GATE_FAIL_F17_RICH_REPLAY_PROOF_UNAUTHORIZED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-1.log",
         "observed": "The focused rich replay drift test selected one and failed because its baseline valid rich proposal returned 403 HSK-403-PROTECTED-RESOURCE before snapshot-drift rejection assertions. Explicit centralized cleanup succeeded. Source inspection found that the fixture created its workspace and rich document but provisioned no exact proposal/source grants or record-user scope for its three direct handler calls."
+      },
+      {
+        "proof_id": "MT109-V16-PR-113",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F17_RICH_REPLAY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log",
+        "observed": "The corrected focused rich replay drift test passed 1/1 in 32.08 seconds with exact document proposal/source scope. The valid proposal and both code-only snapshot-drift rejections execute, durable state remains bounded to one proposal and one receipt, and explicit cleanup succeeds. Full-suite and independent clean-candidate proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3487,6 +3495,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused rich replay drift test completes explicit centralized cleanup without cleanup failure; product proof is blocked at authority and independent cleanup proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-1.log"
+          },
+          {
+            "attempt": 55,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused rich replay test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4284,6 +4298,12 @@
             "status": "FAIL",
             "observed": "focused rich replay drift test baseline valid proposal returns 403 before its intended drift assertions; full suite remains blocked",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-1.log"
+          },
+          {
+            "attempt": 62,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused rich replay behavior and cleanup pass; other converted teardown cases and full Memory suite remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4662,17 +4682,23 @@
         "finding_id": "MT109-V16-F17",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The rich replay drift test cannot reach its intended source-snapshot drift rejection assertions because its baseline valid proposal is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this separate stale positive fixture.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-1.log",
+        "observed_proof": "Builder-focused proof now passes the valid rich proposal, both code-only snapshot-drift rejections, one-row/one-receipt bound, and explicit cleanup with exact document authority. Independent clean-candidate proof remains.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
             "status": "FAIL",
             "observed": "valid focused test fails before rich/code snapshot-drift checks: baseline valid proposal returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "exact document proposal/source scope reaches the valid proposal and both code-only drift rejections; one proposal/receipt and explicit cleanup pass; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/rich-replay-drift-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Provision only exact proposal Create and current rich-source Read authority for this fixture and apply the same stable scope to the valid and drift calls; retain both rejection assertions, one-row/one-receipt proof, explicit cleanup/root absence, complete Memory-suite proof, and independent clean-candidate proof."
+        "remaining_remediation": "Retain exact scope, both drift rejections, durable-state bounds, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
       }
     ],
     "independent_findings": [
