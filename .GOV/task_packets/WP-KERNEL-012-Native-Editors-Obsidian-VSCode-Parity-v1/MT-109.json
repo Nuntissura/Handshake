@@ -3258,6 +3258,14 @@
         "result": "BUILDER_GATE_FAIL_F21_QUARANTINED_OUTBOX_PROOF_UNAUTHORIZED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log",
         "observed": "The focused quarantined-outbox test selected one and failed because its canonical initial proposal returned 403 HSK-403-PROTECTED-RESOURCE before quarantine, false-ack, and recovery assertions. Explicit cleanup succeeded. Source inspection found workspace/source rows but no exact proposal authority; the first effective actor is native-process-a."
+      },
+      {
+        "proof_id": "MT109-V16-PR-126",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F21_ALL_EIGHT_TEARDOWNS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log",
+        "observed": "The corrected focused quarantined-outbox test passed 1/1 in 35.77 seconds with one stable exact scope matching native-process-a across changed process headers; quarantine, no-false-success-ack, healthy recovery, spoofed-body-actor, and explicit cleanup assertions pass. Together with PR109, PR111, PR113, PR115, PR118, PR119, and PR124, all eight formerly implicit-teardown tests are now focused green with explicit cleanup. Builder source search reports no remaining let (_store, state) = setup_state() binding. Full-suite and independent clean-candidate proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3657,6 +3665,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused quarantined-outbox test completes explicit cleanup without cleanup failure; product proof is blocked at authority and independent cleanup proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log"
+          },
+          {
+            "attempt": 66,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "all eight formerly implicit teardown tests are focused green with explicit cleanup and builder source search finds no remaining old binding; complete suite and independent physical-root proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4520,6 +4534,12 @@
             "status": "FAIL",
             "observed": "focused quarantined-outbox test initial proposal returns 403 before quarantine/no-false-ack/recovery assertions; full suite remains blocked",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log"
+          },
+          {
+            "attempt": 73,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "all eight formerly cleanup-failing tests are focused green with their intended bodies and explicit cleanup; required full 33-test/4-thread suite remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -5010,17 +5030,23 @@
         "finding_id": "MT109-V16-F21",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The quarantined proposal-outbox proof cannot reach quarantine, false-success-ack, or recovery assertions because its canonical initial proposal is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this stale fixture.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log",
+        "observed_proof": "Builder-focused proof now passes quarantine, no-false-success-ack, healthy recovery, spoofed-body-actor, and explicit cleanup with one stable exact scope across varied process headers. Independent clean-candidate proof remains.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
             "status": "FAIL",
             "observed": "valid focused test fails before outbox quarantine semantics: canonical initial proposal returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "stable exact native-process-a proposal/source scope reaches quarantine, no-false-ack, changed process-header retry, recovery, spoofed-body-actor, and explicit cleanup assertions; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Provision one exact proposal/source scope matching effective actor native-process-a and keep it stable across the initial, failed-recorder retry, and healthy retry while process headers vary; retain spoofed-body-actor, quarantine, no-false-ack, recovery, explicit cleanup, full-suite, and independent assertions."
+        "remaining_remediation": "Retain stable scope, varied-header and spoofed-body checks, quarantine/recovery assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
       }
     ],
     "independent_findings": [
