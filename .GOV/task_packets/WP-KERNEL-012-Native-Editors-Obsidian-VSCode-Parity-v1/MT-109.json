@@ -3242,6 +3242,14 @@
         "result": "BUILDER_SOURCE_MAPPING_F20_EXACT_OWNER_COLLISION_KEYS",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log",
         "observed": "Exact deterministic helper inputs identify resource kind Workspace and external key equal to the test single workspace_id. Existing owner/account/space are canonical-proposer / proposal-review-create-account / proposal-review-create-space. The rejected request used native_editor / proposal-review-reject-account / proposal-review-reject-space. The correct bounded fixture change reuses the existing canonical identity and adds only the second RichDocument grant."
+      },
+      {
+        "proof_id": "MT109-V16-PR-124",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F20_REVIEW_TRANSITIONS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log",
+        "observed": "The corrected focused review-transitions test passed 1/1 in 35.92 seconds. One canonical proposer owns the workspace and both exact sources; proposal review and replay, opposite-decision conflict, policy rejection, audit assertions, and explicit cleanup all pass. Full-suite and independent clean-candidate proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3629,6 +3637,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "review-transitions narrow-2 exits through explicit cleanup without cleanup failure; product proof remains red and independent cleanup proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log"
+          },
+          {
+            "attempt": 64,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused review-transitions test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4480,6 +4494,12 @@
             "status": "FAIL",
             "observed": "review-transitions narrow-2 reaches the first proposal/review but fails second-source scope provisioning with resource owner collision; full suite remains blocked",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log"
+          },
+          {
+            "attempt": 71,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused review/replay/conflict/policy/audit behavior and cleanup pass; other teardown cases and full Memory suite remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4930,8 +4950,8 @@
         "finding_id": "MT109-V16-F20",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The review-transitions proof now reaches the first proposal and review but fails second-source scope provisioning with resource registry ownership mismatch because a different account/principal attempts to own the existing workspace.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log",
+        "observed_proof": "Builder-focused proof now passes review/replay, opposite-decision conflict, policy rejection, audit, and explicit cleanup with one canonical proposer owning the workspace and both exact sources. Independent proof remains.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -4956,9 +4976,15 @@
             "status": "FAIL_SOURCE_REVIEW_MAPPING",
             "observed": "exact collision: Workspace resource at the single workspace_id is owned by canonical-proposer/proposal-review-create-account/proposal-review-create-space; rejected request was native_editor/proposal-review-reject-account/proposal-review-reject-space; reuse existing owner and add only second RichDocument grant",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-2.log"
+          },
+          {
+            "attempt": 5,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "one canonical proposer owns workspace and both exact sources; review/replay/opposite conflict/policy rejection/audit and explicit cleanup pass; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Reuse the first canonical-proposer principal/account/space for the second source, add only that source grant, keep the same canonical actor for both creates, and retain reviewer/policy identity separation plus all transition/replay/conflict/audit/cleanup/full/independent assertions."
+        "remaining_remediation": "Retain canonical ownership, exact source grants, all transition/conflict/policy/audit assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
       }
     ],
     "independent_findings": [
