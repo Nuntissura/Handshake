@@ -3170,6 +3170,14 @@
         "result": "BUILDER_GATE_FAIL_F18_SIMULTANEOUS_RETRY_PROOF_UNAUTHORIZED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log",
         "observed": "The focused simultaneous-retries test selected one and failed because the first concurrent proposal create returned 403 HSK-403-PROTECTED-RESOURCE before convergence assertions. Explicit centralized cleanup succeeded. Source inspection found a workspace/source fixture without exact authority scope, so prior implicit teardown failure masked this separate concurrency-proof reachability defect."
+      },
+      {
+        "proof_id": "MT109-V16-PR-115",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F18_SIMULTANEOUS_RETRIES",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log",
+        "observed": "The corrected focused simultaneous-retries test passed 1/1 in 32.67 seconds. Both handler futures enter cloned copies of one exact proposal/source scope and remain concurrent; durable state converges to one proposal and one receipt, and explicit cleanup passes. Full-suite and independent clean-candidate proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3515,6 +3523,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused simultaneous-retries test completes explicit cleanup without cleanup failure; concurrency proof is blocked at authority and independent cleanup proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log"
+          },
+          {
+            "attempt": 57,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused simultaneous-retries test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4324,6 +4338,12 @@
             "status": "FAIL",
             "observed": "focused simultaneous-retries test returns 403 in the first concurrent create before convergence assertions; full suite remains blocked",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log"
+          },
+          {
+            "attempt": 64,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused simultaneous retry convergence and cleanup pass; other converted teardown cases and full Memory suite remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4724,17 +4744,23 @@
         "finding_id": "MT109-V16-F18",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The simultaneous proposal-retry convergence test cannot reach its one-proposal/one-receipt assertions because the first concurrent create is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this separate stale fixture.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log",
+        "observed_proof": "Builder-focused proof now runs both exact scoped handler futures concurrently and passes one-proposal/one-receipt convergence plus explicit cleanup. Independent clean-candidate proof remains.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
             "status": "FAIL",
             "observed": "valid focused test fails before simultaneous retry convergence: first concurrent create returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "both exact scoped handler futures remain concurrent and converge to one proposal/receipt; explicit cleanup passes; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Provision one exact proposal/source scope and enter it independently for each concurrent handler future without serializing the futures; retain simultaneous execution and one-proposal/one-receipt assertions, prove cleanup/root absence, pass the complete Memory suite, then pass independent clean-candidate proof."
+        "remaining_remediation": "Retain independent scope entry for both concurrent futures, convergence bounds, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
       }
     ],
     "independent_findings": [
