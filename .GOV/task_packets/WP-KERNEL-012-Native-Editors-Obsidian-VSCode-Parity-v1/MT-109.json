@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:15:32.887Z",
+  "updated_at_utc": "2026-09-14T18:18:46.041Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2954,6 +2954,14 @@
         "result": "BUILDER_COMPILE_FAIL_V15_F01_F06_REQUEST_ID_MOVE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-4.log",
         "observed": "The fourth focused F09 invocation did not reach behavior. The seven-test cleanup refactor failed compilation with E0382 at memory.rs:6105 because proposal_insert_rolls_back_when_receipt_phase_fails moved request_id into StoredMemoryProposal and then borrowed it for the receipt payload. No test executed and no finding cleared."
+      },
+      {
+        "proof_id": "MT109-V16-PR-088",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F09_OUTBOX_RETRY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-5.log",
+        "observed": "The valid focused F09 test passed 1/1 in 33.53 seconds. Exact scoped proposal creation reached the intended HTTP 500 flight_recorder_error; in-call retry, reconciliation, and duplicate-event assertions passed; centralized cleanup/root absence passed. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -3179,6 +3187,12 @@
             "status": "FAIL_COMPILE",
             "observed": "seven-test explicit-cleanup refactor failed compilation E0382 because proposal_insert rollback fixture moved request_id before using it in receipt payload",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-4.log"
+          },
+          {
+            "attempt": 37,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "outbox-retry behavior now passes and centralized teardown removes its store; six other full-5 cleanup paths and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-5.log"
           }
         ],
         "remaining_remediation": "For each of the seven new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
@@ -3754,6 +3768,12 @@
             "status": "FAIL_COMPILE",
             "observed": "cleanup remediation does not compile due E0382 request_id move in proposal_insert rollback fixture; no complete-suite proof can run",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-4.log"
+          },
+          {
+            "attempt": 42,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "F09 outbox retry now passes exact injected 500, retry/dedup, reconciliation, and cleanup; remaining teardown paths, derivative timeout, and complete suite remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-5.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
@@ -3866,8 +3886,8 @@
         "finding_id": "MT109-V16-F09",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Focused proof confirms exact HSK-403-PROTECTED-RESOURCE denial before the injected recorder failure. Exact principal/workspace/source resource and grant rows must be inspected before fixture repair.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-3.log",
+        "observed_proof": "Builder-focused proof passes the intended injected recorder HTTP 500, retry/reconciliation, no-duplicate-event, and cleanup assertions with exact creation and queue authority. Independent committed-SHA proof remains required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-5.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3910,9 +3930,15 @@
             "status": "BUILD_BLOCKED_NO_BEHAVIOR",
             "observed": "focused F09 invocation was blocked before test execution by E0382 in another cleanup-remediated Memory test; no F09 behavior evidence",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-4.log"
+          },
+          {
+            "attempt": 8,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "focused test passed 1/1: exact scoped creation reached intended 500 flight_recorder_error, retry/reconciliation preserved exactly one event, and cleanup/root absence passed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-5.log"
           }
         ],
-        "remaining_remediation": "Use the existing exact proposal-create scope helper for this workspace/source and run only the request within that RecordUserScope; provision only this workspace for reconciliation before later recovery calls. Retain spoofed actor, injected 500, in-call retry, no duplicate event, cleanup, full-suite behavior, and independent proof."
+        "remaining_remediation": "Retain the focused behavior in the complete four-thread Memory suite, commit a clean candidate, and pass independent clean-SHA proof."
       }
     ],
     "independent_findings": [
@@ -3973,7 +3999,7 @@
         "severity": "BLOCKER",
         "blocking": true,
         "discovered_at_utc": "2026-09-14T17:55:43.584Z",
-        "summary": "The post-commit recorder-failure retry test is denied HTTP 403 before reaching its intended injected failure and retry/dedup assertions."
+        "summary": "Builder-focused outbox-retry proof now reaches injected 500 and passes retry, reconciliation, no-duplicate-event, and cleanup assertions with exact authority; independent clean-SHA proof remains required."
       }
     ],
     "remediation_required": {
