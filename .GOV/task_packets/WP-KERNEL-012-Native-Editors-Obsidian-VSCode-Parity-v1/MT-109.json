@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T15:36:43.615504Z",
+  "updated_at_utc": "2026-09-14T15:39:53.583170Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2658,6 +2658,14 @@
         "result": "BUILDER_GREEN_PENDING_FULL_SUITE_AND_INDEPENDENT_CONCURRENT_COMMITS",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-2.log",
         "observed": "The exact concurrent_workspace_commits_publish_a_pack_containing_both_items test passed 1/1 in 64.03 seconds. It retained the original simultaneous tokio::join! commits, distinct resulting memory IDs, both items in the latest pack, final item count two, and centralized cleanup/root-absence proof. This builder result does not clear MT109-V16-F06."
+      },
+      {
+        "proof_id": "MT109-V16-PR-051",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_PT_109_2_MEMORY_SUITE_SECOND_CRASH",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-2.log",
+        "observed": "The complete 33-test api::memory:: suite again aborted under --test-threads=4 with exit 0xc0000409 STATUS_STACK_BUFFER_OVERRUN and no suite verdict. The repaired create-proposal and concurrent-workspace-commit tests both passed in this run. At abort, commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits and get_memory_pack_empty_is_deterministic_and_unknown_workspace_is_not_found were the two remaining tests reported as running longer than 60 seconds."
       }
     ],
     "resolved_prior_findings": [
@@ -3012,8 +3020,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Both previously reported suite members now pass as isolated builder runs with deterministic cleanup. The required complete api::memory:: suite at four threads has not yet passed, and no independent result exists.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-2.log",
+        "observed_proof": "Both repaired tests now pass inside the required four-thread run, but the test process still aborts with STATUS_STACK_BUFFER_OVERRUN while the commit-outbox recovery and empty-pack/unknown-workspace tests remain active. There is still no valid suite verdict.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3068,9 +3076,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the corrected exact concurrent member passes its original simultaneous commit, pack, count, and cleanup assertions; complete four-thread suite and independent proof remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-2.log"
+          },
+          {
+            "attempt": 10,
+            "status": "FAIL",
+            "observed": "full four-thread suite still crashed without verdict after both repaired members passed; commit-outbox recovery and empty-pack/unknown-workspace remained long-running at abort",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-2.log"
           }
         ],
-        "remaining_remediation": "Pass the complete api::memory:: suite with four test threads on the stabilized source, commit a clean candidate, and independently rerun the suite with validator-owned paths."
+        "remaining_remediation": "Run each remaining long test alone with full output and deterministic cleanup, then reproduce their paired concurrent interaction under the same four-thread harness. Diagnose the abort from those results without changing the required thread count, and rerun the complete suite to a valid pass."
       }
     ],
     "independent_findings": [
