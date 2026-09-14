@@ -3138,6 +3138,14 @@
         "result": "BUILDER_GATE_FAIL_F16_SURREAL_IDENTITY_PROOF_UNAUTHORIZED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log",
         "observed": "The focused Surreal identity/exact retry test selected one and failed 0/1 because its first proposal returned 403 HSK-403-PROTECTED-RESOURCE before identity/retry convergence assertions. Explicit centralized cleanup succeeded. Source inspection found that the fixture created its workspace and source but provisioned no exact proposal/source grants or record-user scope for either direct create call."
+      },
+      {
+        "proof_id": "MT109-V16-PR-111",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F16_SURREAL_IDENTITY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-2.log",
+        "observed": "The corrected focused Surreal identity/exact retry test passed 1/1 in 32.03 seconds with only exact workspace/source/proposal scope. It proves stable retry identity, convergence to one durable row, and explicit cleanup/root absence. Full-suite and independent clean-candidate proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3459,6 +3467,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused Surreal identity test completes explicit centralized cleanup without cleanup failure; product proof is blocked at authority and independent cleanup proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log"
+          },
+          {
+            "attempt": 53,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused Surreal identity test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4244,6 +4258,12 @@
             "status": "FAIL",
             "observed": "focused Surreal identity test reaches behavior but its first proposal returns 403 before identity/retry assertions; full suite remains blocked",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log"
+          },
+          {
+            "attempt": 60,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused Surreal identity/retry behavior and cleanup pass; other converted teardown cases and full Memory suite remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-2.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4600,17 +4620,23 @@
         "finding_id": "MT109-V16-F16",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The Surreal identity/exact retry test cannot reach its intended convergence assertions because its first proposal is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this separate stale positive fixture.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log",
+        "observed_proof": "Builder-focused proof now passes stable Surreal retry identity and one-row convergence with exact workspace/source/proposal scope and explicit cleanup. Independent clean-candidate proof remains required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
             "status": "FAIL",
             "observed": "valid focused test selects one and fails before Surreal identity/retry convergence: first proposal returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "exact workspace/source/proposal scope reaches stable retry identity and one-row convergence; explicit cleanup/root absence passes; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/surreal-identity-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Provision only exact current proposal Create and canonical source Read authority for the fixture, keep both direct retry calls under one stable authenticated scope, retain stable request identity and single-row convergence assertions, prove focused cleanup/root absence, pass the complete Memory suite, then pass independent clean-candidate proof."
+        "remaining_remediation": "Retain exact scope, stable identity, single-row convergence, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
       }
     ],
     "independent_findings": [
