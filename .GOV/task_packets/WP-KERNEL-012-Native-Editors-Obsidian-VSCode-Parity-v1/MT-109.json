@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:38:33.0314397Z",
+  "updated_at_utc": "2026-09-14T13:44:06.5496873Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2426,6 +2426,14 @@
         "result": "BUILDER_GATE_FAIL_PRODUCER_SOURCE_REVOCATION_SELECT",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-5.log",
         "observed": "The exact derived-source test failed 0 passed/1 failed in 37.47 seconds at api/memory.rs:3645 because the proposal producer retained direct proposal visibility after current source authority was revoked. The cross-principal proposal-creator denial preceding this assertion passed."
+      },
+      {
+        "proof_id": "MT109-V16-PR-022",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_CURRENT_SCHEMA_INFO_HASH_AFTER_SOURCE_COMPOSITION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-6.log",
+        "observed": "After source authority was composed into ordinary reader/producer proposal SELECT, the declarative gate passed 1/1 in schema-declarative-pin-6.log, then the current-schema catalog gate failed 0 passed/1 failed because observed hash 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388 did not match expected 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3."
       }
     ],
     "resolved_prior_findings": [
@@ -2512,9 +2520,16 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "final current-schema catalog passed 1/1 with observed and expected 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log"
+          },
+          {
+            "attempt": 7,
+            "failed_attempt_ordinal": 5,
+            "status": "FAIL",
+            "observed": "declarative gate passed after source composition; current-schema hash observed 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388 vs expected 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-6.log"
           }
         ],
-        "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh schema containing the exact reconciler predicate, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
+        "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh schema containing both the exact reconciler predicate and source-composed ordinary reader/producer predicate, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
       },
       {
         "finding_id": "MT109-V16-F04",
