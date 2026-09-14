@@ -3354,6 +3354,14 @@
         "result": "BUILDER_SOURCE_MAPPING_F41_LEDGER_READER_SERVICE_BRANCH_UNREACHABLE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log",
         "observed": "Narrow-2 disproves missing producer provenance as the sole cause. Canonical fn::mt109_ledger_reader applies fn::mt109_ledger_workspace row-owner account/space equality before all authorization branches. Authentic pending rows are stamped with user-owned FlightRecorder resources, while the reconciler runs as a separate service account/space; its exact per-workspace reconciliation-queue grant is therefore unreachable. The bounded product correction must preserve owner equality for ordinary producer/reader paths and allow only service-identity MT109Reconciler exact-queue reads of active producer rows whose resource kind/external ID exactly match the row wsid."
+      },
+      {
+        "proof_id": "MT109-V16-PR-138",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F03_DECLARATIVE_SCHEMA_PIN",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-7.log",
+        "observed": "The declarative schema pin gate failed 0/1 with exit 101 at schema.rs:4606 after the intended ledger-reader authorization change. Observed hash 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6 differs from expected 4bfd32d7062fd5a83ef1e507bbe766628a82c35936914f080439a52643635fe2. This is an ordered attempt under existing F03 pending derivation from current canonical schema bytes and a green rerun."
       }
     ],
     "resolved_prior_findings": [
@@ -4031,8 +4039,8 @@
         "finding_id": "MT109-V16-F03",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Builder gates exposed compiled-manifest, full schema INFO, Atelier, and Loom catalog-pin drift while exercising the new proof. Updated pins have not been independently verified at a clean committed candidate.",
-        "test_or_log": "MT109-V16-PR-001, MT109-V16-PR-002, and ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-1.log",
+        "observed_proof": "Latest intended ledger-reader authorization change deterministically changes the declarative schema fingerprint; current pin is stale and must be derived from canonical schema bytes before independent proof.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-7.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -4102,9 +4110,15 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "combined authority pins, two migration variants, and Loom catalog passed 3/3; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-4.log"
+          },
+          {
+            "attempt": 12,
+            "status": "FAIL",
+            "observed": "declarative schema pin gate fails after ledger-reader change: observed 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6 versus expected 4bfd32d7062fd5a83ef1e507bbe766628a82c35936914f080439a52643635fe2",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-7.log"
           }
         ],
-        "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh schema containing both the exact reconciler predicate and source-composed ordinary reader/producer predicate, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
+        "remaining_remediation": "Derive the declarative pin from current canonical schema bytes, rerun declarative/current/bounded catalog and predecessor migration gates, then independently verify all schema fingerprints on the clean candidate."
       },
       {
         "finding_id": "MT109-V16-F04",
