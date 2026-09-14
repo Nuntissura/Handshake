@@ -3194,6 +3194,14 @@
         "result": "BUILDER_GATE_FAIL_F19_WORKSPACE_CLEANUP_ACTOR_SCOPE_MISMATCH",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-2.log",
         "observed": "The second focused workspace cleanup test advanced past the initial denial but returned public 500 when lifecycle outbox proposal_id record::exists could not see the just-created target proposal. Explicit cleanup succeeded. Builder inspection maps the failure to unique fixture actors while empty request headers derive canonical actor native_editor, so producer-bound proposal SELECT hides the row. The next fixture correction must use one canonical principal/account/space and actor identity while retaining exact disjoint workspace/source grants."
+      },
+      {
+        "proof_id": "MT109-V16-PR-118",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F19_WORKSPACE_CLEANUP",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log",
+        "observed": "The corrected focused workspace-memory cleanup test passed 1/1 in 36.80 seconds. One canonical principal/account/space holds only exact separate grants for the target and control workspace/source pairs; target deletion, control preservation, target receipt retention, and explicit cleanup all pass. Full-suite and independent clean-candidate proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3557,6 +3565,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "workspace cleanup narrow-2 exits through explicit cleanup without cleanup failure; product proof remains red and independent cleanup proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-2.log"
+          },
+          {
+            "attempt": 60,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused workspace cleanup test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4384,6 +4398,12 @@
             "status": "FAIL",
             "observed": "workspace cleanup narrow-2 reaches storage but returns 500 because target proposal is hidden from same-transaction producer SELECT under actor/scope mismatch; full suite remains blocked",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-2.log"
+          },
+          {
+            "attempt": 67,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused workspace deletion/preservation behavior and cleanup pass; other converted teardown cases and full Memory suite remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4806,8 +4826,8 @@
         "finding_id": "MT109-V16-F19",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The workspace-memory cleanup proof now reaches storage but same-transaction producer visibility fails under fixture actor/scope mismatch and returns public 500 before deletion/preservation assertions.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-2.log",
+        "observed_proof": "Builder-focused proof now passes scoped target deletion, control preservation, target receipt retention, and explicit cleanup using one canonical principal with exact separate target/control workspace-source grants. Independent proof remains.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -4820,9 +4840,15 @@
             "status": "FAIL",
             "observed": "target proposal advances past 403 but lifecycle outbox proposal_id existence returns 500 because fixture actors differ from canonical native_editor derived by empty headers; explicit cleanup succeeds",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-2.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "canonical principal with exact separate target/control workspace-source grants passes deletion scoping, control preservation, receipt retention, and explicit cleanup; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Use one canonical principal/account/space and canonical actor native_editor for both fixture scope provisions while registering/granting only each exact target/control workspace and source; retain scoped deletion, control/receipt preservation, explicit cleanup, complete suite, and independent proof."
+        "remaining_remediation": "Retain canonical principal, exact separate grants, deletion/preservation assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
       }
     ],
     "independent_findings": [
