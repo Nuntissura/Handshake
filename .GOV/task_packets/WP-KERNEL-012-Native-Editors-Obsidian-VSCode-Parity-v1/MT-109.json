@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T12:35:48.8445731Z",
+  "updated_at_utc": "2026-09-14T12:41:04.4234982Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2306,6 +2306,14 @@
         "result": "BUILDER_GATE_FAIL_MEMORY_RECONCILIATION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-1.log",
         "observed": "The exact reconciliation service test failed 0 passed/1 failed because proposal creation returned 403 Forbidden with HSK-403-PROTECTED-RESOURCE before the reconciler behavior completed."
+      },
+      {
+        "proof_id": "MT109-V16-PR-007",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_MEMORY_RECONCILIATION_FIXTURE_WORKSPACE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-3.log",
+        "observed": "After the scoped fixture-grant change, the same exact test still failed 0 passed/1 failed because proposal creation returned 404 Not Found with detail workspace."
       }
     ],
     "resolved_prior_findings": [
@@ -2361,9 +2369,23 @@
         "finding_id": "MT109-V16-F05",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The builder-owned exact service test failed before reconciliation because proposal creation returned 403 HSK-403-PROTECTED-RESOURCE.",
-        "test_or_log": "MT109-V16-PR-006",
-        "remaining_remediation": "Repair the test or product authorization setup without granting broader authority. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
+        "observed_proof": "The builder-owned exact service test first failed before reconciliation with 403 HSK-403-PROTECTED-RESOURCE. After the scoped fixture-grant change, it advanced to 404 not_found detail workspace but still failed before reconciliation.",
+        "test_or_log": "MT109-V16-PR-006 and MT109-V16-PR-007",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "403 HSK-403-PROTECTED-RESOURCE",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL",
+            "observed": "404 not_found detail workspace",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-3.log"
+          }
+        ],
+        "remaining_remediation": "Provide a canonical workspace fixture before the narrowly scoped proposal authority setup; do not broaden production grants. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
       }
     ],
     "independent_findings": [
