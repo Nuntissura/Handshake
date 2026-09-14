@@ -3202,6 +3202,14 @@
         "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F19_WORKSPACE_CLEANUP",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log",
         "observed": "The corrected focused workspace-memory cleanup test passed 1/1 in 36.80 seconds. One canonical principal/account/space holds only exact separate grants for the target and control workspace/source pairs; target deletion, control preservation, target receipt retention, and explicit cleanup all pass. Full-suite and independent clean-candidate proof remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-119",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_STRICT_ROUTE_TEARDOWN",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-strict-route-narrow-1.log",
+        "observed": "The converted focused strict mounted proposal-route test passed 1/1 in 19.08 seconds. Unknown-field and unknown-class requests are rejected with zero durable residue; the server is aborted and joined before explicit centralized cleanup, which passes. Full-suite and independent proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3571,6 +3579,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused workspace cleanup test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log"
+          },
+          {
+            "attempt": 61,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "strict mounted proposal-route unknown-field/class rejection and zero-residue behavior pass with server join and explicit cleanup; remaining teardown cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-strict-route-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4404,6 +4418,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused workspace deletion/preservation behavior and cleanup pass; other converted teardown cases and full Memory suite remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-3.log"
+          },
+          {
+            "attempt": 68,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "strict mounted proposal-route unknown-field/class rejection and zero-residue behavior pass with server join and explicit cleanup; remaining teardown cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-strict-route-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
