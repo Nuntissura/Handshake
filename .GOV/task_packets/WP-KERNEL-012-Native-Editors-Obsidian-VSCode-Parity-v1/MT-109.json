@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T21:20:15.539Z",
+  "updated_at_utc": "2026-09-14T21:23:00.325Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -3442,6 +3442,14 @@
         "result": "BUILDER_RED_F46_DIAGNOSTIC_500_DB",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-2.log",
         "observed": "Focused F46 diagnostic selected 1 and failed 0/1 in 29.23 seconds, exit 101. The pane mutation returned 500 Internal Server Error HSK-500-DB rather than required 409 conflict, then the assertion failed at flight_recorder.rs:2741. No cleanup failure. SHA-256 EE870FF5FD348C25A5DFE4DB12EB5CFC9230913495DE31385281AA404D506771. Exact internal DB error still requires capture and selective mapping."
+      },
+      {
+        "proof_id": "MT109-V16-PR-149",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "BUILDER_RED_F46_EXACT_CONFLICT_MISCLASSIFIED_500",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-3.log",
+        "observed": "Focused F46 diagnostic selected 1 and failed 0/1 in 28.89 seconds. The exact internal error is `conflict: kernel event idempotency key was reused with different event content` for the native-editor pending key; existing/new payload hashes differ while aggregate type/id are identical. Public response remains 500 HSK-500-DB instead of 409. No cleanup failure. SHA-256 D65E706086424FE49430883CA76733CC0ED3C076220E63C1DED9762A2B1B0887."
       }
     ],
     "resolved_prior_findings": [
@@ -6114,6 +6122,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "diagnostic-2 used a new unique artifact and final bytes hash to EE870FF5FD348C25A5DFE4DB12EB5CFC9230913495DE31385281AA404D506771; full inventory and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-2.log"
+          },
+          {
+            "attempt": 6,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "diagnostic-3 used a new unique artifact with inspected SHA-256 D65E706086424FE49430883CA76733CC0ED3C076220E63C1DED9762A2B1B0887; full inventory and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-3.log"
           }
         ],
         "remaining_remediation": "Preserve the overwritten file as observed. Use verified unique immutable log paths for every subsequent builder and validator attempt. Before clean-SHA acceptance, enumerate every cited resolution log, prove no path reuse/overwrite, and independently rerun the affected schema proof."
@@ -6122,8 +6136,8 @@
         "finding_id": "MT109-V16-F46",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Focused F46 diagnostic proves the changed-pane same-event_id request returns 500 HSK-500-DB, not the required 409 conflict; the underlying database error has not yet been surfaced.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-2.log",
+        "observed_proof": "The same-event-id pane mutation correctly reaches the kernel idempotency conflict internally, but the handler misclassifies that exact conflict as 500 HSK-500-DB instead of public 409.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -6148,6 +6162,12 @@
             "status": "FAIL",
             "observed": "focused test selected 1; changed-pane same-event_id returned 500 HSK-500-DB instead of 409 conflict; no cleanup failure; exact internal DB diagnostic remains unknown",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-2.log"
+          },
+          {
+            "attempt": 5,
+            "status": "FAIL_EXACT_DIAGNOSTIC",
+            "observed": "changed-pane retry hits exact kernel-event idempotency-key reuse with different content; same aggregate identity and different payload hashes; handler maps this expected conflict to 500 HSK-500-DB rather than 409",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-3.log"
           }
         ],
         "remaining_remediation": "Inspect the exact changed-pane response and persisted canonical identity, identify why the same event_id mutation does not conflict, repair the smallest product or fixture cause without weakening identity or replay semantics, pass the focused test and complete PT-109-1, then reprove independently on the clean candidate."
@@ -6522,6 +6542,6 @@
         "Resolve MT109-V16-F46 by diagnosing the exact changed-pane response and stored canonical identity for the same event_id, repairing the smallest product or fixture cause without weakening replay conflict semantics, and passing focused, full PT-109-1, and independent clean-candidate proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-eight blocking finding IDs remain officially unresolved. F46 is narrowed to 500 HSK-500-DB instead of the required conflict; the exact internal database error and safe selective mapping are pending. The reused schema-log claim remains invalid pending final inventory and independent proof."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-eight blocking finding IDs remain officially unresolved. F46 is now exactly diagnosed: the expected idempotency-content conflict is internally detected but misclassified as public 500 instead of 409. A selective mapping fix and focused/full reproof are pending. The reused schema-log claim remains invalid pending final inventory and independent proof."
   }
 }
