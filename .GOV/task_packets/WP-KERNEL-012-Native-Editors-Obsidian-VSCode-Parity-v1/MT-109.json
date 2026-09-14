@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:24:20.136Z",
+  "updated_at_utc": "2026-09-14T18:25:03.655Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -3050,6 +3050,14 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F14_PROVENANCE_AND_UNICODE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log",
         "observed": "The corrected focused provenance test passed 1/1 in 21.76 seconds. Malformed provenance, gating, range, workspace, and source cases retain fail-closed 400 behavior; only the valid real-source UTF-8 control receives exact proposal/source scope and proves persisted byte length. Centralized cleanup/root absence passes. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-100",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_F01_F05_F06_DERIVATIVE_RECONCILER_PAIR",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-reconciler-pair-1.log",
+        "observed": "A shared-process run at --test-threads=4 selected exactly derivative authority and reconciliation isolation and passed 2/2 in 56.03 seconds. The derivative owner proposal completed in 22.656 seconds under the unchanged fixed 30-second client deadline; source denial checks then passed. Reconciliation exact-grant, denied-state, trace, enumeration, and revoke visibility checks passed. This two-test result does not reproduce the full-5 timeout and clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -3391,6 +3399,12 @@
             "status": "FAIL",
             "observed": "in the complete four-thread Memory run, the derivative authority test reached owner_proposal then its proposal POST failed with reqwest TimedOut; focused green is invalid as broad proof until timeout versus deadlock is isolated",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 9,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "derivative authority passes alongside reconciliation in one four-thread runner; owner proposal completes in 22.656s under unchanged 30s deadline, but exact four-way/full-suite load remains required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-reconciler-pair-1.log"
           }
         ],
         "remaining_remediation": "Preserve the full-suite result, isolate the exact derivative proposal timeout under representative four-thread interaction, fix only the observed deadline/deadlock cause without weakening the six endpoint, mixed-source, revoke/regrant, cross-principal, or zero-mutation assertions, then pass focused, full, and independent proof."
@@ -3636,6 +3650,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "commit-outbox restart fixture now provisions only its exact queue grant; startup projection and owned reconciler shutdown pass; independent reconciliation proof remains pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-2.log"
+          },
+          {
+            "attempt": 19,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "reconciliation isolation passes alongside derivative authority in one four-thread runner with denied trace/state and revocation checks intact; independent proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-reconciler-pair-1.log"
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
@@ -3934,6 +3954,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "provenance suite member preserves all malformed-input 400s and exact-authorized UTF-8 positive control with cleanup; all seven cleanup paths are narrowly green, while derivative load timeout and complete suite remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log"
+          },
+          {
+            "attempt": 49,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "two-test derivative+reconciler shared-process run passes 2/2; exact four mt109 tests and complete 33-test four-thread suite remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-reconciler-pair-1.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
