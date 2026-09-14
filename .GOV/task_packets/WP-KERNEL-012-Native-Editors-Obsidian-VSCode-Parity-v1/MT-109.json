@@ -35,7 +35,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "FAIL_V7",
+    "status": "FAIL_V14",
     "depends_on": [],
     "blocks": [
       "MT-036",
@@ -44,14 +44,14 @@
       "MT-074"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V7",
+    "validator_verdict": "FAIL_V14",
     "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
     "ready_for_validation_at_utc": "2026-07-24T15:45:00.000Z",
     "proof_status": "PASS_REMEDIATION_V2: real managed-PostgreSQL/EventLedger native-editor ingestion, readback, strict decoding, idempotency, reconciliation, real ace::MemoryPack readback, review-gated proposal provenance, immutable committed memory before approval, and typed zero-residue rejection were implemented and independently adversarially reviewed. Historical FAIL_V1 remains preserved for independent V2 validation.",
     "post_implementation_adversarial_review_status": "PASS_2026-07-17_NO_SOURCE_BLOCKERS_AND_REQUIRED_RUNTIME_PROOFS_GREEN",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V7",
-    "validated_at_utc": "2026-09-13T15:58:15.102Z",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V13",
+    "validated_at_utc": "2026-09-13T20:55:56.850Z",
     "remediation_appendage": "Build the backend routes that E5/E9/E10 native-editor work is typed-blocked on: (1) FR native-editor ingestion - extend api/flight_recorder.rs beyond the closed RuntimeChatEventV0_1 shape (deny_unknown_fields, 3-variant enum, hardcoded actor_id runtime_chat, UUID-only session_id) to accept a versioned native-editor event family covering NativeEditorAction kinds plus the 5 un-emitted interop kinds (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP); (2) GET /memory/pack returning the REAL ace::MemoryPack shape (memory_id/memory_class/source_refs - the native client model must be aligned in the paired frontend change); (3) POST /memory/proposals review-gated intake (proposals land as pending review items, NEVER direct memory commits). All PostgreSQL/EventLedger-backed, no SQLite. Frontend pairing (emit variants + client model alignment + un-ignoring the gated E9 proofs) is wave-2 native work that this MT unblocks.",
     "completed_by": null,
     "implementation_evidence": "PROVEN on real managed PostgreSQL 2026-07-02 (durable log MT-109-managed-pg-verify-kb.log): api::memory::tests 6/6 (incl. proposal_cannot_mutate_committed_memory + missing-provenance fail-closed negatives), api::flight_recorder native_editor 4/4 (unknown-kind rejection, all documented kinds, ledger mirror, fail-closed). Ran with --features runtime-full,duckdb-flight-recorder,test-utils. No SQLite. Committed product 2fe559ed. Unblocks frontend MT-036/063/064/074 (their live proofs run in the managed-PG proof day).",
@@ -670,7 +670,10 @@
       {
         "id": "MT109-V6-F01",
         "severity": "HIGH",
-        "failed_acceptance": ["AC-109-1", "AC-109-4"],
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-4"
+        ],
         "summary": "Flight Recorder/EventLedger access remains cross-account and cross-Space bypassable by identifier.",
         "evidence": [
           "src/backend/handshake_core/src/api/flight_recorder.rs:383-406 uses the constant FR_CAPABILITY_PROFILE and inserts RecorderAuthority after global profile_can success; it carries no ResourceBroker decision.",
@@ -768,7 +771,12 @@
         "id": "MT109-V7-F01",
         "severity": "HIGH",
         "blocking": true,
-        "failed_acceptance": ["AC-109-1", "AC-109-2", "AC-109-3", "AC-109-4"],
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
         "summary": "All MT-109 protected route families authorize a global capability profile but not the selected workspace resource.",
         "evidence": [
           "src/backend/handshake_core/src/api/flight_recorder.rs:350-406 resolves a process binding, checks the fixed Operator profile, and inserts RecorderAuthority without an account, Principal, AccessSpace, ResourceGrant, or resource decision.",
@@ -783,7 +791,12 @@
         "id": "MT109-V7-F02",
         "severity": "BLOCKER",
         "blocking": true,
-        "failed_acceptance": ["AC-109-1", "AC-109-2", "AC-109-3", "AC-109-4"],
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
         "summary": "The required identity/session/resource-authorization substrate does not exist, so MT-109 cannot be safely repaired as a local middleware edit.",
         "evidence": [
           "A product-wide source scan finds zero ResourceBroker, ResourceGrant, AccessSpace, or LocalAccount type definitions and no corresponding Surreal tables; Principal appears only in an unrelated Atelier-local context.",
@@ -854,5 +867,1376 @@
       ]
     },
     "residual_uncertainty": "Cargo was prohibited and not run. The current implementation may have additional runtime failures. This V7 audit establishes the minimum architectural predecessor and corrects FAIL_V6 scope without claiming those unexecuted behaviors."
+  },
+  "validation_v8": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V8",
+    "verdict_label": "FAIL V8",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V8",
+    "validated_at_utc": "2026-09-13T17:56:27.736Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "2e28ff918282fec531bf37aac8811a01c9d02f2d",
+      "reviewed_range": "634090db374363655ee65047d42ac11659983900^..2e28ff918282fec531bf37aac8811a01c9d02f2d",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN"
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V8-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": "2e28ff918282fec531bf37aac8811a01c9d02f2d",
+        "command": "cargo +1.97.1 test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=1 --nocapture",
+        "result": "FAIL_COMPILE",
+        "exit_code": 101,
+        "executed_test_count": 0,
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v8/target",
+        "log_path": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v8/logs/resource-authority-focused.log",
+        "rust_toolchain": "1.97.1",
+        "tree_state": "CLEAN",
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "tests": {
+      "status": "FAIL_COMPILE",
+      "focused_predecessor": "resource_authority_tests",
+      "result": "0 tests executed because handshake_core lib-test compilation failed with 5 errors",
+      "broad_proof": "NOT_RUN_RED_PREDECESSOR",
+      "route_matrix": "NOT_RUN_RED_PREDECESSOR"
+    },
+    "method": "Fresh high-risk adversarial validation of commits 634090db and 2e28ff9 at their exact clean range head. Resolved SPEC_CURRENT through the v02.206 indexed manifest and INDEX; mapped MT-109 AC-109-1 through AC-109-4 and the V7 predecessor contract to the changed authority, route, storage, schema, and test files; inspected producer-consumer and privileged-versus-record-user boundaries; then executed the narrowest validator-owned authority proof. The focused predecessor failed compilation, so broader route and backend proofs were not run.",
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: ResourceBroker decisions were added ahead of route handlers, but protected operational queries still use the existing privileged AppState storage handles",
+        "notification/cursor drift: the V7 report described a complete two-stage predecessor and route integration, while the candidate tests cover only a narrow subset and the focused proof had not actually compiled",
+        "session/ACP drift: the native process-binding token is still treated as sufficient to mint the installation Owner session and universal workspace grants",
+        "documentation/protocol drift: inline comments claim a non-bypassable record-user boundary although record-user permissions are isolated in a separate authority database",
+        "scope/worktree and clock/staleness drift: the candidate includes broad schema.rs formatting churn and was validated only at exact clean SHA 2e28ff9 to avoid attributing later changes"
+      ],
+      "cheapest_deterministic_reads": [
+        "git diff and exact-source reads for commits 634090db and 2e28ff9",
+        "direct scan of operational Surreal tables and PERMISSIONS clauses",
+        "direct route-to-authority and reconciliation call-site scan",
+        "validator-owned focused authority Cargo test"
+      ],
+      "result": "The candidate is not test-executable and does not implement the required non-bypassable protected-data boundary."
+    },
+    "diff_attack_surfaces": [
+      "opaque session issuance and process channel binding",
+      "principal/account/Space persistence and current revocation epochs",
+      "exact ResourceGrant plus CapabilityProfile intersection",
+      "record-user permissions versus privileged operational storage",
+      "automatic workspace/resource registration and grant widening",
+      "Flight Recorder/EventLedger/FEMS route selectors and durable attribution",
+      "background reconciliation enumeration and least privilege",
+      "migration/bootstrap idempotency and concurrent grant/revoke/use"
+    ],
+    "counterfactual_checks": [
+      "If api::authority::authorize_request were bypassed or altered, every Flight Recorder and memory handler would still possess a privileged AppState storage handle capable of reading or mutating PERMISSIONS NONE operational tables.",
+      "If exchange_local_session is called with any valid native process binding, provision_existing_workspace_grants enumerates all existing workspaces and grants the installation Owner every MT-109 recorder and memory action, so resource privacy depends on automatic grant manufacture rather than prior authenticated authority.",
+      "If a grant is revoked after authorization but before the handler's privileged query, the operational query has no record-user permission context that can independently reject the stale decision."
+    ],
+    "boundary_probes": [
+      "native binding -> /authority/session -> provision_local_operator -> automatic grants for every listed workspace",
+      "x-hsk-session-token plus channel binding -> authority database record signin -> ResourceBroker grant query -> privileged operational AppState query",
+      "reconciliation startup -> list all registered workspace resources -> mint a new service principal/grants -> enumerate all pending FEMS rows before per-workspace broker checks"
+    ],
+    "negative_path_checks": [
+      "Focused compile probe failed before the candidate's four storage-level authority tests could execute.",
+      "Operational schema scan shows workspaces and kernel_event_ledger remain SCHEMAFULL PERMISSIONS NONE; the changed range does not add authenticated table/field permissions to primary MT-109 data.",
+      "The authority tests do not mount every MT-109 route with two accounts/two Spaces/two resources and do not prove grant-without-capability, cross-Space, Space switch, same-project-private, concurrent revoke/use, direct record-user data bypass, or privileged-session rejection.",
+      "The Flight Recorder unauthenticated test creates a valid session token at flight_recorder.rs:3847 but never uses it; it therefore proves only missing/forged-token denial, not cross-resource authorization."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V8-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "summary": "The remediation does not compile, so no focused authority or route behavior is executable.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:551-552 passes &str to surrealdb::Error::internal, which requires String.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:647 repeats the same &str/String mismatch.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:755-756 repeats the same &str/String mismatch.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:660 calls to_string on RecordId, which does not implement Display.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:803 repeats the invalid RecordId::to_string call.",
+          "MT109-V8-PR-001 exited 101 with 0 tests executed."
+        ]
+      },
+      {
+        "id": "MT109-V8-F02",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The new record-user boundary protects only the authority registry, not the actual Flight Recorder/EventLedger/FEMS/workspace data.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:15-20 creates a separate resource_authority database and inline authority schema.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:875-925 authenticates and evaluates a grant in that authority database, then returns an in-memory decision.",
+          "src/backend/handshake_core/src/storage/surreal/schema.surql:63 defines workspaces as PERMISSIONS NONE.",
+          "src/backend/handshake_core/src/storage/surreal/schema.surql:800 defines kernel_event_ledger as PERMISSIONS NONE.",
+          "The MT-109 Flight Recorder and memory handlers continue into state.flight_recorder/state.surreal operations after middleware authorization; those operational queries are not executed as the authenticated record user."
+        ],
+        "failure_scenario": "A defect, stale authorization-to-use race, background worker, or internal call path reaches the privileged operational storage methods and bypasses the separate ResourceBroker decision entirely. Table/field permissions cannot stop it because the protected tables deny record users and ordinary product code uses the privileged handle."
+      },
+      {
+        "id": "MT109-V8-F03",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3"
+        ],
+        "summary": "Session bootstrap still converts possession of a process binding into installation-Owner identity and grants every existing workspace automatically.",
+        "evidence": [
+          "src/backend/handshake_core/src/api/authority.rs:203-221 exchanges only channel binding for provision_local_operator and immediately calls provision_existing_workspace_grants.",
+          "src/backend/handshake_core/src/api/authority.rs:233-344 enumerates every workspace and manufactures broad recorder and memory grants for each protected surface.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:577-591 hard-codes installation-owner, Operator, wildcard delegated capability, and a 12-hour session."
+        ],
+        "failure_scenario": "Any local process that obtains a valid binding can mint the same Owner session and receive grants to all pre-existing workspaces without an independent login, selected account, selected Space, or prior resource grant."
+      },
+      {
+        "id": "MT109-V8-F04",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The committed tests are materially below the V7 proof contract and cannot establish route-level isolation.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs contains only four broker-level tests.",
+          "The tests cover no mounted two-account/two-Space/every-route matrix and no direct record-user operation against MT-109 operational tables.",
+          "The tests do not prove grant-without-capability, same-project private denial, Space switch, concurrent revoke/use, service-principal confinement, metadata non-disclosure, or privileged ordinary-flow rejection.",
+          "The existing route helpers auto-provision all workspace grants, preventing absent-grant route proof for the installation Owner."
+        ]
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Restore compilation first without weakening types: pass owned String values to surrealdb::Error::internal at lines 552, 647, and 756; represent delegation-chain principal identifiers with the canonical raw principal UUID or a typed record reference that serializes without Display, and make session/grant chain representation byte-identical at lines 660 and 803.",
+        "Move or mirror the identity/session/Space/resource/grant authority into the same operational Surreal database/namespace boundary used by protected data, or create a scoped record-user operational client whose authenticated claims and table/field permissions can reference the canonical authority records. Do not leave authorization in one database and privileged data access in another.",
+        "Add explicit SCHEMAFULL default-deny record-user table and sensitive-field permissions for every MT-109 operational table: workspaces, kernel_event_ledger, recorder projection/state where Surreal-backed, all FEMS packs/proposals/items/reviews/commit reports/outbox/write anchors, and any derived index/count table touched by these routes. SELECT/CREATE/UPDATE/DELETE/UPSERT/bulk/recovery must require account, principal, session, Space, exact resource/grant, action, and current policy state.",
+        "Execute ordinary MT-109 storage operations through the authenticated scoped record-user handle after ResourceBroker authorization. Keep privileged clients only in explicit bootstrap/migration/maintenance code and mechanically reject them from ordinary route, reconciliation, and isolation-test paths.",
+        "Replace /authority/session's binding-only Owner bootstrap with an independently authenticated persisted LocalAccount/Principal session. Process binding remains an additional channel-binding check, never the identity proof. Remove automatic enumeration and universal grant creation from session exchange. Workspace/resource creation should establish only the authorized owner's private grant; later access requires explicit current grants.",
+        "Make ResourceBroker authorization and operational use race-safe for revocation/Space switch/policy changes: either evaluate within the same scoped transaction/lease or have record-user permissions re-check current epochs/grants on every protected query. A decision object alone is not a capability token for later privileged access.",
+        "Constrain reconciliation to a stable least-privilege service Principal and explicit queue/resource grants provisioned through controlled setup. Do not mint a new service identity, enumerate all registered workspaces, or manufacture grants on every reconciliation call; enumerate only rows visible to the scoped service record user and re-check exact workspace/resource before mutation.",
+        "Preserve all existing valid MT-109 behavior: strict versioned envelopes and kind vocabulary, deny_unknown_fields, bounded payloads, server attribution, workspace-partitioned idempotency, EventLedger-first recovery, side-effect-free field-pinned MemoryPack, provenance-required review-gated proposals, immutable committed memory before approval, deterministic replay, and no PostgreSQL/SQLite path.",
+        "Keep authority schema in the canonical generated/migrated Surreal schema path with fingerprint and predecessor upgrade coverage. Remove broad unrelated rustfmt churn from schema.rs if it is not semantically required so the next validator can attribute the migration exactly."
+      ],
+      "required_adversarial_tests": [
+        "A real mounted-router matrix with two accounts, two Principals, two AccessSpaces, two workspaces, and independently controlled grants. Exercise both recorder GET aliases, both ingestion POSTs, MemoryPack, proposal create/list/get/artifact/review/commit, commit report, item count, and reconciliation.",
+        "For every route prove authorized success plus wrong account, wrong Space, same-project member without exact grant, capability-without-grant, grant-without-capability, disabled account, expired/revoked session, revoked/reduced grant, post-Space-switch stale context, mismatched delegation, forged path/body/event selectors, and foreign-but-existing identifiers. Denials must precede mutation and leave zero residue.",
+        "Authenticate as SurrealDB record users and attempt SELECT, CREATE, UPDATE, DELETE, UPSERT/conflict, bulk, outbox, and recovery bypasses against all MT-109 operational tables and sensitive fields. Run privileged setup separately and assert privileged handles are unavailable to ordinary route and worker code.",
+        "Run concurrent grant/revoke/use and Space-switch/use races. No request may commit after its current grant/policy becomes invalid outside the bounded policy window.",
+        "Prove service reconciliation sees and mutates only explicitly granted queue/workspace rows; an ungranted pending row remains untouched and undisclosed.",
+        "Probe wsid, proposal_id, commit_id, event_id, actor, actor_id, surface, event_type, blank/malformed selectors, counts, errors, logs, traces, and timing shape for cross-resource existence leakage.",
+        "Regression-run FR strict decoding/idempotency/recovery and MemoryPack/proposal provenance/review/commit immutability tests after the security matrix is green."
+      ],
+      "validator_reentry_gate": [
+        "Exact clean candidate compiles with Rust 1.97.1 and a nonzero focused ResourceBroker/record-user test target.",
+        "Focused record-user operational-table bypass suite is green before route tests.",
+        "One nonzero bundled mounted-router matrix covers every MT-109 route and all required negative boundaries.",
+        "Only after those predecessors are green run PT-109-1 through PT-109-4 plus focused cargo check. PASS_V9 is illegal if ordinary data access remains privileged, session exchange still auto-grants every workspace, or any required route/negative class is absent."
+      ]
+    },
+    "residual_uncertainty": "The focused proof stopped at compilation, so runtime behavior of the new authority schema, record signin, query semantics, route integration, reconciliation, and migrations is unproven. The static record-user and session-bootstrap defects independently require FAIL_V8 even after the five compile errors are repaired."
+  },
+  "validation_v9": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V9",
+    "verdict_label": "FAIL V9",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V9",
+    "validated_at_utc": "2026-09-13T18:39:47.467Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "ecc2444c29d5ef0f382e6b8f6ff5764705849180",
+      "reviewed_range": "2e28ff918282fec531bf37aac8811a01c9d02f2d..ecc2444c29d5ef0f382e6b8f6ff5764705849180",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN"
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V9-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": "ecc2444c29d5ef0f382e6b8f6ff5764705849180",
+        "command": "cargo +1.97.1 test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=1 --nocapture",
+        "result": "FAIL_COMPILE",
+        "exit_code": 101,
+        "executed_test_count": 0,
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v9/target",
+        "log_path": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v9/logs/resource-authority-focused.log",
+        "rust_toolchain": "1.97.1",
+        "tree_state": "CLEAN",
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "tests": {
+      "status": "FAIL_COMPILE",
+      "focused_predecessor": "storage::surreal::resource_authority_tests::",
+      "result": "0 tests executed because handshake_core lib-test compilation failed with E0277",
+      "broad_proof": "NOT_RUN_RED_PREDECESSOR",
+      "route_matrix": "NOT_RUN_RED_PREDECESSOR",
+      "cargo_check": "NOT_RUN_RED_PREDECESSOR"
+    },
+    "method": "Fresh high-risk adversarial validation at exact clean candidate ecc2444c. Resolved SPEC_CURRENT through the v02.206 manifest, INDEX, and owning security/local-infrastructure modules; mapped AC-109-1 through AC-109-4 and validation_v8 re-entry requirements to the eight changed files; inspected record-user, route, EventLedger, credential, Space-switch, and reconciliation boundaries; then executed the narrowest validator-owned ResourceBroker/record-user predecessor. Compilation failed, so no broader proof was run.",
+    "master_spec_evidence": [
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:951 requires authenticated record-user table/field permissions plus ResourceBroker and rejects privileged-session isolation proof.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:953 requires server-derived transaction-local authorization context.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:957 forbids background-worker bypass identity.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1930 requires default-deny authorization on every request and forbids privileged sessions in ordinary protected-resource flows.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1932 requires observability data and counts to carry and enforce account/Principal/session/Space/resource scope.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1936 requires record-user, wrong-account/Space/grant, revocation-race, worker, privileged-session, forged-scope, and inference adversarial proof."
+    ],
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: the task-local record-user scope was inserted into the shared data-operation wrapper without preserving its Send contract",
+        "notification/cursor drift: a test named every_route_matrix is a broker decision loop, not the mounted-router matrix required by validation_v8",
+        "session/ACP drift: persisted credential behavior is tested only through storage methods and not through the actual authority-session request boundary",
+        "documentation/protocol drift: route strings in a constant visually imply endpoint coverage while no Router or oneshot call exists in the proof file",
+        "scope/worktree and clock/staleness drift: validation is pinned to clean ecc2444c and no later source state is attributed"
+      ],
+      "cheapest_deterministic_reads": [
+        "exact diff 2e28ff9..ecc2444c",
+        "direct source and schema line reads for the scoped storage wrapper and protected-table permissions",
+        "test inventory scan for mounted router and direct operational-table probes",
+        "validator-owned focused Cargo predecessor"
+      ],
+      "result": "The candidate is not test-executable and the committed proof implementation remains below the V8 re-entry contract."
+    },
+    "diff_attack_surfaces": [
+      "task-local record-user scope propagation through shared Surreal operations",
+      "record signin and privileged-client separation",
+      "one-time credential exchange and channel binding",
+      "account/Principal/AccessSpace/resource/grant/capability/action binding",
+      "Flight Recorder and memory mounted-route enforcement",
+      "EventLedger authority attribution and workspace binding",
+      "reconciliation service identity and queue confinement",
+      "concurrent revocation and Space-switch behavior"
+    ],
+    "counterfactual_checks": [
+      "If SurrealStorage::with_data_operation does not carry a Send closure into its boxed Send future, the entire handshake_core lib-test target cannot compile and none of the record-user boundary can execute.",
+      "If the route labels in EVERY_PROTECTED_ROUTE are removed, the matrix behavior is unchanged because the test calls authorize_protected_resource directly and never dispatches an HTTP request.",
+      "If protected-table permissions are defective outside workspaces, the current direct record-user assertion still passes because it exercises only SurrealDatabase::list_workspaces."
+    ],
+    "boundary_probes": [
+      "authorize_request -> task-local RecordUserScope -> with_data_operation -> record signin -> typed storage operation",
+      "EVERY_PROTECTED_ROUTE labels -> matrix_request -> authorize_protected_resource, with no mounted API router boundary",
+      "reconciliation service provisioning/issuance -> broker authorization, with no pending-row visibility or mutation proof"
+    ],
+    "negative_path_checks": [
+      "The focused proof failed compilation before any negative-path test executed.",
+      "The committed test file contains no Router, oneshot, or ServiceExt dispatch and therefore cannot prove handler middleware, path/body binding, zero residue, or constant-denial behavior.",
+      "The direct table-bypass scan contains no kernel_event_ledger or fems_memory_* operation and no record-user SELECT/CREATE/UPDATE/DELETE/UPSERT/bulk/outbox/recovery attempt.",
+      "The reconciliation test checks broker denial for a human profile but does not execute the real reconciler against granted and ungranted pending rows."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V9-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "summary": "The V9 candidate does not compile, so zero focused authority tests execute.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal.rs:1072-1075 leaves generic closure F without a Send bound.",
+          "src/backend/handshake_core/src/storage/surreal.rs:1091-1116 captures F inside a boxed future required to be Send.",
+          "MT109-V9-PR-001 exited 101 with E0277: future cannot be sent between threads safely; executed_test_count=0."
+        ]
+      },
+      {
+        "id": "MT109-V9-F02",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3"
+        ],
+        "summary": "The claimed every-route matrix does not mount or invoke any MT-109 route.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:346-443 stores endpoint names only as RouteAuthorityCase labels.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:611-684 loops those labels into authorize_protected_resource calls rather than HTTP requests.",
+          "The proof file contains no Router, oneshot, or ServiceExt invocation."
+        ],
+        "failure_scenario": "Middleware, route extraction, path/body selector binding, handler authorization propagation, or privileged-handle leakage can regress while every broker-only assertion remains green."
+      },
+      {
+        "id": "MT109-V9-F03",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "Direct record-user operational-table bypass coverage remains materially incomplete.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:692-720 proves only filtered workspace enumeration through list_workspaces.",
+          "The test file contains no direct record-user operation against kernel_event_ledger or any fems_memory_* table.",
+          "No SELECT/CREATE/UPDATE/DELETE/UPSERT/bulk/outbox/recovery bypass matrix exists for the permissions added at resource_authority_schema.surql:241-277."
+        ]
+      },
+      {
+        "id": "MT109-V9-F04",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-3"
+        ],
+        "summary": "Reconciliation confinement is asserted at broker level but not through the real worker and pending-row boundary.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:1041-1116 provisions/authorizes identities but never invokes native-editor or memory reconciliation.",
+          "The test does not seed granted and ungranted pending rows or prove that only the granted row is visible and mutated."
+        ]
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Restore compilation first: preserve the existing boxed-future Send contract by adding the appropriate Send bound to the with_data_operation closure type F, or restructure scoped client creation without weakening SurrealOperation's Send requirement. Re-run only the focused resource_authority target until nonzero green.",
+        "Replace the broker-only EVERY_PROTECTED_ROUTE loop with a real mounted-router matrix. Build AppState with isolated embedded SurrealDB/EventLedger, issue persisted credentials through the authority-session route, dispatch HTTP requests through the production Flight Recorder and memory routers, and assert response plus durable zero-residue/readback for every route named by validation_v8.",
+        "For each mounted route cover authorized success, wrong account, wrong Space, same-account other Space, no exact grant, capability-without-grant, grant-without-capability, disabled account, expired/revoked session, revoked/reduced grant, stale post-Space-switch context, forged path/body/event selectors, foreign existing IDs, and constant non-disclosing denial.",
+        "Add record-user operational-table adversarial tests for workspaces, kernel_event_ledger, every fems_memory_* table, both outboxes, and write anchors. Attempt SELECT, CREATE, UPDATE, DELETE, UPSERT/conflict, bulk, and recovery operations with missing/wrong resource, action, capability, Space, session, and grant; run privileged setup separately and prove privileged handles are not used by ordinary routes.",
+        "Execute the actual native-editor and memory reconcilers with a stable explicitly provisioned service Principal. Seed one granted and one ungranted pending row; prove only the granted queue/workspace row is visible and mutated and the ungranted row remains unchanged and undisclosed.",
+        "Preserve the valid V9 direction already present: same primary Surreal database, explicit one-time credential exchange, no session-time universal workspace auto-grants, server-derived record scope, EventLedger authority fields, same-account Space switching, and default-deny SCHEMAFULL permissions. Do not replace these with route-local shims or privileged ordinary-flow queries.",
+        "After all predecessors are green, regression-run strict FR envelope/kind/idempotency/recovery and MemoryPack shape/no-write-amplification/proposal provenance/review/commit immutability tests, then focused cargo check."
+      ],
+      "minimal_reentry_proof": [
+        "Exact clean candidate compiles with Rust 1.97.1 and the focused resource_authority target executes a nonzero green count.",
+        "A direct authenticated record-user operational-table bypass target is nonzero and green.",
+        "A real mounted-router two-account/two-Space/every-route matrix is nonzero and green.",
+        "Real reconciliation confinement is green with granted and ungranted pending rows.",
+        "Only then run the current SurrealDB-corrected MT-109 FR/memory integration, reopen/reconciliation, and cargo-check proof. PASS_V10 is illegal if any predecessor is red or mock/broker-only."
+      ]
+    },
+    "residual_uncertainty": "Because compilation failed, no V9 runtime assertion executed. Static inspection establishes that the committed proof suite is also below the mandatory mounted-route, operational-table bypass, and real reconciliation boundaries, so repairing E0277 alone cannot produce PASS."
+  },
+  "validation_v10": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V10",
+    "verdict_label": "FAIL V10",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V10",
+    "validated_at_utc": "2026-09-13T19:15:25.243Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "86c6931805bef56e594ed39a1380d316d985c4fe",
+      "reviewed_range": "ecc2444c29d5ef0f382e6b8f6ff5764705849180..86c6931805bef56e594ed39a1380d316d985c4fe",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN"
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V10-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": "86c6931805bef56e594ed39a1380d316d985c4fe",
+        "command": "cargo +1.97.1 test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=1 --nocapture",
+        "result": "FAIL_COMPILE",
+        "exit_code": 101,
+        "executed_test_count": 0,
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v10/target",
+        "log_path": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v10/logs/resource-authority-focused.log",
+        "rust_toolchain": "1.97.1",
+        "tree_state": "CLEAN",
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "tests": {
+      "status": "FAIL_COMPILE",
+      "focused_predecessor": "storage::surreal::resource_authority_tests::",
+      "result": "0 tests executed; handshake_core lib-test compilation failed with E0277, E0310, E0311, and E0609",
+      "record_user_bypass": "NOT_RUN_RED_PREDECESSOR",
+      "route_matrix": "NOT_RUN_RED_PREDECESSOR",
+      "reconciliation": "NOT_RUN_RED_PREDECESSOR",
+      "pt_109_1_through_4": "NOT_RUN_RED_PREDECESSOR",
+      "broad_proof": "NOT_RUN_RED_PREDECESSOR"
+    },
+    "method": "Fresh adversarial validation at exact clean candidate 86c69318. Resolved current Master Spec through SPEC_CURRENT v02.206, its manifest, INDEX, and owning local-infrastructure/security modules; inspected the exact five-file remediation diff; mapped AC-109-1 through AC-109-4 and every V9 re-entry predecessor; then ran the narrowest validator-owned ResourceBroker/record-user target with Rust 1.97.1. Compilation failed, so all runtime successors were stopped.",
+    "master_spec_evidence": [
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:951 requires authenticated record-user table/field permissions plus ResourceBroker and rejects privileged-session isolation proof.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:953 requires server-derived transaction-local authorization context.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:957 forbids background-worker bypass identity.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1930 requires default-deny authorization on every request and forbids privileged sessions in ordinary protected-resource flows.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1932 requires observability data and counts to enforce account, Principal, session, Space, resource, and grant scope.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1936 requires record-user, route, revocation-race, worker, privileged-session, forged-scope, and inference adversarial proof."
+    ],
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: the shared with_data_operation signature was hardened without propagating compatible lifetime and Send bounds to every caller",
+        "notification/cursor drift: test names claim every-route coverage while the added mounted tests cover only foreign-workspace and revoked-session classes",
+        "session/ACP drift: mounted tests obtain sessions from a test helper instead of exercising persisted credential exchange through the authority-session request boundary",
+        "documentation/protocol drift: the V9 re-entry gate requires two-account/two-Space all-negative matrices, but V10 adds narrower single-session route tests",
+        "scope/worktree and clock/staleness drift: validation is pinned to clean 86c69318 and no later source state is attributed"
+      ],
+      "cheapest_deterministic_reads": [
+        "exact diff ecc2444c..86c69318",
+        "direct source reads at the compiler-error and new-test locations",
+        "test inventory scan for mounted routes, direct record-user operations, and real reconciler invocation",
+        "validator-owned focused Cargo predecessor"
+      ],
+      "result": "The candidate remains non-test-executable and its new matrices do not yet fully satisfy the prior typed re-entry gate."
+    },
+    "independent_findings": [
+      {
+        "id": "MT109-V10-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "summary": "The V10 candidate still does not compile, so the focused authority target executes zero tests.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal.rs:1072-1116 adds Send to F but moves it into a boxed lease future that also requires an explicit compatible lifetime bound.",
+          "src/backend/handshake_core/src/atelier/mod.rs:1006-1013 forwards an unconstrained F into with_data_operation and produces three E0277 diagnostics.",
+          "src/backend/handshake_core/src/api/memory.rs:2516-2523 reads nonexistent ProvisionedIdentity.capability_profile_id and produces E0609.",
+          "MT109-V10-PR-001 exited 101 with E0277, E0310, E0311, and E0609; executed_test_count=0."
+        ]
+      },
+      {
+        "id": "MT109-V10-F02",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3"
+        ],
+        "summary": "The mounted-route additions do not implement the required two-account, two-Principal, two-Space, every-negative-class matrix.",
+        "evidence": [
+          "src/backend/handshake_core/src/api/flight_recorder.rs:3971 adds a revoked-session middleware test for four recorder requests, not the complete negative matrix.",
+          "src/backend/handshake_core/src/api/memory.rs:2240 adds mounted success plus foreign-workspace and revoked-session checks for memory routes, but no two-account/two-Space actor matrix.",
+          "The mounted tests use test_session_for_binding rather than proving persisted credential exchange through the authority-session route."
+        ],
+        "failure_scenario": "Wrong-Space, same-project member without grant, capability/grant asymmetry, disabled/expired identity, stale Space-switch context, or selector inference can regress at middleware/handler boundaries while these narrower tests remain green."
+      },
+      {
+        "id": "MT109-V10-F03",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The direct record-user table test covers foreign-row operations but not the full required scope/action/session/grant and bulk/recovery bypass matrix.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:730-920 exercises SELECT/CREATE/UPSERT/UPDATE/DELETE against foreign rows in workspaces, EventLedger, FEMS tables, outboxes, and write anchors.",
+          "The direct table target does not iterate missing/wrong resource, wrong action, wrong capability, wrong Space, expired/revoked session, reduced grant, bulk, recovery, or sensitive-field-specific attempts.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:560 remains a ResourceBroker decision loop rather than a mounted-route proof."
+        ]
+      },
+      {
+        "id": "MT109-V10-F04",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The new real reconciliation-confinement proof cannot compile and therefore proves neither visibility nor mutation confinement.",
+        "evidence": [
+          "src/backend/handshake_core/src/api/memory.rs:2455 adds granted and ungranted pending-workspace reconciliation through reconcile_all_memory_commit_events.",
+          "src/backend/handshake_core/src/api/memory.rs:2516-2523 asserts a field absent from ProvisionedIdentity, causing E0609 before the proof can run.",
+          "No validator-owned reconciliation assertion executed because the compile predecessor was red."
+        ]
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Restore compilation without weakening the scoped-operation contract. Give SurrealStorage::with_data_operation an explicit lifetime design compatible with with_lease's boxed Send future, and propagate the same Send/lifetime constraint through Atelier::with_data and every generic forwarding wrapper. Do not solve this by removing Send from SurrealOperation or by bypassing the scoped record-user client.",
+        "Fix the reconciliation assertion against the actual typed model. Either expose the reconciliation profile in the returned provisioning type intentionally or verify it through the persisted Principal/session record; do not reference nonexistent ProvisionedIdentity.capability_profile_id and do not replace the assertion with a string-only constant check.",
+        "Re-run only storage::surreal::resource_authority_tests:: with Rust 1.97.1 until compilation succeeds and a nonzero test count is green. Keep the existing V10 target/cache path so unchanged native dependencies are reused.",
+        "Expand mounted Flight Recorder and memory proof into one actual two-account, two-Principal, two-AccessSpace matrix. Obtain credentials/session through the persisted authority-session HTTP boundary, then exercise both recorder GET aliases, both ingestion POSTs, MemoryPack, proposal create/list/get/artifact/review/commit, commit report, item count, and reconciliation where exposed.",
+        "For every mounted route prove authorized success and constant, zero-residue denial for wrong account, wrong Space, same-project member without exact grant, capability-without-grant, grant-without-capability, disabled account, expired/revoked session, revoked/reduced grant, stale post-Space-switch context, mismatched delegation, forged path/body/event selectors, and foreign existing identifiers. Include selector/count/log/trace non-disclosure assertions.",
+        "Extend the direct Surreal record-user target beyond foreign rows: attempt SELECT, CREATE, UPDATE, DELETE, UPSERT/conflict, bulk, outbox, and recovery operations with missing/wrong resource, action, capability, Space, session, and current grant across workspaces, kernel_event_ledger, every FEMS table, both outboxes, write anchors, and sensitive fields. Keep privileged setup separate and prove ordinary route/worker code cannot obtain the privileged handle.",
+        "Keep the real reconciliation test, but make service identity stable and explicitly provisioned. Seed granted and ungranted pending rows, run the production reconciler, and assert only the granted rows are visible/mutated, the ungranted rows remain unchanged and undisclosed, and EventLedger/Flight Recorder attribution is service-scoped.",
+        "Preserve the valid implementation already present: same primary Surreal database, explicit one-time credentials, no Owner/wildcard/session-time universal grants, server-derived attribution, SCHEMAFULL default-deny permissions, workspace-partitioned idempotency, strict versioned envelopes, EventLedger-first recovery, field-pinned side-effect-free MemoryPack, and provenance-required review-gated proposals.",
+        "Only after all predecessors are nonzero green run PT-109-1 through PT-109-4, strict FR decoding/idempotency/recovery, MemoryPack no-write-amplification and field shape, proposal provenance/review/commit immutability, cross-workspace selectors, concurrent revoke/use and Space-switch/use races, and focused cargo check."
+      ],
+      "minimal_reentry_proof": [
+        "Exact clean candidate compiles with Rust 1.97.1 and storage::surreal::resource_authority_tests:: executes a nonzero green count.",
+        "A direct authenticated record-user operational-table matrix is nonzero and green for all operations and negative scope classes.",
+        "One real mounted two-account/two-Space/every-route/every-negative-class HTTP matrix is nonzero and green.",
+        "The production reconciler is green with explicitly granted and ungranted pending rows and service-scoped attribution.",
+        "Only then run current SurrealDB/EventLedger FR and memory regression targets plus focused cargo check. PASS_V11 is illegal if any predecessor is red, helper-only, broker-only, or privileged-session-backed."
+      ]
+    },
+    "residual_uncertainty": "No V10 runtime assertion executed because lib-test compilation failed. The new test bodies show materially better route, table, and reconciler direction, but none is proof until the compile predecessor is green, and the mounted/direct matrices still omit required negative classes."
+  },
+  "validation_v11": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V11",
+    "verdict_label": "FAIL V11",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V11",
+    "validated_at_utc": "2026-09-13T20:06:22.587Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "c2878199587cfafd32956fbd6a8cfced6ef207c9",
+      "reviewed_range": "86c6931805bef56e594ed39a1380d316d985c4fe..c2878199587cfafd32956fbd6a8cfced6ef207c9",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN"
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V11-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": "c2878199587cfafd32956fbd6a8cfced6ef207c9",
+        "command": "cargo +1.97.1 test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=1 --nocapture",
+        "result": "FAIL_RUNTIME_SCHEMA_BOOTSTRAP",
+        "exit_code": 101,
+        "executed_test_count": 11,
+        "passed_test_count": 0,
+        "failed_test_count": 11,
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v11/target",
+        "log_path": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v11/logs/resource-authority-focused.log",
+        "rust_toolchain": "1.97.1",
+        "tree_state": "CLEAN",
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "tests": {
+      "status": "FAIL_RUNTIME_SCHEMA_BOOTSTRAP",
+      "focused_predecessor": "storage::surreal::resource_authority_tests::",
+      "result": "handshake_core compiled; 11 tests executed and all 11 failed while bootstrapping resource_authority_schema.surql because SurrealDB 3.2 rejects array::contains as an invalid function path",
+      "record_user_bypass": "NOT_RUN_RED_PREDECESSOR",
+      "route_matrix": "NOT_RUN_RED_PREDECESSOR",
+      "reconciliation": "NOT_RUN_RED_PREDECESSOR",
+      "pt_109_1_through_4": "NOT_RUN_RED_PREDECESSOR",
+      "broad_proof": "NOT_RUN_RED_PREDECESSOR"
+    },
+    "method": "Fresh adversarial validation at exact clean candidate c2878199. Resolved current Master Spec through SPEC_CURRENT v02.206, its manifest, INDEX, and cited local-infrastructure/security modules; inspected exact diff 86c69318..c2878199; mapped all V10 re-entry gates; statically challenged mounted-route, direct record-user, and reconciliation proof; then ran the mandated validator-owned resource-authority predecessor with Rust 1.97.1. Compilation succeeded, but schema bootstrap failed in every test, so all successor proofs were stopped.",
+    "master_spec_evidence": [
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:951 requires authenticated record-user table/field permissions plus ResourceBroker and rejects privileged-session isolation proof.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:953 requires server-derived transaction-local authorization context.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:957 forbids background-worker bypass identity.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1930 requires default-deny authorization on every request and forbids privileged sessions in ordinary protected-resource flows.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1932 requires observability data and counts to enforce account, Principal, session, Space, resource, and grant scope.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1936 requires record-user, route, revocation-race, worker, privileged-session, forged-scope, and inference adversarial proof."
+    ],
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: the production authority schema still uses a SurrealQL function path removed by the current embedded SurrealDB runtime",
+        "notification/cursor drift: the remediation advanced from compile errors to runtime schema failure, but earlier handoff evidence did not expose the latent bootstrap boundary",
+        "session/ACP drift: route matrices now use persisted credential exchange, while older neighboring tests still use test_session_for_binding and must not be mistaken for the claimed production-boundary proof",
+        "documentation/protocol drift: the direct matrix name claims bulk/outbox/recovery completeness although its statements and seeded state do not cover the V10 operation matrix",
+        "scope/worktree and clock/staleness drift: validation is pinned to clean c2878199 and no later product state is attributed"
+      ],
+      "cheapest_deterministic_reads": [
+        "exact diff 86c69318..c2878199",
+        "resource_authority_schema.surql membership-function inventory",
+        "official SurrealDB array-function reference for the current syntax",
+        "validator-owned focused Cargo predecessor"
+      ],
+      "result": "The candidate repaired V10 compilation and credential-exchange direction, but the authority schema is not executable and the direct table matrix remains incomplete and partly vacuous."
+    },
+    "diff_attack_surfaces": [
+      "SurrealStorage::with_data_operation lifecycle and record-user signin path",
+      "resource_authority_schema.surql function syntax and operational-table permissions",
+      "mounted Flight Recorder and memory routes across account, Principal, Space, grant, capability, session, delegation, and selector boundaries",
+      "production reconciliation worker visibility, mutation confinement, and service attribution",
+      "negative table-operation tests whose empty result may be caused by absent seed rows rather than enforced denial"
+    ],
+    "independent_checks_run": [
+      "Verified clean exact candidate c2878199587cfafd32956fbd6a8cfced6ef207c9 and inspected the six-file remediation diff.",
+      "Verified the new MT-109 mounted proof functions exchange one-time persisted credentials through POST /authority/session and do not call test_session_for_binding.",
+      "Inventoried all seven array::contains uses in resource_authority_schema.surql and checked the current official SurrealDB array-function reference, which documents array::includes/array::any rather than array::contains.",
+      "Ran the focused resource-authority target independently and captured the nonzero 0-pass/11-fail result."
+    ],
+    "counterfactual_checks": [
+      "If resource_authority_schema.surql cannot parse, no record-user permission, mounted protected route, or reconciliation claim is executable regardless of the Rust compilation result.",
+      "If real sentinel rows are absent from a negative UPDATE/SELECT probe, an empty result remains possible even with permissive table access, so the test cannot distinguish enforced denial from a no-match query."
+    ],
+    "boundary_probes": [
+      "Rust caller to embedded SurrealDB schema bootstrap: Rust compiled, but the database rejected line 183 before authority setup completed.",
+      "Negative-matrix intent to database state: the new matrix creates only a workspace and does not seed matching rows in most FEMS/EventLedger/outbox tables before SELECT/UPDATE probes."
+    ],
+    "negative_path_checks": [
+      "The focused target attempted revoked, expired, cross-account, wrong-Space, no-grant, no-capability, reconciliation, and direct-record-user cases; every case reached the same schema parse failure before its intended assertion.",
+      "Static review checked forged capability/action fields and found the new direct matrix omits actual CREATE, UPSERT/conflict, and DELETE statements for the expanded denial classes."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V11-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The current resource-authority schema does not parse under the pinned SurrealDB 3.2 runtime, so no protected route or record-user proof can execute.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_schema.surql:183 is the first rejected array::contains call; the same removed path occurs at lines 197, 198, 234, 236, 237, and 246.",
+          "MT109-V11-PR-001 compiled handshake_core, executed 11 tests, and failed all 11 with Migration(Parse error: Invalid function/constant path) at line 183.",
+          "The official current SurrealDB array-function reference exposes array::includes as the membership alias; array::contains is not accepted by the embedded 3.2 parser."
+        ]
+      },
+      {
+        "id": "MT109-V11-F02",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The expanded direct record-user test still does not satisfy the V10 all-operation matrix and is vacuous for most operational tables.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:1081-1125 defines only SELECT and UPDATE probes for the expanded denial classes; CREATE, UPSERT/conflict, and DELETE are absent.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:931-1147 creates a workspace but does not seed matching EventLedger, FEMS pack/proposal/item/report, outbox, or write-anchor sentinels before querying them.",
+          "assert_record_user_operation_has_zero_effect accepts Ok(empty) as success, so an unseeded table/no-match predicate can pass without demonstrating table-permission enforcement."
+        ],
+        "failure_scenario": "A permission regression can expose or mutate real FEMS/EventLedger/outbox rows while the test remains green because its target rows do not exist and its operation set omits create/upsert/delete bypasses."
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Replace every unsupported array::contains invocation in resource_authority_schema.surql with the SurrealDB-3.2-supported membership form, preferably array::includes with the same argument order. Update all seven occurrences together, including delegated-capability, grant action/capability, and EventLedger wsids checks; do not weaken any predicate or remove wildcard handling as a shortcut.",
+        "Add a narrow schema-bootstrap regression that applies the compiled production resource_authority_schema.surql to the same embedded SurrealDB engine used by product tests and asserts bootstrap completes before any authority case runs. This must parse the production schema, not a copied test string.",
+        "Re-run only storage::surreal::resource_authority_tests:: with Rust 1.97.1 until a nonzero green result is obtained. Reuse the V11 Cargo cache; do not run route or broad successors while this predecessor is red.",
+        "Make the direct record-user matrix non-vacuous. Under setup-only privileged access, create a deterministic sentinel in workspaces, kernel_event_ledger, every FEMS table, both outboxes, and fems_workspace_write_anchors. Capture privileged before-state for each row and candidate id.",
+        "For each required denial class, execute SELECT against an existing sentinel; CREATE against a deterministic absent id; UPSERT/conflict against both absent and existing ids; UPDATE against the existing sentinel; DELETE against the existing sentinel; and the bulk/outbox/recovery statements. Re-read with setup-only privileged access after every case and prove the sentinel is byte/field unchanged, the candidate id remains absent, row counts do not change, and no EventLedger/Flight Recorder/log/count/error residue leaks.",
+        "Construct real denial inputs rather than relying on unused RecordUserScope labels: missing resource, wrong resource, wrong action grant, wrong capability grant, wrong Space, same-account member without grant, cross-account, expired/revoked session, revoked/reduced grant, stale post-Space-switch session, mismatched delegation chain, forged session, and concurrent revoke/use where V10 requires it.",
+        "After the direct target is green, run the actual mounted Flight Recorder and memory credential-exchange matrices and production reconciliation test. Confirm each route uses POST /authority/session-derived credentials, constant denial, zero residue, existing foreign selectors, narrow reconciliation grants, and service-scoped EventLedger/Flight Recorder attribution.",
+        "Only after all predecessors pass, run PT-109-1 through PT-109-4 plus strict envelope/idempotency/recovery, MemoryPack field/no-write-amplification, proposal provenance/review/commit immutability, cross-workspace isolation, revocation/Space-switch races, and focused cargo check."
+      ],
+      "minimal_reentry_proof": [
+        "Production resource_authority_schema.surql parses and bootstraps under the pinned embedded SurrealDB 3.2 engine.",
+        "storage::surreal::resource_authority_tests:: executes a nonzero green count at the exact clean V12 candidate.",
+        "The direct authenticated record-user matrix uses real seeded sentinels and proves SELECT/CREATE/UPSERT/UPDATE/DELETE/bulk/outbox/recovery denial for every V10 negative class.",
+        "Mounted two-account/two-Space every-route proof and the production reconciler proof execute nonzero green with persisted credential exchange and no test_session_for_binding in the claimed route boundary.",
+        "Only then execute current SurrealDB/EventLedger FR and memory regressions plus focused cargo check; PASS_V12 is illegal if any predecessor is red, vacuous, helper-only, broker-only, or privileged-session-backed."
+      ]
+    },
+    "residual_uncertainty": "No mounted route or production reconciliation assertion executed because the authority-schema predecessor was red. The new route matrices are materially closer to the V10 contract, but their runtime behavior remains unproven at this candidate."
+  },
+  "validation_v12": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V12",
+    "verdict_label": "FAIL V12",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V12",
+    "validated_at_utc": "2026-09-13T20:31:58.967Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "5d6136be88717dafadeb105d7607cdcf8e3c61ec",
+      "reviewed_range": "c2878199587cfafd32956fbd6a8cfced6ef207c9..5d6136be88717dafadeb105d7607cdcf8e3c61ec",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN"
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V12-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": "5d6136be88717dafadeb105d7607cdcf8e3c61ec",
+        "command": "cargo +1.97.1 test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=1 --nocapture",
+        "result": "FAIL_COMPILE_E0382",
+        "exit_code": 101,
+        "executed_test_count": 0,
+        "passed_test_count": 0,
+        "failed_test_count": 0,
+        "target_dir": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v11/target",
+        "log_path": "Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v12/logs/resource-authority-focused.log",
+        "rust_toolchain": "1.97.1",
+        "tree_state": "CLEAN",
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "tests": {
+      "status": "FAIL_COMPILE_E0382",
+      "focused_predecessor": "storage::surreal::resource_authority_tests::",
+      "result": "handshake_core lib-test compilation failed because assert_record_user_operation_has_zero_effect moves bindings into the record-user query closure and then borrows bindings for privileged after-state verification",
+      "schema_bootstrap": "NOT_RUN_COMPILE_PREDECESSOR_RED",
+      "record_user_bypass": "NOT_RUN_COMPILE_PREDECESSOR_RED",
+      "route_matrix": "NOT_RUN_COMPILE_PREDECESSOR_RED",
+      "reconciliation": "NOT_RUN_COMPILE_PREDECESSOR_RED",
+      "pt_109_1_through_4": "NOT_RUN_COMPILE_PREDECESSOR_RED",
+      "broad_proof": "NOT_RUN_COMPILE_PREDECESSOR_RED"
+    },
+    "method": "Fresh adversarial V12 validation at exact clean candidate 5d6136be. Resolved Master Spec v02.206 through SPEC_CURRENT, indexed manifest, INDEX, and the local-infrastructure/security modules; inspected exact diff c2878199..5d6136be; mapped V11 re-entry gates; statically challenged schema membership and the direct record-user operation matrix; then ran the mandatory focused Cargo predecessor with Rust 1.97.1 and the warm V11 validator target. Compilation failed before test execution, so every successor proof was stopped.",
+    "master_spec_evidence": [
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:951 requires authenticated record-user table/field permissions plus ResourceBroker and rejects privileged-session isolation proof.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:953 requires server-derived transaction-local authorization context.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:957 forbids background-worker bypass identity.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1930 requires default-deny authorization on every request and forbids privileged sessions in ordinary protected-resource flows.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1932 requires observability data and counts to enforce account, Principal, session, Space, resource, and grant scope.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1936 requires record-user, route, revocation-race, worker, privileged-session, forged-scope, and inference adversarial proof."
+    ],
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: SurrealDB membership syntax was repaired, but the proof target cannot reach schema bootstrap because its new Rust helper violates ownership",
+        "notification/cursor drift: the V12 handoff advanced the source without a compiler-green validator predecessor",
+        "session/ACP drift: named session-denial cases are combined with unrelated forged request-scope fields, so a green result would not attribute denial to the intended session state",
+        "documentation/protocol drift: test labels claim independent wrong-account, wrong-Space, resource, action, capability, and grant coverage while the loop applies one shared invalid RecordUserScope to all cases",
+        "scope/worktree and clock/staleness drift: review and proof are pinned to clean 5d6136be; no later source state is attributed"
+      ],
+      "cheapest_deterministic_reads": [
+        "exact diff c2878199..5d6136be",
+        "resource_authority_tests.rs ownership flow at lines 86-184",
+        "negative RecordUserScope construction at lines 1645-1652",
+        "validator-owned focused Cargo predecessor"
+      ],
+      "result": "The candidate repairs V11 schema syntax and adds non-vacuous sentinels, but it neither compiles nor independently proves its named negative dimensions."
+    },
+    "diff_attack_surfaces": [
+      "SurrealDB 3.2 production schema bootstrap and array membership semantics",
+      "record-user helper ownership across privileged before/after-state reads",
+      "operational-table SELECT/CREATE/UPSERT/UPDATE/DELETE denial and positive-control behavior",
+      "independent account, Principal, session, Space, resource, action, capability, grant, delegation, and revocation dimensions",
+      "mounted Flight Recorder/memory routes and production reconciliation worker"
+    ],
+    "independent_checks_run": [
+      "Verified the exact clean candidate and inspected its two-file remediation diff.",
+      "Confirmed all seven rejected array::contains calls were changed to SurrealDB-3.2-supported array::includes and a production-schema bootstrap test was added.",
+      "Confirmed deterministic privileged sentinels and all five mutation/read operation classes were added for every protected operational table.",
+      "Ran the focused resource-authority target independently; Rust compilation failed with E0382 before any test executed.",
+      "Inspected the negative-case constructor independently and found every named case receives the same forged capability, delete action, owner principal as resource_id, and owner session_id."
+    ],
+    "counterfactual_checks": [
+      "If the clone preserving OperationalProbeBindings across the query closure is absent, privileged after-state verification cannot compile and no authority assertion executes.",
+      "If the shared forged capability/action/resource fields deny every request first, changing cross-account, wrong-Space, revoked, or expired session enforcement would not make the labeled tests fail."
+    ],
+    "boundary_probes": [
+      "Rust helper to record-user Surreal query boundary: compilation fails at the moved bindings value before the database boundary is reached.",
+      "Named denial class to effective RecordUserScope boundary: all labels are contaminated by identical forged capability/action/resource/session fields rather than isolating the named dimension."
+    ],
+    "negative_path_checks": [
+      "The intended test set includes real sentinels and SELECT/CREATE/UPSERT/UPDATE/DELETE statements, but none executed because compilation was red.",
+      "Static negative-path review proved wrong-account, wrong-Space, revoked, expired, and forged-session labels are not independent probes because each carries the same additional invalid request-scope fields."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V12-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The focused authority target does not compile, so zero validator-owned runtime assertions execute.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:126 moves bindings into the closure and line 128 consumes it in query_values.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:149-181 then borrows the moved bindings for after-state and diagnostics.",
+          "MT109-V12-PR-001 exited 101 with rustc E0382 and zero executed tests."
+        ]
+      },
+      {
+        "id": "MT109-V12-F02",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The direct negative matrix conflates every named authority/session case with the same unrelated invalid request scope, so it cannot prove any named dimension independently.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:1417-1432 enumerates distinct session/resource labels.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:1645-1652 then constructs every case with owner principal_id as resource_id, owner session_id, forged.capability, and Delete action.",
+          "A denial caused solely by forged.capability would make wrong-account, wrong-Space, stale, revoked, and expired labels all pass even if their intended enforcement regressed."
+        ],
+        "failure_scenario": "A revoked or cross-account session could retain access when presented with otherwise valid scope, yet the suite stays green because an unrelated forged capability denies the request first."
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Fix E0382 without weakening the before/after proof: clone OperationalProbeBindings into a dedicated query_bindings value before the move closure, pass that clone to query_values, and retain the original bindings for privileged after-state, candidate-absence, table equality, and diagnostic assertions.",
+        "Run only storage::surreal::resource_authority_tests:: with Rust 1.97.1 and the warm V11 target until it compiles and executes a nonzero green count. Do not run route, reconciliation, PT, or broad successors while this predecessor is red.",
+        "Replace denied_scopes=(label, token) plus one shared RecordUserScope with a table of complete case-specific scopes derived from a known-good authorized baseline. For each case invalidate exactly the named dimension while every other dimension remains valid: missing resource, wrong resource, missing/wrong action, missing/wrong capability, wrong Space, same-account member without grant, capability-without-grant, grant-without-capability, cross-account, expired session, revoked session, reduced/revoked grant, stale post-Space-switch context, mismatched delegation, forged session, and concurrent revoke/use where required.",
+        "For session-state cases, keep resource_id, session_id, capability_id, and action valid for that principal/resource so the session token or epoch is the only failing dimension. For resource/action/capability/grant cases, keep the session fully live and change only the targeted field or persisted grant. Do not accept a matrix where a common forged field can short-circuit all labels.",
+        "Run every isolated case against the real seeded sentinels and deterministic absent IDs for SELECT, CREATE, UPSERT-new, UPSERT-existing, UPDATE, DELETE, bulk, both outboxes, write-anchor, and recovery operations. Preserve privileged setup/readback separation; assert byte/field-identical sentinels, unchanged row counts, absent candidate IDs, and no EventLedger/Flight Recorder/log/count/error residue.",
+        "Keep positive record-user controls for operations that production permissions allow, so malformed SurrealQL/schema assertions cannot masquerade as authorization denial. Require exact row/readback equality for reads and writes; retain intentional deny controls for tables/actions that are never writable by ordinary flows.",
+        "After the focused authority target is nonzero green, run the real mounted two-account/two-Space Flight Recorder and memory credential-exchange matrix. Exercise both recorder GET aliases, both ingestion POSTs, MemoryPack, proposal create/list/get/artifact/review/commit, commit report, item count, and reconciliation; prove constant zero-residue denial for every independent class and foreign existing selector.",
+        "Run the production reconciliation worker with explicitly provisioned stable service identity, granted and ungranted pending rows, confined mutations, nondisclosure, and service-scoped EventLedger/Flight Recorder attribution.",
+        "Only after all predecessors pass, run PT-109-1 through PT-109-4 plus strict envelope/idempotency/recovery, MemoryPack field/no-write-amplification, proposal provenance/review/commit immutability, cross-workspace isolation, revoke/use and Space-switch/use races, and focused cargo check."
+      ],
+      "minimal_reentry_proof": [
+        "The exact clean V13 candidate compiles and storage::surreal::resource_authority_tests:: executes a nonzero green count under Rust 1.97.1.",
+        "Production resource_authority_schema.surql parses and bootstraps under embedded SurrealDB 3.2.",
+        "Each direct record-user denial case varies exactly one authority dimension from an otherwise valid baseline and proves SELECT/CREATE/UPSERT/UPDATE/DELETE/bulk/outbox/recovery zero residue on real sentinels.",
+        "Mounted two-account/two-Space every-route proof and production reconciler proof execute nonzero green through persisted credential exchange.",
+        "Only then execute current SurrealDB/EventLedger FR and memory regressions plus focused cargo check; PASS_V13 is illegal if any predecessor is red, conflated, vacuous, helper-only, broker-only, or privileged-session-backed."
+      ]
+    },
+    "residual_uncertainty": "No schema, record-user, mounted-route, or reconciliation assertion executed because lib-test compilation failed. The schema syntax and sentinel coverage are materially improved, but their runtime behavior remains unproven, and the labeled negative classes remain causally conflated."
+  },
+  "validation_v13": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V13",
+    "verdict_label": "FAIL V13",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V13",
+    "validated_at_utc": "2026-09-13T20:55:56.850Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "eb28a2ff8d8899db728aa424950134cac31b2c17",
+      "reviewed_range": "5d6136be88717dafadeb105d7607cdcf8e3c61ec..eb28a2ff8d8899db728aa424950134cac31b2c17",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN"
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V13-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": "eb28a2ff8d8899db728aa424950134cac31b2c17",
+        "command": "cargo +1.97.1 test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=1 --nocapture",
+        "result": "FAIL_RUNTIME_EXPECTED_OBJECT_GOT_NONE",
+        "exit_code": 1,
+        "executed_test_count": 2,
+        "passed_test_count": 0,
+        "failed_test_count": 2,
+        "execution_note": "The validator stopped the focused target immediately after the first observed red results, as required. The runner had announced 12 selected tests; the candidate-specific denial matrix had not executed.",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v11/target",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v13/logs/resource-authority-focused.log",
+        "rust_toolchain": "1.97.1",
+        "tree_state": "CLEAN",
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "tests": {
+      "status": "FAIL_RUNTIME_PREDECESSOR_RED",
+      "focused_predecessor": "storage::surreal::resource_authority_tests::",
+      "result": "12 tests were selected; access_space_switch_is_same_account_only_and_drops_old_space_grants and cross_account_and_capability_without_grant_fail_closed both returned SurrealDB -32000 'Expected object, got none'. The run was interrupted after those reds.",
+      "schema_bootstrap": "NOT_REACHED_BEFORE_PREDECESSOR_RED",
+      "record_user_bypass": "NOT_REACHED_BEFORE_PREDECESSOR_RED",
+      "route_matrix": "NOT_RUN_PREDECESSOR_RED",
+      "reconciliation": "NOT_RUN_PREDECESSOR_RED",
+      "pt_109_1_through_4": "NOT_RUN_PREDECESSOR_RED",
+      "broad_proof": "NOT_RUN_PREDECESSOR_RED"
+    },
+    "method": "Fresh adversarial V13 validation at exact clean candidate eb28a2ff. Resolved Master Spec v02.206 through SPEC_CURRENT, the active indexed manifest and INDEX, and the local-infrastructure/security modules; inspected exact one-file diff 5d6136be..eb28a2ff; checked the V12 ownership and causal-isolation repair; then executed the validator-owned focused SurrealDB authority predecessor with Rust 1.97.1 and the warm validator target. Two authority tests failed before the new matrix ran, so every successor was stopped. Static trust-boundary review additionally found that workspace SELECT remains action/capability blind and the test skips precisely those negative probes.",
+    "master_spec_evidence": [
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:951 requires authenticated record-user table/field permissions plus ResourceBroker and rejects privileged-session isolation proof.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:953 requires server-derived transaction-local authorization context.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:957 forbids background-worker bypass identity.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1930 requires default-deny authorization on every request and forbids privileged sessions in ordinary protected-resource flows.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1932 protects resource existence, counts, errors, EventLedger, Flight Recorder, logs, and traces by account/Principal/session/Space/resource scope.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1936 requires wrong-account, wrong-Space, member-without-grant, revoked/expired session, worker, record-user, forged-scope, inference, and revocation-race proof."
+    ],
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: the focused authority target now compiles but two existing authority flows return SurrealDB Expected object, got none before the V13 matrix executes",
+        "notification/cursor drift: the candidate was handed off after the compile repair without a validator-green full resource-authority predecessor",
+        "session/ACP drift: RecordUserScope resource_id/capability_id/action are test-local context and only token hash plus channel binding reach SurrealDB record signin",
+        "documentation/protocol drift: case labels claim every-table independent denial while the implementation skips workspace SELECT for six action/capability cases",
+        "scope/worktree and clock/staleness drift: proof was pinned to clean eb28a2ff; no later source state or expired prior proof was accepted"
+      ],
+      "cheapest_deterministic_reads": [
+        "exact clean diff 5d6136be..eb28a2ff",
+        "resource_authority_tests.rs case construction and skip branch at lines 1342-2103",
+        "resource_authority_schema.surql permission functions at lines 181-278",
+        "surreal.rs record-user signin boundary at lines 1086-1117",
+        "validator-owned focused Cargo predecessor"
+      ],
+      "result": "The failure is product/test authority behavior at the exact candidate, not branch drift. Successor proof is illegal while the focused target is red."
+    },
+    "diff_attack_surfaces": [
+      "SurrealDB 3.2 resource-authority lifecycle and cross-account/switch flows",
+      "record-user helper ownership across privileged before/after reads",
+      "independent persisted account, Principal, session, Space, resource, action, capability, grant, delegation, and revocation predicates",
+      "workspace-existence disclosure through action/capability-blind table permissions",
+      "mounted Flight Recorder/memory routes and production reconciliation worker"
+    ],
+    "independent_checks_run": [
+      "Verified exact HEAD eb28a2ff and a clean product tree.",
+      "Confirmed the candidate changes only resource_authority_tests.rs and fixes V12 E0382 by retaining original bindings while moving a clone into the query closure.",
+      "Ran the focused resource-authority target independently; two of twelve selected tests failed with SurrealDB Expected object, got none before the new denial matrix ran.",
+      "Confirmed Surreal record signin consumes only session token hash and channel binding; RecordUserScope resource/action/capability fields do not independently alter $auth for these raw table queries.",
+      "Confirmed fn::mt109_has_workspace_access accepts any matching live grant without checking resource kind, action, capability, or delegated capability, while the candidate skips workspace SELECT for the cases that expose this."
+    ],
+    "counterfactual_checks": [
+      "If the switch/cross-account Surreal object-shape regression remains, the full authority target stays red regardless of the V12 compile fix.",
+      "If a principal receives a matching grant row with the wrong action or capability, workspace SELECT can remain visible because fn::mt109_has_workspace_access does not evaluate those fields.",
+      "If RecordUserScope.resource_id changes from missing to wrong while the same wrong-resource principal/grant state is reused, the direct raw table permission path cannot distinguish the labeled cases."
+    ],
+    "boundary_probes": [
+      "Focused Surreal authority boundary: 12 selected, first two completed tests failed, no candidate matrix or route successor accepted.",
+      "Record-user signin boundary: surreal.rs:1105-1116 hashes scope.session_token and passes channel_binding_hash only.",
+      "Workspace permission boundary: resource_authority_schema.surql:202-215 checks grant presence but not resource kind/action/capability/delegated capability.",
+      "Test proof boundary: resource_authority_tests.rs:2087-2093 explicitly skips workspace SELECT for selected negative cases."
+    ],
+    "negative_path_checks": [
+      "access_space_switch_is_same_account_only_and_drops_old_space_grants failed at runtime before completing its assertions.",
+      "cross_account_and_capability_without_grant_fail_closed failed at runtime before completing its assertions.",
+      "Missing/wrong action and capability cases are configured with workspace_select_has_target_predicate=false and therefore omit the existing workspace sentinel SELECT.",
+      "Missing-resource and wrong-resource reuse the same wrong-resource principal/grant topology and differ in an inert RecordUserScope.resource_id for ordinary raw table permissions."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V13-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The mandatory focused record-user authority predecessor is runtime-red, so no candidate matrix or successor route/reconciliation proof is admissible.",
+        "evidence": [
+          "MT109-V13-PR-001 selected 12 tests and failed access_space_switch_is_same_account_only_and_drops_old_space_grants plus cross_account_and_capability_without_grant_fail_closed with SurrealDB code -32000: Expected object, got none.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:544 defines the failing cross-account/capability authority test.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:2264 defines the failing Space-switch authority test.",
+          "The validator stopped the run after the first reds; the new direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny test did not execute."
+        ],
+        "failure_scenario": "An account/Space authority regression can ship while downstream FR and memory tests appear locally healthy because the mandatory record-user predecessor never establishes a working isolation substrate."
+      },
+      {
+        "id": "MT109-V13-F02",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The V13 negative matrix still omits the workspace existence probe for action/capability cases and treats inert RecordUserScope fields as independently causal.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_schema.surql:202-215 lets fn::mt109_has_workspace_access succeed from any matching active grant without requiring resource_kind, actions, capability_ids, or delegated capability.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:1702,1712,1722,1732,1742,1752 mark workspace_select_has_target_predicate false for grant/capability/action cases.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:2087-2093 skips workspace SELECT when that flag is false.",
+          "src/backend/handshake_core/src/storage/surreal.rs:1105-1116 passes only token hash and channel binding to record signin; resource_authority_tests.rs:1755-1772 reuses one wrong-resource principal while only changing RecordUserScope.resource_id, which ordinary table permissions do not consume."
+        ],
+        "failure_scenario": "A grant carrying an irrelevant action/capability can reveal that a workspace exists, and missing-resource versus wrong-resource enforcement can regress without the labeled matrix failing for the intended reason."
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Reproduce access_space_switch_is_same_account_only_and_drops_old_space_grants and cross_account_and_capability_without_grant_fail_closed individually under Rust 1.97.1 with HANDSHAKE_ARTIFACTS_ROOT, TMP, TEMP, logs, and mutable test stores rooted below WP-KERNEL-012/MT-109/<kernel-builder-owner>. Add call-site error context if necessary so the exact await returning Expected object, got none is identified; do not guess from the terminal tail.",
+        "Repair the exact SurrealDB-3.2 object/value-shape defect in the production authority query or typed decoder. Preserve fail-closed account/Space checks and object existence semantics; do not convert Expected object into an accepted empty/deny result merely to make the test green. Add a focused regression at the failing operation.",
+        "Fix embedded-store shutdown/drain behavior exposed by both failures so each test releases every lease and removes its owner-scoped store deterministically. Do not clean shared artifact roots or another owner output.",
+        "Harden fn::mt109_has_workspace_access. A grant row with an irrelevant resource kind, action, or capability must not disclose the workspace sentinel. Use the existing protected-resource/grant model and require a route-valid or canonical workspace-read authority whose capability is actually delegated by the live session; do not retain the current any-grant existence test.",
+        "Remove workspace_select_has_target_predicate and its skip branch. Execute SELECT against the existing workspace sentinel for every negative class. If a case is intentionally authorized to see the workspace, separate it from the denial cross-product and assert that exact intended visibility instead of silently omitting the probe.",
+        "Rebuild the direct matrix around the predicates SurrealDB actually consumes. For every table and verb, establish a positive record-user baseline with the exact resource kind, external id, grant action, grant capability, delegated capability, account, Principal, live session, Space, and delegation chain required by that table permission; then mutate exactly one persisted or signed-in dimension for the negative case.",
+        "Do not use RecordUserScope.resource_id/capability_id/action as proof inputs for raw SELECT/CREATE/UPSERT/UPDATE/DELETE unless the production query materializes those values into an EventLedger row whose permission reads them. For ordinary table permissions, vary the live session or ResourceGrant field that fn::mt109_live_session/fn::mt109_has_grant/fn::mt109_has_workspace_access actually evaluates.",
+        "Split missing-resource and wrong-resource into genuinely distinct states. Missing-resource must target an absent or NONE protected-resource relation from an otherwise valid principal/session/grant baseline; wrong-resource must bind an existing resource for a different workspace while every account/session/action/capability predicate remains valid. Prove which predicate denied each case with a positive control immediately adjacent to it.",
+        "Retain real sentinels and run SELECT, CREATE, UPSERT-new, UPSERT-existing, UPDATE, DELETE, bulk, both outboxes, write-anchor, and recovery statements. After every denial use setup-only privileged readback to prove byte/field-identical sentinels, unchanged counts, absent candidates, and zero EventLedger/Flight Recorder/log/count/error residue.",
+        "Run the complete storage::surreal::resource_authority_tests:: target until all 12 or the then-current nonzero count is green. Do not run mounted route, reconciliation, PT, cargo-check, or broad successors while any focused authority test is red.",
+        "After the focused predecessor is green, run the mounted two-account/two-Space Flight Recorder and memory credential-exchange matrix through persisted session credentials: both recorder GET aliases, both ingestion POSTs, MemoryPack, proposal create/list/get/artifact/review/commit, commit report, item count, and foreign existing selectors. Require constant denial and zero durable/diagnostic residue for each independent class.",
+        "Run the production reconciliation workers using an explicitly provisioned stable service identity with granted and ungranted pending rows, confined mutations, nondisclosure, and service-scoped EventLedger/Flight Recorder attribution.",
+        "Only after all predecessors pass, execute PT-109-1 through PT-109-4 plus strict envelope/idempotency/recovery, MemoryPack field/no-write-amplification, proposal provenance/review/commit immutability, cross-workspace isolation, revoke/use and Space-switch/use races, and focused cargo check."
+      ],
+      "minimal_reentry_proof": [
+        "Exact clean V14 candidate; one focused validator run selects a nonzero count and every storage::surreal::resource_authority_tests:: test passes under Rust 1.97.1.",
+        "Both V13 failing tests pass individually with exact call-site evidence showing the Expected object defect is removed rather than swallowed.",
+        "Workspace SELECT is executed for every negative class and cannot be widened by a wrong-action, wrong-capability, irrelevant-resource-kind, or non-delegated-capability grant.",
+        "Each direct record-user case mutates exactly one predicate consumed by the production Surreal permission path and proves all required verbs on real sentinels with zero residue.",
+        "Mounted every-route and production reconciler proof then execute nonzero green through persisted credential exchange; only afterward may PT-109-1 through PT-109-4 and focused cargo check support PASS_V14."
+      ]
+    },
+    "residual_uncertainty": "The focused target was stopped after its first two runtime failures. The candidate-specific schema bootstrap, new negative matrix, mounted routes, reconciliation workers, PT targets, and cargo check did not execute and must not be inferred green."
+  },
+  "validation_v14": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V14",
+    "verdict_label": "FAIL V14",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V14",
+    "validated_at_utc": "2026-09-13T21:40:00Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "89388ce35dedd151d8e21f293539fbfc05aa0479",
+      "reviewed_range": "eb28a2ff8d8899db728aa424950134cac31b2c17..89388ce35dedd151d8e21f293539fbfc05aa0479",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN_AT_PROOF_START"
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V14-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": "89388ce35dedd151d8e21f293539fbfc05aa0479",
+        "command": "cargo +1.97.1 test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=1 --nocapture",
+        "result": "FAIL_RUNTIME_EXPECTED_OBJECT_GOT_NONE",
+        "exit_code": 1,
+        "selected_test_count": 12,
+        "executed_test_count": 1,
+        "passed_test_count": 0,
+        "failed_test_count": 1,
+        "execution_note": "The first completed test, access_space_switch_is_same_account_only_and_drops_old_space_grants, failed with SurrealDB -32000 Expected object, got none. The validator interrupted the target immediately after the red predecessor and did not execute successors.",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v11/target",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v14/logs/resource-authority-focused.log",
+        "rust_toolchain": "1.97.1",
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "tests": {
+      "status": "FAIL_RUNTIME_PREDECESSOR_RED",
+      "focused_predecessor": "storage::surreal::resource_authority_tests::",
+      "result": "12 tests selected; the first completed test failed with SurrealDB code -32000 Expected object, got none and the target was stopped.",
+      "schema_bootstrap": "NOT_ESTABLISHED_BEFORE_PREDECESSOR_RED",
+      "direct_record_user_matrix": "NOT_REACHED_BEFORE_PREDECESSOR_RED",
+      "mounted_route_matrix": "NOT_RUN_PREDECESSOR_RED",
+      "reconciliation": "NOT_RUN_PREDECESSOR_RED",
+      "pt_109_1_through_4": "NOT_RUN_PREDECESSOR_RED",
+      "cargo_check": "NOT_RUN_PREDECESSOR_RED"
+    },
+    "method": "Fresh adversarial V14 validation at exact clean candidate 89388ce3. Resolved Master Spec v02.206 through SPEC_CURRENT, manifest, INDEX, and the local-infrastructure/security modules; inspected exact three-file diff eb28a2ff..89388ce3; confirmed the V13 static workspace-predicate and skipped-SELECT repairs; then executed the validator-owned focused SurrealDB authority predecessor under Rust 1.97.1. The first completed test remained runtime-red, so all successor proof was stopped.",
+    "master_spec_evidence": [
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:951 requires authenticated record-user table/field permissions plus ResourceBroker and rejects privileged-session isolation proof.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:953 requires server-derived transaction-local authorization context.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:957 forbids background-worker bypass identity.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1930 requires default-deny authorization on every request and forbids privileged sessions in ordinary protected-resource flows.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1932 protects resource existence, counts, errors, EventLedger, Flight Recorder, logs, and traces by account/Principal/session/Space/resource scope.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1936 requires wrong-account, wrong-Space, member-without-grant, revoked/expired session, worker, record-user, forged-scope, inference, and revocation-race proof."
+    ],
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: the revised provisioning SELECT still produces an absent value on the same-principal/new-Space path or another unannotated await in that path",
+        "notification/cursor drift: the candidate handoff treated a static query rewrite as closure without a validator-green focused predecessor",
+        "session/ACP drift: the failing test creates several authenticated sessions and Surreal record-user clients whose exact failing operation is not context-labeled",
+        "clock/staleness drift: short-lived sessions are not implicated by the first failing test, which uses a 300-second TTL, but the proof remains time-sensitive",
+        "scope/worktree drift: the proof was pinned to clean 89388ce3 and the diff was confined to the three declared authority files"
+      ],
+      "cheapest_deterministic_reads": [
+        "exact diff eb28a2ff..89388ce3",
+        "resource_authority.rs provisioning response query at lines 392-425",
+        "resource_authority_tests.rs Space-switch sequence at lines 2392-2493",
+        "resource_authority_schema.surql workspace predicates at lines 202-246",
+        "validator-owned focused Cargo predecessor"
+      ],
+      "result": "The failure is reproducible product/test authority behavior at the exact candidate. It is not a stale branch verdict, and successor proof is illegal while the focused target is red."
+    },
+    "diff_attack_surfaces": [
+      "SurrealDB 3.2 principal and AccessSpace provisioning response shape for same-account/same-principal/new-Space calls",
+      "workspace resource existence disclosure through action/capability/resource-kind predicates",
+      "direct record-user denial matrix causal independence across persisted grants and sessions",
+      "embedded-store shutdown and lease drainage after authority errors",
+      "mounted Flight Recorder/memory routes and production reconciliation workers"
+    ],
+    "independent_checks_run": [
+      "Verified exact HEAD 89388ce35dedd151d8e21f293539fbfc05aa0479 and a clean product worktree before proof.",
+      "Confirmed the candidate changes only resource_authority.rs, resource_authority_schema.surql, and resource_authority_tests.rs.",
+      "Confirmed fn::mt109_has_workspace_access now requires a workspace resource kind, exact action, exact capability, delegated capability, and exact delegation chain.",
+      "Confirmed workspace SELECT is no longer skipped for selected negative cases.",
+      "Ran the focused resource-authority target independently; the first completed test failed with Expected object, got none."
+    ],
+    "counterfactual_checks": [
+      "If provision_principal cannot return one concrete AccessSpace record for an existing Principal receiving a second same-account Space, the explicit Space-switch flow cannot establish the identity it later switches to.",
+      "If fn::mt109_has_workspace_access drops its resource-kind, action, capability, or delegated-capability predicate, a wrong grant can disclose a workspace sentinel.",
+      "If the test continues returning raw Box<dyn Error> without operation context, the same Surreal object-shape failure can be patched at the wrong await again."
+    ],
+    "boundary_probes": [
+      "Focused Surreal authority boundary: 12 selected; access_space_switch_is_same_account_only_and_drops_old_space_grants failed first and the run was interrupted.",
+      "Provisioning producer/decoder boundary: resource_authority.rs:402 constructs a nested AccessSpace record value and resource_authority.rs:419 decodes it as PrincipalLookupRow without per-statement shape diagnostics.",
+      "Workspace permission boundary: resource_authority_schema.surql:202-219 now checks live session, delegation, workspace resource kind, external id, action, and capability.",
+      "Teardown boundary: the failed test reported that embedded shutdown was still draining after 30000 ms and the owner store remained locked."
+    ],
+    "negative_path_checks": [
+      "Same-account, same-Principal, second-Space provisioning followed by explicit switch failed before its deny-after-switch assertion completed.",
+      "The first red prevented all direct record-user negative classes from executing; their static construction is not runtime proof.",
+      "The failed path left an embedded store present and file-locked after teardown."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V14-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-1",
+          "AC-109-2",
+          "AC-109-3",
+          "AC-109-4"
+        ],
+        "summary": "The mandatory SurrealDB authority predecessor remains runtime-red at the exact V14 candidate.",
+        "evidence": [
+          "MT109-V14-PR-001 selected 12 tests and the first completed test failed with SurrealDB -32000 Expected object, got none.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority_tests.rs:2392 defines the failing Space-switch proof.",
+          "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:402 is the candidate's only production shape repair, but the failing flow still returns the same error class.",
+          "No direct-record-user matrix, mounted-route, reconciliation, PT, or cargo-check successor was accepted."
+        ],
+        "failure_scenario": "A same-account Principal cannot be provisioned into and switched to a second AccessSpace, so stale old-Space authorization cannot be proven revoked and all downstream isolation proof rests on a broken authority substrate."
+      },
+      {
+        "id": "MT109-V14-F02",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "summary": "The authority failure path still leaks a live embedded-store lease beyond the 30-second shutdown deadline.",
+        "evidence": [
+          "The V14 proof emitted HANDSHAKE_TEST_STORE_CLEANUP_FAILURE after shutdown remained draining for 30000 ms.",
+          "The test store could not be removed because Windows reported it was in use, and the store still existed after teardown.",
+          "This reproduces a V13 remediation item rather than a new governance-only artifact concern."
+        ],
+        "failure_scenario": "Repeated authority tests or recovery runs accumulate locked stores and can contaminate later validation or hide nondeterministic shutdown behavior."
+      },
+      {
+        "id": "MT109-V14-F03",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "summary": "The failing Space-switch test still lacks call-site context, so the candidate does not establish which awaited authority operation returns the object-shape error.",
+        "evidence": [
+          "resource_authority_tests.rs:2394-2493 propagates each operation with bare .await? and returns Box<dyn Error>.",
+          "The runtime output contains only Expected object, got none, with no operation label or source line.",
+          "V13 explicitly required identifying the exact failing await before repair; the V14 candidate changed the provisioning query without adding that evidence."
+        ],
+        "failure_scenario": "A plausible but wrong query is repeatedly edited while the actual failing decoder or operation remains untouched."
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Run access_space_switch_is_same_account_only_and_drops_old_space_grants alone under Rust 1.97.1 with every mutable path below WP-KERNEL-012/MT-109/<kernel-builder-owner>. Add stable operation context around each await in the test or production boundary so the terminal identifies the exact failing call. Do not make another shape change from the bare Expected object tail.",
+        "Once the exact failing statement is known, inspect its raw Surreal response statement indexes and Value shape before typed deserialization. Record which statement returned NONE and which Rust field expected an object.",
+        "If the failure is provision_principal's same-Principal/new-Space response, replace the fragile nested [0] projection with an explicit, independently decoded canonical Principal row and canonical AccessSpace row after commit. Require exactly one of each, verify both share the requested account, and construct ProvisionedIdentity only after those checks. Do not swallow NONE or convert absence into a denial.",
+        "Add a focused production regression for fresh account/fresh Principal, existing account/existing Principal/new Space, repeated existing Space, and same principal_key under a different account. The first three must return concrete matching identities; the cross-account case must fail closed.",
+        "Fix the authority test teardown so every record-user client, storage lease, and background closure is dropped or awaited before deleting the embedded store. Preserve the actual failure while making shutdown deterministic; do not lengthen the timeout or ignore os error 32.",
+        "Run cross_account_and_capability_without_grant_fail_closed individually after the Space-switch defect is green, because V13 observed the same object-shape error there and V14 stopped before it executed.",
+        "Retain the V14 static hardening: fn::mt109_has_workspace_access must continue checking live session, delegated capability, workspace resource kind, external id, action, capability, and delegation chain; every negative case must execute workspace SELECT with no skip branch.",
+        "Retain causally distinct persisted fixtures. Missing-resource must use an absent protected-resource relation; wrong-resource must use an existing resource belonging to a different workspace while account/session/action/capability predicates remain valid. Keep adjacent positive controls for each table/verb.",
+        "Rerun the complete storage::surreal::resource_authority_tests:: target until every selected test is green and teardown leaves no locked store. Do not run any mounted route, reconciliation, PT, cargo-check, or broad successor while this predecessor is red.",
+        "After the focused predecessor is green, execute the mounted two-account/two-Space Flight Recorder and memory credential-exchange matrix through persisted session credentials for both recorder GET aliases, both ingestion POSTs, MemoryPack, proposal create/list/get/artifact/review/commit, commit report, item count, and foreign existing selectors. Require constant denial and zero durable/diagnostic residue for every independent class.",
+        "Run the production reconciliation workers with an explicitly provisioned stable service identity, granted and ungranted pending rows, confined mutations, nondisclosure, and service-scoped EventLedger/Flight Recorder attribution.",
+        "Only after all predecessors pass, run PT-109-1 through PT-109-4 plus strict envelope/idempotency/recovery, MemoryPack field/no-write-amplification, proposal provenance/review/commit immutability, cross-workspace isolation, revoke/use and Space-switch/use races, and focused cargo check."
+      ],
+      "minimal_reentry_proof": [
+        "Exact clean V15 candidate with a focused single-test log identifying and eliminating the precise Expected object producer/decoder boundary.",
+        "Both V13 failing tests pass individually, and same-Principal/new-Space provisioning returns one canonical Principal and one canonical same-account AccessSpace without NONE coercion.",
+        "A complete validator run selects a nonzero count and every storage::surreal::resource_authority_tests:: test passes under Rust 1.97.1 with deterministic store cleanup.",
+        "Workspace SELECT executes for every negative class and cannot be widened by wrong action, wrong capability, irrelevant resource kind, or non-delegated capability.",
+        "Mounted every-route and production reconciler proof then execute nonzero green through persisted credential exchange; only afterward may PT-109-1 through PT-109-4 and focused cargo check support PASS_V15."
+      ]
+    },
+    "residual_uncertainty": "The focused run was stopped on its first runtime failure. The exact await returning Expected object remains unidentified because the test emits no call-site context. The direct matrix, mounted routes, reconciliation workers, PT targets, and cargo check did not execute and must not be inferred green."
+  },
+  "validation_v15": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V15",
+    "verdict_label": "FAIL V15",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260913-AUDIT-109-V15",
+    "validated_at_utc": "2026-09-13T22:58:11Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "2aa0c6d3153b0b9964de8b08203d5614d48df029",
+      "reviewed_range": "89388ce35dedd151d8e21f293539fbfc05aa0479..2aa0c6d3153b0b9964de8b08203d5614d48df029",
+      "worktree": "wtc-native-editors-v1",
+      "tree_state": "CLEAN_AT_PROOF_START_AND_AFTER_STOP"
+    },
+    "proof_records": [
+      {
+        "proof_id": "MT109-V15-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": "2aa0c6d3153b0b9964de8b08203d5614d48df029",
+        "command": "cargo +1.97.1 test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=1 --nocapture",
+        "result": "FAIL_TEARDOWN_STORE_LOCK_AND_OWNER_ROOT_BYPASS",
+        "exit_code": 1,
+        "selected_test_count": 12,
+        "executed_test_count": 2,
+        "passed_test_count": 2,
+        "failed_test_count": 0,
+        "gate_failure_count": 1,
+        "execution_note": "Both completed test bodies printed ok. Immediately after cross_account_and_capability_without_grant_fail_closed, the harness emitted HANDSHAKE_TEST_STORE_CLEANUP_FAILURE: shutdown remained draining after 30000 ms, Windows removal failed with os error 32, and the embedded store still existed. The store was created under the global Handshake_Artifacts/handshake-test path instead of the configured MT-109/wpv-v15 runtime root. The validator interrupted the remaining ten tests and did not execute successors.",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target",
+        "runtime_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/runtime",
+        "actual_leaked_store": "../Handshake_Artifacts/handshake-test/storage-conformance/store-01a09cfbbf0479a18170d70b3ead2766",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/logs/resource-authority-focused.log",
+        "rust_toolchain": "1.97.1",
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "tests": {
+      "status": "FAIL_TEARDOWN_PREDECESSOR_RED",
+      "focused_predecessor": "storage::surreal::resource_authority_tests::",
+      "result": "12 selected; 2 test bodies passed; mandatory teardown failed after the second test with a 30-second drain timeout, os error 32, and a surviving store outside the owner runtime root; remaining 10 interrupted.",
+      "space_switch_body": "PASS",
+      "cross_account_body": "PASS_WITH_BLOCKING_TEARDOWN_FAILURE",
+      "deterministic_cleanup": "FAIL",
+      "owner_scoped_runtime_store": "FAIL",
+      "direct_record_user_matrix": "NOT_COMPLETED_PREDECESSOR_RED",
+      "mounted_route_matrix": "NOT_RUN_PREDECESSOR_RED",
+      "reconciliation": "NOT_RUN_PREDECESSOR_RED",
+      "pt_109_1_through_4": "NOT_RUN_PREDECESSOR_RED",
+      "cargo_check": "NOT_RUN_PREDECESSOR_RED"
+    },
+    "method": "Fresh adversarial V15 validation at exact clean candidate 2aa0c6d. Resolved Master Spec v02.206 through SPEC_CURRENT, manifest, INDEX, and the local-infrastructure/security modules; inspected exact two-file diff 89388ce3..2aa0c6d and coder diagnostics as triage only; then executed the complete validator-owned 12-test SurrealDB authority predecessor under Rust 1.97.1. The repaired Space-switch body passed. The next body passed but its Drop-time cleanup emitted an explicit store-lock failure and left durable runtime residue outside the requested MT owner root, so the run and all successors were stopped.",
+    "master_spec_evidence": [
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:951 requires authenticated record-user table/field permissions plus ResourceBroker and rejects privileged-session isolation proof.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/03-local-first-infrastructure.md:953 requires server-derived transaction-local authorization context.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1930 requires default-deny authorization on every request and forbids privileged sessions in ordinary protected-resource flows.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1932 protects resource existence, counts, errors, EventLedger, Flight Recorder, logs, and traces by account/Principal/session/Space/resource scope.",
+      ".GOV/spec/master-spec-v02.206/spec-modules/05-security-and-observability.md:1936 requires wrong-account, wrong-Space, member-without-grant, revoked/expired session, worker, record-user, forged-scope, inference, and revocation-race proof."
+    ],
+    "mechanical_intervention_classification": {
+      "plausible_causes": [
+        "runtime route drift: the V15 production authority repair fixed the prior object-shape path, but the shared embedded-test allocation and shutdown path was not repaired across the complete authority target",
+        "notification/cursor drift: coder single-test green labels hid stderr cleanup failure and did not establish the 12-test predecessor",
+        "session/ACP drift: not implicated because the validator ran the exact clean candidate locally with an isolated Cargo target and no concurrent Handshake Cargo process",
+        "clock/staleness drift: not implicated in authorization assertions, but the shutdown deterministically exceeded its explicit 30000 ms deadline",
+        "scope/worktree drift: product HEAD and tree were exact and clean, while the test harness itself ignored the owner runtime override and allocated beneath the global artifact root"
+      ],
+      "cheapest_deterministic_reads": [
+        "exact diff 89388ce3..2aa0c6d",
+        "src/backend/handshake_core/src/storage/tests.rs:47-94 allocation root",
+        "src/backend/handshake_core/src/storage/tests.rs:130-177 Drop-time versus explicit cleanup",
+        "resource_authority_tests.rs test declarations and close_and_remove call sites",
+        "validator-owned focused Cargo predecessor plus filesystem existence readback"
+      ],
+      "result": "The V15 blocker is reproducible embedded-test lifecycle behavior at the exact candidate, not stale routing or governance paperwork."
+    },
+    "diff_attack_surfaces": [
+      "SurrealDB 3.2 principal and AccessSpace post-COMMIT decode",
+      "same-account Space switching and old-Space grant revocation",
+      "record-user client and storage-lease drainage on negative authorization paths",
+      "test store allocation beneath the active WP/MT/owner runtime root",
+      "mounted Flight Recorder/memory routes and reconciliation workers still gated"
+    ],
+    "independent_checks_run": [
+      "Verified exact HEAD 2aa0c6d3153b0b9964de8b08203d5614d48df029 and a clean product worktree before proof and after stopping.",
+      "Confirmed the candidate changes only resource_authority.rs and resource_authority_tests.rs.",
+      "Confirmed the focused filter selected a nonzero count of 12 tests.",
+      "Ran the complete focused target independently until its mandatory teardown gate failed.",
+      "Confirmed the configured MT-109/wpv-v15 runtime root remained empty while the leaked store physically existed under Handshake_Artifacts/handshake-test/storage-conformance."
+    ],
+    "counterfactual_checks": [
+      "A passing authorization assertion cannot prove safe repeatability when its database remains open and locked after the test returns.",
+      "An eprintln-only Drop failure lets Cargo report a false green even though the test violated deterministic cleanup.",
+      "A global test-store root lets concurrent MTs share mutable runtime hierarchy despite distinct Cargo targets."
+    ],
+    "boundary_probes": [
+      "Focused Surreal authority boundary: 12 selected; first two bodies passed; teardown failed after the second; remaining ten interrupted.",
+      "Allocation boundary: storage/tests.rs:47-94 reads only HANDSHAKE_ARTIFACTS_ROOT and hardcodes handshake-test/storage-conformance.",
+      "Failure-propagation boundary: storage/tests.rs:130-163 prints Drop cleanup errors without failing the completed test.",
+      "Explicit lifecycle boundary: storage/tests.rs:166-177 can propagate close_and_remove, but resource_authority_tests.rs contains only one explicit close_and_remove call across the 12 tests."
+    ],
+    "negative_path_checks": [
+      "Same-account same-Principal second-Space provisioning and old-Space grant invalidation passed its body.",
+      "Cross-account/capability-without-grant passed its body but failed deterministic cleanup.",
+      "No remaining direct record-user, mounted-route, service-reconciliation, race, or PT negative path was accepted after the predecessor gate failure."
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V15-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "summary": "The mandatory 12-test authority predecessor still cannot complete with deterministic teardown.",
+        "evidence": [
+          "MT109-V15-PR-001 selected 12 tests; after two passing bodies the harness emitted HANDSHAKE_TEST_STORE_CLEANUP_FAILURE.",
+          "The shutdown remained draining for 30000 ms, directory removal failed with Windows os error 32, and the store still existed.",
+          "src/backend/handshake_core/src/storage/tests.rs:130-163 converts this failure into stderr only, allowing the test body to print ok.",
+          "src/backend/handshake_core/src/storage/tests.rs:166-177 provides a propagating explicit close path, but only resource_authority_tests.rs:2525 uses it in the 12-test module."
+        ],
+        "failure_scenario": "Repeated authority validation leaves RocksDB stores open, contaminates later runs, and can produce false-green Cargo summaries despite failed cleanup."
+      },
+      {
+        "id": "MT109-V15-F02",
+        "severity": "HIGH",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "summary": "The unit-test backend ignores the validator's MT owner runtime root and allocates directly beneath the global artifact root.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/tests.rs:47-94 reads only HANDSHAKE_ARTIFACTS_ROOT and constructs handshake-test/storage-conformance.",
+          "The configured MT-109/wpv-v15 runtime root remained empty.",
+          "The leaked store existed at Handshake_Artifacts/handshake-test/storage-conformance/store-01a09cfbbf0479a18170d70b3ead2766."
+        ],
+        "failure_scenario": "Parallel MT validators can place mutable embedded databases in one undeclared global hierarchy, defeating owner isolation and making store locks/cross-run contamination non-local."
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "Preserve the V15 authority behavior repair: canonical post-COMMIT Principal and AccessSpace decoding, same-account checks, repeated-Space identity equality, cross-account principal-key denial, and explicit Space-switch authorization must not regress.",
+        "Change src/backend/handshake_core/src/storage/tests.rs test_store_root so unit tests accept one explicit owner-scoped embedded-store root, preferably the existing HANDSHAKE_SURREAL_TEST_STORE_ROOT contract already used by integration support. Require it to be absolute, canonicalizable, and a strict descendant of HANDSHAKE_ARTIFACTS_ROOT; reject missing/outside/reparse-invalid roots before creating a store. Do not hardcode WP or MT IDs in product code.",
+        "Make cleanup failure fail every resource_authority_tests test. Refactor the 12 tests through one async harness that runs the body, drops all database/storage/record-user/session clones, awaits EmbeddedTestBackend::close_and_remove, and combines body plus cleanup errors. Do not rely on TestStoreCleanupGuard::drop eprintln as acceptance evidence.",
+        "Audit every helper future and record-user client captured by the 12 tests. Ensure all leases, response streams, cloned SurrealStorage values, Arc<dyn Database> handles, and background tasks are dropped or joined before close_and_remove. If SurrealStorage::shutdown still exceeds 30 seconds, identify the retained lease/task and fix its ownership; do not lengthen the timeout, ignore os error 32, or delete a live store.",
+        "Add a regression that intentionally exercises a denied cross-account/resource path, then explicitly closes the backend and asserts the exact store directory no longer exists. Add a failure-path regression proving a body error is preserved while cleanup also completes; a cleanup error must make the test red.",
+        "Run storage::surreal::resource_authority_tests:: under Rust 1.97.1 from an exact clean candidate with HANDSHAKE_ARTIFACTS_ROOT at the canonical artifact root and HANDSHAKE_SURREAL_TEST_STORE_ROOT beneath WP-KERNEL-012/MT-109/<owner>/runtime. Require 12/12 green, no HANDSHAKE_TEST_STORE_CLEANUP_FAILURE text, an empty/no-surviving runtime store tree, and no file lock after process exit.",
+        "Only after the complete focused predecessor is green, run the mounted production credential-exchange Flight Recorder/memory every-route matrix, direct record-user every-table/verb/bulk/outbox/recovery matrix, real reconciliation workers with explicit service identity, cross-workspace EventLedger/idempotency/MemoryPack/proposal/race gates, PT-109-1 through PT-109-4, and focused cargo check in that order.",
+        "For every successor, preserve constant denial and zero EventLedger, Flight Recorder, diagnostic, log, count, error, and candidate-row residue; verify native CONTAINS predicates, exact action/capability/delegation, opaque resource lookup confinement, no Owner/wildcard/auto-grants, and service-scoped attribution."
+      ],
+      "minimal_reentry_proof": [
+        "Exact clean V16 candidate; validator owner runtime root is the physical parent of every created store.",
+        "The complete storage::surreal::resource_authority_tests:: target selects 12 and passes 12 under Rust 1.97.1.",
+        "No cleanup-failure marker is emitted, every explicit close succeeds within the existing deadline, no test store survives, and a post-process filesystem probe can rename/remove the owner runtime root without os error 32.",
+        "All mounted routes and direct record-user negative classes then pass through persisted credentials with zero residue, followed by reconciliation, race, PT, and cargo-check proof."
+      ]
+    },
+    "residual_uncertainty": "The validator stopped after the first teardown gate failure. Ten focused authority tests, all mounted route tests, direct record-user completion, reconciliation workers, PT-109-1 through PT-109-4, and cargo check remain unexecuted and must not be inferred green."
   }
 }
