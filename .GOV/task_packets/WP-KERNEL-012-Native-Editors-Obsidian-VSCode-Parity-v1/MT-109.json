@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T12:15:23.1043026Z",
+  "updated_at_utc": "2026-09-14T12:35:48.8445731Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2298,6 +2298,14 @@
         "result": "BUILDER_GATE_FAIL_ROLLBACK_PROOF",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-migration-separated-stores-3.log",
         "observed": "The exact predecessor migration test failed 0 passed/1 failed with a failed transaction and preserved both stores; neither successful-upgrade nor rollback absence assertions completed."
+      },
+      {
+        "proof_id": "MT109-V16-PR-006",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_MEMORY_RECONCILIATION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-1.log",
+        "observed": "The exact reconciliation service test failed 0 passed/1 failed because proposal creation returned 403 Forbidden with HSK-403-PROTECTED-RESOURCE before the reconciler behavior completed."
       }
     ],
     "resolved_prior_findings": [
@@ -2348,6 +2356,14 @@
         "observed_proof": "The production predecessor upgrade fails before the injected rollback marker: response 146 reports NONE, response 147 is cancelled, and COMMIT aborts. The separated-store rerun also failed before success and absence assertions.",
         "test_or_log": "MT109-V16-PR-004 and MT109-V16-PR-005",
         "remaining_remediation": "Repair the Loom backfill so a clean predecessor upgrade succeeds. Then prove the injected failure is reached at its exact statement position and that rows, schema marker, keys, catalogs, and both store paths are unchanged or removed as required."
+      },
+      {
+        "finding_id": "MT109-V16-F05",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The builder-owned exact service test failed before reconciliation because proposal creation returned 403 HSK-403-PROTECTED-RESOURCE.",
+        "test_or_log": "MT109-V16-PR-006",
+        "remaining_remediation": "Repair the test or product authorization setup without granting broader authority. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
       }
     ],
     "independent_findings": [
@@ -2374,6 +2390,13 @@
         "severity": "BLOCKER",
         "blocking": true,
         "summary": "The clean predecessor migration fails in the Loom source backfill before the rollback injection point."
+      },
+      {
+        "id": "MT109-V16-F05",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T12:35:48.8445731Z",
+        "summary": "The memory reconciliation service proof cannot reach reconciliation because proposal creation is denied by protected-resource authorization."
       }
     ],
     "remediation_required": {
@@ -2384,6 +2407,6 @@
         "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All six blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All seven blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
