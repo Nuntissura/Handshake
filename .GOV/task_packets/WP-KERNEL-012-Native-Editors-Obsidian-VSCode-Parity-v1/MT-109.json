@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:38:28.2565317Z",
+  "updated_at_utc": "2026-09-14T14:45:25.3807830Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2538,6 +2538,14 @@
         "result": "BUILDER_GATE_FAIL_AUTHORITY_SENTINEL_SOURCE_FIXTURE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-2.log",
         "observed": "The full authority target finished 13 passed/1 failed in 67.25 seconds. The sole failure, direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny, expected its authorized sentinel proposal row but observed an empty list because the fixture referenced mt109-v12-document without registering that RichDocument or granting the owner source Read/memory.read authority now required by the corrected source-composed SELECT rule."
+      },
+      {
+        "proof_id": "MT109-V16-PR-036",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_AUTHORITY_NEGATIVE_MATRIX",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-negative-matrix-1.log",
+        "observed": "The repaired direct record-user negative matrix passed 1/1 in 244.19 seconds, including revoked, expired, and forged-session workspace denial with data_operation_dispatched=false and a 232428 ms non-expiry proof below the 300000 ms minimum TTL. This builder result does not clear MT109-V16-F01."
       }
     ],
     "resolved_prior_findings": [
@@ -2587,6 +2595,12 @@
             "status": "FAIL",
             "observed": "full authority target passed 13/14; authorized proposal sentinel returned [] because its fixture lacked the now-required canonical source document and exact owner source grant",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-2.log"
+          },
+          {
+            "attempt": 5,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "repaired direct record-user negative matrix passed 1/1 including revoked, expired, forged-session denial and timed non-expiry proof; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-negative-matrix-1.log"
           }
         ],
         "remaining_remediation": "Register the exact mt109-v12-document RichDocument and grant only its owner Read/memory.read in the positive sentinel fixture; keep production authority unchanged. Rerun the failed test and full authority target, then independently prove all derivative, direct SELECT, mixed-source, regrant, no-mutation, and read-only-user boundaries."
