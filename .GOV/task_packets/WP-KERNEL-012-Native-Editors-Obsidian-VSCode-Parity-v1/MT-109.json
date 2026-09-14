@@ -3250,6 +3250,14 @@
         "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F20_REVIEW_TRANSITIONS",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log",
         "observed": "The corrected focused review-transitions test passed 1/1 in 35.92 seconds. One canonical proposer owns the workspace and both exact sources; proposal review and replay, opposite-decision conflict, policy rejection, audit assertions, and explicit cleanup all pass. Full-suite and independent clean-candidate proof remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-125",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F21_QUARANTINED_OUTBOX_PROOF_UNAUTHORIZED",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log",
+        "observed": "The focused quarantined-outbox test selected one and failed because its canonical initial proposal returned 403 HSK-403-PROTECTED-RESOURCE before quarantine, false-ack, and recovery assertions. Explicit cleanup succeeded. Source inspection found workspace/source rows but no exact proposal authority; the first effective actor is native-process-a."
       }
     ],
     "resolved_prior_findings": [
@@ -3643,6 +3651,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused review-transitions test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log"
+          },
+          {
+            "attempt": 65,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused quarantined-outbox test completes explicit cleanup without cleanup failure; product proof is blocked at authority and independent cleanup proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4500,6 +4514,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused review/replay/conflict/policy/audit behavior and cleanup pass; other teardown cases and full Memory suite remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-review-transitions-narrow-3.log"
+          },
+          {
+            "attempt": 72,
+            "status": "FAIL",
+            "observed": "focused quarantined-outbox test initial proposal returns 403 before quarantine/no-false-ack/recovery assertions; full suite remains blocked",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4985,6 +5005,22 @@
           }
         ],
         "remaining_remediation": "Retain canonical ownership, exact source grants, all transition/conflict/policy/audit assertions, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
+      },
+      {
+        "finding_id": "MT109-V16-F21",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The quarantined proposal-outbox proof cannot reach quarantine, false-success-ack, or recovery assertions because its canonical initial proposal is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this stale fixture.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "valid focused test fails before outbox quarantine semantics: canonical initial proposal returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-quarantined-outbox-narrow-1.log"
+          }
+        ],
+        "remaining_remediation": "Provision one exact proposal/source scope matching effective actor native-process-a and keep it stable across the initial, failed-recorder retry, and healthy retry while process headers vary; retain spoofed-body-actor, quarantine, no-false-ack, recovery, explicit cleanup, full-suite, and independent assertions."
       }
     ],
     "independent_findings": [
@@ -5123,6 +5159,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T19:49:58.268694Z",
         "summary": "The proposal review-transitions proof is unreachable because its actor-specific proposal creates lack exact protected-resource authority; prior cleanup failure masked the fixture defect."
+      },
+      {
+        "id": "MT109-V16-F21",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T19:57:23.447750Z",
+        "summary": "The quarantined proposal-outbox proof is unreachable because its canonical initial proposal lacks exact protected-resource authority; prior cleanup failure masked the fixture defect."
       }
     ],
     "remediation_required": {
@@ -5145,9 +5188,10 @@
         "Resolve MT109-V16-F17 with only exact proposal/source authority under one stable scope, then prove rich replay snapshot-drift rejections, durable-row/receipt bounds, cleanup, full-suite behavior, and independent clean-SHA proof.",
         "Resolve MT109-V16-F18 with one exact proposal/source scope independently applied to both concurrent futures, then prove simultaneous one-row/one-receipt convergence, cleanup, full-suite behavior, and independent clean-SHA proof.",
         "Resolve MT109-V16-F19 with disjoint exact target/control proposal-source scopes, then prove scoped deletion, control and receipt preservation, cleanup, full-suite behavior, and independent clean-SHA proof.",
-        "Resolve MT109-V16-F20 with separate exact actor-matched proposal/source scopes only for the two create calls, then prove transitions, replay, conflict, audit, cleanup, full-suite behavior, and independent clean-SHA proof."
+        "Resolve MT109-V16-F20 with separate exact actor-matched proposal/source scopes only for the two create calls, then prove transitions, replay, conflict, audit, cleanup, full-suite behavior, and independent clean-SHA proof.",
+        "Resolve MT109-V16-F21 with one stable exact proposal/source scope matching native-process-a across varied process headers, then prove quarantine/no-false-ack/recovery, cleanup, full-suite behavior, and independent clean-SHA proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All twenty-two blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All twenty-three blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
