@@ -95,6 +95,21 @@
     "MAN": "If the chip value contract changes, the UserManual agent-addressable surface reference must change with it.",
     "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE; internal_diagnostics and Palmistry DEFERRED-with-reason per CX-981-005."
   },
+  "operator_decision_20260914": {
+    "status": "RATIFIED_BY_OPERATOR",
+    "recorded_at_utc": "2026-09-14T01:25:35Z",
+    "recorded_by": "ORCHESTRATING_VALIDATOR",
+    "operator_reply_verbatim": "Ratify the existing approach",
+    "ratified_scope": "The existing relocation of chip domain identity into semantic_value and the corresponding Stage/Calendar proof-reader changes described in the Operator question are ratified.",
+    "decision_context": "The Operator was explicitly informed that MT-130 reserved this decision and that the implementation had already relocated identity fields and changed the reader. This records subsequent ratification; it does not claim authorization existed before implementation.",
+    "remaining_technical_obligations": [
+      "Independently prove the closed click-completion token still rejects unknown fields.",
+      "Independently re-verify MT-067 identity and terminal-state assertions without weakening their required behavior.",
+      "Independently prove the full MT-074/MT-117 canonical receipt matrix has the required applied and indeterminate counts.",
+      "Verify the UserManual documents the resulting agent-addressable value contract."
+    ],
+    "validation_effect": "The Operator-decision dependency is resolved. No technical PASS verdict is issued or implied."
+  },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
   }
