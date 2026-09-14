@@ -3394,6 +3394,14 @@
         "result": "BUILDER_GREEN_PARTIAL_F41_F44_RECONCILER_RESTART",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log",
         "observed": "The unique focused startup-reconciler restart log passed 1/1 in 20.27 seconds with exit 0 and no cleanup failure. SHA-256 is 000DD654860B2E03566C6F6B56FD57BF113A66BE3787BE9ED5B6F71546E7A1F6. The exact service reader branch now restores the one FR row while ordinary owner/reader branches retain owner equality; independent queue-grant/revocation/cross-workspace review and full PT-109-1 remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-143",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_F39_F42_PERSISTENT_RESTART",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log",
+        "observed": "The unique focused persistent-restart log passed 1/1 in 20.23 seconds with exit 0, both partial-write windows converged to one FR row, and explicit cleanup/root absence passed. Direct artifact SHA-256 is 9392B7940FE011C71A8F99E0FED6CC9355742780DF628AFFB61DBAFC1702D961. Full authority-negative, PT-109-1, and independent clean-candidate proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3853,6 +3861,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused startup-reconciler test now passes body and explicit cleanup with no cleanup marker; all FR cleanup cases/full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log"
+          },
+          {
+            "attempt": 76,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused persistent-restart test passes explicit cleanup/root absence with no cleanup marker; all FR cleanup cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log"
           }
         ],
         "remaining_remediation": "Commit a clean candidate, then independently rerun required Memory and focused teardown gates and verify no cleanup marker plus physical absence of every validator-owned success store."
@@ -5686,8 +5700,8 @@
         "finding_id": "MT109-V16-F39",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The persistent restart partial-window recovery test fails at flight_recorder.rs:3212: restart must converge each partial-write window to one FR row, but observed 0 instead of 1.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "observed_proof": "Builder-focused proof now restores exactly one FR row across both partial-write restart windows and passes explicit cleanup. Independent authorization negatives and full PT-109-1 remain required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -5700,9 +5714,15 @@
             "status": "FAIL_SOURCE_REVIEW_MAPPING",
             "observed": "source mapping: pending EventLedger row was seeded outside record-user scope, persisting wsids=[] and four authority fields NONE; correct SELECT hides it from reconciler, causing observed zero FR rows; fixture must seed under exact producer scope",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "both persistent partial-write windows restore exactly one FR row after restart; focused cleanup passes; negatives/full suite/independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log"
           }
         ],
-        "remaining_remediation": "Diagnose from the preserved store and exact startup/reconciliation path why each partial-write window restores zero FR rows; repair the smallest product or fixture cause without weakening restart assertions, prove both windows focused, full PT-109-1, and independent proof."
+        "remaining_remediation": "Retain exact producer scope and bounded service reader branch, prove service grant absence/revocation/wrong workspace/identity/resource negatives, pass full PT-109-1, then pass independent clean-candidate proof."
       },
       {
         "finding_id": "MT109-V16-F40",
@@ -5784,6 +5804,12 @@
             "status": "FAIL_SOURCE_REVIEW_MAPPING",
             "observed": "same restart fixture class also uses implicit fallback cleanup; planned repair retains body error while applying explicit owned-task/state teardown and centralized cleanup; prior cleanup failure remains unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-1.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "persistent-restart test passes body plus explicit cleanup/root absence with no double panic; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log"
           }
         ],
         "remaining_remediation": "After F39 behavior is corrected, convert this test to panic-preserving explicit task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; then pass full PT-109-1 and independent proof."
@@ -5818,6 +5844,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused startup-reconciler test exits 0 normally with cleanup pass; full 40-test PT-109-1 normal exit remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log"
+          },
+          {
+            "attempt": 5,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused persistent-restart test exits 0 normally; full 40-test PT-109-1 normal exit remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-persistent-restart-narrow-1.log"
           }
         ],
         "remaining_remediation": "Resolve every PT-109-1 body and cleanup blocker, then rerun the complete api::flight_recorder:: target with --test-threads=4 to a normal nonzero 40-test summary and exit 0; repeat independently on the clean candidate."
