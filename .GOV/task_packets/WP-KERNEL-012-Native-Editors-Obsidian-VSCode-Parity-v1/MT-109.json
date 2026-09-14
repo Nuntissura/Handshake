@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:58:11.7443060Z",
+  "updated_at_utc": "2026-09-14T14:02:04.2353234Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2482,6 +2482,14 @@
         "result": "BUILDER_GATE_FAIL_RECONCILER_PROBE_ORDER_SYNTAX",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-15.log",
         "observed": "The record-identity probe failed 0 passed/1 failed in 40.76 seconds before its assertion because SurrealDB rejected ORDER BY record::id(id): the order idiom was not present in the selected projection, which exposed it only as alias value. No product or schema behavior failed in this attempt."
+      },
+      {
+        "proof_id": "MT109-V16-PR-029",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_RECONCILER_REVOCATION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-16.log",
+        "observed": "The complete focused reconciliation service test passed 1/1 in 40.98 seconds. It proved the granted workspace drained; ungranted proposal, memory, outbox, anchor, ledger, and Flight Recorder state remained unchanged; a fresh service session enumerated only the exact granted workspace; and revoking the exact queue grant immediately removed authorization and visibility. This builder result does not clear MT109-V16-F05."
       }
     ],
     "resolved_prior_findings": [
@@ -2687,6 +2695,12 @@
             "status": "FAIL",
             "observed": "test helper query rejected because ORDER BY record::id(id) did not reference the selected alias value; no behavior assertion ran",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-15.log"
+          },
+          {
+            "attempt": 14,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "complete service test passed granted drain, unchanged ungranted data and trace state, exact granted-only workspace enumeration, and immediate authorization/visibility loss after exact queue-grant revocation; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-16.log"
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
