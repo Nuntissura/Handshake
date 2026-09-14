@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:02:29.849Z",
+  "updated_at_utc": "2026-09-14T17:03:52.685Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2730,6 +2730,14 @@
         "result": "BUILDER_GATE_FAIL_PT_109_2_LEGACY_RETRY_TEARDOWN",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "observed": "The fourth complete api::memory:: four-thread attempt repaired and passed the four previously implicated create-proposal, real-pack-shape, concurrent-workspace-commit, and commit-outbox-recovery tests together. It then exposed a deterministic teardown failure in legacy_retry_heals_missing_receipt_once_and_converges: embedded database shutdown remained draining after 30000 ms and preserved store-01a0a0dd166671b18c6f6cc4e5471917. The suite had not produced a valid final verdict when this failure was recorded."
+      },
+      {
+        "proof_id": "MT109-V16-PR-060",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_PT_109_2_ADDITIONAL_TEARDOWN_AND_ROUTE_BEHAVIOR",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
+        "observed": "The still-running fourth complete suite exposed two more deterministic teardown failures: list_proposals_is_bounded_deterministic_and_workspace_scoped preserved store-01a0a0dd75477692b46c1e4541d582c1, and loom_block_reference_proposal_accepts_only_an_existing_exact_canonical_address preserved store-01a0a0ddd9a17432a3117f1a9db168fa after shutdown drained beyond 30000 ms. It also exposed a distinct positive-path failure: memory_routes_require_live_binding_ignore_spoofed_actor_and_audit_decisions received HTTP 400 where the authenticated exact-source proposal expected HTTP 200 at api/memory.rs:2744."
       }
     ],
     "resolved_prior_findings": [
@@ -2737,7 +2745,7 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The four prior implicated tests pass together, but legacy_retry_heals_missing_receipt_once_and_converges now reaches the same deterministic teardown failure and preserves its store. Independent clean-candidate teardown proof remains missing.",
+        "observed_proof": "The fourth full-suite attempt has now exposed deterministic teardown failure in legacy retry, bounded proposal listing, and exact Loom-block reference tests; three new stores were preserved. Independent clean-candidate teardown proof remains missing.",
         "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "resolution_attempts": [
           {
@@ -2811,9 +2819,15 @@
             "status": "FAIL",
             "observed": "the fourth full-suite attempt exposed cleanup failure in legacy_retry_heals_missing_receipt_once_and_converges; shutdown drained beyond 30000 ms and preserved store-01a0a0dd166671b18c6f6cc4e5471917",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          },
+          {
+            "attempt": 13,
+            "status": "FAIL",
+            "observed": "same full run exposed two more cleanup failures: list-proposals preserved store-01a0a0dd75477692b46c1e4541d582c1 and loom-block-reference preserved store-01a0a0ddd9a17432a3117f1a9db168fa after 30000 ms draining",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
           }
         ],
-        "remaining_remediation": "Identify and release the exact operation/task/lease retained by legacy_retry_heals_missing_receipt_once_and_converges, preserve its behavior assertions, route success and panic through centralized cleanup/root absence, pass the complete suite, then hand off for independent teardown proof."
+        "remaining_remediation": "Identify and release each exact operation/task/lease retained by legacy retry, bounded proposal listing, and exact Loom-block reference tests; preserve behavior assertions, route success and panic through centralized cleanup/root absence, pass the complete suite, then hand off for independent teardown proof."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3132,7 +3146,7 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "All four previously implicated tests pass together in the latest full run, but the suite exposed a new teardown failure in legacy retry and still lacks a valid complete verdict.",
+        "observed_proof": "The fourth complete-suite attempt remains invalid after exposing three teardown failures and an authenticated proposal route returning HTTP 400 instead of 200.",
         "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "resolution_attempts": [
           {
@@ -3242,9 +3256,31 @@
             "status": "FAIL",
             "observed": "the fourth complete four-thread attempt passed all four previously implicated tests together but then failed deterministic teardown in legacy_retry_heals_missing_receipt_once_and_converges; no valid complete-suite verdict existed when recorded",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          },
+          {
+            "attempt": 19,
+            "status": "FAIL",
+            "observed": "the fourth complete four-thread attempt exposed two additional teardown failures and a positive authenticated-route behavior failure (HTTP 400 instead of 200); the suite still has no valid complete verdict",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
           }
         ],
-        "remaining_remediation": "Repair the legacy-retry teardown without weakening its behavior assertions, then pass the complete 33-test api::memory:: suite at four threads and hand off for independent proof."
+        "remaining_remediation": "Repair all full-4 observed failures without weakening behavior, authority, concurrency, or cleanup assertions, then pass the complete 33-test api::memory:: suite at four threads and hand off for independent proof."
+      },
+      {
+        "finding_id": "MT109-V16-F07",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "memory_routes_require_live_binding_ignore_spoofed_actor_and_audit_decisions received HTTP 400 for its authenticated positive proposal request where the test required HTTP 200.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "authenticated exact-source proposal positive path returned HTTP 400 at api/memory.rs:2744 instead of storing the proposal and proving the live session identity overrides spoofed actor headers/body",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          }
+        ],
+        "remaining_remediation": "Capture the exact 400 response body and diagnose the request/fixture against current canonical source identity and authority. Repair without weakening the live-binding or spoofed-actor assertions, pass the focused test, then independently rerun on the committed candidate."
       }
     ],
     "independent_findings": [
@@ -3285,6 +3321,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T15:00:05.642928Z",
         "summary": "The required PT-109-2 full api::memory:: suite crashed under four test threads after two tests reported failures, so it produced no valid suite verdict."
+      },
+      {
+        "id": "MT109-V16-F07",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T17:03:52.685Z",
+        "summary": "The authenticated memory-route positive proposal request returns HTTP 400 instead of HTTP 200, so live-session identity and spoofed-actor persistence proof cannot complete."
       }
     ],
     "remediation_required": {
@@ -3293,9 +3336,10 @@
         "Repair MT109-V16-F04 first and prove clean-upgrade plus exact injected rollback behavior in separate stores.",
         "Commit the complete candidate and hand off the exact SHA with a clean tree and released Cargo lane.",
         "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS.",
-        "Resolve MT109-V16-F06 and produce a valid required PT-109-2 full api::memory:: suite pass before candidate handoff."
+        "Resolve MT109-V16-F06 and produce a valid required PT-109-2 full api::memory:: suite pass before candidate handoff.",
+        "Resolve MT109-V16-F07 authenticated proposal-route HTTP 400 with exact diagnostic and focused proof before candidate handoff."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All eight blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All nine blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
