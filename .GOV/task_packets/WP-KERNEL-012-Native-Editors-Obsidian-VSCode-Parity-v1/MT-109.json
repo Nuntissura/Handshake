@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T15:00:05.642928Z",
+  "updated_at_utc": "2026-09-14T15:01:30.571892Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2594,6 +2594,14 @@
         "result": "BUILDER_GATE_FAIL_PT_109_2_MEMORY_SUITE_CRASH",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log",
         "observed": "The required full api::memory:: suite, run with --test-threads=4, reported create_proposal_stores_pending_review_and_receipt and concurrent_workspace_commits_preserve_canonical_memory_deterministically as FAILED, then terminated with STATUS_STACK_BUFFER_OVERRUN before a valid suite verdict. The exact create-proposal test was launched separately for isolation."
+      },
+      {
+        "proof_id": "MT109-V16-PR-043",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "EVIDENCE_NAME_CORRECTION_FOR_MT109_V16_PR_042",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log",
+        "observed": "Direct inspection of the log corrects the second failed test named in PR-042: the harness reported create_proposal_stores_pending_review_and_receipt and concurrent_workspace_commits_publish_a_pack_containing_both_items as FAILED before exit 0xc0000409 STATUS_STACK_BUFFER_OVERRUN. PR-042 remains preserved as history."
       }
     ],
     "resolved_prior_findings": [
@@ -2925,6 +2933,12 @@
             "attempt": 1,
             "status": "FAIL",
             "observed": "create_proposal_stores_pending_review_and_receipt and concurrent_workspace_commits_preserve_canonical_memory_deterministically reported FAILED before STATUS_STACK_BUFFER_OVERRUN aborted the suite without a valid verdict",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL_EVIDENCE_CORRECTION",
+            "observed": "validator inspected the exact log and corrected the second failed test name to concurrent_workspace_commits_publish_a_pack_containing_both_items; the suite still has no valid verdict",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log"
           }
         ],
