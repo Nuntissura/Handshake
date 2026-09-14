@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T15:14:30.452557Z",
+  "updated_at_utc": "2026-09-14T15:21:31.593113Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2626,6 +2626,14 @@
         "result": "BUILDER_REMEDIATION_FAIL_EXPLICIT_STATE_DROP_DID_NOT_DRAIN_OPERATION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-3.log",
         "observed": "With AppState explicitly dropped before centralized close, create_proposal_stores_pending_review_and_receipt still failed cleanup 0/1 in 243.78 seconds. Shutdown remained draining after 30000 ms and preserved kb-v17/runtime/store-01a0a0768df470c1a896da1da49bf118. Read against SurrealStorage::perform_shutdown at surreal.rs:1477-1500, this shows an in-flight read lease rather than wrapper drop order alone."
+      },
+      {
+        "proof_id": "MT109-V16-PR-047",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_ISOLATION_ZERO_LEASES_THEN_AUTHORITY_DENIAL",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log",
+        "observed": "The focused create-proposal run emitted MT109_CREATE_PROPOSAL_LEASES_AFTER_BODY=0 and no HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, then returned its body error: proposal failed with 403 Forbidden HSK-403-PROTECTED-RESOURCE. This advances teardown diagnosis but does not clear MT109-V15-F01 until exact store-root removal is proved, and leaves MT109-V16-F06 blocked on a valid positive fixture plus the full four-thread suite."
       }
     ],
     "resolved_prior_findings": [
@@ -2633,8 +2641,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Three focused create-proposal runs fail deterministic shutdown. Explicit AppState drop also fails, and the shutdown implementation is blocked acquiring its write lock, proving an in-flight database lease remains after the body.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-3.log; src/storage/surreal.rs:1477-1500",
+        "observed_proof": "The latest builder isolation reached leases_in_flight=0 and did not emit a cleanup-failure marker, but it failed the proposal body with 403 and did not identify the created store path for an exact removal assertion.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -2659,9 +2667,15 @@
             "status": "FAIL",
             "observed": "explicit AppState drop before close still left shutdown draining beyond 30000 ms; an in-flight database read lease remains and store-01a0a0768df470c1a896da1da49bf118 was preserved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-3.log"
+          },
+          {
+            "attempt": 5,
+            "status": "PARTIAL_PASS_BUILDER_ONLY",
+            "observed": "focused run reached zero active leases and emitted no cleanup-failure marker; exact created store path/removal proof and independent rerun are still required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log"
           }
         ],
-        "remaining_remediation": "Identify the exact operation retaining the read lease after the body, make it complete or cancel under the existing lifecycle contract, and prove leases_in_flight is zero before close; do not increase timeouts or suppress cleanup failure."
+        "remaining_remediation": "Run the corrected positive fixture to completion while emitting or otherwise proving its exact store path is absent after centralized cleanup; then independently reprove focused and complete authority teardown."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -2968,8 +2982,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "No valid PT-109-2 full api::memory:: suite result exists; the four-thread run crashed after two tests reported failures.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log",
+        "observed_proof": "The first isolated suite member now reaches zero active leases but fails its positive proposal with 403 HSK-403-PROTECTED-RESOURCE. The second failed member and the full suite remain unproved.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3000,9 +3014,15 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "explicit state-drop isolation still leaves an in-flight database lease and cleanup failure; full four-thread suite remains unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-3.log"
+          },
+          {
+            "attempt": 6,
+            "status": "FAIL",
+            "observed": "cleanup no longer masked the body; the valid-proposal fixture is rejected 403 HSK-403-PROTECTED-RESOURCE because it lacks the authority required by the hardened schema",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log"
           }
         ],
-        "remaining_remediation": "Diagnose both reported test failures and the suite crash using focused tests; repair without weakening concurrency or authority requirements; rerun the required full api::memory:: suite successfully, then independently reprove it from the clean committed candidate."
+        "remaining_remediation": "Give the positive test principal only the exact workspace/proposal-create and current source-read authority required by production, retain negative coverage, run both isolated failed members, and rerun the complete api::memory:: suite with four test threads."
       }
     ],
     "independent_findings": [
