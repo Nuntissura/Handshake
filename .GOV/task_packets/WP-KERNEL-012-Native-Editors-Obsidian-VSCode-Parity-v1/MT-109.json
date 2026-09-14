@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T15:27:48.235255Z",
+  "updated_at_utc": "2026-09-14T15:33:46.238062Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2642,6 +2642,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_CREATE_PROPOSAL_AND_TEARDOWN",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log",
         "observed": "The exact create_proposal_stores_pending_review_and_receipt test passed 1/1 in 136.28 seconds with the least-privilege positive fixture, emitted MT109_CREATE_PROPOSAL_LEASES_AFTER_BODY=0, and completed centralized close/remove plus the root-absence assertion without a cleanup marker. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-049",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_CONCURRENT_FIXTURE_RESOURCE_OWNERSHIP_COLLISION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-1.log",
+        "observed": "The exact concurrent_workspace_commits_publish_a_pack_containing_both_items test failed 0/1 in 178.48 seconds with SurrealDB code -32000, resource registry collision or ownership mismatch. Diff inspection showed the fixture passed distinct owner labels to two proposal helpers for one protected workspace; the coder changed those labels to one shared principal while retaining two distinct proposals and the original tokio::join! commits. The concurrency behavior has not yet passed."
       }
     ],
     "resolved_prior_findings": [
@@ -2996,8 +3004,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The first isolated suite member now reaches zero active leases but fails its positive proposal with 403 HSK-403-PROTECTED-RESOURCE. The second failed member and the full suite remain unproved.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log",
+        "observed_proof": "The create-proposal member passes, but the exact concurrent member fails during fixture authority setup with a resource ownership collision. Its simultaneous commit and canonical pack assertions remain unproved, and no valid full-suite verdict exists.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-1.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3040,9 +3048,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the isolated create-proposal member now passes with exact grants and deterministic teardown; the exact concurrent member and complete four-thread suite remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log"
+          },
+          {
+            "attempt": 8,
+            "status": "FAIL",
+            "observed": "the exact concurrent member failed before its concurrent commits with resource registry collision or ownership mismatch because two fixture owners targeted one protected workspace",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-1.log"
           }
         ],
-        "remaining_remediation": "Give the positive test principal only the exact workspace/proposal-create and current source-read authority required by production, retain negative coverage, run both isolated failed members, and rerun the complete api::memory:: suite with four test threads."
+        "remaining_remediation": "Use one exact protected-workspace principal for both proposals while retaining distinct identities/content and the original simultaneous commits; pass the exact concurrent test with deterministic cleanup, then pass the complete api::memory:: suite with four test threads."
       }
     ],
     "independent_findings": [
