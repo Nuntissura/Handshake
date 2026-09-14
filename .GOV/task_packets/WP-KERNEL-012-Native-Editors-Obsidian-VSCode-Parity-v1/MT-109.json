@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:30:41.515Z",
+  "updated_at_utc": "2026-09-14T17:32:34.967Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2810,6 +2810,14 @@
         "result": "BUILDER_GATE_FAIL_F08_SECOND_PROPOSAL_TRANSACTION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log",
         "observed": "The exact proposal-list test advanced its first proposal but remained RED 0/1 in 32.89 seconds. The second proposal returned HTTP 500 with resource authority storage failed: embedded database error: The query was not executed due to a failed transaction. This public error does not identify the earlier failed statement or constraint, so exact internal diagnostic remains required before remediation. Cleanup succeeded."
+      },
+      {
+        "proof_id": "MT109-V16-PR-070",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F08_CONTROL_PROPOSAL_TRANSACTION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log",
+        "observed": "The exact proposal-list test remained RED 0/1 in 31.51 seconds. The generic failed-transaction HTTP 500 shifted to the control proposal, but the run still did not expose the exact earlier statement or constraint. Cleanup succeeded. No remediation is accepted from this non-actionable diagnostic."
       }
     ],
     "resolved_prior_findings": [
@@ -2951,6 +2959,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "proposal-list narrow-3 preserved its second-proposal transaction failure and completed cleanup; other teardown paths and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log"
+          },
+          {
+            "attempt": 23,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "proposal-list narrow-4 retained its control-proposal transaction failure and completed cleanup; other teardown paths and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log"
           }
         ],
         "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
@@ -3442,6 +3456,12 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "proposal-list isolation advances first proposal but second fails with a generic failed-transaction HTTP 500; exact internal cause and complete suite remain unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log"
+          },
+          {
+            "attempt": 29,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "proposal-list isolation remains a generic transaction HTTP 500, now on the control proposal, and still lacks exact internal diagnosis; complete suite remains unresolved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3496,8 +3516,8 @@
         "finding_id": "MT109-V16-F08",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Proposal-list isolation now creates the first row, but the second proposal fails its atomic transaction with a generic public 500. The exact internal failed statement/constraint is not yet known.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log",
+        "observed_proof": "Proposal-list isolation remains blocked by a generic transaction failure, now on the control proposal. The exact owned statement or constraint has not been surfaced.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3516,9 +3536,15 @@
             "status": "FAIL",
             "observed": "first proposal now succeeds; second returns HTTP 500 because an earlier transaction statement failed, but the public error does not identify the exact statement or constraint; cleanup succeeds",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-3.log"
+          },
+          {
+            "attempt": 4,
+            "status": "FAIL",
+            "observed": "generic failed-transaction HTTP 500 moved to the control proposal; exact earlier failed statement/constraint is still not exposed, so further fixture remediation would be guesswork",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log"
           }
         ],
-        "remaining_remediation": "Expose the exact owned internal statement/constraint that fails during the second proposal while preserving the public error contract; correct only that cause, retain atomicity and bounded/workspace isolation assertions, pass focused proof, then independently rerun."
+        "remaining_remediation": "Expose the exact owned internal statement/constraint that fails while preserving the public error contract; do not change fixture or production behavior again until the cause is observed. Then correct only that cause, pass focused proof, and independently rerun."
       }
     ],
     "independent_findings": [
