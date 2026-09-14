@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:56:26.349129Z",
+  "updated_at_utc": "2026-09-14T15:00:05.642928Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2586,6 +2586,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_MOUNTED_FLIGHT_RECORDER_ROUTE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/flight-recorder-mounted-routes-2.log",
         "observed": "The mounted Flight Recorder route proof passed 1/1 in 21.01 seconds. This builder result does not clear any finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-042",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_PT_109_2_MEMORY_SUITE_CRASH",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log",
+        "observed": "The required full api::memory:: suite, run with --test-threads=4, reported create_proposal_stores_pending_review_and_receipt and concurrent_workspace_commits_preserve_canonical_memory_deterministically as FAILED, then terminated with STATUS_STACK_BUFFER_OVERRUN before a valid suite verdict. The exact create-proposal test was launched separately for isolation."
       }
     ],
     "resolved_prior_findings": [
@@ -2905,6 +2913,22 @@
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
+      },
+      {
+        "finding_id": "MT109-V16-F06",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "No valid PT-109-2 full api::memory:: suite result exists; the four-thread run crashed after two tests reported failures.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "create_proposal_stores_pending_review_and_receipt and concurrent_workspace_commits_preserve_canonical_memory_deterministically reported FAILED before STATUS_STACK_BUFFER_OVERRUN aborted the suite without a valid verdict",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-1.log"
+          }
+        ],
+        "remaining_remediation": "Diagnose both reported test failures and the suite crash using focused tests; repair without weakening concurrency or authority requirements; rerun the required full api::memory:: suite successfully, then independently reprove it from the clean committed candidate."
       }
     ],
     "independent_findings": [
@@ -2938,6 +2962,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T12:35:48.8445731Z",
         "summary": "The memory reconciliation service proof cannot reach reconciliation because proposal creation is denied by protected-resource authorization."
+      },
+      {
+        "id": "MT109-V16-F06",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T15:00:05.642928Z",
+        "summary": "The required PT-109-2 full api::memory:: suite crashed under four test threads after two tests reported failures, so it produced no valid suite verdict."
       }
     ],
     "remediation_required": {
@@ -2945,9 +2976,10 @@
       "priority_order": [
         "Repair MT109-V16-F04 first and prove clean-upgrade plus exact injected rollback behavior in separate stores.",
         "Commit the complete candidate and hand off the exact SHA with a clean tree and released Cargo lane.",
-        "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS."
+        "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS.",
+        "Resolve MT109-V16-F06 and produce a valid required PT-109-2 full api::memory:: suite pass before candidate handoff."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All seven blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All eight blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
