@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:54:57.892Z",
+  "updated_at_utc": "2026-09-14T17:55:43.584Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2882,6 +2882,22 @@
         "result": "BUILDER_GATE_FAIL_V15_F01_F06_FOUR_NEW_CLEANUP_PATHS",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
         "observed": "The live fifth complete four-thread Memory run exposed four additional deterministic teardown failures: proposal_cannot_mutate_committed_memory preserved store-01a0a10c7dda72a08d27ce719ef4431c; non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path preserved store-01a0a10c05e57593bf8fd3bccadf7847; proposal_delete_race_never_leaves_workspace_orphans preserved store-01a0a10c89997c2098a5f2f066d3d49e; proposal_insert_rolls_back_when_receipt_phase_fails preserved store-01a0a10d4b2c7833bda27d18368ae3e4. Each shutdown was still draining operations after 30000 ms. The process remained active when recorded."
+      },
+      {
+        "proof_id": "MT109-V16-PR-079",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F09_OUTBOX_RETRY_AUTHORITY_FIXTURE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "observed": "The fifth complete four-thread Memory run exposed a distinct body failure in proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event: the test expected HTTP 500 from the injected post-commit recorder failure but received HTTP 403 at memory.rs:7287. The intended recorder-failure, retry, and duplicate-event assertions did not execute."
+      },
+      {
+        "proof_id": "MT109-V16-PR-080",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_V15_F01_F06_TWO_MORE_CLEANUP_PATHS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "observed": "The live fifth complete four-thread Memory run exposed two more deterministic teardown failures: proposal_missing_provenance_fails_closed preserved store-01a0a10d993d7711a5df67224ff502d9, and proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event preserved store-01a0a10d9beb78628e62def3e380a0e0. Both shutdowns were still draining operations after 30000 ms. The process remained active when recorded."
       }
     ],
     "resolved_prior_findings": [
@@ -2889,7 +2905,7 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The fifth complete four-thread Memory run exposed four new shutdown-draining cleanup failures and preserved all four failed stores. Prior narrow cleanup greens do not resolve these paths.",
+        "observed_proof": "The fifth complete four-thread Memory run has now exposed six new shutdown-draining cleanup failures and preserved all six failed stores. Prior narrow cleanup greens do not resolve these paths.",
         "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
         "resolution_attempts": [
           {
@@ -3071,9 +3087,21 @@
             "status": "FAIL",
             "observed": "proposal_insert_rolls_back_when_receipt_phase_fails reached deterministic teardown but shutdown was still draining operations after 30000 ms; failed store store-01a0a10d4b2c7833bda27d18368ae3e4 is preserved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 31,
+            "status": "FAIL",
+            "observed": "proposal_missing_provenance_fails_closed reached teardown but shutdown was still draining operations after 30000 ms; failed store store-01a0a10d993d7711a5df67224ff502d9 is preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 32,
+            "status": "FAIL",
+            "observed": "proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event reached teardown after its body failure but shutdown was still draining operations after 30000 ms; failed store store-01a0a10d9beb78628e62def3e380a0e0 is preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
           }
         ],
-        "remaining_remediation": "For each of the four new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
+        "remaining_remediation": "For each of the six new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3616,6 +3644,12 @@
             "status": "FAIL",
             "observed": "the fifth complete four-thread suite has four additional shutdown-draining cleanup failures with preserved stores, in addition to the derivative-authority request timeout; no valid full-suite pass exists",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          },
+          {
+            "attempt": 37,
+            "status": "FAIL",
+            "observed": "the fifth complete four-thread suite now has six shutdown-draining cleanup failures plus a distinct outbox-retry authority body failure and derivative timeout; no valid full-suite pass exists",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3723,6 +3757,22 @@
           }
         ],
         "remaining_remediation": "Retain this focused behavior in the complete four-thread Memory suite, commit a clean candidate, and pass independent clean-SHA proof."
+      },
+      {
+        "finding_id": "MT109-V16-F09",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event expected the injected post-commit recorder failure to return HTTP 500 but received HTTP 403 before the intended retry/dedup path executed.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "expected HTTP 500 from the injected post-commit recorder failure, received HTTP 403 at memory.rs:7287; intended retry and no-duplicate-event assertions did not execute",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log"
+          }
+        ],
+        "remaining_remediation": "Inspect the exact source/workspace/proposal authority fixture and public 403 body, provide only the missing exact current grants required to reach the intended recorder-failure path, then prove initial 500, retry recovery, no duplicate event, deterministic cleanup, full-suite behavior, and independent clean-SHA behavior."
       }
     ],
     "independent_findings": [
@@ -3777,6 +3827,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T17:24:26.366Z",
         "summary": "Builder-focused proposal-list proof now passes with one canonical principal/account/space, exact workspace/source grants, bounded deterministic ordering, and workspace isolation; clean-SHA independent proof remains required."
+      },
+      {
+        "id": "MT109-V16-F09",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T17:55:43.584Z",
+        "summary": "The post-commit recorder-failure retry test is denied HTTP 403 before reaching its intended injected failure and retry/dedup assertions."
       }
     ],
     "remediation_required": {
@@ -3787,7 +3844,8 @@
         "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS.",
         "Resolve MT109-V16-F06 and produce a valid required PT-109-2 full api::memory:: suite pass before candidate handoff.",
         "Resolve MT109-V16-F07 authenticated proposal-route HTTP 400 with exact diagnostic and focused proof before candidate handoff.",
-        "Retain the MT109-V16-F08 builder-green proposal-list behavior in the complete four-thread Memory suite, then provide a clean committed candidate for independent proof."
+        "Retain the MT109-V16-F08 builder-green proposal-list behavior in the complete four-thread Memory suite, then provide a clean committed candidate for independent proof.",
+        "Resolve MT109-V16-F09 by giving the outbox-retry fixture only its exact current source/workspace/proposal authority, then prove injected 500, retry recovery, and no duplicate event without weakening authorization."
       ]
     },
     "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All ten blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
