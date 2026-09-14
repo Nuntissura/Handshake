@@ -3346,6 +3346,14 @@
         "result": "BUILDER_GATE_FAIL_F41_PASS_PARTIAL_F44_RESTART_FOCUSED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log",
         "observed": "The corrected focused startup-reconciler restart test selected one and exited normally 101 after 22.55 seconds with a single body failure: at flight_recorder.rs:3116, expected one startup-reconciled FR row and observed 0. No HANDSHAKE_TEST_STORE_CLEANUP_FAILURE was emitted, so the class-wide explicit teardown prevented the prior double panic for this case. F41 remains behavior-red; F44 has builder-only cleanup evidence but remains unresolved pending full and independent proof."
+      },
+      {
+        "proof_id": "MT109-V16-PR-137",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_SOURCE_MAPPING_F41_LEDGER_READER_SERVICE_BRANCH_UNREACHABLE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log",
+        "observed": "Narrow-2 disproves missing producer provenance as the sole cause. Canonical fn::mt109_ledger_reader applies fn::mt109_ledger_workspace row-owner account/space equality before all authorization branches. Authentic pending rows are stamped with user-owned FlightRecorder resources, while the reconciler runs as a separate service account/space; its exact per-workspace reconciliation-queue grant is therefore unreachable. The bounded product correction must preserve owner equality for ordinary producer/reader paths and allow only service-identity MT109Reconciler exact-queue reads of active producer rows whose resource kind/external ID exactly match the row wsid."
       }
     ],
     "resolved_prior_findings": [
@@ -5672,9 +5680,15 @@
             "status": "FAIL",
             "observed": "focused test still restores zero FR rows instead of one at flight_recorder.rs:3116 after initial fixture-scope repair; exact deeper cause remains unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
+          },
+          {
+            "attempt": 5,
+            "status": "FAIL_SOURCE_REVIEW_MAPPING",
+            "observed": "fn::mt109_ledger_reader enforces producer resource owner account/space equality before its service branch, making exact queue grants unreachable for separate service identity; bounded fix must isolate ordinary owner equality and exact service queue branch with active resource kind/external-id/wsid match",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Inspect the exact persisted pending row and reconciler query/session response after scoped seeding, identify why the service still sees or materializes zero FR rows, apply only the evidenced correction, then pass focused, full PT-109-1, and independent proof."
+        "remaining_remediation": "Preserve owner account/space equality for ordinary reads; permit only service_identity/MT109Reconciler sessions with an exact active reconciliation-queue grant to read active producer rows whose resource kind and external workspace ID match the row wsid. Refresh derived schema pins, then prove F41 focused plus queue-grant/revoke/cross-workspace negatives, full PT-109-1, and independent proof."
       },
       {
         "finding_id": "MT109-V16-F42",
