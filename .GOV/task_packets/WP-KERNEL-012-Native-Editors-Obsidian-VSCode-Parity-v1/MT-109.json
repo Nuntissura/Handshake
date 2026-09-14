@@ -3378,6 +3378,22 @@
         "result": "EVIDENCE_INVALIDATION_F03_F45_REUSED_SCHEMA_LOG_PATH",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log",
         "observed": "Direct artifact inspection proves schema-current-catalog-5.log was reused. It was created at 2026-09-14 15:10:20 and cited by PR018/F03 attempt 6 as a GREEN hash 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3, but its last write is 2026-09-14 22:59:32 and current bytes contain a later RED: observed f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384 versus expected 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388 at schema.rs:4477, 0/1 exit 101. PR018 and F03 attempt 6 are explicitly invalidated because their cited artifact no longer contains their claimed result. The current RED file must remain preserved, and every later attempt must use a verified unique immutable log path."
+      },
+      {
+        "proof_id": "MT109-V16-PR-141",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "BUILDER_EVIDENCE_RECOVERY_PARTIAL_F03_F45_UNIQUE_PRESERVED_LOGS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-9-preserved-green.log",
+        "observed": "Direct artifact inspection verifies two newly unique preserved files created only after nonexistence checks. schema-current-catalog-8-preserved-red.log is 74825 bytes, SHA-256 50A37576978ACB420DD16AD3D4A011FD585DDFFFD14C9C5C527B70D654622B9C, and contains the RED f58198... versus 5507a... result. schema-current-catalog-9-preserved-green.log is 74373 bytes, SHA-256 3D5A7DA9F476D46482699C051FFD4B89C14A9CF3A7355EFC7C59CD572E012BD5, and contains 1/1 GREEN at current INFO hash f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384. The invalidated -5 claim stays invalid; F45 remains pending full log inventory and independent proof."
+      },
+      {
+        "proof_id": "MT109-V16-PR-142",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_F41_F44_RECONCILER_RESTART",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log",
+        "observed": "The unique focused startup-reconciler restart log passed 1/1 in 20.27 seconds with exit 0 and no cleanup failure. SHA-256 is 000DD654860B2E03566C6F6B56FD57BF113A66BE3787BE9ED5B6F71546E7A1F6. The exact service reader branch now restores the one FR row while ordinary owner/reader branches retain owner equality; independent queue-grant/revocation/cross-workspace review and full PT-109-1 remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3831,6 +3847,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused startup-reconciler body failure remains reportable and emits no cleanup failure after explicit teardown; full suite and independent cleanup proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
+          },
+          {
+            "attempt": 75,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused startup-reconciler test now passes body and explicit cleanup with no cleanup marker; all FR cleanup cases/full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log"
           }
         ],
         "remaining_remediation": "Commit a clean candidate, then independently rerun required Memory and focused teardown gates and verify no cleanup marker plus physical absence of every validator-owned success store."
@@ -4144,6 +4166,12 @@
             "status": "FAIL_EVIDENCE_INVALIDATED",
             "observed": "current-schema gate is RED: observed f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384 vs expected 5507a1908e4036ab27714716d35a846f6964cc4e20cbd28ae2e3a041eb094388. The reused schema-current-catalog-5.log overwrote prior GREEN evidence, so PR018 and F03 attempt6 are invalid",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log"
+          },
+          {
+            "attempt": 15,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "unique current-schema INFO log passes 1/1 at f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384; remaining catalog/migration and independent gates remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-9-preserved-green.log"
           }
         ],
         "remaining_remediation": "Preserve the current RED file; derive the intended current INFO pin; run every later declarative/current/bounded catalog and migration attempt under verified unique immutable log names; then independently verify hashes and artifact uniqueness on the clean candidate."
@@ -5696,8 +5724,8 @@
         "finding_id": "MT109-V16-F41",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Focused startup-reconciler restart proof still restores zero FR rows instead of one after the first exact producer-scope fixture correction; cleanup now succeeds, exposing an unresolved behavior cause.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log",
+        "observed_proof": "Builder-focused proof now restores the expected FR row after restart through the exact service reader branch and passes cleanup. Independent authorization negatives and full PT-109-1 remain required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -5728,9 +5756,15 @@
             "status": "FAIL_SOURCE_REVIEW_MAPPING",
             "observed": "fn::mt109_ledger_reader enforces producer resource owner account/space equality before its service branch, making exact queue grants unreachable for separate service identity; bounded fix must isolate ordinary owner equality and exact service queue branch with active resource kind/external-id/wsid match",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
+          },
+          {
+            "attempt": 6,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "exact startup-reconciler restart test passes 1/1, restoring one FR row under bounded exact service reader branch; full negative/full suite/independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Preserve owner account/space equality for ordinary reads; permit only service_identity/MT109Reconciler sessions with an exact active reconciliation-queue grant to read active producer rows whose resource kind and external workspace ID match the row wsid. Refresh derived schema pins, then prove F41 focused plus queue-grant/revoke/cross-workspace negatives, full PT-109-1, and independent proof."
+        "remaining_remediation": "Retain ordinary owner equality and exact service_identity/MT109Reconciler/workspace-queue/resource-wsid matching. Prove grant absence, revocation, wrong workspace, wrong identity and inactive resource negatives, then pass full PT-109-1 and independent clean-candidate proof."
       },
       {
         "finding_id": "MT109-V16-F42",
@@ -5778,6 +5812,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused restart test now exits normally 101 with one body failure and no 0xc0000409 double panic; full 40-test PT-109-1 remains required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused startup-reconciler test exits 0 normally with cleanup pass; full 40-test PT-109-1 normal exit remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log"
           }
         ],
         "remaining_remediation": "Resolve every PT-109-1 body and cleanup blocker, then rerun the complete api::flight_recorder:: target with --test-threads=4 to a normal nonzero 40-test summary and exit 0; repeat independently on the clean candidate."
@@ -5806,6 +5846,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "explicit teardown eliminates cleanup failure/double panic for the focused startup-reconciler test; no cleanup marker emitted; full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-2.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "focused startup-reconciler test passes body and explicit cleanup/root removal without double panic; full suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-reconciler-restart-narrow-3.log"
           }
         ],
         "remaining_remediation": "Convert this exact test to panic-preserving explicit owned-task/state shutdown and centralized cleanup so body failures remain reportable and success proves root absence; after F41 behavior is fixed, pass focused, full PT-109-1, and independent clean-candidate proof."
@@ -5822,6 +5868,12 @@
             "status": "FAIL",
             "observed": "artifact creation time 15:10:20 and last write 22:59:32; current content is RED f58198... vs 5507a..., while PR018/F03 attempt6 cite the same path as earlier GREEN 62b6...; earlier claims explicitly invalid",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "overwritten RED and succeeding GREEN bytes are now preserved under unique paths with inspected SHA-256 values; invalidated -5 claim remains invalid and full cited-log inventory/independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-9-preserved-green.log"
           }
         ],
         "remaining_remediation": "Preserve the overwritten file as observed. Use verified unique immutable log paths for every subsequent builder and validator attempt. Before clean-SHA acceptance, enumerate every cited resolution log, prove no path reuse/overwrite, and independently rerun the affected schema proof."
