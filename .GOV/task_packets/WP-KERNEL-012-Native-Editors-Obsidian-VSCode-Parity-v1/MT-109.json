@@ -3082,6 +3082,14 @@
         "result": "BUILDER_GREEN_PARTIAL_F01_F02_F05_F06_FOURWAY_DIAGNOSTIC",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-3.log",
         "observed": "The unchanged exact four-test shared-process run passed 4/4 in 126.15 seconds at --test-threads=4. The revoke-before-write test reached operation_joined and emitted DENIED_ZERO_RESIDUE within its unchanged fixed 30-second join bound; therefore its timeout-only operation/revocation/lease diagnostic did not fire. Derivative authority passed with its owner proposal at 40493 ms, and the route authority and reconciliation tests passed. Cleanup and process exit were clean. This non-reproduction does not erase the identical fourway-2 fixed-30-second timeout and clears no finding before committed independent proof."
+      },
+      {
+        "proof_id": "MT109-V16-PR-104",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PARTIAL_V15_F01_F01_F02_F05_F06_BOUNDED_FOURWAY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-4.log",
+        "observed": "After aligning only the revoke-before-write test join timeout with the existing bounded 300-second embedded-storage contention budget, the exact four MT109 Memory tests passed 4/4 at --test-threads=4 in 122.77 seconds. Revocation reached operation_joined and emitted DENIED_ZERO_RESIDUE; derivative source-authority checks, reconciliation isolation and revocation visibility, and the complete mounted-route denial matrix passed. The process exited normally with no cleanup failure. Full api::memory:: and independent clean-candidate proof remain required."
       }
     ],
     "resolved_prior_findings": [
@@ -3361,6 +3369,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "second exact four-way run exits normally with no cleanup failure or new surviving root; complete Memory suite and independent cleanup proof remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-2.log"
+          },
+          {
+            "attempt": 46,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "exact four-test/4-thread run passes with normal exit and no cleanup failure after the bounded revocation timeout alignment; full Memory suite and independent physical-root proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-4.log"
           }
         ],
         "remaining_remediation": "Pass all repaired paths together in the complete four-thread Memory suite with zero cleanup failures/surviving new roots, commit a clean candidate, and pass independent cleanup/root proof."
@@ -3459,6 +3473,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "exact four-way diagnostic run passes derivative authority under contention; owner proposal completes in 40493ms and all source-denial checks pass; clean candidate and independent proof remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-3.log"
+          },
+          {
+            "attempt": 13,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "derivative source-authority test passes in the exact four-way group, including denied/regrant behavior and zero read mutation; full suite and independent clean-candidate proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-4.log"
           }
         ],
         "remaining_remediation": "Retain the bounded test-only contention timeout and unchanged derivative authority assertions, pass the complete four-thread suite, commit a clean candidate, and pass independent proof."
@@ -3493,6 +3513,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "unchanged exact four-test/4-thread diagnostic run passed; revoke-before-write reached operation_joined and DENIED_ZERO_RESIDUE inside the 30-second bound, derivative owner proposal took 40493 ms, all four tests passed, and cleanup/exit were clean; prior identical-load 30-second timeout remains valid evidence of contention sensitivity",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-3.log"
+          },
+          {
+            "attempt": 5,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "revoke-before-write reaches operation_joined and DENIED_ZERO_RESIDUE under exact four-way load after only its test timeout is aligned to the existing bounded 300-second contention budget; independent proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-4.log"
           }
         ],
         "remaining_remediation": "Align only the revoke-before-write test join bound with the existing bounded 300-second embedded-storage contention budget while retaining operation/revocation/lease timeout diagnostics and all zero-residue assertions; rerun exact four-way, full Memory suite, and independent clean-candidate proof."
@@ -3740,6 +3766,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "reconciliation exact-grant/denied-state proof passes again in the second exact four-way run; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-2.log"
+          },
+          {
+            "attempt": 22,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "reconciliation isolation passes in exact four-way load with denied trace/state unchanged and exact grant revocation visibility; independent proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-4.log"
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
@@ -4062,6 +4094,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "exact four MT109 Memory tests pass together 4/4 at --test-threads=4 in 126.15s with clean exit; this does not replace the required complete api::memory:: suite or independent proof",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-3.log"
+          },
+          {
+            "attempt": 53,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "exact four MT109 Memory tests pass 4/4 at --test-threads=4 in 122.77s with normal exit; required complete api::memory:: suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-4.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
