@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T15:21:31.593113Z",
+  "updated_at_utc": "2026-09-14T15:27:48.235255Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2634,6 +2634,14 @@
         "result": "BUILDER_ISOLATION_ZERO_LEASES_THEN_AUTHORITY_DENIAL",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log",
         "observed": "The focused create-proposal run emitted MT109_CREATE_PROPOSAL_LEASES_AFTER_BODY=0 and no HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, then returned its body error: proposal failed with 403 Forbidden HSK-403-PROTECTED-RESOURCE. This advances teardown diagnosis but does not clear MT109-V15-F01 until exact store-root removal is proved, and leaves MT109-V16-F06 blocked on a valid positive fixture plus the full four-thread suite."
+      },
+      {
+        "proof_id": "MT109-V16-PR-048",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_CREATE_PROPOSAL_AND_TEARDOWN",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log",
+        "observed": "The exact create_proposal_stores_pending_review_and_receipt test passed 1/1 in 136.28 seconds with the least-privilege positive fixture, emitted MT109_CREATE_PROPOSAL_LEASES_AFTER_BODY=0, and completed centralized close/remove plus the root-absence assertion without a cleanup marker. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -2641,8 +2649,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The latest builder isolation reached leases_in_flight=0 and did not emit a cleanup-failure marker, but it failed the proposal body with 403 and did not identify the created store path for an exact removal assertion.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log",
+        "observed_proof": "Builder focused proof now passes with zero active leases and exact store removal, but V15-F01 requires independent clean-candidate teardown proof.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -2673,9 +2681,15 @@
             "status": "PARTIAL_PASS_BUILDER_ONLY",
             "observed": "focused run reached zero active leases and emitted no cleanup-failure marker; exact created store path/removal proof and independent rerun are still required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log"
+          },
+          {
+            "attempt": 6,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "focused positive test passed with zero active leases and centralized close/remove plus root-absence assertion; independent teardown proof still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log"
           }
         ],
-        "remaining_remediation": "Run the corrected positive fixture to completion while emitting or otherwise proving its exact store path is absent after centralized cleanup; then independently reprove focused and complete authority teardown."
+        "remaining_remediation": "Hand off a clean committed candidate; independently run focused and complete authority targets and prove all validator-created stores are removed without cleanup markers or locks."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3020,6 +3034,12 @@
             "status": "FAIL",
             "observed": "cleanup no longer masked the body; the valid-proposal fixture is rejected 403 HSK-403-PROTECTED-RESOURCE because it lacks the authority required by the hardened schema",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-4.log"
+          },
+          {
+            "attempt": 7,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the isolated create-proposal member now passes with exact grants and deterministic teardown; the exact concurrent member and complete four-thread suite remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log"
           }
         ],
         "remaining_remediation": "Give the positive test principal only the exact workspace/proposal-create and current source-read authority required by production, retain negative coverage, run both isolated failed members, and rerun the complete api::memory:: suite with four test threads."
