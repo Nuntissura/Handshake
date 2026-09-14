@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:45:25.3807830Z",
+  "updated_at_utc": "2026-09-14T14:50:01.7220227Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2546,6 +2546,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_AUTHORITY_NEGATIVE_MATRIX",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-negative-matrix-1.log",
         "observed": "The repaired direct record-user negative matrix passed 1/1 in 244.19 seconds, including revoked, expired, and forged-session workspace denial with data_operation_dispatched=false and a 232428 ms non-expiry proof below the 300000 ms minimum TTL. This builder result does not clear MT109-V16-F01."
+      },
+      {
+        "proof_id": "MT109-V16-PR-037",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_FULL_AUTHORITY_SUITE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-3.log",
+        "observed": "The complete authority target passed 14/14 in 291.47 seconds, including direct record-user negative matrices, exact source grants and derived origin, immediate revocation, service reconciliation identity/grant, cleanup-error preservation, Space switching, and two-account/two-Space boundaries. No cleanup-failure marker appeared. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -2555,6 +2563,14 @@
         "candidate_commit": null,
         "observed_proof": "No independent clean-candidate rerun has established deterministic teardown for the complete authority predecessor. Builder evidence cannot clear the prior validator failure.",
         "test_or_log": "validation_v15.MT109-V15-PR-001; builder diagnostic ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "complete authority target passed 14/14 without a cleanup-failure marker; independent teardown and filesystem proof still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-3.log"
+          }
+        ],
         "remaining_remediation": "Hand off a clean committed candidate; independently run the complete authority target and prove every created store is removed without cleanup markers or locks."
       },
       {
@@ -2563,6 +2579,14 @@
         "candidate_commit": null,
         "observed_proof": "No independent clean-candidate run has proven that every embedded test store resolves beneath the configured WP/MT/validator runtime root.",
         "test_or_log": "validation_v15.MT109-V15-PR-001",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "complete authority target passed 14/14 under the configured kb-v17 runtime contract; independent physical-path and absence proof still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-3.log"
+          }
+        ],
         "remaining_remediation": "Independently verify physical store paths and absence after exit under HANDSHAKE_SURREAL_TEST_STORE_ROOT."
       },
       {
@@ -2601,6 +2625,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "repaired direct record-user negative matrix passed 1/1 including revoked, expired, forged-session denial and timed non-expiry proof; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-negative-matrix-1.log"
+          },
+          {
+            "attempt": 6,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "complete authority target passed 14/14 including exact source grants, derived origin, immediate revocation, record-user negatives, reconciliation identity, and cleanup-error preservation; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-3.log"
           }
         ],
         "remaining_remediation": "Register the exact mt109-v12-document RichDocument and grant only its owner Read/memory.read in the positive sentinel fixture; keep production authority unchanged. Rerun the failed test and full authority target, then independently prove all derivative, direct SELECT, mixed-source, regrant, no-mutation, and read-only-user boundaries."
@@ -2814,6 +2844,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "complete service test passed granted drain, unchanged ungranted data and trace state, exact granted-only workspace enumeration, and immediate authorization/visibility loss after exact queue-grant revocation; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-16.log"
+          },
+          {
+            "attempt": 15,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "complete 14-test authority target also passed explicit service identity and exact workspace-grant reconciliation boundary; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/resource-authority-full-3.log"
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
