@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:24:40.8750203Z",
+  "updated_at_utc": "2026-09-14T13:31:34.7520098Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2410,6 +2410,14 @@
         "result": "BUILDER_GATE_FAIL_DENIED_RECONCILIATION_TRACE_NONEMPTY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-10.log",
         "observed": "Proposal creation and granted-workspace reconciliation completed, then the exact service test failed 0 passed/1 failed after 204.42 seconds at api/memory.rs:3898 because the denied-workspace trace event list was non-empty. The log did not identify the event types or payloads."
+      },
+      {
+        "proof_id": "MT109-V16-PR-020",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_MEMORY_RECONCILIATION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-11.log",
+        "observed": "The exact service test passed 1/1 in 36.31 seconds. The denied trace baseline and after snapshots contained the identical single pre-existing MemoryWriteProposed event with the same ID, type, and payload; the denied proposal/memory/outbox/anchor/ledger snapshot was unchanged and the granted workspace drained. This builder result does not clear MT109-V16-F05."
       }
     ],
     "resolved_prior_findings": [
@@ -2554,6 +2562,12 @@
             "status": "FAIL",
             "observed": "proposal creation and granted reconciliation passed; denied-workspace trace contained unidentified events and violated the empty-trace assertion at api/memory.rs:3898",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-10.log"
+          },
+          {
+            "attempt": 9,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "exact service test passed 1/1; denied trace baseline and after contained the identical single pre-existing MemoryWriteProposed event, denied data snapshot was unchanged, and granted workspace drained; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-11.log"
           }
         ],
         "remaining_remediation": "Inspect and record every denied-trace event type and payload before changing assertions or product behavior. If they are required redacted denial telemetry, assert that exact bounded telemetry while preserving zero mutation and no protected data. If any event exposes data or records an unauthorized mutation, repair the producer. Independently prove that only the explicitly granted pending workspace is processed."
