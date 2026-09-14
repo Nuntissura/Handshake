@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:30:26.2056800Z",
+  "updated_at_utc": "2026-09-14T14:35:49.2326420Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2522,6 +2522,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_COMBINED_SCHEMA_BATCH",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-4.log",
         "observed": "The combined three-test schema batch passed 3/3 in 79.74 seconds: current and predecessor authority pins, two internal clean-upgrade/exact-rollback/reopen/cleanup variants, and the bounded Loom catalog all passed together. This builder result clears neither MT109-V16-F03 nor MT109-V16-F04."
+      },
+      {
+        "proof_id": "MT109-V16-PR-034",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_MIXED_SOURCE_AUTHORITY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-7.log",
+        "observed": "The strengthened derived-source test passed 1/1 in 42.81 seconds. It added an explicit mixed-source failure where the first source was readable and the second canonical source was inaccessible, while retaining cross-principal creator denial, producer revoke/regrant identity, all six endpoint denial/regrant checks, and zero read mutation. This builder result does not clear MT109-V16-F01."
       }
     ],
     "resolved_prior_findings": [
@@ -2559,6 +2567,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "exact derivative test passed cross-principal denial, owner post-revocation direct-SELECT denial, identical regrant row, six endpoint denials, and zero GET mutation; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-6.log"
+          },
+          {
+            "attempt": 3,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "strengthened derivative test also passed explicit mixed-source fail-closed with one readable and one inaccessible canonical source, retaining all prior denial/regrant/no-mutation checks; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-7.log"
           }
         ],
         "remaining_remediation": "Compose ordinary reader and producer proposal SELECT with current source-document authority; keep the exact reconciliation-queue service branch separate and bounded. Independently prove denial for all six derivative surfaces and direct proposal SELECT, mixed-source fail-closed behavior, zero mutation during denied reads, unchanged public MemoryPack shape, no proposal-create requirement for read-only users, and identical results after regrant."
