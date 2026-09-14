@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T16:59:02.627Z",
+  "updated_at_utc": "2026-09-14T17:02:29.849Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2722,6 +2722,14 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_AWAITED_STARTUP_RECOVERY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log",
         "observed": "The exact commit-outbox restart test passed 1/1 in 29.99 seconds after awaiting the retained one-shot production startup reconciler before asserting FR-EVT-MEM-003. Exact workspace queue authority, projection recovery, and centralized cleanup/root absence passed. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-059",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_PT_109_2_LEGACY_RETRY_TEARDOWN",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
+        "observed": "The fourth complete api::memory:: four-thread attempt repaired and passed the four previously implicated create-proposal, real-pack-shape, concurrent-workspace-commit, and commit-outbox-recovery tests together. It then exposed a deterministic teardown failure in legacy_retry_heals_missing_receipt_once_and_converges: embedded database shutdown remained draining after 30000 ms and preserved store-01a0a0dd166671b18c6f6cc4e5471917. The suite had not produced a valid final verdict when this failure was recorded."
       }
     ],
     "resolved_prior_findings": [
@@ -2729,8 +2737,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Both focused repairs from the third full-suite failure now pass with explicit centralized cleanup and root absence. The complete suite and independent clean-candidate teardown proof remain missing.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log",
+        "observed_proof": "The four prior implicated tests pass together, but legacy_retry_heals_missing_receipt_once_and_converges now reaches the same deterministic teardown failure and preserves its store. Independent clean-candidate teardown proof remains missing.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -2797,9 +2805,15 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "awaited startup-recovery test passed with explicit centralized cleanup/root absence; complete-suite and independent teardown proof remain pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log"
+          },
+          {
+            "attempt": 12,
+            "status": "FAIL",
+            "observed": "the fourth full-suite attempt exposed cleanup failure in legacy_retry_heals_missing_receipt_once_and_converges; shutdown drained beyond 30000 ms and preserved store-01a0a0dd166671b18c6f6cc4e5471917",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
           }
         ],
-        "remaining_remediation": "Pass the complete suite without a cleanup panic or retained new store, then hand off a clean candidate for independent teardown and filesystem proof."
+        "remaining_remediation": "Identify and release the exact operation/task/lease retained by legacy_retry_heals_missing_receipt_once_and_converges, preserve its behavior assertions, route success and panic through centralized cleanup/root absence, pass the complete suite, then hand off for independent teardown proof."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3118,8 +3132,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Both failures from the third complete-suite attempt now pass in focused builder runs. A valid complete 33-test four-thread verdict and independent proof remain missing.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log",
+        "observed_proof": "All four previously implicated tests pass together in the latest full run, but the suite exposed a new teardown failure in legacy retry and still lacks a valid complete verdict.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3222,9 +3236,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the corrected commit-outbox restart test awaits the retained one-shot production startup reconciler and passes projection plus cleanup; complete 33-test four-thread suite remains required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-3.log"
+          },
+          {
+            "attempt": 18,
+            "status": "FAIL",
+            "observed": "the fourth complete four-thread attempt passed all four previously implicated tests together but then failed deterministic teardown in legacy_retry_heals_missing_receipt_once_and_converges; no valid complete-suite verdict existed when recorded",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
           }
         ],
-        "remaining_remediation": "Pass the complete 33-test api::memory:: suite at four threads and hand off for independent proof."
+        "remaining_remediation": "Repair the legacy-retry teardown without weakening its behavior assertions, then pass the complete 33-test api::memory:: suite at four threads and hand off for independent proof."
       }
     ],
     "independent_findings": [
