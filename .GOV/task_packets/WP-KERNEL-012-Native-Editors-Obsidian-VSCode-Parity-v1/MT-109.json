@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:49:10.1172031Z",
+  "updated_at_utc": "2026-09-14T13:53:57.2832367Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2466,6 +2466,14 @@
         "result": "BUILDER_GATE_FAIL_RECONCILER_PROBE_COMPILE_SCOPE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-13.log",
         "observed": "The fresh-session probe did not compile: Rust E0422 reported RecordUserScope was not found in the test scope. No reconciliation behavior ran."
+      },
+      {
+        "proof_id": "MT109-V16-PR-027",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_RECONCILER_ENUMERATION_FRESH_SESSION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-14.log",
+        "observed": "Granted reconciliation and unchanged denied-state phases passed, then a freshly issued canonical reconciliation authority still enumerated an empty workspace list instead of the one exactly granted workspace. The test failed 0 passed/1 failed in 43.49 seconds at api/memory.rs:4093, disproving the stale-session-only diagnosis."
       }
     ],
     "resolved_prior_findings": [
@@ -2657,9 +2665,16 @@
             "status": "FAIL",
             "observed": "compile error E0422: RecordUserScope was not found in the fresh-session probe test scope; no behavior result",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-13.log"
+          },
+          {
+            "attempt": 12,
+            "failed_attempt_ordinal": 11,
+            "status": "FAIL",
+            "observed": "fresh canonical reconciliation authority still enumerated [] instead of the exactly granted workspace; prior granted reconciliation and denied-state checks passed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-14.log"
           }
         ],
-        "remaining_remediation": "Issue fresh canonical reconciliation authority for the enumeration probe, assert it sees only the exactly granted workspace, revoke the exact queue grant, and assert an immediate empty result with no other workspace visibility. Independently reprove granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
+        "remaining_remediation": "Inspect the fresh record-user session variables, exact queue-grant row, and Workspace SELECT predicate evaluation to identify why a valid service grant does not match; do not change production or the assertion from the empty result alone. Then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
       }
     ],
     "independent_findings": [
