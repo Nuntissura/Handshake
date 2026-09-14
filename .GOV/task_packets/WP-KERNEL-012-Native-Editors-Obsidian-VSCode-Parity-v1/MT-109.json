@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:25:03.655Z",
+  "updated_at_utc": "2026-09-14T18:27:12.330Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -3058,6 +3058,14 @@
         "result": "BUILDER_GREEN_PARTIAL_F01_F05_F06_DERIVATIVE_RECONCILER_PAIR",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-reconciler-pair-1.log",
         "observed": "A shared-process run at --test-threads=4 selected exactly derivative authority and reconciliation isolation and passed 2/2 in 56.03 seconds. The derivative owner proposal completed in 22.656 seconds under the unchanged fixed 30-second client deadline; source denial checks then passed. Reconciliation exact-grant, denied-state, trace, enumeration, and revoke visibility checks passed. This two-test result does not reproduce the full-5 timeout and clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-101",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F01_F06_FIXED_CLIENT_DEADLINE_REPRODUCED",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-1.log",
+        "observed": "The exact four mt109 Memory tests ran together at --test-threads=4 and finalized normally 3/4 in 95.13 seconds. Derivative authority failed its owner proposal at exactly 30003 ms with reqwest TimedOut; diagnostic state was server_finished=false, reconciler_finished=true, leases_in_flight=0. The route denial matrix, reconciliation isolation, and revoke-before-write zero-residue passed. Normal process exit and zero storage leases exclude leaked DB work/deadlock at the failure point and pin the test-only fixed 30-second client deadline under valid contention."
       }
     ],
     "resolved_prior_findings": [
@@ -3325,6 +3333,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "missing-provenance/UTF-8 focused test passes complete behavior and centralized cleanup/root absence; all seven full-5 cleanup paths are now narrowly builder-green, but full-suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log"
+          },
+          {
+            "attempt": 44,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "all four shared-process tests exited normally with no cleanup failure or new surviving root; complete Memory suite and independent cleanup proof remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-1.log"
           }
         ],
         "remaining_remediation": "Pass all repaired paths together in the complete four-thread Memory suite with zero cleanup failures/surviving new roots, commit a clean candidate, and pass independent cleanup/root proof."
@@ -3349,8 +3363,8 @@
         "finding_id": "MT109-V16-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The fifth complete four-thread Memory run invalidated the earlier focused builder green: the derivative authority test timed out during its owner proposal POST under concurrent load. Exact isolation must distinguish a fixed client deadline from a deadlock without weakening authority assertions.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "observed_proof": "Exact four-way load reproduces the derivative POST failure at the fixed 30-second test client deadline with zero storage leases and normal process completion; this is bounded test-harness contention, not a leaked operation/deadlock.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-1.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3405,9 +3419,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "derivative authority passes alongside reconciliation in one four-thread runner; owner proposal completes in 22.656s under unchanged 30s deadline, but exact four-way/full-suite load remains required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-reconciler-pair-1.log"
+          },
+          {
+            "attempt": 10,
+            "status": "FAIL_DIAGNOSIS_CONFIRMED",
+            "observed": "exact four-way shared-process run reproduces derivative owner-proposal timeout at 30003ms with live server, finished reconciler, zero storage leases, normal process exit, and other three authority tests passing; fixed test client deadline is the cause",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-1.log"
           }
         ],
-        "remaining_remediation": "Preserve the full-suite result, isolate the exact derivative proposal timeout under representative four-thread interaction, fix only the observed deadline/deadlock cause without weakening the six endpoint, mixed-source, revoke/regrant, cross-principal, or zero-mutation assertions, then pass focused, full, and independent proof."
+        "remaining_remediation": "Use the existing bounded embedded-storage contention ceiling for the test-only HTTP client, rerun the exact same four-test group with phase timing and unchanged authority assertions, then pass the complete four-thread suite and independent proof."
       },
       {
         "finding_id": "MT109-V16-F02",
@@ -3421,6 +3441,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "exact phased revocation test passed with DENIED_ZERO_RESIDUE after revocation between authorization-ready and proposal transaction; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-source-revocation-4.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "revoke-before-write zero-residue passes in the exact four-way shared-process contention run; independent proof remains required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-1.log"
           }
         ],
         "remaining_remediation": "Independently revoke source authority after authorization and before proposal transaction, then prove denial and zero FEMS, EventLedger, and outbox residue."
@@ -3656,6 +3682,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "reconciliation isolation passes alongside derivative authority in one four-thread runner with denied trace/state and revocation checks intact; independent proof remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-reconciler-pair-1.log"
+          },
+          {
+            "attempt": 20,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "reconciliation exact-grant/denied-state proof passes in the exact four-way shared-process contention run; independent proof remains required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-1.log"
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
@@ -3960,6 +3992,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "two-test derivative+reconciler shared-process run passes 2/2; exact four mt109 tests and complete 33-test four-thread suite remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-reconciler-pair-1.log"
+          },
+          {
+            "attempt": 50,
+            "status": "FAIL",
+            "observed": "exact four mt109 tests finalize 3/4; derivative request hits fixed 30s test deadline while other authority tests pass, so complete 33-test suite remains blocked",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-mt109-fourway-1.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
