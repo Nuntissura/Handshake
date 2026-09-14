@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:42:20.086Z",
+  "updated_at_utc": "2026-09-14T17:46:59.491Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2842,6 +2842,14 @@
         "result": "BUILDER_GATE_FAIL_F08_EXACT_PRINCIPAL_ACCOUNT_MISMATCH_CAPTURED",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-6.log",
         "observed": "The unchanged proposal-list test remained RED 0/1 in 33.60 seconds. Both target-workspace proposals and immediate health probes passed; the first control-workspace proposal returned public HTTP 500 whose internal diagnostic now preserves HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH. This confirms the mapped global principal-key/account conflict. Cleanup passed; no finding is cleared."
+      },
+      {
+        "proof_id": "MT109-V16-PR-074",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F08_PROPOSAL_LIST",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-7.log",
+        "observed": "The exact bounded deterministic workspace-scoped proposal-list test passed 1/1 in 37.28 seconds. One canonical principal/account/space serves target and control workspaces while resource grants remain exact per workspace and source; the workspace isolation assertion and centralized cleanup/root absence pass. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -2989,6 +2997,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "proposal-list narrow-4 retained its control-proposal transaction failure and completed cleanup; other teardown paths and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-4.log"
+          },
+          {
+            "attempt": 24,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "proposal-list focused behavior and centralized teardown/root absence pass; remaining isolated cleanup paths, the complete four-thread suite, and independent proof remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-7.log"
           }
         ],
         "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
@@ -3498,6 +3512,12 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "proposal-list isolation now confirms HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH at the control-workspace fixture; the required complete four-thread suite remains unresolved under F08",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-6.log"
+          },
+          {
+            "attempt": 32,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the corrected proposal-list suite member passes its bounded deterministic workspace-scoped behavior and cleanup; remaining cleanup-isolation tests and the complete 33-test four-thread suite are still required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-7.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3552,8 +3572,8 @@
         "finding_id": "MT109-V16-F08",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Unchanged runtime proof now confirms the first control-workspace authority failure as HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH while both target proposals and health probes pass. The fixture still needs one canonical principal/account/space with exact per-workspace/per-source grants.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-6.log",
+        "observed_proof": "Builder-focused proof passes 1/1 with one canonical principal/account/space, exact per-workspace/per-source grants, bounded deterministic ordering, workspace isolation, and cleanup. Independent committed-SHA proof is still required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-7.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3596,9 +3616,15 @@
             "status": "FAIL_DIAGNOSIS_CONFIRMED",
             "observed": "unchanged runtime captured public 500 with internal HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH on the first control-workspace proposal; both target proposals and immediate health probes passed; cleanup passed",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-6.log"
+          },
+          {
+            "attempt": 8,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "focused proposal-list test passed 1/1 with canonical principal/account/space, exact workspace/source grants, bounded deterministic ordering, control-workspace isolation, and cleanup/root absence",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-7.log"
           }
         ],
-        "remaining_remediation": "Use one canonical principal/account/space across target and control workspaces while retaining exact per-workspace/per-source grants and the workspace-scoping assertions. Remove temporary health probes, pass focused proof, then pass the full four-thread Memory suite and independent clean-SHA proof."
+        "remaining_remediation": "Retain this focused behavior in the complete four-thread Memory suite, commit a clean candidate, and pass independent clean-SHA proof."
       }
     ],
     "independent_findings": [
@@ -3652,7 +3678,7 @@
         "severity": "BLOCKER",
         "blocking": true,
         "discovered_at_utc": "2026-09-14T17:24:26.366Z",
-        "summary": "Runtime confirms the bounded proposal-list control-workspace fixture reuses global principal_key native_editor under a different account and fails HSK-AUTH-PRINCIPAL-ACCOUNT-MISMATCH; canonical principal reuse with exact workspace/source grants remains required."
+        "summary": "Builder-focused proposal-list proof now passes with one canonical principal/account/space, exact workspace/source grants, bounded deterministic ordering, and workspace isolation; clean-SHA independent proof remains required."
       }
     ],
     "remediation_required": {
@@ -3663,7 +3689,7 @@
         "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS.",
         "Resolve MT109-V16-F06 and produce a valid required PT-109-2 full api::memory:: suite pass before candidate handoff.",
         "Resolve MT109-V16-F07 authenticated proposal-route HTTP 400 with exact diagnostic and focused proof before candidate handoff.",
-        "Resolve MT109-V16-F08 by reusing one canonical principal/account/space across target and control workspaces while retaining exact per-workspace/per-source grants and bounded workspace-scoping proof."
+        "Retain the MT109-V16-F08 builder-green proposal-list behavior in the complete four-thread Memory suite, then provide a clean committed candidate for independent proof."
       ]
     },
     "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All ten blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
