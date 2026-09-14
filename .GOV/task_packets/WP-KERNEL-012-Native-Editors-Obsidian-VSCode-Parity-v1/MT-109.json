@@ -3298,6 +3298,14 @@
         "result": "BUILDER_GATE_ACTIVE_FAIL_F29_F30_F31_F32_PT_109_1_CLEANUP",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
         "observed": "The active required PT-109-1 run added four cleanup-only failures after test-body teardown: F29 preserved store-01a0a1a1a2d97191abc5d5559d9f5a1e; F30 preserved store-01a0a1a1e7657b238ad28e32ffa4a9bc; F31 preserved store-01a0a1a212337fd396dadef95b31fc01; F32 preserved store-01a0a1a22fb776f29f02c0639f8e7620. Each embedded shutdown remained draining after 30000 ms at storage/tests.rs:177. The run remains active and natural-exit result must be appended separately."
+      },
+      {
+        "proof_id": "MT109-V16-PR-131",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_ACTIVE_FAIL_F33_F34_F35_F36_F37_PT_109_1_CLEANUP",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "observed": "The active required PT-109-1 run added five cleanup-only failures after test-body teardown: F33 preserved store-01a0a1a2c38d7cd19ae3a730674fcd66; F34 store-01a0a1a309b17982bffde74b45a62fc5; F35 store-01a0a1a34e0872719c63358345ed8951; F36 store-01a0a1a397607bd3b9f6ea89ac0b8255; F37 store-01a0a1a3ded875b1abfdbbc6ce279622. Each embedded shutdown remained draining after 30000 ms at storage/tests.rs:177. The run remains active and natural-exit result must be appended separately."
       }
     ],
     "resolved_prior_findings": [
@@ -3727,6 +3735,12 @@
             "status": "FAIL",
             "observed": "active Flight Recorder suite now has four further cleanup-only timeouts after body teardown; exact F29-F32 stores preserved and final inventory pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 71,
+            "status": "FAIL",
+            "observed": "active Flight Recorder suite now has five further cleanup-only timeouts after body teardown; exact F33-F37 stores preserved and final inventory pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
           }
         ],
         "remaining_remediation": "Commit a clean candidate, then independently rerun required Memory and focused teardown gates and verify no cleanup marker plus physical absence of every validator-owned success store."
@@ -3772,6 +3786,12 @@
             "attempt": 6,
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "F29-F32 failed-run stores are under configured MT-109/kb-v17/runtime; independent root proof and final inventory pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          },
+          {
+            "attempt": 7,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "F33-F37 failed-run stores are under configured MT-109/kb-v17/runtime; independent root proof and final inventory pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
           }
         ],
@@ -5417,6 +5437,86 @@
           }
         ],
         "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_decomposed_unicode_retry_matches_normalized_store to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
+      },
+      {
+        "finding_id": "MT109-V16-F33",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The required PT-109-1 run reaches teardown for native_editor_event_handler_fails_closed, then embedded shutdown remains draining after 30000 ms and preserves store-01a0a1a2c38d7cd19ae3a730674fcd66.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL_ACTIVE_RUN",
+            "observed": "native_editor_event_handler_fails_closed reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a2c38d7cd19ae3a730674fcd66; full run natural exit pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          }
+        ],
+        "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_event_handler_fails_closed to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
+      },
+      {
+        "finding_id": "MT109-V16-F34",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The required PT-109-1 run reaches teardown for native_editor_event_round_trips_and_mirrors_to_ledger, then embedded shutdown remains draining after 30000 ms and preserves store-01a0a1a309b17982bffde74b45a62fc5.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL_ACTIVE_RUN",
+            "observed": "native_editor_event_round_trips_and_mirrors_to_ledger reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a309b17982bffde74b45a62fc5; full run natural exit pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          }
+        ],
+        "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_event_round_trips_and_mirrors_to_ledger to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
+      },
+      {
+        "finding_id": "MT109-V16-F35",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The required PT-109-1 run reaches teardown for native_editor_handler_accepts_all_documented_kinds_and_persists_each, then embedded shutdown remains draining after 30000 ms and preserves store-01a0a1a34e0872719c63358345ed8951.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL_ACTIVE_RUN",
+            "observed": "native_editor_handler_accepts_all_documented_kinds_and_persists_each reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a34e0872719c63358345ed8951; full run natural exit pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          }
+        ],
+        "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_handler_accepts_all_documented_kinds_and_persists_each to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
+      },
+      {
+        "finding_id": "MT109-V16-F36",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The required PT-109-1 run reaches teardown for native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation, then embedded shutdown remains draining after 30000 ms and preserves store-01a0a1a397607bd3b9f6ea89ac0b8255.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL_ACTIVE_RUN",
+            "observed": "native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a397607bd3b9f6ea89ac0b8255; full run natural exit pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          }
+        ],
+        "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
+      },
+      {
+        "finding_id": "MT109-V16-F37",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The required PT-109-1 run reaches teardown for native_editor_handler_rejects_every_documented_payload_boundary_corruption, then embedded shutdown remains draining after 30000 ms and preserves store-01a0a1a3ded875b1abfdbbc6ce279622.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL_ACTIVE_RUN",
+            "observed": "native_editor_handler_rejects_every_documented_payload_boundary_corruption reaches teardown, then cleanup times out after 30000ms and preserves store-01a0a1a3ded875b1abfdbbc6ce279622; full run natural exit pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-2.log"
+          }
+        ],
+        "remaining_remediation": "After natural exit, preserve body outcome and store; convert only native_editor_handler_rejects_every_documented_payload_boundary_corruption to panic-preserving explicit task/state shutdown plus centralized cleanup, prove focused behavior/root absence, rerun full PT-109-1 at four threads, then pass independent clean-candidate proof."
       }
     ],
     "independent_findings": [
@@ -5639,6 +5739,41 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T20:38:43.641055Z",
         "summary": "PT-109-1 decomposed-Unicode retry normalization reaches teardown but fails 30-second embedded-store cleanup and preserves its runtime store."
+      },
+      {
+        "id": "MT109-V16-F33",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T20:39:50.780122Z",
+        "summary": "PT-109-1 native-editor handler fail-closed proof reaches teardown but fails 30-second embedded-store cleanup and preserves its runtime store."
+      },
+      {
+        "id": "MT109-V16-F34",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T20:39:50.780122Z",
+        "summary": "PT-109-1 native-editor round-trip/EventLedger mirror proof reaches teardown but fails 30-second embedded-store cleanup and preserves its runtime store."
+      },
+      {
+        "id": "MT109-V16-F35",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T20:39:50.780122Z",
+        "summary": "PT-109-1 all documented native-editor kinds proof reaches teardown but fails 30-second embedded-store cleanup and preserves its runtime store."
+      },
+      {
+        "id": "MT109-V16-F36",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T20:39:50.780122Z",
+        "summary": "PT-109-1 correlated stage payload boundary proof reaches teardown but fails 30-second embedded-store cleanup and preserves its runtime store."
+      },
+      {
+        "id": "MT109-V16-F37",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T20:39:50.780122Z",
+        "summary": "PT-109-1 documented payload corruption rejection proof reaches teardown but fails 30-second embedded-store cleanup and preserves its runtime store."
       }
     ],
     "remediation_required": {
@@ -5673,9 +5808,14 @@
         "Resolve MT109-V16-F29 with explicit owned-task/state teardown for native_editor_canonical_uuid_and_timestamp_spellings_converge, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior.",
         "Resolve MT109-V16-F30 with explicit owned-task/state teardown for native_editor_completion_with_corrupt_hash_cannot_suppress_recovery, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior.",
         "Resolve MT109-V16-F31 with explicit owned-task/state teardown for native_editor_concurrent_same_id_converges_once_in_both_stores, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior.",
-        "Resolve MT109-V16-F32 with explicit owned-task/state teardown for native_editor_decomposed_unicode_retry_matches_normalized_store, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior."
+        "Resolve MT109-V16-F32 with explicit owned-task/state teardown for native_editor_decomposed_unicode_retry_matches_normalized_store, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior.",
+        "Resolve MT109-V16-F33 with explicit owned-task/state teardown for native_editor_event_handler_fails_closed, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior.",
+        "Resolve MT109-V16-F34 with explicit owned-task/state teardown for native_editor_event_round_trips_and_mirrors_to_ledger, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior.",
+        "Resolve MT109-V16-F35 with explicit owned-task/state teardown for native_editor_handler_accepts_all_documented_kinds_and_persists_each, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior.",
+        "Resolve MT109-V16-F36 with explicit owned-task/state teardown for native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior.",
+        "Resolve MT109-V16-F37 with explicit owned-task/state teardown for native_editor_handler_rejects_every_documented_payload_boundary_corruption, preserving its behavior assertions; then prove focused cleanup, full PT-109-1, and independent clean-SHA behavior."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Thirty-four blocking finding IDs are unresolved; PT-109-1 is still active with eleven observed cleanup failures, and builder greens clear no finding."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Thirty-nine blocking finding IDs are unresolved; PT-109-1 is still active with sixteen observed cleanup failures, and builder greens clear no finding."
   }
 }
