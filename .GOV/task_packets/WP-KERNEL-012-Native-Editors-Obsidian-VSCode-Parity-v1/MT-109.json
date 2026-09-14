@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:19:53.471Z",
+  "updated_at_utc": "2026-09-14T18:20:41.572Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2978,6 +2978,22 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F10_POST_INSERT_ROLLBACK",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log",
         "observed": "The corrected focused rollback test passed 1/1 in 20.06 seconds. It uses a real RichDocument, exact proposal/source scope, a production-derived canonical artifact, asserts the exact injected forced failure after proposal insert, proves zero proposal and receipt residue, and completes centralized cleanup/root absence. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-091",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "INDEPENDENT_SOURCE_FAIL_F11_MALFORMED_COMMITTED_ITEM_PROOF",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-cannot-mutate-narrow-1.log",
+        "observed": "Diff inspection found the prior proposal_cannot_mutate_committed_memory fixture seeded only memory_id, memory_class, and content. The canonical MemoryPackItem reader requires fields including type; after proposal creation, get_memory_item could return Serialization(\"missing field `type`\") before the byte-unchanged assertion. Fallback cleanup then masked that body error. This is a distinct proof-validity blocker."
+      },
+      {
+        "proof_id": "MT109-V16-PR-092",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F11_NO_MUTATION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-cannot-mutate-narrow-1.log",
+        "observed": "The corrected focused no-mutation test passed 1/1 in 20.87 seconds. It seeds a complete source-backed MemoryPackItem, creates an exact-authorized pending proposal, proves the committed item is byte-identical and count unchanged, proves proposal remains pending_review, and completes centralized cleanup/root absence. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -3215,6 +3231,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "corrected post-insert rollback test passes its exact behavior and centralized cleanup/root absence; five other full-5 cleanup paths and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log"
+          },
+          {
+            "attempt": 39,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "corrected no-mutation test passes complete behavior and centralized cleanup/root absence; four other full-5 cleanup paths and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-cannot-mutate-narrow-1.log"
           }
         ],
         "remaining_remediation": "For each of the seven new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
@@ -3802,6 +3824,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "corrected rollback suite member reaches exact post-insert forced failure, proves zero proposal/receipt residue, and cleans its store; remaining focused/full-suite work remains",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-insert-rollback-narrow-1.log"
+          },
+          {
+            "attempt": 44,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "corrected no-mutation suite member proves source-backed committed item bytes/count unchanged and proposal pending-only, with cleanup; remaining focused/full-suite work remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-cannot-mutate-narrow-1.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
@@ -3989,6 +4017,28 @@
           }
         ],
         "remaining_remediation": "Retain exact post-insert marker reachability and zero-residue assertions in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
+      },
+      {
+        "finding_id": "MT109-V16-F11",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The prior no-mutation proof used a malformed committed item and could stop on missing-field deserialization before checking unchanged bytes/count. Builder-focused corrected proof passes with a complete source-backed item, but independent committed-SHA proof remains required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-cannot-mutate-narrow-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL_SOURCE_REVIEW",
+            "observed": "prior committed fixture omitted canonical MemoryPackItem fields including type, so get_memory_item could fail deserialization before byte-unchanged assertion and fallback cleanup masked the body result",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-cannot-mutate-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "corrected focused test passes with a complete source-backed MemoryPackItem, exact-authorized pending proposal, byte-identical committed row, unchanged count, pending-only status, and cleanup/root absence",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-cannot-mutate-narrow-1.log"
+          }
+        ],
+        "remaining_remediation": "Retain the complete item, exact authority, byte-identity, count, and pending-only assertions in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
       }
     ],
     "independent_findings": [
@@ -4057,6 +4107,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T18:19:53.471Z",
         "summary": "The rollback proof previously could pass on invalid provenance/artifact before reaching the intended injected post-insert failure; builder-focused corrected proof is green pending independent verification."
+      },
+      {
+        "id": "MT109-V16-F11",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T18:20:41.572Z",
+        "summary": "The no-mutation proof previously used a malformed committed item and could fail before its unchanged-byte/count assertions; builder-focused corrected proof is green pending independent verification."
       }
     ],
     "remediation_required": {
@@ -4069,7 +4126,8 @@
         "Resolve MT109-V16-F07 authenticated proposal-route HTTP 400 with exact diagnostic and focused proof before candidate handoff.",
         "Retain the MT109-V16-F08 builder-green proposal-list behavior in the complete four-thread Memory suite, then provide a clean committed candidate for independent proof.",
         "Resolve MT109-V16-F09 by giving the outbox-retry fixture only its exact current source/workspace/proposal authority, then prove injected 500, retry recovery, and no duplicate event without weakening authorization.",
-        "Retain MT109-V16-F10 exact post-insert failure reachability and zero proposal/receipt residue in the complete Memory suite, then provide clean-SHA independent proof."
+        "Retain MT109-V16-F10 exact post-insert failure reachability and zero proposal/receipt residue in the complete Memory suite, then provide clean-SHA independent proof.",
+        "Retain MT109-V16-F11 complete source-backed item and exact unchanged-byte/count/pending-only proof in the complete Memory suite, then provide clean-SHA independent proof."
       ]
     },
     "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All ten blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
