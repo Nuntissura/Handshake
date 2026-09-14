@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T21:15:40.802Z",
+  "updated_at_utc": "2026-09-14T21:19:05.286Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -3426,6 +3426,14 @@
         "result": "BUILDER_RED_PT109_1_FULL_3_39_OF_40_F46_ONLY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log",
         "observed": "Required PT-109-1 full-3 completed normally with 39 passed, 1 failed, 2166 filtered, 553.96 seconds, exit 101. The sole failure is MT109-V16-F46 at flight_recorder.rs:2731. No cleanup timeout and no abnormal process crash occurred. SHA-256 16BAF914840192AD8426551691806EF71A58E05F021E00EC1A0AAA100FFF1165. This builder run gives passing coverage for prior PT-109-1 behavior/cleanup blockers but does not clear any official finding before clean-candidate independent proof."
+      },
+      {
+        "proof_id": "MT109-V16-PR-147",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "BUILDER_RED_F46_DIAGNOSTIC_COMPILE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-1.log",
+        "observed": "Focused F46 diagnostic did not reach behavior: Rust E0277 at flight_recorder.rs:2732 because temporary eprintln formatting required Debug for ErrorResponse. The log is unique and has SHA-256 C4BD5050408C96814ABC8C7C4ED3821C91FC7F65D0F02CABAC703CA8F4B3EA1C. This is an instrumentation compile error under the existing F46 finding, not a distinct product defect."
       }
     ],
     "resolved_prior_findings": [
@@ -6086,6 +6094,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "new PT-109-1 evidence used unique checked-absent log pt-109-1-flight-recorder-full-3.log; inspected final SHA-256 16BAF914840192AD8426551691806EF71A58E05F021E00EC1A0AAA100FFF1165; broader cited-log inventory and independent clean-candidate evidence remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
+          },
+          {
+            "attempt": 4,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "failed diagnostic evidence was preserved under new unique filename with inspected SHA-256 C4BD5050408C96814ABC8C7C4ED3821C91FC7F65D0F02CABAC703CA8F4B3EA1C; full inventory and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-1.log"
           }
         ],
         "remaining_remediation": "Preserve the overwritten file as observed. Use verified unique immutable log paths for every subsequent builder and validator attempt. Before clean-SHA acceptance, enumerate every cited resolution log, prove no path reuse/overwrite, and independently rerun the affected schema proof."
@@ -6108,6 +6122,12 @@
             "status": "FAIL",
             "observed": "full run completed 39/40; sole failure panicked at flight_recorder.rs:2731 because same event_id with changed pane did not conflict; no cleanup timeout or crash masked the behavior",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-1-flight-recorder-full-3.log"
+          },
+          {
+            "attempt": 3,
+            "status": "FAIL_BUILD_BLOCKED",
+            "observed": "diagnostic instrumentation failed to compile with E0277 because ErrorResponse lacks Debug; no behavior result",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/fr-mutated-envelope-f46-diagnostic-1.log"
           }
         ],
         "remaining_remediation": "Inspect the exact changed-pane response and persisted canonical identity, identify why the same event_id mutation does not conflict, repair the smallest product or fixture cause without weakening identity or replay semantics, pass the focused test and complete PT-109-1, then reprove independently on the clean candidate."
@@ -6482,6 +6502,6 @@
         "Resolve MT109-V16-F46 by diagnosing the exact changed-pane response and stored canonical identity for the same event_id, repairing the smallest product or fixture cause without weakening replay conflict semantics, and passing focused, full PT-109-1, and independent clean-candidate proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-eight blocking finding IDs remain officially unresolved. PT-109-1 full-3 now exits normally and passes 39/40 with no cleanup failure; MT109-V16-F46 is its sole behavior failure. The reused schema-log claim remains invalid pending final inventory and independent proof."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-eight blocking finding IDs remain officially unresolved. PT-109-1 full-3 is 39/40 with F46; its first focused diagnostic was compile-blocked by temporary formatting and produced no behavior result. The reused schema-log claim remains invalid pending final inventory and independent proof."
   }
 }
