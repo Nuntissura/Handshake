@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:02:12.7980022Z",
+  "updated_at_utc": "2026-09-14T13:04:35.2106215Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2362,6 +2362,14 @@
         "result": "BUILDER_GATE_FAIL_DECLARATIVE_SCHEMA_CATALOG_HASH",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-3.log",
         "observed": "After the count correction, the declarative schema catalog gate failed 0 passed/1 failed because observed hash 9881bff3f6bd7d02797fb95c88ad51f1ae6f19777f89477e3285cc014c37d014 did not match prior expected 9be374863e6e9cf4784d47d379a59f6d75742da608109b1ef8da0b80d71f9cb8."
+      },
+      {
+        "proof_id": "MT109-V16-PR-014",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_CURRENT_SCHEMA_INFO_HASH",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-2.log",
+        "observed": "The declarative pin predecessor passed in schema-declarative-pin-4.log, then mt139_current_schema_info_pin_matches_fresh_mem_catalog failed 0 passed/1 failed because observed fresh-catalog hash 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024 did not match expected b877e7c359d296223e4f6c352bde71b5ed05c13ea71901cb9019a9c7a42e4c4e."
       }
     ],
     "resolved_prior_findings": [
@@ -2415,9 +2423,15 @@
             "status": "FAIL",
             "observed": "declarative catalog hash mismatch: observed 9881bff3f6bd7d02797fb95c88ad51f1ae6f19777f89477e3285cc014c37d014; expected 9be374863e6e9cf4784d47d379a59f6d75742da608109b1ef8da0b80d71f9cb8",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-declarative-pin-3.log"
+          },
+          {
+            "attempt": 3,
+            "status": "FAIL",
+            "observed": "declarative pin passed; fresh current-schema hash observed 3ad48bfddd40f65eabd2141ac2a6698c6f242c75540defd347cfb7674ca84024 vs expected b877e7c359d296223e4f6c352bde71b5ed05c13ea71901cb9019a9c7a42e4c4e",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-2.log"
           }
         ],
-        "remaining_remediation": "Derive and update the declarative hash from the current intended schema bytes, then rerun the focused catalog gate. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
+        "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh intended schema catalog, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
       },
       {
         "finding_id": "MT109-V16-F04",
