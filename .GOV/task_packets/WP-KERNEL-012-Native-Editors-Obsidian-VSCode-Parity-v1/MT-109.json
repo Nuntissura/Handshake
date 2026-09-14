@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:03:52.685Z",
+  "updated_at_utc": "2026-09-14T17:05:07.989Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2738,6 +2738,14 @@
         "result": "BUILDER_GATE_FAIL_PT_109_2_ADDITIONAL_TEARDOWN_AND_ROUTE_BEHAVIOR",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "observed": "The still-running fourth complete suite exposed two more deterministic teardown failures: list_proposals_is_bounded_deterministic_and_workspace_scoped preserved store-01a0a0dd75477692b46c1e4541d582c1, and loom_block_reference_proposal_accepts_only_an_existing_exact_canonical_address preserved store-01a0a0ddd9a17432a3117f1a9db168fa after shutdown drained beyond 30000 ms. It also exposed a distinct positive-path failure: memory_routes_require_live_binding_ignore_spoofed_actor_and_audit_decisions received HTTP 400 where the authenticated exact-source proposal expected HTTP 200 at api/memory.rs:2744."
+      },
+      {
+        "proof_id": "MT109-V16-PR-061",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_PT_109_2_MEMORY_SUITE_FOURTH_FINAL",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
+        "observed": "The fourth complete api::memory:: four-thread attempt finalized without a suite verdict and exited 0xc0000409 STATUS_STACK_BUFFER_OVERRUN. In addition to the earlier recorded failures, the authenticated-route test cleanup preserved store-01a0a0de3c587bf09380021d3eae39fb after its HTTP 400 body failure, and memory_pack_and_item_ids_cannot_be_reassigned_across_workspaces preserved store-01a0a0dde7f973019321112f9917db99. The run preserved five new stores total."
       }
     ],
     "resolved_prior_findings": [
@@ -2745,7 +2753,7 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The fourth full-suite attempt has now exposed deterministic teardown failure in legacy retry, bounded proposal listing, and exact Loom-block reference tests; three new stores were preserved. Independent clean-candidate teardown proof remains missing.",
+        "observed_proof": "The finalized fourth complete-suite attempt preserved five new stores across cleanup failures and exited abnormally. Deterministic teardown remains unresolved.",
         "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "resolution_attempts": [
           {
@@ -2825,9 +2833,15 @@
             "status": "FAIL",
             "observed": "same full run exposed two more cleanup failures: list-proposals preserved store-01a0a0dd75477692b46c1e4541d582c1 and loom-block-reference preserved store-01a0a0ddd9a17432a3117f1a9db168fa after 30000 ms draining",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          },
+          {
+            "attempt": 14,
+            "status": "FAIL",
+            "observed": "finalized full-4 added cleanup failures in the authenticated live-binding route (store-01a0a0de3c587bf09380021d3eae39fb) and memory-pack/item ID reassignment test (store-01a0a0dde7f973019321112f9917db99); five new stores total were preserved before abnormal exit",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
           }
         ],
-        "remaining_remediation": "Identify and release each exact operation/task/lease retained by legacy retry, bounded proposal listing, and exact Loom-block reference tests; preserve behavior assertions, route success and panic through centralized cleanup/root absence, pass the complete suite, then hand off for independent teardown proof."
+        "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3146,7 +3160,7 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The fourth complete-suite attempt remains invalid after exposing three teardown failures and an authenticated proposal route returning HTTP 400 instead of 200.",
+        "observed_proof": "The fourth complete api::memory:: four-thread attempt finalized RED with no valid verdict, one authenticated-route behavior failure, five preserved stores, and exit 0xc0000409.",
         "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "resolution_attempts": [
           {
@@ -3262,15 +3276,21 @@
             "status": "FAIL",
             "observed": "the fourth complete four-thread attempt exposed two additional teardown failures and a positive authenticated-route behavior failure (HTTP 400 instead of 200); the suite still has no valid complete verdict",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          },
+          {
+            "attempt": 20,
+            "status": "FAIL",
+            "observed": "the fourth full suite finalized without a verdict and exited 0xc0000409 after one HTTP 400 body failure and five deterministic cleanup failures/preserved stores",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
           }
         ],
-        "remaining_remediation": "Repair all full-4 observed failures without weakening behavior, authority, concurrency, or cleanup assertions, then pass the complete 33-test api::memory:: suite at four threads and hand off for independent proof."
+        "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
       },
       {
         "finding_id": "MT109-V16-F07",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "memory_routes_require_live_binding_ignore_spoofed_actor_and_audit_decisions received HTTP 400 for its authenticated positive proposal request where the test required HTTP 200.",
+        "observed_proof": "The authenticated route returned HTTP 400 instead of 200 and its failure path also preserved the backing store after teardown timed out.",
         "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "resolution_attempts": [
           {
@@ -3278,9 +3298,15 @@
             "status": "FAIL",
             "observed": "authenticated exact-source proposal positive path returned HTTP 400 at api/memory.rs:2744 instead of storing the proposal and proving the live session identity overrides spoofed actor headers/body",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL",
+            "observed": "after the authenticated proposal returned HTTP 400, fallback teardown also drained beyond 30000 ms and preserved store-01a0a0de3c587bf09380021d3eae39fb; exact public error body remains required for diagnosis",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
           }
         ],
-        "remaining_remediation": "Capture the exact 400 response body and diagnose the request/fixture against current canonical source identity and authority. Repair without weakening the live-binding or spoofed-actor assertions, pass the focused test, then independently rerun on the committed candidate."
+        "remaining_remediation": "Capture the exact 400 response body and diagnose the request/fixture against current canonical source identity and authority. Repair without weakening live-binding or spoofed-actor assertions, add panic-preserving centralized cleanup/root absence, pass the focused test, then independently rerun on the committed candidate."
       }
     ],
     "independent_findings": [
