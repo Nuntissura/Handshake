@@ -3178,6 +3178,14 @@
         "result": "BUILDER_GREEN_PARTIAL_V15_F01_F06_F18_SIMULTANEOUS_RETRIES",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log",
         "observed": "The corrected focused simultaneous-retries test passed 1/1 in 32.67 seconds. Both handler futures enter cloned copies of one exact proposal/source scope and remain concurrent; durable state converges to one proposal and one receipt, and explicit cleanup passes. Full-suite and independent clean-candidate proof remain required."
+      },
+      {
+        "proof_id": "MT109-V16-PR-116",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F19_WORKSPACE_CLEANUP_PROOF_UNAUTHORIZED",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-1.log",
+        "observed": "The focused workspace-memory cleanup test selected one and failed because its target-workspace proposal returned 403 HSK-403-PROTECTED-RESOURCE before deletion scoping and receipt-preservation assertions. Explicit centralized cleanup succeeded. Source inspection found that both workspaces and sources existed but neither direct proposal call had exact proposal/source authority."
       }
     ],
     "resolved_prior_findings": [
@@ -3529,6 +3537,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused simultaneous-retries test passes explicit cleanup/root absence; remaining teardown cases/full suite and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log"
+          },
+          {
+            "attempt": 58,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "focused workspace cleanup test completes explicit cleanup without cleanup failure; product proof is blocked at authority and independent cleanup proof remains",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit `_store` tests to the existing panic-preserving body plus explicit owner drop and finish_mt109_memory_test teardown; prove each focused if needed, rerun all 33 at four threads, then independently verify no cleanup marker and physical root absence."
@@ -4344,6 +4358,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "focused simultaneous retry convergence and cleanup pass; other converted teardown cases and full Memory suite remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/simultaneous-retries-narrow-2.log"
+          },
+          {
+            "attempt": 65,
+            "status": "FAIL",
+            "observed": "focused workspace cleanup test target proposal returns 403 before deletion-scoping and preservation assertions; full suite remains blocked",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-1.log"
           }
         ],
         "remaining_remediation": "Convert exactly the eight remaining implicit teardown cases, then pass the complete 33-test api::memory:: suite at --test-threads=4 with clean exit and independently rerun it from the committed candidate."
@@ -4761,6 +4781,22 @@
           }
         ],
         "remaining_remediation": "Retain independent scope entry for both concurrent futures, convergence bounds, and explicit cleanup in the complete Memory suite; commit a clean candidate and pass independent proof."
+      },
+      {
+        "finding_id": "MT109-V16-F19",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The workspace-memory cleanup proof cannot reach deletion scoping, control preservation, or target receipt preservation because the target proposal is denied 403 HSK-403-PROTECTED-RESOURCE. Prior implicit teardown failure masked this separate stale fixture.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "valid focused test fails before workspace cleanup assertions: target proposal returns 403 HSK-403-PROTECTED-RESOURCE; explicit cleanup succeeds",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/workspace-memory-cleanup-narrow-1.log"
+          }
+        ],
+        "remaining_remediation": "Provision disjoint exact proposal/source scopes with distinct principals for target and control workspaces and apply each only to its proposal call; retain target deletion scope, control preservation, target receipt preservation, explicit cleanup/root absence, complete Memory-suite proof, and independent clean-candidate proof."
       }
     ],
     "independent_findings": [
@@ -4885,6 +4921,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T19:37:44.900393Z",
         "summary": "The simultaneous retry convergence proof is unreachable because its concurrent creates lack exact protected-resource authority; prior cleanup failure masked the fixture defect."
+      },
+      {
+        "id": "MT109-V16-F19",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T19:41:51.246879Z",
+        "summary": "The workspace-memory cleanup proof is unreachable because target/control proposal calls lack exact protected-resource authority; prior cleanup failure masked the fixture defect."
       }
     ],
     "remediation_required": {
@@ -4905,9 +4948,10 @@
         "Resolve MT109-V16-F15 by giving the corrupt-receipt fixture only exact current proposal/source authority, then prove corrupt receipt rejection, new retry headers, cleanup, full-suite behavior, and independent clean-SHA proof.",
         "Resolve MT109-V16-F16 with only exact proposal/source authority under one stable scope, then prove Surreal identity/retry single-row convergence, cleanup, full-suite behavior, and independent clean-SHA proof.",
         "Resolve MT109-V16-F17 with only exact proposal/source authority under one stable scope, then prove rich replay snapshot-drift rejections, durable-row/receipt bounds, cleanup, full-suite behavior, and independent clean-SHA proof.",
-        "Resolve MT109-V16-F18 with one exact proposal/source scope independently applied to both concurrent futures, then prove simultaneous one-row/one-receipt convergence, cleanup, full-suite behavior, and independent clean-SHA proof."
+        "Resolve MT109-V16-F18 with one exact proposal/source scope independently applied to both concurrent futures, then prove simultaneous one-row/one-receipt convergence, cleanup, full-suite behavior, and independent clean-SHA proof.",
+        "Resolve MT109-V16-F19 with disjoint exact target/control proposal-source scopes, then prove scoped deletion, control and receipt preservation, cleanup, full-suite behavior, and independent clean-SHA proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All twenty blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All twenty-one blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
