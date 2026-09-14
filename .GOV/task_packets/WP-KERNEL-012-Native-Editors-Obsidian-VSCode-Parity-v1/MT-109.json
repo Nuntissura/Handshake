@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:31:34.7520098Z",
+  "updated_at_utc": "2026-09-14T13:38:33.0314397Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2418,6 +2418,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_MEMORY_RECONCILIATION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-11.log",
         "observed": "The exact service test passed 1/1 in 36.31 seconds. The denied trace baseline and after snapshots contained the identical single pre-existing MemoryWriteProposed event with the same ID, type, and payload; the denied proposal/memory/outbox/anchor/ledger snapshot was unchanged and the granted workspace drained. This builder result does not clear MT109-V16-F05."
+      },
+      {
+        "proof_id": "MT109-V16-PR-021",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_PRODUCER_SOURCE_REVOCATION_SELECT",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-5.log",
+        "observed": "The exact derived-source test failed 0 passed/1 failed in 37.47 seconds at api/memory.rs:3645 because the proposal producer retained direct proposal visibility after current source authority was revoked. The cross-principal proposal-creator denial preceding this assertion passed."
       }
     ],
     "resolved_prior_findings": [
@@ -2441,9 +2449,17 @@
         "finding_id": "MT109-V16-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Direct source review found proposal list/detail/artifact, pack, item-count, and commit-report readers could expose source-derived content to a principal with memory-object grants but no current source-document grant. A later builder-owned exact test is diagnostic only.",
-        "test_or_log": "builder diagnostic ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-4.log",
-        "remaining_remediation": "Independently prove denial for all six derivative surfaces, mixed-source fail-closed behavior, zero mutation during denied reads, unchanged public MemoryPack shape, no proposal-create requirement for read-only users, and identical results after regrant."
+        "observed_proof": "Direct source review found proposal list/detail/artifact, pack, item-count, and commit-report readers could expose source-derived content to a principal with memory-object grants but no current source-document grant. A later negative proved the new producer SELECT predicate also retained direct proposal visibility after source revocation.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-4.log and MT109-V16-PR-021",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "proposal producer retained direct proposal SELECT after current source authority was revoked; cross-principal proposal-creator denial passed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-derivative-5.log"
+          }
+        ],
+        "remaining_remediation": "Compose ordinary reader and producer proposal SELECT with current source-document authority; keep the exact reconciliation-queue service branch separate and bounded. Independently prove denial for all six derivative surfaces and direct proposal SELECT, mixed-source fail-closed behavior, zero mutation during denied reads, unchanged public MemoryPack shape, no proposal-create requirement for read-only users, and identical results after regrant."
       },
       {
         "finding_id": "MT109-V16-F02",
