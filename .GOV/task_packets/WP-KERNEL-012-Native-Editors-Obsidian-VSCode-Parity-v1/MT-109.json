@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:05:07.989Z",
+  "updated_at_utc": "2026-09-14T17:10:50.283Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2746,6 +2746,14 @@
         "result": "BUILDER_GATE_FAIL_PT_109_2_MEMORY_SUITE_FOURTH_FINAL",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
         "observed": "The fourth complete api::memory:: four-thread attempt finalized without a suite verdict and exited 0xc0000409 STATUS_STACK_BUFFER_OVERRUN. In addition to the earlier recorded failures, the authenticated-route test cleanup preserved store-01a0a0de3c587bf09380021d3eae39fb after its HTTP 400 body failure, and memory_pack_and_item_ids_cannot_be_reassigned_across_workspaces preserved store-01a0a0dde7f973019321112f9917db99. The run preserved five new stores total."
+      },
+      {
+        "proof_id": "MT109-V16-PR-062",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F07_EXACT_ROUTE_DIAGNOSTIC",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-1.log",
+        "observed": "The exact authenticated live-binding route test failed 0/1 in 30.65 seconds. Its captured HTTP 400 body was bad_request: proposal provenance document_id does not resolve to a rich document, a canonical code source, or a Loom block in this workspace. The fixture created the rich source only after the bound session helper had granted the then-existing protected resources, so the current source Read grant was absent. Panic-preserving centralized cleanup succeeded; no cleanup failure replaced the body diagnostic."
       }
     ],
     "resolved_prior_findings": [
@@ -2839,6 +2847,12 @@
             "status": "FAIL",
             "observed": "finalized full-4 added cleanup failures in the authenticated live-binding route (store-01a0a0de3c587bf09380021d3eae39fb) and memory-pack/item ID reassignment test (store-01a0a0dde7f973019321112f9917db99); five new stores total were preserved before abnormal exit",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          },
+          {
+            "attempt": 15,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the exact live-binding route failure preserved its real HTTP 400 body and completed centralized cleanup without a cleanup-failure marker; other full-suite teardown failures and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-1.log"
           }
         ],
         "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
@@ -3282,6 +3296,12 @@
             "status": "FAIL",
             "observed": "the fourth full suite finalized without a verdict and exited 0xc0000409 after one HTTP 400 body failure and five deterministic cleanup failures/preserved stores",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          },
+          {
+            "attempt": 21,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "exact isolation captured F07 as a missing current source grant caused by fixture ordering; cleanup passed, but the route behavior and complete suite remain unresolved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-1.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3290,8 +3310,8 @@
         "finding_id": "MT109-V16-F07",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The authenticated route returned HTTP 400 instead of 200 and its failure path also preserved the backing store after teardown timed out.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
+        "observed_proof": "Exact isolation proves the HTTP 400 comes from missing current source authority in fixture order: the bound session was provisioned before the rich source existed. Cleanup now preserves the body diagnostic.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-1.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3304,9 +3324,15 @@
             "status": "FAIL",
             "observed": "after the authenticated proposal returned HTTP 400, fallback teardown also drained beyond 30000 ms and preserved store-01a0a0de3c587bf09380021d3eae39fb; exact public error body remains required for diagnosis",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log"
+          },
+          {
+            "attempt": 3,
+            "status": "FAIL",
+            "observed": "exact HTTP 400 body says document_id resolves to none of rich document, canonical code source, or Loom block; fixture provisioned the bound session before creating the rich source, so its source Read grant was absent; centralized cleanup succeeded",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-1.log"
           }
         ],
-        "remaining_remediation": "Capture the exact 400 response body and diagnose the request/fixture against current canonical source identity and authority. Repair without weakening live-binding or spoofed-actor assertions, add panic-preserving centralized cleanup/root absence, pass the focused test, then independently rerun on the committed candidate."
+        "remaining_remediation": "Create the canonical rich source before provisioning the bound session so the helper grants exact current source Read authority; preserve all live-binding and spoofed-actor assertions, pass the focused test, then independently rerun on the committed candidate."
       }
     ],
     "independent_findings": [
