@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:24:26.366Z",
+  "updated_at_utc": "2026-09-14T17:27:29.976Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2794,6 +2794,14 @@
         "result": "BUILDER_GATE_FAIL_F08_PROPOSAL_LIST_MISSING_SCOPE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log",
         "observed": "The exact list_proposals_is_bounded_deterministic_and_workspace_scoped test failed 0/1 in 19.23 seconds after cleanup stopped masking its body. Its first proposal returned 403 Forbidden HSK-403-PROTECTED-RESOURCE because the submit helper invoked the production proposal handler without a record-user scope. Cleanup completed, but bounded/deterministic/workspace-scoped list behavior did not execute."
+      },
+      {
+        "proof_id": "MT109-V16-PR-068",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F08_PROPOSAL_LIST_TRANSACTION_VISIBILITY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log",
+        "observed": "The exact proposal-list test advanced past its missing-scope 403 but remained RED 0/1 in 30.89 seconds. The first proposal returned HTTP 500 because lifecycle outbox field proposal_id failed record::exists for the proposal created earlier in the same atomic transaction. The exact producer proposal row was not visible to the active scope, so list ordering/bound/workspace isolation assertions still did not execute. Cleanup preserved this body diagnostic."
       }
     ],
     "resolved_prior_findings": [
@@ -2923,6 +2931,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "proposal-list exact test retained its real 403 body and completed cleanup; behavior remains blocked under MT109-V16-F08 and other teardown paths remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log"
+          },
+          {
+            "attempt": 21,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "proposal-list narrow-2 preserved its transaction-visibility body error through centralized cleanup; other teardown paths and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log"
           }
         ],
         "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
@@ -3402,6 +3416,12 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "proposal-list isolation now exposes a 403 body because its submit helper lacks record-user scope; complete suite remains unresolved and behavior is tracked as F08",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log"
+          },
+          {
+            "attempt": 27,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "proposal-list isolation advanced to HTTP 500 because outbox record::exists cannot see the just-created proposal under its active producer scope; complete suite remains unresolved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3456,17 +3476,23 @@
         "finding_id": "MT109-V16-F08",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The bounded deterministic workspace-scoped proposal-list test cannot create its first proposal because its direct production-handler helper supplies no record-user scope and receives 403 HSK-403-PROTECTED-RESOURCE.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log",
+        "observed_proof": "The fixture now reaches proposal creation, but transaction-time internal visibility fails: lifecycle outbox record::exists rejects the just-created proposal and the public request returns HTTP 500.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
             "status": "FAIL",
             "observed": "first proposal returned 403 Forbidden HSK-403-PROTECTED-RESOURCE before list ordering, bound, or workspace isolation assertions could execute; cleanup succeeded",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "FAIL",
+            "observed": "exact per-workspace/per-source scope removed the 403, but first proposal now returns HTTP 500 because lifecycle outbox proposal_id record::exists cannot see the just-created proposal under the active producer scope",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Provision only exact proposal-create, workspace, and current source authority for each submit helper invocation; preserve bounded ordering and cross-workspace assertions, pass focused proof, then independently rerun on the committed candidate."
+        "remaining_remediation": "Align the submit helper actor identity and exact producer scope with the source-composed proposal SELECT predicate so same-transaction record::exists can see only its own just-created proposal. Preserve atomicity and bounded/workspace isolation assertions; pass focused proof, then independently rerun."
       }
     ],
     "independent_findings": [
