@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T12:41:04.4234982Z",
+  "updated_at_utc": "2026-09-14T12:44:38.7440295Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2314,6 +2314,14 @@
         "result": "BUILDER_GATE_FAIL_MEMORY_RECONCILIATION_FIXTURE_WORKSPACE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-3.log",
         "observed": "After the scoped fixture-grant change, the same exact test still failed 0 passed/1 failed because proposal creation returned 404 Not Found with detail workspace."
+      },
+      {
+        "proof_id": "MT109-V16-PR-008",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_MEMORY_RECONCILIATION_FIXTURE_WORKSPACE_READ",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-4.log",
+        "observed": "After canonical workspace creation was added, the same exact test still failed 0 passed/1 failed because proposal creation returned 404 Not Found with detail workspace; inspection traced the remaining fixture gap to exact workspace Read authority."
       }
     ],
     "resolved_prior_findings": [
@@ -2383,9 +2391,15 @@
             "status": "FAIL",
             "observed": "404 not_found detail workspace",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-3.log"
+          },
+          {
+            "attempt": 3,
+            "status": "FAIL",
+            "observed": "404 not_found detail workspace after canonical workspace creation; exact workspace Read authority remained absent",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-4.log"
           }
         ],
-        "remaining_remediation": "Provide a canonical workspace fixture before the narrowly scoped proposal authority setup; do not broaden production grants. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
+        "remaining_remediation": "Complete the fixture with only the exact Memory.Read and workspace Read authority required by fn::mt109_source_read; do not broaden production grants. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
       }
     ],
     "independent_findings": [
