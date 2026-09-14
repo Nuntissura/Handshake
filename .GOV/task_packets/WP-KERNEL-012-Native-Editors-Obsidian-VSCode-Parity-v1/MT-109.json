@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T13:12:30.2081598Z",
+  "updated_at_utc": "2026-09-14T13:24:40.8750203Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2402,6 +2402,14 @@
         "result": "BUILDER_GREEN_PENDING_INDEPENDENT_FINAL_CURRENT_SCHEMA_CATALOG",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/schema-current-catalog-5.log",
         "observed": "The final current-schema catalog gate passed 1/1 with observed and expected hash 62b6a9f13fb662d98d2b6dbcb5ec8e0ffd81145994ac2051956d59625525bdb3. This builder result does not clear MT109-V16-F03."
+      },
+      {
+        "proof_id": "MT109-V16-PR-019",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_DENIED_RECONCILIATION_TRACE_NONEMPTY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-10.log",
+        "observed": "Proposal creation and granted-workspace reconciliation completed, then the exact service test failed 0 passed/1 failed after 204.42 seconds at api/memory.rs:3898 because the denied-workspace trace event list was non-empty. The log did not identify the event types or payloads."
       }
     ],
     "resolved_prior_findings": [
@@ -2540,9 +2548,15 @@
             "status": "FAIL",
             "observed": "least-privilege reconciler reached commit outbox, where workspace_id failed record::exists for the exact workspace; public 500 internal_error",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-7.log"
+          },
+          {
+            "attempt": 8,
+            "status": "FAIL",
+            "observed": "proposal creation and granted reconciliation passed; denied-workspace trace contained unidentified events and violated the empty-trace assertion at api/memory.rs:3898",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-10.log"
           }
         ],
-        "remaining_remediation": "Allow Workspace SELECT for record existence only when the same service identity has the exact mt109-protected-reconciliation:<workspace> Reconcile/memory.commit grant; do not grant workspace enumeration or weaken record assertions. Independently prove that the reconciler processes only explicitly granted pending workspaces and denies ungranted workspaces without mutation or observable residue."
+        "remaining_remediation": "Inspect and record every denied-trace event type and payload before changing assertions or product behavior. If they are required redacted denial telemetry, assert that exact bounded telemetry while preserving zero mutation and no protected data. If any event exposes data or records an unauthorized mutation, repair the producer. Independently prove that only the explicitly granted pending workspace is processed."
       }
     ],
     "independent_findings": [
