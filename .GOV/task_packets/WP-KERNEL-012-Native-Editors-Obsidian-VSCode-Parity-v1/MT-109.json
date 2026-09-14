@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T15:33:46.238062Z",
+  "updated_at_utc": "2026-09-14T15:36:43.615504Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2650,6 +2650,14 @@
         "result": "BUILDER_GATE_FAIL_CONCURRENT_FIXTURE_RESOURCE_OWNERSHIP_COLLISION",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-1.log",
         "observed": "The exact concurrent_workspace_commits_publish_a_pack_containing_both_items test failed 0/1 in 178.48 seconds with SurrealDB code -32000, resource registry collision or ownership mismatch. Diff inspection showed the fixture passed distinct owner labels to two proposal helpers for one protected workspace; the coder changed those labels to one shared principal while retaining two distinct proposals and the original tokio::join! commits. The concurrency behavior has not yet passed."
+      },
+      {
+        "proof_id": "MT109-V16-PR-050",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_SUITE_AND_INDEPENDENT_CONCURRENT_COMMITS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-2.log",
+        "observed": "The exact concurrent_workspace_commits_publish_a_pack_containing_both_items test passed 1/1 in 64.03 seconds. It retained the original simultaneous tokio::join! commits, distinct resulting memory IDs, both items in the latest pack, final item count two, and centralized cleanup/root-absence proof. This builder result does not clear MT109-V16-F06."
       }
     ],
     "resolved_prior_findings": [
@@ -3004,8 +3012,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The create-proposal member passes, but the exact concurrent member fails during fixture authority setup with a resource ownership collision. Its simultaneous commit and canonical pack assertions remain unproved, and no valid full-suite verdict exists.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-1.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log",
+        "observed_proof": "Both previously reported suite members now pass as isolated builder runs with deterministic cleanup. The required complete api::memory:: suite at four threads has not yet passed, and no independent result exists.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-2.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3054,9 +3062,15 @@
             "status": "FAIL",
             "observed": "the exact concurrent member failed before its concurrent commits with resource registry collision or ownership mismatch because two fixture owners targeted one protected workspace",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-1.log"
+          },
+          {
+            "attempt": 9,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the corrected exact concurrent member passes its original simultaneous commit, pack, count, and cleanup assertions; complete four-thread suite and independent proof remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-2.log"
           }
         ],
-        "remaining_remediation": "Use one exact protected-workspace principal for both proposals while retaining distinct identities/content and the original simultaneous commits; pass the exact concurrent test with deterministic cleanup, then pass the complete api::memory:: suite with four test threads."
+        "remaining_remediation": "Pass the complete api::memory:: suite with four test threads on the stabilized source, commit a clean candidate, and independently rerun the suite with validator-owned paths."
       }
     ],
     "independent_findings": [
