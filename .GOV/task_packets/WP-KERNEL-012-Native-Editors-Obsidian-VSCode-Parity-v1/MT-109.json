@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T14:04:07.7072651Z",
+  "updated_at_utc": "2026-09-14T14:27:53.4401079Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2498,6 +2498,22 @@
         "result": "BUILDER_GATE_FAIL_MIGRATION_INDEX_AND_LOOM_CATALOG",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-3.log",
         "observed": "The three-test batch finished 1 passed/2 failed in 61.52 seconds. Clean migration reached the injected marker, whose exact primary sequence moved to marker149/cancelled150/COMMIT151 from expected 148/149/150. The bounded Loom catalog observed 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 versus expected 21ff646911d98425f13a6697de431d355d46f9ae9d099ac40b9495e0f8be5d97. Failed stores mt109-migration-f9rwgf and mt109-migration-rollback-G55wrB were preserved."
+      },
+      {
+        "proof_id": "MT109-V16-PR-031",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_PREDECESSOR_MIGRATION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-migration-separated-stores-6.log",
+        "observed": "The exact migration proof passed 1/1 in 418.65 seconds. Both internal repetitions proved clean upgrade/replay, exact rollback marker149/cancelled150/COMMIT151, reopen state, and centralized removal of success and rollback roots. This builder result does not clear MT109-V16-F04."
+      },
+      {
+        "proof_id": "MT109-V16-PR-032",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_INDEPENDENT_LOOM_CATALOG",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-loom-catalog-3.log",
+        "observed": "The bounded Loom catalog proof passed 1/1 in 1.63 seconds with two independently constructed catalogs equal at 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 and missing dependency rejection. This builder result does not clear MT109-V16-F03."
       }
     ],
     "resolved_prior_findings": [
@@ -2610,6 +2626,12 @@
             "status": "FAIL",
             "observed": "bounded Loom catalog changed after the intended source-composition statement: observed 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 vs expected 21ff646911d98425f13a6697de431d355d46f9ae9d099ac40b9495e0f8be5d97",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-3.log"
+          },
+          {
+            "attempt": 10,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "two bounded Loom catalogs were equal at 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 and missing dependency rejection passed; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-loom-catalog-3.log"
           }
         ],
         "remaining_remediation": "Derive and update the current-schema INFO hash from the fresh schema containing both the exact reconciler predicate and source-composed ordinary reader/producer predicate, then rerun the focused catalog chain. Commit all justified catalog updates and independently prove every catalog/manifest relationship from generated schema inputs."
@@ -2626,6 +2648,12 @@
             "status": "FAIL",
             "observed": "clean migration reached injected rollback marker; exact marker/cancel/COMMIT sequence was 149/150/151 vs stale expected 148/149/150; failed success and rollback stores preserved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-schema-catalog-3.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "clean upgrade/replay, exact rollback sequence 149/150/151, reopen state, and centralized removal of success and rollback roots passed in both internal repetitions; independent resolution still pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/mt109-migration-separated-stores-6.log"
           }
         ],
         "remaining_remediation": "Map index149 to the injected marker from the constructed statement sequence and verify the one-position shift comes only from the intended schema statement. Update the exact expected sequence, then prove clean upgrade/replay, rollback rows/schema marker/keys/catalogs after close/reopen, and centralized removal of both store roots."
