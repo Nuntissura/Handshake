@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T15:06:41.916574Z",
+  "updated_at_utc": "2026-09-14T15:14:30.452557Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2618,6 +2618,14 @@
         "result": "BUILDER_REMEDIATION_FAIL_TUPLE_ORDER_DID_NOT_FIX_TEARDOWN",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-2.log",
         "observed": "After reordering the setup tuple/bindings, create_proposal_stores_pending_review_and_receipt again failed 0/1 only during cleanup in 105.60 seconds. Shutdown remained draining after 30000 ms and preserved kb-v17/runtime/store-01a0a071ade77d23a3427a3a4b7954a0. Tuple/drop order alone is disproven as the complete remediation."
+      },
+      {
+        "proof_id": "MT109-V16-PR-046",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_REMEDIATION_FAIL_EXPLICIT_STATE_DROP_DID_NOT_DRAIN_OPERATION",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-3.log",
+        "observed": "With AppState explicitly dropped before centralized close, create_proposal_stores_pending_review_and_receipt still failed cleanup 0/1 in 243.78 seconds. Shutdown remained draining after 30000 ms and preserved kb-v17/runtime/store-01a0a0768df470c1a896da1da49bf118. Read against SurrealStorage::perform_shutdown at surreal.rs:1477-1500, this shows an in-flight read lease rather than wrapper drop order alone."
       }
     ],
     "resolved_prior_findings": [
@@ -2625,8 +2633,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "Two focused create-proposal runs still cannot complete deterministic database shutdown within 30000 ms. The second run disproves tuple/drop order alone as the complete cause.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-2.log",
+        "observed_proof": "Three focused create-proposal runs fail deterministic shutdown. Explicit AppState drop also fails, and the shutdown implementation is blocked acquiring its write lock, proving an in-flight database lease remains after the body.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-3.log; src/storage/surreal.rs:1477-1500",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -2645,9 +2653,15 @@
             "status": "FAIL",
             "observed": "tuple/binding reorder did not fix teardown; behavior completed but shutdown still drained beyond 30000 ms and preserved store-01a0a071ade77d23a3427a3a4b7954a0",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-2.log"
+          },
+          {
+            "attempt": 4,
+            "status": "FAIL",
+            "observed": "explicit AppState drop before close still left shutdown draining beyond 30000 ms; an in-flight database read lease remains and store-01a0a0768df470c1a896da1da49bf118 was preserved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-3.log"
           }
         ],
-        "remaining_remediation": "Inspect the still-live database operations and every retained DB/AppState handle after the test body; remove the exact holder or lifecycle defect without increasing the timeout or suppressing cleanup failure; rerun focused and complete authority proofs, then independently verify store removal."
+        "remaining_remediation": "Identify the exact operation retaining the read lease after the body, make it complete or cancel under the existing lifecycle contract, and prove leases_in_flight is zero before close; do not increase timeouts or suppress cleanup failure."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -2980,6 +2994,12 @@
             "status": "FAIL_ISOLATION_CROSS_REFERENCE",
             "observed": "first failing suite member still fails during deterministic teardown after the tuple-order remediation; full four-thread suite remains unresolved",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-2.log"
+          },
+          {
+            "attempt": 5,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "explicit state-drop isolation still leaves an in-flight database lease and cleanup failure; full four-thread suite remains unresolved",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-3.log"
           }
         ],
         "remaining_remediation": "Diagnose both reported test failures and the suite crash using focused tests; repair without weakening concurrency or authority requirements; rerun the required full api::memory:: suite successfully, then independently reprove it from the clean committed candidate."
