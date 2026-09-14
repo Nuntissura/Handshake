@@ -26,6 +26,7 @@ pub(crate) struct LedgerWrite {
     pub(crate) payload_hash: String,
     pub(crate) source_component: String,
     pub(crate) payload: serde_json::Value,
+    pub(crate) wsids: Vec<String>,
     pub(crate) authority_resource_id: Option<RecordId>,
     pub(crate) authority_session_id: Option<RecordId>,
     pub(crate) authority_capability_id: Option<String>,
@@ -62,6 +63,7 @@ struct LedgerBulkInsert {
     payload_hash: String,
     source_component: String,
     payload: serde_json::Value,
+    wsids: Vec<String>,
     authority_resource_id: Option<RecordId>,
     authority_session_id: Option<RecordId>,
     authority_capability_id: Option<String>,
@@ -88,6 +90,7 @@ impl From<LedgerWrite> for LedgerBulkInsert {
             payload_hash: write.payload_hash,
             source_component: write.source_component,
             payload: write.payload,
+            wsids: write.wsids,
             authority_resource_id: write.authority_resource_id,
             authority_session_id: write.authority_session_id,
             authority_capability_id: write.authority_capability_id,
@@ -160,6 +163,11 @@ pub(crate) fn prepare_event(event: NewKernelEvent) -> StorageResult<(KernelEvent
         payload_hash: event.payload_hash,
         source_component: event.source_component,
         payload: event.payload,
+        wsids: authority
+            .as_ref()
+            .and_then(|scope| scope.workspace_id.clone())
+            .into_iter()
+            .collect(),
         authority_resource_id: authority
             .as_ref()
             .map(|scope| RecordId::new("protected_resources", scope.resource_id.clone())),
@@ -201,6 +209,7 @@ pub(crate) async fn append(
                                  actor_id: $event.actor_id, causation_id: $event.causation_id, \
                                  correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
                                   source_component: $event.source_component, payload: $event.payload, \
+                                  wsids: $event.wsids, \
                                   authority_resource_id: $event.authority_resource_id, \
                                   authority_session_id: $event.authority_session_id, \
                                   authority_capability_id: $event.authority_capability_id, \
@@ -383,7 +392,8 @@ pub(crate) async fn append_pair_atomic_with_causation(
                              actor_id: $first.actor_id, causation_id: $first.causation_id, \
                              correlation_id: $first.correlation_id, payload_hash: $first.payload_hash, \
                              source_component: $first.source_component, payload: $first.payload, \
-                             authority_resource_id: $first.authority_resource_id, \
+                             wsids: $first.wsids, \
+                                  authority_resource_id: $first.authority_resource_id, \
                              authority_session_id: $first.authority_session_id, \
                              authority_capability_id: $first.authority_capability_id, \
                              authority_action: $first.authority_action, \
@@ -423,7 +433,8 @@ pub(crate) async fn append_pair_atomic_with_causation(
                              actor_id: $second.actor_id, causation_id: $actual_first.event_id, \
                              correlation_id: $second.correlation_id, payload_hash: $second.payload_hash, \
                              source_component: $second.source_component, payload: $second.payload, \
-                             authority_resource_id: $second.authority_resource_id, \
+                             wsids: $second.wsids, \
+                                  authority_resource_id: $second.authority_resource_id, \
                              authority_session_id: $second.authority_session_id, \
                              authority_capability_id: $second.authority_capability_id, \
                              authority_action: $second.authority_action, \

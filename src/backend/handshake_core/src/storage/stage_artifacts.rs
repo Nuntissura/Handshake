@@ -505,7 +505,7 @@ CREATE $decision.record CONTENT {
     actor_kind: $decision.actor_kind, actor_id: $decision.actor_id,
     causation_id: $decision.causation_id, correlation_id: $decision.correlation_id,
     payload_hash: $decision.payload_hash, source_component: $decision.source_component,
-    payload: $decision.payload, created_at: $decision.created_at
+    payload: $decision.payload, wsids: $decision.wsids, authority_resource_id: $decision.authority_resource_id, authority_session_id: $decision.authority_session_id, authority_capability_id: $decision.authority_capability_id, authority_action: $decision.authority_action, created_at: $decision.created_at
 };
 CREATE $receipt.record CONTENT {
     event_id: $receipt.event_id, event_version: $receipt.event_version,
@@ -515,7 +515,7 @@ CREATE $receipt.record CONTENT {
     actor_kind: $receipt.actor_kind, actor_id: $receipt.actor_id,
     causation_id: $receipt.causation_id, correlation_id: $receipt.correlation_id,
     payload_hash: $receipt.payload_hash, source_component: $receipt.source_component,
-    payload: $receipt.payload, created_at: $receipt.created_at
+    payload: $receipt.payload, wsids: $receipt.wsids, authority_resource_id: $receipt.authority_resource_id, authority_session_id: $receipt.authority_session_id, authority_capability_id: $receipt.authority_capability_id, authority_action: $receipt.authority_action, created_at: $receipt.created_at
 };
 CREATE $artifact_record CONTENT {
     artifact_id: $artifact_id, workspace_id: $workspace, content_kind: $content_kind,

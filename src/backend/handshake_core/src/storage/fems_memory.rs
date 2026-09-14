@@ -2084,6 +2084,21 @@ const PROPOSAL_INSERT_TRANSACTION: &str = "BEGIN TRANSACTION; \
     IF !record::exists($proposal.workspace_id) { \
     THROW 'HSK-MEM-WORKSPACE-MISSING'; \
     }; \
+    LET $readable_rich_source = SELECT VALUE id FROM knowledge_rich_documents \
+    WHERE rich_document_id = $proposal.document_id AND workspace_id = $proposal.workspace_id \
+    AND deleted_at = NONE LIMIT 2; \
+    LET $readable_code_source = SELECT VALUE id FROM knowledge_sources \
+    WHERE source_id = $proposal.document_id AND workspace_id = $proposal.workspace_id \
+    AND source_kind = 'file' LIMIT 2; \
+    LET $readable_code_file = SELECT VALUE id FROM knowledge_code_files \
+    WHERE record::id(source_id) = $proposal.document_id AND workspace_id = $proposal.workspace_id \
+    LIMIT 2; \
+    LET $readable_loom_source = SELECT VALUE id FROM loom_blocks \
+    WHERE block_id = $proposal.document_id AND workspace_id = $proposal.workspace_id LIMIT 2; \
+    IF array::len($readable_rich_source) + array::len($readable_code_source) + array::len($readable_loom_source) != 1 \
+    OR (array::len($readable_code_source) = 1 AND array::len($readable_code_file) != 1) { \
+    THROW 'HSK-MEM-SOURCE-AUTHORITY'; \
+    }; \
     UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE; \
     CREATE $proposal_record CONTENT { \
     proposal_id: $proposal.proposal_id, request_id: $proposal.request_id, \
@@ -2104,7 +2119,10 @@ const PROPOSAL_INSERT_TRANSACTION: &str = "BEGIN TRANSACTION; \
     actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
     causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
     payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
-    payload: $ledger.payload, created_at: $ledger.created_at \
+    payload: $ledger.payload, created_at: $ledger.created_at, \
+    wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, \
+    authority_session_id: $ledger.authority_session_id, \
+    authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action \
     }; \
     CREATE $outbox.record CONTENT { \
     event_id: $outbox.event_id, workspace_id: $outbox.workspace_id, \
@@ -2133,7 +2151,10 @@ const PROPOSAL_REVIEW_TRANSACTION: &str = "BEGIN TRANSACTION; \
     actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
     causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
     payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
-    payload: $ledger.payload, created_at: $ledger.created_at \
+    payload: $ledger.payload, created_at: $ledger.created_at, \
+    wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, \
+    authority_session_id: $ledger.authority_session_id, \
+    authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action \
     }; \
     CREATE $outbox.record CONTENT { \
     event_id: $outbox.event_id, workspace_id: $outbox.workspace_id, \
@@ -2193,7 +2214,9 @@ const COMMIT_TRANSACTION: &str = "BEGIN TRANSACTION; \
     actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, \
     correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, \
     source_component: $ledger.source_component, payload: $ledger.payload, \
-    created_at: $ledger.created_at }; \
+    created_at: $ledger.created_at, wsids: $ledger.wsids, \
+    authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, \
+    authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action }; \
     CREATE $committed_outbox.record CONTENT { event_id: $committed_outbox.event_id, \
     workspace_id: $committed_outbox.workspace_id, proposal_id: $committed_outbox.proposal_id, \
     commit_id: $committed_outbox.commit_id, event_code: $committed_outbox.event_code, \
@@ -2218,9 +2241,10 @@ async fn run_proposal_insert_transaction(
                         PROPOSAL_INSERT_TRANSACTION,
                         bindings,
                         // `take(index)` counts BEGIN TRANSACTION as statement 0; the
-                        // workspace-existence guard (1) and the MT-152 workspace write
-                        // anchor (2) precede the proposal CREATE at index 3.
-                        3,
+                        // workspace-existence guard (1), four source reads (2..=5),
+                        // source-authority guard (6), and MT-152 write anchor (7)
+                        // precede the proposal CREATE at index 8.
+                        8,
                     )
                     .await
             })
@@ -2233,6 +2257,8 @@ async fn run_proposal_insert_transaction(
             // surface as an opaque 500.
             if error.to_string().contains("HSK-MEM-WORKSPACE-MISSING") {
                 StorageError::NotFound("workspace")
+            } else if error.to_string().contains("HSK-MEM-SOURCE-AUTHORITY") {
+                StorageError::Guard("HSK-MEM-SOURCE-AUTHORITY")
             } else {
                 StorageError::from(error)
             }
@@ -2576,6 +2602,34 @@ pub async fn get_memory_item(
         return Ok(None);
     }
     Ok(Some(row.item))
+}
+
+/// Return the canonical stored item payloads visible to the current record-user scope.
+/// Callers that project derived memory must still intersect each item's source references
+/// with the current source-resource grants before returning content or counts.
+pub async fn list_memory_items(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+) -> StorageResult<Vec<Value>> {
+    let bindings = WorkspaceBinding {
+        workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
+    };
+    let rows: Vec<ItemRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT memory_id, workspace_id, item, created_at, updated_at \
+                         FROM fems_memory_items WHERE workspace_id = $workspace \
+                         ORDER BY memory_id ASC;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    Ok(rows.into_iter().map(|row| row.item).collect())
 }
 
 pub async fn count_memory_items(

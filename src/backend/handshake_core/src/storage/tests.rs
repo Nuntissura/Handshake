@@ -41,10 +41,10 @@ const LOOM_TRAVERSAL_PERF_TOTAL_BLOCKS: usize = 10_000;
 
 /// Root for per-test store directories.
 ///
-/// Resolved only from an explicit absolute `HANDSHAKE_ARTIFACTS_ROOT`.
+/// Resolved only from explicit absolute artifact and owner-scoped store roots.
 /// Relative/current-directory fallbacks are forbidden because a fixture may be
 /// launched from several worktrees and must never create a second artifact root.
-fn test_store_root() -> StorageResult<PathBuf> {
+pub(crate) fn test_store_root() -> StorageResult<PathBuf> {
     let configured = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").ok_or_else(|| {
         StorageError::Database(
             "HANDSHAKE_ARTIFACTS_ROOT must name the absolute _Artifacts root for embedded tests"
@@ -70,24 +70,40 @@ fn test_store_root() -> StorageResult<PathBuf> {
             configured.display()
         ))
     })?;
-    let store_root = artifacts_root
-        .join("handshake-test")
-        .join("storage-conformance");
-    std::fs::create_dir_all(&store_root).map_err(|error| {
+    let configured_store =
+        std::env::var_os("HANDSHAKE_SURREAL_TEST_STORE_ROOT").ok_or_else(|| {
+            StorageError::Database(
+                "HANDSHAKE_SURREAL_TEST_STORE_ROOT must name an existing owner-scoped directory"
+                    .to_owned(),
+            )
+        })?;
+    let configured_store = PathBuf::from(configured_store);
+    if !configured_store.is_absolute() {
+        return Err(StorageError::Database(format!(
+            "HANDSHAKE_SURREAL_TEST_STORE_ROOT must be absolute, got {}",
+            configured_store.display()
+        )));
+    }
+    if !configured_store.try_exists().map_err(|error| {
         StorageError::Database(format!(
-            "could not create embedded-test store root {}: {error}",
-            store_root.display()
+            "could not inspect embedded-test store root {}: {error}",
+            configured_store.display()
         ))
-    })?;
-    let store_root = dunce::canonicalize(&store_root).map_err(|error| {
+    })? {
+        return Err(StorageError::Database(format!(
+            "HANDSHAKE_SURREAL_TEST_STORE_ROOT must already exist: {}",
+            configured_store.display()
+        )));
+    }
+    let store_root = dunce::canonicalize(&configured_store).map_err(|error| {
         StorageError::Database(format!(
             "could not resolve embedded-test store root {}: {error}",
-            store_root.display()
+            configured_store.display()
         ))
     })?;
-    if !store_root.starts_with(&artifacts_root) {
+    if store_root == artifacts_root || !store_root.starts_with(&artifacts_root) {
         return Err(StorageError::Database(format!(
-            "embedded-test store root escaped HANDSHAKE_ARTIFACTS_ROOT: {}",
+            "embedded-test store root must be a strict descendant of HANDSHAKE_ARTIFACTS_ROOT: {}",
             store_root.display()
         )));
     }
@@ -158,12 +174,23 @@ impl Drop for TestStoreCleanupGuard {
             ))),
         };
         if let Err(error) = result {
-            eprintln!("HANDSHAKE_TEST_STORE_CLEANUP_FAILURE {error}");
+            panic!("HANDSHAKE_TEST_STORE_CLEANUP_FAILURE {error}");
         }
     }
 }
 
 impl EmbeddedTestBackend {
+    pub(crate) async fn reopen_storage(&self) -> StorageResult<SurrealStorage> {
+        self.storage.shutdown().await?;
+        let reopened = SurrealStorage::open(self.storage.config().clone()).await?;
+        let mut owner = match self.cleanup.storage.lock() {
+            Ok(owner) => owner,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        *owner = Some(reopened.clone());
+        Ok(reopened)
+    }
+
     /// Close the store and remove its directory.
     pub async fn close_and_remove(self) -> StorageResult<()> {
         let EmbeddedTestBackend {
@@ -191,17 +218,20 @@ fn combine_test_body_and_cleanup(
     }
 }
 
-async fn shutdown_and_remove_test_store(
+pub(crate) async fn shutdown_and_remove_test_store(
     storage: SurrealStorage,
     data_dir: PathBuf,
 ) -> StorageResult<()> {
     let shutdown = storage.shutdown().await;
     drop(storage);
+    if let Err(error) = shutdown {
+        return Err(StorageError::Database(format!(
+            "shutdown failed for {}; store preserved because closure is unproven: {error}",
+            data_dir.display()
+        )));
+    }
     let removal = std::fs::remove_dir_all(&data_dir);
     let mut failures = Vec::new();
-    if let Err(error) = shutdown {
-        failures.push(format!("shutdown failed: {error}"));
-    }
     if let Err(error) = removal {
         if error.kind() != std::io::ErrorKind::NotFound {
             failures.push(format!(
@@ -246,6 +276,20 @@ fn cleanup_unopened_test_store(data_dir: &PathBuf, error: impl std::fmt::Display
 /// `POSTGRES_TEST_URL` / `DATABASE_URL` resolution chain is gone rather than
 /// ported - there is nothing left to resolve.
 pub async fn embedded_test_backend() -> StorageResult<EmbeddedTestBackend> {
+    open_embedded_test_backend(true).await
+}
+
+/// Open an isolated store with only the production resource-authority schema.
+///
+/// MT-109 exercises record-user permissions and protected-resource policy; it
+/// must not pay for or depend on the unrelated full product-schema migration.
+pub async fn embedded_resource_authority_test_backend() -> StorageResult<EmbeddedTestBackend> {
+    open_embedded_test_backend(false).await
+}
+
+async fn open_embedded_test_backend(
+    run_product_migrations: bool,
+) -> StorageResult<EmbeddedTestBackend> {
     let data_dir = test_store_root()?.join(format!("store-{}", Uuid::now_v7().simple()));
     std::fs::create_dir_all(&data_dir).map_err(|error| {
         StorageError::Database(format!(
@@ -253,14 +297,28 @@ pub async fn embedded_test_backend() -> StorageResult<EmbeddedTestBackend> {
             data_dir.display()
         ))
     })?;
-
     let config = SurrealStorageConfig::for_data_dir(&data_dir)
         .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
     let storage = SurrealStorage::open(config)
         .await
         .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
     let database = SurrealDatabase::new(storage.clone());
-    if let Err(error) = database.run_migrations().await {
+    let migration = if run_product_migrations {
+        database.run_migrations().await
+    } else {
+        async {
+            storage
+                .bootstrap_resource_authority_test_base_schema()
+                .await
+                .map_err(|error| StorageError::Migration(error.to_string()))?;
+            storage
+                .bootstrap_resource_authority_schema()
+                .await
+                .map_err(|error| StorageError::Migration(error.to_string()))
+        }
+        .await
+    };
+    if let Err(error) = migration {
         drop(database);
         let cleanup = shutdown_and_remove_test_store(storage, data_dir).await;
         return match cleanup {
@@ -270,7 +328,6 @@ pub async fn embedded_test_backend() -> StorageResult<EmbeddedTestBackend> {
             ))),
         };
     }
-
     let cleanup = Arc::new(TestStoreCleanupGuard {
         storage: StdMutex::new(Some(storage.clone())),
         data_dir: data_dir.clone(),

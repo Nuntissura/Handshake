@@ -648,7 +648,7 @@ async fn run_event_transaction(
                             actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, \
                             causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, \
                             payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, \
-                            payload: $ledger.payload, created_at: $ledger.created_at \
+                            payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at \
                          }; \
                          CREATE $outbox.record CONTENT { \
                             idempotency_key: $outbox.idempotency_key, workspace_id: $outbox.workspace_id, \

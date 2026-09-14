@@ -1205,6 +1205,8 @@ mod tests {
                                          aggregate_id: $session_run_id, idempotency_key: $event_id, \
                                          event_type: $event_type, actor_kind: 'test', actor_id: 'mt137', \
                                          causation_id: NONE, correlation_id: NONE, \
+                                 wsids: [], authority_resource_id: NONE, authority_session_id: NONE, \
+                                 authority_capability_id: NONE, authority_action: NONE, \
                                          payload_hash: $event_id, source_component: 'mt137-timeline-proof', \
                                          payload: { pair_index: $pair_index }, created_at: $at_utc \
                                      } RETURN NONE; \
@@ -1300,6 +1302,8 @@ mod tests {
                                  aggregate_id: $session_run_id, idempotency_key: $first_event_id, \
                                  event_type: $first_summary, actor_kind: 'test', actor_id: 'mt137', \
                                  causation_id: NONE, correlation_id: NONE, \
+                                 wsids: [], authority_resource_id: NONE, authority_session_id: NONE, \
+                                 authority_capability_id: NONE, authority_action: NONE, \
                                  payload_hash: $first_event_id, source_component: 'mt137-timeline-tie-proof', \
                                  payload: {}, created_at: $at_utc \
                              } RETURN NONE; \
@@ -1310,6 +1314,8 @@ mod tests {
                                  aggregate_id: $session_run_id, idempotency_key: $second_event_id, \
                                  event_type: $second_summary, actor_kind: 'test', actor_id: 'mt137', \
                                  causation_id: NONE, correlation_id: NONE, \
+                                 wsids: [], authority_resource_id: NONE, authority_session_id: NONE, \
+                                 authority_capability_id: NONE, authority_action: NONE, \
                                  payload_hash: $second_event_id, source_component: 'mt137-timeline-tie-proof', \
                                  payload: {}, created_at: $at_utc \
                              } RETURN NONE; \

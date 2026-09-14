@@ -673,6 +673,11 @@ pub(crate) struct RecordEventBindings {
     payload_hash: String,
     source_component: String,
     ledger_payload: JsonValue,
+    wsids: Vec<String>,
+    authority_resource_id: Option<RecordId>,
+    authority_session_id: Option<RecordId>,
+    authority_capability_id: Option<String>,
+    authority_action: Option<String>,
     created_at: Datetime,
     atelier_id: RecordId,
     atelier_event_uuid: SurrealUuid,
@@ -786,6 +791,11 @@ macro_rules! atelier_event_sql {
              payload_hash: $payload_hash, \
              source_component: $source_component, \
              payload: $ledger_payload, \
+             wsids: $wsids, \
+             authority_resource_id: $authority_resource_id, \
+             authority_session_id: $authority_session_id, \
+             authority_capability_id: $authority_capability_id, \
+             authority_action: $authority_action, \
              created_at: $created_at \
            }; \
          }; \
@@ -1294,7 +1304,9 @@ impl AtelierStore {
         .payload(kernel_payload)
         .build()
         .map_err(|err| AtelierError::EventLedger(err.to_string()))?;
-        let kernel_event = KernelEvent::from_new(event.clone());
+        let (kernel_event, ledger_write) =
+            crate::storage::surreal::event_ledger::prepare_event(event.clone())
+                .map_err(|error| AtelierError::EventLedger(error.to_string()))?;
         let ledger_payload = event.payload.as_object().cloned().ok_or_else(|| {
             AtelierError::EventLedger(
                 "kernel event payload must be a JSON object to store in kernel_event_ledger"
@@ -1331,6 +1343,11 @@ impl AtelierStore {
                 payload_hash: event.payload_hash.clone(),
                 source_component: event.source_component.clone(),
                 ledger_payload: JsonValue::Object(ledger_payload),
+                wsids: ledger_write.wsids,
+                authority_resource_id: ledger_write.authority_resource_id,
+                authority_session_id: ledger_write.authority_session_id,
+                authority_capability_id: ledger_write.authority_capability_id,
+                authority_action: ledger_write.authority_action,
                 created_at: Datetime::from(kernel_event.created_at),
                 atelier_event_id: atelier_event_id.to_string(),
                 event_family: event_family.to_owned(),
@@ -1494,7 +1511,10 @@ mod guard_tests {
             .bootstrap_schema()
             .await
             .expect_err("unexpected atelier table must fail closed");
-        assert!(rogue_error.to_string().contains("TABLE_SET_MISMATCH"));
+        assert!(
+            rogue_error.to_string().contains("HANDSHAKE_ATELIER_SCHEMA_PARTIAL: expected=125 present=126 first_missing=none first_unexpected=atelier_rogue"),
+            "unexpected rogue-table rejection: {rogue_error}"
+        );
         run_mt138_catalog_mutation(storage, "REMOVE TABLE atelier_rogue; RETURN true;").await;
 
         run_mt138_catalog_mutation(
@@ -1662,235 +1682,295 @@ mod guard_tests {
 
     #[tokio::test]
     async fn mt138_rejects_full_count_schemaless_projection() {
-        tokio::time::timeout(std::time::Duration::from_secs(120), async {
-            let temp = tempfile::tempdir().expect("create malformed MT-138 store directory");
-            let store = SurrealStorage::open(
-                crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
-                    .expect("configure malformed MT-138 store"),
-            )
-            .await
-            .expect("open malformed MT-138 store");
-            store
-                .with_data_operation(|ctx| {
-                    Box::pin(async move {
-                        for table in ATELIER_TABLES {
-                            let _: Option<MalformedTableSentinel> = ctx
-                                .upsert_one(
-                                    table,
-                                    "malformed",
-                                    MalformedTableSentinel {
-                                        marker: "schemaless".to_owned(),
-                                    },
-                                )
-                                .await?;
-                        }
-                        Ok(())
-                    })
-                })
-                .await
-                .expect("create full-count malformed Atelier projection");
-            let atelier = AtelierStore::new(store.clone());
-            atelier
-                .ensure_schema()
-                .await
-                .expect("name-only readiness demonstrates the adversarial counterexample");
-            let error = atelier
-                .bootstrap_schema()
-                .await
-                .expect_err("catalog verification must reject schemaless full-count projection");
-            assert!(error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"));
-            store.shutdown().await.expect("close malformed store");
-        })
+        let temp = tempfile::Builder::new()
+            .prefix("mt138-malformed-")
+            .tempdir()
+            .expect("create malformed MT-138 store directory");
+        let data_dir = temp.path().to_path_buf();
+        let store = SurrealStorage::open(
+            crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
+                .expect("configure malformed MT-138 store"),
+        )
         .await
-        .expect("malformed MT-138 rejection proof exceeded two minutes");
+        .expect("open malformed MT-138 store");
+        let outcome = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(
+            tokio::time::timeout(std::time::Duration::from_secs(120), async {
+                let atelier = AtelierStore::new(store.clone());
+                atelier
+                    .bootstrap_schema()
+                    .await
+                    .expect("install complete canonical dependency inventory");
+                run_mt138_catalog_mutation(
+                    &store,
+                    "ALTER TABLE atelier_character SCHEMALESS; RETURN true;",
+                )
+                .await;
+                atelier
+                    .ensure_schema()
+                    .await
+                    .expect("name-only readiness demonstrates the adversarial counterexample");
+                let error = atelier.bootstrap_schema().await.expect_err(
+                    "catalog verification must reject schemaless full-count projection",
+                );
+                assert!(
+                    error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"),
+                    "unexpected schemaless rejection: {error}"
+                );
+            }),
+        ))
+        .await;
+        let body_diagnostic = match &outcome {
+            Ok(Ok(())) => "passed".to_owned(),
+            Ok(Err(error)) => error.to_string(),
+            Err(payload) => payload
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("non-string panic")
+                .to_owned(),
+        };
+        if let Err(error) = store.shutdown().await {
+            let preserved = temp.keep();
+            panic!(
+                "MT-138 malformed body: {body_diagnostic}; cleanup failed; preserved {}: {error}",
+                preserved.display()
+            );
+        }
+        temp.close().expect("remove closed malformed MT-138 store");
+        assert!(
+            !data_dir.exists(),
+            "malformed MT-138 store survived cleanup"
+        );
+        eprintln!("MT138_MALFORMED_STORE_REMOVED {}", data_dir.display());
+        match outcome {
+            Ok(result) => result.expect("malformed MT-138 rejection proof exceeded two minutes"),
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
     }
 
     #[tokio::test]
     async fn mt138_atelier_readiness_is_idempotent_across_embedded_restart() {
-        tokio::time::timeout(std::time::Duration::from_secs(1_140), async {
-            let proof_started = std::time::Instant::now();
-            let temp = tempfile::tempdir().expect("create MT-138 embedded-store directory");
-            let config = crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
-                .expect("configure MT-138 embedded store");
-            let first = SurrealStorage::open(config)
-                .await
-                .expect("open first store");
-            let first_atelier = AtelierStore::new(first.clone());
-            let concurrent_atelier = first_atelier.clone();
-            let (first_bootstrap, concurrent_bootstrap) = tokio::join!(
-                first_atelier.bootstrap_schema(),
-                concurrent_atelier.bootstrap_schema()
-            );
-            let first_bootstrap = first_bootstrap.expect("first concurrent Atelier bootstrap");
-            let concurrent_bootstrap =
-                concurrent_bootstrap.expect("second concurrent Atelier bootstrap");
-            assert_ne!(first_bootstrap.applied, concurrent_bootstrap.applied);
-            assert_eq!(first_bootstrap.table_count, 125);
-            assert_eq!(concurrent_bootstrap.table_count, 125);
-            eprintln!(
-                "MT-138 timing: concurrent schema bootstrap {:?}",
-                proof_started.elapsed()
-            );
-            assert_mt138_adversarial_catalog_rejections(&first, &first_atelier).await;
-            eprintln!(
-                "MT-138 timing: adversarial catalog checks {:?}",
-                proof_started.elapsed()
-            );
-            first_atelier
-                .record_event(
-                    "atelier.mt138.bootstrap_probe",
-                    "atelier_schema",
-                    "canonical",
-                    serde_json::json!({"proof": "canonical_ddl"}),
-                )
-                .await
-                .expect("write typed Atelier event through canonical schema");
-            #[cfg(feature = "runtime-full")]
-            {
-                let mut removed_builtin = command_corpus::builtin_command_corpus()
-                    .into_iter()
-                    .next()
-                    .expect("builtin command fixture");
-                removed_builtin.action_id = "mt138.removed-builtin-probe".to_owned();
-                removed_builtin.manual_anchor = command_corpus::MANUAL_ANCHOR_BLOCKED.to_owned();
-                first_atelier
-                    .upsert_command_corpus_entry(&removed_builtin)
+        let temp = tempfile::tempdir().expect("create MT-138 embedded-store directory");
+        let data_dir = temp.path().to_path_buf();
+        let mut owners = Vec::new();
+        let outcome = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(
+            tokio::time::timeout(std::time::Duration::from_secs(1_140), async {
+                let proof_started = std::time::Instant::now();
+                let config =
+                    crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
+                        .expect("configure MT-138 embedded store");
+                let first = SurrealStorage::open(config)
                     .await
-                    .expect("seed removed builtin descriptor");
+                    .expect("open first store");
+                owners.push(first.clone());
+                let first_atelier = AtelierStore::new(first.clone());
+                let concurrent_atelier = first_atelier.clone();
+                let (first_bootstrap, concurrent_bootstrap) = tokio::join!(
+                    first_atelier.bootstrap_schema(),
+                    concurrent_atelier.bootstrap_schema()
+                );
+                let first_bootstrap = first_bootstrap.expect("first concurrent Atelier bootstrap");
+                let concurrent_bootstrap =
+                    concurrent_bootstrap.expect("second concurrent Atelier bootstrap");
+                assert_ne!(first_bootstrap.applied, concurrent_bootstrap.applied);
+                assert_eq!(first_bootstrap.table_count, 125);
+                assert_eq!(concurrent_bootstrap.table_count, 125);
+                eprintln!(
+                    "MT-138 timing: concurrent schema bootstrap {:?}",
+                    proof_started.elapsed()
+                );
+                assert_mt138_adversarial_catalog_rejections(&first, &first_atelier).await;
+                eprintln!(
+                    "MT-138 timing: adversarial catalog checks {:?}",
+                    proof_started.elapsed()
+                );
                 first_atelier
-                    .record_blocked_command(
-                        &removed_builtin.action_id,
-                        command_corpus::BlockedReason::NoManualAnchor,
-                        removed_builtin.corpus_source,
-                        "removed builtin must be reconciled out",
+                    .record_event(
+                        "atelier.mt138.bootstrap_probe",
+                        "atelier_schema",
+                        "canonical",
+                        serde_json::json!({"proof": "canonical_ddl"}),
                     )
                     .await
-                    .expect("seed removed builtin blocked record");
+                    .expect("write typed Atelier event through canonical schema");
+                #[cfg(feature = "runtime-full")]
+                {
+                    let mut removed_builtin = command_corpus::builtin_command_corpus()
+                        .into_iter()
+                        .next()
+                        .expect("builtin command fixture");
+                    removed_builtin.action_id = "mt138.removed-builtin-probe".to_owned();
+                    removed_builtin.manual_anchor =
+                        command_corpus::MANUAL_ANCHOR_BLOCKED.to_owned();
+                    first_atelier
+                        .upsert_command_corpus_entry(&removed_builtin)
+                        .await
+                        .expect("seed removed builtin descriptor");
+                    first_atelier
+                        .record_blocked_command(
+                            &removed_builtin.action_id,
+                            command_corpus::BlockedReason::NoManualAnchor,
+                            removed_builtin.corpus_source,
+                            "removed builtin must be reconciled out",
+                        )
+                        .await
+                        .expect("seed removed builtin blocked record");
 
-                let first_corpus = first_atelier
-                    .bootstrap_builtin_command_corpus()
-                    .await
-                    .expect("bootstrap builtin command corpus first pass");
-                eprintln!(
-                    "MT-138 timing: first corpus bootstrap {:?}",
-                    proof_started.elapsed()
-                );
-                assert!(first_atelier
-                    .get_command_corpus_entry(&removed_builtin.action_id)
-                    .await
-                    .expect("query removed builtin after reconciliation")
-                    .is_none());
-                assert!(first_atelier
-                    .list_blocked_commands(Some(&removed_builtin.action_id))
-                    .await
-                    .expect("query removed builtin blocks after reconciliation")
-                    .is_empty());
-                let entries_before = first_atelier
-                    .list_command_corpus_entries(None)
-                    .await
-                    .expect("read first-pass command corpus");
-                let blocked_before = first_atelier
-                    .list_blocked_commands(None)
-                    .await
-                    .expect("read first-pass blocked commands");
-                let mut event_counts_before = Vec::new();
-                for family in command_corpus::command_corpus_event_family::ALL {
-                    event_counts_before.push(
-                        first_atelier
-                            .count_events(family)
-                            .await
-                            .expect("count first-pass command-corpus events"),
+                    let first_corpus = first_atelier
+                        .bootstrap_builtin_command_corpus()
+                        .await
+                        .expect("bootstrap builtin command corpus first pass");
+                    eprintln!(
+                        "MT-138 timing: first corpus bootstrap {:?}",
+                        proof_started.elapsed()
                     );
-                }
+                    assert!(first_atelier
+                        .get_command_corpus_entry(&removed_builtin.action_id)
+                        .await
+                        .expect("query removed builtin after reconciliation")
+                        .is_none());
+                    assert!(first_atelier
+                        .list_blocked_commands(Some(&removed_builtin.action_id))
+                        .await
+                        .expect("query removed builtin blocks after reconciliation")
+                        .is_empty());
+                    let entries_before = first_atelier
+                        .list_command_corpus_entries(None)
+                        .await
+                        .expect("read first-pass command corpus");
+                    let blocked_before = first_atelier
+                        .list_blocked_commands(None)
+                        .await
+                        .expect("read first-pass blocked commands");
+                    let mut event_counts_before = Vec::new();
+                    for family in command_corpus::command_corpus_event_family::ALL {
+                        event_counts_before.push(
+                            first_atelier
+                                .count_events(family)
+                                .await
+                                .expect("count first-pass command-corpus events"),
+                        );
+                    }
 
-                let second_corpus = first_atelier
-                    .bootstrap_builtin_command_corpus()
-                    .await
-                    .expect("bootstrap builtin command corpus second pass");
-                eprintln!(
-                    "MT-138 timing: second corpus bootstrap {:?}",
-                    proof_started.elapsed()
-                );
-                let entries_after = first_atelier
-                    .list_command_corpus_entries(None)
-                    .await
-                    .expect("read second-pass command corpus");
-                let blocked_after = first_atelier
-                    .list_blocked_commands(None)
-                    .await
-                    .expect("read second-pass blocked commands");
-                let mut event_counts_after = Vec::new();
-                for family in command_corpus::command_corpus_event_family::ALL {
-                    event_counts_after.push(
-                        first_atelier
-                            .count_events(family)
-                            .await
-                            .expect("count second-pass command-corpus events"),
+                    let second_corpus = first_atelier
+                        .bootstrap_builtin_command_corpus()
+                        .await
+                        .expect("bootstrap builtin command corpus second pass");
+                    eprintln!(
+                        "MT-138 timing: second corpus bootstrap {:?}",
+                        proof_started.elapsed()
                     );
-                }
+                    let entries_after = first_atelier
+                        .list_command_corpus_entries(None)
+                        .await
+                        .expect("read second-pass command corpus");
+                    let blocked_after = first_atelier
+                        .list_blocked_commands(None)
+                        .await
+                        .expect("read second-pass blocked commands");
+                    let mut event_counts_after = Vec::new();
+                    for family in command_corpus::command_corpus_event_family::ALL {
+                        event_counts_after.push(
+                            first_atelier
+                                .count_events(family)
+                                .await
+                                .expect("count second-pass command-corpus events"),
+                        );
+                    }
 
-                assert_eq!(first_corpus, second_corpus);
-                assert_eq!(entries_before, entries_after);
-                assert_eq!(blocked_before, blocked_after);
-                assert_eq!(event_counts_before, event_counts_after);
-            }
-            let (fields, indexes): (Vec<String>, Vec<String>) = first
-                .with_data_operation(|ctx| {
-                    Box::pin(async move {
-                        let fields = ctx
+                    assert_eq!(first_corpus, second_corpus);
+                    assert_eq!(entries_before, entries_after);
+                    assert_eq!(blocked_before, blocked_after);
+                    assert_eq!(event_counts_before, event_counts_after);
+                }
+                let (fields, indexes): (Vec<String>, Vec<String>) = first
+                    .with_data_operation(|ctx| {
+                        Box::pin(async move {
+                            let fields = ctx
                             .query_values::<String, ()>(
                                 "RETURN object::keys((INFO FOR TABLE atelier_character).fields);",
                                 (),
                             )
                             .await?;
-                        let indexes = ctx
+                            let indexes = ctx
                             .query_values::<String, ()>(
                                 "RETURN object::keys((INFO FOR TABLE atelier_character).indexes);",
                                 (),
                             )
                             .await?;
-                        Ok((fields, indexes))
+                            Ok((fields, indexes))
+                        })
                     })
-                })
-                .await
-                .expect("inspect canonical Atelier table shape");
-            assert!(fields.iter().any(|field| field == "internal_id"));
-            assert!(indexes.iter().any(|index| index == "pk_atelier_character"));
-            first.shutdown().await.expect("close first store");
-            eprintln!(
-                "MT-138 timing: first shutdown {:?}",
-                proof_started.elapsed()
-            );
+                    .await
+                    .expect("inspect canonical Atelier table shape");
+                assert!(fields.iter().any(|field| field == "internal_id"));
+                assert!(indexes.iter().any(|index| index == "pk_atelier_character"));
+                first.shutdown().await.expect("close first store");
+                eprintln!(
+                    "MT-138 timing: first shutdown {:?}",
+                    proof_started.elapsed()
+                );
 
-            let reopened = SurrealStorage::open(
-                crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
-                    .expect("configure reopened MT-138 store"),
-            )
-            .await
-            .expect("reopen MT-138 store");
-            let reopened_atelier = AtelierStore::new(reopened.clone());
-            let reopened_report = reopened_atelier
-                .bootstrap_schema()
-                .await
-                .expect("reuse canonical Atelier schema after restart");
-            eprintln!(
-                "MT-138 timing: reopened schema verification {:?}",
-                proof_started.elapsed()
-            );
-            assert!(!reopened_report.applied);
-            let persisted = reopened_atelier
-                .count_events_for_aggregate(
-                    "atelier.mt138.bootstrap_probe",
-                    "atelier_schema",
-                    "canonical",
+                let reopened = SurrealStorage::open(
+                    crate::storage::surreal::SurrealStorageConfig::for_data_dir(temp.path())
+                        .expect("configure reopened MT-138 store"),
                 )
                 .await
-                .expect("read persisted typed Atelier event");
-            assert_eq!(persisted, 1);
-            reopened.shutdown().await.expect("close reopened store");
-            eprintln!("MT-138 timing: complete {:?}", proof_started.elapsed());
-        })
-        .await
-        .expect("MT-138 embedded restart proof exceeded nineteen minutes");
+                .expect("reopen MT-138 store");
+                owners.push(reopened.clone());
+                let reopened_atelier = AtelierStore::new(reopened.clone());
+                let reopened_report = reopened_atelier
+                    .bootstrap_schema()
+                    .await
+                    .expect("reuse canonical Atelier schema after restart");
+                eprintln!(
+                    "MT-138 timing: reopened schema verification {:?}",
+                    proof_started.elapsed()
+                );
+                assert!(!reopened_report.applied);
+                let persisted = reopened_atelier
+                    .count_events_for_aggregate(
+                        "atelier.mt138.bootstrap_probe",
+                        "atelier_schema",
+                        "canonical",
+                    )
+                    .await
+                    .expect("read persisted typed Atelier event");
+                assert_eq!(persisted, 1);
+                reopened.shutdown().await.expect("close reopened store");
+                eprintln!("MT-138 timing: complete {:?}", proof_started.elapsed());
+            }),
+        ))
+        .await;
+        let body_diagnostic = match &outcome {
+            Ok(Ok(())) => "passed".to_owned(),
+            Ok(Err(error)) => error.to_string(),
+            Err(payload) => payload
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("non-string panic")
+                .to_owned(),
+        };
+        for owner in owners {
+            if let Err(error) = owner.shutdown().await {
+                let preserved = temp.keep();
+                panic!(
+                    "MT-138 body: {body_diagnostic}; cleanup failed; preserved {}: {error}",
+                    preserved.display()
+                );
+            }
+        }
+        temp.close().expect("remove closed MT-138 store");
+        assert!(
+            !data_dir.exists(),
+            "MT-138 store survived cleanup: {}",
+            data_dir.display()
+        );
+        eprintln!("MT138_READINESS_STORE_REMOVED {}", data_dir.display());
+        match outcome {
+            Ok(result) => result.expect("MT-138 embedded restart proof exceeded nineteen minutes"),
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
     }
 }

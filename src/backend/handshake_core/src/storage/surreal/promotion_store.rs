@@ -112,7 +112,7 @@ const PROMOTE_GRAPH_FACT_STATEMENT: &str = "BEGIN TRANSACTION; \
         event_type: $requested.event_type, actor_kind: $requested.actor_kind, \
         actor_id: $requested.actor_id, causation_id: $requested.causation_id, \
         correlation_id: $requested.correlation_id, payload_hash: $requested.payload_hash, \
-        source_component: $requested.source_component, payload: $requested.payload, \
+        source_component: $requested.source_component, payload: $requested.payload, wsids: $requested.wsids, authority_resource_id: $requested.authority_resource_id, authority_session_id: $requested.authority_session_id, authority_capability_id: $requested.authority_capability_id, authority_action: $requested.authority_action, \
         created_at: $requested.created_at \
       } RETURN NONE; \
     }; \
@@ -144,7 +144,7 @@ const PROMOTE_GRAPH_FACT_STATEMENT: &str = "BEGIN TRANSACTION; \
         event_type: $accepted.event_type, actor_kind: $accepted.actor_kind, \
         actor_id: $accepted.actor_id, causation_id: $actual_requested.event_id, \
         correlation_id: $accepted.correlation_id, payload_hash: $accepted.payload_hash, \
-        source_component: $accepted.source_component, payload: $accepted.payload, \
+        source_component: $accepted.source_component, payload: $accepted.payload, wsids: $accepted.wsids, authority_resource_id: $accepted.authority_resource_id, authority_session_id: $accepted.authority_session_id, authority_capability_id: $accepted.authority_capability_id, authority_action: $accepted.authority_action, \
         created_at: $accepted.created_at \
       } RETURN NONE; \
     }; \

@@ -149,6 +149,20 @@ fn event_conflict() -> ApiError {
     )
 }
 
+fn map_native_editor_ledger_error(error: crate::storage::StorageError) -> ApiError {
+    match error {
+        crate::storage::StorageError::Validation(_) => event_conflict(),
+        crate::storage::StorageError::Conflict(message)
+            if message.starts_with(
+                "kernel event idempotency key was reused with different event content",
+            ) =>
+        {
+            event_conflict()
+        }
+        other => db_error(other),
+    }
+}
+
 fn db_error(err: impl std::fmt::Display) -> ApiError {
     tracing::error!(target: "handshake_core", error = %err, "flight_recorder_db_error");
     (
@@ -1115,7 +1129,7 @@ async fn reconcile_native_editor_pending_authorized(
                 .ok_or_else(|| {
                     "pending native-editor receipt lacks workspace authority".to_owned()
                 })?;
-            if let Err(error) = crate::api::authority::authorize_reconciliation_workspace(
+            let scope = match crate::api::authority::authorize_reconciliation_workspace(
                 state,
                 authority,
                 workspace_id,
@@ -1123,11 +1137,19 @@ async fn reconcile_native_editor_pending_authorized(
             )
             .await
             {
-                tracing::error!(workspace_id, error = %error, "native-editor reconciliation workspace denied");
-                continue;
-            }
-            if let Err(error) =
-                reconcile_native_editor_pending_receipt(state, pending_receipt).await
+                Ok(scope) => scope,
+                Err(error) => {
+                    tracing::error!(error = %error, "native-editor reconciliation workspace denied");
+                    continue;
+                }
+            };
+            if let Err(error) = state
+                .surreal
+                .with_record_user_scope(
+                    scope,
+                    reconcile_native_editor_pending_receipt(state, pending_receipt),
+                )
+                .await
             {
                 // A malformed/conflicting poison row remains operator-visible in logs. Keyset
                 // pagination advances past it, so even 100+ permanent poison rows cannot starve a
@@ -1488,10 +1510,7 @@ async fn record_native_editor_event(
         .storage
         .append_kernel_event(pending_receipt)
         .await
-        .map_err(|error| match error {
-            crate::storage::StorageError::Validation(_) => event_conflict(),
-            other => db_error(other),
-        })?;
+        .map_err(map_native_editor_ledger_error)?;
     if !native_editor_pending_receipt_matches(&pending_receipt, &event, &fr_event) {
         return Err(event_conflict());
     }
@@ -1541,10 +1560,7 @@ async fn record_native_editor_event(
         .storage
         .append_kernel_event(completion)
         .await
-        .map_err(|error| match error {
-            crate::storage::StorageError::Validation(_) => event_conflict(),
-            other => db_error(other),
-        })?;
+        .map_err(map_native_editor_ledger_error)?;
 
     Ok(Json(json!({
         "ok": true,
@@ -2059,36 +2075,103 @@ mod tests {
     {
         let backend = embedded_test_backend().await?;
 
-        let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
+        let setup: Result<AppState, Box<dyn std::error::Error>> = async {
+            let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
-        let state = AppState {
-            storage: backend.database.clone(),
-            surreal: backend.storage.clone(),
-            flight_recorder: recorder.clone(),
-            diagnostics: recorder,
-            llm_client: Arc::new(TestLlmClient::new()),
-            capability_registry: Arc::new(CapabilityRegistry::new()),
-            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+            let state = AppState {
+                storage: backend.database.clone(),
+                surreal: backend.storage.clone(),
+                flight_recorder: recorder.clone(),
+                diagnostics: recorder,
+                llm_client: Arc::new(TestLlmClient::new()),
+                capability_registry: Arc::new(CapabilityRegistry::new()),
+                session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+            };
+            // Ingestion binds the path workspace to canonical authority, so the fixture workspaces
+            // must be real rows in this test's isolated schema.
+            ensure_test_workspace(&state, TEST_WORKSPACE_ID)
+                .await
+                .map_err(|error| error.to_string())?;
+            ensure_test_workspace(&state, OTHER_TEST_WORKSPACE_ID)
+                .await
+                .map_err(|error| error.to_string())?;
+            state
+                .surreal
+                .provision_reconciliation_principal(
+                    &[
+                        TEST_WORKSPACE_ID.to_owned(),
+                        OTHER_TEST_WORKSPACE_ID.to_owned(),
+                    ],
+                    None,
+                )
+                .await?;
+            Ok(state)
+        }
+        .await;
+        match setup {
+            Ok(state) => Ok((state, backend)),
+            Err(error) => {
+                let cleanup = backend.close_and_remove().await;
+                Err(std::io::Error::other(match cleanup {
+                    Ok(()) => format!("flight-recorder setup failed: {error}"),
+                    Err(cleanup) => format!(
+                        "flight-recorder setup failed: {error}; cleanup also failed: {cleanup}"
+                    ),
+                })
+                .into())
+            }
+        }
+    }
+
+    async fn finish_flight_recorder_test(
+        body: Result<Result<(), Box<dyn std::error::Error>>, Box<dyn std::any::Any + Send>>,
+        store: crate::storage::tests::EmbeddedTestBackend,
+        data_dir: std::path::PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let body = match body {
+            Ok(result) => result,
+            Err(payload) => Err(std::io::Error::other(format!(
+                "Flight Recorder body panicked: {}",
+                payload
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("non-string panic")
+            ))
+            .into()),
         };
-        // Ingestion binds the path workspace to canonical authority, so the fixture workspaces
-        // must be real rows in this test's isolated schema.
-        ensure_test_workspace(&state, TEST_WORKSPACE_ID)
-            .await
-            .map_err(|error| error.to_string())?;
-        ensure_test_workspace(&state, OTHER_TEST_WORKSPACE_ID)
-            .await
-            .map_err(|error| error.to_string())?;
-        state
-            .surreal
-            .provision_reconciliation_principal(
-                &[
-                    TEST_WORKSPACE_ID.to_owned(),
-                    OTHER_TEST_WORKSPACE_ID.to_owned(),
-                ],
-                None,
-            )
-            .await?;
-        Ok((state, backend))
+        let cleanup = store.close_and_remove().await;
+        match (body, cleanup) {
+            (Ok(()), Ok(())) => {
+                assert!(
+                    !data_dir.try_exists()?,
+                    "Flight Recorder store survived cleanup: {}",
+                    data_dir.display()
+                );
+                Ok(())
+            }
+            (Err(error), Ok(())) => Err(error),
+            (Ok(()), Err(error)) => Err(error.into()),
+            (Err(body), Err(cleanup)) => Err(std::io::Error::other(format!(
+                "Flight Recorder body failed: {body}; cleanup also failed: {cleanup}"
+            ))
+            .into()),
+        }
+    }
+
+    async fn run_flight_recorder_test<F, Fut>(body: F) -> Result<(), Box<dyn std::error::Error>>
+    where
+        F: FnOnce(AppState) -> Fut,
+        Fut: std::future::Future<Output = Result<(), Box<dyn std::error::Error>>>,
+    {
+        let (state, store) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(body(
+            state.clone(),
+        )))
+        .await;
+        drop(state);
+        finish_flight_recorder_test(body, store, data_dir).await
     }
 
     async fn serve_test_router(
@@ -2147,7 +2230,8 @@ mod tests {
                 None,
                 std::time::Duration::from_secs(300),
             )
-            .await?)
+            .await
+            .map_err(|error| format!("provision recorder principal {principal}: {error}"))?)
     }
 
     async fn mt109_register_recorder_resource(
@@ -2164,7 +2248,8 @@ mod tests {
                 None,
                 "account_private",
             )
-            .await?
+            .await
+            .map_err(|error| format!("register recorder resource {workspace_id}: {error}"))?
             .resource_id)
     }
 
@@ -2203,8 +2288,75 @@ mod tests {
                     delegation_chain,
                 },
             )
-            .await?
+            .await
+            .map_err(|error| format!("grant recorder resource {resource_id}: {error}"))?
             .grant_id)
+    }
+
+    async fn append_authorized_native_editor_events(
+        state: &AppState,
+        workspace_id: &str,
+        events: Vec<NewKernelEvent>,
+    ) -> Result<Vec<crate::kernel::KernelEvent>, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{
+            AuthorizationRequest, RecordUserScope, ResourceAction, ResourceKind,
+        };
+
+        let suffix = Uuid::now_v7();
+        let capabilities = mt109_recorder_capabilities();
+        let principal = mt109_recorder_principal(
+            state,
+            &format!("native-editor-pending-account-{suffix}"),
+            &format!("native-editor-pending-principal-{suffix}"),
+            &format!("native-editor-pending-space-{suffix}"),
+            &capabilities,
+        )
+        .await?;
+        let resource = mt109_register_recorder_resource(state, &principal, workspace_id).await?;
+        mt109_grant_recorder_resource(state, &principal, &resource, Mt109RecorderGrantMode::Full)
+            .await?;
+        let decision = state
+            .surreal
+            .authorize_protected_resource(AuthorizationRequest {
+                session_token: principal.session.token.clone(),
+                channel_binding_hash: None,
+                capability_id: FR_INGEST_NATIVE_EDITOR_CAPABILITY.to_owned(),
+                resource_kind: ResourceKind::FlightRecorder,
+                external_resource_id: workspace_id.to_owned(),
+                action: ResourceAction::Create,
+            })
+            .await?;
+        let scope = RecordUserScope {
+            workspace_id: Some(workspace_id.to_owned()),
+            session_token: principal.session.token,
+            channel_binding_hash: None,
+            resource_id: decision.resource_id,
+            session_id: decision.session_id,
+            capability_id: FR_INGEST_NATIVE_EDITOR_CAPABILITY.to_owned(),
+            action: ResourceAction::Create,
+        };
+        Ok(state
+            .surreal
+            .with_record_user_scope(scope, state.storage.append_kernel_events_atomic(events))
+            .await?)
+    }
+
+    async fn append_authorized_native_editor_event(
+        state: &AppState,
+        event: NewKernelEvent,
+    ) -> Result<crate::kernel::KernelEvent, Box<dyn std::error::Error>> {
+        let workspace_id = event
+            .payload
+            .get("envelope")
+            .and_then(|value| value.get("workspace_id"))
+            .and_then(Value::as_str)
+            .ok_or("native-editor pending fixture lacks workspace_id")?
+            .to_owned();
+        append_authorized_native_editor_events(state, &workspace_id, vec![event])
+            .await?
+            .into_iter()
+            .next()
+            .ok_or_else(|| "native-editor pending fixture was not persisted".into())
     }
 
     async fn mt109_exchange_recorder_session(
@@ -2217,7 +2369,13 @@ mod tests {
         let credential = state
             .surreal
             .provision_session_credential(&principal.identity, std::time::Duration::from_secs(300))
-            .await?;
+            .await
+            .map_err(|error| {
+                format!(
+                    "provision recorder session credential for {}: {error}",
+                    principal.identity.principal_id
+                )
+            })?;
         let response = client
             .post(format!("{base}/authority/session"))
             .header("x-hsk-channel-binding-token", binding_token)
@@ -2255,7 +2413,7 @@ mod tests {
     #[tokio::test]
     async fn list_events_preserves_model_session_id_filter_and_payload(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let trace_id = Uuid::now_v7();
 
         state
@@ -2310,6 +2468,8 @@ mod tests {
         assert_eq!(events[0].event_type, "system");
 
         Ok(())
+        })
+        .await
     }
 
     fn native_editor_envelope(event_id: &str) -> NativeEditorFrEventV0_1 {
@@ -2437,7 +2597,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_event_round_trips_and_mirrors_to_ledger(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event_id = Uuid::now_v7().to_string();
         let uuid = Uuid::parse_str(&event_id)?;
         // The durable, workspace-partitioned identity the recorder actually stores.
@@ -2554,19 +2714,27 @@ mod tests {
             "idempotent: still exactly one ledger receipt"
         );
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_same_id_mutated_envelope_conflicts(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         for mutation in ["pane", "surface", "timestamp"] {
             let event_id = Uuid::now_v7().to_string();
             let mut original = native_editor_envelope(&event_id);
             original.surface = Some("pane-rich".to_owned());
-            ingest_native_editor(State(state.clone()), Json(original.clone()))
+            let Json(first_ack) = ingest_native_editor(State(state.clone()), Json(original.clone()))
                 .await
                 .map_err(|(status, _)| format!("initial ingest failed: {status}"))?;
+            assert_eq!(first_ack["idempotent"], false);
+            let Json(replay_ack) =
+                ingest_native_editor(State(state.clone()), Json(original.clone()))
+                    .await
+                    .map_err(|(status, _)| format!("unchanged replay failed: {status}"))?;
+            assert_eq!(replay_ack["idempotent"], true);
             let mut changed = original;
             match mutation {
                 "pane" => changed.pane_id = "pane-other".to_owned(),
@@ -2574,21 +2742,21 @@ mod tests {
                 "timestamp" => changed.ts_utc = "2026-07-02T04:08:06Z".to_owned(),
                 _ => unreachable!(),
             }
+            let changed_result = ingest_native_editor(State(state.clone()), Json(changed)).await;
             assert!(
-                matches!(
-                    ingest_native_editor(State(state.clone()), Json(changed)).await,
-                    Err((StatusCode::CONFLICT, _))
-                ),
+                matches!(changed_result, Err((StatusCode::CONFLICT, _))),
                 "same event_id with changed {mutation} must conflict"
             );
         }
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_concurrent_same_id_converges_once_in_both_stores(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event_id = Uuid::now_v7().to_string();
         let event = native_editor_envelope(&event_id);
 
@@ -2622,12 +2790,14 @@ mod tests {
                 .count();
         assert_eq!(ledger_rows, 2, "one pending and one completion receipt");
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_canonical_uuid_and_timestamp_spellings_converge(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let uuid = Uuid::now_v7();
         let mut first = native_editor_envelope(&format!("  {}  ", uuid.to_string().to_uppercase()));
         first.ts_utc = "2026-07-02T06:08:05.123456789+02:00".to_owned();
@@ -2679,12 +2849,14 @@ mod tests {
             "the immutable envelope retains the canonical nanosecond spelling"
         );
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_decomposed_unicode_retry_matches_normalized_store(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event_id = Uuid::now_v7().to_string();
         let mut event = native_editor_envelope(&event_id);
         event.kind = NativeEditorFrEventKind::CodeEdit;
@@ -2697,6 +2869,8 @@ mod tests {
             .map_err(|(status, _)| format!("unicode retry failed: {status}"))?;
         assert_eq!(ack["idempotent"], true);
         Ok(())
+        })
+        .await
     }
 
     #[test]
@@ -2772,7 +2946,7 @@ mod tests {
     #[tokio::test]
     async fn list_events_surface_filter_returns_only_native_system_events_for_that_surface(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let native_id = Uuid::now_v7();
         let mut envelope = native_editor_envelope(&native_id.to_string());
         envelope.surface = Some("pane-rich".to_owned());
@@ -2811,6 +2985,8 @@ mod tests {
         );
         assert_eq!(rows[0].payload["event_family"], "native_editor");
         Ok(())
+        })
+        .await
     }
 
     #[test]
@@ -2919,11 +3095,10 @@ mod tests {
     #[tokio::test]
     async fn native_editor_reconciler_repairs_durable_pending_after_restart_window(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event_id = Uuid::now_v7().to_string();
         let event = native_editor_envelope(&event_id);
-        let pending = native_editor_pending_event(&event);
-        state.storage.append_kernel_event(pending).await?;
+        append_authorized_native_editor_event(&state, native_editor_pending_event(&event)).await?;
 
         let before = state
             .flight_recorder
@@ -2962,18 +3137,17 @@ mod tests {
             "completion exists only after FR recovery"
         );
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_routes_autonomously_starts_reconciliation(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event_id = Uuid::now_v7().to_string();
         let event = native_editor_envelope(&event_id);
-        state
-            .storage
-            .append_kernel_event(native_editor_pending_event(&event))
-            .await?;
+        append_authorized_native_editor_event(&state, native_editor_pending_event(&event)).await?;
 
         let _mounted_routes = routes(state.clone());
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -2995,18 +3169,19 @@ mod tests {
             tokio::time::sleep(std::time::Duration::from_millis(25)).await;
         }
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_spurious_completion_does_not_suppress_recovery(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event_id = Uuid::now_v7().to_string();
         let event = native_editor_envelope(&event_id);
-        let pending = state
-            .storage
-            .append_kernel_event(native_editor_pending_event(&event))
-            .await?;
+        let pending =
+            append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
+                .await?;
         let spurious = NewKernelEvent::builder(
             event.canonical_workspace_id().to_owned(),
             event.event_id.clone(),
@@ -3048,17 +3223,18 @@ mod tests {
                 .count();
         assert_eq!(completion_count, 1);
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_completion_with_corrupt_hash_cannot_suppress_recovery(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event = native_editor_envelope(&Uuid::now_v7().to_string());
-        let pending = state
-            .storage
-            .append_kernel_event(native_editor_pending_event(&event))
-            .await?;
+        let pending =
+            append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
+                .await?;
         state
             .flight_recorder
             .record_event(
@@ -3094,12 +3270,14 @@ mod tests {
             "corrupt completion was accepted as authentic"
         );
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_legacy_pending_without_expected_hash_remains_recoverable(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event = native_editor_envelope(&Uuid::now_v7().to_string());
         let mut legacy_pending = native_editor_pending_event(&event);
         legacy_pending
@@ -3110,7 +3288,7 @@ mod tests {
         legacy_pending.payload_hash = crate::kernel::context_bundle::sha256_hex(
             &crate::kernel::context_bundle::canonical_json_bytes(&legacy_pending.payload),
         );
-        let pending = state.storage.append_kernel_event(legacy_pending).await?;
+        let pending = append_authorized_native_editor_event(&state, legacy_pending).await?;
 
         reconcile_native_editor_pending_receipt(&state, pending.clone())
             .await
@@ -3141,12 +3319,14 @@ mod tests {
             .await
             .map_err(std::io::Error::other)?;
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_persistent_restart_repairs_both_partial_write_windows(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (base_state, _store) = setup_state().await?;
+        run_flight_recorder_test(|base_state| async move {
         let temp = tempfile::tempdir()?;
         let path = temp.path().join("native-editor-restart.duckdb");
         let recorder_before = Arc::new(DuckDbFlightRecorder::new_on_path(&path, 32)?);
@@ -3154,13 +3334,15 @@ mod tests {
 
         let before_fr = native_editor_envelope(&Uuid::now_v7().to_string());
         let after_fr = native_editor_envelope(&Uuid::now_v7().to_string());
-        state_before
-            .storage
-            .append_kernel_events_atomic(vec![
+        append_authorized_native_editor_events(
+            &state_before,
+            TEST_WORKSPACE_ID,
+            vec![
                 native_editor_pending_event(&before_fr),
                 native_editor_pending_event(&after_fr),
-            ])
-            .await?;
+            ],
+        )
+        .await?;
         state_before
             .flight_recorder
             .record_event(native_editor_fr_event_from_envelope(&after_fr).map_err(|_| "fixture")?)
@@ -3198,12 +3380,14 @@ mod tests {
         }
         drop(state_after);
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_reconciler_traverses_more_than_one_poison_batch(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let prefix = format!("poison-{}", Uuid::now_v7());
         let valid = native_editor_envelope(&Uuid::now_v7().to_string());
         let mut events = Vec::with_capacity(102);
@@ -3219,12 +3403,12 @@ mod tests {
                 .aggregate("native_editor_event", aggregate_id.clone())
                 .idempotency_key(format!("native-editor-fr-pending:{aggregate_id}"))
                 .source_component("native_editor_fr_ingestion")
-                .payload(json!({"receipt_kind":"native_editor_flight_recorder_pending","envelope":{"invalid":true}}))
+                .payload(json!({"receipt_kind":"native_editor_flight_recorder_pending","envelope":{"invalid":true,"workspace_id":TEST_WORKSPACE_ID}}))
                 .build()?,
             );
         }
         events.push(native_editor_pending_event(&valid));
-        state.storage.append_kernel_events_atomic(events).await?;
+        append_authorized_native_editor_events(&state, TEST_WORKSPACE_ID, events).await?;
 
         reconcile_native_editor_pending(&state)
             .await
@@ -3243,6 +3427,8 @@ mod tests {
             "101 poison rows must not starve the newer valid mirror"
         );
         Ok(())
+        })
+        .await
     }
 
     /// AC-109-1: unknown kinds and unknown fields are rejected at decode (typed rejection,
@@ -3290,7 +3476,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_route_rejects_unknown_kind_and_field_without_durable_residue(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
@@ -3344,6 +3530,8 @@ mod tests {
         );
         server.abort();
         Ok(())
+        })
+        .await
     }
 
     fn documented_payloads() -> Vec<(NativeEditorFrEventKind, Value)> {
@@ -3423,7 +3611,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_handler_accepts_all_documented_kinds_and_persists_each(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
 
         for (kind, payload) in documented_payloads() {
             let event = if kind == NativeEditorFrEventKind::DocumentSaved {
@@ -3476,6 +3664,8 @@ mod tests {
             );
         }
         Ok(())
+        })
+        .await
     }
 
     #[test]
@@ -3582,7 +3772,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_handler_rejects_every_documented_payload_boundary_corruption(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
 
         for (kind, payload) in documented_payloads() {
             let keys = payload
@@ -3638,12 +3828,14 @@ mod tests {
             );
         }
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let correlated = [
             (
                 NativeEditorFrEventKind::RouteToStage,
@@ -3705,13 +3897,15 @@ mod tests {
             ));
         }
         Ok(())
+        })
+        .await
     }
 
     /// AC-109-1: the handler fails closed on a wrong schema version, a non-UUID event_id,
     /// or a non-object payload (no top-level free-text smuggling).
     #[tokio::test]
     async fn native_editor_event_handler_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
 
         let mut wrong_schema = native_editor_envelope(&Uuid::now_v7().to_string());
         wrong_schema.schema_version = "wrong@0.0".to_string();
@@ -3780,12 +3974,14 @@ mod tests {
             Err((StatusCode::FORBIDDEN, _))
         ));
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn document_saved_requires_exact_canonical_save_receipt(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let authentic = authentic_document_saved_envelope(&state).await?;
 
         let mut missing = authentic.clone();
@@ -3818,6 +4014,8 @@ mod tests {
             .map_err(|(status, _)| format!("authentic receipt rejected: {status}"))?;
         assert_eq!(ack["ok"], true);
         Ok(())
+        })
+        .await
     }
 
     /// WP-KERNEL-012 MT-120 / AC-120-2 — THE BINDING IS NOT WEAKENED.
@@ -3829,7 +4027,7 @@ mod tests {
     #[tokio::test]
     async fn document_saved_receipt_minted_by_another_principal_is_unclaimable(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         // Principal A is some OTHER live native process; the ingesting principal is TEST_ACTOR_ID.
         let other_principal = "handshake-native:999999:0f0f0f0f";
         assert_ne!(other_principal, TEST_ACTOR_ID);
@@ -3863,6 +4061,8 @@ mod tests {
             .map_err(|(status, _)| format!("own-principal receipt rejected: {status}"))?;
         assert_eq!(ack["ok"], true);
         Ok(())
+        })
+        .await
     }
 
     /// WP-KERNEL-012 MT-120 — FAIL CLOSED on an absent ownership anchor. A legacy or unauthenticated
@@ -3871,7 +4071,7 @@ mod tests {
     #[tokio::test]
     async fn document_saved_receipt_without_minted_by_principal_is_unclaimable(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         for mutate in [None, Some(""), Some("   ")] {
             let envelope = authentic_document_saved_envelope(&state).await?;
             let receipt_id = envelope.payload["save_receipt_event_id"]
@@ -3925,6 +4125,8 @@ mod tests {
             );
         }
         Ok(())
+        })
+        .await
     }
 
     /// A legacy FR-only partial write is repaired on replay: the handler appends the missing durable
@@ -3932,7 +4134,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_replay_repairs_fr_only_partial_write(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let event_id = Uuid::now_v7();
         let event = native_editor_envelope(&event_id.to_string());
         let aggregate_id = durable_id(&event).to_string();
@@ -3954,6 +4156,8 @@ mod tests {
             "replay repaired the missing embedded EventLedger mirror"
         );
         Ok(())
+        })
+        .await
     }
 
     // =====================================================================================
@@ -3995,7 +4199,7 @@ mod tests {
     #[tokio::test]
     async fn flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
@@ -4099,73 +4303,148 @@ mod tests {
         }
         server.abort();
         Ok(())
+        })
+        .await
     }
 
     #[tokio::test]
     async fn mt109_every_flight_recorder_route_uses_persisted_credentials_and_full_denial_matrix(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
-        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
-        let (binding_token, _binding) = install_native_binding()?;
-        let capabilities = mt109_recorder_capabilities();
-        let owner = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-owner",
-            "recorder-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        let resource = mt109_register_recorder_resource(&state, &owner, TEST_WORKSPACE_ID).await?;
-        mt109_grant_recorder_resource(&state, &owner, &resource, Mt109RecorderGrantMode::Full)
-            .await?;
-        // A real existing selector with no grant is used for path/query-forgery checks.
-        mt109_register_recorder_resource(&state, &owner, OTHER_TEST_WORKSPACE_ID).await?;
-        let app = crate::api::authority::routes(state.clone()).merge(routes(state.clone()));
-        let (base, http, server) = serve_test_router(app).await;
-        let (session_token, session_id) =
-            mt109_exchange_recorder_session(&state, &base, &http, &owner, &binding_token).await?;
+        let (state, store) = setup_state()
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+        let data_dir = store.data_dir.clone();
+        let mut server_task = None;
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
+            let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+            let (binding_token, _binding) = install_native_binding()?;
+            let capabilities = mt109_recorder_capabilities();
+            let owner = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-owner",
+                "recorder-matrix-space-a",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let resource = mt109_register_recorder_resource(&state, &owner, TEST_WORKSPACE_ID)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            mt109_grant_recorder_resource(&state, &owner, &resource, Mt109RecorderGrantMode::Full)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            // A real existing selector with no grant is used for path/query-forgery checks.
+            mt109_register_recorder_resource(&state, &owner, OTHER_TEST_WORKSPACE_ID)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let app = crate::api::authority::routes(state.clone()).merge(routes(state.clone()));
+            let (base, http, server) = serve_test_router(app).await;
+            server_task = Some(server);
+            let (session_token, session_id) =
+                mt109_exchange_recorder_session(&state, &base, &http, &owner, &binding_token)
+                    .await
+                    .map_err(|error| {
+                        format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
+                    })?;
 
-        for alias in ["flight_recorder", "events"] {
+            for alias in ["flight_recorder", "events"] {
+                let response = http
+                    .get(format!("{base}/{alias}?wsid={TEST_WORKSPACE_ID}"))
+                    .header("x-hsk-session-token", &session_token)
+                    .header("x-hsk-channel-binding-token", &binding_token)
+                    .send()
+                    .await
+                    .map_err(|error| {
+                        format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
+                    })?;
+                assert_eq!(response.status(), StatusCode::OK, "authorized {alias}");
+            }
+            let mut native_body =
+                serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+            native_body["actor_id"] = Value::Null;
+            native_body["actor_kind"] = Value::Null;
+            native_body["workspace_id"] = Value::Null;
+            let native_rows_before_workspace_denial = native_editor_fr_row_count(&state).await?;
+            let ledger_rows_before_workspace_denial =
+                native_editor_ledger_row_count(&state).await?;
             let response = http
-                .get(format!("{base}/{alias}?wsid={TEST_WORKSPACE_ID}"))
+                .post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
                 .header("x-hsk-session-token", &session_token)
                 .header("x-hsk-channel-binding-token", &binding_token)
+                .json(&native_body)
+                .send()
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "recorder grant alone cannot read the workspace"
+            );
+            assert_eq!(
+                response.json::<Value>().await?,
+                json!({"error": "HSK-403-FR-WORKSPACE"})
+            );
+            assert_eq!(
+                native_editor_fr_row_count(&state).await?,
+                native_rows_before_workspace_denial,
+                "workspace-denied ingestion wrote a native FR row"
+            );
+            assert_eq!(
+                native_editor_ledger_row_count(&state).await?,
+                ledger_rows_before_workspace_denial,
+                "workspace-denied ingestion wrote a ledger receipt"
+            );
+            let workspace_resource = state
+                .surreal
+                .register_workspace_resource(&owner.identity, TEST_WORKSPACE_ID)
+                .await?;
+            state
+                .surreal
+                .grant_resource(
+                    &owner.identity.account_id,
+                    &owner.identity.access_space_id,
+                    crate::storage::surreal::resource_authority::ResourceGrantSpec {
+                        principal_id: owner.identity.principal_id.clone(),
+                        resource_id: workspace_resource.resource_id,
+                        actions: vec![
+                            crate::storage::surreal::resource_authority::ResourceAction::Read,
+                        ],
+                        capability_ids: vec![FR_READ_CAPABILITY.to_owned()],
+                        expires_at: None,
+                        delegation_chain: Vec::new(),
+                    },
+                )
+                .await?;
+            let response = http
+                .post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &binding_token)
+                .json(&native_body)
                 .send()
                 .await?;
-            assert_eq!(response.status(), StatusCode::OK, "authorized {alias}");
-        }
-        let mut native_body =
-            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
-        native_body["actor_id"] = Value::Null;
-        native_body["actor_kind"] = Value::Null;
-        native_body["workspace_id"] = Value::Null;
-        let response = http
-            .post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &binding_token)
-            .json(&native_body)
-            .send()
-            .await?;
-        assert_eq!(
-            response.status(),
-            StatusCode::OK,
-            "authorized native ingest"
-        );
-        let response = http
-            .post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &binding_token)
-            .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None))
-            .send()
-            .await?;
-        assert_eq!(
-            response.status(),
-            StatusCode::OK,
-            "authorized runtime ingest"
-        );
+            let status = response.status();
+            let response_body = response.json::<Value>().await?;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "authorized native ingest: {response_body}"
+            );
+            let response = http
+                .post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &binding_token)
+                .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None))
+                .send()
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            assert_eq!(
+                response.status(),
+                StatusCode::OK,
+                "authorized runtime ingest"
+            );
 
-        let revocation_decision = state
+            let revocation_decision = state
             .surreal
             .authorize_protected_resource(
                 crate::storage::surreal::resource_authority::AuthorizationRequest {
@@ -4180,341 +4459,466 @@ mod tests {
                     action: crate::storage::surreal::resource_authority::ResourceAction::Read,
                 },
             )
-            .await?;
-        assert_eq!(revocation_decision.session_id, session_id);
-        state
-            .surreal
-            .revoke_session(&revocation_decision.session_id)
-            .await?;
-        let native_rows_before_denials = native_editor_fr_row_count(&state).await?;
-        let ledger_rows_before_denials = native_editor_ledger_row_count(&state).await?;
-        let requests = vec![
-            http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}")),
-            http.get(format!("{base}/events?wsid={TEST_WORKSPACE_ID}")),
-            http.post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
-                .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None)),
-            http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
-                .json(&serde_json::to_value(native_editor_envelope(
-                    &Uuid::now_v7().to_string(),
-                ))?),
-        ];
-        for request in requests {
-            let response = request
-                .header("x-hsk-session-token", &session_token)
-                .header("x-hsk-channel-binding-token", &binding_token)
-                .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::FORBIDDEN);
-            assert_eq!(
-                response.json::<Value>().await?,
-                json!({"error": "HSK-403-PROTECTED-RESOURCE"})
-            );
-        }
-
-        let member = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-member",
-            "recorder-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        assert_eq!(member.identity.account_id, owner.identity.account_id);
-        assert_eq!(
-            member.identity.access_space_id,
-            owner.identity.access_space_id
-        );
-        let wrong_space = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-space-member",
-            "recorder-matrix-space-b",
-            &capabilities,
-        )
-        .await?;
-        assert_eq!(wrong_space.identity.account_id, owner.identity.account_id);
-        assert_ne!(
-            wrong_space.identity.access_space_id,
-            owner.identity.access_space_id
-        );
-        let foreign_account = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-foreign-account",
-            "recorder-matrix-foreign-principal",
-            "recorder-matrix-foreign-space",
-            &capabilities,
-        )
-        .await?;
-        let no_capability = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-no-capability",
-            "recorder-matrix-space-a",
-            &[],
-        )
-        .await?;
-        mt109_grant_recorder_resource(
-            &state,
-            &no_capability,
-            &resource,
-            Mt109RecorderGrantMode::Full,
-        )
-        .await?;
-        let wrong_action = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-wrong-action",
-            "recorder-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_recorder_resource(
-            &state,
-            &wrong_action,
-            &resource,
-            Mt109RecorderGrantMode::WrongAction,
-        )
-        .await?;
-        let wrong_capability = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-wrong-capability",
-            "recorder-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_recorder_resource(
-            &state,
-            &wrong_capability,
-            &resource,
-            Mt109RecorderGrantMode::WrongCapability,
-        )
-        .await?;
-        let bad_delegation = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-bad-delegation",
-            "recorder-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_recorder_resource(
-            &state,
-            &bad_delegation,
-            &resource,
-            Mt109RecorderGrantMode::MismatchedDelegation,
-        )
-        .await?;
-        let revoked_grant = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-revoked-grant",
-            "recorder-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        let revoked_grant_id = mt109_grant_recorder_resource(
-            &state,
-            &revoked_grant,
-            &resource,
-            Mt109RecorderGrantMode::Full,
-        )
-        .await?;
-        let stale_space = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-stale-space",
-            "recorder-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_recorder_resource(
-            &state,
-            &stale_space,
-            &resource,
-            Mt109RecorderGrantMode::Full,
-        )
-        .await?;
-        let selector_principal = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-selector",
-            "recorder-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_recorder_resource(
-            &state,
-            &selector_principal,
-            &resource,
-            Mt109RecorderGrantMode::Full,
-        )
-        .await?;
-
-        let mut denied_sessions = Vec::new();
-        for (label, principal) in [
-            ("capability-without-grant/same-account-member", &member),
-            ("wrong-access-space", &wrong_space),
-            ("cross-account", &foreign_account),
-            ("grant-without-capability", &no_capability),
-            ("wrong-action", &wrong_action),
-            ("wrong-capability", &wrong_capability),
-            ("mismatched-delegation", &bad_delegation),
-        ] {
-            let (token, _) =
-                mt109_exchange_recorder_session(&state, &base, &http, principal, &binding_token)
-                    .await?;
-            denied_sessions.push((label, token, TEST_WORKSPACE_ID.to_owned()));
-        }
-        let (revoked_grant_token, _) =
-            mt109_exchange_recorder_session(&state, &base, &http, &revoked_grant, &binding_token)
-                .await?;
-        state.surreal.revoke_grant(&revoked_grant_id).await?;
-        denied_sessions.push((
-            "revoked-grant",
-            revoked_grant_token,
-            TEST_WORKSPACE_ID.to_owned(),
-        ));
-        let (stale_token, stale_session_id) =
-            mt109_exchange_recorder_session(&state, &base, &http, &stale_space, &binding_token)
-                .await?;
-        let switched = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-account",
-            "recorder-matrix-stale-space",
-            "recorder-matrix-space-b",
-            &capabilities,
-        )
-        .await?;
-        state
-            .surreal
-            .switch_session_access_space(&stale_session_id, &switched.identity.access_space_id)
-            .await?;
-        denied_sessions.push((
-            "stale-post-space-switch",
-            stale_token,
-            TEST_WORKSPACE_ID.to_owned(),
-        ));
-        let (selector_token, _) = mt109_exchange_recorder_session(
-            &state,
-            &base,
-            &http,
-            &selector_principal,
-            &binding_token,
-        )
-        .await?;
-        denied_sessions.push((
-            "forged-existing-selector",
-            selector_token,
-            OTHER_TEST_WORKSPACE_ID.to_owned(),
-        ));
-
-        const DISABLED_WORKSPACE: &str = "WS-MT109-DISABLED";
-        ensure_test_workspace(&state, DISABLED_WORKSPACE).await?;
-        let disabled = mt109_recorder_principal(
-            &state,
-            "recorder-matrix-disabled-account",
-            "recorder-matrix-disabled-principal",
-            "recorder-matrix-disabled-space",
-            &capabilities,
-        )
-        .await?;
-        let disabled_resource =
-            mt109_register_recorder_resource(&state, &disabled, DISABLED_WORKSPACE).await?;
-        mt109_grant_recorder_resource(
-            &state,
-            &disabled,
-            &disabled_resource,
-            Mt109RecorderGrantMode::Full,
-        )
-        .await?;
-        let (disabled_token, _) =
-            mt109_exchange_recorder_session(&state, &base, &http, &disabled, &binding_token)
-                .await?;
-        state
-            .surreal
-            .disable_account(&disabled.identity.account_id)
-            .await?;
-        denied_sessions.push((
-            "disabled-account",
-            disabled_token,
-            DISABLED_WORKSPACE.to_owned(),
-        ));
-
-        let binding_hash = hex::encode(Sha256::digest(binding_token.as_bytes()));
-        let expired = state
-            .surreal
-            .provision_principal(
-                "recorder-matrix-account",
-                "recorder-matrix-expired",
-                "human_account",
-                TEST_ACTOR_ID,
-                "Operator",
-                &capabilities,
-                "recorder-matrix-space-a",
-                Some(&binding_hash),
-                std::time::Duration::from_millis(1),
-            )
-            .await?;
-        mt109_grant_recorder_resource(&state, &expired, &resource, Mt109RecorderGrantMode::Full)
-            .await?;
-        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-        denied_sessions.push((
-            "expired-session",
-            expired.session.token,
-            TEST_WORKSPACE_ID.to_owned(),
-        ));
-        denied_sessions.push((
-            "forged-session",
-            "f".repeat(64),
-            TEST_WORKSPACE_ID.to_owned(),
-        ));
-
-        for (label, token, workspace) in denied_sessions {
+            .await.map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            assert_eq!(revocation_decision.session_id, session_id);
+            state
+                .surreal
+                .revoke_session(&revocation_decision.session_id)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let native_rows_before_denials = native_editor_fr_row_count(&state)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let ledger_rows_before_denials = native_editor_ledger_row_count(&state)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
             let requests = vec![
-                http.get(format!("{base}/flight_recorder?wsid={workspace}")),
-                http.get(format!(
-                    "{base}/events?wsid={workspace}&event_id={}",
-                    Uuid::now_v7()
-                )),
-                http.post(runtime_chat_endpoint(&base, &workspace))
-                    .json(&runtime_chat_body(
-                        Uuid::now_v7(),
-                        Uuid::now_v7(),
-                        Some(OTHER_TEST_WORKSPACE_ID),
-                    )),
-                http.post(native_editor_endpoint(&base, &workspace))
-                    .json(&serde_json::to_value(native_editor_envelope_in(
-                        OTHER_TEST_WORKSPACE_ID,
+                http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}")),
+                http.get(format!("{base}/events?wsid={TEST_WORKSPACE_ID}")),
+                http.post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
+                    .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None)),
+                http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+                    .json(&serde_json::to_value(native_editor_envelope(
                         &Uuid::now_v7().to_string(),
                     ))?),
             ];
             for request in requests {
                 let response = request
-                    .header("x-hsk-session-token", &token)
+                    .header("x-hsk-session-token", &session_token)
                     .header("x-hsk-channel-binding-token", &binding_token)
                     .send()
-                    .await?;
-                assert_eq!(response.status(), StatusCode::FORBIDDEN, "{label}");
+                    .await
+                    .map_err(|error| {
+                        format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
+                    })?;
+                assert_eq!(response.status(), StatusCode::FORBIDDEN);
                 assert_eq!(
-                    response.json::<Value>().await?,
-                    json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
-                    "{label} constant denial"
+                    response.json::<Value>().await.map_err(|error| format!(
+                        "MT109 mounted FR {}:{}: {error}",
+                        file!(),
+                        line!()
+                    ))?,
+                    json!({"error": "HSK-403-PROTECTED-RESOURCE"})
                 );
             }
+
+            let member = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-member",
+                "recorder-matrix-space-a",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            assert_eq!(member.identity.account_id, owner.identity.account_id);
+            assert_eq!(
+                member.identity.access_space_id,
+                owner.identity.access_space_id
+            );
+            let wrong_space = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-space-member",
+                "recorder-matrix-space-b",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            assert_eq!(wrong_space.identity.account_id, owner.identity.account_id);
+            assert_ne!(
+                wrong_space.identity.access_space_id,
+                owner.identity.access_space_id
+            );
+            let foreign_account = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-foreign-account",
+                "recorder-matrix-foreign-principal",
+                "recorder-matrix-foreign-space",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let no_capability = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-no-capability",
+                "recorder-matrix-space-a",
+                &[],
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            mt109_grant_recorder_resource(
+                &state,
+                &no_capability,
+                &resource,
+                Mt109RecorderGrantMode::Full,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let wrong_action = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-wrong-action",
+                "recorder-matrix-space-a",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            mt109_grant_recorder_resource(
+                &state,
+                &wrong_action,
+                &resource,
+                Mt109RecorderGrantMode::WrongAction,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let wrong_capability = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-wrong-capability",
+                "recorder-matrix-space-a",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            mt109_grant_recorder_resource(
+                &state,
+                &wrong_capability,
+                &resource,
+                Mt109RecorderGrantMode::WrongCapability,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let bad_delegation = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-bad-delegation",
+                "recorder-matrix-space-a",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            mt109_grant_recorder_resource(
+                &state,
+                &bad_delegation,
+                &resource,
+                Mt109RecorderGrantMode::MismatchedDelegation,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let revoked_grant = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-revoked-grant",
+                "recorder-matrix-space-a",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let revoked_grant_id = mt109_grant_recorder_resource(
+                &state,
+                &revoked_grant,
+                &resource,
+                Mt109RecorderGrantMode::Full,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let stale_space = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-stale-space",
+                "recorder-matrix-space-a",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            mt109_grant_recorder_resource(
+                &state,
+                &stale_space,
+                &resource,
+                Mt109RecorderGrantMode::Full,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let selector_principal = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-selector",
+                "recorder-matrix-space-a",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            mt109_grant_recorder_resource(
+                &state,
+                &selector_principal,
+                &resource,
+                Mt109RecorderGrantMode::Full,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+
+            let mut denied_sessions = Vec::new();
+            for (label, principal) in [
+                ("capability-without-grant/same-account-member", &member),
+                ("wrong-access-space", &wrong_space),
+                ("cross-account", &foreign_account),
+                ("grant-without-capability", &no_capability),
+                ("wrong-action", &wrong_action),
+                ("wrong-capability", &wrong_capability),
+                ("mismatched-delegation", &bad_delegation),
+            ] {
+                let (token, _) = mt109_exchange_recorder_session(
+                    &state,
+                    &base,
+                    &http,
+                    principal,
+                    &binding_token,
+                )
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+                denied_sessions.push((label, token, TEST_WORKSPACE_ID.to_owned()));
+            }
+            let (revoked_grant_token, _) = mt109_exchange_recorder_session(
+                &state,
+                &base,
+                &http,
+                &revoked_grant,
+                &binding_token,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            state
+                .surreal
+                .revoke_grant(&revoked_grant_id)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            denied_sessions.push((
+                "revoked-grant",
+                revoked_grant_token,
+                TEST_WORKSPACE_ID.to_owned(),
+            ));
+            let (stale_token, stale_session_id) =
+                mt109_exchange_recorder_session(&state, &base, &http, &stale_space, &binding_token)
+                    .await
+                    .map_err(|error| {
+                        format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
+                    })?;
+            let switched = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-account",
+                "recorder-matrix-stale-space",
+                "recorder-matrix-space-b",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            state
+                .surreal
+                .switch_session_access_space(&stale_session_id, &switched.identity.access_space_id)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            denied_sessions.push((
+                "stale-post-space-switch",
+                stale_token,
+                TEST_WORKSPACE_ID.to_owned(),
+            ));
+            let (selector_token, _) = mt109_exchange_recorder_session(
+                &state,
+                &base,
+                &http,
+                &selector_principal,
+                &binding_token,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            denied_sessions.push((
+                "forged-existing-selector",
+                selector_token,
+                OTHER_TEST_WORKSPACE_ID.to_owned(),
+            ));
+
+            const DISABLED_WORKSPACE: &str = "WS-MT109-DISABLED";
+            ensure_test_workspace(&state, DISABLED_WORKSPACE)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let disabled = mt109_recorder_principal(
+                &state,
+                "recorder-matrix-disabled-account",
+                "recorder-matrix-disabled-principal",
+                "recorder-matrix-disabled-space",
+                &capabilities,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let disabled_resource =
+                mt109_register_recorder_resource(&state, &disabled, DISABLED_WORKSPACE)
+                    .await
+                    .map_err(|error| {
+                        format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
+                    })?;
+            mt109_grant_recorder_resource(
+                &state,
+                &disabled,
+                &disabled_resource,
+                Mt109RecorderGrantMode::Full,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            let (disabled_token, _) =
+                mt109_exchange_recorder_session(&state, &base, &http, &disabled, &binding_token)
+                    .await
+                    .map_err(|error| {
+                        format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
+                    })?;
+            state
+                .surreal
+                .disable_account(&disabled.identity.account_id)
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            denied_sessions.push((
+                "disabled-account",
+                disabled_token,
+                DISABLED_WORKSPACE.to_owned(),
+            ));
+
+            let binding_hash = hex::encode(Sha256::digest(binding_token.as_bytes()));
+            let expired = state
+                .surreal
+                .provision_principal(
+                    "recorder-matrix-account",
+                    "recorder-matrix-expired",
+                    "human_account",
+                    TEST_ACTOR_ID,
+                    "Operator",
+                    &capabilities,
+                    "recorder-matrix-space-a",
+                    Some(&binding_hash),
+                    std::time::Duration::from_millis(1),
+                )
+                .await
+                .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            mt109_grant_recorder_resource(
+                &state,
+                &expired,
+                &resource,
+                Mt109RecorderGrantMode::Full,
+            )
+            .await
+            .map_err(|error| format!("MT109 mounted FR {}:{}: {error}", file!(), line!()))?;
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            denied_sessions.push((
+                "expired-session",
+                expired.session.token,
+                TEST_WORKSPACE_ID.to_owned(),
+            ));
+            denied_sessions.push((
+                "forged-session",
+                "f".repeat(64),
+                TEST_WORKSPACE_ID.to_owned(),
+            ));
+
+            for (label, token, workspace) in denied_sessions {
+                let requests = vec![
+                    http.get(format!("{base}/flight_recorder?wsid={workspace}")),
+                    http.get(format!(
+                        "{base}/events?wsid={workspace}&event_id={}",
+                        Uuid::now_v7()
+                    )),
+                    http.post(runtime_chat_endpoint(&base, &workspace))
+                        .json(&runtime_chat_body(
+                            Uuid::now_v7(),
+                            Uuid::now_v7(),
+                            Some(OTHER_TEST_WORKSPACE_ID),
+                        )),
+                    http.post(native_editor_endpoint(&base, &workspace)).json(
+                        &serde_json::to_value(native_editor_envelope_in(
+                            OTHER_TEST_WORKSPACE_ID,
+                            &Uuid::now_v7().to_string(),
+                        ))?,
+                    ),
+                ];
+                for request in requests {
+                    let response = request
+                        .header("x-hsk-session-token", &token)
+                        .header("x-hsk-channel-binding-token", &binding_token)
+                        .send()
+                        .await
+                        .map_err(|error| {
+                            format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
+                        })?;
+                    assert_eq!(response.status(), StatusCode::FORBIDDEN, "{label}");
+                    assert_eq!(
+                        response.json::<Value>().await.map_err(|error| format!(
+                            "MT109 mounted FR {}:{}: {error}",
+                            file!(),
+                            line!()
+                        ))?,
+                        json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+                        "{label} constant denial"
+                    );
+                }
+            }
+            assert_eq!(
+                native_editor_fr_row_count(&state)
+                    .await
+                    .map_err(|error| format!(
+                        "MT109 mounted FR {}:{}: {error}",
+                        file!(),
+                        line!()
+                    ))?,
+                native_rows_before_denials,
+                "all denied route classes leave zero native-editor residue"
+            );
+            assert_eq!(
+                native_editor_ledger_row_count(&state)
+                    .await
+                    .map_err(|error| format!(
+                        "MT109 mounted FR {}:{}: {error}",
+                        file!(),
+                        line!()
+                    ))?,
+                ledger_rows_before_denials,
+                "all denied route classes leave zero EventLedger residue"
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        if let Some(server) = server_task {
+            server.abort();
+            let _ = server.await;
         }
-        assert_eq!(
-            native_editor_fr_row_count(&state).await?,
-            native_rows_before_denials,
-            "all denied route classes leave zero native-editor residue"
-        );
-        assert_eq!(
-            native_editor_ledger_row_count(&state).await?,
-            ledger_rows_before_denials,
-            "all denied route classes leave zero EventLedger residue"
-        );
-        server.abort();
-        Ok(())
+        drop(state);
+        let body = match body {
+            Ok(result) => result,
+            Err(payload) => Err(std::io::Error::other(format!(
+                "mounted FR body panicked: {}",
+                payload
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("non-string panic")
+            ))
+            .into()),
+        };
+        let cleanup = store.close_and_remove().await;
+        match (body, cleanup) {
+            (Ok(()), Ok(())) => {
+                assert!(
+                    !data_dir.try_exists()?,
+                    "mounted FR store survived cleanup: {}",
+                    data_dir.display()
+                );
+                Ok(())
+            }
+            (Err(error), Ok(())) => Err(error),
+            (Ok(()), Err(error)) => Err(error.into()),
+            (Err(body), Err(cleanup)) => Err(std::io::Error::other(format!(
+                "mounted FR body failed: {body}; cleanup also failed: {cleanup}"
+            ))
+            .into()),
+        }
     }
 
     /// A VALID authenticated context that lacks the required capability => 403 with zero residue
@@ -4523,7 +4927,7 @@ mod tests {
     #[tokio::test]
     async fn recorder_read_without_scope_is_denied_for_lack_of_global_capability(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
@@ -4568,6 +4972,8 @@ mod tests {
         );
         server.abort();
         Ok(())
+        })
+        .await
     }
 
     /// A spoofed actor or a body workspace that disagrees with the authenticated path is rejected
@@ -4575,7 +4981,7 @@ mod tests {
     #[tokio::test]
     async fn native_editor_ingest_rejects_spoofed_identity_and_derives_attribution(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
@@ -4711,6 +5117,8 @@ mod tests {
         }
         server.abort();
         Ok(())
+        })
+        .await
     }
 
     /// Idempotency and conflict ownership are partitioned per authenticated workspace: one
@@ -4719,7 +5127,7 @@ mod tests {
     #[tokio::test]
     async fn cross_workspace_event_id_preemption_cannot_conflict_or_leak(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
@@ -4818,6 +5226,8 @@ mod tests {
         assert_eq!(rows[0].payload["pane_id"], "victim-pane");
         server.abort();
         Ok(())
+        })
+        .await
     }
 
     /// Query filters cannot widen the authenticated workspace scope, and both GET aliases behave
@@ -4825,7 +5235,7 @@ mod tests {
     #[tokio::test]
     async fn recorder_read_scope_cannot_be_widened_by_query_filters(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
@@ -4878,6 +5288,8 @@ mod tests {
         }
         server.abort();
         Ok(())
+        })
+        .await
     }
 
     /// Runtime-chat ingestion shares the same boundary: capability, authenticated path workspace,
@@ -4885,7 +5297,7 @@ mod tests {
     #[tokio::test]
     async fn runtime_chat_ingest_is_capability_gated_and_workspace_bound(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        run_flight_recorder_test(|state| async move {
         let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
         let (token, _binding) = install_native_binding()?;
         let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
@@ -4948,6 +5360,8 @@ mod tests {
         );
         server.abort();
         Ok(())
+        })
+        .await
     }
 
     /// The capability registry must actually carry the MT-109 recorder capabilities, and the

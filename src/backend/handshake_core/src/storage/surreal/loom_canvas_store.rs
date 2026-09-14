@@ -964,7 +964,7 @@ async fn create_canvas_board_attempt(
                            event_type: $event.event_type, actor_kind: $event.actor_kind, \
                            actor_id: $event.actor_id, causation_id: $event.causation_id, \
                            correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
-                           source_component: $event.source_component, payload: $event.payload, \
+                           source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, \
                            created_at: $event.created_at \
                          }; \
                          UPSERT $board SET block_id = $block, workspace_id = $workspace, \
@@ -1152,7 +1152,7 @@ async fn update_canvas_board_state_attempt(
                            event_type: $event.event_type, actor_kind: $event.actor_kind, \
                            actor_id: $event.actor_id, causation_id: $event.causation_id, \
                            correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
-                           source_component: $event.source_component, payload: $event.payload, \
+                           source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, \
                            created_at: $event.created_at \
                          }; \
                          UPDATE $board SET board_state = $board_state, updated_at = time::now(), \
@@ -1617,7 +1617,7 @@ async fn create_stage_canvas_card_attempt(
                            event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, \
                            causation_id: $event.causation_id, correlation_id: $event.correlation_id, \
                            payload_hash: $event.payload_hash, source_component: $event.source_component, \
-                           payload: $event.payload, created_at: $event.created_at \
+                           payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at \
                          }; \
                          CREATE $bridge CONTENT { block_id: $block, workspace_id: $workspace, \
                            entity_id: $entity, index_event_id: $event.record, \
@@ -2267,7 +2267,7 @@ async fn compensate_stage_canvas_card_attempt(
                            event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, \
                            causation_id: $event.causation_id, correlation_id: $event.correlation_id, \
                            payload_hash: $event.payload_hash, source_component: $event.source_component, \
-                           payload: $event.payload, created_at: $event.created_at \
+                           payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at \
                          }; \
                          IF array::len((DELETE $placement RETURN BEFORE)) != 1 { \
                            THROW 'HSK-CANVAS-STAGE-COMPENSATION-DELETE'; \
@@ -2459,7 +2459,7 @@ async fn remove_canvas_placement_attempt(
                            event_type: $event.event_type, actor_kind: $event.actor_kind, \
                            actor_id: $event.actor_id, causation_id: $event.causation_id, \
                            correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
-                           source_component: $event.source_component, payload: $event.payload, \
+                           source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, \
                            created_at: $event.created_at \
                          }; \
                          DELETE $placement; \

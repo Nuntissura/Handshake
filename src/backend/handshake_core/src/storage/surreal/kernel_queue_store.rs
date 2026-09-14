@@ -145,7 +145,7 @@ pub(crate) async fn enqueue_and_record_event(
                               idempotency_key: $event.idempotency_key, event_type: $event.event_type, \
                               actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, \
                               correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
-                              source_component: $event.source_component, payload: $event.payload, created_at: $event.created_at }; \
+                              source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at }; \
                          }; \
                          COMMIT TRANSACTION; \
                          SELECT * FROM $queue.record;",
@@ -247,7 +247,7 @@ pub(crate) async fn claim_and_record_event(
                                   idempotency_key: $event.idempotency_key, event_type: $event.event_type, \
                                   actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, \
                                   correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
-                                  source_component: $event.source_component, payload: $event.payload, created_at: $event.created_at }; \
+                                  source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at }; \
                              }; \
                              COMMIT TRANSACTION; \
                              RETURN $updated;",
@@ -357,7 +357,7 @@ pub(crate) async fn update_state_and_record_event(
                                idempotency_key: $event.idempotency_key, event_type: $event.event_type, \
                                actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, \
                                correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
-                               source_component: $event.source_component, payload: $event.payload, created_at: $event.created_at }; \
+                               source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at }; \
                              COMMIT TRANSACTION; \
                              RETURN $updated;",
                             AtomicStateBindings {

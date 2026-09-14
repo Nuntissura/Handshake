@@ -60,10 +60,7 @@ DEFINE FIELD OVERWRITE updated_at ON TABLE handshake_schema_state TYPE datetime 
 DEFINE INDEX OVERWRITE idx_handshake_schema_state_version ON TABLE handshake_schema_state FIELDS version UNIQUE;
 
 -- 0001_init
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(id), 'reconcile', 'memory.commit') FOR create, update, delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE workspaces SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE name ON TABLE workspaces TYPE string;
 DEFINE FIELD OVERWRITE last_job_id ON TABLE workspaces TYPE option<string>;
 DEFINE FIELD OVERWRITE last_workflow_id ON TABLE workspaces TYPE option<string>;
@@ -412,30 +409,7 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE assets
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE
     THEN { THROW 'assets.last_job_id is required when last_actor_kind is AI'; };
 
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL
-    PERMISSIONS FOR select WHERE (source_rich_document_id = NONE AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'workspace', record::id(workspace_id))) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'rich_document', record::id(source_rich_document_id)) AND fn::mt109_source_read('rich_document', record::id(source_rich_document_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256)
-                FOR create, update, delete NONE;
-DEFINE FIELD OVERWRITE source_rich_document_id ON TABLE loom_blocks TYPE option<record<knowledge_rich_documents>>
-    ASSERT record::id($value) = $this.block_id AND $value.workspace_id = $this.workspace_id AND $this.content_type = 'note'
-    REFERENCE ON DELETE REJECT;
-DEFINE EVENT OVERWRITE mt109_loom_source_integrity ON TABLE loom_blocks
-    WHEN $event IN ['CREATE', 'UPDATE']
-    THEN {
-        IF $before.source_rich_document_id != NONE AND $after.source_rich_document_id != $before.source_rich_document_id {
-            THROW 'HSK-MT109-LOOM-SOURCE-IMMUTABLE';
-        };
-        LET $source = SELECT id, workspace_id FROM ONLY type::record('knowledge_rich_documents', $after.block_id);
-        IF $after.source_rich_document_id = NONE {
-            IF $source != NONE { THROW 'HSK-MT109-LOOM-SOURCE-REQUIRED'; };
-        } ELSE {
-            IF $source = NONE OR $after.source_rich_document_id != $source.id
-                OR $after.workspace_id != $source.workspace_id OR $after.content_type != 'note' {
-                THROW 'HSK-MT109-LOOM-SOURCE-IDENTITY';
-            };
-        };
-    };
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE block_id ON TABLE loom_blocks TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_blocks TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 -- 0334_loom_canvas_boards widens this allow-list with the canvas-board kind.
@@ -823,12 +797,7 @@ DEFINE TABLE OVERWRITE replay_candidates TYPE NORMAL AS
 -- 0018_kernel_event_ledger
 DEFINE SEQUENCE IF NOT EXISTS kernel_event_sequence BATCH 1 START 1;
 
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)
-                FOR create WHERE fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)
-                FOR update, delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE event_sequence ON TABLE kernel_event_ledger TYPE int DEFAULT sequence::nextval('kernel_event_sequence') ASSERT $value > 0;
 DEFINE FIELD OVERWRITE event_version ON TABLE kernel_event_ledger TYPE string;
@@ -3273,11 +3242,7 @@ DEFINE INDEX OVERWRITE idx_knowledge_source_roots_workspace ON TABLE knowledge_s
 DEFINE INDEX OVERWRITE idx_knowledge_source_roots_eligibility ON TABLE knowledge_source_roots FIELDS indexing_eligibility;
 
 -- 0132_knowledge_sources
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE knowledge_sources SCHEMAFULL
-    PERMISSIONS FOR select WHERE source_kind = 'file' AND fn::mt109_source_read('knowledge_source', source_id, record::id(workspace_id), 'workspace', record::id(workspace_id))
-                FOR create, update, delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE knowledge_sources SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_sources TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_sources TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE root_id ON TABLE knowledge_sources TYPE option<record<knowledge_source_roots>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -3531,11 +3496,7 @@ DEFINE INDEX OVERWRITE uq_knowledge_wiki_projections_identity ON TABLE knowledge
 DEFINE INDEX OVERWRITE idx_knowledge_wiki_projections_status ON TABLE knowledge_wiki_projections FIELDS workspace_id, rebuild_status;
 
 -- 0140_knowledge_rich_documents
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
-    PERMISSIONS FOR select WHERE deleted_at = NONE AND fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id))
-                FOR create, update, delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE rich_document_id ON TABLE knowledge_rich_documents TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_rich_documents TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE document_id ON TABLE knowledge_rich_documents TYPE option<record<documents>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
@@ -3974,11 +3935,7 @@ DEFINE INDEX OVERWRITE uq_knowledge_ingestion_repair_open_source ON TABLE knowle
 DEFINE INDEX OVERWRITE idx_knowledge_ingestion_repair_workspace_state ON TABLE knowledge_ingestion_repair_queue FIELDS workspace_id, state, created_at;
 
 -- 0170_knowledge_code_files
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE knowledge_code_files SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_source_read('knowledge_code_file', code_file_id, record::id(workspace_id), 'knowledge_source', record::id(source_id)) AND fn::mt109_source_read('knowledge_source', record::id(source_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_id.workspace_id = workspace_id AND source_id.source_kind = 'file'
-                FOR create, update, delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE knowledge_code_files SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE code_file_id ON TABLE knowledge_code_files TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_code_files TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_code_files TYPE record<knowledge_sources> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -4962,12 +4919,7 @@ DEFINE INDEX OVERWRITE idx_atelier_intake_item_loom_projection_workspace ON TABL
 -- backfill DML (legacy request-id derivation) is intentionally omitted: this
 -- bootstrap targets an empty database. The workspace foreign keys the same
 -- migration installs are retained.
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE fems_memory_packs SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_pack', record::id(workspace_id), 'read', 'memory.read')
-                FOR create, update WHERE fn::mt109_has_grant('memory_pack', record::id(workspace_id), 'create', 'memory.commit')
-                FOR delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE fems_memory_packs SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE pack_id ON TABLE fems_memory_packs TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_packs TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE scope_key ON TABLE fems_memory_packs TYPE string DEFAULT '';
@@ -4978,13 +4930,7 @@ DEFINE FIELD OVERWRITE created_at ON TABLE fems_memory_packs TYPE datetime DEFAU
 DEFINE INDEX OVERWRITE pk_fems_memory_packs ON TABLE fems_memory_packs FIELDS pack_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_fems_memory_packs_scope ON TABLE fems_memory_packs FIELDS workspace_id, scope_key, created_at;
 
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE fems_memory_proposals SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(workspace_id), 'reconcile', 'memory.commit') OR ((fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'read', 'memory.read') OR fn::mt109_proposal_producer_read(record::id(workspace_id), document_id, proposal.actor_id)) AND (fn::mt109_source_read('rich_document', document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt109_source_read('knowledge_source', document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt109_source_read('loom_block', document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt109_source_read('loom_block', document_id, record::id(workspace_id), 'rich_document', document_id)))
-                FOR create WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'create', 'memory.propose')
-                FOR update WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.review') OR fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.commit')
-                FOR delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE fems_memory_proposals SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE proposal_id ON TABLE fems_memory_proposals TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE request_id ON TABLE fems_memory_proposals TYPE string;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_proposals TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -5002,12 +4948,7 @@ DEFINE INDEX OVERWRITE pk_fems_memory_proposals ON TABLE fems_memory_proposals F
 DEFINE INDEX OVERWRITE idx_fems_memory_proposals_ws_request ON TABLE fems_memory_proposals FIELDS workspace_id, request_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_fems_memory_proposals_ws_status ON TABLE fems_memory_proposals FIELDS workspace_id, status, created_at;
 
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE fems_memory_items SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_item', record::id(workspace_id), 'read', 'memory.read') OR fn::mt109_has_grant('memory_item_count', record::id(workspace_id), 'read', 'memory.read')
-                FOR create, update WHERE fn::mt109_has_grant('memory_item', record::id(workspace_id), 'create', 'memory.commit')
-                FOR delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE fems_memory_items SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE memory_id ON TABLE fems_memory_items TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_items TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE item ON TABLE fems_memory_items TYPE object FLEXIBLE;
@@ -5018,12 +4959,7 @@ DEFINE INDEX OVERWRITE pk_fems_memory_items ON TABLE fems_memory_items FIELDS me
 DEFINE INDEX OVERWRITE idx_fems_memory_items_ws ON TABLE fems_memory_items FIELDS workspace_id;
 
 -- 0350_fems_memory_commit_authority
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE fems_memory_commit_reports SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_commit_report', record::id(workspace_id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(workspace_id), 'reconcile', 'memory.commit')
-                FOR create WHERE fn::mt109_has_grant('memory_commit_report', record::id(workspace_id), 'create', 'memory.commit')
-                FOR update, delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE fems_memory_commit_reports SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE commit_id ON TABLE fems_memory_commit_reports TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_commit_reports TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE proposal_id ON TABLE fems_memory_commit_reports TYPE record<fems_memory_proposals> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -5037,11 +4973,7 @@ DEFINE INDEX OVERWRITE uq_fems_memory_commit_reports_proposal ON TABLE fems_memo
 DEFINE INDEX OVERWRITE idx_fems_memory_commit_reports_workspace_created ON TABLE fems_memory_commit_reports FIELDS workspace_id, created_at, commit_id;
 
 -- 0351_fems_memory_commit_recovery
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE fems_memory_commit_fr_outbox SCHEMAFULL
-    PERMISSIONS FOR select, create, update WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.commit') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(workspace_id), 'reconcile', 'memory.commit')
-                FOR delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE fems_memory_commit_fr_outbox SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE event_id ON TABLE fems_memory_commit_fr_outbox TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_commit_fr_outbox TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE proposal_id ON TABLE fems_memory_commit_fr_outbox TYPE record<fems_memory_proposals> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -5062,11 +4994,7 @@ DEFINE INDEX OVERWRITE uq_fems_memory_commit_fr_outbox_commit_event ON TABLE fem
 DEFINE INDEX OVERWRITE idx_fems_memory_commit_fr_outbox_pending ON TABLE fems_memory_commit_fr_outbox FIELDS workspace_id, created_at, event_code, event_id;
 
 -- 0352_fems_memory_lifecycle_outbox
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE fems_memory_lifecycle_fr_outbox SCHEMAFULL
-    PERMISSIONS FOR select, create, update WHERE fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'create', 'memory.propose') OR fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.review') OR fn::mt109_has_grant('memory_proposal', record::id(workspace_id), 'update', 'memory.commit') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(workspace_id), 'reconcile', 'memory.commit')
-                FOR delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE fems_memory_lifecycle_fr_outbox SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE event_id ON TABLE fems_memory_lifecycle_fr_outbox TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_lifecycle_fr_outbox TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE proposal_id ON TABLE fems_memory_lifecycle_fr_outbox TYPE record<fems_memory_proposals> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -5093,13 +5021,7 @@ DEFINE INDEX OVERWRITE idx_fems_memory_lifecycle_fr_outbox_pending ON TABLE fems
 -- previously ordered only by FEMS_MUTATION_LOCK). Deliberately NOT a record<workspaces>
 -- reference: the delete removes it explicitly and no cascade scan is involved. A
 -- serialization device, not domain data.
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE fems_workspace_write_anchors SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(workspace_key, 'read', 'memory.read') OR fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.propose') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.review') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.commit')
-                FOR create WHERE fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.propose') OR fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.commit')
-                FOR update WHERE fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.review') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.commit')
-                FOR delete NONE;
--- MT109_AUTHORITY_END
+DEFINE TABLE OVERWRITE fems_workspace_write_anchors SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE anchor_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE claim_nonce ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';
@@ -5276,467 +5198,6 @@ DEFINE FIELD OVERWRITE issued_at_utc ON TABLE kb003_promotion_receipts TYPE date
 DEFINE INDEX OVERWRITE pk_kb003_promotion_receipts ON TABLE kb003_promotion_receipts FIELDS receipt_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_kb003_promotion_receipts_idempotency ON TABLE kb003_promotion_receipts FIELDS idempotency_key UNIQUE;
 DEFINE INDEX OVERWRITE ix_kb003_promotion_receipts_decision ON TABLE kb003_promotion_receipts FIELDS decision_id;
-
--- MT109_AUTHORITY_BEGIN
-DEFINE TABLE OVERWRITE local_accounts TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.account_id FOR create, update, delete NONE;
-
-DEFINE FIELD OVERWRITE account_key ON TABLE local_accounts TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE account_role ON TABLE local_accounts TYPE string ASSERT $value IN ['Owner', 'Admin', 'Member'];
-
-DEFINE FIELD OVERWRITE status ON TABLE local_accounts TYPE string ASSERT $value IN ['enabled', 'disabled'];
-
-DEFINE FIELD OVERWRITE revocation_epoch ON TABLE local_accounts TYPE int ASSERT $value >= 0;
-
-DEFINE FIELD OVERWRITE policy_version ON TABLE local_accounts TYPE int ASSERT $value >= 1;
-
-DEFINE FIELD OVERWRITE created_at ON TABLE local_accounts TYPE datetime;
-
-DEFINE FIELD OVERWRITE updated_at ON TABLE local_accounts TYPE datetime;
-
-DEFINE INDEX OVERWRITE local_accounts_account_key_unique ON TABLE local_accounts FIELDS account_key UNIQUE;
-
-DEFINE TABLE OVERWRITE principals TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.principal_id FOR create, update, delete NONE;
-
-DEFINE FIELD OVERWRITE principal_key ON TABLE principals TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE account_id ON TABLE principals TYPE record<local_accounts>;
-
-DEFINE FIELD OVERWRITE principal_kind ON TABLE principals TYPE string ASSERT $value IN ['human_account', 'local_model', 'remote_model', 'spawned_agent', 'mcp_client', 'service_identity', 'visitor_pass', 'break_glass_operator'];
-
-DEFINE FIELD OVERWRITE actor_kind ON TABLE principals TYPE string ASSERT string::len($value) > 0;
-
-DEFINE FIELD OVERWRITE actor_id ON TABLE principals TYPE string ASSERT string::len($value) > 0;
-
-DEFINE FIELD OVERWRITE capability_profile_id ON TABLE principals TYPE string ASSERT string::len($value) > 0;
-
-DEFINE FIELD OVERWRITE delegated_capabilities ON TABLE principals TYPE array<string>;
-
-DEFINE FIELD OVERWRITE status ON TABLE principals TYPE string ASSERT $value IN ['enabled', 'disabled'];
-
-DEFINE FIELD OVERWRITE revocation_epoch ON TABLE principals TYPE int ASSERT $value >= 0;
-
-DEFINE FIELD OVERWRITE policy_version ON TABLE principals TYPE int ASSERT $value >= 1;
-
-DEFINE FIELD OVERWRITE created_at ON TABLE principals TYPE datetime;
-
-DEFINE FIELD OVERWRITE updated_at ON TABLE principals TYPE datetime;
-
-DEFINE INDEX OVERWRITE principals_principal_key_unique ON TABLE principals FIELDS principal_key UNIQUE;
-
-DEFINE INDEX OVERWRITE principals_account_idx ON TABLE principals FIELDS account_id;
-
-DEFINE TABLE OVERWRITE access_spaces TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND id = $auth.access_space_id FOR create, update, delete NONE;
-
-DEFINE FIELD OVERWRITE space_key ON TABLE access_spaces TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE account_id ON TABLE access_spaces TYPE record<local_accounts>;
-
-DEFINE FIELD OVERWRITE name ON TABLE access_spaces TYPE string ASSERT string::len($value) > 0;
-
-DEFINE FIELD OVERWRITE status ON TABLE access_spaces TYPE string ASSERT $value IN ['active', 'disabled'];
-
-DEFINE FIELD OVERWRITE revocation_epoch ON TABLE access_spaces TYPE int ASSERT $value >= 0;
-
-DEFINE FIELD OVERWRITE policy_version ON TABLE access_spaces TYPE int ASSERT $value >= 1;
-
-DEFINE FIELD OVERWRITE created_at ON TABLE access_spaces TYPE datetime;
-
-DEFINE FIELD OVERWRITE updated_at ON TABLE access_spaces TYPE datetime;
-
-DEFINE INDEX OVERWRITE access_spaces_key_unique ON TABLE access_spaces FIELDS space_key UNIQUE;
-
-DEFINE INDEX OVERWRITE access_spaces_account_idx ON TABLE access_spaces FIELDS account_id;
-
-DEFINE TABLE OVERWRITE authenticated_sessions TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.id FOR create, update, delete NONE;
-
-DEFINE FIELD OVERWRITE account_id ON TABLE authenticated_sessions TYPE record<local_accounts>;
-
-DEFINE FIELD OVERWRITE principal_id ON TABLE authenticated_sessions TYPE record<principals>;
-
-DEFINE FIELD OVERWRITE access_space_id ON TABLE authenticated_sessions TYPE record<access_spaces>;
-
-DEFINE FIELD OVERWRITE token_hash ON TABLE authenticated_sessions TYPE string ASSERT string::len($value) = 64 PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE channel_binding_hash ON TABLE authenticated_sessions TYPE option<string> PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE authentication_strength ON TABLE authenticated_sessions TYPE string;
-
-DEFINE FIELD OVERWRITE delegated_capabilities ON TABLE authenticated_sessions TYPE array<string>;
-
-DEFINE FIELD OVERWRITE delegation_chain ON TABLE authenticated_sessions TYPE array<string>;
-
-DEFINE FIELD OVERWRITE account_revocation_epoch ON TABLE authenticated_sessions TYPE int;
-
-DEFINE FIELD OVERWRITE principal_revocation_epoch ON TABLE authenticated_sessions TYPE int;
-
-DEFINE FIELD OVERWRITE space_revocation_epoch ON TABLE authenticated_sessions TYPE int;
-
-DEFINE FIELD OVERWRITE policy_version ON TABLE authenticated_sessions TYPE int ASSERT $value >= 1;
-
-DEFINE FIELD OVERWRITE issued_at ON TABLE authenticated_sessions TYPE datetime;
-
-DEFINE FIELD OVERWRITE expires_at ON TABLE authenticated_sessions TYPE datetime;
-
-DEFINE FIELD OVERWRITE revoked_at ON TABLE authenticated_sessions TYPE option<datetime>;
-
-DEFINE INDEX OVERWRITE authenticated_sessions_token_hash_unique ON TABLE authenticated_sessions FIELDS token_hash UNIQUE;
-
-DEFINE INDEX OVERWRITE authenticated_sessions_principal_idx ON TABLE authenticated_sessions FIELDS principal_id;
-
-DEFINE TABLE OVERWRITE session_exchange_credentials TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE account_id ON TABLE session_exchange_credentials TYPE record<local_accounts>;
-
-DEFINE FIELD OVERWRITE principal_id ON TABLE session_exchange_credentials TYPE record<principals>;
-
-DEFINE FIELD OVERWRITE access_space_id ON TABLE session_exchange_credentials TYPE record<access_spaces>;
-
-DEFINE FIELD OVERWRITE token_hash ON TABLE session_exchange_credentials TYPE string ASSERT string::len($value) = 64 PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE status ON TABLE session_exchange_credentials TYPE string ASSERT $value IN ['active', 'consumed', 'revoked'];
-
-DEFINE FIELD OVERWRITE expires_at ON TABLE session_exchange_credentials TYPE datetime;
-
-DEFINE FIELD OVERWRITE revoked_at ON TABLE session_exchange_credentials TYPE option<datetime>;
-
-DEFINE FIELD OVERWRITE created_at ON TABLE session_exchange_credentials TYPE datetime;
-
-DEFINE INDEX OVERWRITE session_exchange_credentials_token_unique ON TABLE session_exchange_credentials FIELDS token_hash UNIQUE;
-
-DEFINE INDEX OVERWRITE session_exchange_credentials_principal_idx ON TABLE session_exchange_credentials FIELDS principal_id, access_space_id;
-
-DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE
-    lifecycle_state = 'active'
-    AND owner_account_id = $auth.account_id
-    AND access_space_id = $auth.access_space_id
-    AND owner_account_id.status = 'enabled'
-    AND created_by_principal_id.status = 'enabled'
-    AND access_space_id.status = 'active'
-    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
-  FOR create, update, delete NONE;
-
-DEFINE FIELD OVERWRITE resource_kind ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0;
-
-DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE owner_account_id ON TABLE protected_resources TYPE record<local_accounts>;
-
-DEFINE FIELD OVERWRITE created_by_principal_id ON TABLE protected_resources TYPE record<principals>;
-
-DEFINE FIELD OVERWRITE created_in_session_id ON TABLE protected_resources TYPE option<record<authenticated_sessions>>;
-
-DEFINE FIELD OVERWRITE access_space_id ON TABLE protected_resources TYPE record<access_spaces>;
-
-DEFINE FIELD OVERWRITE parent_resource_id ON TABLE protected_resources TYPE option<record<protected_resources>>;
-
-DEFINE FIELD OVERWRITE schema_version ON TABLE protected_resources TYPE int ASSERT $value >= 1;
-
-DEFINE FIELD OVERWRITE lifecycle_state ON TABLE protected_resources TYPE string ASSERT $value IN ['active', 'quarantined', 'deleted'];
-
-DEFINE FIELD OVERWRITE policy_version ON TABLE protected_resources TYPE int ASSERT $value >= 1;
-
-DEFINE FIELD OVERWRITE classification ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0;
-
-DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources TYPE string ASSERT string::len($value) = 64 PERMISSIONS NONE;
-
-DEFINE FIELD OVERWRITE created_at ON TABLE protected_resources TYPE datetime;
-
-DEFINE FIELD OVERWRITE updated_at ON TABLE protected_resources TYPE datetime;
-
-DEFINE INDEX OVERWRITE protected_resources_external_unique ON TABLE protected_resources FIELDS resource_kind, external_resource_id UNIQUE;
-
-DEFINE INDEX OVERWRITE protected_resources_owner_idx ON TABLE protected_resources FIELDS owner_account_id, access_space_id;
-
-DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE
-    status = 'active'
-    AND account_id = $auth.account_id
-    AND principal_id = $auth.principal_id
-    AND access_space_id = $auth.access_space_id,
-  FOR create, update, delete NONE;
-
-DEFINE FIELD OVERWRITE account_id ON TABLE resource_grants TYPE record<local_accounts>;
-
-DEFINE FIELD OVERWRITE principal_id ON TABLE resource_grants TYPE record<principals>;
-
-DEFINE FIELD OVERWRITE access_space_id ON TABLE resource_grants TYPE record<access_spaces>;
-
-DEFINE FIELD OVERWRITE resource_id ON TABLE resource_grants TYPE record<protected_resources>;
-
-DEFINE FIELD OVERWRITE actions ON TABLE resource_grants TYPE array<string>;
-
-DEFINE FIELD OVERWRITE capability_ids ON TABLE resource_grants TYPE array<string>;
-
-DEFINE FIELD OVERWRITE delegation_chain ON TABLE resource_grants TYPE array<string>;
-
-DEFINE FIELD OVERWRITE status ON TABLE resource_grants TYPE string ASSERT $value IN ['active', 'revoked'];
-
-DEFINE FIELD OVERWRITE grant_version ON TABLE resource_grants TYPE int ASSERT $value >= 1;
-
-DEFINE FIELD OVERWRITE policy_version ON TABLE resource_grants TYPE int ASSERT $value >= 1;
-
-DEFINE FIELD OVERWRITE expires_at ON TABLE resource_grants TYPE option<datetime>;
-
-DEFINE FIELD OVERWRITE revoked_at ON TABLE resource_grants TYPE option<datetime>;
-
-DEFINE FIELD OVERWRITE created_at ON TABLE resource_grants TYPE datetime;
-
-DEFINE FIELD OVERWRITE updated_at ON TABLE resource_grants TYPE datetime;
-
-DEFINE INDEX OVERWRITE resource_grants_exact_idx ON TABLE resource_grants FIELDS account_id, principal_id, access_space_id, resource_id;
-
-DEFINE TABLE OVERWRITE authorization_audit_events TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id FOR create, update, delete NONE;
-
-DEFINE FIELD OVERWRITE decision_id ON TABLE authorization_audit_events TYPE string ASSERT string::len($value) > 0;
-
-DEFINE FIELD OVERWRITE account_id ON TABLE authorization_audit_events TYPE option<record<local_accounts>>;
-
-DEFINE FIELD OVERWRITE principal_id ON TABLE authorization_audit_events TYPE option<record<principals>>;
-
-DEFINE FIELD OVERWRITE session_id ON TABLE authorization_audit_events TYPE option<record<authenticated_sessions>>;
-
-DEFINE FIELD OVERWRITE access_space_id ON TABLE authorization_audit_events TYPE option<record<access_spaces>>;
-
-DEFINE FIELD OVERWRITE delegation_chain ON TABLE authorization_audit_events TYPE array<string>;
-
-DEFINE FIELD OVERWRITE resource_id ON TABLE authorization_audit_events TYPE option<record<protected_resources>>;
-
-DEFINE FIELD OVERWRITE requested_resource_hash ON TABLE authorization_audit_events TYPE string ASSERT string::len($value) = 64;
-
-DEFINE FIELD OVERWRITE resource_kind ON TABLE authorization_audit_events TYPE string;
-
-DEFINE FIELD OVERWRITE action ON TABLE authorization_audit_events TYPE string;
-
-DEFINE FIELD OVERWRITE capability_id ON TABLE authorization_audit_events TYPE string;
-
-DEFINE FIELD OVERWRITE result ON TABLE authorization_audit_events TYPE string ASSERT $value IN ['allow', 'deny', 'error'];
-
-DEFINE FIELD OVERWRITE policy_version ON TABLE authorization_audit_events TYPE option<int>;
-
-DEFINE FIELD OVERWRITE occurred_at ON TABLE authorization_audit_events TYPE datetime;
-
-DEFINE INDEX OVERWRITE authorization_audit_decision_unique ON TABLE authorization_audit_events FIELDS decision_id UNIQUE;
-
-DEFINE ACCESS IF NOT EXISTS authenticated_session ON DATABASE TYPE RECORD
-  SIGNIN (
-    SELECT * FROM authenticated_sessions
-    WHERE token_hash = $token_hash
-      AND revoked_at = NONE
-      AND expires_at > time::now()
-      AND (channel_binding_hash = NONE OR channel_binding_hash = $channel_binding_hash)
-      AND account_id.status = 'enabled'
-      AND principal_id.status = 'enabled'
-      AND access_space_id.status = 'active'
-      AND access_space_id.account_id = account_id
-      AND account_id.revocation_epoch = account_revocation_epoch
-      AND principal_id.revocation_epoch = principal_revocation_epoch
-      AND access_space_id.revocation_epoch = space_revocation_epoch
-      AND account_id.policy_version <= policy_version
-      AND principal_id.policy_version <= policy_version
-      AND access_space_id.policy_version <= policy_version
-    LIMIT 1
-  )
-  DURATION FOR TOKEN 5m, FOR SESSION 12h;
-
--- MT-109 V8: authority and protected data share the primary database. These helpers
--- re-check the live session, account, Principal, AccessSpace, exact ResourceGrant,
--- delegated capability, and revocation/policy epochs at the table boundary.
-
-DEFINE FUNCTION OVERWRITE fn::mt109_live_session() {
-    RETURN $auth != NONE
-        AND $auth.revoked_at = NONE
-        AND $auth.expires_at > time::now()
-        AND $auth.account_id.status = 'enabled'
-        AND $auth.principal_id.status = 'enabled'
-        AND $auth.access_space_id.status = 'active'
-        AND $auth.account_id.revocation_epoch = $auth.account_revocation_epoch
-        AND $auth.principal_id.revocation_epoch = $auth.principal_revocation_epoch
-        AND $auth.access_space_id.revocation_epoch = $auth.space_revocation_epoch
-        AND $auth.account_id.policy_version <= $auth.policy_version
-        AND $auth.principal_id.policy_version <= $auth.policy_version
-        AND $auth.access_space_id.policy_version <= $auth.policy_version;
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, $action: string, $capability: string) {
-    RETURN fn::mt109_live_session()
-        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
-        AND array::len((SELECT id FROM resource_grants
-            WHERE status = 'active'
-              AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND account_id = $auth.account_id
-              AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id
-              AND resource_id.lifecycle_state = 'active'
-              AND resource_id.owner_account_id = $auth.account_id
-              AND resource_id.access_space_id = $auth.access_space_id
-              AND resource_id.resource_kind = $kind
-              AND resource_id.external_resource_id = $external
-              AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
-              AND (actions CONTAINS $action)
-              AND (capability_ids CONTAINS $capability)
-              AND delegation_chain = $auth.delegation_chain)) > 0;
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $action: string, $capability: string) {
-    RETURN fn::mt109_live_session()
-        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
-        AND array::len((SELECT id FROM resource_grants
-            WHERE status = 'active'
-              AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND account_id = $auth.account_id
-              AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id
-              AND resource_id.lifecycle_state = 'active'
-              AND resource_id.owner_account_id = $auth.account_id
-              AND resource_id.access_space_id = $auth.access_space_id
-              AND resource_id.resource_kind = 'workspace'
-              AND resource_id.external_resource_id = $external
-              AND (actions CONTAINS $action)
-              AND (capability_ids CONTAINS $capability)
-              AND delegation_chain = $auth.delegation_chain)) > 0;
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_source_read($kind: string, $external: string, $workspace: string, $parent_kind: string, $parent_external: string) {
-    RETURN (fn::mt109_has_grant($kind, $external, 'read', 'memory.propose')
-            OR fn::mt109_has_grant($kind, $external, 'read', 'memory.read'))
-        AND fn::mt109_has_workspace_access($workspace, 'read', 'memory.read')
-        AND array::len((SELECT id FROM resource_grants
-            WHERE status = 'active' AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id
-              AND resource_id.resource_kind = $kind AND resource_id.external_resource_id = $external
-              AND resource_id.lifecycle_state = 'active'
-              AND resource_id.owner_account_id = $auth.account_id
-              AND resource_id.access_space_id = $auth.access_space_id
-              AND resource_id.created_by_principal_id.status = 'enabled'
-              AND resource_id.parent_resource_id.resource_kind = $parent_kind
-              AND resource_id.parent_resource_id.external_resource_id = $parent_external
-              AND resource_id.parent_resource_id.lifecycle_state = 'active'
-              AND resource_id.parent_resource_id.owner_account_id = $auth.account_id
-              AND resource_id.parent_resource_id.access_space_id = $auth.access_space_id
-              AND resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'
-              AND (($parent_kind = 'workspace' AND $parent_external = $workspace)
-                   OR ($parent_kind IN ['knowledge_source', 'rich_document']
-                       AND resource_id.parent_resource_id.parent_resource_id.resource_kind = 'workspace'
-                       AND resource_id.parent_resource_id.parent_resource_id.external_resource_id = $workspace
-                       AND resource_id.parent_resource_id.parent_resource_id.lifecycle_state = 'active'
-                       AND resource_id.parent_resource_id.parent_resource_id.owner_account_id = $auth.account_id
-                       AND resource_id.parent_resource_id.parent_resource_id.access_space_id = $auth.access_space_id
-                       AND resource_id.parent_resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'))
-              AND actions CONTAINS 'read'
-              AND (capability_ids CONTAINS 'memory.propose' OR capability_ids CONTAINS 'memory.read')
-              AND (($auth.delegated_capabilities CONTAINS '*')
-                   OR ($auth.delegated_capabilities CONTAINS 'memory.propose' AND capability_ids CONTAINS 'memory.propose')
-                   OR ($auth.delegated_capabilities CONTAINS 'memory.read' AND capability_ids CONTAINS 'memory.read'))
-              AND delegation_chain = $auth.delegation_chain)) > 0;
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_proposal_producer_read($workspace: string, $document: string, $actor: option<string>) {
-    RETURN $actor != NONE
-        AND $actor = $auth.principal_id.actor_id
-        AND fn::mt109_has_grant('memory_proposal', $workspace, 'create', 'memory.propose')
-        AND (fn::mt109_source_read('rich_document', $document, $workspace, 'workspace', $workspace)
-             OR fn::mt109_source_read('knowledge_source', $document, $workspace, 'workspace', $workspace)
-             OR fn::mt109_source_read('loom_block', $document, $workspace, 'workspace', $workspace)
-             OR fn::mt109_source_read('loom_block', $document, $workspace, 'rich_document', $document));
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_access($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>) {
-    RETURN fn::mt109_live_session()
-        AND $session != NONE AND $session = $auth.id
-        AND $resource != NONE AND $capability != NONE AND $action != NONE
-        AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability)
-        AND array::len((SELECT id FROM resource_grants
-            WHERE status = 'active' AND revoked_at = NONE
-              AND (expires_at = NONE OR expires_at > time::now())
-              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id AND resource_id = $resource
-              AND resource_id.lifecycle_state = 'active'
-              AND resource_id.owner_account_id = $auth.account_id
-              AND resource_id.access_space_id = $auth.access_space_id
-              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
-              AND delegation_chain = $auth.delegation_chain
-              AND (resource_id.resource_kind != 'reconciliation_queue' OR
-                   (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')))) > 0;
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_workspace($resource: option<record<protected_resources>>, $wsids: array<string>) {
-    RETURN fn::mt109_live_session() AND $resource != NONE AND array::len($wsids) = 1
-        AND $resource.owner_account_id = $auth.account_id
-        AND $resource.access_space_id = $auth.access_space_id
-        AND $resource.lifecycle_state = 'active'
-        AND $resource.created_by_principal_id.status = 'enabled'
-        AND (($resource.resource_kind = 'reconciliation_queue' AND $resource.external_resource_id = 'mt109-protected-reconciliation:' + $wsids[0])
-             OR ($resource.resource_kind != 'reconciliation_queue' AND $resource.external_resource_id = $wsids[0]));
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt($capability: option<string>, $event_type: string, $source: string, $aggregate: string, $payload: object, $wsids: array<string>) {
-    RETURN array::len($wsids) = 1 AND (
-        ($capability = 'fr.ingest.native_editor' AND $aggregate = 'native_editor_event'
-            AND $source = 'native_editor_fr_ingestion' AND $payload.envelope.workspace_id = $wsids[0]
-            AND (($payload.receipt_kind = 'native_editor_flight_recorder_pending' AND $event_type = 'FLIGHT_RECORDER_MIRROR_PENDING')
-                 OR ($payload.receipt_kind = 'native_editor_flight_recorder_recorded' AND $event_type = 'FLIGHT_RECORDER_MIRROR_RECORDED')))
-        OR ($payload.workspace_id = $wsids[0] AND (
-            ($capability = 'memory.propose' AND $payload.receipt_kind = 'fems_memory_write_proposal'
-                AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_intake' AND $event_type = 'ARTIFACT_PROPOSED')
-            OR ($capability = 'memory.review' AND $payload.receipt_kind = 'fems_memory_write_review'
-                AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_review' AND $event_type IN ['PROMOTION_ACCEPTED', 'PROMOTION_REJECTED'])
-            OR ($capability = 'memory.commit' AND $payload.receipt_kind = 'fems_memory_write_committed'
-                AND $aggregate = 'fems_memory_commit' AND $source = 'fems_memory_proposal_commit' AND $event_type = 'ARTIFACT_STORED'))));
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_producer($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>) {
-    RETURN fn::mt109_ledger_workspace($resource, $wsids)
-        AND fn::mt109_ledger_access($resource, $session, $capability, $action)
-        AND (($resource.resource_kind = 'flight_recorder' AND $action = 'create' AND $capability = 'fr.ingest.native_editor')
-             OR ($resource.resource_kind = 'memory_proposal' AND (($action = 'create' AND $capability = 'memory.propose') OR ($action = 'update' AND $capability IN ['memory.review', 'memory.commit'])))
-             OR ($resource.resource_kind = 'reconciliation_queue' AND $action = 'reconcile' AND $capability IN ['fr.ingest.native_editor', 'memory.commit']));
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_reader($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>) {
-    RETURN (fn::mt109_ledger_workspace($resource, $wsids)
-            AND (fn::mt109_ledger_producer($resource, $session, $capability, $action, $wsids)
-                 OR ($resource.resource_kind IN ['flight_recorder', 'reconciliation_queue'] AND $capability = 'fr.ingest.native_editor'
-                     AND fn::mt109_has_grant('flight_recorder', $wsids[0], 'read', 'fr.read'))
-                 OR ($resource.resource_kind IN ['memory_proposal', 'reconciliation_queue'] AND $capability IN ['memory.propose', 'memory.review', 'memory.commit']
-                     AND fn::mt109_has_grant('memory_proposal', $wsids[0], 'read', 'memory.read'))))
-        OR (fn::mt109_live_session() AND $resource != NONE AND array::len($wsids) = 1
-            AND $resource.lifecycle_state = 'active'
-            AND $resource.created_by_principal_id.status = 'enabled'
-            AND (($resource.resource_kind = 'flight_recorder' AND $resource.external_resource_id = $wsids[0]
-                  AND $capability = 'fr.ingest.native_editor'
-                  AND fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + $wsids[0], 'reconcile', 'fr.ingest.native_editor'))
-                 OR ($resource.resource_kind = 'memory_proposal' AND $resource.external_resource_id = $wsids[0]
-                     AND $capability IN ['memory.propose', 'memory.review', 'memory.commit']
-                     AND fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + $wsids[0], 'reconcile', 'memory.commit'))
-                 OR ($resource.resource_kind = 'reconciliation_queue'
-                     AND $resource.external_resource_id = 'mt109-protected-reconciliation:' + $wsids[0]
-                     AND (($capability = 'fr.ingest.native_editor'
-                           AND fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + $wsids[0], 'reconcile', 'fr.ingest.native_editor'))
-                          OR ($capability IN ['memory.propose', 'memory.review', 'memory.commit']
-                              AND fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + $wsids[0], 'reconcile', 'memory.commit'))))));
-};
-
-DEFINE FIELD OVERWRITE authority_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FULL;
-
-DEFINE FIELD OVERWRITE authority_session_id ON TABLE kernel_event_ledger TYPE option<record<authenticated_sessions>> PERMISSIONS FULL;
-
-DEFINE FIELD OVERWRITE authority_capability_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FULL;
-
-DEFINE FIELD OVERWRITE authority_action ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FULL;
-
-DEFINE FIELD OVERWRITE wsids ON TABLE kernel_event_ledger TYPE array<string> PERMISSIONS FULL;
--- MT109_AUTHORITY_END
 
 UPSERT handshake_schema_state:primary SET
     version = $schema_version,

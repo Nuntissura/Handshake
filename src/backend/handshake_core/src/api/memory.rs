@@ -67,9 +67,13 @@ const PACK_SCHEMA_VERSION: &str = "hsk.memory_pack@0.1";
 type ApiError = (StatusCode, Json<Value>);
 
 pub fn routes(state: AppState) -> Router {
-    spawn_memory_commit_reconciler(state.clone());
+    routes_with_reconciler(state).0
+}
+
+fn routes_with_reconciler(state: AppState) -> (Router, Option<tokio::task::JoinHandle<()>>) {
+    let reconciler = spawn_memory_commit_reconciler(state.clone());
     let middleware_state = state.clone();
-    Router::new()
+    let router = Router::new()
         .route(
             "/workspaces/:workspace_id/memory/pack",
             get(get_memory_pack),
@@ -106,7 +110,8 @@ pub fn routes(state: AppState) -> Router {
             middleware_state,
             authorize_memory_request,
         ))
-        .with_state(state)
+        .with_state(state);
+    (router, reconciler)
 }
 
 fn capability_for_request(method: &Method, path: &str) -> &'static str {
@@ -307,11 +312,9 @@ async fn authorize_memory_request(
         .await
 }
 
-fn spawn_memory_commit_reconciler(state: AppState) {
-    let Ok(runtime) = tokio::runtime::Handle::try_current() else {
-        return;
-    };
-    runtime.spawn(async move {
+fn spawn_memory_commit_reconciler(state: AppState) -> Option<tokio::task::JoinHandle<()>> {
+    let runtime = tokio::runtime::Handle::try_current().ok()?;
+    Some(runtime.spawn(async move {
         if let Err(error) = reconcile_all_memory_commit_events(&state).await {
             tracing::error!(
                 target: "handshake_core::memory_api",
@@ -319,7 +322,7 @@ fn spawn_memory_commit_reconciler(state: AppState) {
                 "fems_memory_commit_startup_reconciliation_failed"
             );
         }
-    });
+    }))
 }
 
 const MAX_MEMORY_OUTBOX_RECONCILIATION_PASSES: usize = 4;
@@ -569,7 +572,13 @@ async fn list_memory_proposals(
     let proposals = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, limit as i64)
         .await
         .map_err(storage_error)?;
-    Ok(Json(proposals))
+    let mut visible = Vec::with_capacity(proposals.len());
+    for proposal in proposals {
+        if memory_proposal_sources_visible(&state, &proposal).await? {
+            visible.push(proposal);
+        }
+    }
+    Ok(Json(visible))
 }
 
 async fn get_memory_commit_report(
@@ -580,6 +589,16 @@ async fn get_memory_commit_report(
         .await
         .map_err(storage_error)?
         .ok_or_else(|| storage_error(StorageError::NotFound("memory commit report artifact")))?;
+    let proposal = fems_memory::get_memory_proposal(&state.surreal, &report.source_proposal_id)
+        .await
+        .map_err(storage_error)?
+        .filter(|proposal| proposal.workspace_id == workspace_id)
+        .ok_or_else(|| storage_error(StorageError::NotFound("memory commit report artifact")))?;
+    if !memory_proposal_sources_visible(&state, &proposal).await? {
+        return Err(storage_error(StorageError::NotFound(
+            "memory commit report artifact",
+        )));
+    }
     Ok(Json(report))
 }
 
@@ -596,9 +615,17 @@ async fn get_committed_memory_count(
     {
         return Err(storage_error(StorageError::NotFound("workspace")));
     }
-    let count = fems_memory::count_memory_items(&state.surreal, &workspace_id)
+    let items = fems_memory::list_memory_items(&state.surreal, &workspace_id)
         .await
         .map_err(storage_error)?;
+    let mut count = 0i64;
+    for item in items {
+        let item = serde_json::from_value::<crate::ace::MemoryPackItem>(item)
+            .map_err(|error| storage_error(StorageError::Serialization(error.to_string())))?;
+        if memory_source_refs_visible(&state, &workspace_id, &item.source_refs).await? {
+            count += 1;
+        }
+    }
     Ok(Json(CommittedMemoryCount {
         workspace_id,
         count,
@@ -618,6 +645,11 @@ async fn get_memory_proposal(
             "memory proposal in workspace",
         )));
     }
+    if !memory_proposal_sources_visible(&state, &proposal).await? {
+        return Err(storage_error(StorageError::NotFound(
+            "memory proposal in workspace",
+        )));
+    }
     Ok(Json(proposal))
 }
 
@@ -630,6 +662,11 @@ async fn get_memory_proposal_artifact(
         .map_err(storage_error)?
         .filter(|proposal| proposal.workspace_id == workspace_id)
         .ok_or_else(|| storage_error(StorageError::NotFound("memory proposal in workspace")))?;
+    if !memory_proposal_sources_visible(&state, &proposal).await? {
+        return Err(storage_error(StorageError::NotFound(
+            "memory proposal in workspace",
+        )));
+    }
     // MT-118: a row read back from storage is by definition pre-existing, so this is the
     // read side of the same recovery the retry path performs. Resolving the artifact through
     // ONE definition keeps the existing invariant true for pre-hardening rows as well: the
@@ -650,6 +687,7 @@ fn bad_request(detail: impl Into<String>) -> ApiError {
 
 fn storage_error(err: StorageError) -> ApiError {
     match err {
+        StorageError::Guard("HSK-MEM-SOURCE-AUTHORITY") => crate::api::authority::constant_denial(),
         StorageError::NotFound(what) => (
             StatusCode::NOT_FOUND,
             Json(json!({"error": "not_found", "detail": what})),
@@ -660,6 +698,8 @@ fn storage_error(err: StorageError) -> ApiError {
             Json(json!({"error": "conflict", "detail": detail})),
         ),
         other => {
+            #[cfg(test)]
+            eprintln!("MEMORY_STORAGE_ERROR={other:?}");
             tracing::error!(
                 target: "handshake_core::memory_api",
                 error = %other,
@@ -670,6 +710,86 @@ fn storage_error(err: StorageError) -> ApiError {
                 Json(json!({"error": "internal_error"})),
             )
         }
+    }
+}
+
+fn memory_proposal_source_refs(
+    proposal: &fems_memory::StoredMemoryProposal,
+) -> Result<Vec<FemsSourceRef>, ApiError> {
+    let artifact =
+        fems_memory::proposal_canonical_artifact(proposal, fems_memory::LegacyArtifactHeal::Allow)
+            .value;
+    let proposal = serde_json::from_value::<MemoryWriteProposal>(artifact)
+        .map_err(|error| storage_error(StorageError::Serialization(error.to_string())))?;
+    if proposal.source_refs.is_empty() {
+        return Err(storage_error(StorageError::Conflict(
+            "memory proposal has no source references",
+        )));
+    }
+    Ok(proposal.source_refs)
+}
+
+async fn memory_proposal_sources_visible(
+    state: &AppState,
+    proposal: &fems_memory::StoredMemoryProposal,
+) -> Result<bool, ApiError> {
+    let source_refs = memory_proposal_source_refs(proposal)?;
+    memory_source_refs_visible(state, &proposal.workspace_id, &source_refs).await
+}
+
+async fn memory_source_refs_visible(
+    state: &AppState,
+    workspace_id: &str,
+    source_refs: &[FemsSourceRef],
+) -> Result<bool, ApiError> {
+    if source_refs.is_empty() {
+        return Ok(false);
+    }
+    for source_ref in source_refs {
+        if source_ref.kind != FemsSourceRefKind::DocBlock
+            || !memory_document_source_visible(state, workspace_id, &source_ref.id).await?
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+async fn memory_document_source_visible(
+    state: &AppState,
+    workspace_id: &str,
+    document_id: &str,
+) -> Result<bool, ApiError> {
+    let database = SurrealDatabase::new(state.surreal.clone());
+    if let Some(document) = database
+        .get_knowledge_rich_document(document_id)
+        .await
+        .map_err(storage_error)?
+    {
+        return Ok(document.workspace_id == workspace_id);
+    }
+    if let Some(source) = database
+        .get_knowledge_source(document_id)
+        .await
+        .map_err(storage_error)?
+    {
+        if source.workspace_id != workspace_id || source.source_kind != KnowledgeSourceKind::File {
+            return Ok(false);
+        }
+        return Ok(database
+            .get_knowledge_code_file_by_source(document_id)
+            .await
+            .map_err(storage_error)?
+            .is_some_and(|file| file.workspace_id == workspace_id));
+    }
+    match state
+        .storage
+        .get_loom_block(workspace_id, document_id)
+        .await
+    {
+        Ok(block) => Ok(block.workspace_id == workspace_id),
+        Err(StorageError::NotFound(_)) => Ok(false),
+        Err(error) => Err(storage_error(error)),
     }
 }
 
@@ -829,6 +949,49 @@ async fn get_memory_pack(
             return Err(storage_error(StorageError::Conflict(
                 "stored memory pack uses an unsupported schema version",
             )));
+        }
+        let original_item_count = pack.items.len();
+        let mut visible_items = Vec::with_capacity(original_item_count);
+        for item in pack.items {
+            if memory_source_refs_visible(&state, &workspace_id, &item.source_refs).await? {
+                visible_items.push(item);
+            }
+        }
+        if visible_items.len() != original_item_count {
+            if visible_items.is_empty() {
+                let scope_key = scope
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or("");
+                return Ok(Json(empty_memory_pack(&workspace, scope_key)?));
+            }
+            pack.items = visible_items;
+            pack.token_estimate = pack
+                .items
+                .iter()
+                .map(|item| {
+                    ((item.summary.chars().count() + item.content.chars().count() + 3) / 4) as u32
+                })
+                .sum::<u32>()
+                .min(pack.budgets.max_tokens);
+            pack.warnings.clear();
+            let visible_ids = pack
+                .items
+                .iter()
+                .map(|item| item.memory_id.as_str())
+                .collect::<Vec<_>>()
+                .join("\0");
+            pack.pack_id = deterministic_uuid_from_seed(&format!(
+                "fems-visible-memory-pack:{workspace_id}:{}:{visible_ids}",
+                pack.pack_id
+            ))
+            .to_string();
+            pack.memory_pack_hash.clear();
+            pack.memory_pack_hash = pack
+                .compute_hash()
+                .map_err(|error| storage_error(StorageError::Serialization(error.to_string())))?;
+        } else {
+            pack.items = visible_items;
         }
         return Ok(Json(pack));
     }
@@ -1947,6 +2110,34 @@ mod tests {
             .await?)
     }
 
+    async fn mt109_workspace_ids_in_reconciliation_scope(
+        state: &AppState,
+        scope: crate::storage::surreal::resource_authority::RecordUserScope,
+        workspace_ids: Vec<String>,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let bindings = MemoryTestBindings {
+            values: workspace_ids,
+            ..Default::default()
+        };
+        let rows = state
+            .surreal
+            .with_record_user_scope(
+                scope,
+                state.surreal.with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .query_values::<MemoryTestStringRow, _>(
+                                "SELECT record::id(id) AS value FROM workspaces WHERE record::id(id) IN $values ORDER BY value ASC;",
+                                bindings,
+                            )
+                            .await
+                    })
+                }),
+            )
+            .await?;
+        Ok(rows.into_iter().map(|row| row.value).collect())
+    }
+
     async fn memory_test_ledger_event(
         state: &AppState,
         idempotency_key: &str,
@@ -2105,14 +2296,26 @@ mod tests {
 
     /// WP-KERNEL-012 MT-144: the `EmbeddedTestBackend` is RETURNED, not dropped here. It owns the
     /// store's cleanup guard, so letting it fall out of scope at the end of this function shut the
-    /// store down and every caller then failed with `embedded database is closed`. Callers bind it
-    /// (`let (state, _store) = setup_state().await?;`) so the store lives exactly as long as the
-    /// test and is cleaned up when the test ends.
+    /// store down and every caller then failed with `embedded database is closed`. Callers bind the
+    /// store before the state (`let (_store, state) = setup_state().await?;`) so reverse local-drop
+    /// order releases every state-owned database handle before the store cleanup guard runs.
     async fn setup_state(
-    ) -> Result<(AppState, crate::storage::tests::EmbeddedTestBackend), Box<dyn std::error::Error>>
+    ) -> Result<(crate::storage::tests::EmbeddedTestBackend, AppState), Box<dyn std::error::Error>>
     {
         let backend = embedded_test_backend().await?;
-        let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
+        let recorder = match DuckDbFlightRecorder::new_in_memory(32) {
+            Ok(recorder) => Arc::new(recorder),
+            Err(error) => {
+                let cleanup = backend.close_and_remove().await;
+                return match cleanup {
+                    Ok(()) => Err(error.into()),
+                    Err(cleanup) => Err(std::io::Error::other(format!(
+                        "memory setup failed: {error}; cleanup also failed: {cleanup}"
+                    ))
+                    .into()),
+                };
+            }
+        };
         let state = AppState {
             storage: backend.database.clone(),
             surreal: backend.storage.clone(),
@@ -2122,7 +2325,107 @@ mod tests {
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         };
-        Ok((state, backend))
+        Ok((backend, state))
+    }
+
+    async fn mt109_memory_residue(
+        state: &AppState,
+        workspace_id: &str,
+    ) -> Result<Value, Box<dyn std::error::Error>> {
+        let bindings = MemoryTestBindings {
+            workspace: Some(RecordId::new("workspaces", workspace_id)),
+            value: Some(workspace_id.to_owned()),
+            ..Default::default()
+        };
+        let mut counts = serde_json::Map::new();
+        for (name, query) in [
+            ("packs", "SELECT count() AS count FROM fems_memory_packs WHERE workspace_id = $workspace GROUP ALL;"),
+            ("proposals", "SELECT count() AS count FROM fems_memory_proposals WHERE workspace_id = $workspace GROUP ALL;"),
+            ("items", "SELECT count() AS count FROM fems_memory_items WHERE workspace_id = $workspace GROUP ALL;"),
+            ("reports", "SELECT count() AS count FROM fems_memory_commit_reports WHERE workspace_id = $workspace GROUP ALL;"),
+            ("commit_outbox", "SELECT count() AS count FROM fems_memory_commit_fr_outbox WHERE workspace_id = $workspace GROUP ALL;"),
+            ("lifecycle_outbox", "SELECT count() AS count FROM fems_memory_lifecycle_fr_outbox WHERE workspace_id = $workspace GROUP ALL;"),
+            ("anchors", "SELECT count() AS count FROM fems_workspace_write_anchors WHERE workspace_key = $value GROUP ALL;"),
+            ("ledger", "SELECT count() AS count FROM kernel_event_ledger WHERE payload.workspace_id = $value AND source_component IN ['fems_memory_proposal_intake', 'fems_memory_proposal_review', 'fems_memory_proposal_commit'] GROUP ALL;"),
+        ] {
+            counts.insert(name.to_owned(), json!(memory_test_count(state, query, bindings.clone()).await?));
+        }
+        Ok(Value::Object(counts))
+    }
+
+    async fn mt109_memory_ok(
+        response: reqwest::Response,
+    ) -> Result<Value, Box<dyn std::error::Error>> {
+        let path = response.url().path().to_owned();
+        let status = response.status();
+        let body = response.text().await?;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authorized memory route {path}: {body}"
+        );
+        Ok(serde_json::from_str(&body)?)
+    }
+
+    async fn mt109_memory_rows(
+        state: &AppState,
+    ) -> Result<
+        std::collections::BTreeMap<&'static str, Vec<surrealdb::types::Value>>,
+        Box<dyn std::error::Error>,
+    > {
+        let mut rows = std::collections::BTreeMap::new();
+        for (name, statement) in [
+            ("packs", "SELECT * FROM fems_memory_packs ORDER BY id ASC;"),
+            ("proposals", "SELECT * FROM fems_memory_proposals ORDER BY id ASC;"),
+            ("items", "SELECT * FROM fems_memory_items ORDER BY id ASC;"),
+            ("reports", "SELECT * FROM fems_memory_commit_reports ORDER BY id ASC;"),
+            ("commit_outbox", "SELECT * FROM fems_memory_commit_fr_outbox ORDER BY id ASC;"),
+            ("lifecycle_outbox", "SELECT * FROM fems_memory_lifecycle_fr_outbox ORDER BY id ASC;"),
+            ("anchors", "SELECT * FROM fems_workspace_write_anchors ORDER BY id ASC;"),
+            ("ledger", "SELECT * FROM kernel_event_ledger WHERE source_component IN ['fems_memory_proposal_intake', 'fems_memory_proposal_review', 'fems_memory_proposal_commit'] ORDER BY id ASC;"),
+        ] {
+            let values = state.surreal.with_data_operation(move |database| {
+                Box::pin(async move { database.query_values::<surrealdb::types::Value, _>(statement, MemoryTestBindings::default()).await })
+            }).await?;
+            rows.insert(name, values);
+        }
+        Ok(rows)
+    }
+
+    async fn finish_mt109_memory_test(
+        body: Result<Result<(), Box<dyn std::error::Error>>, Box<dyn std::any::Any + Send>>,
+        store: crate::storage::tests::EmbeddedTestBackend,
+        data_dir: std::path::PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let body = match body {
+            Ok(result) => result,
+            Err(payload) => Err(std::io::Error::other(format!(
+                "memory body panicked: {}",
+                payload
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("non-string panic")
+            ))
+            .into()),
+        };
+        let cleanup = store.close_and_remove().await;
+        match (body, cleanup) {
+            (Ok(()), Ok(())) => {
+                assert!(
+                    !data_dir.try_exists()?,
+                    "memory store survived cleanup: {}",
+                    data_dir.display()
+                );
+                Ok(())
+            }
+            (Err(error), Ok(())) => Err(error),
+            (Ok(()), Err(error)) => Err(error.into()),
+            (Err(body), Err(cleanup)) => Err(std::io::Error::other(format!(
+                "memory body failed: {body}; cleanup also failed: {cleanup}"
+            ))
+            .into()),
+        }
     }
 
     async fn serve_test_router(
@@ -2142,6 +2445,7 @@ mod tests {
 
     #[derive(Clone)]
     struct Mt109MemoryResources {
+        workspace: String,
         pack: String,
         proposal: String,
         item: String,
@@ -2152,6 +2456,9 @@ mod tests {
     #[derive(Clone, Copy)]
     enum Mt109GrantMode {
         Full,
+        MemoryOnly,
+        WorkspaceReadOnly,
+        WorkspaceWritesOnly,
         WrongAction,
         WrongCapability,
         MismatchedDelegation,
@@ -2210,6 +2517,7 @@ mod tests {
             )
         };
         Ok(Mt109MemoryResources {
+            workspace: register(ResourceKind::Workspace).await?.resource_id,
             pack: register(ResourceKind::MemoryPack).await?.resource_id,
             proposal: register(ResourceKind::MemoryProposal).await?.resource_id,
             item: register(ResourceKind::MemoryItem).await?.resource_id,
@@ -2228,6 +2536,31 @@ mod tests {
     ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         use crate::storage::surreal::resource_authority::{ResourceAction, ResourceGrantSpec};
         let cases = [
+            (
+                resources.workspace.as_str(),
+                vec![ResourceAction::Read],
+                vec![MEMORY_READ_CAPABILITY],
+            ),
+            (
+                resources.workspace.as_str(),
+                vec![ResourceAction::Create],
+                vec![MEMORY_PROPOSE_CAPABILITY],
+            ),
+            (
+                resources.workspace.as_str(),
+                vec![ResourceAction::Create],
+                vec![MEMORY_COMMIT_CAPABILITY],
+            ),
+            (
+                resources.workspace.as_str(),
+                vec![ResourceAction::Update],
+                vec![MEMORY_REVIEW_CAPABILITY],
+            ),
+            (
+                resources.workspace.as_str(),
+                vec![ResourceAction::Update],
+                vec![MEMORY_COMMIT_CAPABILITY],
+            ),
             (
                 resources.pack.as_str(),
                 vec![ResourceAction::Read, ResourceAction::Create],
@@ -2265,6 +2598,16 @@ mod tests {
         ];
         let mut grant_ids = Vec::new();
         for (resource_id, expected_actions, expected_capabilities) in cases {
+            let is_workspace = resource_id == resources.workspace;
+            let is_read = expected_capabilities == vec![MEMORY_READ_CAPABILITY];
+            if match mode {
+                Mt109GrantMode::MemoryOnly => is_workspace,
+                Mt109GrantMode::WorkspaceReadOnly => !is_workspace || !is_read,
+                Mt109GrantMode::WorkspaceWritesOnly => !is_workspace || is_read,
+                _ => false,
+            } {
+                continue;
+            }
             let actions = match mode {
                 Mt109GrantMode::WrongAction => vec![ResourceAction::Delete],
                 _ => expected_actions,
@@ -2350,9 +2693,12 @@ mod tests {
         };
         std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
 
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let mut server_task = None;
+        let mut reconciler_task = None;
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "memory-route-auth").await?;
-        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
         let source = create_test_rich_source(
             &state,
             &workspace_id,
@@ -2360,7 +2706,43 @@ mod tests {
             "authenticated proposal",
         )
         .await?;
-        let (base, client, server) = serve_test_router(routes(state.clone())).await;
+        let principal = crate::api::authority::test_principal_for_binding(&state, &token).await?;
+        let workspace_resource = state
+            .surreal
+            .register_workspace_resource(&principal.identity, &workspace_id)
+            .await?;
+        let source_resource = state
+            .surreal
+            .register_protected_resource(
+                &principal.identity,
+                crate::storage::surreal::resource_authority::ResourceKind::RichDocument,
+                &source.document_id,
+                Some(&workspace_resource.resource_id),
+                "account_private",
+            )
+            .await?;
+        state
+            .surreal
+            .grant_resource(
+                &principal.identity.account_id,
+                &principal.identity.access_space_id,
+                crate::storage::surreal::resource_authority::ResourceGrantSpec {
+                    principal_id: principal.identity.principal_id.clone(),
+                    resource_id: source_resource.resource_id,
+                    actions: vec![
+                        crate::storage::surreal::resource_authority::ResourceAction::Read,
+                    ],
+                    capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()],
+                    expires_at: None,
+                    delegation_chain: Vec::new(),
+                },
+            )
+            .await?;
+        let session_token = principal.session.token;
+        let (memory_router, reconciler) = routes_with_reconciler(state.clone());
+        reconciler_task = reconciler;
+        let (base, client, server) = serve_test_router(memory_router).await;
+        server_task = Some(server);
         let list_url = format!("{base}/workspaces/{workspace_id}/memory/proposals");
 
         let missing = client.get(&list_url).send().await?;
@@ -2398,8 +2780,14 @@ mod tests {
             .json(&proposal)
             .send()
             .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        let ack: ProposalAck = response.json().await?;
+        let response_status = response.status();
+        let response_body = response.text().await?;
+        assert_eq!(
+            response_status,
+            StatusCode::OK,
+            "authorized proposal response: {response_body}"
+        );
+        let ack: ProposalAck = serde_json::from_str(&response_body)?;
         let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
             .await?
             .expect("authenticated proposal stored");
@@ -2436,148 +2824,142 @@ mod tests {
                 && event.actor_id == actor_id
         }));
 
-        server.abort();
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        if let Some(server) = server_task {
+            server.abort();
+            let _ = server.await;
+        }
+        if let Some(reconciler) = reconciler_task {
+            reconciler.abort();
+            let _ = reconciler.await;
+        }
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn mt109_every_memory_route_uses_persisted_credentials_and_full_denial_matrix(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let _env_lock = MEMORY_AUTH_ENV_LOCK.lock().expect("memory auth env lock");
-        let binding_token = "d".repeat(64);
-        let binding_path =
-            std::env::temp_dir().join(format!("hsk-stage-binding-{}.json", Uuid::now_v7()));
-        std::fs::write(
-            &binding_path,
-            serde_json::to_vec(&crate::api::stage::current_process_native_binding(
-                &binding_token,
-            ))?,
-        )?;
-        let _binding_guard = BindingEnvGuard {
-            previous: std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE"),
-            path: binding_path.clone(),
-        };
-        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let mut server_task = None;
+        let mut reconciler_task = None;
+        let mut body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
+            let _env_lock = MEMORY_AUTH_ENV_LOCK.lock().expect("memory auth env lock");
+            let binding_token = "d".repeat(64);
+            let binding_path =
+                std::env::temp_dir().join(format!("hsk-stage-binding-{}.json", Uuid::now_v7()));
+            std::fs::write(
+                &binding_path,
+                serde_json::to_vec(&crate::api::stage::current_process_native_binding(
+                    &binding_token,
+                ))?,
+            )?;
+            let _binding_guard = BindingEnvGuard {
+                previous: std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE"),
+                path: binding_path.clone(),
+            };
+            std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
 
-        let (state, _store) = setup_state().await?;
-        let workspace_id = create_test_workspace(&state, "memory-mounted-matrix").await?;
-        let content = "mounted route matrix";
-        let source = create_test_rich_source(
-            &state,
-            &workspace_id,
-            "memory-mounted-matrix-source",
-            content,
-        )
-        .await?;
-        let capabilities = mt109_memory_capabilities();
-        let owner = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-owner",
-            "memory-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        let resources = mt109_register_memory_resources(&state, &owner, &workspace_id).await?;
-        mt109_grant_memory_resources(&state, &owner, &resources, Mt109GrantMode::Full).await?;
-        let foreign_workspace = create_test_workspace(&state, "memory-mounted-foreign").await?;
-        let app = crate::api::authority::routes(state.clone()).merge(routes(state.clone()));
-        let (base, client, server) = serve_test_router(app).await;
-        let (session_token, _session_id) =
-            mt109_exchange_memory_session(&state, &base, &client, &owner, &binding_token).await?;
-        let authenticated = |builder: reqwest::RequestBuilder| {
-            builder
-                .header("x-hsk-session-token", &session_token)
-                .header("x-hsk-channel-binding-token", &binding_token)
-        };
+            let workspace_id = create_test_workspace(&state, "memory-mounted-matrix").await?;
+            let content = "mounted route matrix";
+            let source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "memory-mounted-matrix-source",
+                content,
+            )
+            .await?;
+            let capabilities = mt109_memory_capabilities();
+            let owner = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-owner",
+                "memory-matrix-space-a",
+                &capabilities,
+            )
+            .await?;
+            let resources = mt109_register_memory_resources(&state, &owner, &workspace_id).await?;
+            mt109_grant_memory_resources(&state, &owner, &resources, Mt109GrantMode::MemoryOnly)
+                .await?;
+            let foreign_workspace = create_test_workspace(&state, "memory-mounted-foreign").await?;
+            let (memory_router, reconciler) = routes_with_reconciler(state.clone());
+            reconciler_task = reconciler;
+            let app = crate::api::authority::routes(state.clone()).merge(memory_router);
+            let (base, client, server) = serve_test_router(app).await;
+            server_task = Some(server);
+            let (session_token, _session_id) =
+                mt109_exchange_memory_session(&state, &base, &client, &owner, &binding_token)
+                    .await?;
+            let authenticated = |builder: reqwest::RequestBuilder| {
+                builder
+                    .header("x-hsk-session-token", &session_token)
+                    .header("x-hsk-channel-binding-token", &binding_token)
+            };
 
-        assert_eq!(
-            authenticated(client.get(format!("{base}/workspaces/{workspace_id}/memory/pack")))
-                .send()
-                .await?
-                .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            authenticated(client.get(format!("{base}/workspaces/{workspace_id}/memory/proposals")))
-                .send()
-                .await?
-                .status(),
-            StatusCode::OK
-        );
-        let proposal_response = authenticated(
-            client.post(format!("{base}/workspaces/{workspace_id}/memory/proposals")),
-        )
-        .json(&ProposalRequest {
-            request_id: Some(format!("mounted-matrix-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: content.to_owned(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("forged-client-actor".to_owned()),
-        })
-        .send()
-        .await?;
-        assert_eq!(proposal_response.status(), StatusCode::OK);
-        let proposal: ProposalAck = proposal_response.json().await?;
-        let proposal_url = format!(
-            "{base}/workspaces/{workspace_id}/memory/proposals/{}",
-            proposal.proposal_id
-        );
-        assert_eq!(
-            authenticated(client.get(&proposal_url))
-                .send()
-                .await?
-                .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            authenticated(client.get(format!("{proposal_url}/artifact")))
-                .send()
-                .await?
-                .status(),
-            StatusCode::OK
-        );
-        let review = authenticated(client.post(format!("{proposal_url}/review")))
-            .json(&json!({
-                "decision": "approved",
-                "reviewer_kind": "user",
-                "reason": "mounted route proof"
-            }))
+            let before_workspace_grant = mt109_memory_residue(&state, &workspace_id).await?;
+            let initial_rows = mt109_memory_rows(&state).await?;
+            assert!(
+                initial_rows.values().all(Vec::is_empty),
+                "initial global FEMS rows: {initial_rows:?}"
+            );
+            assert!(
+                before_workspace_grant
+                    .as_object()
+                    .expect("residue counts object")
+                    .values()
+                    .all(|count| count == &json!(0)),
+                "initial FEMS residue: {before_workspace_grant}"
+            );
+            let missing_workspace = authenticated(
+                client.get(format!("{base}/workspaces/{workspace_id}/memory/proposals")),
+            )
             .send()
             .await?;
-        assert_eq!(review.status(), StatusCode::OK);
-        let commit = authenticated(client.post(format!("{proposal_url}/commit")))
-            .json(&json!({}))
+            let denied_status = missing_workspace.status();
+            let denied_body: Value = missing_workspace.json().await?;
+            assert_eq!(
+                denied_status,
+                StatusCode::NOT_FOUND,
+                "workspace prerequisite denial: {denied_body}"
+            );
+            assert_eq!(
+                denied_body,
+                json!({"error": "not_found", "detail": "workspace"})
+            );
+            assert_eq!(
+                mt109_memory_residue(&state, &workspace_id).await?,
+                before_workspace_grant,
+                "workspace-denied read changed FEMS state"
+            );
+            mt109_grant_memory_resources(
+                &state,
+                &owner,
+                &resources,
+                Mt109GrantMode::WorkspaceReadOnly,
+            )
+            .await?;
+            let workspace_retry = authenticated(
+                client.get(format!("{base}/workspaces/{workspace_id}/memory/proposals")),
+            )
             .send()
             .await?;
-        assert_eq!(commit.status(), StatusCode::OK);
-        let commit: Value = commit.json().await?;
-        let commit_id = commit["commit_id"]
-            .as_str()
-            .expect("commit route returns commit_id");
-        assert_eq!(
-            authenticated(client.get(format!(
-                "{base}/workspaces/{workspace_id}/memory/commits/{commit_id}/report"
-            )))
-            .send()
-            .await?
-            .status(),
-            StatusCode::OK
-        );
-        assert_eq!(
-            authenticated(client.get(format!(
-                "{base}/workspaces/{workspace_id}/memory/items/count"
-            )))
-            .send()
-            .await?
-            .status(),
-            StatusCode::OK
-        );
+            let retry_status = workspace_retry.status();
+            let retry_body: Value = workspace_retry.json().await?;
+            assert_eq!(
+                retry_status,
+                StatusCode::OK,
+                "same read after exact Workspace/read/memory.read grant: {retry_body}"
+            );
+            assert_eq!(
+                mt109_memory_residue(&state, &workspace_id).await?,
+                before_workspace_grant
+            );
 
-        let denied_paths = |workspace: &str| {
-            vec![
+            let denied_paths =
+                |workspace: &str| {
+                    vec![
                 (
                     reqwest::Method::GET,
                     format!("/workspaces/{workspace}/memory/pack"),
@@ -2615,455 +2997,1343 @@ mod tests {
                     format!("/workspaces/{workspace}/memory/items/count"),
                 ),
             ]
-        };
-        for (method, path) in denied_paths(&foreign_workspace) {
-            let response = authenticated(client.request(method, format!("{base}{path}")))
-                .json(&json!({}))
-                .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
-            assert_eq!(
-                response.json::<Value>().await?,
-                json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
-                "{path} must not disclose whether the selector exists"
-            );
-        }
-
-        let member = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-member",
-            "memory-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        assert_eq!(member.identity.account_id, owner.identity.account_id);
-        assert_eq!(
-            member.identity.access_space_id,
-            owner.identity.access_space_id
-        );
-        let wrong_space = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-space-member",
-            "memory-matrix-space-b",
-            &capabilities,
-        )
-        .await?;
-        assert_eq!(wrong_space.identity.account_id, owner.identity.account_id);
-        assert_ne!(
-            wrong_space.identity.access_space_id,
-            owner.identity.access_space_id
-        );
-        let foreign_account = mt109_memory_principal(
-            &state,
-            "memory-matrix-foreign-account",
-            "memory-matrix-foreign-principal",
-            "memory-matrix-foreign-space",
-            &capabilities,
-        )
-        .await?;
-        let without_capability = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-no-capability",
-            "memory-matrix-space-a",
-            &[],
-        )
-        .await?;
-        mt109_grant_memory_resources(
-            &state,
-            &without_capability,
-            &resources,
-            Mt109GrantMode::Full,
-        )
-        .await?;
-        let wrong_action = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-wrong-action",
-            "memory-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_memory_resources(
-            &state,
-            &wrong_action,
-            &resources,
-            Mt109GrantMode::WrongAction,
-        )
-        .await?;
-        let wrong_capability = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-wrong-capability",
-            "memory-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_memory_resources(
-            &state,
-            &wrong_capability,
-            &resources,
-            Mt109GrantMode::WrongCapability,
-        )
-        .await?;
-        let mismatched_delegation = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-bad-delegation",
-            "memory-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_memory_resources(
-            &state,
-            &mismatched_delegation,
-            &resources,
-            Mt109GrantMode::MismatchedDelegation,
-        )
-        .await?;
-        let revoked_grant = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-revoked-grant",
-            "memory-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        let revoked_grant_ids =
-            mt109_grant_memory_resources(&state, &revoked_grant, &resources, Mt109GrantMode::Full)
-                .await?;
-        let stale_space = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-stale-space",
-            "memory-matrix-space-a",
-            &capabilities,
-        )
-        .await?;
-        mt109_grant_memory_resources(&state, &stale_space, &resources, Mt109GrantMode::Full)
-            .await?;
-
-        let mut denied_sessions = Vec::new();
-        for (label, principal) in [
-            ("same-account-member-without-grant", &member),
-            ("wrong-access-space", &wrong_space),
-            ("cross-account", &foreign_account),
-            ("grant-without-capability", &without_capability),
-            ("wrong-action", &wrong_action),
-            ("wrong-capability", &wrong_capability),
-            ("mismatched-delegation", &mismatched_delegation),
-        ] {
-            let (token, _) =
-                mt109_exchange_memory_session(&state, &base, &client, principal, &binding_token)
-                    .await?;
-            denied_sessions.push((label, token));
-        }
-        let (revoked_grant_token, _) =
-            mt109_exchange_memory_session(&state, &base, &client, &revoked_grant, &binding_token)
-                .await?;
-        for grant_id in revoked_grant_ids {
-            state.surreal.revoke_grant(&grant_id).await?;
-        }
-        denied_sessions.push(("revoked-grants", revoked_grant_token));
-        let (stale_token, stale_session_id) =
-            mt109_exchange_memory_session(&state, &base, &client, &stale_space, &binding_token)
-                .await?;
-        let switched = mt109_memory_principal(
-            &state,
-            "memory-matrix-account",
-            "memory-matrix-stale-space",
-            "memory-matrix-space-b",
-            &capabilities,
-        )
-        .await?;
-        state
-            .surreal
-            .switch_session_access_space(&stale_session_id, &switched.identity.access_space_id)
-            .await?;
-        denied_sessions.push(("stale-post-space-switch", stale_token));
-
-        let proposal_count_before_denials =
-            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
-                .await?
-                .len();
-        for (label, token) in denied_sessions {
-            for (method, path) in denied_paths(&workspace_id) {
-                let response = client
-                    .request(method, format!("{base}{path}"))
-                    .header("x-hsk-session-token", &token)
-                    .header("x-hsk-channel-binding-token", &binding_token)
-                    .json(&json!({"workspace_id": foreign_workspace, "proposal_id": "forged"}))
+                };
+            for (method, path) in denied_paths(&foreign_workspace) {
+                let response = authenticated(client.request(method, format!("{base}{path}")))
+                    .json(&json!({}))
                     .send()
                     .await?;
-                assert_eq!(response.status(), StatusCode::FORBIDDEN, "{label}: {path}");
+                assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
                 assert_eq!(
                     response.json::<Value>().await?,
                     json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
-                    "{label}: {path} constant denial"
+                    "{path} must not disclose whether the selector exists"
                 );
             }
-        }
-        assert_eq!(
-            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
-                .await?
-                .len(),
-            proposal_count_before_denials,
-            "denied mounted routes leave no proposal residue"
-        );
 
-        let disabled_workspace = create_test_workspace(&state, "memory-mounted-disabled").await?;
-        let disabled = mt109_memory_principal(
-            &state,
-            "memory-matrix-disabled-account",
-            "memory-matrix-disabled-principal",
-            "memory-matrix-disabled-space",
-            &capabilities,
-        )
-        .await?;
-        let disabled_resources =
-            mt109_register_memory_resources(&state, &disabled, &disabled_workspace).await?;
-        mt109_grant_memory_resources(&state, &disabled, &disabled_resources, Mt109GrantMode::Full)
-            .await?;
-        let (disabled_token, _) =
-            mt109_exchange_memory_session(&state, &base, &client, &disabled, &binding_token)
-                .await?;
-        state
-            .surreal
-            .disable_account(&disabled.identity.account_id)
-            .await?;
-        for (method, path) in denied_paths(&disabled_workspace) {
-            let response = client
-                .request(method, format!("{base}{path}"))
-                .header("x-hsk-session-token", &disabled_token)
-                .header("x-hsk-channel-binding-token", &binding_token)
-                .json(&json!({}))
-                .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::FORBIDDEN, "disabled: {path}");
-            assert_eq!(
-                response.json::<Value>().await?,
-                json!({"error": "HSK-403-PROTECTED-RESOURCE"})
-            );
-        }
-
-        let binding_hash = hex::encode(Sha256::digest(binding_token.as_bytes()));
-        let expired = state
-            .surreal
-            .provision_principal(
+            let member = mt109_memory_principal(
+                &state,
                 "memory-matrix-account",
-                "memory-matrix-expired",
-                "human_account",
-                "memory-matrix-expired",
-                "Operator",
-                &capabilities,
+                "memory-matrix-member",
                 "memory-matrix-space-a",
-                Some(&binding_hash),
-                std::time::Duration::from_millis(1),
+                &capabilities,
             )
             .await?;
-        mt109_grant_memory_resources(&state, &expired, &resources, Mt109GrantMode::Full).await?;
-        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-        for (method, path) in denied_paths(&workspace_id) {
-            let response = client
-                .request(method, format!("{base}{path}"))
-                .header("x-hsk-session-token", &expired.session.token)
-                .header("x-hsk-channel-binding-token", &binding_token)
+            assert_eq!(member.identity.account_id, owner.identity.account_id);
+            assert_eq!(
+                member.identity.access_space_id,
+                owner.identity.access_space_id
+            );
+            let wrong_space = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-space-member",
+                "memory-matrix-space-b",
+                &capabilities,
+            )
+            .await?;
+            assert_eq!(wrong_space.identity.account_id, owner.identity.account_id);
+            assert_ne!(
+                wrong_space.identity.access_space_id,
+                owner.identity.access_space_id
+            );
+            let foreign_account = mt109_memory_principal(
+                &state,
+                "memory-matrix-foreign-account",
+                "memory-matrix-foreign-principal",
+                "memory-matrix-foreign-space",
+                &capabilities,
+            )
+            .await?;
+            let without_capability = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-no-capability",
+                "memory-matrix-space-a",
+                &[],
+            )
+            .await?;
+            mt109_grant_memory_resources(
+                &state,
+                &without_capability,
+                &resources,
+                Mt109GrantMode::Full,
+            )
+            .await?;
+            let wrong_action = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-wrong-action",
+                "memory-matrix-space-a",
+                &capabilities,
+            )
+            .await?;
+            mt109_grant_memory_resources(
+                &state,
+                &wrong_action,
+                &resources,
+                Mt109GrantMode::WrongAction,
+            )
+            .await?;
+            let wrong_capability = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-wrong-capability",
+                "memory-matrix-space-a",
+                &capabilities,
+            )
+            .await?;
+            mt109_grant_memory_resources(
+                &state,
+                &wrong_capability,
+                &resources,
+                Mt109GrantMode::WrongCapability,
+            )
+            .await?;
+            let mismatched_delegation = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-bad-delegation",
+                "memory-matrix-space-a",
+                &capabilities,
+            )
+            .await?;
+            mt109_grant_memory_resources(
+                &state,
+                &mismatched_delegation,
+                &resources,
+                Mt109GrantMode::MismatchedDelegation,
+            )
+            .await?;
+            let revoked_grant = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-revoked-grant",
+                "memory-matrix-space-a",
+                &capabilities,
+            )
+            .await?;
+            let revoked_grant_ids = mt109_grant_memory_resources(
+                &state,
+                &revoked_grant,
+                &resources,
+                Mt109GrantMode::Full,
+            )
+            .await?;
+            let stale_space = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-stale-space",
+                "memory-matrix-space-a",
+                &capabilities,
+            )
+            .await?;
+            mt109_grant_memory_resources(&state, &stale_space, &resources, Mt109GrantMode::Full)
+                .await?;
+
+            let mut denied_sessions = Vec::new();
+            for (label, principal) in [
+                ("same-account-member-without-grant", &member),
+                ("wrong-access-space", &wrong_space),
+                ("cross-account", &foreign_account),
+                ("grant-without-capability", &without_capability),
+                ("wrong-action", &wrong_action),
+                ("wrong-capability", &wrong_capability),
+                ("mismatched-delegation", &mismatched_delegation),
+            ] {
+                let (token, _) = mt109_exchange_memory_session(
+                    &state,
+                    &base,
+                    &client,
+                    principal,
+                    &binding_token,
+                )
+                .await?;
+                denied_sessions.push((label, token));
+            }
+            let (revoked_grant_token, _) = mt109_exchange_memory_session(
+                &state,
+                &base,
+                &client,
+                &revoked_grant,
+                &binding_token,
+            )
+            .await?;
+            for grant_id in revoked_grant_ids {
+                state.surreal.revoke_grant(&grant_id).await?;
+            }
+            denied_sessions.push(("revoked-grants", revoked_grant_token));
+            let (stale_token, stale_session_id) =
+                mt109_exchange_memory_session(&state, &base, &client, &stale_space, &binding_token)
+                    .await?;
+            let switched = mt109_memory_principal(
+                &state,
+                "memory-matrix-account",
+                "memory-matrix-stale-space",
+                "memory-matrix-space-b",
+                &capabilities,
+            )
+            .await?;
+            state
+                .surreal
+                .switch_session_access_space(&stale_session_id, &switched.identity.access_space_id)
+                .await?;
+            denied_sessions.push(("stale-post-space-switch", stale_token));
+
+            assert!(owner.session.expires_at > chrono::Utc::now(), "earliest ordinary session expired before negative phase");
+            eprintln!("MT109_MEMORY_ORDINARY_REMAINING_MS={}", (owner.session.expires_at - chrono::Utc::now()).num_milliseconds());
+            let state_before_denials = mt109_memory_residue(&state, &workspace_id).await?;
+            for (label, token) in denied_sessions {
+                for (method, path) in denied_paths(&workspace_id) {
+                    let response = client
+                        .request(method, format!("{base}{path}"))
+                        .header("x-hsk-session-token", &token)
+                        .header("x-hsk-channel-binding-token", &binding_token)
+                        .json(&json!({"workspace_id": foreign_workspace, "proposal_id": "forged"}))
+                        .send()
+                        .await?;
+                    assert_eq!(response.status(), StatusCode::FORBIDDEN, "{label}: {path}");
+                    assert_eq!(
+                        response.json::<Value>().await?,
+                        json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+                        "{label}: {path} constant denial"
+                    );
+                }
+            }
+            assert_eq!(
+                mt109_memory_residue(&state, &workspace_id).await?,
+                state_before_denials,
+                "denied mounted routes changed FEMS state"
+            );
+            assert_eq!(
+                mt109_memory_residue(&state, &foreign_workspace).await?,
+                state_before_denials,
+                "foreign workspace gained FEMS residue"
+            );
+
+            let disabled_workspace =
+                create_test_workspace(&state, "memory-mounted-disabled").await?;
+            let disabled = mt109_memory_principal(
+                &state,
+                "memory-matrix-disabled-account",
+                "memory-matrix-disabled-principal",
+                "memory-matrix-disabled-space",
+                &capabilities,
+            )
+            .await?;
+            let disabled_resources =
+                mt109_register_memory_resources(&state, &disabled, &disabled_workspace).await?;
+            mt109_grant_memory_resources(
+                &state,
+                &disabled,
+                &disabled_resources,
+                Mt109GrantMode::Full,
+            )
+            .await?;
+            let (disabled_token, _) =
+                mt109_exchange_memory_session(&state, &base, &client, &disabled, &binding_token)
+                    .await?;
+            state
+                .surreal
+                .disable_account(&disabled.identity.account_id)
+                .await?;
+            for (method, path) in denied_paths(&disabled_workspace) {
+                let response = client
+                    .request(method, format!("{base}{path}"))
+                    .header("x-hsk-session-token", &disabled_token)
+                    .header("x-hsk-channel-binding-token", &binding_token)
+                    .json(&json!({}))
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::FORBIDDEN, "disabled: {path}");
+                assert_eq!(
+                    response.json::<Value>().await?,
+                    json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+                );
+            }
+
+            assert_eq!(
+                mt109_memory_residue(&state, &disabled_workspace).await?,
+                state_before_denials,
+                "disabled workspace gained FEMS residue"
+            );
+            assert_eq!(
+                mt109_memory_rows(&state).await?,
+                initial_rows,
+                "denied routes changed global protected FEMS rows"
+            );
+            mt109_grant_memory_resources(
+                &state,
+                &owner,
+                &resources,
+                Mt109GrantMode::WorkspaceWritesOnly,
+            )
+            .await?;
+            mt109_memory_ok(
+                authenticated(client.get(format!("{base}/workspaces/{workspace_id}/memory/pack")))
+                    .send()
+                    .await?,
+            )
+            .await?;
+            mt109_memory_ok(
+                authenticated(
+                    client.get(format!("{base}/workspaces/{workspace_id}/memory/proposals")),
+                )
+                .send()
+                .await?,
+            )
+            .await?;
+            assert!(owner.session.expires_at > chrono::Utc::now(), "ordinary positive control session expired");
+            let source_id = source.document_id.clone();
+            let proposal_request = ProposalRequest {
+                request_id: Some(format!("mounted-matrix-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: content.to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("forged-client-actor".to_owned()),
+            };
+            let denied_source = authenticated(client.post(format!("{base}/workspaces/{workspace_id}/memory/proposals")))
+                .json(&proposal_request).send().await?;
+            let denied_source_status = denied_source.status();
+            let denied_source_body: Value = denied_source.json().await?;
+            assert_eq!(denied_source_status, StatusCode::BAD_REQUEST, "source grant missing: {denied_source_body}");
+            assert_eq!(denied_source_body, json!({"error": "bad_request", "detail": "proposal provenance document_id does not resolve to a rich document, a canonical code source, or a Loom block in this workspace"}));
+            assert_eq!(mt109_memory_rows(&state).await?, initial_rows, "source-denied proposal changed FEMS rows");
+            let source_resource = state.surreal.register_protected_resource(
+                &owner.identity,
+                crate::storage::surreal::resource_authority::ResourceKind::RichDocument,
+                &source_id,
+                Some(&resources.workspace),
+                "account_private",
+            ).await?;
+            state.surreal.grant_resource(&owner.identity.account_id, &owner.identity.access_space_id,
+                crate::storage::surreal::resource_authority::ResourceGrantSpec {
+                    principal_id: owner.identity.principal_id.clone(),
+                    resource_id: source_resource.resource_id,
+                    actions: vec![crate::storage::surreal::resource_authority::ResourceAction::Read],
+                    capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()],
+                    expires_at: None,
+                    delegation_chain: Vec::new(),
+                }).await?;
+            let proposal_response = authenticated(client.post(format!("{base}/workspaces/{workspace_id}/memory/proposals")))
+                .json(&proposal_request).send().await?;
+            let proposal_status = proposal_response.status();
+            let proposal_body = proposal_response.text().await?;
+            assert_eq!(
+                proposal_status,
+                StatusCode::OK,
+                "authorized proposal POST: {proposal_body}"
+            );
+            let proposal: ProposalAck = serde_json::from_str(&proposal_body)?;
+            let proposal_url = format!(
+                "{base}/workspaces/{workspace_id}/memory/proposals/{}",
+                proposal.proposal_id
+            );
+            mt109_memory_ok(authenticated(client.get(&proposal_url)).send().await?).await?;
+            mt109_memory_ok(
+                authenticated(client.get(format!("{proposal_url}/artifact")))
+                    .send()
+                    .await?,
+            )
+            .await?;
+            let review = authenticated(client.post(format!("{proposal_url}/review")))
+                .json(&json!({
+                    "decision": "approved",
+                    "reviewer_kind": "user",
+                    "reason": "mounted route proof"
+                }))
+                .send()
+                .await?;
+            let review_status = review.status();
+            let review_body = review.text().await?;
+            assert_eq!(
+                review_status,
+                StatusCode::OK,
+                "authorized review POST: {review_body}"
+            );
+            let commit = authenticated(client.post(format!("{proposal_url}/commit")))
                 .json(&json!({}))
                 .send()
                 .await?;
-            assert_eq!(response.status(), StatusCode::FORBIDDEN, "expired: {path}");
-        }
-
-        let revocation_decision = state
-            .surreal
-            .authorize_protected_resource(
-                crate::storage::surreal::resource_authority::AuthorizationRequest {
-                    session_token: session_token.clone(),
-                    channel_binding_hash: Some(hex::encode(Sha256::digest(
-                        binding_token.as_bytes(),
-                    ))),
-                    capability_id: MEMORY_READ_CAPABILITY.to_owned(),
-                    resource_kind:
-                        crate::storage::surreal::resource_authority::ResourceKind::MemoryPack,
-                    external_resource_id: workspace_id.clone(),
-                    action: crate::storage::surreal::resource_authority::ResourceAction::Read,
-                },
+            let commit_status = commit.status();
+            let commit_body = commit.text().await?;
+            assert_eq!(
+                commit_status,
+                StatusCode::OK,
+                "authorized commit POST: {commit_body}"
+            );
+            let commit: Value = serde_json::from_str(&commit_body)?;
+            let commit_id = commit["commit_id"]
+                .as_str()
+                .expect("commit route returns commit_id");
+            mt109_memory_ok(
+                authenticated(client.get(format!(
+                    "{base}/workspaces/{workspace_id}/memory/commits/{commit_id}/report"
+                )))
+                .send()
+                .await?,
             )
             .await?;
+            mt109_memory_ok(
+                authenticated(client.get(format!(
+                    "{base}/workspaces/{workspace_id}/memory/items/count"
+                )))
+                .send()
+                .await?,
+            )
+            .await?;
+
+            let state_after_success = mt109_memory_residue(&state, &workspace_id).await?;
+            assert_eq!(
+                state_after_success["ledger"],
+                json!(3),
+                "proposal/review/commit must each produce a scoped receipt"
+            );
+            let rows_after_success = mt109_memory_rows(&state).await?;
+            assert_eq!(
+                rows_after_success["ledger"].len(),
+                3,
+                "all FEMS receipts must match the scoped positive control"
+            );
+            let binding_hash = hex::encode(Sha256::digest(binding_token.as_bytes()));
+            let expired = state
+                .surreal
+                .provision_principal(
+                    "memory-matrix-account",
+                    "memory-matrix-expired",
+                    "human_account",
+                    "memory-matrix-expired",
+                    "Operator",
+                    &capabilities,
+                    "memory-matrix-space-a",
+                    Some(&binding_hash),
+                    std::time::Duration::from_millis(1),
+                )
+                .await?;
+            mt109_grant_memory_resources(&state, &expired, &resources, Mt109GrantMode::Full)
+                .await?;
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            for (method, path) in denied_paths(&workspace_id) {
+                let response = client
+                    .request(method, format!("{base}{path}"))
+                    .header("x-hsk-session-token", &expired.session.token)
+                    .header("x-hsk-channel-binding-token", &binding_token)
+                    .json(&json!({}))
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::FORBIDDEN, "expired: {path}");
+            }
+
+            let revocation_decision = state
+                .surreal
+                .authorize_protected_resource(
+                    crate::storage::surreal::resource_authority::AuthorizationRequest {
+                        session_token: session_token.clone(),
+                        channel_binding_hash: Some(hex::encode(Sha256::digest(
+                            binding_token.as_bytes(),
+                        ))),
+                        capability_id: MEMORY_READ_CAPABILITY.to_owned(),
+                        resource_kind:
+                            crate::storage::surreal::resource_authority::ResourceKind::MemoryPack,
+                        external_resource_id: workspace_id.clone(),
+                        action: crate::storage::surreal::resource_authority::ResourceAction::Read,
+                    },
+                )
+                .await?;
+            state
+                .surreal
+                .revoke_session(&revocation_decision.session_id)
+                .await?;
+            for (method, path) in denied_paths(&workspace_id) {
+                let response = authenticated(client.request(method, format!("{base}{path}")))
+                    .json(&json!({}))
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+                assert_eq!(
+                    response.json::<Value>().await?,
+                    json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+                    "{path} revoked-session denial"
+                );
+            }
+            assert_eq!(
+                mt109_memory_residue(&state, &workspace_id).await?,
+                state_after_success,
+                "expired/revoked routes changed successful FEMS state"
+            );
+            assert_eq!(
+                mt109_memory_rows(&state).await?,
+                rows_after_success,
+                "expired/revoked routes mutated protected rows"
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        if let Some(server) = server_task {
+            server.abort();
+            let _ = server.await;
+        }
+        if let Some(reconciler) = reconciler_task {
+            if let Err(join_error) = reconciler.await {
+                body = match body {
+                    Ok(Ok(())) => Ok(Err(join_error.into())),
+                    Ok(Err(error)) => Ok(Err(std::io::Error::other(format!(
+                        "memory body failed: {error}; reconciler join also failed: {join_error}"
+                    ))
+                    .into())),
+                    Err(panic) => {
+                        eprintln!("memory reconciler join also failed: {join_error}");
+                        Err(panic)
+                    }
+                };
+            }
+        }
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
+    }
+
+    async fn mt109_source_rows_for_reader(
+        state: &AppState,
+        token: &str,
+        binding: &str,
+        workspace: &str,
+        document: &str,
+    ) -> Result<Vec<surrealdb::types::Value>, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("x-hsk-session-token", token.parse()?);
+        headers.insert("x-hsk-channel-binding-token", binding.parse()?);
+        let authority = crate::api::authority::authorize_request(
+            state,
+            &headers,
+            MEMORY_READ_CAPABILITY,
+            ResourceKind::MemoryProposal,
+            workspace,
+            ResourceAction::Read,
+        )
+        .await
+        .map_err(|(status, body)| {
+            std::io::Error::other(format!("source read outer authority: {status}; {}", body.0))
+        })?;
+        let bindings = MemoryTestBindings {
+            value: Some(document.to_owned()),
+            ..Default::default()
+        };
+        Ok(state.surreal.with_record_user_scope(authority.record_user_scope,
+            state.surreal.with_data_operation(move |database| Box::pin(async move {
+                database.query_values::<surrealdb::types::Value, _>(
+                    "SELECT * FROM knowledge_rich_documents WHERE rich_document_id = $value;", bindings).await
+            }))).await?)
+    }
+
+    async fn mt109_proposal_rows_for_producer(
+        state: &AppState,
+        principal: &crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+        workspace: &str,
+        proposal: &str,
+    ) -> Result<Vec<surrealdb::types::Value>, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{
+            AuthorizationRequest, RecordUserScope, ResourceAction, ResourceKind,
+        };
+        let decision = state
+            .surreal
+            .authorize_protected_resource(AuthorizationRequest {
+                session_token: principal.session.token.clone(),
+                channel_binding_hash: None,
+                capability_id: MEMORY_PROPOSE_CAPABILITY.to_owned(),
+                resource_kind: ResourceKind::MemoryProposal,
+                external_resource_id: workspace.to_owned(),
+                action: ResourceAction::Create,
+            })
+            .await?;
+        let scope = RecordUserScope {
+            workspace_id: Some(workspace.to_owned()),
+            session_token: principal.session.token.clone(),
+            channel_binding_hash: None,
+            resource_id: decision.resource_id,
+            session_id: decision.session_id,
+            capability_id: MEMORY_PROPOSE_CAPABILITY.to_owned(),
+            action: ResourceAction::Create,
+        };
+        let bindings = MemoryTestBindings {
+            value: Some(proposal.to_owned()),
+            ..Default::default()
+        };
+        Ok(state
+            .surreal
+            .with_record_user_scope(
+                scope,
+                state.surreal.with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .query_values::<surrealdb::types::Value, _>(
+                                "SELECT * FROM fems_memory_proposals WHERE proposal_id = $value;",
+                                bindings,
+                            )
+                            .await
+                    })
+                }),
+            )
+            .await?)
+    }
+
+    async fn mt109_source_refs_visible_for_reader(
+        state: &AppState,
+        token: &str,
+        binding: &str,
+        workspace: &str,
+        source_refs: &[FemsSourceRef],
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("x-hsk-session-token", token.parse()?);
+        headers.insert("x-hsk-channel-binding-token", binding.parse()?);
+        let authority = crate::api::authority::authorize_request(
+            state,
+            &headers,
+            MEMORY_READ_CAPABILITY,
+            ResourceKind::MemoryProposal,
+            workspace,
+            ResourceAction::Read,
+        )
+        .await
+        .map_err(|(status, body)| {
+            std::io::Error::other(format!("mixed-source outer authority: {status}; {}", body.0))
+        })?;
         state
             .surreal
-            .revoke_session(&revocation_decision.session_id)
+            .with_record_user_scope(
+                authority.record_user_scope,
+                memory_source_refs_visible(state, workspace, source_refs),
+            )
+            .await
+            .map_err(|(status, body)| {
+                std::io::Error::other(format!("mixed-source visibility: {status}; {}", body.0))
+                    .into()
+            })
+    }
+
+    #[tokio::test]
+    async fn mt109_memory_derivatives_do_not_widen_source_read_authority(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{
+            ResourceAction, ResourceGrantSpec, ResourceKind,
+        };
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let mut shutdown_tx = None;
+        let mut server_task = None;
+        let mut reconciler_task = None;
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
+            let _env_lock = MEMORY_AUTH_ENV_LOCK.lock().expect("memory auth env lock");
+            let binding_token = "e".repeat(64);
+            let binding_path = std::env::temp_dir().join(format!("hsk-stage-binding-{}.json", Uuid::now_v7()));
+            std::fs::write(&binding_path, serde_json::to_vec(&crate::api::stage::current_process_native_binding(&binding_token))?)?;
+            let _binding_guard = BindingEnvGuard { previous: std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE"), path: binding_path.clone() };
+            std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+            let workspace_id = create_test_workspace(&state, "memory-source-derivative").await?;
+            let content = format!("private-source-{}", Uuid::now_v7());
+            let source = create_test_rich_source(&state, &workspace_id, "derivative", &content).await?;
+            let second_content = format!("private-second-source-{}", Uuid::now_v7());
+            let second_source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "derivative-second",
+                &second_content,
+            )
             .await?;
-        for (method, path) in denied_paths(&workspace_id) {
-            let response = authenticated(client.request(method, format!("{base}{path}")))
-                .json(&json!({}))
+            let owner = mt109_memory_principal(&state, "derivative-account", "derivative-owner", "derivative-space", &mt109_memory_capabilities()).await?;
+            let reader = mt109_memory_principal(&state, "derivative-account", "derivative-reader", "derivative-space", &[MEMORY_READ_CAPABILITY.to_owned()]).await?;
+            assert_ne!(owner.identity.principal_id, reader.identity.principal_id);
+            assert_eq!(owner.identity.account_id, reader.identity.account_id);
+            assert_eq!(owner.identity.access_space_id, reader.identity.access_space_id);
+            let resources = mt109_register_memory_resources(&state, &owner, &workspace_id).await?;
+            mt109_grant_memory_resources(&state, &owner, &resources, Mt109GrantMode::Full).await?;
+            for resource_id in [&resources.workspace, &resources.pack, &resources.proposal, &resources.item, &resources.report, &resources.count] {
+                state.surreal.grant_resource(&reader.identity.account_id, &reader.identity.access_space_id, ResourceGrantSpec {
+                    principal_id: reader.identity.principal_id.clone(), resource_id: resource_id.clone(), actions: vec![ResourceAction::Read],
+                    capability_ids: vec![MEMORY_READ_CAPABILITY.to_owned()], expires_at: None, delegation_chain: Vec::new(),
+                }).await?;
+            }
+            let source_resource = state.surreal.register_protected_resource(&owner.identity, ResourceKind::RichDocument, &source.document_id, Some(&resources.workspace), "account_private").await?;
+            let _second_source_resource = state.surreal.register_protected_resource(&owner.identity, ResourceKind::RichDocument, &second_source.document_id, Some(&resources.workspace), "account_private").await?;
+            let source_grant = state.surreal.grant_resource(&owner.identity.account_id, &owner.identity.access_space_id, ResourceGrantSpec {
+                principal_id: owner.identity.principal_id.clone(), resource_id: source_resource.resource_id.clone(), actions: vec![ResourceAction::Read],
+                capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()], expires_at: None, delegation_chain: Vec::new(),
+            }).await?;
+            let (memory_router, reconciler) = routes_with_reconciler(state.clone());
+            reconciler_task = reconciler;
+            let app = crate::api::authority::routes(state.clone()).merge(memory_router);
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+            let base = format!("http://{}", listener.local_addr()?);
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(300))
+                .build()?;
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+            shutdown_tx = Some(tx);
+            server_task = Some(tokio::spawn(async move {
+                axum::serve(listener, app).with_graceful_shutdown(async move { let _ = rx.await; }).await
+            }));
+            let (owner_token, _) = mt109_exchange_memory_session(&state, &base, &client, &owner, &binding_token).await?;
+            let (reader_token, _) = mt109_exchange_memory_session(&state, &base, &client, &reader, &binding_token).await?;
+            assert_ne!(owner_token, reader_token);
+            let auth = |request: reqwest::RequestBuilder, token: &str| request.header("x-hsk-session-token", token).header("x-hsk-channel-binding-token", &binding_token);
+            assert_eq!(mt109_source_rows_for_reader(&state, &owner_token, &binding_token, &workspace_id, &source.document_id).await?.len(), 1, "owner source control");
+            assert!(mt109_source_rows_for_reader(&state, &reader_token, &binding_token, &workspace_id, &source.document_id).await?.is_empty(), "reader must initially lack canonical source");
+            let request = ProposalRequest { request_id: Some(format!("derivative-{}", Uuid::now_v7())), class: ProposalClass::Semantic, content: content.clone(), source: source.clone(), source_document_content: None, review_gated: Some(true), actor_id: None };
+            eprintln!("MT109_DERIVATIVE_PHASE=owner_proposal");
+            let owner_proposal_started = tokio::time::Instant::now();
+            let response = auth(client.post(format!("{base}/workspaces/{workspace_id}/memory/proposals")), &owner_token)
+                .json(&request)
                 .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
-            assert_eq!(
-                response.json::<Value>().await?,
-                json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
-                "{path} revoked-session denial"
+                .await
+                .map_err(|error| {
+                    eprintln!(
+                        "MT109_DERIVATIVE_OWNER_PROPOSAL_ERROR elapsed_ms={} server_finished={} reconciler_finished={} leases_in_flight={} error={error}",
+                        owner_proposal_started.elapsed().as_millis(),
+                        server_task.as_ref().is_some_and(tokio::task::JoinHandle::is_finished),
+                        reconciler_task.as_ref().is_some_and(tokio::task::JoinHandle::is_finished),
+                        state.surreal.leases_in_flight(),
+                    );
+                    error
+                })?;
+            eprintln!(
+                "MT109_DERIVATIVE_OWNER_PROPOSAL_OK elapsed_ms={}",
+                owner_proposal_started.elapsed().as_millis()
             );
+            let ack: ProposalAck = serde_json::from_value(mt109_memory_ok(response).await?)?;
+            let proposal_url = format!("{base}/workspaces/{workspace_id}/memory/proposals/{}", ack.proposal_id);
+            eprintln!("MT109_DERIVATIVE_PHASE=owner_review");
+            mt109_memory_ok(auth(client.post(format!("{proposal_url}/review")), &owner_token).json(&json!({"decision":"approved","reviewer_kind":"user","reason":"source-bound derivative"})).send().await?).await?;
+            eprintln!("MT109_DERIVATIVE_PHASE=owner_commit");
+            let commit = mt109_memory_ok(auth(client.post(format!("{proposal_url}/commit")), &owner_token).json(&json!({})).send().await?).await?;
+            let commit_id = commit["commit_id"].as_str().ok_or("missing commit id")?;
+            let paths = [
+                ("list", format!("{base}/workspaces/{workspace_id}/memory/proposals")),
+                ("proposal", proposal_url.clone()), ("artifact", format!("{proposal_url}/artifact")),
+                ("pack", format!("{base}/workspaces/{workspace_id}/memory/pack")),
+                ("count", format!("{base}/workspaces/{workspace_id}/memory/items/count")),
+                ("report", format!("{base}/workspaces/{workspace_id}/memory/commits/{commit_id}/report")),
+            ];
+            let mut canonical = std::collections::BTreeMap::new();
+            for (name, url) in &paths { canonical.insert(*name, mt109_memory_ok(auth(client.get(url), &owner_token).send().await?).await?); }
+            assert_eq!(canonical["proposal"]["document_id"], source.document_id);
+            assert_eq!(canonical["proposal"]["selection_start"], source.selection_start);
+            assert_eq!(canonical["proposal"]["selection_end"], source.selection_end);
+            assert_eq!(canonical["proposal"]["content_hash"], source.content_hash);
+            assert_eq!(canonical["proposal"]["proposal"]["content"], content);
+            let artifact = &canonical["artifact"];
+            assert_eq!(artifact["source_refs"][0]["id"], source.document_id);
+            assert_eq!(artifact["source_refs"][0]["hash"], source.content_hash);
+            assert_eq!(artifact["source_refs"][0]["selector"], format!("bytes:{}-{}", source.selection_start, source.selection_end));
+            assert_eq!(artifact["ops"][0]["item"]["content"], content);
+            assert_eq!(artifact["ops"][0]["item"]["provenance"]["source_refs"], artifact["source_refs"]);
+            assert_eq!(canonical["pack"]["items"].as_array().ok_or("pack items missing")?.len(), 1);
+            assert_eq!(canonical["pack"]["items"][0]["content"], content);
+            assert_eq!(canonical["pack"]["items"][0]["source_refs"], artifact["source_refs"]);
+            assert_eq!(canonical["count"]["count"], 1);
+            let producer_canonical = mt109_proposal_rows_for_producer(
+                &state,
+                &owner,
+                &workspace_id,
+                &ack.proposal_id,
+            )
+            .await?;
+            assert_eq!(producer_canonical.len(), 1, "the exact producer sees its source-backed proposal");
+            let other_producer = mt109_memory_principal(
+                &state,
+                "derivative-account",
+                "derivative-other-producer",
+                "derivative-space",
+                &[MEMORY_PROPOSE_CAPABILITY.to_owned()],
+            )
+            .await?;
+            state.surreal.grant_resource(&other_producer.identity.account_id, &other_producer.identity.access_space_id, ResourceGrantSpec {
+                principal_id: other_producer.identity.principal_id.clone(), resource_id: resources.proposal.clone(), actions: vec![ResourceAction::Create],
+                capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()], expires_at: None, delegation_chain: Vec::new(),
+            }).await?;
+            state.surreal.grant_resource(&other_producer.identity.account_id, &other_producer.identity.access_space_id, ResourceGrantSpec {
+                principal_id: other_producer.identity.principal_id.clone(), resource_id: source_resource.resource_id.clone(), actions: vec![ResourceAction::Read],
+                capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()], expires_at: None, delegation_chain: Vec::new(),
+            }).await?;
+            assert!(
+                mt109_proposal_rows_for_producer(&state, &other_producer, &workspace_id, &ack.proposal_id).await?.is_empty(),
+                "proposal-create and source-read grants must not expose another actor's proposal"
+            );
+            state.surreal.revoke_grant(&source_grant.grant_id).await?;
+            assert!(
+                mt109_proposal_rows_for_producer(&state, &owner, &workspace_id, &ack.proposal_id).await?.is_empty(),
+                "the producer loses direct proposal visibility when current source authority is revoked"
+            );
+            state.surreal.grant_resource(&owner.identity.account_id, &owner.identity.access_space_id, ResourceGrantSpec {
+                principal_id: owner.identity.principal_id.clone(), resource_id: source_resource.resource_id.clone(), actions: vec![ResourceAction::Read],
+                capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()], expires_at: None, delegation_chain: Vec::new(),
+            }).await?;
+            assert_eq!(
+                mt109_proposal_rows_for_producer(&state, &owner, &workspace_id, &ack.proposal_id).await?,
+                producer_canonical,
+                "restoring the same source grant exposes the identical canonical proposal"
+            );
+            let before_reads = mt109_memory_rows(&state).await?;
+            let mut failures = Vec::new();
+            eprintln!("MT109_DERIVATIVE_PHASE=source_ungranted_reads");
+            for (name, url) in &paths {
+                let response = auth(client.get(url), &reader_token).send().await?;
+                let status = response.status(); let body: Value = response.json().await?;
+                let hidden = match *name {
+                    "list" => status == StatusCode::OK && body.as_array().is_some_and(Vec::is_empty),
+                    "pack" => status == StatusCode::OK && body["items"].as_array().is_some_and(Vec::is_empty),
+                    "count" => status == StatusCode::OK && body["count"] == json!(0),
+                    _ => status == StatusCode::NOT_FOUND,
+                };
+                let encoded = serde_json::to_string(&body)?;
+                let disclosed = [&content, &source.document_id, &source.content_hash, &ack.proposal_id].iter().any(|private| encoded.contains(private.as_str()));
+                if !hidden || disclosed { failures.push(format!("{name}: status={status}; body={body}")); }
+            }
+            eprintln!("MT109_DERIVATIVE_UNGRANTED_FAILURES={}", failures.join("\n"));
+            assert_eq!(mt109_memory_rows(&state).await?, before_reads, "derivative GETs mutated protected rows");
+            state.surreal.grant_resource(&reader.identity.account_id, &reader.identity.access_space_id, ResourceGrantSpec {
+                principal_id: reader.identity.principal_id.clone(), resource_id: source_resource.resource_id.clone(), actions: vec![ResourceAction::Read],
+                capability_ids: vec![MEMORY_READ_CAPABILITY.to_owned()], expires_at: None, delegation_chain: Vec::new(),
+            }).await?;
+            assert!(mt109_source_rows_for_reader(&state, &reader_token, &binding_token, &workspace_id, &second_source.document_id).await?.is_empty(), "reader must lack the second canonical source");
+            let mixed_source_refs = vec![
+                FemsSourceRef {
+                    kind: FemsSourceRefKind::DocBlock,
+                    id: source.document_id.clone(),
+                    hash: Some(source.content_hash.clone()),
+                    selector: Some(format!("bytes:{}-{}", source.selection_start, source.selection_end)),
+                    created_at: None,
+                    classification: Some("low".to_owned()),
+                },
+                FemsSourceRef {
+                    kind: FemsSourceRefKind::DocBlock,
+                    id: second_source.document_id.clone(),
+                    hash: Some(second_source.content_hash.clone()),
+                    selector: Some(format!("bytes:{}-{}", second_source.selection_start, second_source.selection_end)),
+                    created_at: None,
+                    classification: Some("low".to_owned()),
+                },
+            ];
+            assert!(
+                !mt109_source_refs_visible_for_reader(
+                    &state,
+                    &reader_token,
+                    &binding_token,
+                    &workspace_id,
+                    &mixed_source_refs,
+                )
+                .await?,
+                "a mixed-source derivative must fail closed when any referenced source is inaccessible"
+            );
+            for (name, url) in &paths {
+                let readable = mt109_memory_ok(auth(client.get(url), &reader_token).send().await?).await?;
+                assert_eq!(readable, canonical[*name], "source-granted same reader {name}");
+            }
+            assert_eq!(mt109_memory_rows(&state).await?, before_reads, "source-granted GETs mutated protected rows");
+            let source_visible = mt109_source_rows_for_reader(&state, &reader_token, &binding_token, &workspace_id, &source.document_id).await?.len();
+            assert!(owner.session.expires_at > chrono::Utc::now() && reader.session.expires_at > chrono::Utc::now(), "ordinary read probes must precede expiry");
+            assert!(failures.is_empty(), "source-ungranted derivative disclosure: {}", failures.join("\n"));
+            assert_eq!(source_visible, 1, "Read/memory.read source grant must suffice for a memory-only reader");
+            Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        if let Some(tx) = shutdown_tx {
+            let _ = tx.send(());
         }
-        server.abort();
-        Ok(())
+        let mut drain_errors = Vec::new();
+        if let Some(mut server) = server_task {
+            match tokio::time::timeout(std::time::Duration::from_secs(30), &mut server).await {
+                Ok(Ok(Ok(()))) => {}
+                Ok(result) => drain_errors.push(format!("graceful server join failed: {result:?}")),
+                Err(error) => {
+                    server.abort();
+                    let _ = server.await;
+                    drain_errors.push(format!("graceful server drain timed out: {error}"));
+                }
+            }
+        }
+        if let Some(mut reconciler) = reconciler_task {
+            match tokio::time::timeout(std::time::Duration::from_secs(30), &mut reconciler).await {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => drain_errors.push(format!("reconciler join failed: {error}")),
+                Err(error) => {
+                    reconciler.abort();
+                    let _ = reconciler.await;
+                    drain_errors.push(format!("reconciler drain timed out: {error}"));
+                }
+            }
+        }
+        drop(state);
+        if !drain_errors.is_empty() {
+            let body_detail = match &body {
+                Ok(Ok(())) => "body passed".to_owned(),
+                Ok(Err(error)) => error.to_string(),
+                Err(payload) => payload
+                    .downcast_ref::<String>()
+                    .cloned()
+                    .or_else(|| payload.downcast_ref::<&str>().map(|s| (*s).to_owned()))
+                    .unwrap_or_else(|| "body panicked".to_owned()),
+            };
+            std::mem::forget(store);
+            return Err(std::io::Error::other(format!(
+                "{body_detail}; cleanup unproven, store preserved at {}: {}",
+                data_dir.display(),
+                drain_errors.join("; ")
+            ))
+            .into());
+        }
+        finish_mt109_memory_test(body, store, data_dir).await
+    }
+
+    #[tokio::test]
+    async fn mt109_source_revocation_before_proposal_transaction_leaves_zero_residue(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::storage::surreal::keyed_lock::race_test_support;
+        use crate::storage::surreal::resource_authority::{
+            AuthorizationRequest, RecordUserScope, ResourceAction, ResourceGrantSpec, ResourceKind,
+        };
+
+        eprintln!("MT109_SOURCE_REVOCATION_PHASE=setup_start");
+        let (store, state) = setup_state().await?;
+        eprintln!("MT109_SOURCE_REVOCATION_PHASE=setup_complete");
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
+            eprintln!("MT109_SOURCE_REVOCATION_PHASE=fixture_start");
+            let workspace_id = create_test_workspace(&state, "memory-source-revocation").await?;
+            let content = format!("revoked-source-{}", Uuid::now_v7());
+            let source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "source-revocation",
+                &content,
+            )
+            .await?;
+            let owner = mt109_memory_principal(
+                &state,
+                "source-revocation-account",
+                "source-revocation-owner",
+                "source-revocation-space",
+                &mt109_memory_capabilities(),
+            )
+            .await?;
+            let resources =
+                mt109_register_memory_resources(&state, &owner, &workspace_id).await?;
+            mt109_grant_memory_resources(&state, &owner, &resources, Mt109GrantMode::Full)
+                .await?;
+            let source_resource = state
+                .surreal
+                .register_protected_resource(
+                    &owner.identity,
+                    ResourceKind::RichDocument,
+                    &source.document_id,
+                    Some(&resources.workspace),
+                    "account_private",
+                )
+                .await?;
+            let source_grant = state
+                .surreal
+                .grant_resource(
+                    &owner.identity.account_id,
+                    &owner.identity.access_space_id,
+                    ResourceGrantSpec {
+                        principal_id: owner.identity.principal_id.clone(),
+                        resource_id: source_resource.resource_id,
+                        actions: vec![ResourceAction::Read],
+                        capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()],
+                        expires_at: None,
+                        delegation_chain: Vec::new(),
+                    },
+                )
+                .await?;
+            let decision = state
+                .surreal
+                .authorize_protected_resource(AuthorizationRequest {
+                    session_token: owner.session.token.clone(),
+                    channel_binding_hash: None,
+                    capability_id: MEMORY_PROPOSE_CAPABILITY.to_owned(),
+                    resource_kind: ResourceKind::MemoryProposal,
+                    external_resource_id: workspace_id.clone(),
+                    action: ResourceAction::Create,
+                })
+                .await?;
+            eprintln!("MT109_SOURCE_REVOCATION_PHASE=authority_ready");
+            let scope = RecordUserScope {
+                workspace_id: Some(workspace_id.clone()),
+                session_token: owner.session.token.clone(),
+                channel_binding_hash: None,
+                resource_id: decision.resource_id,
+                session_id: decision.session_id,
+                capability_id: MEMORY_PROPOSE_CAPABILITY.to_owned(),
+                action: ResourceAction::Create,
+            };
+            let request = ProposalRequest {
+                request_id: Some(format!("source-revocation-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content,
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: None,
+            };
+            let before = mt109_memory_rows(&state).await?;
+            assert!(
+                before.values().all(Vec::is_empty),
+                "revocation proof must start without FEMS residue: {before:?}"
+            );
+            eprintln!("MT109_SOURCE_REVOCATION_PHASE=operation_construct");
+
+            let reached = Arc::new(tokio::sync::Barrier::new(2));
+            let release = Arc::new(tokio::sync::Barrier::new(2));
+            let handler = Box::pin(create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id),
+                HeaderMap::new(),
+                Json(request),
+            ));
+            let paused = Box::pin(
+                race_test_support::with_pause_after_decision_until_released(
+                    Arc::clone(&reached),
+                    Arc::clone(&release),
+                    handler,
+                ),
+            );
+            let operation = Box::pin(state.surreal.with_record_user_scope(scope, paused));
+            let operation_finished = Arc::new(AtomicBool::new(false));
+            let operation_finished_after = Arc::clone(&operation_finished);
+            let operation = async move {
+                let result = operation.await;
+                operation_finished_after.store(true, Ordering::SeqCst);
+                result
+            };
+            let revoke_finished = Arc::new(AtomicBool::new(false));
+            let revoke_finished_after = Arc::clone(&revoke_finished);
+            let revoke = async {
+                reached.wait().await;
+                let result = state.surreal.revoke_grant(&source_grant.grant_id).await;
+                release.wait().await;
+                revoke_finished_after.store(true, Ordering::SeqCst);
+                result
+            };
+            let joined = tokio::time::timeout(
+                std::time::Duration::from_secs(300),
+                async { tokio::join!(operation, revoke) },
+            )
+            .await;
+            if joined.is_err() {
+                eprintln!(
+                    "MT109_SOURCE_REVOCATION_TIMEOUT operation_finished={} revoke_finished={} leases_in_flight={}",
+                    operation_finished.load(Ordering::SeqCst),
+                    revoke_finished.load(Ordering::SeqCst),
+                    state.surreal.leases_in_flight()
+                );
+            }
+            let (proposal_result, revoke_result) = joined.map_err(|error| {
+                std::io::Error::other(format!("revocation race timed out: {error}"))
+            })?;
+            eprintln!("MT109_SOURCE_REVOCATION_PHASE=operation_joined");
+            revoke_result?;
+            let (status, body) =
+                proposal_result.expect_err("revoked source must fail before proposal transaction");
+            assert_eq!(status, StatusCode::FORBIDDEN);
+            assert_eq!(body.0, json!({"error": "HSK-403-PROTECTED-RESOURCE"}));
+            assert_eq!(
+                mt109_memory_rows(&state).await?,
+                before,
+                "revocation before the authoritative transaction left FEMS, ledger, or outbox residue"
+            );
+            eprintln!("MT109_SOURCE_REVOCATION_BEFORE_TRANSACTION=DENIED_ZERO_RESIDUE");
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn mt109_memory_reconciler_processes_only_explicitly_granted_pending_workspace(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
-        let granted_workspace = create_test_workspace(&state, "reconcile-granted").await?;
-        let denied_workspace = create_test_workspace(&state, "reconcile-denied").await?;
-        let (granted_proposal, _) = create_and_approve_test_proposal(
-            &state,
-            &granted_workspace,
-            "reconcile-granted",
-            "granted pending memory",
-        )
-        .await?;
-        let (denied_proposal, _) = create_and_approve_test_proposal(
-            &state,
-            &denied_workspace,
-            "reconcile-denied",
-            "denied pending memory",
-        )
-        .await?;
-
-        for (workspace_id, proposal_id) in [
-            (&granted_workspace, &granted_proposal.proposal_id),
-            (&denied_workspace, &denied_proposal.proposal_id),
-        ] {
-            let receipt = NewKernelEvent::builder(
-                format!("reconcile-proof-{workspace_id}"),
-                "reconcile-proof-session".to_owned(),
-                KernelEventType::ArtifactStored,
-                KernelActor::System("reconcile-proof-seeder".to_owned()),
-            )
-            .aggregate("fems_memory_commit", proposal_id.clone())
-            .idempotency_key(format!("fems-memory-commit:{proposal_id}"))
-            .correlation_id(format!("fems-memory-proposal:{proposal_id}"))
-            .source_component("fems_memory_proposal_commit")
-            .payload(json!({"proposal_id": proposal_id}))
-            .build()?;
-            fems_memory::commit_memory_proposal_with_receipt(
-                &state.surreal,
-                workspace_id,
-                proposal_id,
-                receipt,
+        use crate::storage::surreal::resource_authority::{
+            AuthorizationRequest, ResourceAction, ResourceKind,
+        };
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
+            let granted_workspace = create_test_workspace(&state, "reconcile-granted").await?;
+            let denied_workspace = create_test_workspace(&state, "reconcile-denied").await?;
+            let (granted_proposal, _) = create_and_approve_test_proposal(
+                &state,
+                &granted_workspace,
+                "reconcile-granted",
+                "granted pending memory",
             )
             .await?;
-        }
-        assert_eq!(
-            fems_memory::list_pending_memory_commit_events(
-                &state.surreal,
-                &granted_workspace,
-                200,
+            let (denied_proposal, _) = create_and_approve_test_proposal(
+                &state,
+                &denied_workspace,
+                "reconcile-denied",
+                "denied pending memory",
             )
-            .await?
-            .len(),
-            2
-        );
-        assert_eq!(
-            fems_memory::list_pending_memory_commit_events(&state.surreal, &denied_workspace, 200,)
+            .await?;
+
+            for (workspace_id, proposal_id) in [
+                (&granted_workspace, &granted_proposal.proposal_id),
+                (&denied_workspace, &denied_proposal.proposal_id),
+            ] {
+                let receipt = NewKernelEvent::builder(
+                    format!("reconcile-proof-{workspace_id}"),
+                    "reconcile-proof-session".to_owned(),
+                    KernelEventType::ArtifactStored,
+                    KernelActor::System("reconcile-proof-seeder".to_owned()),
+                )
+                .aggregate("fems_memory_commit", proposal_id.clone())
+                .idempotency_key(format!("fems-memory-commit:{proposal_id}"))
+                .correlation_id(format!("fems-memory-proposal:{proposal_id}"))
+                .source_component("fems_memory_proposal_commit")
+                .payload(json!({"proposal_id": proposal_id}))
+                .build()?;
+                fems_memory::commit_memory_proposal_with_receipt(
+                    &state.surreal,
+                    workspace_id,
+                    proposal_id,
+                    receipt,
+                )
+                .await?;
+            }
+            assert_eq!(
+                fems_memory::list_pending_memory_commit_events(
+                    &state.surreal,
+                    &granted_workspace,
+                    200,
+                )
                 .await?
                 .len(),
-            2
-        );
-
-        let service = state
-            .surreal
-            .provision_reconciliation_principal(std::slice::from_ref(&granted_workspace), None)
-            .await?;
-        let service_principal = RecordId::new("principals", service.identity.principal_id.as_str());
-        let persisted_profile = state
-            .surreal
-            .with_data_operation(move |database| {
-                Box::pin(async move {
-                    database
-                        .query_first::<ReconciliationPrincipalProfileRow, _>(
-                            "SELECT capability_profile_id, actor_id FROM ONLY $principal;",
-                            ReconciliationPrincipalProfileBinding {
-                                principal: service_principal,
-                            },
-                        )
-                        .await
+                2
+            );
+            assert_eq!(
+                fems_memory::list_pending_memory_commit_events(
+                    &state.surreal,
+                    &denied_workspace,
+                    200,
+                )
+                .await?
+                .len(),
+                2
+            );
+            let denied_trace = deterministic_uuid_from_seed(&format!(
+                "fems-memory-proposal:{}",
+                denied_proposal.proposal_id
+            ));
+            let denied_residue_before =
+                mt109_memory_residue(&state, &denied_workspace).await?;
+            let denied_events_before = state
+                .flight_recorder
+                .list_events(EventFilter {
+                    trace_id: Some(denied_trace),
+                    ..EventFilter::default()
                 })
-            })
-            .await?
-            .expect("persisted reconciliation Principal");
-        assert_eq!(
-            persisted_profile.capability_profile_id,
-            crate::storage::surreal::resource_authority::RECONCILIATION_PROFILE_ID
-        );
-        assert_eq!(persisted_profile.actor_id, "mt109_reconciler");
-        reconcile_all_memory_commit_events(&state)
-            .await
-            .map_err(|(status, body)| format!("service reconcile failed: {status} {body:?}"))?;
+                .await?;
+            let denied_event_snapshot_before = denied_events_before
+                .iter()
+                .map(|event| {
+                    (
+                        event.event_id,
+                        event.event_type.clone(),
+                        event.payload.clone(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            eprintln!(
+                "MT109_DENIED_TRACE_BASELINE_TYPES={:?}",
+                denied_event_snapshot_before
+                    .iter()
+                    .map(|(_, event_type, _)| event_type)
+                    .collect::<Vec<_>>()
+            );
 
-        assert!(
-            fems_memory::list_pending_memory_commit_events(
-                &state.surreal,
-                &granted_workspace,
-                200,
-            )
-            .await?
-            .is_empty(),
-            "the explicitly granted service principal drains its workspace"
-        );
-        assert_eq!(
-            fems_memory::list_pending_memory_commit_events(&state.surreal, &denied_workspace, 200,)
+            let service = state
+                .surreal
+                .provision_reconciliation_principal(std::slice::from_ref(&granted_workspace), None)
+                .await?;
+            let workspace_queue_decision = state
+                .surreal
+                .authorize_protected_resource(AuthorizationRequest {
+                    session_token: service.session.token.clone(),
+                    channel_binding_hash: None,
+                    capability_id: MEMORY_COMMIT_CAPABILITY.to_owned(),
+                    resource_kind: ResourceKind::ReconciliationQueue,
+                    external_resource_id: format!(
+                        "{}:{granted_workspace}",
+                        crate::storage::surreal::resource_authority::RECONCILIATION_QUEUE_ID
+                    ),
+                    action: ResourceAction::Reconcile,
+                })
+                .await?;
+            let service_principal =
+                RecordId::new("principals", service.identity.principal_id.as_str());
+            let persisted_profile = state
+                .surreal
+                .with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .query_first::<ReconciliationPrincipalProfileRow, _>(
+                                "SELECT capability_profile_id, actor_id FROM ONLY $principal;",
+                                ReconciliationPrincipalProfileBinding {
+                                    principal: service_principal,
+                                },
+                            )
+                            .await
+                    })
+                })
+                .await?
+                .expect("persisted reconciliation Principal");
+            assert_eq!(
+                persisted_profile.capability_profile_id,
+                crate::storage::surreal::resource_authority::RECONCILIATION_PROFILE_ID
+            );
+            assert_eq!(persisted_profile.actor_id, "mt109_reconciler");
+            reconcile_all_memory_commit_events(&state)
+                .await
+                .map_err(|(status, body)| format!("service reconcile failed: {status} {body:?}"))?;
+
+            assert!(
+                fems_memory::list_pending_memory_commit_events(
+                    &state.surreal,
+                    &granted_workspace,
+                    200,
+                )
+                .await?
+                .is_empty(),
+                "the explicitly granted service principal drains its workspace"
+            );
+            assert_eq!(
+                fems_memory::list_pending_memory_commit_events(
+                    &state.surreal,
+                    &denied_workspace,
+                    200,
+                )
                 .await?
                 .len(),
-            2,
-            "the same worker must neither observe nor mutate an ungranted pending workspace"
-        );
-        let granted_trace = deterministic_uuid_from_seed(&format!(
-            "fems-memory-proposal:{}",
-            granted_proposal.proposal_id
-        ));
-        let denied_trace = deterministic_uuid_from_seed(&format!(
-            "fems-memory-proposal:{}",
-            denied_proposal.proposal_id
-        ));
-        assert!(!state
-            .flight_recorder
-            .list_events(EventFilter {
-                trace_id: Some(granted_trace),
-                ..EventFilter::default()
-            })
-            .await?
-            .is_empty());
-        assert!(state
-            .flight_recorder
-            .list_events(EventFilter {
-                trace_id: Some(denied_trace),
-                ..EventFilter::default()
-            })
-            .await?
-            .is_empty());
-        Ok(())
+                2,
+                "the same worker must neither observe nor mutate an ungranted pending workspace"
+            );
+            let granted_trace = deterministic_uuid_from_seed(&format!(
+                "fems-memory-proposal:{}",
+                granted_proposal.proposal_id
+            ));
+            assert!(!state
+                .flight_recorder
+                .list_events(EventFilter {
+                    trace_id: Some(granted_trace),
+                    ..EventFilter::default()
+                })
+                .await?
+                .is_empty());
+            let denied_event_snapshot_after = state
+                .flight_recorder
+                .list_events(EventFilter {
+                    trace_id: Some(denied_trace),
+                    ..EventFilter::default()
+                })
+                .await?
+                .into_iter()
+                .map(|event| (event.event_id, event.event_type, event.payload))
+                .collect::<Vec<_>>();
+            eprintln!(
+                "MT109_DENIED_TRACE_AFTER_TYPES={:?}",
+                denied_event_snapshot_after
+                    .iter()
+                    .map(|(_, event_type, _)| event_type)
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                denied_event_snapshot_after, denied_event_snapshot_before,
+                "reconciliation emitted or changed Flight Recorder events for the ungranted workspace"
+            );
+            assert_eq!(
+                mt109_memory_residue(&state, &denied_workspace).await?,
+                denied_residue_before,
+                "reconciliation changed proposal, memory, outbox, anchor, or ledger state for the ungranted workspace"
+            );
+            let visibility_authority = crate::api::authority::reconciliation_authority(
+                &state,
+                MEMORY_COMMIT_CAPABILITY,
+            )
+            .await
+            .map_err(std::io::Error::other)?;
+            let visibility_session_token = visibility_authority
+                .record_user_scope
+                .session_token
+                .clone();
+            let workspace_queue_scope = visibility_authority.record_user_scope;
+            assert_eq!(
+                mt109_workspace_ids_in_reconciliation_scope(
+                    &state,
+                    workspace_queue_scope.clone(),
+                    vec![granted_workspace.clone(), denied_workspace.clone()],
+                )
+                .await?,
+                vec![granted_workspace.clone()],
+                "the service identity must enumerate only its exactly granted workspace"
+            );
+            state
+                .surreal
+                .revoke_grant(&workspace_queue_decision.grant_id)
+                .await?;
+            assert!(
+                state
+                    .surreal
+                    .authorize_protected_resource(AuthorizationRequest {
+                        session_token: visibility_session_token,
+                        channel_binding_hash: None,
+                        capability_id: MEMORY_COMMIT_CAPABILITY.to_owned(),
+                        resource_kind: ResourceKind::ReconciliationQueue,
+                        external_resource_id: format!(
+                            "{}:{granted_workspace}",
+                            crate::storage::surreal::resource_authority::RECONCILIATION_QUEUE_ID
+                        ),
+                        action: ResourceAction::Reconcile,
+                    })
+                    .await
+                    .is_err(),
+                "revoked exact reconciliation grant must fail authorization"
+            );
+            assert!(
+                mt109_workspace_ids_in_reconciliation_scope(
+                    &state,
+                    workspace_queue_scope,
+                    vec![granted_workspace, denied_workspace],
+                )
+                .await?
+                .is_empty(),
+                "the same service session must lose workspace visibility immediately after exact queue revocation"
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn concurrent_workspace_commits_publish_a_pack_containing_both_items(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "memory-concurrent-commit").await?;
         let (proposal_a, _) = create_and_approve_test_proposal(
             &state,
             &workspace_id,
-            "concurrent-a",
+            "concurrent-shared-owner",
             "first concurrent memory",
         )
         .await?;
         let (proposal_b, _) = create_and_approve_test_proposal(
             &state,
             &workspace_id,
-            "concurrent-b",
+            "concurrent-shared-owner",
             "second concurrent memory",
         )
         .await?;
@@ -3104,7 +4374,11 @@ mod tests {
             fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
             2
         );
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     fn seeded_pack(workspace_id: &str) -> MemoryPack {
@@ -3209,6 +4483,130 @@ mod tests {
         ))
     }
 
+    async fn proposal_create_test_scope(
+        state: &AppState,
+        workspace_id: &str,
+        document_id: &str,
+        label: &str,
+        actor_id: &str,
+    ) -> Result<crate::storage::surreal::resource_authority::RecordUserScope, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{
+            AuthorizationRequest, RecordUserScope, ResourceAction, ResourceGrantSpec,
+            ResourceKind,
+        };
+        let principal = mt109_memory_principal(
+            state,
+            &format!("{label}-account"),
+            actor_id,
+            &format!("{label}-space"),
+            &[
+                MEMORY_READ_CAPABILITY.to_owned(),
+                MEMORY_PROPOSE_CAPABILITY.to_owned(),
+            ],
+        )
+        .await?;
+        let workspace_resource = state
+            .surreal
+            .register_protected_resource(
+                &principal.identity,
+                ResourceKind::Workspace,
+                workspace_id,
+                None,
+                "account_private",
+            )
+            .await?;
+        let proposal_resource = state
+            .surreal
+            .register_protected_resource(
+                &principal.identity,
+                ResourceKind::MemoryProposal,
+                workspace_id,
+                Some(&workspace_resource.resource_id),
+                "account_private",
+            )
+            .await?;
+        for resource_id in [
+            workspace_resource.resource_id.as_str(),
+            proposal_resource.resource_id.as_str(),
+        ] {
+            state
+                .surreal
+                .grant_resource(
+                    &principal.identity.account_id,
+                    &principal.identity.access_space_id,
+                    ResourceGrantSpec {
+                        principal_id: principal.identity.principal_id.clone(),
+                        resource_id: resource_id.to_owned(),
+                        actions: vec![ResourceAction::Create],
+                        capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()],
+                        expires_at: None,
+                        delegation_chain: Vec::new(),
+                    },
+                )
+                .await?;
+        }
+        state
+            .surreal
+            .grant_resource(
+                &principal.identity.account_id,
+                &principal.identity.access_space_id,
+                ResourceGrantSpec {
+                    principal_id: principal.identity.principal_id.clone(),
+                    resource_id: workspace_resource.resource_id.clone(),
+                    actions: vec![ResourceAction::Read],
+                    capability_ids: vec![MEMORY_READ_CAPABILITY.to_owned()],
+                    expires_at: None,
+                    delegation_chain: Vec::new(),
+                },
+            )
+            .await?;
+        let source_resource = state
+            .surreal
+            .register_protected_resource(
+                &principal.identity,
+                ResourceKind::RichDocument,
+                document_id,
+                Some(&workspace_resource.resource_id),
+                "account_private",
+            )
+            .await?;
+        state
+            .surreal
+            .grant_resource(
+                &principal.identity.account_id,
+                &principal.identity.access_space_id,
+                ResourceGrantSpec {
+                    principal_id: principal.identity.principal_id.clone(),
+                    resource_id: source_resource.resource_id,
+                    actions: vec![ResourceAction::Read],
+                    capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()],
+                    expires_at: None,
+                    delegation_chain: Vec::new(),
+                },
+            )
+            .await?;
+        let decision = state
+            .surreal
+            .authorize_protected_resource(AuthorizationRequest {
+                session_token: principal.session.token.clone(),
+                channel_binding_hash: None,
+                capability_id: MEMORY_PROPOSE_CAPABILITY.to_owned(),
+                resource_kind: ResourceKind::MemoryProposal,
+                external_resource_id: workspace_id.to_owned(),
+                action: ResourceAction::Create,
+            })
+            .await?;
+        Ok(RecordUserScope {
+            workspace_id: Some(workspace_id.to_owned()),
+            session_token: principal.session.token,
+            channel_binding_hash: None,
+            resource_id: decision.resource_id,
+            session_id: decision.session_id,
+            capability_id: MEMORY_PROPOSE_CAPABILITY.to_owned(),
+            action: ResourceAction::Create,
+        })
+    }
+
     async fn create_and_approve_test_proposal(
         state: &AppState,
         workspace_id: &str,
@@ -3216,25 +4614,31 @@ mod tests {
         content: &str,
     ) -> Result<(ProposalAck, ProposalReviewAck), Box<dyn std::error::Error>> {
         let source = create_test_rich_source(state, workspace_id, label, content).await?;
-        let actor_id = format!("{label}-operator");
+        let actor_id = format!("{label}-principal");
+        let proposal_scope =
+            proposal_create_test_scope(state, workspace_id, &source.document_id, label, &actor_id)
+                .await?;
         let mut headers = HeaderMap::new();
         headers.insert(HSK_HEADER_ACTOR_ID, actor_id.parse()?);
         headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let Json(proposal) = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.to_owned()),
-            headers.clone(),
-            Json(ProposalRequest {
-                request_id: Some(format!("{label}-{}", Uuid::now_v7())),
-                class: ProposalClass::Semantic,
-                content: content.to_owned(),
-                source,
-                source_document_content: None,
-                review_gated: Some(true),
-                actor_id: Some(actor_id),
-            }),
-        )
-        .await
+        let create = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.to_owned()),
+                headers.clone(),
+                Json(ProposalRequest {
+                    request_id: Some(format!("{label}-{}", Uuid::now_v7())),
+                    class: ProposalClass::Semantic,
+                    content: content.to_owned(),
+                    source,
+                    source_document_content: None,
+                    review_gated: Some(true),
+                    actor_id: Some(actor_id),
+                }),
+            );
+        let Json(proposal) = state
+            .surreal
+            .with_record_user_scope(proposal_scope, create)
+            .await
         .map_err(|(status, body)| format!("proposal failed: {status} {body:?}"))?;
         let Json(review) = review_memory_proposal(
             State(state.clone()),
@@ -3274,12 +4678,22 @@ mod tests {
 
     #[tokio::test]
     async fn surreal_identity_and_exact_retry_converge() -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "surreal-identity-retry").await?;
         let content = "unicode identity\u{2003}";
         let source =
             create_test_rich_source(&state, &workspace_id, "surreal-identity-source", content)
                 .await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "surreal-identity",
+            "native_editor",
+        )
+        .await?;
         let request = ProposalRequest {
             request_id: None,
             class: ProposalClass::Semantic,
@@ -3292,21 +4706,27 @@ mod tests {
         let expected_request_id =
             stable_proposal_request_id(&workspace_id, &request).expect("stable request identity");
 
-        let Json(first) = create_memory_proposal(
+        let first_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request.clone()),
-        )
-        .await
+        );
+        let Json(first) = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), first_call)
+            .await
         .map_err(|(status, body)| format!("first proposal failed: {status} {body:?}"))?;
-        let Json(retry) = create_memory_proposal(
+        let retry_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request),
-        )
-        .await
+        );
+        let Json(retry) = state
+            .surreal
+            .with_record_user_scope(proposal_scope, retry_call)
+            .await
         .map_err(|(status, body)| format!("proposal retry failed: {status} {body:?}"))?;
 
         assert_eq!(retry, first, "an exact SurrealDB retry must converge");
@@ -3321,7 +4741,11 @@ mod tests {
             1,
             "exact retries must not duplicate the durable proposal"
         );
-        Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
     #[tokio::test]
     async fn canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges(
@@ -3373,9 +4797,25 @@ mod tests {
     /// the native client alignment has a pinned contract.
     #[tokio::test]
     async fn get_memory_pack_returns_real_ace_shape() -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "pack").await?;
-        let pack = seeded_pack(&workspace_id);
+        let source = create_test_rich_source(
+            &state,
+            &workspace_id,
+            "pack-source",
+            "The protagonist Aria refuses the royal summons.",
+        )
+        .await?;
+        let mut pack = seeded_pack(&workspace_id);
+        pack.items[0].source_refs[0].id = source.document_id.clone();
+        pack.items[0].source_refs[0].hash = Some(source.content_hash.clone());
+        pack.items[0].source_refs[0].selector = Some(format!(
+            "bytes:{}-{}",
+            source.selection_start, source.selection_end
+        ));
+        pack.memory_pack_hash = pack.compute_hash()?;
         fems_memory::upsert_memory_pack(&state.surreal, &workspace_id, "", &pack).await?;
 
         let Json(got) = get_memory_pack(
@@ -3408,12 +4848,15 @@ mod tests {
         assert_eq!(item.summary, "Aria refuses the summons");
         assert_eq!(item.source_refs.len(), 1);
         assert_eq!(item.source_refs[0].kind, FemsSourceRefKind::DocBlock);
-        assert_eq!(item.source_refs[0].id, "doc-block-42");
+        assert_eq!(item.source_refs[0].id, source.document_id);
         assert_eq!(
             item.source_refs[0].hash.as_deref(),
-            Some("a".repeat(64).as_str())
+            Some(source.content_hash.as_str())
         );
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// GET on a real workspace with no stored pack returns one deterministic, ephemeral empty pack;
@@ -3422,7 +4865,9 @@ mod tests {
     #[tokio::test]
     async fn get_memory_pack_empty_is_deterministic_and_unknown_workspace_is_not_found(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "empty-pack").await?;
         let query = PackQuery {
             context: Some("mounted-editor-context".to_owned()),
@@ -3506,20 +4951,25 @@ mod tests {
         assert_eq!(oversized.0, StatusCode::BAD_REQUEST);
 
         let unknown = get_memory_pack(
-            State(state),
+            State(state.clone()),
             Path(Uuid::now_v7().to_string()),
             Query(PackQuery::default()),
         )
         .await
         .expect_err("unknown workspace must not receive a fabricated empty pack");
         assert_eq!(unknown.0, StatusCode::NOT_FOUND);
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn memory_pack_and_item_ids_cannot_be_reassigned_across_workspaces(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let owner = create_test_workspace(&state, "memory-id-owner").await?;
         let intruder = create_test_workspace(&state, "memory-id-intruder").await?;
 
@@ -3554,7 +5004,10 @@ mod tests {
             fems_memory::get_memory_item(&state.surreal, &intruder, &memory_id).await?,
             None
         );
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// AC-109-3: a valid proposal is stored as pending_review + leaves a durable
@@ -3562,13 +5015,23 @@ mod tests {
     #[tokio::test]
     async fn create_proposal_stores_pending_review_and_receipt(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "proposal").await?;
         let content = "durable fact";
         let content_hash = canonical_content_hash(content).expect("canonical content hash");
         let source =
             create_test_rich_source(&state, &workspace_id, "proposal-source", content).await?;
         let source_document_id = source.document_id.clone();
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source_document_id,
+            "proposal-pending",
+            "native_editor",
+        )
+        .await?;
         let expected_selection_start = i64::try_from(source.selection_start)?;
         let expected_selection_end = i64::try_from(source.selection_end)?;
         let request = ProposalRequest {
@@ -3581,13 +5044,16 @@ mod tests {
             actor_id: Some("actor-7".to_string()),
         };
 
-        let Json(ack) = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request),
-        )
-        .await
+        let create = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request),
+            );
+        let Json(ack) = state
+            .surreal
+            .with_record_user_scope(proposal_scope, create)
+            .await
         .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
         assert_eq!(ack.status, PROPOSAL_STATUS_PENDING_REVIEW);
@@ -3703,13 +5169,23 @@ mod tests {
             published,
             "API acknowledgement follows durable FR projection"
         );
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        eprintln!(
+            "MT109_CREATE_PROPOSAL_LEASES_AFTER_BODY={}",
+            state.surreal.leases_in_flight()
+        );
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn list_proposals_is_bounded_deterministic_and_workspace_scoped(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let target = create_test_workspace(&state, "proposal-list-target").await?;
         let control = create_test_workspace(&state, "proposal-list-control").await?;
 
@@ -3725,21 +5201,41 @@ mod tests {
                 )
                 .await
                 .map_err(storage_error)?;
-                create_memory_proposal(
-                    State(state),
-                    Path(workspace_id.clone()),
-                    HeaderMap::new(),
-                    Json(ProposalRequest {
-                        request_id: Some(request_id),
-                        class: ProposalClass::Semantic,
-                        content: content.clone(),
-                        source,
-                        source_document_content: None,
-                        review_gated: Some(true),
-                        actor_id: Some("proposal-list-test".to_owned()),
-                    }),
+                let scope = proposal_create_test_scope(
+                    &state,
+                    &workspace_id,
+                    &source.document_id,
+                    "proposal-list",
+                    "native_editor",
                 )
                 .await
+                .map_err(|error| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": error.to_string()})),
+                    )
+                })?;
+                let request_state = state.clone();
+                state
+                    .surreal
+                    .with_record_user_scope(
+                        scope,
+                        create_memory_proposal(
+                            State(request_state),
+                            Path(workspace_id.clone()),
+                            HeaderMap::new(),
+                            Json(ProposalRequest {
+                                request_id: Some(request_id),
+                                class: ProposalClass::Semantic,
+                                content: content.clone(),
+                                source,
+                                source_document_content: None,
+                                review_gated: Some(true),
+                                actor_id: Some("proposal-list-test".to_owned()),
+                            }),
+                        ),
+                    )
+                    .await
             }
         };
         let first = submit(target.clone(), "list-first".to_owned())
@@ -3841,14 +5337,17 @@ mod tests {
         assert_eq!(limited, vec![actionable_after_review[0].clone()]);
 
         let missing = list_memory_proposals(
-            State(state),
+            State(state.clone()),
             Path("WS-MISSING-PROPOSAL-LIST".to_owned()),
             Query(ProposalListQuery::default()),
         )
         .await
         .expect_err("missing workspace must not masquerade as an empty proposal list");
         assert_eq!(missing.0, StatusCode::NOT_FOUND);
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// A client retry is the same logical operation: the stable request identity maps to
@@ -3858,12 +5357,22 @@ mod tests {
     #[tokio::test]
     async fn proposal_retry_is_idempotent_and_payload_drift_conflicts(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "retry").await?;
         let request_id = format!("native-retry-{}", Uuid::now_v7());
         let content = "same logical proposal";
         let source =
             create_test_rich_source(&state, &workspace_id, "retry-source", content).await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "retry",
+            "native_editor",
+        )
+        .await?;
         let request = ProposalRequest {
             request_id: Some(request_id.clone()),
             class: ProposalClass::Semantic,
@@ -3874,21 +5383,27 @@ mod tests {
             actor_id: Some("actor-retry".to_string()),
         };
 
-        let Json(first) = create_memory_proposal(
+        let first_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request.clone()),
-        )
-        .await
+        );
+        let Json(first) = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), first_call)
+            .await
         .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?;
-        let Json(replay) = create_memory_proposal(
+        let replay_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request.clone()),
-        )
-        .await
+        );
+        let Json(replay) = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), replay_call)
+            .await
         .map_err(|(code, body)| format!("replay failed: {code} {body:?}"))?;
         assert_eq!(replay.proposal_id, first.proposal_id);
         assert_eq!(replay.status, first.status);
@@ -3914,34 +5429,46 @@ mod tests {
 
         let mut drifted = request.clone();
         drifted.actor_id = Some("different-actor".to_string());
-        let Json(spoof_replay) = create_memory_proposal(
+        let spoof_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(drifted),
-        )
-        .await
+        );
+        let Json(spoof_replay) = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), spoof_call)
+            .await
         .map_err(|(code, body)| format!("spoof metadata replay failed: {code} {body:?}"))?;
         assert_eq!(spoof_replay.proposal_id, first.proposal_id);
 
         let mut class_drift = request.clone();
         class_drift.class = ProposalClass::Episodic;
-        let conflict = create_memory_proposal(
+        let conflict_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id),
             HeaderMap::new(),
             Json(class_drift),
-        )
-        .await
+        );
+        let conflict = state
+            .surreal
+            .with_record_user_scope(proposal_scope, conflict_call)
+            .await
         .expect_err("request identity authoritative payload drift must fail closed");
         assert_eq!(conflict.0, StatusCode::CONFLICT);
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn rich_proposal_replay_rejects_code_only_snapshot_drift(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "rich-snapshot-boundary").await?;
         let content = "rich replay selection";
         let document_text = format!("xxx{content}");
@@ -3965,6 +5492,14 @@ mod tests {
                 ..Default::default()
             })
             .await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &document.rich_document_id,
+            "rich-snapshot-boundary",
+            "native_editor",
+        )
+        .await?;
         let request_id = format!("rich-snapshot-boundary-{}", Uuid::now_v7());
         let request = ProposalRequest {
             request_id: Some(request_id.clone()),
@@ -3976,36 +5511,45 @@ mod tests {
             actor_id: Some("rich-boundary-actor".to_owned()),
         };
 
-        let Json(first) = create_memory_proposal(
+        let first_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request.clone()),
-        )
-        .await
+        );
+        let Json(first) = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), first_call)
+            .await
         .map_err(|(code, body)| format!("valid rich proposal failed: {code} {body:?}"))?;
 
         let mut snapshot_drift = request.clone();
         snapshot_drift.source_document_content = Some("untrusted code snapshot".to_owned());
-        let snapshot_error = create_memory_proposal(
+        let snapshot_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(snapshot_drift),
-        )
-        .await
+        );
+        let snapshot_error = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), snapshot_call)
+            .await
         .expect_err("rich replay must reject code-only source_document_content");
         assert_eq!(snapshot_error.0, StatusCode::BAD_REQUEST);
 
         let mut hash_drift = request;
         hash_drift.source.document_content_hash = Some("a".repeat(64));
-        let hash_error = create_memory_proposal(
+        let hash_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(hash_drift),
-        )
-        .await
+        );
+        let hash_error = state
+            .surreal
+            .with_record_user_scope(proposal_scope, hash_call)
+            .await
         .expect_err("rich replay must reject code-only document_content_hash");
         assert_eq!(hash_error.0, StatusCode::BAD_REQUEST);
 
@@ -4024,13 +5568,19 @@ mod tests {
             .is_some(),
         );
         assert_eq!(receipt_count, 1, "rejected rich drift must add no receipt");
-        Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn proposal_retry_rejects_corrupt_receipt_but_allows_new_retry_headers(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "receipt-authenticity").await?;
         let content = "receipt authenticity proposal";
         let source = create_test_rich_source(
@@ -4038,6 +5588,14 @@ mod tests {
             &workspace_id,
             "receipt-authenticity-source",
             content,
+        )
+        .await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "receipt-authenticity",
+            "original-operator",
         )
         .await?;
         let request = ProposalRequest {
@@ -4054,13 +5612,16 @@ mod tests {
         original_headers.insert(HSK_HEADER_ACTOR_ID, "original-operator".parse()?);
         original_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "original-task".parse()?);
         original_headers.insert(HSK_HEADER_SESSION_RUN_ID, "original-session".parse()?);
-        let Json(first) = create_memory_proposal(
+        let first_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             original_headers,
             Json(request.clone()),
-        )
-        .await
+        );
+        let Json(first) = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), first_call)
+            .await
         .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?;
         let receipt_key = format!("fems-memory-proposal:{}", first.proposal_id);
         let canonical_hash = memory_test_ledger_event(&state, &receipt_key)
@@ -4086,13 +5647,16 @@ mod tests {
         retry_headers.insert(HSK_HEADER_ACTOR_ID, "retry-system".parse()?);
         retry_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "retry-task".parse()?);
         retry_headers.insert(HSK_HEADER_SESSION_RUN_ID, "retry-session".parse()?);
-        let corrupt_status = create_memory_proposal(
+        let corrupt_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             retry_headers.clone(),
             Json(request.clone()),
-        )
-        .await
+        );
+        let corrupt_status = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), corrupt_call)
+            .await
         .err()
         .map(|error| error.0);
         assert_eq!(mutate_receipt_hash(canonical_hash).await?, 1);
@@ -4102,27 +5666,44 @@ mod tests {
             "corrupt existing receipt did not fail closed as a conflict"
         );
 
-        let Json(retry) = create_memory_proposal(
-            State(state),
+        let retry_call = create_memory_proposal(
+            State(state.clone()),
             Path(workspace_id),
             retry_headers,
             Json(request),
-        )
-        .await
+        );
+        let Json(retry) = state
+            .surreal
+            .with_record_user_scope(proposal_scope, retry_call)
+            .await
         .map_err(|(code, body)| format!("header-independent retry failed: {code} {body:?}"))?;
         assert_eq!(retry.proposal_id, first.proposal_id);
-        Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn simultaneous_proposal_retries_converge_to_one_row_and_receipt(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "simultaneous-retry").await?;
         let content = "simultaneous logical proposal";
         let source =
             create_test_rich_source(&state, &workspace_id, "simultaneous-retry-source", content)
                 .await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "simultaneous-retry",
+            "native_editor",
+        )
+        .await?;
         let request = ProposalRequest {
             request_id: Some(format!("simultaneous-retry-{}", Uuid::now_v7())),
             class: ProposalClass::Semantic,
@@ -4133,18 +5714,24 @@ mod tests {
             actor_id: Some("actor-simultaneous".to_owned()),
         };
 
-        let first = create_memory_proposal(
+        let first_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request.clone()),
         );
-        let second = create_memory_proposal(
+        let second_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request.clone()),
         );
+        let first = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), first_call);
+        let second = state
+            .surreal
+            .with_record_user_scope(proposal_scope, second_call);
         let (first, second) = tokio::join!(first, second);
         let first = first
             .map_err(|(code, body)| format!("first concurrent retry failed: {code} {body:?}"))?
@@ -4169,13 +5756,19 @@ mod tests {
             .is_some(),
         );
         assert_eq!(receipt_count, 1);
-        Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn legacy_retry_heals_missing_receipt_once_and_converges(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "legacy-retry").await?;
         let content = "legacy proposal retry";
         let source =
@@ -4324,7 +5917,10 @@ mod tests {
         assert_eq!(receipt.session_run_id, "native-editor-session");
         assert_eq!(receipt.actor.actor_kind(), "operator");
         assert_eq!(receipt.actor.actor_id(), "legacy-actor");
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// MT-118 AC-118-2 TRIPWIRE. The legacy non-UUID `proposal_id` must be admitted ONLY on
@@ -4347,7 +5943,9 @@ mod tests {
     #[tokio::test]
     async fn non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "heal-tripwire").await?;
         let content = "tripwire proposal retry";
         let source =
@@ -4566,7 +6164,11 @@ mod tests {
             minted_receipts, 0,
             "the rejected mint must append no receipt"
         );
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// Counterfactual partial failure: if execution stops after the proposal INSERT but
@@ -4574,24 +6176,63 @@ mod tests {
     #[tokio::test]
     async fn proposal_insert_rolls_back_when_receipt_phase_fails(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "rollback").await?;
         let request_id = format!("forced-failure-{}", Uuid::now_v7());
         let proposal_id = stable_proposal_id(&workspace_id, &request_id);
-        let proposal = fems_memory::StoredMemoryProposal {
+        let content = "rollback after a valid proposal insert";
+        let source =
+            create_test_rich_source(&state, &workspace_id, "rollback-source", content).await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "rollback",
+            "native_editor",
+        )
+        .await?;
+        let created_at =
+            chrono::DateTime::from_timestamp_micros(chrono::Utc::now().timestamp_micros())
+                .expect("normalized rollback fixture instant");
+        let mut proposal = fems_memory::StoredMemoryProposal {
             proposal_id: proposal_id.clone(),
-            request_id,
+            request_id: request_id.clone(),
             workspace_id: workspace_id.clone(),
-            document_id: "doc-rollback".to_string(),
-            selection_start: 0,
-            selection_end: 1,
-            content_hash: "f".repeat(64),
+            document_id: source.document_id.clone(),
+            selection_start: i64::try_from(source.selection_start)?,
+            selection_end: i64::try_from(source.selection_end)?,
+            content_hash: source.content_hash.clone(),
             memory_class: "semantic".to_string(),
             status: PROPOSAL_STATUS_PENDING_REVIEW.to_string(),
             review_gated: true,
-            created_at: chrono::Utc::now(),
-            proposal: json!({"proposal_id": &proposal_id, "workspace_id": &workspace_id}),
+            created_at,
+            proposal: json!({
+                "proposal_id": &proposal_id,
+                "request_id": &request_id,
+                "workspace_id": &workspace_id,
+                "class": "semantic",
+                "content": content,
+                "source": source,
+                "review_gated": true,
+                "status": PROPOSAL_STATUS_PENDING_REVIEW,
+                "actor_id": "native_editor",
+            }),
         };
+        let canonical = fems_memory::proposal_canonical_artifact(
+            &proposal,
+            fems_memory::LegacyArtifactHeal::Allow,
+        );
+        assert_eq!(
+            canonical.origin,
+            fems_memory::ProposalArtifactOrigin::HealedFromDurableColumns
+        );
+        proposal
+            .proposal
+            .as_object_mut()
+            .expect("rollback proposal payload is an object")
+            .insert("_canonical_artifact".to_owned(), canonical.value);
         let receipt = NewKernelEvent::builder(
             "forced-failure-task",
             "forced-failure-session",
@@ -4604,13 +6245,20 @@ mod tests {
         .payload(json!({"proposal_id": &proposal_id, "workspace_id": &workspace_id}))
         .build()?;
 
-        fems_memory::insert_memory_proposal_with_receipt_forced_failure(
+        let forced = fems_memory::insert_memory_proposal_with_receipt_forced_failure(
             &state.surreal,
             &proposal,
             receipt,
-        )
-        .await
-        .expect_err("forced receipt-phase failure must surface");
+        );
+        let error = state
+            .surreal
+            .with_record_user_scope(proposal_scope, forced)
+            .await
+            .expect_err("forced receipt-phase failure must surface");
+        assert!(
+            error.to_string().contains("forced failure after proposal insert"),
+            "rollback proof must reach the injected post-insert failure, got {error}"
+        );
         assert!(
             fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
                 .await?
@@ -4626,7 +6274,11 @@ mod tests {
             receipt_count, 0,
             "failed transaction must append no receipt"
         );
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// AC-109-3 NEGATIVE: submitting a proposal can NOT mutate committed memory. A
@@ -4634,14 +6286,43 @@ mod tests {
     /// grow after the proposal is submitted.
     #[tokio::test]
     async fn proposal_cannot_mutate_committed_memory() -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "negative").await?;
         let memory_id = "MEM-COMMITTED-1";
-        let committed = json!({
-            "memory_id": memory_id,
-            "memory_class": "semantic",
-            "content": "committed truth",
-        });
+        let committed_content = "committed truth";
+        let committed_source = create_test_rich_source(
+            &state,
+            &workspace_id,
+            "negative-committed-source",
+            committed_content,
+        )
+        .await?;
+        let committed = serde_json::to_value(crate::ace::MemoryPackItem {
+            memory_id: memory_id.to_owned(),
+            memory_class: "semantic".to_owned(),
+            item_type: "fact".to_owned(),
+            summary: committed_content.to_owned(),
+            content: committed_content.to_owned(),
+            structured: None,
+            trust_level: "user_asserted".to_owned(),
+            confidence: 1.0,
+            scope_refs: Vec::new(),
+            source_refs: vec![FemsSourceRef {
+                kind: FemsSourceRefKind::DocBlock,
+                id: committed_source.document_id,
+                hash: Some(committed_source.content_hash),
+                selector: Some(format!(
+                    "bytes:{}-{}",
+                    committed_source.selection_start, committed_source.selection_end
+                )),
+                created_at: None,
+                classification: Some("low".to_owned()),
+            }],
+            pinned: false,
+            last_verified_at: None,
+        })?;
         fems_memory::upsert_memory_item(&state.surreal, &workspace_id, memory_id, &committed)
             .await?;
         let before = fems_memory::count_memory_items(&state.surreal, &workspace_id).await?;
@@ -4665,6 +6346,14 @@ mod tests {
         let content = format!("overwrite {memory_id} with attacker text");
         let source =
             create_test_rich_source(&state, &workspace_id, "negative-source", &content).await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "negative",
+            "native_editor",
+        )
+        .await?;
         let request = ProposalRequest {
             request_id: None,
             class: ProposalClass::Procedural,
@@ -4674,13 +6363,16 @@ mod tests {
             review_gated: Some(true),
             actor_id: Some("attacker".to_string()),
         };
-        let Json(ack) = create_memory_proposal(
+        let create = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request),
-        )
-        .await
+        );
+        let Json(ack) = state
+            .surreal
+            .with_record_user_scope(proposal_scope, create)
+            .await
         .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
         // The committed item is byte-for-byte unchanged.
@@ -4710,7 +6402,11 @@ mod tests {
             .await?
             .expect("proposal stored");
         assert_eq!(stored.status, PROPOSAL_STATUS_PENDING_REVIEW);
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// Workspace teardown removes only the target's mutable FEMS projections. The
@@ -4718,7 +6414,9 @@ mod tests {
     #[tokio::test]
     async fn workspace_memory_cleanup_is_scoped_and_preserves_receipts(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let target = create_test_workspace(&state, "cleanup-target").await?;
         let control = create_test_workspace(&state, "cleanup-control").await?;
 
@@ -4744,6 +6442,14 @@ mod tests {
         let target_source =
             create_test_rich_source(&state, &target, "cleanup-target-source", target_content)
                 .await?;
+        let target_scope = proposal_create_test_scope(
+            &state,
+            &target,
+            &target_source.document_id,
+            "cleanup",
+            "native_editor",
+        )
+        .await?;
         let target_request = ProposalRequest {
             request_id: Some(format!("cleanup-target-{}", Uuid::now_v7())),
             class: ProposalClass::Semantic,
@@ -4757,6 +6463,14 @@ mod tests {
         let control_source =
             create_test_rich_source(&state, &control, "cleanup-control-source", control_content)
                 .await?;
+        let control_scope = proposal_create_test_scope(
+            &state,
+            &control,
+            &control_source.document_id,
+            "cleanup",
+            "native_editor",
+        )
+        .await?;
         let control_request = ProposalRequest {
             request_id: Some(format!("cleanup-control-{}", Uuid::now_v7())),
             class: ProposalClass::Semantic,
@@ -4766,21 +6480,27 @@ mod tests {
             review_gated: Some(true),
             actor_id: Some("cleanup-test".to_string()),
         };
-        let Json(target_ack) = create_memory_proposal(
+        let target_call = create_memory_proposal(
             State(state.clone()),
             Path(target.clone()),
             HeaderMap::new(),
             Json(target_request),
-        )
-        .await
+        );
+        let Json(target_ack) = state
+            .surreal
+            .with_record_user_scope(target_scope, target_call)
+            .await
         .map_err(|(code, body)| format!("target proposal failed: {code} {body:?}"))?;
-        let Json(control_ack) = create_memory_proposal(
+        let control_call = create_memory_proposal(
             State(state.clone()),
             Path(control.clone()),
             HeaderMap::new(),
             Json(control_request),
-        )
-        .await
+        );
+        let Json(control_ack) = state
+            .surreal
+            .with_record_user_scope(control_scope, control_call)
+            .await
         .map_err(|(code, body)| format!("control proposal failed: {code} {body:?}"))?;
 
         state
@@ -4832,17 +6552,31 @@ mod tests {
             target_receipt_count, 1,
             "cleanup must preserve EventLedger receipt"
         );
-        Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn proposal_delete_race_never_leaves_workspace_orphans(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "delete-race").await?;
         let content = "proposal racing workspace deletion";
         let source =
             create_test_rich_source(&state, &workspace_id, "delete-race-source", content).await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "delete-race",
+            "native_editor",
+        )
+        .await?;
         let request = ProposalRequest {
             request_id: Some(format!("delete-race-{}", Uuid::now_v7())),
             class: ProposalClass::Semantic,
@@ -4855,12 +6589,15 @@ mod tests {
         let ctx = WriteContext::human(Some("delete-race-test".to_owned()));
 
         let deletion = state.storage.delete_workspace(&ctx, &workspace_id);
-        let proposal = create_memory_proposal(
+        let proposal_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(request.clone()),
         );
+        let proposal = state
+            .surreal
+            .with_record_user_scope(proposal_scope, proposal_call);
         let (deletion, proposal) = tokio::join!(deletion, proposal);
         deletion?;
         if let Err((status, _)) = proposal {
@@ -4889,14 +6626,20 @@ mod tests {
         .await
         .expect_err("proposal route must reject a deleted workspace");
         assert_eq!(after_delete.0, StatusCode::NOT_FOUND);
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// AC-109-3 fail-closed: missing/invalid provenance is rejected with 400 and nothing
     /// is stored.
     #[tokio::test]
     async fn proposal_missing_provenance_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "fail-closed").await?;
 
         // Empty content_hash.
@@ -5000,13 +6743,24 @@ mod tests {
             review_gated: Some(true),
             actor_id: Some("unicode-byte-test".to_owned()),
         };
-        let Json(unicode_ack) = create_memory_proposal(
+        let unicode_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &unicode_request.source.document_id,
+            "unicode-byte",
+            "native_editor",
+        )
+        .await?;
+        let unicode_create = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             HeaderMap::new(),
             Json(unicode_request),
-        )
-        .await
+        );
+        let Json(unicode_ack) = state
+            .surreal
+            .with_record_user_scope(unicode_scope, unicode_create)
+            .await
         .map_err(|(code, body)| format!("valid UTF-8 byte range failed: {code} {body:?}"))?;
         let unicode_stored =
             fems_memory::get_memory_proposal(&state.surreal, &unicode_ack.proposal_id)
@@ -5105,13 +6859,19 @@ mod tests {
             .await?
             .len();
         assert_eq!(receipt_count, 1, "only the valid control emits a receipt");
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn loom_block_reference_proposal_accepts_only_an_existing_exact_canonical_address(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "loom-reference").await?;
         let block = state
             .storage
@@ -5171,7 +6931,7 @@ mod tests {
         fabricated.source.content_hash =
             canonical_content_hash(&fabricated.content).expect("fabricated Loom reference hash");
         let rejected = create_memory_proposal(
-            State(state),
+            State(state.clone()),
             Path(workspace_id),
             HeaderMap::new(),
             Json(fabricated),
@@ -5183,7 +6943,10 @@ mod tests {
             "fabricated Loom address returned unexpected status {}",
             rejected.0
         );
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     /// Typed rejection: an unknown top-level field or unknown class is rejected at decode
@@ -5227,7 +6990,9 @@ mod tests {
     #[tokio::test]
     async fn proposal_route_rejects_unknown_field_and_class_without_durable_residue(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "strict-route").await?;
         let content = "strict proposal";
         let source =
@@ -5313,7 +7078,11 @@ mod tests {
             "rejected bodies must emit no memory-write-proposed Flight Recorder event"
         );
         server.abort();
-        Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[test]
@@ -5339,18 +7108,28 @@ mod tests {
     #[tokio::test]
     async fn proposal_review_transitions_are_audited_idempotent_and_conflict_safe(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "proposal-review").await?;
         let content = "review this durable fact";
         let source =
             create_test_rich_source(&state, &workspace_id, "review-source", content).await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "proposal-review-create",
+            "canonical-proposer",
+        )
+        .await?;
         let mut proposal_headers = HeaderMap::new();
         proposal_headers.insert(HSK_HEADER_ACTOR_ID, "canonical-proposer".parse()?);
         proposal_headers.insert(HSK_HEADER_ACTOR_KIND, "human".parse()?);
-        let Json(proposal_ack) = create_memory_proposal(
+        let proposal_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
-            proposal_headers,
+            proposal_headers.clone(),
             Json(ProposalRequest {
                 request_id: Some(format!("review-request-{}", Uuid::now_v7())),
                 class: ProposalClass::Semantic,
@@ -5360,8 +7139,11 @@ mod tests {
                 review_gated: Some(true),
                 actor_id: Some("canonical-proposer".to_owned()),
             }),
-        )
-        .await
+        );
+        let Json(proposal_ack) = state
+            .surreal
+            .with_record_user_scope(proposal_scope, proposal_call)
+            .await
         .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
         let pending = fems_memory::get_memory_proposal(&state.surreal, &proposal_ack.proposal_id)
@@ -5493,10 +7275,18 @@ mod tests {
             rejected_content,
         )
         .await?;
-        let Json(rejected_proposal) = create_memory_proposal(
+        let rejected_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &rejected_source.document_id,
+            "proposal-review-create",
+            "canonical-proposer",
+        )
+        .await?;
+        let rejected_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
-            HeaderMap::new(),
+            proposal_headers,
             Json(ProposalRequest {
                 request_id: Some(format!("reject-request-{}", Uuid::now_v7())),
                 class: ProposalClass::Episodic,
@@ -5506,8 +7296,11 @@ mod tests {
                 review_gated: Some(true),
                 actor_id: Some("proposer-2".to_owned()),
             }),
-        )
-        .await
+        );
+        let Json(rejected_proposal) = state
+            .surreal
+            .with_record_user_scope(rejected_scope, rejected_call)
+            .await
         .map_err(|(code, body)| format!("rejected proposal failed: {code} {body:?}"))?;
         let mut policy_headers = HeaderMap::new();
         policy_headers.insert(HSK_HEADER_ACTOR_ID, "policy-reviewer".parse()?);
@@ -5553,18 +7346,25 @@ mod tests {
             fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
             0
         );
-        Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let mut reconciler_task = None;
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "commit-recovery").await?;
         let (proposal_a, review_a) = create_and_approve_test_proposal(
             &state,
             &workspace_id,
-            "proposal-a",
+            "commit-recovery-owner",
             "first durable memory",
         )
         .await?;
@@ -5658,6 +7458,10 @@ mod tests {
 
         // Constructing the mounted routes is the production startup-owned projector hook. No memory
         // request is made after this point before the Flight Recorder row appears.
+        state
+            .surreal
+            .provision_reconciliation_principal(std::slice::from_ref(&workspace_id), None)
+            .await?;
         let restarted_state = AppState {
             storage: state.storage.clone(),
             flight_recorder: durable_recorder.clone(),
@@ -5667,7 +7471,16 @@ mod tests {
             session_registry: state.session_registry.clone(),
             surreal: state.surreal.clone(),
         };
-        let _startup_routes = routes(restarted_state.clone());
+        let (startup_routes, reconciler) = routes_with_reconciler(restarted_state.clone());
+        reconciler_task = reconciler;
+        let _startup_routes = startup_routes;
+        reconciler_task
+            .take()
+            .expect("mounted routes start the one-shot memory reconciler")
+            .await
+            .map_err(|error| std::io::Error::other(format!(
+                "startup memory reconciler join failed: {error}"
+            )))?;
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
         let recovered_event = loop {
             let events = durable_recorder
@@ -5739,7 +7552,7 @@ mod tests {
         let (proposal_b, _) = create_and_approve_test_proposal(
             &restarted_state,
             &workspace_id,
-            "proposal-b",
+            "commit-recovery-owner",
             "second durable memory",
         )
         .await?;
@@ -5775,18 +7588,35 @@ mod tests {
             .is_some(),
         );
         assert_eq!(receipt_count, 1, "A retries keep one EventLedger receipt");
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        })).await;
+        if let Some(reconciler) = reconciler_task {
+            reconciler.abort();
+            let _ = reconciler.await;
+        }
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "proposal-recovery").await?;
         let content = "proposal survives recorder crash";
         let source =
             create_test_rich_source(&state, &workspace_id, "proposal-recovery-source", content)
                 .await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "proposal-recovery",
+            "native_editor",
+        )
+        .await?;
         let request_id = format!("proposal-recovery-{}", Uuid::now_v7());
         let proposal_id = stable_proposal_id(&workspace_id, &request_id);
         let durable_recorder = state.flight_recorder.clone();
@@ -5797,7 +7627,7 @@ mod tests {
             }),
             ..state.clone()
         };
-        let failed = create_memory_proposal(
+        let failed_create = create_memory_proposal(
             State(failed_state),
             Path(workspace_id.clone()),
             HeaderMap::new(),
@@ -5810,9 +7640,13 @@ mod tests {
                 review_gated: Some(true),
                 actor_id: Some("spoofed-proposal-actor".to_owned()),
             }),
-        )
-        .await
+        );
+        let failed = state
+            .surreal
+            .with_record_user_scope(proposal_scope, failed_create)
+            .await
         .expect_err("injected recorder failure must fail the response honestly");
+        eprintln!("MT109_PROPOSAL_OUTBOX_INJECTED_FAILURE={failed:?}");
         assert_eq!(failed.0, StatusCode::INTERNAL_SERVER_ERROR);
         assert!(
             fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
@@ -5844,6 +7678,10 @@ mod tests {
             "the in-call retry publishes exactly one canonical event"
         );
 
+        state
+            .surreal
+            .provision_reconciliation_principal(std::slice::from_ref(&workspace_id), None)
+            .await?;
         reconcile_all_memory_commit_events(&state)
             .await
             .map_err(|(status, body)| format!("startup recovery failed: {status} {body:?}"))?;
@@ -5870,18 +7708,32 @@ mod tests {
             1,
             "repeated recovery never duplicates the canonical event"
         );
-        Ok(())
+        Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 
     #[tokio::test]
     async fn quarantined_proposal_outbox_never_returns_a_false_success_ack(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let (state, _store) = setup_state().await?;
+        let (store, state) = setup_state().await?;
+        let data_dir = store.data_dir.clone();
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
         let workspace_id = create_test_workspace(&state, "proposal-quarantine").await?;
         let content = "proposal whose recorder projection is quarantined";
         let source =
             create_test_rich_source(&state, &workspace_id, "proposal-quarantine-source", content)
                 .await?;
+        let proposal_scope = proposal_create_test_scope(
+            &state,
+            &workspace_id,
+            &source.document_id,
+            "proposal-quarantine",
+            "native-process-a",
+        )
+        .await?;
         let request = ProposalRequest {
             request_id: None,
             class: ProposalClass::Semantic,
@@ -5897,13 +7749,16 @@ mod tests {
         let mut first_process_headers = HeaderMap::new();
         first_process_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-a".parse()?);
         first_process_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let Json(initial_ack) = create_memory_proposal(
+        let initial_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id.clone()),
             first_process_headers,
             Json(request.clone()),
-        )
-        .await
+        );
+        let Json(initial_ack) = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), initial_call)
+            .await
         .map_err(|(status, body)| format!("canonical proposal setup failed: {status} {body:?}"))?;
         assert_eq!(initial_ack.proposal_id, proposal_id);
 
@@ -5973,13 +7828,16 @@ mod tests {
         let mut restarted_process_headers = HeaderMap::new();
         restarted_process_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-b".parse()?);
         restarted_process_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let retry = create_memory_proposal(
+        let retry_call = create_memory_proposal(
             State(persistently_failed_state),
             Path(workspace_id.clone()),
             restarted_process_headers,
             Json(request.clone()),
-        )
-        .await
+        );
+        let retry = state
+            .surreal
+            .with_record_user_scope(proposal_scope.clone(), retry_call)
+            .await
         .expect_err("persistent recorder failure must never return a success acknowledgement");
         assert!(
             matches!(
@@ -6018,13 +7876,16 @@ mod tests {
         let mut healthy_restart_headers = HeaderMap::new();
         healthy_restart_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-c".parse()?);
         healthy_restart_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let Json(recovered) = create_memory_proposal(
+        let recovered_call = create_memory_proposal(
             State(state.clone()),
             Path(workspace_id),
             healthy_restart_headers,
             Json(request),
-        )
-        .await
+        );
+        let Json(recovered) = state
+            .surreal
+            .with_record_user_scope(proposal_scope, recovered_call)
+            .await
         .map_err(|(status, body)| {
             format!("healthy identical resubmission failed to recover: {status} {body:?}")
         })?;
@@ -6053,6 +7914,10 @@ mod tests {
             1,
             "recovery publishes exactly one canonical FR-EVT-MEM-001"
         );
-        Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
+        drop(state);
+        finish_mt109_memory_test(body, store, data_dir).await
     }
 }

@@ -47,14 +47,14 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-152 re-pin: schema.surql gained fems_workspace_write_anchors, then
 // loom_folders.sibling_key / uq_loom_folders_sibling_key (I-152-2 sweep finding).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "46eac57c4ac3e39acc9d18ac0a43fc62ec01461e8cf3b70b7e2711de2a59da10";
+    "0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
 // MT-152 re-pin: catalog identities gained the fems_workspace_write_anchors objects, then the
 // loom_folders sibling_key field/index (I-152-2 sweep finding).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "83d8bc663e38f6de08039055e8ba4dd368dedaeb341f08b3cca1fadab28c5b39";
+    "9881bff3f6bd7d02797fb95c88ad51f1ae6f19777f89477e3285cc014c37d014";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -73,9 +73,9 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // applied; run mt142-LIB-20260911T233822Z, `mt139_current_schema_info_pin_matches_fresh_mem_catalog`
 // observed, and reached identically by both in-place MT-152 upgrade proofs.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "bb515db9b0f18c4bc8b7c26cf0773cb9dbe5bb4343ba02bc9ea32218cfddd39d";
+    "f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "e44e7cceecf2c0d980999e4b66391c2459512a3f3f07155e5cf68d48dedd553e";
+    "25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -192,6 +192,15 @@ CREATE ONLY knowledge_schema_registry:rich_document_title_anchors CONTENT {
 ";
 
 const SCHEMA: &str = include_str!("schema.surql");
+const PRE_MT109_SCHEMA: &str = include_str!("schema_pre_mt109.surql");
+const PRE_MT109_GENERATED_SURREALQL_SHA256: &str =
+    "46eac57c4ac3e39acc9d18ac0a43fc62ec01461e8cf3b70b7e2711de2a59da10";
+const PRE_MT109_AUTHORITY_INFO_SHA256: &str =
+    "8803fbcc07ae64c671d6ecdc206f5a48efdf4d536444ff011d0db66d023672ca";
+const PRE_MT109_SCHEMA_INFO_SHA256: &str =
+    "bb515db9b0f18c4bc8b7c26cf0773cb9dbe5bb4343ba02bc9ea32218cfddd39d";
+#[cfg(test)]
+const PRE_MT109_AUTHORITY_SCHEMA: &str = include_str!("schema_pre_mt109_authority.surql");
 const KNOWLEDGE_SCHEMA_REGISTRY_SEED: &str = include_str!("knowledge_schema_registry_seed.surql");
 const DECLARATIVE_SCHEMA_CATALOG_DOMAIN: &[u8] =
     b"handshake.surreal.declarative-schema-catalog.v1\0";
@@ -298,8 +307,8 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 // alias assertion) and loom_blocks.journal_key (+1 field, +1 uq index); no REFERENCE field.
 // MT-152 re-pin: +1 table (fems_workspace_write_anchors: +4 fields, +1 pk index, +1 record-id
 // alias assertion); no REFERENCE field.
-const TABLE_DEFINITION_COUNT: usize = 284;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3093;
+const TABLE_DEFINITION_COUNT: usize = 292;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3191;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 238;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -311,20 +320,23 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 // SurrealDB 3.2 persists one `field.*` subtype definition per non-Any typed collection nesting
 // level. Structured INFO reads the full persisted field catalog, so these engine-generated
 // definitions are part of the exact live schema even though they are not authored DEFINE lines.
-const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 47;
+const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 55;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 799;
-const EVENT_DEFINITION_COUNT: usize = 19;
+const INDEX_DEFINITION_COUNT: usize = 812;
+const EVENT_DEFINITION_COUNT: usize = 20;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
-const SOURCE_TABLE_COUNT: usize = 281;
+const ACCESS_DEFINITION_COUNT: usize = 1;
+const FUNCTION_DEFINITION_COUNT: usize = 10;
+const SOURCE_TABLE_COUNT: usize = 289;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 539;
+const SOURCE_NAMED_INDEX_COUNT: usize = 552;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 259;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
-const REFERENCE_FIELD_COUNT: usize = 405;
+const REFERENCE_FIELD_COUNT: usize = 406;
+const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 405;
 const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 228;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
@@ -415,10 +427,10 @@ struct ExpectedAtelierTable {
 
 fn atelier_expected_catalog() -> BTreeMap<String, ExpectedAtelierTable> {
     let mut catalog: BTreeMap<String, ExpectedAtelierTable> = BTreeMap::new();
-    for line in SCHEMA.lines().map(str::trim_start) {
+    for line in atelier_schema_ddl().lines().map(str::trim_start) {
         if let Some(rest) = line.strip_prefix("DEFINE TABLE OVERWRITE ") {
             let table = rest.split_ascii_whitespace().next().unwrap_or_default();
-            if table.starts_with("atelier_") || table == "kernel_event_ledger" {
+            if !table.is_empty() {
                 let expected = catalog.entry(table.to_owned()).or_default();
                 expected.definition = AtelierTableDefinition {
                     schemafull: line.contains(" SCHEMAFULL"),
@@ -455,9 +467,6 @@ fn atelier_expected_catalog() -> BTreeMap<String, ExpectedAtelierTable> {
             .next()
             .unwrap_or_default()
             .trim_matches('`');
-        if !table.starts_with("atelier_") && table != "kernel_event_ledger" {
-            continue;
-        }
         let expected = catalog.entry(table.to_owned()).or_default();
         match kind {
             "field" => {
@@ -509,6 +518,10 @@ struct AtelierCatalogInfoEnvelope {
     table_definitions: BTreeMap<String, SurrealValueData>,
     sequence_definitions: BTreeMap<String, SurrealValueData>,
     table_members: BTreeMap<String, SurrealValueData>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    access_definitions: BTreeMap<String, SurrealValueData>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    function_definitions: BTreeMap<String, SurrealValueData>,
 }
 
 async fn verify_atelier_catalog_fingerprint(
@@ -575,11 +588,14 @@ async fn inspect_catalog_fingerprint(
         Err(reason) => return fail_closed(database, reason).await,
     };
 
+    let authority_dependencies = expected_tables.contains("local_accounts");
     let relevant_tables = table_definitions
         .keys()
         .filter(|name| match scope {
             CatalogInspectionScope::Atelier => {
-                name.starts_with("atelier_") || *name == "kernel_event_ledger"
+                name.starts_with("atelier_")
+                    || *name == "kernel_event_ledger"
+                    || (authority_dependencies && expected_tables.contains(*name))
             }
             CatalogInspectionScope::ExactDatabase => true,
         })
@@ -628,7 +644,45 @@ async fn inspect_catalog_fingerprint(
     .into_iter()
     .collect::<BTreeMap<_, _>>();
 
+    let mut access_definitions = BTreeMap::new();
+    let mut function_definitions = BTreeMap::new();
+    if authority_dependencies {
+        for (category, expected_names, selected) in [
+            (
+                "accesses",
+                authority_catalog_names("access"),
+                &mut access_definitions,
+            ),
+            (
+                "functions",
+                authority_catalog_names("function"),
+                &mut function_definitions,
+            ),
+        ] {
+            let actual = match parse_named_structures(&database_info, category) {
+                Ok(definitions) => definitions,
+                Err(reason) => return fail_closed(database, reason).await,
+            };
+            if matches!(scope, CatalogInspectionScope::ExactDatabase)
+                && actual.keys().cloned().collect::<BTreeSet<_>>() != expected_names
+            {
+                return fail_closed(
+                    database,
+                    format!("HANDSHAKE_LOOM_SCHEMA_AUTHORITY_SET_MISMATCH: {category}"),
+                )
+                .await;
+            }
+            for name in expected_names {
+                let Some(definition) = actual.get(&name) else {
+                    return fail_closed(database, format!("HANDSHAKE_ATELIER_SCHEMA_AUTHORITY_DEPENDENCY_MISSING: {category}/{name}")).await;
+                };
+                selected.insert(name, canonicalize_info(definition.clone()));
+            }
+        }
+    }
     let envelope = AtelierCatalogInfoEnvelope {
+        access_definitions,
+        function_definitions,
         table_definitions: expected_tables
             .iter()
             .filter_map(|name| {
@@ -662,7 +716,9 @@ fn atelier_schema_ddl() -> String {
     let mut ddl = Vec::new();
     let mut include_continuation = false;
 
-    for line in SCHEMA.lines() {
+    let authority = resource_authority_core_block();
+    let bounded_source = SCHEMA.replacen(authority, "", 1);
+    for line in bounded_source.lines() {
         let trimmed = line.trim_start();
         let starts_atelier_statement = trimmed.starts_with("DEFINE TABLE OVERWRITE atelier_")
             || trimmed.starts_with("DEFINE SEQUENCE IF NOT EXISTS atelier_")
@@ -687,6 +743,8 @@ fn atelier_schema_ddl() -> String {
 
     let mut ddl = ddl.join("\n");
     ddl.push('\n');
+    ddl.push_str(authority);
+    ddl.push('\n');
     ddl
 }
 
@@ -704,7 +762,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // mt142-LIB-20260911T234638Z, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH
     // observed). The MT-152 loom_folders DDL is outside this set.
     const EXPECTED_CATALOG_SHA256: &str =
-        "6d54790ef80b87f99233e561b562e814be7109e9250ca83e441ef2d7022016c2";
+        "2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -765,6 +823,15 @@ fn loom_receipt_test_tables() -> &'static [&'static str] {
         "loom_canvas_placements",
         "loom_canvas_visual_edges",
         "kernel_event_ledger",
+        "knowledge_rich_documents",
+        "local_accounts",
+        "principals",
+        "access_spaces",
+        "authenticated_sessions",
+        "session_exchange_credentials",
+        "protected_resources",
+        "resource_grants",
+        "authorization_audit_events",
     ]
 }
 
@@ -796,15 +863,31 @@ fn loom_receipt_test_schema_ddl() -> String {
             .is_some_and(|sequence| sequences.contains(&sequence.trim_end_matches(';')))
     }
 
-    let mut ddl = Vec::new();
+    let mut selected_blocks = vec![resource_authority_core_block()];
+    for block in resource_authority_schema_blocks() {
+        let first = block.trim_start().lines().next().unwrap_or_default();
+        if block != resource_authority_core_block()
+            && selected_table_statement(first, loom_receipt_test_tables())
+        {
+            selected_blocks.push(block);
+        }
+    }
+    let mut bounded_source = SCHEMA.to_owned();
+    for block in &selected_blocks {
+        bounded_source = bounded_source.replacen(block, "", 1);
+    }
+    let mut ddl = selected_blocks
+        .iter()
+        .map(|block| (*block).to_owned())
+        .collect::<Vec<_>>();
     let mut include_continuation = false;
-    for line in SCHEMA.lines() {
+    for line in bounded_source.lines() {
         let trimmed = line.trim_start();
         if include_continuation
             || selected_table_statement(trimmed, loom_receipt_test_tables())
             || selected_sequence_statement(trimmed, loom_receipt_test_sequences())
         {
-            ddl.push(line);
+            ddl.push(line.to_owned());
             include_continuation = !trimmed.ends_with(';');
         }
     }
@@ -862,290 +945,298 @@ async fn bootstrap_mt137_test_schema_slice(
 }
 
 const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
-    "handshake_schema_state",
-    "workspaces",
-    "documents",
-    "blocks",
-    "canvases",
-    "canvas_nodes",
-    "canvas_edges",
-    "ai_jobs",
-    "workflow_runs",
-    "workflow_node_executions",
-    "model_sessions",
-    "model_session_checkpoints",
-    "model_session_messages",
+    "access_spaces",
+    "adapter_checkpoint",
+    "ai_bronze_records",
     "ai_embedding_models",
     "ai_embedding_registry",
-    "ai_bronze_records",
+    "ai_job_mcp_fields",
+    "ai_jobs",
     "ai_silver_records",
     "assets",
-    "loom_blocks",
-    "loom_edges",
-    "ai_job_mcp_fields",
-    "calendar_sources",
-    "calendar_events",
-    "work_packets",
-    "micro_tasks",
-    "mt_iterations",
-    "governance_check_runs",
-    "dependencies",
-    "skill_log_entry",
-    "skill_log_file_ref",
-    "distill_job",
-    "distill_example",
-    "adapter_checkpoint",
-    "eval_run",
-    "replay_candidates",
-    "kernel_event_ledger",
-    "kernel_session_queue",
-    "kernel_crdt_updates",
-    "kernel_crdt_snapshots",
-    "kernel_process_lifecycle",
-    "role_mailbox_thread",
-    "role_mailbox_message",
-    "role_mailbox_claim_lease",
-    "role_mailbox_handoff_bundle",
-    "kernel_micro_task_job",
-    "kernel_mt_loop_checkpoint",
-    "kernel_mt_outcome",
-    "kernel_distillation_candidate",
-    "kernel_session_checkpoint",
-    "kernel_restart_resume_report",
-    "kernel_idempotency_ledger",
-    "kernel_model_session_span",
-    "kernel_activity_span",
-    "atelier_character",
-    "atelier_sheet_version",
-    "atelier_media_asset",
-    "atelier_event",
-    "atelier_intake_batch",
-    "atelier_intake_item",
-    "atelier_collection",
-    "atelier_collection_item",
-    "atelier_contact_sheet",
-    "atelier_tag",
-    "atelier_character_tag",
-    "atelier_tag_rule",
-    "atelier_similarity_projection",
-    "atelier_export_request",
-    "atelier_export_result",
-    "atelier_export_manifest_entry",
-    "atelier_media_annotation",
-    "atelier_preference",
-    "atelier_pose_rig",
-    "atelier_pose_head_pose",
-    "atelier_pose_calibration",
-    "atelier_identity_profile",
-    "atelier_comfy_bridge_probe",
-    "atelier_comfy_capability_registration",
-    "atelier_comfy_declared_output",
-    "atelier_comfy_capability_reject",
-    "atelier_comfy_intake_output",
-    "atelier_comfy_fallback_marker",
-    "atelier_sourcing_spec",
-    "atelier_handler_version_matrix",
-    "atelier_sourcing_binding_decision",
-    "atelier_version_mismatch_receipt",
-    "atelier_sourcing_ingestion_receipt",
-    "atelier_media_probe_report",
-    "atelier_transcript_artifact",
-    "atelier_caption_artifact",
-    "atelier_transcript_receipt",
-    "atelier_md_output_root",
-    "atelier_md_allowlist_policy",
-    "atelier_md_auth_context",
-    "atelier_md_download_session",
-    "atelier_md_item_state",
-    "atelier_md_checkpoint",
-    "atelier_md_session_receipt",
-    "atelier_command_corpus_entry",
-    "atelier_command_corpus_blocked",
-    "atelier_command_corpus_parity_report",
-    "atelier_stealth_window",
-    "atelier_stealth_ref",
-    "atelier_stealth_capture",
-    "atelier_sheet_parse_snapshot",
-    "atelier_bulk_operation_receipt",
-    "atelier_trash_marker",
-    "atelier_source_evidence_record",
-    "atelier_anchor_verification_record",
-    "atelier_media_review_metadata",
-    "atelier_media_derivative",
-    "atelier_similarity_rebuild_job",
+    "atelier_action_receipt",
     "atelier_ai_tag_suggestion",
-    "atelier_media_sidecar",
-    "atelier_filesystem_health_check",
-    "atelier_filesystem_health_finding",
-    "atelier_image_import_request",
-    "atelier_media_source_provenance_ref",
-    "atelier_intake_item_rejection_audit",
-    "atelier_export_intake_link",
-    "atelier_media_asset_tag",
-    "atelier_collection_metadata_application",
-    "atelier_contact_sheet_svg_artifact",
-    "atelier_contact_sheet_raster_export_plan",
-    "atelier_character_document",
-    "atelier_character_document_version",
-    "atelier_story_card",
-    "atelier_story_beat",
-    "atelier_character_script",
-    "atelier_bracket_link_projection",
-    "atelier_moodboard",
-    "atelier_moodboard_operation_receipt",
-    "atelier_moodboard_export_request",
-    "atelier_character_relationship",
-    "atelier_character_relationship_graph_projection",
-    "atelier_saved_search",
-    "atelier_web_portfolio_export_request",
-    "atelier_web_portfolio_export_result",
+    "atelier_anchor_verification_record",
     "atelier_backup_manifest",
     "atelier_backup_restore_preflight",
-    "atelier_state_probe_catalog_entry",
-    "atelier_action_receipt",
-    "atelier_reset_operation",
-    "atelier_orphan_manifest",
-    "atelier_orphan_manifest_item",
-    "atelier_pose_sidecar",
-    "atelier_pose_context_state",
-    "atelier_pose_workspace_rig_state",
-    "atelier_identity_crop_artifact",
-    "atelier_comfy_workflow_receipt",
-    "atelier_comfy_output_registration_failure",
-    "atelier_pose_deferred_feature",
-    "atelier_comfy_workflow_spec",
-    "atelier_comfy_version_metadata",
-    "atelier_comfy_job",
+    "atelier_bracket_link_projection",
+    "atelier_bulk_operation_receipt",
+    "atelier_caption_artifact",
+    "atelier_character",
+    "atelier_character_document",
+    "atelier_character_document_version",
+    "atelier_character_relationship",
+    "atelier_character_relationship_graph_projection",
+    "atelier_character_script",
+    "atelier_character_tag",
+    "atelier_collection",
+    "atelier_collection_item",
+    "atelier_collection_metadata_application",
+    "atelier_comfy_bridge_probe",
+    "atelier_comfy_capability_registration",
+    "atelier_comfy_capability_reject",
+    "atelier_comfy_declared_output",
     "atelier_comfy_diagnostic_bundle",
-    "atelier_diagnostics_validation_matrix",
+    "atelier_comfy_fallback_marker",
+    "atelier_comfy_intake_output",
+    "atelier_comfy_job",
+    "atelier_comfy_output_registration_failure",
+    "atelier_comfy_version_metadata",
+    "atelier_comfy_workflow_receipt",
+    "atelier_comfy_workflow_spec",
+    "atelier_command_corpus_blocked",
+    "atelier_command_corpus_entry",
+    "atelier_command_corpus_parity_report",
+    "atelier_command_log",
+    "atelier_contact_sheet",
+    "atelier_contact_sheet_raster_export_plan",
+    "atelier_contact_sheet_svg_artifact",
+    "atelier_dcc_panel_projection",
+    "atelier_dcc_workflow_panel_projection",
     "atelier_diagnostics_error_taxonomy",
     "atelier_diagnostics_prompt_response_matrix",
-    "atelier_command_log",
     "atelier_diagnostics_session",
-    "atelier_model_config",
-    "atelier_model_apply",
-    "atelier_synthetic_input_guard",
-    "atelier_work_state_projection",
-    "atelier_dcc_panel_projection",
-    "atelier_screenshot_artifact_storage",
-    "atelier_spec_drift_finding",
-    "atelier_dcc_workflow_panel_projection",
+    "atelier_diagnostics_validation_matrix",
+    "atelier_event",
+    "atelier_export_intake_link",
+    "atelier_export_manifest_entry",
+    "atelier_export_request",
+    "atelier_export_result",
+    "atelier_filesystem_health_check",
+    "atelier_filesystem_health_finding",
     "atelier_fr_workflow_event",
-    "atelier_model_manual_section",
-    "atelier_retrieval_policy",
-    "atelier_self_improve_sandbox_run",
-    "atelier_validator_first_pass_run",
-    "atelier_model_coordination_lease",
-    "kernel_diagnostic_bundle_manifest",
-    "atelier_model_manual_row_merge",
-    "atelier_model_manual_drift_guard",
-    "kernel_visual_diff_baseline",
-    "kernel_visual_diff_request",
-    "kernel_visual_diff_result",
-    "atelier_visual_steer_feedback",
-    "knowledge_schema_registry",
-    "knowledge_source_roots",
-    "knowledge_sources",
-    "knowledge_index_runs",
-    "knowledge_spans",
-    "knowledge_entities",
-    "knowledge_entity_spans",
-    "knowledge_edges",
-    "knowledge_edge_spans",
-    "knowledge_claims",
-    "knowledge_claim_spans",
-    "knowledge_claim_conflicts",
-    "knowledge_memory_passages",
-    "knowledge_passage_evidence",
-    "knowledge_wiki_projections",
-    "knowledge_rich_documents",
-    "knowledge_rich_document_title_anchors",
-    "knowledge_rich_document_versions",
-    "knowledge_editor_code_nodes",
-    "knowledge_context_bundles",
-    "knowledge_context_bundle_items",
-    "knowledge_retrieval_traces",
-    "knowledge_idempotency_keys",
-    "knowledge_crdt_denial_receipts",
-    "knowledge_crdt_agent_lane_leases",
-    "knowledge_crdt_graph_proposals",
-    "knowledge_crdt_promoted_facts",
-    "knowledge_crdt_ai_edit_proposals",
-    "knowledge_crdt_swarm_checkpoints",
-    "knowledge_crdt_recovery_receipts",
-    "knowledge_ingestion_root_policies",
-    "knowledge_ingestion_policy_decisions",
-    "knowledge_ingestion_kind_registry",
-    "knowledge_ingestion_receipts",
-    "knowledge_ingestion_spans",
-    "knowledge_ingestion_repair_queue",
-    "knowledge_code_files",
-    "knowledge_code_scip_imports",
-    "knowledge_code_repair_queue",
-    "knowledge_memory_ontology_terms",
-    "knowledge_memory_ontology_aliases",
-    "knowledge_memory_facts",
-    "knowledge_memory_conflict_detection_jobs",
-    "knowledge_memory_conflict_detection_findings",
-    "knowledge_memory_conflict_resolution_jobs",
-    "knowledge_memory_bridge_decisions",
-    "knowledge_semantic_catalog_entries",
-    "knowledge_document_embeds",
-    "knowledge_document_backlinks",
-    "loom_block_knowledge_bridge",
-    "loom_folders",
-    "loom_folder_members",
-    "loom_wiki_overlays",
-    "user_manual_pages",
-    "user_manual_sections",
-    "user_manual_anchors",
-    "user_manual_tool_entries",
-    "user_manual_feature_entries",
-    "user_manual_versions",
-    "user_manual_legacy_aliases",
-    "knowledge_agent_worktree_claims",
-    "knowledge_agent_role_mailbox_handoffs",
-    "knowledge_agent_state_recovery_checkpoints",
-    "knowledge_agent_recovery_receipts",
-    "knowledge_parallel_indexing_lease_queue",
-    "knowledge_agent_quiet_background_work",
-    "knowledge_agent_cloud_assistance_receipts",
-    "knowledge_quick_switcher_recents",
-    "knowledge_workbench_layout_states",
-    "knowledge_workspace_settings_states",
-    "knowledge_rich_document_drafts",
-    "knowledge_workspace_search_bookmark_states",
-    "knowledge_debug_breakpoints",
-    "media_asset_tiers",
-    "loom_collections",
-    "loom_collection_members",
-    "loom_ai_suggestions",
-    "loom_canvas_boards",
-    "loom_canvas_placements",
-    "loom_canvas_visual_edges",
-    "loom_block_search_index",
-    "calendar_activity_spans",
-    "stage_capture_artifacts",
-    "storage_graph_anchors",
-    "knowledge_rich_document_loom_projection_0343_state",
+    "atelier_handler_version_matrix",
+    "atelier_identity_crop_artifact",
+    "atelier_identity_profile",
+    "atelier_image_import_request",
+    "atelier_intake_batch",
+    "atelier_intake_item",
     "atelier_intake_item_loom_projection",
-    "fems_memory_packs",
-    "fems_memory_proposals",
-    "fems_memory_items",
-    "fems_memory_commit_reports",
-    "fems_memory_commit_fr_outbox",
-    "fems_memory_lifecycle_fr_outbox",
-    "fems_workspace_write_anchors",
+    "atelier_intake_item_rejection_audit",
+    "atelier_md_allowlist_policy",
+    "atelier_md_auth_context",
+    "atelier_md_checkpoint",
+    "atelier_md_download_session",
+    "atelier_md_item_state",
+    "atelier_md_output_root",
+    "atelier_md_session_receipt",
+    "atelier_media_annotation",
+    "atelier_media_asset",
+    "atelier_media_asset_tag",
+    "atelier_media_derivative",
+    "atelier_media_probe_report",
+    "atelier_media_review_metadata",
+    "atelier_media_sidecar",
+    "atelier_media_source_provenance_ref",
+    "atelier_model_apply",
+    "atelier_model_config",
+    "atelier_model_coordination_lease",
+    "atelier_model_manual_drift_guard",
+    "atelier_model_manual_row_merge",
+    "atelier_model_manual_section",
+    "atelier_moodboard",
+    "atelier_moodboard_export_request",
+    "atelier_moodboard_operation_receipt",
+    "atelier_orphan_manifest",
+    "atelier_orphan_manifest_item",
+    "atelier_pose_calibration",
+    "atelier_pose_context_state",
+    "atelier_pose_deferred_feature",
+    "atelier_pose_head_pose",
+    "atelier_pose_rig",
+    "atelier_pose_sidecar",
+    "atelier_pose_workspace_rig_state",
+    "atelier_preference",
+    "atelier_reset_operation",
+    "atelier_retrieval_policy",
+    "atelier_saved_search",
+    "atelier_screenshot_artifact_storage",
+    "atelier_self_improve_sandbox_run",
+    "atelier_sheet_parse_snapshot",
+    "atelier_sheet_version",
+    "atelier_similarity_projection",
+    "atelier_similarity_rebuild_job",
+    "atelier_source_evidence_record",
+    "atelier_sourcing_binding_decision",
+    "atelier_sourcing_ingestion_receipt",
+    "atelier_sourcing_spec",
+    "atelier_spec_drift_finding",
+    "atelier_state_probe_catalog_entry",
+    "atelier_stealth_capture",
+    "atelier_stealth_ref",
+    "atelier_stealth_window",
+    "atelier_story_beat",
+    "atelier_story_card",
+    "atelier_synthetic_input_guard",
+    "atelier_tag",
+    "atelier_tag_rule",
+    "atelier_transcript_artifact",
+    "atelier_transcript_receipt",
+    "atelier_trash_marker",
+    "atelier_validator_first_pass_run",
+    "atelier_version_mismatch_receipt",
+    "atelier_visual_steer_feedback",
+    "atelier_web_portfolio_export_request",
+    "atelier_web_portfolio_export_result",
+    "atelier_work_state_projection",
+    "authenticated_sessions",
+    "authorization_audit_events",
+    "blocks",
+    "calendar_activity_spans",
+    "calendar_events",
     "calendar_mutation_outbox",
-    "preference_records",
-    "preference_change_receipts",
-    "loom_block_view_fr_outbox",
+    "calendar_sources",
+    "canvas_edges",
+    "canvas_nodes",
+    "canvases",
+    "dependencies",
+    "distill_example",
+    "distill_job",
+    "documents",
+    "eval_run",
+    "fems_memory_commit_fr_outbox",
+    "fems_memory_commit_reports",
+    "fems_memory_items",
+    "fems_memory_lifecycle_fr_outbox",
+    "fems_memory_packs",
     "fems_memory_proposal_request_id_rekey",
+    "fems_memory_proposals",
+    "fems_workspace_write_anchors",
+    "governance_check_runs",
+    "handshake_schema_state",
+    "kb003_promotion_decisions",
+    "kb003_promotion_receipts",
     "kb003_sandbox_policies",
     "kb003_sandbox_runs",
     "kb003_validation_runs",
-    "kb003_promotion_decisions",
-    "kb003_promotion_receipts",
+    "kernel_activity_span",
+    "kernel_crdt_snapshots",
+    "kernel_crdt_updates",
+    "kernel_diagnostic_bundle_manifest",
+    "kernel_distillation_candidate",
+    "kernel_event_ledger",
+    "kernel_idempotency_ledger",
+    "kernel_micro_task_job",
+    "kernel_model_session_span",
+    "kernel_mt_loop_checkpoint",
+    "kernel_mt_outcome",
+    "kernel_process_lifecycle",
+    "kernel_restart_resume_report",
+    "kernel_session_checkpoint",
+    "kernel_session_queue",
+    "kernel_visual_diff_baseline",
+    "kernel_visual_diff_request",
+    "kernel_visual_diff_result",
+    "knowledge_agent_cloud_assistance_receipts",
+    "knowledge_agent_quiet_background_work",
+    "knowledge_agent_recovery_receipts",
+    "knowledge_agent_role_mailbox_handoffs",
+    "knowledge_agent_state_recovery_checkpoints",
+    "knowledge_agent_worktree_claims",
+    "knowledge_claim_conflicts",
+    "knowledge_claim_spans",
+    "knowledge_claims",
+    "knowledge_code_files",
+    "knowledge_code_repair_queue",
+    "knowledge_code_scip_imports",
+    "knowledge_context_bundle_items",
+    "knowledge_context_bundles",
+    "knowledge_crdt_agent_lane_leases",
+    "knowledge_crdt_ai_edit_proposals",
+    "knowledge_crdt_denial_receipts",
+    "knowledge_crdt_graph_proposals",
+    "knowledge_crdt_promoted_facts",
+    "knowledge_crdt_recovery_receipts",
+    "knowledge_crdt_swarm_checkpoints",
+    "knowledge_debug_breakpoints",
+    "knowledge_document_backlinks",
+    "knowledge_document_embeds",
+    "knowledge_edge_spans",
+    "knowledge_edges",
+    "knowledge_editor_code_nodes",
+    "knowledge_entities",
+    "knowledge_entity_spans",
+    "knowledge_idempotency_keys",
+    "knowledge_index_runs",
+    "knowledge_ingestion_kind_registry",
+    "knowledge_ingestion_policy_decisions",
+    "knowledge_ingestion_receipts",
+    "knowledge_ingestion_repair_queue",
+    "knowledge_ingestion_root_policies",
+    "knowledge_ingestion_spans",
+    "knowledge_memory_bridge_decisions",
+    "knowledge_memory_conflict_detection_findings",
+    "knowledge_memory_conflict_detection_jobs",
+    "knowledge_memory_conflict_resolution_jobs",
+    "knowledge_memory_facts",
+    "knowledge_memory_ontology_aliases",
+    "knowledge_memory_ontology_terms",
+    "knowledge_memory_passages",
+    "knowledge_parallel_indexing_lease_queue",
+    "knowledge_passage_evidence",
+    "knowledge_quick_switcher_recents",
+    "knowledge_retrieval_traces",
+    "knowledge_rich_document_drafts",
+    "knowledge_rich_document_loom_projection_0343_state",
+    "knowledge_rich_document_title_anchors",
+    "knowledge_rich_document_versions",
+    "knowledge_rich_documents",
+    "knowledge_schema_registry",
+    "knowledge_semantic_catalog_entries",
+    "knowledge_source_roots",
+    "knowledge_sources",
+    "knowledge_spans",
+    "knowledge_wiki_projections",
+    "knowledge_workbench_layout_states",
+    "knowledge_workspace_search_bookmark_states",
+    "knowledge_workspace_settings_states",
+    "local_accounts",
+    "loom_ai_suggestions",
+    "loom_block_knowledge_bridge",
+    "loom_block_search_index",
+    "loom_block_view_fr_outbox",
+    "loom_blocks",
+    "loom_canvas_boards",
+    "loom_canvas_placements",
+    "loom_canvas_visual_edges",
+    "loom_collection_members",
+    "loom_collections",
+    "loom_edges",
+    "loom_folder_members",
+    "loom_folders",
+    "loom_wiki_overlays",
+    "media_asset_tiers",
+    "micro_tasks",
+    "model_session_checkpoints",
+    "model_session_messages",
+    "model_sessions",
+    "mt_iterations",
+    "preference_change_receipts",
+    "preference_records",
+    "principals",
+    "protected_resources",
+    "replay_candidates",
+    "resource_grants",
+    "role_mailbox_claim_lease",
+    "role_mailbox_handoff_bundle",
+    "role_mailbox_message",
+    "role_mailbox_thread",
+    "session_exchange_credentials",
+    "skill_log_entry",
+    "skill_log_file_ref",
+    "stage_capture_artifacts",
+    "storage_graph_anchors",
+    "user_manual_anchors",
+    "user_manual_feature_entries",
+    "user_manual_legacy_aliases",
+    "user_manual_pages",
+    "user_manual_sections",
+    "user_manual_tool_entries",
+    "user_manual_versions",
+    "work_packets",
+    "workflow_node_executions",
+    "workflow_runs",
+    "workspaces",
 ];
 
 /// Tables whose source `id` column is represented only by the Surreal record ID.
@@ -1255,6 +1346,13 @@ impl SchemaState {
             && self.generated_surql_sha256 == GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
+    }
+
+    fn is_exact_pre_mt109_current(&self) -> bool {
+        self.has_stable_v1_identity()
+            && self.generated_surql_sha256 == PRE_MT109_GENERATED_SURREALQL_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_MT109_SCHEMA_INFO_SHA256
     }
 
     fn is_exact_supported_predecessor(&self) -> bool {
@@ -1637,6 +1735,10 @@ pub async fn bootstrap_schema(
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
                     }
+                    Some(state) if state.is_exact_pre_mt109_current() => {
+                        verified_observed = Some(upgrade_pre_mt109_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
                     Some(state) if state.is_exact_supported_predecessor() => {
                         verified_observed =
                             Some(upgrade_supported_predecessor(&database, &state).await?);
@@ -1706,10 +1808,6 @@ pub async fn bootstrap_schema(
         info_fingerprint_sha256 = %report.info_fingerprint_sha256,
         "surreal_schema_bootstrap_complete"
     );
-    // Identity and protected-resource authorization live in a separate embedded database so
-    // ordinary record-user permissions cannot be bypassed by the privileged product schema.
-    // Bootstrap remains coupled to the canonical migration entrypoint and fails startup closed.
-    storage.bootstrap_resource_authority_schema().await?;
     Ok(report)
 }
 
@@ -1733,6 +1831,8 @@ fn compiled_schema_catalog_entries() -> Result<Vec<String>, String> {
     let mut events = 0usize;
     let mut views = 0usize;
     let mut sequences = 0usize;
+    let mut accesses = 0usize;
+    let mut functions = 0usize;
 
     for raw_line in SCHEMA.lines() {
         let line = raw_line.trim();
@@ -1779,6 +1879,23 @@ fn compiled_schema_catalog_entries() -> Result<Vec<String>, String> {
                 sequences += 1;
                 Some(format!("sequence:{}", name.trim_end_matches(';')))
             }
+            ["DEFINE", "ACCESS", "OVERWRITE", name, "ON", "DATABASE", ..]
+            | ["DEFINE", "ACCESS", "IF", "NOT", "EXISTS", name, "ON", "DATABASE", ..] => {
+                accesses += 1;
+                Some(format!("access:{}", name.trim_end_matches(';')))
+            }
+            ["DEFINE", "FUNCTION", "OVERWRITE", signature, ..] => {
+                functions += 1;
+                Some(format!(
+                    "function:{}",
+                    declarative_function_name(signature)?
+                ))
+            }
+            ["DEFINE", "ACCESS" | "FUNCTION", ..] => {
+                return Err(format!(
+                    "unsupported declarative authority definition: {line}"
+                ));
+            }
             _ => None,
         };
         if let Some(identity) = identity {
@@ -1797,7 +1914,16 @@ fn compiled_schema_catalog_entries() -> Result<Vec<String>, String> {
             expected_tables.len()
         ));
     }
-    let observed_counts = (tables.len(), fields, indexes, events, views, sequences);
+    let observed_counts = (
+        tables.len(),
+        fields,
+        indexes,
+        events,
+        views,
+        sequences,
+        accesses,
+        functions,
+    );
     let expected_counts = (
         TABLE_DEFINITION_COUNT,
         AUTHORED_FIELD_DEFINITION_COUNT,
@@ -1805,6 +1931,8 @@ fn compiled_schema_catalog_entries() -> Result<Vec<String>, String> {
         EVENT_DEFINITION_COUNT,
         VIEW_DEFINITION_COUNT,
         SEQUENCE_DEFINITION_COUNT,
+        ACCESS_DEFINITION_COUNT,
+        FUNCTION_DEFINITION_COUNT,
     );
     if observed_counts != expected_counts {
         return Err(format!(
@@ -1813,6 +1941,109 @@ fn compiled_schema_catalog_entries() -> Result<Vec<String>, String> {
     }
 
     Ok(entries.into_iter().collect())
+}
+
+fn declarative_function_name(signature: &str) -> Result<&str, String> {
+    let (name, _) = signature
+        .split_once('(')
+        .ok_or_else(|| format!("function declaration lacks argument opener: {signature}"))?;
+    if !name.starts_with("fn::") || name.len() == 4 {
+        return Err(format!("invalid declarative function name: {signature}"));
+    }
+    Ok(name)
+}
+
+fn resource_authority_schema_blocks() -> Vec<&'static str> {
+    let blocks = SCHEMA
+        .split("-- MT109_AUTHORITY_BEGIN\n")
+        .skip(1)
+        .map(|tail| {
+            tail.split_once("\n-- MT109_AUTHORITY_END")
+                .expect("canonical authority block has an end marker")
+                .0
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        blocks.len(),
+        14,
+        "canonical schema must contain all fourteen authority blocks"
+    );
+    assert!(
+        blocks.iter().all(|block| !block.trim().is_empty()),
+        "authority blocks must not be empty"
+    );
+    blocks
+}
+
+pub(super) fn resource_authority_schema_statements() -> String {
+    resource_authority_schema_blocks().join("\n")
+}
+
+fn resource_authority_upgrade_statements() -> String {
+    format!(
+        "{}\n{}",
+        resource_authority_schema_statements(),
+        MT109_LOOM_SOURCE_BACKFILL
+    )
+}
+
+const MT109_LOOM_SOURCE_BACKFILL: &str = r#"
+LET $documents = SELECT id, rich_document_id, workspace_id FROM knowledge_rich_documents;
+IF array::len($documents) > 0 {
+    FOR $document IN $documents {
+        LET $blocks = SELECT * FROM loom_blocks
+            WHERE id = type::record('loom_blocks', $document.rich_document_id) LIMIT 1;
+        IF array::len($blocks) > 0 {
+            LET $block = $blocks[0];
+            IF $block.workspace_id != $document.workspace_id OR $block.content_type != 'note'
+                OR ($block.source_rich_document_id != NONE AND $block.source_rich_document_id != $document.id) {
+                THROW 'HSK-MT109-LOOM-SOURCE-IDENTITY';
+            };
+            UPDATE type::record('loom_blocks', $document.rich_document_id)
+                SET source_rich_document_id = $document.id RETURN NONE;
+        };
+    };
+};
+"#;
+
+fn resource_authority_core_block() -> &'static str {
+    let blocks = resource_authority_schema_blocks()
+        .into_iter()
+        .filter(|block| {
+            block
+                .trim_start()
+                .starts_with("DEFINE TABLE OVERWRITE local_accounts ")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        blocks.len(),
+        1,
+        "exactly one canonical authority core block"
+    );
+    assert!(blocks[0].contains("DEFINE ACCESS IF NOT EXISTS authenticated_session ON DATABASE"));
+    blocks[0]
+}
+
+fn authority_catalog_names(kind: &str) -> BTreeSet<String> {
+    resource_authority_core_block()
+        .lines()
+        .filter_map(|line| {
+            let tokens = line.split_ascii_whitespace().collect::<Vec<_>>();
+            match (kind, tokens.as_slice()) {
+                (
+                    "access",
+                    ["DEFINE", "ACCESS", "IF", "NOT", "EXISTS", name, "ON", "DATABASE", ..],
+                ) => Some((*name).to_owned()),
+                ("function", ["DEFINE", "FUNCTION", "OVERWRITE", signature, ..]) => Some(
+                    declarative_function_name(signature)
+                        .expect("canonical function signature")
+                        .trim_start_matches("fn::")
+                        .to_owned(),
+                ),
+                _ => None,
+            }
+        })
+        .collect()
 }
 
 fn insert_catalog_identity(entries: &mut BTreeSet<String>, identity: String) -> Result<(), String> {
@@ -1985,7 +2216,7 @@ async fn upgrade_supported_predecessor(
         .await;
     }
     ensure_supported_predecessor_registry(database).await?;
-    let predecessor_observed = inspect_schema(database).await?;
+    let predecessor_observed = read_schema_catalog(database).await?;
     if predecessor_observed.info_fingerprint_sha256 != PREDECESSOR_SCHEMA_INFO_SHA256 {
         return fail_closed(
             database,
@@ -2052,7 +2283,7 @@ UPDATE ONLY handshake_schema_state:primary SET
     apply_state = 'schema_applied',
     updated_at = time::now();
 COMMIT TRANSACTION;
-"#,
+"#.replace("UPDATE ONLY handshake_schema_state:primary SET", &format!("{}\nUPDATE ONLY handshake_schema_state:primary SET", resource_authority_upgrade_statements())).as_str(),
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
@@ -2319,6 +2550,7 @@ async fn upgrade_pre_mt142_current(
         PRE_MT142_SCHEMA_INFO_SHA256,
     )
     .await?;
+    let authority_delta = resource_authority_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -2339,6 +2571,7 @@ IF $current = NONE\n\
 {MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS}\
 {MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS}\
 {MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
+{authority_delta}\n\
 UPDATE ONLY handshake_schema_state:primary SET\n\
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
@@ -2432,6 +2665,7 @@ async fn upgrade_pre_mt151_current(
         PRE_MT151_SCHEMA_INFO_SHA256,
     )
     .await?;
+    let authority_delta = resource_authority_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -2451,6 +2685,7 @@ IF $current = NONE\n\
 {MT151_JOURNAL_KEY_AND_GRAPH_ANCHOR_UPGRADE_STATEMENTS}\
 {MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS}\
 {MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
+{authority_delta}\n\
 UPDATE ONLY handshake_schema_state:primary SET\n\
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
@@ -2537,6 +2772,7 @@ async fn upgrade_pre_mt152_current(
         PRE_MT152_SCHEMA_INFO_SHA256,
     )
     .await?;
+    let authority_delta = resource_authority_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -2555,6 +2791,7 @@ IF $current = NONE\n\
 }};\n\
 {MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS}\
 {MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
+{authority_delta}\n\
 UPDATE ONLY handshake_schema_state:primary SET\n\
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
@@ -2618,6 +2855,103 @@ COMMIT TRANSACTION;\n"
             .await
         }
     }
+}
+
+fn mt109_authority_upgrade_bindings() -> PredecessorUpgradeBindings {
+    PredecessorUpgradeBindings {
+        schema_version: SCHEMA_VERSION.to_owned(),
+        schema_revision: SCHEMA_REVISION,
+        namespace: DEFAULT_NAMESPACE.to_owned(),
+        database: DEFAULT_DATABASE.to_owned(),
+        source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+        predecessor_generated_surql_sha256: PRE_MT109_GENERATED_SURREALQL_SHA256.to_owned(),
+        predecessor_info_fingerprint_sha256: PRE_MT109_SCHEMA_INFO_SHA256.to_owned(),
+        generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+        pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+        schema_source: "storage/surreal/schema.surql".to_owned(),
+    }
+}
+
+fn mt109_authority_upgrade_query() -> String {
+    let authority_delta = resource_authority_upgrade_statements();
+    format!(
+        r#"
+BEGIN TRANSACTION;
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
+IF $current = NONE
+    OR $current.version != $schema_version
+    OR $current.revision != $schema_revision
+    OR $current.target_revision != $schema_revision
+    OR $current.namespace != $namespace
+    OR $current.database != $database
+    OR $current.source_manifest_sha256 != $source_manifest_sha256
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256
+    OR $current.apply_state != 'complete'
+{{
+    THROW 'HANDSHAKE_SURREAL_PRE_MT109_UPGRADE_STATE_CHANGED';
+}};
+{authority_delta}
+UPDATE ONLY handshake_schema_state:primary SET
+    generated_surql_sha256 = $generated_surql_sha256,
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,
+    apply_state = 'schema_applied',
+    updated_at = time::now();
+COMMIT TRANSACTION;
+"#
+    )
+}
+
+async fn upgrade_pre_mt109_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_mt109_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_MT109_UPGRADE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    // The old receipt predates its out-of-band authority overlay. Accept only either complete
+    // observed catalog, including every access/function/permission; the receipt alone is insufficient.
+    let predecessor = read_schema_catalog(database).await?;
+    if ![
+        PRE_MT109_SCHEMA_INFO_SHA256,
+        PRE_MT109_AUTHORITY_INFO_SHA256,
+    ]
+    .contains(&predecessor.info_fingerprint_sha256.as_str())
+    {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_PRE_MT109_CATALOG_MISMATCH: observed={}",
+                predecessor.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    database
+        .query_bound(
+            mt109_authority_upgrade_query().as_str(),
+            mt109_authority_upgrade_bindings(),
+        )
+        .await?;
+    let applied = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        other => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT109_APPLY_STATE_MISMATCH: {other:?}"),
+            )
+            .await
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &applied, &observed.info_fingerprint_sha256).await?;
+    Ok(observed)
 }
 
 async fn finalize_schema_state(
@@ -2745,6 +3079,33 @@ async fn verify_expected_info_fingerprint(
 async fn inspect_schema(
     database: &SurrealAdminContext<'_>,
 ) -> Result<ObservedSchema, SurrealStorageError> {
+    let observed = read_schema_catalog(database).await?;
+    let mut expected_names = TABLE_NAMES
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect::<Vec<_>>();
+    expected_names.sort();
+    if observed.table_names != expected_names {
+        return fail_closed(database, format!("HANDSHAKE_SURREAL_SCHEMA_TABLE_SET_MISMATCH: expected={expected_names:?}; observed={:?}", observed.table_names)).await;
+    }
+    if observed.fields_defined != FIELD_DEFINITION_COUNT
+        || observed.indexes_defined != INDEX_DEFINITION_COUNT
+    {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_SCHEMA_INFO_MISMATCH: tables={}; fields={}; indexes={}",
+                observed.tables_defined, observed.fields_defined, observed.indexes_defined
+            ),
+        )
+        .await;
+    }
+    Ok(observed)
+}
+
+async fn read_schema_catalog(
+    database: &SurrealAdminContext<'_>,
+) -> Result<ObservedSchema, SurrealStorageError> {
     let mut db_info_response = database.query("INFO FOR DB STRUCTURE;").await?;
     let db_info: SurrealValueData = db_info_response.take(0)?;
     for category in DATABASE_STRUCTURE_CATEGORIES {
@@ -2757,21 +3118,6 @@ async fn inspect_schema(
         Err(reason) => return fail_closed(database, reason).await,
     };
     table_names.sort();
-
-    let mut expected_names = TABLE_NAMES
-        .iter()
-        .map(|name| (*name).to_owned())
-        .collect::<Vec<_>>();
-    expected_names.sort();
-    if table_names != expected_names {
-        return fail_closed(
-            database,
-            format!(
-                "HANDSHAKE_SURREAL_SCHEMA_TABLE_SET_MISMATCH: expected={expected_names:?}; observed={table_names:?}"
-            ),
-        )
-        .await;
-    }
 
     let mut fields_defined = 0usize;
     let mut indexes_defined = 0usize;
@@ -2797,17 +3143,6 @@ async fn inspect_schema(
             Err(reason) => return fail_closed(database, reason).await,
         };
         table_info_by_name.insert(table.clone(), table_info);
-    }
-
-    if fields_defined != FIELD_DEFINITION_COUNT || indexes_defined != INDEX_DEFINITION_COUNT {
-        return fail_closed(
-            database,
-            format!(
-                "HANDSHAKE_SURREAL_SCHEMA_INFO_MISMATCH: tables={}; fields={fields_defined}; indexes={indexes_defined}",
-                table_names.len()
-            ),
-        )
-        .await;
     }
 
     Ok(ObservedSchema {
@@ -3168,23 +3503,124 @@ mod tests {
         inspect_atelier_catalog_fingerprint(&database, expected_tables, expected_sequences).await
     }
 
-    async fn mt138_canonical_mem_fingerprint() -> Result<String, SurrealStorageError> {
+    async fn mt138_canonical_mem_fingerprint(
+        probe_dependencies: bool,
+    ) -> Result<String, SurrealStorageError> {
         let expected_tables = atelier_expected_catalog()
             .into_keys()
             .collect::<BTreeSet<_>>();
+        assert_eq!(expected_tables.len(), 134);
         let expected_sequences = ATELIER_REQUIRED_SEQUENCES
             .iter()
             .map(|name| (*name).to_owned())
             .collect::<BTreeSet<_>>();
-        mt138_mem_catalog_fingerprint(
-            format!(
+        let client = Surreal::new::<Mem>(()).await?;
+        client
+            .use_ns(DEFAULT_NAMESPACE)
+            .use_db(DEFAULT_DATABASE)
+            .await?;
+        let database = SurrealAdminContext { client: &client };
+        database
+            .query(format!(
                 "BEGIN TRANSACTION;\n{}\nCOMMIT TRANSACTION;",
                 atelier_schema_ddl()
-            ),
-            &expected_tables,
-            &expected_sequences,
-        )
-        .await
+            ))
+            .await?;
+        let fingerprint =
+            inspect_atelier_catalog_fingerprint(&database, &expected_tables, &expected_sequences)
+                .await?;
+        if probe_dependencies {
+            assert_eq!(authority_catalog_names("access").len(), 1);
+            assert_eq!(authority_catalog_names("function").len(), 9);
+            let mut saved = database
+                .query("RETURN (INFO FOR DB).functions.mt109_live_session;")
+                .await?;
+            let original = saved
+                .take::<Option<String>>(0)?
+                .expect("canonical authority function must exist");
+            assert!(original.starts_with("DEFINE FUNCTION fn::mt109_live_session("));
+            let restore = format!(
+                "{};",
+                original
+                    .replacen("DEFINE FUNCTION ", "DEFINE FUNCTION OVERWRITE ", 1)
+                    .trim_end_matches(';')
+            );
+            for (mutation, marker) in [
+                (
+                    "REMOVE FUNCTION fn::mt109_live_session;",
+                    "AUTHORITY_DEPENDENCY_MISSING",
+                ),
+                (
+                    "DEFINE FUNCTION OVERWRITE fn::mt109_live_session() { RETURN true; };",
+                    "CATALOG_FINGERPRINT_MISMATCH",
+                ),
+            ] {
+                database.query(mutation).await?;
+                let error = verify_atelier_catalog_fingerprint(
+                    &database,
+                    &expected_tables,
+                    &expected_sequences,
+                    &fingerprint,
+                )
+                .await
+                .expect_err("altered authority function must reject");
+                assert!(
+                    error.to_string().contains(marker),
+                    "unexpected rejection: {error}"
+                );
+                database.query(restore.clone()).await?;
+                verify_atelier_catalog_fingerprint(
+                    &database,
+                    &expected_tables,
+                    &expected_sequences,
+                    &fingerprint,
+                )
+                .await?;
+            }
+            database
+                .query("ALTER ACCESS authenticated_session ON DATABASE DURATION FOR TOKEN 6m;")
+                .await?;
+            let error = verify_atelier_catalog_fingerprint(
+                &database,
+                &expected_tables,
+                &expected_sequences,
+                &fingerprint,
+            )
+            .await
+            .expect_err("altered authority access must reject");
+            assert!(error.to_string().contains("CATALOG_FINGERPRINT_MISMATCH"));
+            database
+                .query("ALTER ACCESS authenticated_session ON DATABASE DURATION FOR TOKEN 5m;")
+                .await?;
+            verify_atelier_catalog_fingerprint(
+                &database,
+                &expected_tables,
+                &expected_sequences,
+                &fingerprint,
+            )
+            .await?;
+            database.query("DEFINE TABLE mt138_unrelated SCHEMAFULL; DEFINE FUNCTION fn::mt138_unrelated() { RETURN true; };").await?;
+            verify_atelier_catalog_fingerprint(
+                &database,
+                &expected_tables,
+                &expected_sequences,
+                &fingerprint,
+            )
+            .await?;
+            database
+                .query("REMOVE ACCESS authenticated_session ON DATABASE;")
+                .await?;
+            let error = verify_atelier_catalog_fingerprint(
+                &database,
+                &expected_tables,
+                &expected_sequences,
+                &fingerprint,
+            )
+            .await
+            .expect_err("missing authority access must reject");
+            assert!(error.to_string().contains("AUTHORITY_DEPENDENCY_MISSING"));
+        }
+        Ok(fingerprint)
     }
 
     #[tokio::test]
@@ -3462,10 +3898,10 @@ mod tests {
     #[tokio::test]
     async fn mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin() {
         tokio::time::timeout(std::time::Duration::from_secs(120), async {
-            let first = mt138_canonical_mem_fingerprint()
+            let first = mt138_canonical_mem_fingerprint(true)
                 .await
                 .expect("generate first fresh canonical Atelier fingerprint");
-            let second = mt138_canonical_mem_fingerprint()
+            let second = mt138_canonical_mem_fingerprint(false)
                 .await
                 .expect("generate second fresh canonical Atelier fingerprint");
             assert_eq!(
@@ -3560,6 +3996,452 @@ mod tests {
                 eprintln!("{label} EXTRA {key}");
             }
         }
+    }
+
+    async fn mt109_schema_rows(
+        storage: &SurrealStorage,
+        with_authority: bool,
+    ) -> Result<Vec<SurrealValueData>, SurrealStorageError> {
+        storage
+            .with_admin_operation(move |database| {
+                Box::pin(async move {
+                    let tables = if with_authority {
+                        vec![
+                            "local_accounts",
+                            "principals",
+                            "access_spaces",
+                            "authenticated_sessions",
+                            "session_exchange_credentials",
+                            "protected_resources",
+                            "resource_grants",
+                            "authorization_audit_events",
+                            "kernel_event_ledger",
+                        ]
+                    } else {
+                        vec!["kernel_event_ledger"]
+                    };
+                    let mut rows = Vec::new();
+                    for table in tables {
+                        let mut result = database
+                            .query(format!("SELECT * FROM {table} ORDER BY id;"))
+                            .await?;
+                        rows.push(result.take::<SurrealValueData>(0)?);
+                    }
+                    Ok(rows)
+                })
+            })
+            .await
+    }
+
+    fn copy_mt109_migration_store(
+        source: &std::path::Path,
+        destination: &std::path::Path,
+    ) -> std::io::Result<()> {
+        for entry in std::fs::read_dir(source)? {
+            let entry = entry?;
+            let target = destination.join(entry.file_name());
+            if entry.file_type()?.is_dir() {
+                std::fs::create_dir_all(&target)?;
+                copy_mt109_migration_store(&entry.path(), &target)?;
+            } else {
+                std::fs::copy(entry.path(), target)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back() {
+        use crate::storage::surreal::resource_authority::{
+            AuthorizationRequest, ResourceAction, ResourceGrantSpec, ResourceKind, SigninParams,
+        };
+        use surrealdb::opt::auth::Record;
+        for with_authority in [false, true] {
+            let directory = tempfile::Builder::new()
+                .prefix("mt109-migration-")
+                .tempdir()
+                .expect("migration proof directory");
+            let rollback_directory = tempfile::Builder::new()
+                .prefix("mt109-migration-rollback-")
+                .tempdir()
+                .expect("rollback migration proof directory");
+            let directory_ref = &directory;
+            let rollback_directory_ref = &rollback_directory;
+            let storage = open_test_storage(directory_ref)
+                .await
+                .expect("open migration predecessor");
+            let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async move {
+                storage.with_admin_operation(|database| Box::pin(async move {
+                    database.query_bound(PRE_MT109_SCHEMA, BootstrapBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
+                        namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+                        source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                        generated_surql_sha256: PRE_MT109_GENERATED_SURREALQL_SHA256.to_owned(),
+                    }).await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    let observed = read_schema_catalog(&database).await?;
+                    assert_eq!(observed.info_fingerprint_sha256, PRE_MT109_SCHEMA_INFO_SHA256);
+                    database.query(format!("UPDATE handshake_schema_state:primary SET apply_state = 'complete', info_fingerprint_sha256 = '{PRE_MT109_SCHEMA_INFO_SHA256}';")).await?;
+                    if with_authority { database.query(PRE_MT109_AUTHORITY_SCHEMA).await?; }
+                    Ok(())
+                })).await?;
+                let mut old_jwt = None;
+                let mut session_id = None;
+                if with_authority {
+                    let capabilities = vec!["fr.read".to_owned(), "fr.ingest.native_editor".to_owned()];
+                    let principal = storage.provision_principal("migration-account", "migration-principal", "human_account", "migration-actor", "Operator", &capabilities, "migration-space", None, std::time::Duration::from_secs(3600)).await?;
+                    let resource = storage.register_protected_resource(&principal.identity, ResourceKind::FlightRecorder, "migration-workspace", None, "account_private").await?;
+                    storage.grant_resource(&principal.identity.account_id, &principal.identity.access_space_id, ResourceGrantSpec {
+                        principal_id: principal.identity.principal_id.clone(), resource_id: resource.resource_id,
+                        actions: vec![ResourceAction::Read, ResourceAction::Create], capability_ids: capabilities,
+                        expires_at: None, delegation_chain: vec![],
+                    }).await?;
+                    storage.provision_session_credential(&principal.identity, std::time::Duration::from_secs(3600)).await?;
+                    storage.authorize_protected_resource(AuthorizationRequest {
+                        session_token: principal.session.token.clone(), channel_binding_hash: None, capability_id: "fr.read".to_owned(),
+                        resource_kind: ResourceKind::FlightRecorder, external_resource_id: "migration-workspace".to_owned(), action: ResourceAction::Read,
+                    }).await?;
+                    session_id = Some(principal.session.session_id.clone());
+                    let token_hash = sha256_hex(principal.session.token.as_bytes());
+                    old_jwt = Some(storage.with_lease(move |client| Box::pin(async move {
+                        let ordinary = client.clone();
+                        ordinary.use_ns(DEFAULT_NAMESPACE).use_db(DEFAULT_DATABASE).await?;
+                        Ok(ordinary.signin(Record { namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(), access: "authenticated_session".to_owned(), params: SigninParams { token_hash, channel_binding_hash: None } }).await?)
+                    })).await?);
+                }
+                for ordinal in 0..2 {
+                    let event = crate::kernel::NewKernelEvent::builder("migration-task", "migration-session", crate::kernel::KernelEventType::ArtifactStored, crate::kernel::KernelActor::System("migration-proof".to_owned()))
+                        .aggregate("migration", "migration-aggregate").idempotency_key(format!("migration-{ordinal}"))
+                        .source_component("mt109-migration-proof").payload(serde_json::json!({"ordinal": ordinal})).build()?;
+                    let (_, write) = super::super::event_ledger::prepare_event(event)?;
+                    storage.with_admin_operation(move |database| Box::pin(async move {
+                        let authority_fields = if with_authority { ", wsids: $wsids, authority_resource_id: $authority_resource_id, authority_session_id: $authority_session_id, authority_capability_id: $authority_capability_id, authority_action: $authority_action" } else { "" };
+                        database.query_bound(format!("CREATE $record CONTENT {{ event_id: $event_id, event_version: $event_version, kernel_task_run_id: $kernel_task_run_id, session_run_id: $session_run_id, aggregate_type: $aggregate_type, aggregate_id: $aggregate_id, idempotency_key: $idempotency_key, event_type: $event_type, actor_kind: $actor_kind, actor_id: $actor_id, causation_id: $causation_id, correlation_id: $correlation_id, payload_hash: $payload_hash, source_component: $source_component, payload: $payload, created_at: $created_at{authority_fields} }} RETURN AFTER;"), write).await?;
+                        Ok(())
+                    })).await?;
+                }
+                let before = mt109_schema_rows(&storage, with_authority).await?;
+                let (before_state, before_catalog) = storage.with_admin_operation(|database| Box::pin(async move {
+                    Ok((read_context_and_state(&database).await?.expect("old receipt"), read_schema_catalog(&database).await?.info_fingerprint_sha256))
+                })).await?;
+                assert_eq!(before_catalog, if with_authority { PRE_MT109_AUTHORITY_INFO_SHA256 } else { PRE_MT109_SCHEMA_INFO_SHA256 });
+                let mut malformed = before_state.clone();
+                malformed.target_revision -= 1;
+                assert!(!malformed.is_exact_pre_mt109_current());
+                malformed = before_state.clone();
+                malformed.apply_state = "unknown".to_owned();
+                assert!(!malformed.is_exact_pre_mt109_current());
+                for (field, assignments) in [("forward-revision", "revision = 158, target_revision = 158"), ("lower-revision", "revision = 156, target_revision = 156"), ("old-incomplete", "apply_state = 'schema_applied'")] {
+                    storage.with_admin_operation(move |database| Box::pin(async move {
+                        database.query(format!("UPDATE handshake_schema_state:primary SET {assignments};")).await?;
+                        Ok(())
+                    })).await?;
+                    let rejected_state = storage.with_admin_operation(|database| Box::pin(async move {
+                        Ok(read_context_and_state(&database).await?.expect("changed predecessor receipt"))
+                    })).await?;
+                    let rejection = bootstrap_schema(&storage).await.expect_err("changed predecessor state must fail closed");
+                    assert!(rejection.to_string().contains("HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE"), "changed {field} returned the wrong rejection: {rejection}");
+                    assert_eq!(mt109_schema_rows(&storage, with_authority).await?, before);
+                    storage.with_admin_operation(|database| Box::pin(async move {
+                        assert_eq!(read_context_and_state(&database).await?.expect("rejected receipt"), rejected_state);
+                        database.query("UPDATE handshake_schema_state:primary SET revision = 157, target_revision = 157, apply_state = 'complete';").await?;
+                        Ok(())
+                    })).await?;
+                }
+                storage.with_admin_operation(|database| Box::pin(async move {
+                    database.query("DEFINE TABLE mt109_unknown_overlay SCHEMAFULL PERMISSIONS NONE;").await?;
+                    Ok(())
+                })).await?;
+                let rejected_catalog = storage.with_admin_operation(|database| Box::pin(async move {
+                    Ok(read_schema_catalog(&database).await?.info_fingerprint_sha256)
+                })).await?;
+                let rejection = bootstrap_schema(&storage).await.expect_err("unknown overlay must fail before DDL");
+                assert!(rejection.to_string().contains("HANDSHAKE_SURREAL_PRE_MT109_CATALOG_MISMATCH"));
+                assert_eq!(mt109_schema_rows(&storage, with_authority).await?, before);
+                storage.with_admin_operation(|database| Box::pin(async move {
+                    assert_eq!(read_schema_catalog(&database).await?.info_fingerprint_sha256, rejected_catalog);
+                    database.query("REMOVE TABLE mt109_unknown_overlay;").await?;
+                    Ok(())
+                })).await?;
+                let before_marker = storage.with_admin_operation(|database| Box::pin(async move {
+                    let mut rows = database.query("SELECT * FROM ONLY handshake_schema_state:primary;").await?;
+                    Ok(rows.take::<SurrealValueData>(0)?)
+                })).await?;
+                storage.shutdown().await?;
+                drop(storage);
+                copy_mt109_migration_store(
+                    directory_ref.path(),
+                    rollback_directory_ref.path(),
+                )?;
+
+                let upgraded = open_test_storage(directory_ref).await?;
+                let upgrade = bootstrap_schema(&upgraded).await?;
+                assert_eq!(upgrade.outcome, SchemaBootstrapOutcome::UpgradedSupportedPredecessor);
+                assert_eq!(upgrade.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+                assert_eq!(mt109_schema_rows(&upgraded, with_authority).await?, before);
+                upgraded.shutdown().await?;
+                drop(upgraded);
+
+                let current = open_test_storage(directory_ref).await?;
+                let replay = bootstrap_schema(&current).await?;
+                assert_eq!(replay.outcome, SchemaBootstrapOutcome::ReusedExactCurrent);
+                assert_eq!(mt109_schema_rows(&current, with_authority).await?, before);
+                if let Some(jwt) = old_jwt {
+                    let expected_session = session_id.expect("old session identity");
+                    current.with_lease(move |client| Box::pin(async move {
+                        let ordinary = client.clone();
+                        ordinary.use_ns(DEFAULT_NAMESPACE).use_db(DEFAULT_DATABASE).await?;
+                        ordinary.authenticate(jwt).await?;
+                        let mut response = ordinary.query("RETURN record::id($auth.id);").await?.check()?;
+                        let observed: Option<String> = response.take(0)?;
+                        assert_eq!(observed, Some(expected_session), "old JWT must retain its exact session after migration and reopen");
+                        Ok(())
+                    })).await?;
+                }
+
+                let rollback = open_test_storage(rollback_directory_ref).await?;
+                let rollback_errors = rollback.with_admin_operation(|database| Box::pin(async move {
+                    let injected = mt109_authority_upgrade_query().replace("UPDATE ONLY handshake_schema_state:primary SET", "THROW 'MT109_INJECTED_AUTHORITY_ROLLBACK'; UPDATE ONLY handshake_schema_state:primary SET");
+                    let mut result = database.client.query(injected)
+                        .bind(SurrealValue::into_value(mt109_authority_upgrade_bindings())).await?;
+                    let mut errors = result.take_errors().into_iter().map(|(index, error)| (index, error.to_string())).collect::<Vec<_>>();
+                    errors.sort_by_key(|(index, _)| *index);
+                    Ok(errors)
+                })).await?;
+                let mut rollback_counts = std::collections::BTreeMap::new();
+                for (_, error) in &rollback_errors {
+                    *rollback_counts.entry(error.as_str()).or_insert(0usize) += 1;
+                }
+                eprintln!("MT109_ROLLBACK_ERROR_COUNTS {rollback_counts:?}");
+                eprintln!(
+                    "MT109_ROLLBACK_PRIMARY_ERRORS {:?}",
+                    rollback_errors
+                        .iter()
+                        .filter(|(_, error)| {
+                            error != "The query was not executed due to a failed transaction"
+                        })
+                        .collect::<Vec<_>>()
+                );
+                // Response index 149 is the injected THROW immediately before the schema-state
+                // UPDATE: three transaction/precondition statements, 144 authority statements,
+                // and two Loom backfill statements precede it. The remaining tail statements
+                // must be cancelled.
+                let primary_errors = rollback_errors
+                    .iter()
+                    .filter(|(_, error)| {
+                        error != "The query was not executed due to a failed transaction"
+                    })
+                    .map(|(index, error)| (*index, error.as_str()))
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    primary_errors,
+                    vec![
+                        (149, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
+                        (150, "The query was not executed due to a cancelled transaction"),
+                        (151, "Cannot COMMIT: the transaction was aborted due to a prior error"),
+                    ],
+                    "injected rollback did not fail at the exact pre-marker-update statement"
+                );
+                assert!(rollback_errors.iter().all(|(_, error)| matches!(error.as_str(),
+                    "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"
+                    | "The query was not executed due to a failed transaction"
+                    | "The query was not executed due to a cancelled transaction"
+                    | "Cannot COMMIT: the transaction was aborted due to a prior error"
+                )), "unrelated transaction failure: {rollback_counts:?}");
+                rollback.shutdown().await?;
+                drop(rollback);
+
+                let rollback_reopened = open_test_storage(rollback_directory_ref).await?;
+                assert_eq!(mt109_schema_rows(&rollback_reopened, with_authority).await?, before);
+                rollback_reopened.with_admin_operation(|database| Box::pin(async move {
+                    let mut marker = database.query("SELECT * FROM ONLY handshake_schema_state:primary;").await?;
+                    assert_eq!(marker.take::<SurrealValueData>(0)?, before_marker, "rollback changed complete marker including timestamps");
+                    assert_eq!(read_schema_catalog(&database).await?.info_fingerprint_sha256, before_catalog);
+                    assert_eq!(read_context_and_state(&database).await?.expect("rollback receipt"), before_state);
+                    Ok(())
+                })).await?;
+                Ok::<(SurrealStorage, SurrealStorage), Box<dyn std::error::Error>>((
+                    current,
+                    rollback_reopened,
+                ))
+            })).await;
+            let (current, rollback_reopened) = match body {
+                Ok(Ok(handles)) => handles,
+                Ok(Err(error)) => {
+                    let path = directory.keep();
+                    let rollback_path = rollback_directory.keep();
+                    panic!(
+                        "migration proof failed: {error}; stores preserved at {} and {}",
+                        path.display(),
+                        rollback_path.display()
+                    );
+                }
+                Err(panic) => {
+                    eprintln!(
+                        "MT109_MIGRATION_STORES_PRESERVED {} {}",
+                        directory.path().display(),
+                        rollback_directory.path().display()
+                    );
+                    let _ = directory.keep();
+                    let _ = rollback_directory.keep();
+                    std::panic::resume_unwind(panic);
+                }
+            };
+            let path = directory.keep();
+            crate::storage::tests::shutdown_and_remove_test_store(current, path.clone())
+                .await
+                .expect("remove closed migration store through centralized cleanup");
+            assert!(!path.exists());
+            eprintln!("MT109_MIGRATION_STORE_REMOVED {}", path.display());
+            let rollback_path = rollback_directory.keep();
+            crate::storage::tests::shutdown_and_remove_test_store(
+                rollback_reopened,
+                rollback_path.clone(),
+            )
+            .await
+            .expect("remove closed rollback migration store through centralized cleanup");
+            assert!(!rollback_path.exists());
+            eprintln!(
+                "MT109_ROLLBACK_MIGRATION_STORE_REMOVED {}",
+                rollback_path.display()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn mt109_loom_catalog_dependencies_are_complete_and_deterministic() {
+        let tables = loom_receipt_test_tables()
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect::<BTreeSet<_>>();
+        let sequences = loom_receipt_test_sequences()
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(tables.len(), 16);
+        let mut fingerprints = Vec::new();
+        for _ in 0..2 {
+            let client = Surreal::new::<Mem>(())
+                .await
+                .expect("open bounded Loom catalog");
+            client
+                .use_ns(DEFAULT_NAMESPACE)
+                .use_db(DEFAULT_DATABASE)
+                .await
+                .expect("select bounded context");
+            let database = SurrealAdminContext { client: &client };
+            database
+                .query(loom_receipt_test_schema_ddl())
+                .await
+                .expect("apply canonical bounded Loom dependencies");
+            let fingerprint = inspect_catalog_fingerprint(
+                &database,
+                &tables,
+                &sequences,
+                CatalogInspectionScope::ExactDatabase,
+            )
+            .await
+            .expect("inspect complete bounded Loom catalog");
+            database
+                .query("REMOVE FUNCTION fn::mt109_source_read;")
+                .await
+                .expect("remove exact source dependency");
+            let error = inspect_catalog_fingerprint(
+                &database,
+                &tables,
+                &sequences,
+                CatalogInspectionScope::ExactDatabase,
+            )
+            .await
+            .expect_err("missing source dependency must reject");
+            assert!(
+                error
+                    .to_string()
+                    .contains("HANDSHAKE_LOOM_SCHEMA_AUTHORITY_SET_MISMATCH"),
+                "{error}"
+            );
+            fingerprints.push(fingerprint);
+        }
+        assert_eq!(fingerprints[0], fingerprints[1]);
+        eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
+        assert_eq!(
+            fingerprints[0],
+            "2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2"
+        );
+    }
+
+    #[tokio::test]
+    async fn mt109_authority_catalog_pins_are_deterministic() {
+        assert_eq!(
+            sha256_hex(PRE_MT109_SCHEMA.as_bytes()),
+            PRE_MT109_GENERATED_SURREALQL_SHA256
+        );
+        let mut current_pins = Vec::new();
+        let mut predecessor_pins = Vec::new();
+        for current in [false, true] {
+            for _ in 0..2 {
+                let client = Surreal::new::<Mem>(())
+                    .await
+                    .expect("open isolated catalog store");
+                client
+                    .use_ns(DEFAULT_NAMESPACE)
+                    .use_db(DEFAULT_DATABASE)
+                    .await
+                    .expect("select catalog context");
+                let database = SurrealAdminContext { client: &client };
+                database
+                    .query_bound(
+                        if current { SCHEMA } else { PRE_MT109_SCHEMA },
+                        BootstrapBindings {
+                            schema_version: SCHEMA_VERSION.to_owned(),
+                            schema_revision: SCHEMA_REVISION,
+                            namespace: DEFAULT_NAMESPACE.to_owned(),
+                            database: DEFAULT_DATABASE.to_owned(),
+                            source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                            generated_surql_sha256: if current {
+                                GENERATED_SURREALQL_SHA256
+                            } else {
+                                PRE_MT109_GENERATED_SURREALQL_SHA256
+                            }
+                            .to_owned(),
+                        },
+                    )
+                    .await
+                    .expect("apply catalog base");
+                if !current {
+                    database
+                        .query(PRE_MT109_AUTHORITY_SCHEMA)
+                        .await
+                        .expect("apply committed predecessor authority");
+                }
+                let observed = if current {
+                    inspect_schema(&database).await
+                } else {
+                    read_schema_catalog(&database).await
+                }
+                .expect("inspect complete authority catalog");
+                if current {
+                    current_pins.push(observed.info_fingerprint_sha256);
+                } else {
+                    predecessor_pins.push(observed.info_fingerprint_sha256);
+                }
+            }
+        }
+        assert_eq!(
+            current_pins[0], current_pins[1],
+            "fresh current catalog is nondeterministic"
+        );
+        assert_eq!(
+            predecessor_pins[0], predecessor_pins[1],
+            "committed overlay catalog is nondeterministic"
+        );
+        eprintln!("MT109_CURRENT_AUTHORITY_INFO_SHA256={}", current_pins[0]);
+        eprintln!(
+            "MT109_PREDECESSOR_AUTHORITY_INFO_SHA256={}",
+            predecessor_pins[0]
+        );
+        assert_eq!(current_pins[0], EXPECTED_SCHEMA_INFO_SHA256);
+        assert_eq!(predecessor_pins[0], PRE_MT109_AUTHORITY_INFO_SHA256);
     }
 
     #[tokio::test]
@@ -3769,6 +4651,37 @@ mod tests {
             SEQUENCE_DEFINITION_COUNT
         );
 
+        for (prefix, expected) in [
+            ("access:", ACCESS_DEFINITION_COUNT),
+            ("function:", FUNCTION_DEFINITION_COUNT),
+        ] {
+            assert_eq!(
+                entries
+                    .iter()
+                    .filter(|entry| entry.starts_with(prefix))
+                    .count(),
+                expected
+            );
+        }
+        assert!(entries.contains(&"access:authenticated_session".to_owned()));
+        assert_eq!(
+            declarative_function_name("fn::mt109_live_session()"),
+            Ok("fn::mt109_live_session")
+        );
+        assert!(declarative_function_name("fn::missing_opener").is_err());
+        assert!(declarative_function_name("fn::()").is_err());
+        let mut duplicate = entries.iter().cloned().collect::<BTreeSet<_>>();
+        assert!(
+            insert_catalog_identity(&mut duplicate, "access:authenticated_session".to_owned())
+                .is_err()
+        );
+        assert!(
+            insert_catalog_identity(&mut duplicate, "function:fn::mt109_has_grant".to_owned())
+                .is_err()
+        );
+        assert!(resource_authority_schema_statements()
+            .contains("DEFINE ACCESS IF NOT EXISTS authenticated_session"));
+
         let mut reordered = entries.clone();
         reordered.reverse();
         assert_eq!(
@@ -3885,12 +4798,12 @@ mod tests {
             MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_LINE,
         ] {
             assert_eq!(
-                SCHEMA.matches(block).count(),
+                PRE_MT109_SCHEMA.matches(block).count(),
                 1,
                 "MT-152 block drifted: {block}"
             );
         }
-        let pinned = SCHEMA
+        let pinned = PRE_MT109_SCHEMA
             .replace(MT152_FEMS_WRITE_ANCHORS_BLOCK, "")
             .replace(MT152_LOOM_FOLDER_SIBLING_KEY_BLOCK, "")
             .replace(MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_LINE, "");
@@ -3921,7 +4834,7 @@ mod tests {
         let upgrade = statements(MT152_FEMS_WRITE_ANCHOR_UPGRADE_STATEMENTS);
         assert_eq!(upgrade.len(), 6);
         assert_eq!(upgrade, statements(MT152_FEMS_WRITE_ANCHORS_BLOCK));
-        let schema = statements(SCHEMA);
+        let schema = statements(PRE_MT109_SCHEMA);
         for statement in &upgrade {
             assert!(
                 schema
@@ -4343,7 +5256,7 @@ mod tests {
         );
         assert_eq!(
             SCHEMA.matches("record::exists($value)").count(),
-            REFERENCE_FIELD_COUNT
+            EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT
         );
         assert_eq!(RECORD_ID_ONLY_TABLES.len(), 18);
 
@@ -4412,48 +5325,89 @@ mod tests {
 
     #[tokio::test]
     async fn bootstrap_is_concurrent_restart_safe_and_receipt_is_live() {
-        let directory = tempfile::tempdir().expect("temporary Surreal directory");
+        let directory = tempfile::Builder::new()
+            .prefix("mt109-bootstrap-")
+            .tempdir()
+            .expect("temporary Surreal directory");
         let storage = open_test_storage(&directory)
             .await
             .expect("open fresh store");
 
-        let left = storage.clone();
-        let right = storage.clone();
-        let (left_report, right_report) =
-            tokio::join!(bootstrap_schema(&left), bootstrap_schema(&right),);
-        let left_report = left_report.expect("left bootstrap");
-        let right_report = right_report.expect("right bootstrap");
-        assert_ne!(
-            left_report.reused_existing_schema,
-            right_report.reused_existing_schema
-        );
-        for report in [&left_report, &right_report] {
-            assert_eq!(report.schema_version, SCHEMA_VERSION);
-            assert_eq!(report.source_manifest_sha256, SCHEMA_LINEAGE_SHA256);
-            assert_eq!(report.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
-            assert_eq!(report.info_fingerprint_sha256.len(), 64);
-            assert_eq!(report.tables_defined, TABLE_DEFINITION_COUNT);
-            assert_eq!(report.fields_defined, FIELD_DEFINITION_COUNT);
-            assert_eq!(report.indexes_defined, INDEX_DEFINITION_COUNT);
-            assert_eq!(report.table_names.len(), TABLE_DEFINITION_COUNT);
-        }
-        let before_restart = index_names(&storage, "kernel_event_ledger")
-            .await
-            .expect("pre-restart INFO");
-        storage.shutdown().await.expect("close first store");
-
-        let reopened = open_test_storage(&directory).await.expect("reopen store");
-        let restarted = bootstrap_schema(&reopened)
-            .await
-            .expect("exact-current restart");
-        assert!(restarted.reused_existing_schema);
-        assert_eq!(
-            before_restart,
-            index_names(&reopened, "kernel_event_ledger")
+        let mut reopened_storage = None;
+        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
+            let left = storage.clone();
+            let right = storage.clone();
+            let (left_report, right_report) =
+                tokio::join!(bootstrap_schema(&left), bootstrap_schema(&right),);
+            let left_report = left_report.expect("left bootstrap");
+            let right_report = right_report.expect("right bootstrap");
+            assert_ne!(
+                left_report.reused_existing_schema,
+                right_report.reused_existing_schema
+            );
+            for report in [&left_report, &right_report] {
+                assert_eq!(report.schema_version, SCHEMA_VERSION);
+                assert_eq!(report.source_manifest_sha256, SCHEMA_LINEAGE_SHA256);
+                assert_eq!(report.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
+                assert_eq!(report.info_fingerprint_sha256.len(), 64);
+                assert_eq!(report.tables_defined, TABLE_DEFINITION_COUNT);
+                assert_eq!(report.fields_defined, FIELD_DEFINITION_COUNT);
+                assert_eq!(report.indexes_defined, INDEX_DEFINITION_COUNT);
+                assert_eq!(report.table_names.len(), TABLE_DEFINITION_COUNT);
+            }
+            let before_restart = index_names(&storage, "kernel_event_ledger")
                 .await
-                .expect("post-restart INFO")
+                .expect("pre-restart INFO");
+            storage.shutdown().await.expect("close first store");
+
+            let reopened = open_test_storage(&directory).await.expect("reopen store");
+            reopened_storage = Some(reopened.clone());
+            let restarted = bootstrap_schema(&reopened)
+                .await
+                .expect("exact-current restart");
+            assert!(restarted.reused_existing_schema);
+            assert_eq!(
+                before_restart,
+                index_names(&reopened, "kernel_event_ledger")
+                    .await
+                    .expect("post-restart INFO")
+            );
+            reopened.shutdown().await.expect("close reopened store");
+        }))
+        .await;
+        let mut cleanup_errors = Vec::new();
+        if let Some(reopened) = reopened_storage.take() {
+            if let Err(error) = reopened.shutdown().await {
+                cleanup_errors.push(format!("reopened store shutdown: {error}"));
+            }
+            drop(reopened);
+        }
+        if let Err(error) = storage.shutdown().await {
+            cleanup_errors.push(format!("original store shutdown: {error}"));
+        }
+        drop(storage);
+        if !cleanup_errors.is_empty() {
+            let path = directory.keep();
+            panic!(
+                "bootstrap proof cleanup failed; store preserved at {}: {}; body_failed={}",
+                path.display(),
+                cleanup_errors.join("; "),
+                body.is_err()
+            );
+        }
+        let path = directory.path().to_path_buf();
+        directory
+            .close()
+            .expect("remove closed bootstrap proof store");
+        assert!(
+            !path.exists(),
+            "bootstrap proof store survived cleanup: {}",
+            path.display()
         );
-        reopened.shutdown().await.expect("close reopened store");
+        eprintln!("MT109_BOOTSTRAP_STORE_REMOVED {}", path.display());
+        if let Err(panic) = body {
+            std::panic::resume_unwind(panic);
+        }
     }
 
     #[tokio::test]
@@ -4469,7 +5423,7 @@ mod tests {
 -- migration in that enumeration is defined here; the source enumeration is the\n\
 -- only authority for which migrations are in the wave.";
 
-        let predecessor_schema = SCHEMA.replace(CURRENT_HEADER, PREDECESSOR_HEADER).replace(
+        let predecessor_schema = PRE_MT109_SCHEMA.replace(CURRENT_HEADER, PREDECESSOR_HEADER).replace(
             "DEFINE FIELD OVERWRITE schema_source ON TABLE knowledge_schema_registry TYPE string;",
             "DEFINE FIELD OVERWRITE migration_file ON TABLE knowledge_schema_registry TYPE string;",
         );
@@ -4621,7 +5575,7 @@ mod tests {
         );
         for block in [JOURNAL_KEY_BLOCK, JOURNAL_INDEX_LINE, GRAPH_ANCHORS_BLOCK] {
             assert_eq!(
-                SCHEMA.matches(block).count(),
+                PRE_MT109_SCHEMA.matches(block).count(),
                 1,
                 "MT-151 block drifted: {block}"
             );

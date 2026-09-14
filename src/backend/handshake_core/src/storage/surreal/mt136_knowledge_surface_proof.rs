@@ -170,8 +170,9 @@ async fn seed_knowledge_code_file(
         .map_err(|error| StorageError::Database(error.to_string()))
 }
 
-async fn all_knowledge_store_methods_use_real_rocksdb_and_survive_reopen() -> StorageResult<()> {
-    let backend = embedded_proof_backend().await?;
+async fn all_knowledge_store_methods_use_real_rocksdb_and_survive_reopen(
+    backend: super::mt136_proof_harness::EmbeddedProofBackend,
+) -> StorageResult<()> {
     let setup_database = backend.database.clone();
     let storage = backend.storage.clone();
     let ctx = WriteContext::human(Some("mt136-knowledge-proof".to_owned()));
@@ -197,7 +198,16 @@ async fn all_knowledge_store_methods_use_real_rocksdb_and_survive_reopen() -> St
 
     // MT-049: schema registry and namespace audit.
     let registry = KnowledgeStore::list_knowledge_schema_registry(&database).await?;
-    assert_eq!(registry.len(), 62);
+    assert_eq!(registry.len(), 63);
+    assert!(registry.iter().any(|row| {
+        row.family_key == "rich_document_title_anchors"
+            && row.table_name == "knowledge_rich_document_title_anchors"
+            && row.record_family == "Support"
+            && row.authority_class == KnowledgeAuthorityClass::Support
+            && row.schema_source == "storage/surreal/schema.surql"
+            && row.wp_id == "WP-KERNEL-012"
+            && row.mt_id == "MT-142"
+    }));
     assert!(registry.iter().any(|row| {
         row.family_key == "schema_registry"
             && row.table_name == "knowledge_schema_registry"
@@ -1708,7 +1718,31 @@ async fn all_knowledge_store_methods_use_real_rocksdb_and_survive_reopen() -> St
 }
 
 pub(super) async fn run_all() -> StorageResult<()> {
-    all_knowledge_store_methods_use_real_rocksdb_and_survive_reopen().await
+    let backend = embedded_proof_backend().await?;
+    let cleanup_owner = backend.clone();
+    let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(
+        all_knowledge_store_methods_use_real_rocksdb_and_survive_reopen(backend),
+    ))
+    .await;
+    let body = match body {
+        Ok(result) => result,
+        Err(payload) => Err(StorageError::Database(format!(
+            "MT136 knowledge proof panicked: {}",
+            payload
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("non-string panic")
+        ))),
+    };
+    let cleanup = cleanup_owner.close_and_remove().await;
+    match (body, cleanup) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
+        (Err(body), Err(cleanup)) => Err(StorageError::Database(format!(
+            "MT136 knowledge body failed: {body}; cleanup also failed: {cleanup}"
+        ))),
+    }
 }
 
 #[cfg(test)]

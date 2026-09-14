@@ -88,6 +88,11 @@ struct PreferenceWriteBindings {
     payload_hash: String,
     source_component: String,
     payload: Value,
+    wsids: Vec<String>,
+    authority_resource_id: Option<RecordId>,
+    authority_session_id: Option<RecordId>,
+    authority_capability_id: Option<String>,
+    authority_action: Option<String>,
 }
 
 impl TryFrom<PreferenceRecordRow> for PreferenceRecord {
@@ -247,7 +252,12 @@ CREATE ONLY $event_record SET
     correlation_id = $correlation_id,
     payload_hash = $payload_hash,
     source_component = $source_component,
-    payload = $payload;
+    payload = $payload,
+    wsids = $wsids,
+    authority_resource_id = $authority_resource_id,
+    authority_session_id = $authority_session_id,
+    authority_capability_id = $authority_capability_id,
+    authority_action = $authority_action;
 UPSERT ONLY $preference_record SET
     preference_id = $preference_id,
     scope_kind = $scope_kind,
@@ -319,12 +329,15 @@ COMMIT TRANSACTION;
             .map_err(|_| SurrealStorageError::InvalidPreferenceRecord {
                 reason: "preference change event failed validation",
             })?;
+            let (_, ledger_write) =
+                super::event_ledger::prepare_event(event.clone()).map_err(|_| {
+                    SurrealStorageError::InvalidPreferenceRecord {
+                        reason: "preference change event failed validation",
+                    }
+                })?;
             let bindings = PreferenceWriteBindings {
                 preference_record: RecordId::new(PREFERENCE_RECORDS_TABLE, preference_key.clone()),
-                receipt_record: RecordId::new(
-                    PREFERENCE_CHANGE_RECEIPTS_TABLE,
-                    receipt_id.clone(),
-                ),
+                receipt_record: RecordId::new(PREFERENCE_CHANGE_RECEIPTS_TABLE, receipt_id.clone()),
                 event_record: RecordId::new(KERNEL_EVENT_LEDGER_TABLE, event_id.clone()),
                 preference_id: entry.preference_id.to_owned(),
                 scope_kind: scope.kind.as_str().to_owned(),
@@ -355,6 +368,11 @@ COMMIT TRANSACTION;
                 payload_hash: event.payload_hash,
                 source_component: event.source_component,
                 payload: event.payload,
+                wsids: ledger_write.wsids,
+                authority_resource_id: ledger_write.authority_resource_id,
+                authority_session_id: ledger_write.authority_session_id,
+                authority_capability_id: ledger_write.authority_capability_id,
+                authority_action: ledger_write.authority_action,
             };
 
             let response = self

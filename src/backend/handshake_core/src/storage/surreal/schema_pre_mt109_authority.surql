@@ -180,7 +180,7 @@ DEFINE FUNCTION OVERWRITE fn::mt109_live_session() {
 
 DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, $action: string, $capability: string) {
     RETURN fn::mt109_live_session()
-        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (array::includes($auth.delegated_capabilities, '*') OR array::includes($auth.delegated_capabilities, $capability))
         AND array::len((SELECT id FROM resource_grants
             WHERE status = 'active'
               AND revoked_at = NONE
@@ -194,14 +194,14 @@ DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, 
               AND resource_id.resource_kind = $kind
               AND resource_id.external_resource_id = $external
               AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
-              AND (actions CONTAINS $action)
-              AND (capability_ids CONTAINS $capability)
+              AND array::includes(actions, $action)
+              AND array::includes(capability_ids, $capability)
               AND delegation_chain = $auth.delegation_chain)) > 0;
 };
 
 DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $action: string, $capability: string) {
     RETURN fn::mt109_live_session()
-        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (array::includes($auth.delegated_capabilities, '*') OR array::includes($auth.delegated_capabilities, $capability))
         AND array::len((SELECT id FROM resource_grants
             WHERE status = 'active'
               AND revoked_at = NONE
@@ -214,79 +214,40 @@ DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $act
               AND resource_id.access_space_id = $auth.access_space_id
               AND resource_id.resource_kind = 'workspace'
               AND resource_id.external_resource_id = $external
-              AND (actions CONTAINS $action)
-              AND (capability_ids CONTAINS $capability)
+              AND array::includes(actions, $action)
+              AND array::includes(capability_ids, $capability)
               AND delegation_chain = $auth.delegation_chain)) > 0;
 };
 
 DEFINE FUNCTION OVERWRITE fn::mt109_ledger_access($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>) {
     RETURN fn::mt109_live_session()
-        AND $session != NONE AND $session = $auth.id
-        AND $resource != NONE AND $capability != NONE AND $action != NONE
-        AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability)
+        AND $session = $auth.id
+        AND $resource != NONE
         AND array::len((SELECT id FROM resource_grants
-            WHERE status = 'active' AND revoked_at = NONE
+            WHERE status = 'active'
+              AND revoked_at = NONE
               AND (expires_at = NONE OR expires_at > time::now())
-              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
-              AND access_space_id = $auth.access_space_id AND resource_id = $resource
+              AND account_id = $auth.account_id
+              AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id = $resource
               AND resource_id.lifecycle_state = 'active'
               AND resource_id.owner_account_id = $auth.account_id
               AND resource_id.access_space_id = $auth.access_space_id
-              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
-              AND delegation_chain = $auth.delegation_chain
-              AND (resource_id.resource_kind != 'reconciliation_queue' OR
-                   (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')))) > 0;
+              AND $action != NONE
+              AND array::includes(actions, $action)
+              AND $capability != NONE
+              AND array::includes(capability_ids, $capability)
+              AND (array::includes($auth.delegated_capabilities, '*') OR array::includes($auth.delegated_capabilities, $capability))
+              AND delegation_chain = $auth.delegation_chain)) > 0;
 };
 
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_workspace($resource: option<record<protected_resources>>, $wsids: array<string>) {
-    RETURN fn::mt109_live_session() AND $resource != NONE AND array::len($wsids) = 1
-        AND $resource.owner_account_id = $auth.account_id
-        AND $resource.access_space_id = $auth.access_space_id
-        AND $resource.lifecycle_state = 'active'
-        AND $resource.created_by_principal_id.status = 'enabled'
-        AND (($resource.resource_kind = 'reconciliation_queue' AND $resource.external_resource_id = 'mt109-protected-reconciliation:' + $wsids[0])
-             OR ($resource.resource_kind != 'reconciliation_queue' AND $resource.external_resource_id = $wsids[0]));
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt($capability: option<string>, $event_type: string, $source: string, $aggregate: string, $payload: object, $wsids: array<string>) {
-    RETURN array::len($wsids) = 1 AND (
-        ($capability = 'fr.ingest.native_editor' AND $aggregate = 'native_editor_event'
-            AND $source = 'native_editor_fr_ingestion' AND $payload.envelope.workspace_id = $wsids[0]
-            AND (($payload.receipt_kind = 'native_editor_flight_recorder_pending' AND $event_type = 'FLIGHT_RECORDER_MIRROR_PENDING')
-                 OR ($payload.receipt_kind = 'native_editor_flight_recorder_recorded' AND $event_type = 'FLIGHT_RECORDER_MIRROR_RECORDED')))
-        OR ($payload.workspace_id = $wsids[0] AND (
-            ($capability = 'memory.propose' AND $payload.receipt_kind = 'fems_memory_write_proposal'
-                AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_intake' AND $event_type = 'ARTIFACT_PROPOSED')
-            OR ($capability = 'memory.review' AND $payload.receipt_kind = 'fems_memory_write_review'
-                AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_review' AND $event_type IN ['PROMOTION_ACCEPTED', 'PROMOTION_REJECTED'])
-            OR ($capability = 'memory.commit' AND $payload.receipt_kind = 'fems_memory_write_committed'
-                AND $aggregate = 'fems_memory_commit' AND $source = 'fems_memory_proposal_commit' AND $event_type = 'ARTIFACT_STORED'))));
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_producer($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>) {
-    RETURN fn::mt109_ledger_workspace($resource, $wsids)
-        AND fn::mt109_ledger_access($resource, $session, $capability, $action)
-        AND (($resource.resource_kind = 'flight_recorder' AND $action = 'create' AND $capability = 'fr.ingest.native_editor')
-             OR ($resource.resource_kind = 'memory_proposal' AND (($action = 'create' AND $capability = 'memory.propose') OR ($action = 'update' AND $capability IN ['memory.review', 'memory.commit'])))
-             OR ($resource.resource_kind = 'reconciliation_queue' AND $action = 'reconcile' AND $capability IN ['fr.ingest.native_editor', 'memory.commit']));
-};
-
-DEFINE FUNCTION OVERWRITE fn::mt109_ledger_reader($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>) {
-    RETURN fn::mt109_ledger_workspace($resource, $wsids)
-        AND (fn::mt109_ledger_producer($resource, $session, $capability, $action, $wsids)
-             OR ($resource.resource_kind IN ['flight_recorder', 'reconciliation_queue'] AND $capability = 'fr.ingest.native_editor'
-                 AND (fn::mt109_has_grant('flight_recorder', $wsids[0], 'read', 'fr.read')
-                      OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + $wsids[0], 'reconcile', 'fr.ingest.native_editor')))
-             OR ($resource.resource_kind IN ['memory_proposal', 'reconciliation_queue'] AND $capability IN ['memory.propose', 'memory.review', 'memory.commit']
-                 AND (fn::mt109_has_grant('memory_proposal', $wsids[0], 'read', 'memory.read')
-                      OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + $wsids[0], 'reconcile', 'memory.commit'))));
-};
 DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(id), 'reconcile', 'memory.commit') FOR create, update, delete NONE;
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') FOR create, update, delete NONE;
 
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)
-                FOR create WHERE fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)
+    PERMISSIONS FOR select WHERE fn::mt109_ledger_access(authority_resource_id, authority_session_id, authority_capability_id, 'read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'fr.ingest.native_editor') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'memory.commit')
+                FOR create WHERE fn::mt109_ledger_access(authority_resource_id, authority_session_id, authority_capability_id, authority_action) AND ((authority_action = 'reconcile' AND (fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'fr.ingest.native_editor') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + type::string(wsids[0]), 'reconcile', 'memory.commit'))) OR (authority_action != 'reconcile' AND array::includes(wsids, authority_resource_id.external_resource_id)))
                 FOR update, delete NONE;
 DEFINE FIELD OVERWRITE authority_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FULL;
 DEFINE FIELD OVERWRITE authority_session_id ON TABLE kernel_event_ledger TYPE option<record<authenticated_sessions>> PERMISSIONS FULL;

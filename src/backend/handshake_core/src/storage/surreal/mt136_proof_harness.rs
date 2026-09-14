@@ -8,34 +8,9 @@ use uuid::Uuid;
 use super::{SurrealDatabase, SurrealStorage, SurrealStorageConfig};
 use crate::storage::{Database, StorageError, StorageResult};
 
-fn checked_subdirectory(
-    parent: &std::path::Path,
-    name: &str,
-    artifacts_root: &std::path::Path,
-) -> StorageResult<PathBuf> {
-    let candidate = parent.join(name);
-    if !candidate.exists() {
-        std::fs::create_dir(&candidate).map_err(|error| {
-            StorageError::Database(format!(
-                "could not create MT-136 proof directory {}: {error}",
-                candidate.display()
-            ))
-        })?;
-    }
-    let resolved = dunce::canonicalize(&candidate).map_err(|error| {
-        StorageError::Database(format!(
-            "could not resolve MT-136 proof directory {}: {error}",
-            candidate.display()
-        ))
-    })?;
-    if !resolved.starts_with(artifacts_root) {
-        return Err(StorageError::Database(format!(
-            "MT-136 proof directory escaped HANDSHAKE_ARTIFACTS_ROOT: {}",
-            resolved.display()
-        )));
-    }
-    Ok(resolved)
-}
+use crate::storage::tests::{
+    shutdown_and_remove_test_store as verified_shutdown_and_remove, test_store_root,
+};
 
 #[derive(Clone)]
 pub(crate) struct EmbeddedProofBackend {
@@ -153,72 +128,8 @@ impl EmbeddedProofBackend {
     }
 }
 
-pub(crate) async fn verified_shutdown_and_remove(
-    storage: SurrealStorage,
-    data_dir: PathBuf,
-) -> StorageResult<()> {
-    let shutdown = storage.shutdown().await;
-    drop(storage);
-    let cleanup = std::fs::remove_dir_all(&data_dir);
-
-    let mut failures = Vec::new();
-    if let Err(error) = shutdown {
-        failures.push(format!("shutdown failed: {error}"));
-    }
-    if let Err(error) = cleanup {
-        if error.kind() != std::io::ErrorKind::NotFound {
-            failures.push(format!(
-                "cleanup failed for {}: {error}",
-                data_dir.display()
-            ));
-        }
-    }
-    match data_dir.try_exists() {
-        Ok(false) => {}
-        Ok(true) => failures.push(format!(
-            "cleanup reported success but proof store still exists: {}",
-            data_dir.display()
-        )),
-        Err(error) => failures.push(format!(
-            "could not verify proof-store removal for {}: {error}",
-            data_dir.display()
-        )),
-    }
-    if failures.is_empty() {
-        Ok(())
-    } else {
-        Err(StorageError::Database(failures.join("; ")))
-    }
-}
-
 pub(crate) async fn embedded_proof_backend() -> StorageResult<EmbeddedProofBackend> {
-    let configured_root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").ok_or_else(|| {
-        StorageError::Database(
-            "HANDSHAKE_ARTIFACTS_ROOT must name the absolute _Artifacts root for MT-136 proofs"
-                .to_owned(),
-        )
-    })?;
-    let configured_root = PathBuf::from(configured_root);
-    if !configured_root.is_absolute() {
-        return Err(StorageError::Database(format!(
-            "HANDSHAKE_ARTIFACTS_ROOT must be absolute, got {}",
-            configured_root.display()
-        )));
-    }
-    std::fs::create_dir_all(&configured_root).map_err(|error| {
-        StorageError::Database(format!(
-            "could not create MT-136 artifacts root {}: {error}",
-            configured_root.display()
-        ))
-    })?;
-    let artifacts_root = dunce::canonicalize(&configured_root).map_err(|error| {
-        StorageError::Database(format!(
-            "could not resolve MT-136 artifacts root {}: {error}",
-            configured_root.display()
-        ))
-    })?;
-    let test_root = checked_subdirectory(&artifacts_root, "handshake-test", &artifacts_root)?;
-    let stores_root = checked_subdirectory(&test_root, "mt136-surface-proofs", &artifacts_root)?;
+    let stores_root = test_store_root()?;
     let data_dir = stores_root.join(format!("store-{}", Uuid::now_v7().simple()));
     std::fs::create_dir_all(&data_dir).map_err(|error| {
         StorageError::Database(format!(
@@ -256,13 +167,8 @@ pub(crate) async fn embedded_proof_backend() -> StorageResult<EmbeddedProofBacke
     let database = SurrealDatabase::new(storage.clone());
     if let Err(error) = database.run_migrations().await {
         drop(database);
-        let shutdown = storage.shutdown().await;
-        drop(storage);
-        let cleanup = std::fs::remove_dir_all(&data_dir);
+        let cleanup = verified_shutdown_and_remove(storage, data_dir.clone()).await;
         let mut message = error.to_string();
-        if let Err(shutdown_error) = shutdown {
-            message.push_str(&format!("; shutdown failed: {shutdown_error}"));
-        }
         if let Err(cleanup_error) = cleanup {
             message.push_str(&format!(
                 "; cleanup failed for {}: {cleanup_error}",

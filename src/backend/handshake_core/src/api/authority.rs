@@ -71,6 +71,7 @@ pub(crate) async fn reconciliation_authority(
         .map_err(|error| error.to_string())?;
     Ok(ReconciliationAuthority {
         record_user_scope: RecordUserScope {
+            workspace_id: None,
             session_token: principal.session.token.clone(),
             channel_binding_hash: None,
             resource_id: decision.resource_id,
@@ -87,7 +88,7 @@ pub(crate) async fn authorize_reconciliation_workspace(
     authority: &ReconciliationAuthority,
     workspace_id: &str,
     capability_id: &'static str,
-) -> Result<(), String> {
+) -> Result<RecordUserScope, String> {
     state
         .surreal
         .authorize_protected_resource(AuthorizationRequest {
@@ -102,7 +103,15 @@ pub(crate) async fn authorize_reconciliation_workspace(
             action: ResourceAction::Reconcile,
         })
         .await
-        .map(|_| ())
+        .map(|decision| RecordUserScope {
+            workspace_id: Some(workspace_id.to_owned()),
+            session_token: authority.session.token.clone(),
+            channel_binding_hash: None,
+            resource_id: decision.resource_id,
+            session_id: decision.session_id,
+            capability_id: capability_id.to_owned(),
+            action: ResourceAction::Reconcile,
+        })
         .map_err(|error| error.to_string())
 }
 
@@ -214,6 +223,7 @@ pub(crate) async fn authorize_request(
         capability_id: capability_id.to_owned(),
         delegation_chain: decision.delegation_chain,
         record_user_scope: RecordUserScope {
+            workspace_id: Some(external_resource_id.to_owned()),
             session_token,
             channel_binding_hash: Some(channel_binding_hash),
             resource_id: decision.resource_id,
@@ -378,10 +388,10 @@ async fn provision_existing_workspace_grants(
 }
 
 #[cfg(test)]
-pub(crate) async fn test_session_for_binding(
+pub(crate) async fn test_principal_for_binding(
     state: &AppState,
     binding_token: &str,
-) -> Result<String, String> {
+) -> Result<ProvisionedPrincipal, String> {
     let binding_hash = hex::encode(Sha256::digest(binding_token.as_bytes()));
     let principal = state
         .surreal
@@ -391,7 +401,18 @@ pub(crate) async fn test_session_for_binding(
     provision_existing_workspace_grants(state, &principal)
         .await
         .map_err(|(_, body)| body.0.to_string())?;
-    Ok(principal.session.token)
+    Ok(principal)
+}
+
+#[cfg(test)]
+pub(crate) async fn test_session_for_binding(
+    state: &AppState,
+    binding_token: &str,
+) -> Result<String, String> {
+    Ok(test_principal_for_binding(state, binding_token)
+        .await?
+        .session
+        .token)
 }
 
 #[cfg(test)]

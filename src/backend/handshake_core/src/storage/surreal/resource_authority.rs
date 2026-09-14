@@ -42,6 +42,10 @@ impl ResourceAction {
 #[serde(rename_all = "snake_case")]
 pub enum ResourceKind {
     Workspace,
+    RichDocument,
+    KnowledgeSource,
+    KnowledgeCodeFile,
+    LoomBlock,
     FlightRecorder,
     MemoryPack,
     MemoryProposal,
@@ -55,6 +59,10 @@ impl ResourceKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Workspace => "workspace",
+            Self::RichDocument => "rich_document",
+            Self::KnowledgeSource => "knowledge_source",
+            Self::KnowledgeCodeFile => "knowledge_code_file",
+            Self::LoomBlock => "loom_block",
             Self::FlightRecorder => "flight_recorder",
             Self::MemoryPack => "memory_pack",
             Self::MemoryProposal => "memory_proposal",
@@ -319,10 +327,32 @@ pub(crate) struct SigninParams {
     pub(crate) channel_binding_hash: Option<String>,
 }
 
-const AUTHORITY_SCHEMA: &str = include_str!("resource_authority_schema.surql");
+fn resource_authority_test_base_schema() -> [&'static str; 3] {
+    let schema = include_str!("schema.surql");
+    [
+        schema
+            .split_once("-- 0001_init")
+            .and_then(|(_, tail)| tail.split_once("-- 0002-0011"))
+            .map(|(block, _)| block)
+            .expect("compiled schema contains the 0001 base-table range"),
+        schema
+            .split_once("-- 0018_kernel_event_ledger")
+            .and_then(|(_, tail)| tail.split_once("-- 0019_kernel_session_queue"))
+            .map(|(block, _)| block)
+            .expect("compiled schema contains the 0018 event-ledger range"),
+        schema
+            .split_once(
+                "-- 0345_fems_memory_workspace_authority. The historical legacy server backend",
+            )
+            .and_then(|(_, tail)| tail.split_once("-- 0353_calendar_lossless_temporal_contract"))
+            .map(|(block, _)| block)
+            .expect("compiled schema contains the 0345-0352 FEMS authority range"),
+    ]
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct RecordUserScope {
+    pub(crate) workspace_id: Option<String>,
     pub(crate) session_token: String,
     pub(crate) channel_binding_hash: Option<String>,
     pub(crate) resource_id: String,
@@ -332,14 +362,38 @@ pub(crate) struct RecordUserScope {
 }
 
 impl SurrealStorage {
-    pub async fn bootstrap_resource_authority_schema(&self) -> Result<(), ResourceAuthorityError> {
+    pub(crate) async fn bootstrap_resource_authority_test_base_schema(
+        &self,
+    ) -> Result<(), ResourceAuthorityError> {
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        self.with_lease(move |client| {
+            Box::pin(async move {
+                let authority = client.clone();
+                authority.use_ns(namespace).use_db(database).await?;
+                for block in resource_authority_test_base_schema() {
+                    authority.query(block).await?.check()?;
+                }
+                Ok(())
+            })
+        })
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn bootstrap_resource_authority_schema(
+        &self,
+    ) -> Result<(), ResourceAuthorityError> {
         let namespace = self.config().namespace().to_owned();
         let database = self.config().database().to_owned();
         self.with_lease(move |client| {
             Box::pin(async move {
                 let authority = client.clone();
                 authority.use_ns(namespace).use_db(database.clone()).await?;
-                authority.query(AUTHORITY_SCHEMA).await?.check()?;
+                authority
+                    .query(super::schema::resource_authority_schema_statements())
+                    .await?
+                    .check()?;
                 Ok(())
             })
         })
@@ -375,7 +429,6 @@ impl SurrealStorage {
                 "session TTL must be greater than zero",
             ));
         }
-        self.bootstrap_resource_authority_schema().await?;
 
         let account = RecordId::new("local_accounts", Uuid::now_v7().to_string());
         let principal = RecordId::new("principals", Uuid::now_v7().to_string());
@@ -412,7 +465,7 @@ impl SurrealStorage {
                         .use_ns(namespace)
                         .use_db(database.clone())
                         .await?;
-                    authority
+                    let mut provisioning_response = authority
                         .query(
                             "BEGIN TRANSACTION;\n\
                              LET $existing_account = (SELECT id FROM local_accounts WHERE account_key = $account_key LIMIT 1);\n\
@@ -438,8 +491,24 @@ impl SurrealStorage {
                         .bind(("delegated_capabilities", delegated_capabilities))
                         .bind(("space_key", space_key.clone()))
                         .bind(("now", now))
-                        .await?
-                        .check()?;
+                        .await?;
+                    let mut errors = provisioning_response
+                        .take_errors()
+                        .into_iter()
+                        .collect::<Vec<_>>();
+                    errors.sort_by_key(|(statement_index, _)| *statement_index);
+                    if !errors.is_empty() {
+                        let meaningful = errors
+                            .iter()
+                            .position(|(_, error)| {
+                                !error
+                                    .to_string()
+                                    .to_ascii_lowercase()
+                                    .contains("query was not executed due to a failed transaction")
+                            })
+                            .unwrap_or(0);
+                        return Err(errors.swap_remove(meaningful).1.into());
+                    }
 
                     let mut principal_response = authority
                         .query(
@@ -541,7 +610,6 @@ impl SurrealStorage {
                 "credential TTL must be greater than zero",
             ));
         }
-        self.bootstrap_resource_authority_schema().await?;
         let mut secret = [0_u8; 32];
         getrandom::getrandom(&mut secret)
             .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
@@ -610,7 +678,6 @@ impl SurrealStorage {
                 "session TTL must be greater than zero",
             ));
         }
-        self.bootstrap_resource_authority_schema().await?;
         let mut secret = [0_u8; 32];
         getrandom::getrandom(&mut secret)
             .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
@@ -1344,7 +1411,6 @@ impl SurrealStorage {
     pub async fn issue_reconciliation_session(
         &self,
     ) -> Result<ReconciliationPrincipal, ResourceAuthorityError> {
-        self.bootstrap_resource_authority_schema().await?;
         let namespace = self.config().namespace().to_owned();
         let database = self.config().database().to_owned();
         let row = self

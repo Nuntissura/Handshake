@@ -131,7 +131,7 @@ const START_CODE_INDEX_RUN_QUERY: &str = "BEGIN TRANSACTION; \
          event_type: $event.event_type, actor_kind: $event.actor_kind, \
          actor_id: $event.actor_id, causation_id: $event.causation_id, \
          correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
-         source_component: $event.source_component, payload: $event.payload, \
+         source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, \
          created_at: $event.created_at \
      }; \
      CREATE $run CONTENT { \
@@ -152,7 +152,7 @@ const START_CODE_INDEX_RUN_FAIL_AFTER_EVENT_QUERY: &str = "BEGIN TRANSACTION; \
          event_type: $event.event_type, actor_kind: $event.actor_kind, \
          actor_id: $event.actor_id, causation_id: $event.causation_id, \
          correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
-         source_component: $event.source_component, payload: $event.payload, \
+         source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, \
          created_at: $event.created_at \
      }; \
      THROW 'HSK-TEST-FAIL-CODE-INDEX-RUN-AFTER-EVENT'; \

@@ -432,6 +432,7 @@ pub mod race_test_support {
 
     tokio::task_local! {
         static PAUSE_AFTER_DECISION: Arc<Barrier>;
+        static RELEASE_AFTER_DECISION: Arc<Barrier>;
     }
 
     /// Runs `operation` so that the store pauses on `barrier` after its read-decide step
@@ -443,10 +444,25 @@ pub mod race_test_support {
         PAUSE_AFTER_DECISION.scope(barrier, operation).await
     }
 
+    /// Runs `operation` with separate reached/release barriers so a test can complete a
+    /// permission or lifecycle mutation before the paused transaction resumes.
+    pub async fn with_pause_after_decision_until_released<F: Future>(
+        reached: Arc<Barrier>,
+        release: Arc<Barrier>,
+        operation: F,
+    ) -> F::Output {
+        PAUSE_AFTER_DECISION
+            .scope(reached, RELEASE_AFTER_DECISION.scope(release, operation))
+            .await
+    }
+
     /// Awaits the scoped barrier, if any.
     pub(crate) async fn pause_after_decision() {
         if let Ok(barrier) = PAUSE_AFTER_DECISION.try_with(Arc::clone) {
             barrier.wait().await;
+            if let Ok(release) = RELEASE_AFTER_DECISION.try_with(Arc::clone) {
+                release.wait().await;
+            }
         }
     }
 }
@@ -465,6 +481,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn two_stage_decision_pause_waits_for_explicit_release() {
+        let reached = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let resumed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let worker_resumed = Arc::clone(&resumed);
+        let worker = tokio::spawn(race_test_support::with_pause_after_decision_until_released(
+            Arc::clone(&reached),
+            Arc::clone(&release),
+            async move {
+                race_test_support::pause_after_decision().await;
+                worker_resumed.store(true, std::sync::atomic::Ordering::SeqCst);
+            },
+        ));
+
+        timeout(Duration::from_secs(5), reached.wait())
+            .await
+            .expect("worker reaches the decision boundary");
+        assert!(
+            !resumed.load(std::sync::atomic::Ordering::SeqCst),
+            "worker resumed before the explicit release"
+        );
+        release.wait().await;
+        timeout(Duration::from_secs(5), worker)
+            .await
+            .expect("worker resumes after release")
+            .expect("worker joins");
+        assert!(resumed.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[tokio::test]
     async fn same_key_serialises_the_second_acquire() {
         let registry = KeyedLockRegistry::keyed();
         let key = LockKey::record("knowledge_rich_documents", "KRD-1");
@@ -473,7 +519,10 @@ mod tests {
         assert!(!first.is_noop());
 
         let blocked = timeout(ms(50), registry.acquire(key.clone())).await;
-        assert!(blocked.is_err(), "second acquire must wait while the first is held");
+        assert!(
+            blocked.is_err(),
+            "second acquire must wait while the first is held"
+        );
         assert_eq!(registry.entry_count(), 1);
 
         drop(first);
@@ -589,7 +638,9 @@ mod tests {
     async fn high_cardinality_churn_returns_the_registry_to_its_idle_bound() {
         let registry = KeyedLockRegistry::keyed();
         for i in 0..10_000u32 {
-            let guard = registry.acquire(LockKey::record("churn", i.to_string())).await;
+            let guard = registry
+                .acquire(LockKey::record("churn", i.to_string()))
+                .await;
             assert!(!guard.is_noop());
         }
         assert_eq!(registry.entry_count(), 0);
@@ -643,7 +694,10 @@ mod tests {
                         "title",
                         format!("title-{}", (index + worker) % 40),
                     );
-                    let record = LockKey::record("loom_blocks", format!("BLK-{}", (index * 7 + worker) % 50));
+                    let record = LockKey::record(
+                        "loom_blocks",
+                        format!("BLK-{}", (index * 7 + worker) % 50),
+                    );
                     if index % 3 == 0 {
                         let guards = registry.acquire_many(vec![record, natural]).await;
                         assert_eq!(guards.len(), 2);
@@ -660,7 +714,11 @@ mod tests {
         })
         .await;
         assert!(joined.is_ok(), "parallel churn workers did not finish");
-        assert_eq!(registry.entry_count(), 0, "entry_count must be 0 after parallel churn");
+        assert_eq!(
+            registry.entry_count(),
+            0,
+            "entry_count must be 0 after parallel churn"
+        );
         assert_eq!(registry.idle_entry_count(), 0);
     }
 
@@ -731,7 +789,11 @@ mod tests {
         let guard = timeout(Duration::from_secs(5), registry.acquire(key))
             .await
             .expect("acquires after the holder releases");
-        assert!(guard.lock_wait() >= ms(15), "lock_wait {:?}", guard.lock_wait());
+        assert!(
+            guard.lock_wait() >= ms(15),
+            "lock_wait {:?}",
+            guard.lock_wait()
+        );
     }
 
     #[tokio::test]
@@ -751,18 +813,29 @@ mod tests {
             .await;
         assert!(timed_out.is_err(), "held key must time out");
         drop(holder);
-        assert_eq!(registry.lock_wait_sample_count(), 5, "timeouts record no sample");
+        assert_eq!(
+            registry.lock_wait_sample_count(),
+            5,
+            "timeouts record no sample"
+        );
         assert_eq!(registry.lock_wait_samples_dropped(), 0);
         let samples = registry.take_lock_wait_samples();
         assert_eq!(samples.len(), 5);
         assert_eq!(registry.lock_wait_sample_count(), 0);
 
         for i in 0..(LOCK_WAIT_SAMPLE_CAP + 10) {
-            drop(registry.acquire(LockKey::record("cap", i.to_string())).await);
+            drop(
+                registry
+                    .acquire(LockKey::record("cap", i.to_string()))
+                    .await,
+            );
         }
         assert_eq!(registry.lock_wait_sample_count(), LOCK_WAIT_SAMPLE_CAP);
         assert_eq!(registry.lock_wait_samples_dropped(), 10);
-        assert_eq!(registry.take_lock_wait_samples().len(), LOCK_WAIT_SAMPLE_CAP);
+        assert_eq!(
+            registry.take_lock_wait_samples().len(),
+            LOCK_WAIT_SAMPLE_CAP
+        );
         assert_eq!(registry.lock_wait_samples_dropped(), 0);
 
         let disabled = KeyedLockRegistry::disabled();
