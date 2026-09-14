@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T16:13:58.954793Z",
+  "updated_at_utc": "2026-09-14T16:18:13.286987Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2674,6 +2674,14 @@
         "result": "BUILDER_GREEN_PENDING_REMAINING_F06_AND_INDEPENDENT_EMPTY_PACK",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-empty-narrow-2.log",
         "observed": "The feature-enabled exact get_memory_pack_empty_is_deterministic_and_unknown_workspace_is_not_found test passed 1/1 in 1380.43 seconds. Source and test proof cover 2,000 attacker-context reads with no persisted pack amplification, deterministic empty responses, oversized-context rejection, unknown-workspace rejection, and centralized cleanup/root absence. Its prior >60-second status reflected expected workload. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-053",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_COMMIT_OUTBOX_RECOVERY_FIXTURE_AUTHORITY",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-1.log",
+        "observed": "The exact commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits test failed 0/1 in 196.51 seconds because the body timed out waiting for startup recovery of FR-EVT-MEM-003. Centralized cleanup passed. Source inspection and builder diagnosis identify an older fixture that did not provision the canonical reconciliation service with an exact queue grant for this workspace, now required by the production guard; the repair adds only that exact fixture grant."
       }
     ],
     "resolved_prior_findings": [
@@ -3026,6 +3034,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "final exact service test passed granted-only enumeration, immediate loss after exact grant revocation, unchanged denied state, and identical pre/post trace baseline; independent resolution still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-reconciliation-service-17.log"
+          },
+          {
+            "attempt": 17,
+            "status": "FAIL_FIXTURE_COMPATIBILITY",
+            "observed": "legacy commit-outbox restart fixture did not provision the exact reconciliation queue grant and therefore could not exercise startup recovery; production reconciliation proof remains separately builder-green but independent resolution is pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-1.log"
           }
         ],
         "remaining_remediation": "Change only the probe sort to ORDER BY selected alias value ASC, retain canonical record::id(id) projection/filter and production schema unchanged, then prove granted-only enumeration and immediate empty enumeration after exact grant revocation, plus granted reconciliation, unchanged denied state, and bounded pre-existing telemetry."
@@ -3034,8 +3048,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The three isolated tests implicated by the two failed suite runs now pass as builder proofs. Commit-outbox recovery isolation and a valid complete four-thread suite verdict remain missing, as does independent proof.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-empty-narrow-2.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-2.log",
+        "observed_proof": "The empty-pack, create-proposal, and concurrent-commit isolated tests pass. The commit-outbox recovery isolation fails because its startup fixture lacks the exact service queue authority now required by production; no valid full-suite verdict exists.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-1.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3102,9 +3116,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the isolated empty-pack/unknown-workspace test passed its 2,000 reads and deterministic cleanup; commit-outbox recovery plus complete four-thread suite remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-empty-narrow-2.log"
+          },
+          {
+            "attempt": 12,
+            "status": "FAIL",
+            "observed": "exact commit-outbox restart test timed out waiting for FR-EVT-MEM-003 because its legacy fixture lacked the exact reconciliation service/workspace queue grant; cleanup passed",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-1.log"
           }
         ],
-        "remaining_remediation": "Pass the exact commit-outbox recovery test with owned reconciler shutdown and deterministic cleanup, then pass the complete api::memory:: suite with four test threads on the stabilized source and independently rerun it."
+        "remaining_remediation": "Provision only the canonical reconciler with the exact workspace queue grant in this restart fixture, pass the exact recovery test without widening production access, then pass the complete api::memory:: suite with four test threads and independently rerun it."
       }
     ],
     "independent_findings": [
