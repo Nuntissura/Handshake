@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:23:18.538Z",
+  "updated_at_utc": "2026-09-14T18:24:20.136Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -3034,6 +3034,22 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F13_DELETE_RACE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-delete-race-narrow-1.log",
         "observed": "The corrected focused delete-race test passed 1/1 in 20.32 seconds with exact proposal/source scope around the concurrent proposal only, original delete/proposal join, success-or-404 race contract, zero workspace orphans, post-delete 404, and cleanup/root absence. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-098",
+        "owner_role": "WP_VALIDATOR",
+        "candidate_sha": null,
+        "result": "INDEPENDENT_SOURCE_FAIL_F14_VALID_UNICODE_CONTROL_UNAUTHORIZED",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log",
+        "observed": "Diff inspection found the prior fail-closed provenance test correctly exercised malformed inputs before authority, but its valid UTF-8 byte-range control then invoked proposal creation without RecordUserScope or exact source/proposal authority. That positive control could return 403 before proving UTF-8 byte semantics, while fallback cleanup masked its body error. This is a distinct proof-validity blocker."
+      },
+      {
+        "proof_id": "MT109-V16-PR-099",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F14_PROVENANCE_AND_UNICODE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log",
+        "observed": "The corrected focused provenance test passed 1/1 in 21.76 seconds. Malformed provenance, gating, range, workspace, and source cases retain fail-closed 400 behavior; only the valid real-source UTF-8 control receives exact proposal/source scope and proves persisted byte length. Centralized cleanup/root absence passes. This builder result clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -3041,8 +3057,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The fifth complete four-thread Memory run finalized with seven shutdown-draining cleanup failures and preserved all seven failed stores. Prior narrow cleanup greens do not resolve these paths.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
+        "observed_proof": "All seven teardown paths that failed in the fifth full Memory run now pass focused builder tests with panic-preserving explicit teardown and root absence. Full four-thread and independent clean-SHA cleanup proof remain required.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3295,9 +3311,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "delete-race test passes focused behavior and centralized cleanup/root absence; missing-provenance remains plus full-suite and independent proof",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-delete-race-narrow-1.log"
+          },
+          {
+            "attempt": 43,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "missing-provenance/UTF-8 focused test passes complete behavior and centralized cleanup/root absence; all seven full-5 cleanup paths are now narrowly builder-green, but full-suite and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log"
           }
         ],
-        "remaining_remediation": "For each of the seven new cleanup failures, preserve body errors, identify and close only test-owned state/background operations before centralized shutdown, prove exact behavior plus root absence narrowly, then pass the complete four-thread suite and independent cleanup/root proof."
+        "remaining_remediation": "Pass all repaired paths together in the complete four-thread Memory suite with zero cleanup failures/surviving new roots, commit a clean candidate, and pass independent cleanup/root proof."
       },
       {
         "finding_id": "MT109-V15-F02",
@@ -3906,6 +3928,12 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "delete-race suite member passes exact-authorized race/orphan behavior and cleanup; missing-provenance, derivative load timeout, and complete suite remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-delete-race-narrow-1.log"
+          },
+          {
+            "attempt": 48,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "provenance suite member preserves all malformed-input 400s and exact-authorized UTF-8 positive control with cleanup; all seven cleanup paths are narrowly green, while derivative load timeout and complete suite remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log"
           }
         ],
         "remaining_remediation": "Isolate and repair the derivative timeout, F09 authorization fixture, and all seven teardown paths without weakening authority, concurrency, rollback, or cleanup assertions. Resolve the missing-field-type telemetry as expected or a distinct defect from source/runtime evidence, then pass the complete 33-test suite at four threads and independent proof."
@@ -4159,6 +4187,28 @@
           }
         ],
         "remaining_remediation": "Retain exact concurrent race/orphan/post-delete behavior in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
+      },
+      {
+        "finding_id": "MT109-V16-F14",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The prior fail-closed test lacked exact authority for its valid UTF-8 control and could return 403 before proving byte-range semantics. Builder-focused corrected proof passes while preserving all malformed-input 400 cases, pending independent proof.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL_SOURCE_REVIEW",
+            "observed": "malformed inputs correctly ran before authority, but the valid UTF-8 proposal control had no RecordUserScope or exact authority and could stop at 403 before persisted byte-length assertion",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log"
+          },
+          {
+            "attempt": 2,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "corrected focused test preserves malformed-input fail-closed 400 cases, exact-authorizes only the valid real-source UTF-8 control, proves persisted byte length, and cleans/removes its store",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-missing-provenance-narrow-1.log"
+          }
+        ],
+        "remaining_remediation": "Retain malformed-input 400 behavior and the exact-authorized UTF-8 positive control in the complete four-thread suite, commit a clean candidate, and pass independent clean-SHA proof."
       }
     ],
     "independent_findings": [
@@ -4248,6 +4298,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T18:23:18.538Z",
         "summary": "The delete-race proof previously lacked exact authority and could return 403 outside its intended race contract; builder-focused corrected proof is green pending independent verification."
+      },
+      {
+        "id": "MT109-V16-F14",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T18:24:20.136Z",
+        "summary": "The provenance test previously lacked exact authority for its valid UTF-8 control and could stop at 403 before byte-range proof; builder-focused corrected proof is green pending independent verification."
       }
     ],
     "remediation_required": {
@@ -4263,7 +4320,8 @@
         "Retain MT109-V16-F10 exact post-insert failure reachability and zero proposal/receipt residue in the complete Memory suite, then provide clean-SHA independent proof.",
         "Retain MT109-V16-F11 complete source-backed item and exact unchanged-byte/count/pending-only proof in the complete Memory suite, then provide clean-SHA independent proof.",
         "Retain MT109-V16-F12 exact-authorized retry/idempotency and payload-drift proof in the complete Memory suite, then provide clean-SHA independent proof.",
-        "Retain MT109-V16-F13 exact-authorized delete race, zero-orphan, and post-delete proof in the complete Memory suite, then provide clean-SHA independent proof."
+        "Retain MT109-V16-F13 exact-authorized delete race, zero-orphan, and post-delete proof in the complete Memory suite, then provide clean-SHA independent proof.",
+        "Retain MT109-V16-F14 malformed-provenance 400 matrix and exact-authorized UTF-8 byte-range control in the complete Memory suite, then provide clean-SHA independent proof."
       ]
     },
     "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All ten blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
