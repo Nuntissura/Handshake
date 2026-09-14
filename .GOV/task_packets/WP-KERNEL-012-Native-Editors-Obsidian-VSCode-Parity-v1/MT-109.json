@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T16:24:54.257575Z",
+  "updated_at_utc": "2026-09-14T16:50:42.594893Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2690,6 +2690,14 @@
         "result": "BUILDER_GREEN_PENDING_PAIRED_FULL_AND_INDEPENDENT_COMMIT_OUTBOX_RECOVERY",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-2.log",
         "observed": "The exact commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits test passed 1/1 in 234.74 seconds after provisioning only the exact workspace reconciliation queue authority. Startup projection recovered the event, the owned reconciler task was aborted and joined, and centralized store removal passed. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-055",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_PAIRED_LONG_TESTS",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-empty-outbox-pair-1.log",
+        "observed": "The two formerly active long tests passed together 2/2 in one --test-threads=4 process in 1505.30 seconds. Commit-outbox recovery and the 2,000-read empty-pack test both completed, no STATUS_STACK_BUFFER_OVERRUN occurred, and their centralized cleanup/root-absence assertions passed. This builder result does not clear MT109-V16-F06."
       }
     ],
     "resolved_prior_findings": [
@@ -2741,6 +2749,12 @@
             "status": "PASS_BUILDER_ONLY",
             "observed": "2,000-read empty-pack test passed and centralized cleanup/root absence completed; independent teardown proof still pending",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-empty-narrow-2.log"
+          },
+          {
+            "attempt": 8,
+            "status": "PASS_BUILDER_ONLY",
+            "observed": "both long tests passed together and their explicit centralized cleanup/root-absence assertions completed; independent teardown proof remains pending",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-empty-outbox-pair-1.log"
           }
         ],
         "remaining_remediation": "Hand off a clean committed candidate; independently run focused and complete authority targets and prove all validator-created stores are removed without cleanup markers or locks."
@@ -3062,8 +3076,8 @@
         "finding_id": "MT109-V16-F06",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "All four tests implicated by the two suite crashes now pass as isolated builder runs with deterministic cleanup. A paired four-thread interaction and a valid complete 33-test four-thread verdict are still missing, as is independent proof.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-2.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/get-memory-pack-empty-narrow-2.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/create-proposal-narrow-5.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/concurrent-workspace-commits-narrow-2.log",
+        "observed_proof": "All isolated implicated tests and the paired long-test four-thread interaction now pass as builder proofs. The required complete 33-test four-thread suite and independent proof remain missing.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-empty-outbox-pair-1.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -3142,9 +3156,15 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "exact commit-outbox recovery now passes with exact queue provisioning, startup recovery, owned reconciler abort/join, and cleanup; paired four-thread interaction and complete suite remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/commit-outbox-recovery-narrow-2.log"
+          },
+          {
+            "attempt": 14,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "the two long tests pass concurrently 2/2 under a four-thread harness with deterministic cleanup and no abnormal exit; complete 33-test suite and independent proof remain required",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-empty-outbox-pair-1.log"
           }
         ],
-        "remaining_remediation": "Pass the two formerly active long tests together in one four-thread process, then pass the complete 33-test api::memory:: suite with four test threads and independently rerun the required proof."
+        "remaining_remediation": "Pass the complete 33-test api::memory:: suite with four test threads on this stabilized source, commit a clean candidate, and independently rerun the required proof."
       }
     ],
     "independent_findings": [
