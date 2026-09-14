@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T18:00:40.573Z",
+  "updated_at_utc": "2026-09-14T18:06:26.825Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2922,6 +2922,14 @@
         "result": "READ_ONLY_SOURCE_MAPPING_V15_F01_SEVEN_FALLBACK_DROP_PATHS",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-5.log",
         "observed": "Read-only source and backtrace inspection confirms all seven full-5 teardown failures still bind (_store, state) and leave AppState/database clients alive when EmbeddedTestBackend fallback Drop begins shutdown. The backtrace ends through test return into TestStoreCleanupGuard::drop at storage/tests.rs:177. The bounded repair is the already-proven panic-preserving body, explicit owned-task drain where applicable, drop(state), then finish_mt109_memory_test; body outcomes must remain independently visible."
+      },
+      {
+        "proof_id": "MT109-V16-PR-084",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "INVALID_BUILDER_INVOCATION_F09_ZERO_TESTS_SECOND_ATTEMPT",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-2.log",
+        "observed": "The second focused F09 invocation compiled for 5 minutes 32 seconds but again selected 0 tests (2057 filtered out). The memory test module is gated by duckdb-flight-recorder, so test-utils alone did not include this test. It provides no product behavior or cleanup evidence and clears no finding."
       }
     ],
     "resolved_prior_findings": [
@@ -3830,6 +3838,12 @@
             "status": "INVALID_ZERO_TESTS",
             "observed": "focused invocation omitted test-utils, selected 0 tests, and provides no F09 evidence",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-1.log"
+          },
+          {
+            "attempt": 4,
+            "status": "INVALID_ZERO_TESTS",
+            "observed": "second focused invocation compiled but selected 0 tests because its feature set still did not include the duckdb-flight-recorder-gated memory test module; no F09 evidence",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-outbox-retry-narrow-2.log"
           }
         ],
         "remaining_remediation": "Inspect the exact source/workspace/proposal authority fixture and public 403 body, provide only the missing exact current grants required to reach the intended recorder-failure path, then prove initial 500, retry recovery, no duplicate event, deterministic cleanup, full-suite behavior, and independent clean-SHA behavior."
