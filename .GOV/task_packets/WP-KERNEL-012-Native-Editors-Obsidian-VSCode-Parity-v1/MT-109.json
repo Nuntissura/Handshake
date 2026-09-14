@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T17:22:24.861Z",
+  "updated_at_utc": "2026-09-14T17:24:26.366Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -2778,6 +2778,22 @@
         "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_F07_ROUTE",
         "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-4.log",
         "observed": "The exact authenticated live-binding route test passed 1/1 in 28.27 seconds. Its fixture uses the canonical bound local-operator principal and registers/grants only the exact RichDocument source Read plus memory.propose authority under the exact workspace; production authorization was unchanged. All live-binding/spoofed-actor assertions and centralized cleanup passed. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-066",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GREEN_PENDING_FULL_AND_INDEPENDENT_LEGACY_RETRY_TEARDOWN",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/legacy-retry-narrow-1.log",
+        "observed": "The exact legacy_retry_heals_missing_receipt_once_and_converges test passed 1/1 in 19.65 seconds with centralized teardown and root removal. This builder result clears no finding."
+      },
+      {
+        "proof_id": "MT109-V16-PR-067",
+        "owner_role": "KERNEL_BUILDER",
+        "candidate_sha": null,
+        "result": "BUILDER_GATE_FAIL_F08_PROPOSAL_LIST_MISSING_SCOPE",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log",
+        "observed": "The exact list_proposals_is_bounded_deterministic_and_workspace_scoped test failed 0/1 in 19.23 seconds after cleanup stopped masking its body. Its first proposal returned 403 Forbidden HSK-403-PROTECTED-RESOURCE because the submit helper invoked the production proposal handler without a record-user scope. Cleanup completed, but bounded/deterministic/workspace-scoped list behavior did not execute."
       }
     ],
     "resolved_prior_findings": [
@@ -2785,8 +2801,8 @@
         "finding_id": "MT109-V15-F01",
         "resolution_status": "FAIL",
         "candidate_commit": null,
-        "observed_proof": "The finalized fourth complete-suite attempt preserved five new stores across cleanup failures and exited abnormally. Deterministic teardown remains unresolved.",
-        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/pt-109-2-memory-full-4.log",
+        "observed_proof": "Legacy retry teardown is repaired in focused builder proof, and proposal listing now preserves its underlying 403 behavior failure through cleanup. Three other full-suite cleanup paths and independent proof remain.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/legacy-retry-narrow-1.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log",
         "resolution_attempts": [
           {
             "attempt": 1,
@@ -2895,6 +2911,18 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "corrected exact live-binding route passed and completed centralized cleanup; four other full-suite cleanup paths and independent proof remain",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-4.log"
+          },
+          {
+            "attempt": 19,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "legacy retry exact test passed and removed its store through centralized teardown; three other full-suite cleanup paths and independent proof remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/legacy-retry-narrow-1.log"
+          },
+          {
+            "attempt": 20,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "proposal-list exact test retained its real 403 body and completed cleanup; behavior remains blocked under MT109-V16-F08 and other teardown paths remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log"
           }
         ],
         "remaining_remediation": "Isolate each full-4 cleanup failure, release each exact retained operation/task/lease, route success and panic through centralized cleanup/root absence, pass the complete suite without new retained stores, then hand off for independent teardown proof."
@@ -3362,6 +3390,18 @@
             "status": "PASS_BUILDER_ONLY_PARTIAL",
             "observed": "the corrected F07 route passes with exact source authority and cleanup; four cleanup-only tests plus complete full suite remain required",
             "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/memory-route-auth-narrow-4.log"
+          },
+          {
+            "attempt": 25,
+            "status": "PASS_BUILDER_ONLY_PARTIAL",
+            "observed": "legacy retry now passes with deterministic teardown; other full-suite blockers remain",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/legacy-retry-narrow-1.log"
+          },
+          {
+            "attempt": 26,
+            "status": "FAIL_ISOLATION_CROSS_REFERENCE",
+            "observed": "proposal-list isolation now exposes a 403 body because its submit helper lacks record-user scope; complete suite remains unresolved and behavior is tracked as F08",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log"
           }
         ],
         "remaining_remediation": "Repair the authenticated route and all five cleanup paths without weakening behavior, authority, concurrency, or cleanup assertions; pass the complete 33-test suite at four threads, then hand off for independent proof."
@@ -3411,6 +3451,22 @@
           }
         ],
         "remaining_remediation": "Pass the complete four-thread Memory suite, commit and hand off a clean candidate, then independently rerun this focused route and its live-binding/spoofed-actor/source-authority assertions."
+      },
+      {
+        "finding_id": "MT109-V16-F08",
+        "resolution_status": "FAIL",
+        "candidate_commit": null,
+        "observed_proof": "The bounded deterministic workspace-scoped proposal-list test cannot create its first proposal because its direct production-handler helper supplies no record-user scope and receives 403 HSK-403-PROTECTED-RESOURCE.",
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log",
+        "resolution_attempts": [
+          {
+            "attempt": 1,
+            "status": "FAIL",
+            "observed": "first proposal returned 403 Forbidden HSK-403-PROTECTED-RESOURCE before list ordering, bound, or workspace isolation assertions could execute; cleanup succeeded",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v17/logs/proposal-list-narrow-1.log"
+          }
+        ],
+        "remaining_remediation": "Provision only exact proposal-create, workspace, and current source authority for each submit helper invocation; preserve bounded ordering and cross-workspace assertions, pass focused proof, then independently rerun on the committed candidate."
       }
     ],
     "independent_findings": [
@@ -3458,6 +3514,13 @@
         "blocking": true,
         "discovered_at_utc": "2026-09-14T17:03:52.685Z",
         "summary": "The authenticated memory-route positive proposal request returns HTTP 400 instead of HTTP 200, so live-session identity and spoofed-actor persistence proof cannot complete."
+      },
+      {
+        "id": "MT109-V16-F08",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "discovered_at_utc": "2026-09-14T17:24:26.366Z",
+        "summary": "The bounded workspace-scoped proposal-list test is blocked by a helper that invokes production proposal creation without record-user scope and receives 403."
       }
     ],
     "remediation_required": {
@@ -3467,9 +3530,10 @@
         "Commit the complete candidate and hand off the exact SHA with a clean tree and released Cargo lane.",
         "The independent validator must then resolve MT109-V15-F01, MT109-V15-F02, and MT109-V16-F01 through MT109-V16-F04 individually before any overall PASS.",
         "Resolve MT109-V16-F06 and produce a valid required PT-109-2 full api::memory:: suite pass before candidate handoff.",
-        "Resolve MT109-V16-F07 authenticated proposal-route HTTP 400 with exact diagnostic and focused proof before candidate handoff."
+        "Resolve MT109-V16-F07 authenticated proposal-route HTTP 400 with exact diagnostic and focused proof before candidate handoff.",
+        "Resolve MT109-V16-F08 by giving the proposal-list fixture only exact per-workspace/per-source scope and pass its bounded deterministic isolation proof."
       ]
     },
-    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All nine blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
+    "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. All ten blocking finding IDs remain unresolved; builder green diagnostics clear none of them."
   }
 }
