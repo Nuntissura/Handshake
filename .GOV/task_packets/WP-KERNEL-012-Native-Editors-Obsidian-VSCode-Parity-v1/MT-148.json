@@ -439,6 +439,28 @@
       ]
     }
   },
+  "operator_execution_direction_20260914": {
+    "recorded_at_utc": "2026-09-14T01:30:59Z",
+    "recorded_by": "ORCHESTRATING_VALIDATOR",
+    "operator_reply_verbatim": "no new worktree, i forbid this. i will waive it if this is only because of paperwork, we will abandon this repo governance soon so this can not be a blocker unless you have a good reason",
+    "new_worktree_allowed": false,
+    "product_proof_waived": false,
+    "technical_risk_to_prove": "Fresh Git checkout conversion must preserve the compiled Surreal schema bytes, and those bytes must bootstrap the real embedded store. The changed integration helper must also close and reopen a real store.",
+    "no_worktree_proof_strategy": [
+      "At the final clean candidate, execute Git checkout filters on every committed .surql blob with core.autocrlf=true; capture exact bytes, CR counts and SHA-256 hashes without creating a worktree or isolated checkout.",
+      "Verify the candidate attributes and filter configuration, compare the converted bytes with the exact source bytes compiled by the validator, and compare schema/registry hashes with the product pins.",
+      "Independently execute the required storage bootstrap, manifest verification, all-target compilation and named integration close_for_reopen/open_existing proofs in the sole WP worktree."
+    ],
+    "preliminary_diagnostic": {
+      "candidate_sha": "2aa0c6d3153b0b9964de8b08203d5614d48df029",
+      "command_shape": "git -c core.autocrlf=true cat-file --filters <candidate>:<tracked-surql-path>",
+      "tracked_surql_count": 3,
+      "filtered_files_with_cr_bytes": 0,
+      "generated_schema_sha256": "46eac57c4ac3e39acc9d18ac0a43fc62ec01461e8cf3b70b7e2711de2a59da10",
+      "registry_seed_sha256": "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75",
+      "limitation": "Diagnostic only: MT-109 had uncommitted authority-schema changes. Repeat at the clean reviewed candidate; no runtime or MT PASS is established here."
+    }
+  },
   "updated_at_utc": "2026-09-10T01:45:58.115Z",
   "owned_files": [
     ".gitattributes",
