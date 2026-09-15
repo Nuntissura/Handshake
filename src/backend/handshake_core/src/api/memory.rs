@@ -2696,134 +2696,136 @@ mod tests {
         let mut server_task = None;
         let mut reconciler_task = None;
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "memory-route-auth").await?;
-        let source = create_test_rich_source(
-            &state,
-            &workspace_id,
-            "memory-route-auth-source",
-            "authenticated proposal",
-        )
-        .await?;
-        let principal = crate::api::authority::test_principal_for_binding(&state, &token).await?;
-        let workspace_resource = state
-            .surreal
-            .register_workspace_resource(&principal.identity, &workspace_id)
-            .await?;
-        let source_resource = state
-            .surreal
-            .register_protected_resource(
-                &principal.identity,
-                crate::storage::surreal::resource_authority::ResourceKind::RichDocument,
-                &source.document_id,
-                Some(&workspace_resource.resource_id),
-                "account_private",
+            let workspace_id = create_test_workspace(&state, "memory-route-auth").await?;
+            let source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "memory-route-auth-source",
+                "authenticated proposal",
             )
             .await?;
-        state
-            .surreal
-            .grant_resource(
-                &principal.identity.account_id,
-                &principal.identity.access_space_id,
-                crate::storage::surreal::resource_authority::ResourceGrantSpec {
-                    principal_id: principal.identity.principal_id.clone(),
-                    resource_id: source_resource.resource_id,
-                    actions: vec![
-                        crate::storage::surreal::resource_authority::ResourceAction::Read,
-                    ],
-                    capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()],
-                    expires_at: None,
-                    delegation_chain: Vec::new(),
-                },
-            )
-            .await?;
-        let session_token = principal.session.token;
-        let (memory_router, reconciler) = routes_with_reconciler(state.clone());
-        reconciler_task = reconciler;
-        let (base, client, server) = serve_test_router(memory_router).await;
-        server_task = Some(server);
-        let list_url = format!("{base}/workspaces/{workspace_id}/memory/proposals");
+            let principal =
+                crate::api::authority::test_principal_for_binding(&state, &token).await?;
+            let workspace_resource = state
+                .surreal
+                .register_workspace_resource(&principal.identity, &workspace_id)
+                .await?;
+            let source_resource = state
+                .surreal
+                .register_protected_resource(
+                    &principal.identity,
+                    crate::storage::surreal::resource_authority::ResourceKind::RichDocument,
+                    &source.document_id,
+                    Some(&workspace_resource.resource_id),
+                    "account_private",
+                )
+                .await?;
+            state
+                .surreal
+                .grant_resource(
+                    &principal.identity.account_id,
+                    &principal.identity.access_space_id,
+                    crate::storage::surreal::resource_authority::ResourceGrantSpec {
+                        principal_id: principal.identity.principal_id.clone(),
+                        resource_id: source_resource.resource_id,
+                        actions: vec![
+                            crate::storage::surreal::resource_authority::ResourceAction::Read,
+                        ],
+                        capability_ids: vec![MEMORY_PROPOSE_CAPABILITY.to_owned()],
+                        expires_at: None,
+                        delegation_chain: Vec::new(),
+                    },
+                )
+                .await?;
+            let session_token = principal.session.token;
+            let (memory_router, reconciler) = routes_with_reconciler(state.clone());
+            reconciler_task = reconciler;
+            let (base, client, server) = serve_test_router(memory_router).await;
+            server_task = Some(server);
+            let list_url = format!("{base}/workspaces/{workspace_id}/memory/proposals");
 
-        let missing = client.get(&list_url).send().await?;
-        assert_eq!(missing.status(), StatusCode::FORBIDDEN);
-        let forged = client
-            .get(&list_url)
-            .header("x-hsk-session-token", "b".repeat(64))
-            .header("x-hsk-channel-binding-token", &token)
-            .send()
-            .await?;
-        assert_eq!(forged.status(), StatusCode::FORBIDDEN);
-        let allowed = client
-            .get(&list_url)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .send()
-            .await?;
-        assert_eq!(allowed.status(), StatusCode::OK);
+            let missing = client.get(&list_url).send().await?;
+            assert_eq!(missing.status(), StatusCode::FORBIDDEN);
+            let forged = client
+                .get(&list_url)
+                .header("x-hsk-session-token", "b".repeat(64))
+                .header("x-hsk-channel-binding-token", &token)
+                .send()
+                .await?;
+            assert_eq!(forged.status(), StatusCode::FORBIDDEN);
+            let allowed = client
+                .get(&list_url)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .send()
+                .await?;
+            assert_eq!(allowed.status(), StatusCode::OK);
 
-        let proposal = ProposalRequest {
-            request_id: Some(format!("route-auth-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: "authenticated proposal".to_owned(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("spoofed-body-actor".to_owned()),
-        };
-        let response = client
-            .post(format!("{base}/workspaces/{workspace_id}/memory/proposals"))
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .header(HSK_HEADER_ACTOR_ID, "spoofed-header-actor")
-            .header(HSK_HEADER_ACTOR_KIND, "system")
-            .json(&proposal)
-            .send()
-            .await?;
-        let response_status = response.status();
-        let response_body = response.text().await?;
-        assert_eq!(
-            response_status,
-            StatusCode::OK,
-            "authorized proposal response: {response_body}"
-        );
-        let ack: ProposalAck = serde_json::from_str(&response_body)?;
-        let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
-            .await?
-            .expect("authenticated proposal stored");
-        let actor_id = stored.proposal["actor_id"]
-            .as_str()
-            .expect("stored proposal actor id");
-        assert_eq!(actor_id, "local_operator");
-        assert_ne!(actor_id, "spoofed-body-actor");
-        assert_ne!(actor_id, "spoofed-header-actor");
+            let proposal = ProposalRequest {
+                request_id: Some(format!("route-auth-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: "authenticated proposal".to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("spoofed-body-actor".to_owned()),
+            };
+            let response = client
+                .post(format!("{base}/workspaces/{workspace_id}/memory/proposals"))
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .header(HSK_HEADER_ACTOR_ID, "spoofed-header-actor")
+                .header(HSK_HEADER_ACTOR_KIND, "system")
+                .json(&proposal)
+                .send()
+                .await?;
+            let response_status = response.status();
+            let response_body = response.text().await?;
+            assert_eq!(
+                response_status,
+                StatusCode::OK,
+                "authorized proposal response: {response_body}"
+            );
+            let ack: ProposalAck = serde_json::from_str(&response_body)?;
+            let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
+                .await?
+                .expect("authenticated proposal stored");
+            let actor_id = stored.proposal["actor_id"]
+                .as_str()
+                .expect("stored proposal actor id");
+            assert_eq!(actor_id, "local_operator");
+            assert_ne!(actor_id, "spoofed-body-actor");
+            assert_ne!(actor_id, "spoofed-header-actor");
 
-        let decisions = state
-            .flight_recorder
-            .list_events(EventFilter {
-                event_type: Some("capability_action".to_owned()),
-                wsid: Some(workspace_id.clone()),
-                ..EventFilter::default()
-            })
-            .await?;
-        let read_denies = decisions
-            .iter()
-            .filter(|event| {
+            let decisions = state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_type: Some("capability_action".to_owned()),
+                    wsid: Some(workspace_id.clone()),
+                    ..EventFilter::default()
+                })
+                .await?;
+            let read_denies = decisions
+                .iter()
+                .filter(|event| {
+                    event.payload["capability_id"] == MEMORY_READ_CAPABILITY
+                        && event.payload["decision_outcome"] == "deny"
+                })
+                .count();
+            assert_eq!(read_denies, 2, "missing and forged tokens are audited");
+            assert!(decisions.iter().any(|event| {
                 event.payload["capability_id"] == MEMORY_READ_CAPABILITY
-                    && event.payload["decision_outcome"] == "deny"
-            })
-            .count();
-        assert_eq!(read_denies, 2, "missing and forged tokens are audited");
-        assert!(decisions.iter().any(|event| {
-            event.payload["capability_id"] == MEMORY_READ_CAPABILITY
-                && event.payload["decision_outcome"] == "allow"
-        }));
-        assert!(decisions.iter().any(|event| {
-            event.payload["capability_id"] == MEMORY_PROPOSE_CAPABILITY
-                && event.payload["decision_outcome"] == "allow"
-                && event.actor_id == actor_id
-        }));
+                    && event.payload["decision_outcome"] == "allow"
+            }));
+            assert!(decisions.iter().any(|event| {
+                event.payload["capability_id"] == MEMORY_PROPOSE_CAPABILITY
+                    && event.payload["decision_outcome"] == "allow"
+                    && event.actor_id == actor_id
+            }));
 
-        Ok::<(), Box<dyn std::error::Error>>(())
-        })).await;
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
         if let Some(server) = server_task {
             server.abort();
             let _ = server.await;
@@ -3598,7 +3600,10 @@ mod tests {
         )
         .await
         .map_err(|(status, body)| {
-            std::io::Error::other(format!("mixed-source outer authority: {status}; {}", body.0))
+            std::io::Error::other(format!(
+                "mixed-source outer authority: {status}; {}",
+                body.0
+            ))
         })?;
         state
             .surreal
@@ -4320,59 +4325,62 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "memory-concurrent-commit").await?;
-        let (proposal_a, _) = create_and_approve_test_proposal(
-            &state,
-            &workspace_id,
-            "concurrent-shared-owner",
-            "first concurrent memory",
-        )
-        .await?;
-        let (proposal_b, _) = create_and_approve_test_proposal(
-            &state,
-            &workspace_id,
-            "concurrent-shared-owner",
-            "second concurrent memory",
-        )
-        .await?;
-        let mut headers = HeaderMap::new();
-        headers.insert(HSK_HEADER_ACTOR_ID, "concurrent-operator".parse()?);
-        headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let commit_a = commit_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), proposal_a.proposal_id)),
-            headers.clone(),
-        );
-        let commit_b = commit_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), proposal_b.proposal_id)),
-            headers,
-        );
-        let (commit_a, commit_b) = tokio::join!(commit_a, commit_b);
-        let commit_a = commit_a
-            .map_err(|(status, body)| format!("concurrent commit A failed: {status} {body:?}"))?
-            .0;
-        let commit_b = commit_b
-            .map_err(|(status, body)| format!("concurrent commit B failed: {status} {body:?}"))?
-            .0;
-        assert_ne!(commit_a.memory_id, commit_b.memory_id);
+            let workspace_id = create_test_workspace(&state, "memory-concurrent-commit").await?;
+            let (proposal_a, _) = create_and_approve_test_proposal(
+                &state,
+                &workspace_id,
+                "concurrent-shared-owner",
+                "first concurrent memory",
+            )
+            .await?;
+            let (proposal_b, _) = create_and_approve_test_proposal(
+                &state,
+                &workspace_id,
+                "concurrent-shared-owner",
+                "second concurrent memory",
+            )
+            .await?;
+            let mut headers = HeaderMap::new();
+            headers.insert(HSK_HEADER_ACTOR_ID, "concurrent-operator".parse()?);
+            headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            let commit_a = commit_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), proposal_a.proposal_id)),
+                headers.clone(),
+            );
+            let commit_b = commit_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), proposal_b.proposal_id)),
+                headers,
+            );
+            let (commit_a, commit_b) = tokio::join!(commit_a, commit_b);
+            let commit_a = commit_a
+                .map_err(|(status, body)| format!("concurrent commit A failed: {status} {body:?}"))?
+                .0;
+            let commit_b = commit_b
+                .map_err(|(status, body)| format!("concurrent commit B failed: {status} {body:?}"))?
+                .0;
+            assert_ne!(commit_a.memory_id, commit_b.memory_id);
 
-        let latest_pack =
-            fems_memory::get_latest_memory_pack(&state.surreal, &workspace_id, Some("workspace"))
-                .await?
-                .expect("latest concurrent pack");
-        let ids = latest_pack
-            .items
-            .iter()
-            .map(|item| item.memory_id.as_str())
-            .collect::<std::collections::HashSet<_>>();
-        assert!(ids.contains(commit_a.memory_id.as_str()));
-        assert!(ids.contains(commit_b.memory_id.as_str()));
-        assert_eq!(
-            fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
-            2
-        );
-        Ok::<(), Box<dyn std::error::Error>>(())
+            let latest_pack = fems_memory::get_latest_memory_pack(
+                &state.surreal,
+                &workspace_id,
+                Some("workspace"),
+            )
+            .await?
+            .expect("latest concurrent pack");
+            let ids = latest_pack
+                .items
+                .iter()
+                .map(|item| item.memory_id.as_str())
+                .collect::<std::collections::HashSet<_>>();
+            assert!(ids.contains(commit_a.memory_id.as_str()));
+            assert!(ids.contains(commit_b.memory_id.as_str()));
+            assert_eq!(
+                fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
+                2
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
         drop(state);
@@ -4487,10 +4495,12 @@ mod tests {
         document_id: &str,
         label: &str,
         actor_id: &str,
-    ) -> Result<crate::storage::surreal::resource_authority::RecordUserScope, Box<dyn std::error::Error>> {
+    ) -> Result<
+        crate::storage::surreal::resource_authority::RecordUserScope,
+        Box<dyn std::error::Error>,
+    > {
         use crate::storage::surreal::resource_authority::{
-            AuthorizationRequest, RecordUserScope, ResourceAction, ResourceGrantSpec,
-            ResourceKind,
+            AuthorizationRequest, RecordUserScope, ResourceAction, ResourceGrantSpec, ResourceKind,
         };
         let principal = mt109_memory_principal(
             state,
@@ -4620,24 +4630,24 @@ mod tests {
         headers.insert(HSK_HEADER_ACTOR_ID, actor_id.parse()?);
         headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
         let create = create_memory_proposal(
-                State(state.clone()),
-                Path(workspace_id.to_owned()),
-                headers.clone(),
-                Json(ProposalRequest {
-                    request_id: Some(format!("{label}-{}", Uuid::now_v7())),
-                    class: ProposalClass::Semantic,
-                    content: content.to_owned(),
-                    source,
-                    source_document_content: None,
-                    review_gated: Some(true),
-                    actor_id: Some(actor_id),
-                }),
-            );
+            State(state.clone()),
+            Path(workspace_id.to_owned()),
+            headers.clone(),
+            Json(ProposalRequest {
+                request_id: Some(format!("{label}-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: content.to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some(actor_id),
+            }),
+        );
         let Json(proposal) = state
             .surreal
             .with_record_user_scope(proposal_scope, create)
             .await
-        .map_err(|(status, body)| format!("proposal failed: {status} {body:?}"))?;
+            .map_err(|(status, body)| format!("proposal failed: {status} {body:?}"))?;
         let Json(review) = review_memory_proposal(
             State(state.clone()),
             Path((workspace_id.to_owned(), proposal.proposal_id.clone())),
@@ -4679,66 +4689,66 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "surreal-identity-retry").await?;
-        let content = "unicode identity\u{2003}";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "surreal-identity-source", content)
-                .await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "surreal-identity",
-            "native_editor",
-        )
-        .await?;
-        let request = ProposalRequest {
-            request_id: None,
-            class: ProposalClass::Semantic,
-            content: content.to_owned(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("identity-actor".to_owned()),
-        };
-        let expected_request_id =
-            stable_proposal_request_id(&workspace_id, &request).expect("stable request identity");
+            let workspace_id = create_test_workspace(&state, "surreal-identity-retry").await?;
+            let content = "unicode identity\u{2003}";
+            let source =
+                create_test_rich_source(&state, &workspace_id, "surreal-identity-source", content)
+                    .await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "surreal-identity",
+                "native_editor",
+            )
+            .await?;
+            let request = ProposalRequest {
+                request_id: None,
+                class: ProposalClass::Semantic,
+                content: content.to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("identity-actor".to_owned()),
+            };
+            let expected_request_id = stable_proposal_request_id(&workspace_id, &request)
+                .expect("stable request identity");
 
-        let first_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request.clone()),
-        );
-        let Json(first) = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), first_call)
-            .await
-        .map_err(|(status, body)| format!("first proposal failed: {status} {body:?}"))?;
-        let retry_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request),
-        );
-        let Json(retry) = state
-            .surreal
-            .with_record_user_scope(proposal_scope, retry_call)
-            .await
-        .map_err(|(status, body)| format!("proposal retry failed: {status} {body:?}"))?;
+            let first_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request.clone()),
+            );
+            let Json(first) = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), first_call)
+                .await
+                .map_err(|(status, body)| format!("first proposal failed: {status} {body:?}"))?;
+            let retry_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request),
+            );
+            let Json(retry) = state
+                .surreal
+                .with_record_user_scope(proposal_scope, retry_call)
+                .await
+                .map_err(|(status, body)| format!("proposal retry failed: {status} {body:?}"))?;
 
-        assert_eq!(retry, first, "an exact SurrealDB retry must converge");
-        let stored = fems_memory::get_memory_proposal(&state.surreal, &first.proposal_id)
-            .await?
-            .expect("proposal stored");
-        assert_eq!(stored.request_id, expected_request_id);
-        assert_eq!(
-            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+            assert_eq!(retry, first, "an exact SurrealDB retry must converge");
+            let stored = fems_memory::get_memory_proposal(&state.surreal, &first.proposal_id)
                 .await?
-                .len(),
-            1,
-            "exact retries must not duplicate the durable proposal"
-        );
+                .expect("proposal stored");
+            assert_eq!(stored.request_id, expected_request_id);
+            assert_eq!(
+                fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                    .await?
+                    .len(),
+                1,
+                "exact retries must not duplicate the durable proposal"
+            );
             Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
@@ -4798,61 +4808,62 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "pack").await?;
-        let source = create_test_rich_source(
-            &state,
-            &workspace_id,
-            "pack-source",
-            "The protagonist Aria refuses the royal summons.",
-        )
-        .await?;
-        let mut pack = seeded_pack(&workspace_id);
-        pack.items[0].source_refs[0].id = source.document_id.clone();
-        pack.items[0].source_refs[0].hash = Some(source.content_hash.clone());
-        pack.items[0].source_refs[0].selector = Some(format!(
-            "bytes:{}-{}",
-            source.selection_start, source.selection_end
-        ));
-        pack.memory_pack_hash = pack.compute_hash()?;
-        fems_memory::upsert_memory_pack(&state.surreal, &workspace_id, "", &pack).await?;
+            let workspace_id = create_test_workspace(&state, "pack").await?;
+            let source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "pack-source",
+                "The protagonist Aria refuses the royal summons.",
+            )
+            .await?;
+            let mut pack = seeded_pack(&workspace_id);
+            pack.items[0].source_refs[0].id = source.document_id.clone();
+            pack.items[0].source_refs[0].hash = Some(source.content_hash.clone());
+            pack.items[0].source_refs[0].selector = Some(format!(
+                "bytes:{}-{}",
+                source.selection_start, source.selection_end
+            ));
+            pack.memory_pack_hash = pack.compute_hash()?;
+            fems_memory::upsert_memory_pack(&state.surreal, &workspace_id, "", &pack).await?;
 
-        let Json(got) = get_memory_pack(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            Query(PackQuery::default()),
-        )
-        .await
-        .map_err(|(code, body)| format!("get pack failed: {code} {body:?}"))?;
+            let Json(got) = get_memory_pack(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                Query(PackQuery::default()),
+            )
+            .await
+            .map_err(|(code, body)| format!("get pack failed: {code} {body:?}"))?;
 
-        assert_eq!(
-            got, pack,
-            "the SurrealDB route must return every MemoryPack field unchanged"
-        );
-        assert_eq!(
-            serde_json::to_value(&got)?,
-            serde_json::to_value(&pack)?,
-            "the complete serialized MemoryPack response shape must match authority"
-        );
+            assert_eq!(
+                got, pack,
+                "the SurrealDB route must return every MemoryPack field unchanged"
+            );
+            assert_eq!(
+                serde_json::to_value(&got)?,
+                serde_json::to_value(&pack)?,
+                "the complete serialized MemoryPack response shape must match authority"
+            );
 
-        // Pack-level shape.
-        assert_eq!(got.pack_id, format!("PACK-{workspace_id}"));
-        assert_eq!(got.schema_version, PACK_SCHEMA_VERSION);
-        assert_eq!(got.items.len(), 1);
+            // Pack-level shape.
+            assert_eq!(got.pack_id, format!("PACK-{workspace_id}"));
+            assert_eq!(got.schema_version, PACK_SCHEMA_VERSION);
+            assert_eq!(got.items.len(), 1);
 
-        // Item-level shape: the exact fields the native client aligns to.
-        let item = &got.items[0];
-        assert_eq!(item.memory_id, "MEM-EP-001");
-        assert_eq!(item.memory_class, "episodic");
-        assert_eq!(item.summary, "Aria refuses the summons");
-        assert_eq!(item.source_refs.len(), 1);
-        assert_eq!(item.source_refs[0].kind, FemsSourceRefKind::DocBlock);
-        assert_eq!(item.source_refs[0].id, source.document_id);
-        assert_eq!(
-            item.source_refs[0].hash.as_deref(),
-            Some(source.content_hash.as_str())
-        );
-        Ok::<(), Box<dyn std::error::Error>>(())
-        })).await;
+            // Item-level shape: the exact fields the native client aligns to.
+            let item = &got.items[0];
+            assert_eq!(item.memory_id, "MEM-EP-001");
+            assert_eq!(item.memory_class, "episodic");
+            assert_eq!(item.summary, "Aria refuses the summons");
+            assert_eq!(item.source_refs.len(), 1);
+            assert_eq!(item.source_refs[0].kind, FemsSourceRefKind::DocBlock);
+            assert_eq!(item.source_refs[0].id, source.document_id);
+            assert_eq!(
+                item.source_refs[0].hash.as_deref(),
+                Some(source.content_hash.as_str())
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
         drop(state);
         finish_mt109_memory_test(body, store, data_dir).await
     }
@@ -4866,98 +4877,99 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "empty-pack").await?;
-        let query = PackQuery {
-            context: Some("mounted-editor-context".to_owned()),
-            ..PackQuery::default()
-        };
-        let Json(first) = get_memory_pack(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            Query(query),
-        )
-        .await
-        .map_err(|(code, body)| format!("get pack failed: {code} {body:?}"))?;
-        let Json(second) = get_memory_pack(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            Query(PackQuery {
+            let workspace_id = create_test_workspace(&state, "empty-pack").await?;
+            let query = PackQuery {
                 context: Some("mounted-editor-context".to_owned()),
                 ..PackQuery::default()
-            }),
-        )
-        .await
-        .map_err(|(code, body)| format!("retry get pack failed: {code} {body:?}"))?;
-        assert!(first.items.is_empty());
-        assert_eq!(first.schema_version, PACK_SCHEMA_VERSION);
-        assert_eq!(
-            second, first,
-            "empty-pack retries are byte-shape deterministic"
-        );
-        assert_eq!(
-            fems_memory::get_latest_memory_pack(
-                &state.surreal,
-                &workspace_id,
-                Some("mounted-editor-context")
+            };
+            let Json(first) = get_memory_pack(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                Query(query),
             )
-            .await?,
-            None,
-            "a GET miss must not persist an empty projection"
-        );
-
-        let count_pack_rows = || {
-            memory_test_count(
-                &state,
-                "SELECT count() AS count FROM fems_memory_packs \
-                 WHERE workspace_id = $workspace GROUP ALL;",
-                MemoryTestBindings {
-                    workspace: Some(RecordId::new("workspaces", workspace_id.as_str())),
-                    ..MemoryTestBindings::default()
-                },
-            )
-        };
-        let before_rows = count_pack_rows().await?;
-        for index in 0..2_000_u32 {
-            let Json(pack) = get_memory_pack(
+            .await
+            .map_err(|(code, body)| format!("get pack failed: {code} {body:?}"))?;
+            let Json(second) = get_memory_pack(
                 State(state.clone()),
                 Path(workspace_id.clone()),
                 Query(PackQuery {
-                    context: Some(format!("attacker-context-{index}")),
+                    context: Some("mounted-editor-context".to_owned()),
                     ..PackQuery::default()
                 }),
             )
             .await
-            .map_err(|(code, body)| format!("amplification read failed: {code} {body:?}"))?;
-            assert!(pack.items.is_empty());
-        }
-        let after_rows = count_pack_rows().await?;
-        assert_eq!(
-            after_rows, before_rows,
-            "caller-controlled GET contexts must not create or update memory-pack rows"
-        );
+            .map_err(|(code, body)| format!("retry get pack failed: {code} {body:?}"))?;
+            assert!(first.items.is_empty());
+            assert_eq!(first.schema_version, PACK_SCHEMA_VERSION);
+            assert_eq!(
+                second, first,
+                "empty-pack retries are byte-shape deterministic"
+            );
+            assert_eq!(
+                fems_memory::get_latest_memory_pack(
+                    &state.surreal,
+                    &workspace_id,
+                    Some("mounted-editor-context")
+                )
+                .await?,
+                None,
+                "a GET miss must not persist an empty projection"
+            );
 
-        let oversized = get_memory_pack(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            Query(PackQuery {
-                context: Some("x".repeat(1_025)),
-                ..PackQuery::default()
-            }),
-        )
-        .await
-        .expect_err("oversized context must fail before a database lookup");
-        assert_eq!(oversized.0, StatusCode::BAD_REQUEST);
+            let count_pack_rows = || {
+                memory_test_count(
+                    &state,
+                    "SELECT count() AS count FROM fems_memory_packs \
+                 WHERE workspace_id = $workspace GROUP ALL;",
+                    MemoryTestBindings {
+                        workspace: Some(RecordId::new("workspaces", workspace_id.as_str())),
+                        ..MemoryTestBindings::default()
+                    },
+                )
+            };
+            let before_rows = count_pack_rows().await?;
+            for index in 0..2_000_u32 {
+                let Json(pack) = get_memory_pack(
+                    State(state.clone()),
+                    Path(workspace_id.clone()),
+                    Query(PackQuery {
+                        context: Some(format!("attacker-context-{index}")),
+                        ..PackQuery::default()
+                    }),
+                )
+                .await
+                .map_err(|(code, body)| format!("amplification read failed: {code} {body:?}"))?;
+                assert!(pack.items.is_empty());
+            }
+            let after_rows = count_pack_rows().await?;
+            assert_eq!(
+                after_rows, before_rows,
+                "caller-controlled GET contexts must not create or update memory-pack rows"
+            );
 
-        let unknown = get_memory_pack(
-            State(state.clone()),
-            Path(Uuid::now_v7().to_string()),
-            Query(PackQuery::default()),
-        )
-        .await
-        .expect_err("unknown workspace must not receive a fabricated empty pack");
-        assert_eq!(unknown.0, StatusCode::NOT_FOUND);
-        Ok::<(), Box<dyn std::error::Error>>(())
-        })).await;
+            let oversized = get_memory_pack(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                Query(PackQuery {
+                    context: Some("x".repeat(1_025)),
+                    ..PackQuery::default()
+                }),
+            )
+            .await
+            .expect_err("oversized context must fail before a database lookup");
+            assert_eq!(oversized.0, StatusCode::BAD_REQUEST);
+
+            let unknown = get_memory_pack(
+                State(state.clone()),
+                Path(Uuid::now_v7().to_string()),
+                Query(PackQuery::default()),
+            )
+            .await
+            .expect_err("unknown workspace must not receive a fabricated empty pack");
+            assert_eq!(unknown.0, StatusCode::NOT_FOUND);
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
         drop(state);
         finish_mt109_memory_test(body, store, data_dir).await
     }
@@ -4968,42 +4980,43 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let owner = create_test_workspace(&state, "memory-id-owner").await?;
-        let intruder = create_test_workspace(&state, "memory-id-intruder").await?;
+            let owner = create_test_workspace(&state, "memory-id-owner").await?;
+            let intruder = create_test_workspace(&state, "memory-id-intruder").await?;
 
-        let pack = seeded_pack(&owner);
-        fems_memory::upsert_memory_pack(&state.surreal, &owner, "", &pack).await?;
-        let pack_error = fems_memory::upsert_memory_pack(&state.surreal, &intruder, "", &pack)
-            .await
-            .expect_err("a pack id cannot move to another workspace");
-        assert!(matches!(pack_error, StorageError::Conflict(_)));
-
-        let memory_id = Uuid::now_v7().to_string();
-        let item = serde_json::json!({
-            "memory_id": memory_id,
-            "memory_class": "semantic",
-            "type": "fact",
-            "summary": "workspace-bound item",
-            "content": "workspace-bound item",
-            "source_refs": [],
-            "status": "active"
-        });
-        fems_memory::upsert_memory_item(&state.surreal, &owner, &memory_id, &item).await?;
-        let item_error =
-            fems_memory::upsert_memory_item(&state.surreal, &intruder, &memory_id, &item)
+            let pack = seeded_pack(&owner);
+            fems_memory::upsert_memory_pack(&state.surreal, &owner, "", &pack).await?;
+            let pack_error = fems_memory::upsert_memory_pack(&state.surreal, &intruder, "", &pack)
                 .await
-                .expect_err("a memory item id cannot move to another workspace");
-        assert!(matches!(item_error, StorageError::Conflict(_)));
-        assert_eq!(
-            fems_memory::get_memory_item(&state.surreal, &owner, &memory_id).await?,
-            Some(item)
-        );
-        assert_eq!(
-            fems_memory::get_memory_item(&state.surreal, &intruder, &memory_id).await?,
-            None
-        );
-        Ok::<(), Box<dyn std::error::Error>>(())
-        })).await;
+                .expect_err("a pack id cannot move to another workspace");
+            assert!(matches!(pack_error, StorageError::Conflict(_)));
+
+            let memory_id = Uuid::now_v7().to_string();
+            let item = serde_json::json!({
+                "memory_id": memory_id,
+                "memory_class": "semantic",
+                "type": "fact",
+                "summary": "workspace-bound item",
+                "content": "workspace-bound item",
+                "source_refs": [],
+                "status": "active"
+            });
+            fems_memory::upsert_memory_item(&state.surreal, &owner, &memory_id, &item).await?;
+            let item_error =
+                fems_memory::upsert_memory_item(&state.surreal, &intruder, &memory_id, &item)
+                    .await
+                    .expect_err("a memory item id cannot move to another workspace");
+            assert!(matches!(item_error, StorageError::Conflict(_)));
+            assert_eq!(
+                fems_memory::get_memory_item(&state.surreal, &owner, &memory_id).await?,
+                Some(item)
+            );
+            assert_eq!(
+                fems_memory::get_memory_item(&state.surreal, &intruder, &memory_id).await?,
+                None
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
         drop(state);
         finish_mt109_memory_test(body, store, data_dir).await
     }
@@ -5016,158 +5029,160 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "proposal").await?;
-        let content = "durable fact";
-        let content_hash = canonical_content_hash(content).expect("canonical content hash");
-        let source =
-            create_test_rich_source(&state, &workspace_id, "proposal-source", content).await?;
-        let source_document_id = source.document_id.clone();
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source_document_id,
-            "proposal-pending",
-            "native_editor",
-        )
-        .await?;
-        let expected_selection_start = i64::try_from(source.selection_start)?;
-        let expected_selection_end = i64::try_from(source.selection_end)?;
-        let request = ProposalRequest {
-            request_id: None,
-            class: ProposalClass::Semantic,
-            content: content.to_string(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("actor-7".to_string()),
-        };
+            let workspace_id = create_test_workspace(&state, "proposal").await?;
+            let content = "durable fact";
+            let content_hash = canonical_content_hash(content).expect("canonical content hash");
+            let source =
+                create_test_rich_source(&state, &workspace_id, "proposal-source", content).await?;
+            let source_document_id = source.document_id.clone();
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source_document_id,
+                "proposal-pending",
+                "native_editor",
+            )
+            .await?;
+            let expected_selection_start = i64::try_from(source.selection_start)?;
+            let expected_selection_end = i64::try_from(source.selection_end)?;
+            let request = ProposalRequest {
+                request_id: None,
+                class: ProposalClass::Semantic,
+                content: content.to_string(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("actor-7".to_string()),
+            };
 
-        let create = create_memory_proposal(
+            let create = create_memory_proposal(
                 State(state.clone()),
                 Path(workspace_id.clone()),
                 HeaderMap::new(),
                 Json(request),
             );
-        let Json(ack) = state
-            .surreal
-            .with_record_user_scope(proposal_scope, create)
-            .await
-        .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
+            let Json(ack) = state
+                .surreal
+                .with_record_user_scope(proposal_scope, create)
+                .await
+                .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
-        assert_eq!(ack.status, PROPOSAL_STATUS_PENDING_REVIEW);
-        assert!(
-            Uuid::parse_str(&ack.proposal_id).is_ok_and(|proposal_id| !proposal_id.is_nil()),
-            "proposal id is a non-nil UUID"
-        );
+            assert_eq!(ack.status, PROPOSAL_STATUS_PENDING_REVIEW);
+            assert!(
+                Uuid::parse_str(&ack.proposal_id).is_ok_and(|proposal_id| !proposal_id.is_nil()),
+                "proposal id is a non-nil UUID"
+            );
 
-        // The proposal is durably stored as pending_review with its provenance.
-        let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
-            .await?
-            .expect("proposal stored");
-        assert_eq!(stored.status, PROPOSAL_STATUS_PENDING_REVIEW);
-        assert_eq!(stored.document_id, source_document_id);
-        assert_eq!(stored.selection_start, expected_selection_start);
-        assert_eq!(stored.selection_end, expected_selection_end);
-        assert_eq!(stored.content_hash, content_hash);
-        assert_eq!(stored.memory_class, "semantic");
-        assert!(stored.review_gated);
-
-        let Json(readback) = get_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), ack.proposal_id.clone())),
-        )
-        .await
-        .map_err(|(code, body)| format!("proposal readback failed: {code} {body:?}"))?;
-        assert_eq!(readback, stored);
-        let wrong_workspace = get_memory_proposal(
-            State(state.clone()),
-            Path(("WS-OTHER".to_owned(), ack.proposal_id.clone())),
-        )
-        .await
-        .expect_err("cross-workspace proposal readback must fail closed");
-        assert_eq!(wrong_workspace.0, StatusCode::NOT_FOUND);
-
-        // A durable ARTIFACT_PROPOSED EventLedger receipt was appended.
-        let receipt =
-            memory_test_ledger_event(&state, &format!("fems-memory-proposal:{}", ack.proposal_id))
+            // The proposal is durably stored as pending_review with its provenance.
+            let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
                 .await?
-                .expect("exactly one durable proposal receipt");
-        assert_eq!(receipt.event_type, KernelEventType::ArtifactProposed);
-        assert_eq!(receipt.payload["document_id"], source_document_id);
-        assert_eq!(receipt.payload["selection_start"], expected_selection_start);
-        assert_eq!(receipt.payload["selection_end"], expected_selection_end);
-        assert_eq!(receipt.payload["content_hash"], content_hash);
+                .expect("proposal stored");
+            assert_eq!(stored.status, PROPOSAL_STATUS_PENDING_REVIEW);
+            assert_eq!(stored.document_id, source_document_id);
+            assert_eq!(stored.selection_start, expected_selection_start);
+            assert_eq!(stored.selection_end, expected_selection_end);
+            assert_eq!(stored.content_hash, content_hash);
+            assert_eq!(stored.memory_class, "semantic");
+            assert!(stored.review_gated);
 
-        let events = state
-            .flight_recorder
-            .list_events(EventFilter {
-                event_id: Some(ack.flight_recorder_event_id),
-                ..EventFilter::default()
-            })
-            .await?;
-        assert_eq!(events.len(), 1, "proposal ack names one canonical FR event");
-        let event = &events[0];
-        assert_eq!(
-            event.event_type,
-            FlightRecorderEventType::MemoryWriteProposed
-        );
-        assert_eq!(event.payload["event_code"], "FR-EVT-MEM-001");
-        assert_eq!(event.payload["proposal_id"], ack.proposal_id);
-        assert_eq!(event.payload["op_count"], 1);
-        assert_eq!(event.payload["requires_review_count"], 1);
-        assert!(event.payload.get("content").is_none());
-        let Json(artifact) = get_memory_proposal_artifact(
-            State(state.clone()),
-            Path((workspace_id.clone(), ack.proposal_id.clone())),
-        )
-        .await
-        .map_err(|(code, body)| format!("proposal artifact failed: {code} {body:?}"))?;
-        assert_eq!(artifact["proposal_id"], ack.proposal_id);
-        assert_eq!(artifact["schema_version"], "hsk.memory_write_proposal@0.1");
-        assert_eq!(
-            artifact["created_at"],
-            stored.created_at.to_rfc3339(),
-            "canonical artifact and durable proposal row share one creation instant"
-        );
-        assert_eq!(artifact["policy"]["require_human_review"], true);
-        assert_eq!(artifact["ops"].as_array().map(Vec::len), Some(1));
-        assert_eq!(artifact["ops"][0]["requires_review"], true);
-        assert!(artifact.get("content").is_none());
-        let canonical_artifact: MemoryWriteProposal =
-            serde_json::from_value(artifact.clone()).expect("canonical proposal artifact decodes");
-        assert_eq!(
-            event.payload["proposal_hash"],
-            canonical_artifact
-                .compute_hash()
-                .expect("canonical proposal artifact hashes")
-        );
-        assert_eq!(
-            event.payload["artifact_ref"],
-            format!(
-                "artifact://sha256/{}",
-                event.payload["proposal_hash"].as_str().unwrap()
+            let Json(readback) = get_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), ack.proposal_id.clone())),
             )
-        );
-        let published = memory_test_query_first::<MemoryTestBoolRow>(
-            &state,
-            "SELECT published_at != NONE AS value FROM fems_memory_lifecycle_fr_outbox \
+            .await
+            .map_err(|(code, body)| format!("proposal readback failed: {code} {body:?}"))?;
+            assert_eq!(readback, stored);
+            let wrong_workspace = get_memory_proposal(
+                State(state.clone()),
+                Path(("WS-OTHER".to_owned(), ack.proposal_id.clone())),
+            )
+            .await
+            .expect_err("cross-workspace proposal readback must fail closed");
+            assert_eq!(wrong_workspace.0, StatusCode::NOT_FOUND);
+
+            // A durable ARTIFACT_PROPOSED EventLedger receipt was appended.
+            let receipt = memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-proposal:{}", ack.proposal_id),
+            )
+            .await?
+            .expect("exactly one durable proposal receipt");
+            assert_eq!(receipt.event_type, KernelEventType::ArtifactProposed);
+            assert_eq!(receipt.payload["document_id"], source_document_id);
+            assert_eq!(receipt.payload["selection_start"], expected_selection_start);
+            assert_eq!(receipt.payload["selection_end"], expected_selection_end);
+            assert_eq!(receipt.payload["content_hash"], content_hash);
+
+            let events = state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_id: Some(ack.flight_recorder_event_id),
+                    ..EventFilter::default()
+                })
+                .await?;
+            assert_eq!(events.len(), 1, "proposal ack names one canonical FR event");
+            let event = &events[0];
+            assert_eq!(
+                event.event_type,
+                FlightRecorderEventType::MemoryWriteProposed
+            );
+            assert_eq!(event.payload["event_code"], "FR-EVT-MEM-001");
+            assert_eq!(event.payload["proposal_id"], ack.proposal_id);
+            assert_eq!(event.payload["op_count"], 1);
+            assert_eq!(event.payload["requires_review_count"], 1);
+            assert!(event.payload.get("content").is_none());
+            let Json(artifact) = get_memory_proposal_artifact(
+                State(state.clone()),
+                Path((workspace_id.clone(), ack.proposal_id.clone())),
+            )
+            .await
+            .map_err(|(code, body)| format!("proposal artifact failed: {code} {body:?}"))?;
+            assert_eq!(artifact["proposal_id"], ack.proposal_id);
+            assert_eq!(artifact["schema_version"], "hsk.memory_write_proposal@0.1");
+            assert_eq!(
+                artifact["created_at"],
+                stored.created_at.to_rfc3339(),
+                "canonical artifact and durable proposal row share one creation instant"
+            );
+            assert_eq!(artifact["policy"]["require_human_review"], true);
+            assert_eq!(artifact["ops"].as_array().map(Vec::len), Some(1));
+            assert_eq!(artifact["ops"][0]["requires_review"], true);
+            assert!(artifact.get("content").is_none());
+            let canonical_artifact: MemoryWriteProposal = serde_json::from_value(artifact.clone())
+                .expect("canonical proposal artifact decodes");
+            assert_eq!(
+                event.payload["proposal_hash"],
+                canonical_artifact
+                    .compute_hash()
+                    .expect("canonical proposal artifact hashes")
+            );
+            assert_eq!(
+                event.payload["artifact_ref"],
+                format!(
+                    "artifact://sha256/{}",
+                    event.payload["proposal_hash"].as_str().unwrap()
+                )
+            );
+            let published = memory_test_query_first::<MemoryTestBoolRow>(
+                &state,
+                "SELECT published_at != NONE AS value FROM fems_memory_lifecycle_fr_outbox \
              WHERE proposal_id = $proposal AND event_code = 'FR-EVT-MEM-001' LIMIT 1;",
-            MemoryTestBindings {
-                proposal: Some(RecordId::new(
-                    "fems_memory_proposals",
-                    ack.proposal_id.as_str(),
-                )),
-                ..MemoryTestBindings::default()
-            },
-        )
-        .await?
-        .expect("proposal outbox row")
-        .value;
-        assert!(
-            published,
-            "API acknowledgement follows durable FR projection"
-        );
-        Ok::<(), Box<dyn std::error::Error>>(())
+                MemoryTestBindings {
+                    proposal: Some(RecordId::new(
+                        "fems_memory_proposals",
+                        ack.proposal_id.as_str(),
+                    )),
+                    ..MemoryTestBindings::default()
+                },
+            )
+            .await?
+            .expect("proposal outbox row")
+            .value;
+            assert!(
+                published,
+                "API acknowledgement follows durable FR projection"
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
         eprintln!(
@@ -5184,139 +5199,139 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let target = create_test_workspace(&state, "proposal-list-target").await?;
-        let control = create_test_workspace(&state, "proposal-list-control").await?;
+            let target = create_test_workspace(&state, "proposal-list-target").await?;
+            let control = create_test_workspace(&state, "proposal-list-control").await?;
 
-        let submit = |workspace_id: String, request_id: String| {
-            let state = state.clone();
-            async move {
-                let content = format!("content-{request_id}");
-                let source = create_test_rich_source(
-                    &state,
-                    &workspace_id,
-                    "proposal-list-source",
-                    &content,
-                )
-                .await
-                .map_err(storage_error)?;
-                let scope = proposal_create_test_scope(
-                    &state,
-                    &workspace_id,
-                    &source.document_id,
-                    "proposal-list",
-                    "native_editor",
-                )
-                .await
-                .map_err(|error| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({"error": error.to_string()})),
-                    )
-                })?;
-                let request_state = state.clone();
-                state
-                    .surreal
-                    .with_record_user_scope(
-                        scope,
-                        create_memory_proposal(
-                            State(request_state),
-                            Path(workspace_id.clone()),
-                            HeaderMap::new(),
-                            Json(ProposalRequest {
-                                request_id: Some(request_id),
-                                class: ProposalClass::Semantic,
-                                content: content.clone(),
-                                source,
-                                source_document_content: None,
-                                review_gated: Some(true),
-                                actor_id: Some("proposal-list-test".to_owned()),
-                            }),
-                        ),
+            let submit = |workspace_id: String, request_id: String| {
+                let state = state.clone();
+                async move {
+                    let content = format!("content-{request_id}");
+                    let source = create_test_rich_source(
+                        &state,
+                        &workspace_id,
+                        "proposal-list-source",
+                        &content,
                     )
                     .await
-            }
-        };
-        let first = submit(target.clone(), "list-first".to_owned())
-            .await
-            .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?
-            .0;
-        let second = submit(target.clone(), "list-second".to_owned())
-            .await
-            .map_err(|(code, body)| format!("second proposal failed: {code} {body:?}"))?
-            .0;
-        let control_ack = submit(control.clone(), "list-control".to_owned())
-            .await
-            .map_err(|(code, body)| format!("control proposal failed: {code} {body:?}"))?
-            .0;
+                    .map_err(storage_error)?;
+                    let scope = proposal_create_test_scope(
+                        &state,
+                        &workspace_id,
+                        &source.document_id,
+                        "proposal-list",
+                        "native_editor",
+                    )
+                    .await
+                    .map_err(|error| {
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(json!({"error": error.to_string()})),
+                        )
+                    })?;
+                    let request_state = state.clone();
+                    state
+                        .surreal
+                        .with_record_user_scope(
+                            scope,
+                            create_memory_proposal(
+                                State(request_state),
+                                Path(workspace_id.clone()),
+                                HeaderMap::new(),
+                                Json(ProposalRequest {
+                                    request_id: Some(request_id),
+                                    class: ProposalClass::Semantic,
+                                    content: content.clone(),
+                                    source,
+                                    source_document_content: None,
+                                    review_gated: Some(true),
+                                    actor_id: Some("proposal-list-test".to_owned()),
+                                }),
+                            ),
+                        )
+                        .await
+                }
+            };
+            let first = submit(target.clone(), "list-first".to_owned())
+                .await
+                .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?
+                .0;
+            let second = submit(target.clone(), "list-second".to_owned())
+                .await
+                .map_err(|(code, body)| format!("second proposal failed: {code} {body:?}"))?
+                .0;
+            let control_ack = submit(control.clone(), "list-control".to_owned())
+                .await
+                .map_err(|(code, body)| format!("control proposal failed: {code} {body:?}"))?
+                .0;
 
-        for (proposal_id, created_at) in [
-            (
-                &first.proposal_id,
-                chrono::Utc::now() - chrono::Duration::minutes(1),
-            ),
-            (&second.proposal_id, chrono::Utc::now()),
-        ] {
+            for (proposal_id, created_at) in [
+                (
+                    &first.proposal_id,
+                    chrono::Utc::now() - chrono::Duration::minutes(1),
+                ),
+                (&second.proposal_id, chrono::Utc::now()),
+            ] {
+                assert_eq!(
+                    memory_test_execute(
+                        &state,
+                        "UPDATE fems_memory_proposals SET created_at = $at \
+                     WHERE id = $proposal RETURN AFTER;",
+                        MemoryTestBindings {
+                            proposal: Some(RecordId::new(
+                                "fems_memory_proposals",
+                                proposal_id.as_str(),
+                            )),
+                            at: Some(Datetime::from(created_at)),
+                            ..MemoryTestBindings::default()
+                        },
+                    )
+                    .await?,
+                    1
+                );
+            }
+
+            let Json(all) = list_memory_proposals(
+                State(state.clone()),
+                Path(target.clone()),
+                Query(ProposalListQuery { limit: Some(200) }),
+            )
+            .await
+            .map_err(|(code, body)| format!("list proposals failed: {code} {body:?}"))?;
+            assert_eq!(
+                all.iter()
+                    .map(|proposal| proposal.proposal_id.as_str())
+                    .collect::<Vec<_>>(),
+                vec![second.proposal_id.as_str(), first.proposal_id.as_str()]
+            );
+            assert!(all.iter().all(|proposal| proposal.workspace_id == target));
+            assert!(!all
+                .iter()
+                .any(|proposal| proposal.proposal_id == control_ack.proposal_id));
+
             assert_eq!(
                 memory_test_execute(
                     &state,
-                    "UPDATE fems_memory_proposals SET created_at = $at \
-                     WHERE id = $proposal RETURN AFTER;",
+                    "UPDATE fems_memory_proposals SET status = 'approved' \
+                 WHERE id = $proposal RETURN AFTER;",
                     MemoryTestBindings {
                         proposal: Some(RecordId::new(
                             "fems_memory_proposals",
-                            proposal_id.as_str(),
+                            first.proposal_id.as_str()
                         )),
-                        at: Some(Datetime::from(created_at)),
                         ..MemoryTestBindings::default()
                     },
                 )
                 .await?,
                 1
             );
-        }
-
-        let Json(all) = list_memory_proposals(
-            State(state.clone()),
-            Path(target.clone()),
-            Query(ProposalListQuery { limit: Some(200) }),
-        )
-        .await
-        .map_err(|(code, body)| format!("list proposals failed: {code} {body:?}"))?;
-        assert_eq!(
-            all.iter()
-                .map(|proposal| proposal.proposal_id.as_str())
-                .collect::<Vec<_>>(),
-            vec![second.proposal_id.as_str(), first.proposal_id.as_str()]
-        );
-        assert!(all.iter().all(|proposal| proposal.workspace_id == target));
-        assert!(!all
-            .iter()
-            .any(|proposal| proposal.proposal_id == control_ack.proposal_id));
-
-        assert_eq!(
-            memory_test_execute(
-                &state,
-                "UPDATE fems_memory_proposals SET status = 'approved' \
-                 WHERE id = $proposal RETURN AFTER;",
-                MemoryTestBindings {
-                    proposal: Some(RecordId::new(
-                        "fems_memory_proposals",
-                        first.proposal_id.as_str()
-                    )),
-                    ..MemoryTestBindings::default()
-                },
+            let Json(actionable_after_review) = list_memory_proposals(
+                State(state.clone()),
+                Path(target.clone()),
+                Query(ProposalListQuery { limit: Some(200) }),
             )
-            .await?,
-            1
-        );
-        let Json(actionable_after_review) = list_memory_proposals(
-            State(state.clone()),
-            Path(target.clone()),
-            Query(ProposalListQuery { limit: Some(200) }),
-        )
-        .await
-        .map_err(|(code, body)| format!("post-review pending list failed: {code} {body:?}"))?;
-        assert_eq!(
+            .await
+            .map_err(|(code, body)| format!("post-review pending list failed: {code} {body:?}"))?;
+            assert_eq!(
             actionable_after_review
                 .iter()
                 .map(|proposal| proposal.proposal_id.as_str())
@@ -5325,25 +5340,26 @@ mod tests {
             "approved proposals must lead the actionable projection for crash-safe commit recovery"
         );
 
-        let Json(limited) = list_memory_proposals(
-            State(state.clone()),
-            Path(target),
-            Query(ProposalListQuery { limit: Some(1) }),
-        )
-        .await
-        .map_err(|(code, body)| format!("limited list failed: {code} {body:?}"))?;
-        assert_eq!(limited, vec![actionable_after_review[0].clone()]);
+            let Json(limited) = list_memory_proposals(
+                State(state.clone()),
+                Path(target),
+                Query(ProposalListQuery { limit: Some(1) }),
+            )
+            .await
+            .map_err(|(code, body)| format!("limited list failed: {code} {body:?}"))?;
+            assert_eq!(limited, vec![actionable_after_review[0].clone()]);
 
-        let missing = list_memory_proposals(
-            State(state.clone()),
-            Path("WS-MISSING-PROPOSAL-LIST".to_owned()),
-            Query(ProposalListQuery::default()),
-        )
-        .await
-        .expect_err("missing workspace must not masquerade as an empty proposal list");
-        assert_eq!(missing.0, StatusCode::NOT_FOUND);
-        Ok::<(), Box<dyn std::error::Error>>(())
-        })).await;
+            let missing = list_memory_proposals(
+                State(state.clone()),
+                Path("WS-MISSING-PROPOSAL-LIST".to_owned()),
+                Query(ProposalListQuery::default()),
+            )
+            .await
+            .expect_err("missing workspace must not masquerade as an empty proposal list");
+            assert_eq!(missing.0, StatusCode::NOT_FOUND);
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
         drop(state);
         finish_mt109_memory_test(body, store, data_dir).await
     }
@@ -5358,103 +5374,104 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "retry").await?;
-        let request_id = format!("native-retry-{}", Uuid::now_v7());
-        let content = "same logical proposal";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "retry-source", content).await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "retry",
-            "native_editor",
-        )
-        .await?;
-        let request = ProposalRequest {
-            request_id: Some(request_id.clone()),
-            class: ProposalClass::Semantic,
-            content: content.to_string(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("actor-retry".to_string()),
-        };
-
-        let first_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request.clone()),
-        );
-        let Json(first) = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), first_call)
-            .await
-        .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?;
-        let replay_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request.clone()),
-        );
-        let Json(replay) = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), replay_call)
-            .await
-        .map_err(|(code, body)| format!("replay failed: {code} {body:?}"))?;
-        assert_eq!(replay.proposal_id, first.proposal_id);
-        assert_eq!(replay.status, first.status);
-
-        let proposal_count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
-            .await?
-            .into_iter()
-            .filter(|proposal| proposal.request_id == request_id)
-            .count();
-        assert_eq!(proposal_count, 1, "retry must not duplicate proposal rows");
-        let receipt_count = usize::from(
-            memory_test_ledger_event(
+            let workspace_id = create_test_workspace(&state, "retry").await?;
+            let request_id = format!("native-retry-{}", Uuid::now_v7());
+            let content = "same logical proposal";
+            let source =
+                create_test_rich_source(&state, &workspace_id, "retry-source", content).await?;
+            let proposal_scope = proposal_create_test_scope(
                 &state,
-                &format!("fems-memory-proposal:{}", first.proposal_id),
+                &workspace_id,
+                &source.document_id,
+                "retry",
+                "native_editor",
             )
-            .await?
-            .is_some(),
-        );
-        assert_eq!(
-            receipt_count, 1,
-            "retry must not duplicate canonical receipts"
-        );
+            .await?;
+            let request = ProposalRequest {
+                request_id: Some(request_id.clone()),
+                class: ProposalClass::Semantic,
+                content: content.to_string(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("actor-retry".to_string()),
+            };
 
-        let mut drifted = request.clone();
-        drifted.actor_id = Some("different-actor".to_string());
-        let spoof_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(drifted),
-        );
-        let Json(spoof_replay) = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), spoof_call)
-            .await
-        .map_err(|(code, body)| format!("spoof metadata replay failed: {code} {body:?}"))?;
-        assert_eq!(spoof_replay.proposal_id, first.proposal_id);
+            let first_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request.clone()),
+            );
+            let Json(first) = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), first_call)
+                .await
+                .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?;
+            let replay_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request.clone()),
+            );
+            let Json(replay) = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), replay_call)
+                .await
+                .map_err(|(code, body)| format!("replay failed: {code} {body:?}"))?;
+            assert_eq!(replay.proposal_id, first.proposal_id);
+            assert_eq!(replay.status, first.status);
 
-        let mut class_drift = request.clone();
-        class_drift.class = ProposalClass::Episodic;
-        let conflict_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id),
-            HeaderMap::new(),
-            Json(class_drift),
-        );
-        let conflict = state
-            .surreal
-            .with_record_user_scope(proposal_scope, conflict_call)
-            .await
-        .expect_err("request identity authoritative payload drift must fail closed");
-        assert_eq!(conflict.0, StatusCode::CONFLICT);
-        Ok::<(), Box<dyn std::error::Error>>(())
+            let proposal_count =
+                fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                    .await?
+                    .into_iter()
+                    .filter(|proposal| proposal.request_id == request_id)
+                    .count();
+            assert_eq!(proposal_count, 1, "retry must not duplicate proposal rows");
+            let receipt_count = usize::from(
+                memory_test_ledger_event(
+                    &state,
+                    &format!("fems-memory-proposal:{}", first.proposal_id),
+                )
+                .await?
+                .is_some(),
+            );
+            assert_eq!(
+                receipt_count, 1,
+                "retry must not duplicate canonical receipts"
+            );
+
+            let mut drifted = request.clone();
+            drifted.actor_id = Some("different-actor".to_string());
+            let spoof_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(drifted),
+            );
+            let Json(spoof_replay) = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), spoof_call)
+                .await
+                .map_err(|(code, body)| format!("spoof metadata replay failed: {code} {body:?}"))?;
+            assert_eq!(spoof_replay.proposal_id, first.proposal_id);
+
+            let mut class_drift = request.clone();
+            class_drift.class = ProposalClass::Episodic;
+            let conflict_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id),
+                HeaderMap::new(),
+                Json(class_drift),
+            );
+            let conflict = state
+                .surreal
+                .with_record_user_scope(proposal_scope, conflict_call)
+                .await
+                .expect_err("request identity authoritative payload drift must fail closed");
+            assert_eq!(conflict.0, StatusCode::CONFLICT);
+            Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
         drop(state);
@@ -5467,105 +5484,106 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "rich-snapshot-boundary").await?;
-        let content = "rich replay selection";
-        let document_text = format!("xxx{content}");
-        let db = SurrealDatabase::new(state.surreal.clone());
-        let document = db
-            .create_knowledge_rich_document(NewKnowledgeRichDocument {
-                workspace_id: workspace_id.clone(),
-                document_id: None,
-                title: "Rich snapshot boundary".to_owned(),
-                schema_version: "hsk_richdoc_v1".to_owned(),
-                content_json: json!({
-                    "type": "doc",
-                    "content": [{
-                        "type": "paragraph",
-                        "content": [{"type": "text", "text": document_text}]
-                    }]
-                }),
-                crdt_document_id: None,
-                crdt_snapshot_id: None,
-                promotion_receipt_event_id: None,
-                ..Default::default()
-            })
-            .await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &document.rich_document_id,
-            "rich-snapshot-boundary",
-            "native_editor",
-        )
-        .await?;
-        let request_id = format!("rich-snapshot-boundary-{}", Uuid::now_v7());
-        let request = ProposalRequest {
-            request_id: Some(request_id.clone()),
-            class: ProposalClass::Semantic,
-            content: content.to_owned(),
-            source: valid_source(&workspace_id, &document.rich_document_id, content),
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("rich-boundary-actor".to_owned()),
-        };
-
-        let first_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request.clone()),
-        );
-        let Json(first) = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), first_call)
-            .await
-        .map_err(|(code, body)| format!("valid rich proposal failed: {code} {body:?}"))?;
-
-        let mut snapshot_drift = request.clone();
-        snapshot_drift.source_document_content = Some("untrusted code snapshot".to_owned());
-        let snapshot_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(snapshot_drift),
-        );
-        let snapshot_error = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), snapshot_call)
-            .await
-        .expect_err("rich replay must reject code-only source_document_content");
-        assert_eq!(snapshot_error.0, StatusCode::BAD_REQUEST);
-
-        let mut hash_drift = request;
-        hash_drift.source.document_content_hash = Some("a".repeat(64));
-        let hash_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(hash_drift),
-        );
-        let hash_error = state
-            .surreal
-            .with_record_user_scope(proposal_scope, hash_call)
-            .await
-        .expect_err("rich replay must reject code-only document_content_hash");
-        assert_eq!(hash_error.0, StatusCode::BAD_REQUEST);
-
-        let proposal_count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
-            .await?
-            .into_iter()
-            .filter(|proposal| proposal.request_id == request_id)
-            .count();
-        assert_eq!(proposal_count, 1, "rejected rich drift must add no row");
-        let receipt_count = usize::from(
-            memory_test_ledger_event(
+            let workspace_id = create_test_workspace(&state, "rich-snapshot-boundary").await?;
+            let content = "rich replay selection";
+            let document_text = format!("xxx{content}");
+            let db = SurrealDatabase::new(state.surreal.clone());
+            let document = db
+                .create_knowledge_rich_document(NewKnowledgeRichDocument {
+                    workspace_id: workspace_id.clone(),
+                    document_id: None,
+                    title: "Rich snapshot boundary".to_owned(),
+                    schema_version: "hsk_richdoc_v1".to_owned(),
+                    content_json: json!({
+                        "type": "doc",
+                        "content": [{
+                            "type": "paragraph",
+                            "content": [{"type": "text", "text": document_text}]
+                        }]
+                    }),
+                    crdt_document_id: None,
+                    crdt_snapshot_id: None,
+                    promotion_receipt_event_id: None,
+                    ..Default::default()
+                })
+                .await?;
+            let proposal_scope = proposal_create_test_scope(
                 &state,
-                &format!("fems-memory-proposal:{}", first.proposal_id),
+                &workspace_id,
+                &document.rich_document_id,
+                "rich-snapshot-boundary",
+                "native_editor",
             )
-            .await?
-            .is_some(),
-        );
-        assert_eq!(receipt_count, 1, "rejected rich drift must add no receipt");
+            .await?;
+            let request_id = format!("rich-snapshot-boundary-{}", Uuid::now_v7());
+            let request = ProposalRequest {
+                request_id: Some(request_id.clone()),
+                class: ProposalClass::Semantic,
+                content: content.to_owned(),
+                source: valid_source(&workspace_id, &document.rich_document_id, content),
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("rich-boundary-actor".to_owned()),
+            };
+
+            let first_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request.clone()),
+            );
+            let Json(first) = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), first_call)
+                .await
+                .map_err(|(code, body)| format!("valid rich proposal failed: {code} {body:?}"))?;
+
+            let mut snapshot_drift = request.clone();
+            snapshot_drift.source_document_content = Some("untrusted code snapshot".to_owned());
+            let snapshot_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(snapshot_drift),
+            );
+            let snapshot_error = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), snapshot_call)
+                .await
+                .expect_err("rich replay must reject code-only source_document_content");
+            assert_eq!(snapshot_error.0, StatusCode::BAD_REQUEST);
+
+            let mut hash_drift = request;
+            hash_drift.source.document_content_hash = Some("a".repeat(64));
+            let hash_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(hash_drift),
+            );
+            let hash_error = state
+                .surreal
+                .with_record_user_scope(proposal_scope, hash_call)
+                .await
+                .expect_err("rich replay must reject code-only document_content_hash");
+            assert_eq!(hash_error.0, StatusCode::BAD_REQUEST);
+
+            let proposal_count =
+                fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                    .await?
+                    .into_iter()
+                    .filter(|proposal| proposal.request_id == request_id)
+                    .count();
+            assert_eq!(proposal_count, 1, "rejected rich drift must add no row");
+            let receipt_count = usize::from(
+                memory_test_ledger_event(
+                    &state,
+                    &format!("fems-memory-proposal:{}", first.proposal_id),
+                )
+                .await?
+                .is_some(),
+            );
+            assert_eq!(receipt_count, 1, "rejected rich drift must add no receipt");
             Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
@@ -5579,103 +5597,105 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "receipt-authenticity").await?;
-        let content = "receipt authenticity proposal";
-        let source = create_test_rich_source(
-            &state,
-            &workspace_id,
-            "receipt-authenticity-source",
-            content,
-        )
-        .await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "receipt-authenticity",
-            "original-operator",
-        )
-        .await?;
-        let request = ProposalRequest {
-            request_id: Some(format!("receipt-authenticity-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: content.to_owned(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("body-actor".to_owned()),
-        };
-        let mut original_headers = HeaderMap::new();
-        original_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        original_headers.insert(HSK_HEADER_ACTOR_ID, "original-operator".parse()?);
-        original_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "original-task".parse()?);
-        original_headers.insert(HSK_HEADER_SESSION_RUN_ID, "original-session".parse()?);
-        let first_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            original_headers,
-            Json(request.clone()),
-        );
-        let Json(first) = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), first_call)
-            .await
-        .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?;
-        let receipt_key = format!("fems-memory-proposal:{}", first.proposal_id);
-        let canonical_hash = memory_test_ledger_event(&state, &receipt_key)
-            .await?
-            .expect("proposal receipt")
-            .payload_hash;
-        let mutate_receipt_hash = |hash: String| {
-            memory_test_execute(
+            let workspace_id = create_test_workspace(&state, "receipt-authenticity").await?;
+            let content = "receipt authenticity proposal";
+            let source = create_test_rich_source(
                 &state,
-                "UPDATE kernel_event_ledger SET payload_hash = $hash \
-                 WHERE idempotency_key = $value RETURN AFTER;",
-                MemoryTestBindings {
-                    value: Some(receipt_key.clone()),
-                    hash: Some(hash),
-                    ..MemoryTestBindings::default()
-                },
+                &workspace_id,
+                "receipt-authenticity-source",
+                content,
             )
-        };
-        assert_eq!(mutate_receipt_hash("0".repeat(64)).await?, 1);
+            .await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "receipt-authenticity",
+                "original-operator",
+            )
+            .await?;
+            let request = ProposalRequest {
+                request_id: Some(format!("receipt-authenticity-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: content.to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("body-actor".to_owned()),
+            };
+            let mut original_headers = HeaderMap::new();
+            original_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            original_headers.insert(HSK_HEADER_ACTOR_ID, "original-operator".parse()?);
+            original_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "original-task".parse()?);
+            original_headers.insert(HSK_HEADER_SESSION_RUN_ID, "original-session".parse()?);
+            let first_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                original_headers,
+                Json(request.clone()),
+            );
+            let Json(first) = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), first_call)
+                .await
+                .map_err(|(code, body)| format!("first proposal failed: {code} {body:?}"))?;
+            let receipt_key = format!("fems-memory-proposal:{}", first.proposal_id);
+            let canonical_hash = memory_test_ledger_event(&state, &receipt_key)
+                .await?
+                .expect("proposal receipt")
+                .payload_hash;
+            let mutate_receipt_hash = |hash: String| {
+                memory_test_execute(
+                    &state,
+                    "UPDATE kernel_event_ledger SET payload_hash = $hash \
+                 WHERE idempotency_key = $value RETURN AFTER;",
+                    MemoryTestBindings {
+                        value: Some(receipt_key.clone()),
+                        hash: Some(hash),
+                        ..MemoryTestBindings::default()
+                    },
+                )
+            };
+            assert_eq!(mutate_receipt_hash("0".repeat(64)).await?, 1);
 
-        let mut retry_headers = HeaderMap::new();
-        retry_headers.insert(HSK_HEADER_ACTOR_KIND, "system".parse()?);
-        retry_headers.insert(HSK_HEADER_ACTOR_ID, "retry-system".parse()?);
-        retry_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "retry-task".parse()?);
-        retry_headers.insert(HSK_HEADER_SESSION_RUN_ID, "retry-session".parse()?);
-        let corrupt_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            retry_headers.clone(),
-            Json(request.clone()),
-        );
-        let corrupt_status = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), corrupt_call)
-            .await
-        .err()
-        .map(|error| error.0);
-        assert_eq!(mutate_receipt_hash(canonical_hash).await?, 1);
-        assert_eq!(
-            corrupt_status,
-            Some(StatusCode::CONFLICT),
-            "corrupt existing receipt did not fail closed as a conflict"
-        );
+            let mut retry_headers = HeaderMap::new();
+            retry_headers.insert(HSK_HEADER_ACTOR_KIND, "system".parse()?);
+            retry_headers.insert(HSK_HEADER_ACTOR_ID, "retry-system".parse()?);
+            retry_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "retry-task".parse()?);
+            retry_headers.insert(HSK_HEADER_SESSION_RUN_ID, "retry-session".parse()?);
+            let corrupt_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                retry_headers.clone(),
+                Json(request.clone()),
+            );
+            let corrupt_status = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), corrupt_call)
+                .await
+                .err()
+                .map(|error| error.0);
+            assert_eq!(mutate_receipt_hash(canonical_hash).await?, 1);
+            assert_eq!(
+                corrupt_status,
+                Some(StatusCode::CONFLICT),
+                "corrupt existing receipt did not fail closed as a conflict"
+            );
 
-        let retry_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id),
-            retry_headers,
-            Json(request),
-        );
-        let Json(retry) = state
-            .surreal
-            .with_record_user_scope(proposal_scope, retry_call)
-            .await
-        .map_err(|(code, body)| format!("header-independent retry failed: {code} {body:?}"))?;
-        assert_eq!(retry.proposal_id, first.proposal_id);
+            let retry_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id),
+                retry_headers,
+                Json(request),
+            );
+            let Json(retry) = state
+                .surreal
+                .with_record_user_scope(proposal_scope, retry_call)
+                .await
+                .map_err(|(code, body)| {
+                    format!("header-independent retry failed: {code} {body:?}")
+                })?;
+            assert_eq!(retry.proposal_id, first.proposal_id);
             Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
@@ -5689,71 +5709,78 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "simultaneous-retry").await?;
-        let content = "simultaneous logical proposal";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "simultaneous-retry-source", content)
-                .await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "simultaneous-retry",
-            "native_editor",
-        )
-        .await?;
-        let request = ProposalRequest {
-            request_id: Some(format!("simultaneous-retry-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: content.to_owned(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("actor-simultaneous".to_owned()),
-        };
-
-        let first_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request.clone()),
-        );
-        let second_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request.clone()),
-        );
-        let first = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), first_call);
-        let second = state
-            .surreal
-            .with_record_user_scope(proposal_scope, second_call);
-        let (first, second) = tokio::join!(first, second);
-        let first = first
-            .map_err(|(code, body)| format!("first concurrent retry failed: {code} {body:?}"))?
-            .0;
-        let second = second
-            .map_err(|(code, body)| format!("second concurrent retry failed: {code} {body:?}"))?
-            .0;
-        assert_eq!(first.proposal_id, second.proposal_id);
-
-        let proposal_count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
-            .await?
-            .into_iter()
-            .filter(|proposal| proposal.request_id == request.request_id.as_deref().unwrap())
-            .count();
-        assert_eq!(proposal_count, 1);
-        let receipt_count = usize::from(
-            memory_test_ledger_event(
+            let workspace_id = create_test_workspace(&state, "simultaneous-retry").await?;
+            let content = "simultaneous logical proposal";
+            let source = create_test_rich_source(
                 &state,
-                &format!("fems-memory-proposal:{}", first.proposal_id),
+                &workspace_id,
+                "simultaneous-retry-source",
+                content,
             )
-            .await?
-            .is_some(),
-        );
-        assert_eq!(receipt_count, 1);
+            .await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "simultaneous-retry",
+                "native_editor",
+            )
+            .await?;
+            let request = ProposalRequest {
+                request_id: Some(format!("simultaneous-retry-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: content.to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("actor-simultaneous".to_owned()),
+            };
+
+            let first_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request.clone()),
+            );
+            let second_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request.clone()),
+            );
+            let first = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), first_call);
+            let second = state
+                .surreal
+                .with_record_user_scope(proposal_scope, second_call);
+            let (first, second) = tokio::join!(first, second);
+            let first = first
+                .map_err(|(code, body)| format!("first concurrent retry failed: {code} {body:?}"))?
+                .0;
+            let second = second
+                .map_err(|(code, body)| format!("second concurrent retry failed: {code} {body:?}"))?
+                .0;
+            assert_eq!(first.proposal_id, second.proposal_id);
+
+            let proposal_count =
+                fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                    .await?
+                    .into_iter()
+                    .filter(|proposal| {
+                        proposal.request_id == request.request_id.as_deref().unwrap()
+                    })
+                    .count();
+            assert_eq!(proposal_count, 1);
+            let receipt_count = usize::from(
+                memory_test_ledger_event(
+                    &state,
+                    &format!("fems-memory-proposal:{}", first.proposal_id),
+                )
+                .await?
+                .is_some(),
+            );
+            assert_eq!(receipt_count, 1);
             Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
@@ -5767,156 +5794,158 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "legacy-retry").await?;
-        let content = "legacy proposal retry";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "legacy-retry-source", content).await?;
-        let request = ProposalRequest {
-            request_id: None,
-            class: ProposalClass::Episodic,
-            content: content.to_owned(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("legacy-actor".to_owned()),
-        };
-        let derived_request_id =
-            stable_proposal_request_id(&workspace_id, &request).expect("derived request identity");
+            let workspace_id = create_test_workspace(&state, "legacy-retry").await?;
+            let content = "legacy proposal retry";
+            let source =
+                create_test_rich_source(&state, &workspace_id, "legacy-retry-source", content)
+                    .await?;
+            let request = ProposalRequest {
+                request_id: None,
+                class: ProposalClass::Episodic,
+                content: content.to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("legacy-actor".to_owned()),
+            };
+            let derived_request_id = stable_proposal_request_id(&workspace_id, &request)
+                .expect("derived request identity");
 
-        let legacy_proposal_id = format!("PROP-LEGACY-{}", Uuid::now_v7());
-        let proposal_payload = json!({
-            "proposal_id": legacy_proposal_id,
-            "request_id": derived_request_id,
-            "workspace_id": workspace_id,
-            "class": request.class.wire(),
-            "content": request.content,
-            "source": request.source,
-            "review_gated": true,
-            "status": PROPOSAL_STATUS_PENDING_REVIEW,
-            "actor_id": request.actor_id,
-        });
-        let legacy = fems_memory::StoredMemoryProposal {
-            proposal_id: legacy_proposal_id.clone(),
-            request_id: derived_request_id.clone(),
-            workspace_id: workspace_id.clone(),
-            document_id: request.source.document_id.clone(),
-            selection_start: i64::try_from(request.source.selection_start)
-                .expect("legacy fixture selection_start fits i64"),
-            selection_end: i64::try_from(request.source.selection_end)
-                .expect("legacy fixture selection_end fits i64"),
-            content_hash: canonical_content_hash(content).expect("canonical hash"),
-            memory_class: "episodic".to_owned(),
-            status: PROPOSAL_STATUS_PENDING_REVIEW.to_owned(),
-            review_gated: true,
-            created_at: chrono::Utc::now(),
-            proposal: proposal_payload,
-        };
-        #[derive(SurrealValue)]
-        struct LegacyProposalContent {
-            proposal_id: String,
-            request_id: String,
-            workspace_id: RecordId,
-            document_id: String,
-            selection_start: i64,
-            selection_end: i64,
-            content_hash: String,
-            memory_class: String,
-            status: String,
-            review_gated: bool,
-            proposal: Value,
-            created_at: Datetime,
-        }
-        let legacy_id = legacy.proposal_id.clone();
-        let legacy_content = LegacyProposalContent {
-            proposal_id: legacy.proposal_id.clone(),
-            request_id: legacy.request_id.clone(),
-            workspace_id: RecordId::new("workspaces", legacy.workspace_id.as_str()),
-            document_id: legacy.document_id.clone(),
-            selection_start: legacy.selection_start,
-            selection_end: legacy.selection_end,
-            content_hash: legacy.content_hash.clone(),
-            memory_class: legacy.memory_class.clone(),
-            status: legacy.status.clone(),
-            review_gated: legacy.review_gated,
-            proposal: legacy.proposal.clone(),
-            created_at: Datetime::from(legacy.created_at),
-        };
-        let inserted: Option<Value> = state
-            .surreal
-            .with_data_operation(move |database| {
-                Box::pin(async move {
-                    database
-                        .create_if_absent("fems_memory_proposals", &legacy_id, legacy_content)
-                        .await
+            let legacy_proposal_id = format!("PROP-LEGACY-{}", Uuid::now_v7());
+            let proposal_payload = json!({
+                "proposal_id": legacy_proposal_id,
+                "request_id": derived_request_id,
+                "workspace_id": workspace_id,
+                "class": request.class.wire(),
+                "content": request.content,
+                "source": request.source,
+                "review_gated": true,
+                "status": PROPOSAL_STATUS_PENDING_REVIEW,
+                "actor_id": request.actor_id,
+            });
+            let legacy = fems_memory::StoredMemoryProposal {
+                proposal_id: legacy_proposal_id.clone(),
+                request_id: derived_request_id.clone(),
+                workspace_id: workspace_id.clone(),
+                document_id: request.source.document_id.clone(),
+                selection_start: i64::try_from(request.source.selection_start)
+                    .expect("legacy fixture selection_start fits i64"),
+                selection_end: i64::try_from(request.source.selection_end)
+                    .expect("legacy fixture selection_end fits i64"),
+                content_hash: canonical_content_hash(content).expect("canonical hash"),
+                memory_class: "episodic".to_owned(),
+                status: PROPOSAL_STATUS_PENDING_REVIEW.to_owned(),
+                review_gated: true,
+                created_at: chrono::Utc::now(),
+                proposal: proposal_payload,
+            };
+            #[derive(SurrealValue)]
+            struct LegacyProposalContent {
+                proposal_id: String,
+                request_id: String,
+                workspace_id: RecordId,
+                document_id: String,
+                selection_start: i64,
+                selection_end: i64,
+                content_hash: String,
+                memory_class: String,
+                status: String,
+                review_gated: bool,
+                proposal: Value,
+                created_at: Datetime,
+            }
+            let legacy_id = legacy.proposal_id.clone();
+            let legacy_content = LegacyProposalContent {
+                proposal_id: legacy.proposal_id.clone(),
+                request_id: legacy.request_id.clone(),
+                workspace_id: RecordId::new("workspaces", legacy.workspace_id.as_str()),
+                document_id: legacy.document_id.clone(),
+                selection_start: legacy.selection_start,
+                selection_end: legacy.selection_end,
+                content_hash: legacy.content_hash.clone(),
+                memory_class: legacy.memory_class.clone(),
+                status: legacy.status.clone(),
+                review_gated: legacy.review_gated,
+                proposal: legacy.proposal.clone(),
+                created_at: Datetime::from(legacy.created_at),
+            };
+            let inserted: Option<Value> = state
+                .surreal
+                .with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .create_if_absent("fems_memory_proposals", &legacy_id, legacy_content)
+                            .await
+                    })
                 })
-            })
-            .await?;
-        assert!(
-            inserted.is_some(),
-            "legacy proposal fixture must be inserted"
-        );
-        let receipt_key = format!("fems-memory-proposal:{legacy_proposal_id}");
-        let before = usize::from(
-            memory_test_ledger_event(&state, &receipt_key)
-                .await?
-                .is_some(),
-        );
-        assert_eq!(before, 0, "fixture must model the pre-upgrade crash window");
+                .await?;
+            assert!(
+                inserted.is_some(),
+                "legacy proposal fixture must be inserted"
+            );
+            let receipt_key = format!("fems-memory-proposal:{legacy_proposal_id}");
+            let before = usize::from(
+                memory_test_ledger_event(&state, &receipt_key)
+                    .await?
+                    .is_some(),
+            );
+            assert_eq!(before, 0, "fixture must model the pre-upgrade crash window");
 
-        let mut first_headers = HeaderMap::new();
-        first_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        first_headers.insert(HSK_HEADER_ACTOR_ID, "legacy-actor".parse()?);
-        first_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "retry-task-a".parse()?);
-        first_headers.insert(HSK_HEADER_SESSION_RUN_ID, "retry-session-a".parse()?);
-        let mut second_headers = HeaderMap::new();
-        second_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        second_headers.insert(HSK_HEADER_ACTOR_ID, "legacy-actor".parse()?);
-        second_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "retry-task-b".parse()?);
-        second_headers.insert(HSK_HEADER_SESSION_RUN_ID, "retry-session-b".parse()?);
-        let first = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            first_headers,
-            Json(request.clone()),
-        );
-        let second = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            second_headers,
-            Json(request),
-        );
-        let (first, second) = tokio::join!(first, second);
-        let first = first
-            .map_err(|(code, body)| format!("first legacy retry failed: {code} {body:?}"))?
-            .0;
-        let second = second
-            .map_err(|(code, body)| format!("second legacy retry failed: {code} {body:?}"))?
-            .0;
-        assert_eq!(first.proposal_id, legacy_proposal_id);
-        assert_eq!(second.proposal_id, legacy_proposal_id);
-        let count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
-            .await?
-            .into_iter()
-            .filter(|proposal| proposal.request_id == derived_request_id)
-            .count();
-        assert_eq!(count, 1);
-        let receipt = memory_test_ledger_event(&state, &receipt_key)
-            .await?
-            .expect("concurrent healing appends exactly once");
-        assert_eq!(receipt.aggregate_id, legacy_proposal_id);
-        assert_eq!(
-            receipt.payload["proposal_id"],
-            Value::String(legacy_proposal_id)
-        );
-        assert_eq!(
-            receipt.kernel_task_run_id,
-            format!("native-editor-fems-propose-{workspace_id}")
-        );
-        assert_eq!(receipt.session_run_id, "native-editor-session");
-        assert_eq!(receipt.actor.actor_kind(), "operator");
-        assert_eq!(receipt.actor.actor_id(), "legacy-actor");
-        Ok::<(), Box<dyn std::error::Error>>(())
-        })).await;
+            let mut first_headers = HeaderMap::new();
+            first_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            first_headers.insert(HSK_HEADER_ACTOR_ID, "legacy-actor".parse()?);
+            first_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "retry-task-a".parse()?);
+            first_headers.insert(HSK_HEADER_SESSION_RUN_ID, "retry-session-a".parse()?);
+            let mut second_headers = HeaderMap::new();
+            second_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            second_headers.insert(HSK_HEADER_ACTOR_ID, "legacy-actor".parse()?);
+            second_headers.insert(HSK_HEADER_KERNEL_TASK_RUN_ID, "retry-task-b".parse()?);
+            second_headers.insert(HSK_HEADER_SESSION_RUN_ID, "retry-session-b".parse()?);
+            let first = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                first_headers,
+                Json(request.clone()),
+            );
+            let second = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                second_headers,
+                Json(request),
+            );
+            let (first, second) = tokio::join!(first, second);
+            let first = first
+                .map_err(|(code, body)| format!("first legacy retry failed: {code} {body:?}"))?
+                .0;
+            let second = second
+                .map_err(|(code, body)| format!("second legacy retry failed: {code} {body:?}"))?
+                .0;
+            assert_eq!(first.proposal_id, legacy_proposal_id);
+            assert_eq!(second.proposal_id, legacy_proposal_id);
+            let count = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                .await?
+                .into_iter()
+                .filter(|proposal| proposal.request_id == derived_request_id)
+                .count();
+            assert_eq!(count, 1);
+            let receipt = memory_test_ledger_event(&state, &receipt_key)
+                .await?
+                .expect("concurrent healing appends exactly once");
+            assert_eq!(receipt.aggregate_id, legacy_proposal_id);
+            assert_eq!(
+                receipt.payload["proposal_id"],
+                Value::String(legacy_proposal_id)
+            );
+            assert_eq!(
+                receipt.kernel_task_run_id,
+                format!("native-editor-fems-propose-{workspace_id}")
+            );
+            assert_eq!(receipt.session_run_id, "native-editor-session");
+            assert_eq!(receipt.actor.actor_kind(), "operator");
+            assert_eq!(receipt.actor.actor_id(), "legacy-actor");
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
         drop(state);
         finish_mt109_memory_test(body, store, data_dir).await
     }
@@ -6177,102 +6206,104 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "rollback").await?;
-        let request_id = format!("forced-failure-{}", Uuid::now_v7());
-        let proposal_id = stable_proposal_id(&workspace_id, &request_id);
-        let content = "rollback after a valid proposal insert";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "rollback-source", content).await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "rollback",
-            "native_editor",
-        )
-        .await?;
-        let created_at =
-            chrono::DateTime::from_timestamp_micros(chrono::Utc::now().timestamp_micros())
-                .expect("normalized rollback fixture instant");
-        let mut proposal = fems_memory::StoredMemoryProposal {
-            proposal_id: proposal_id.clone(),
-            request_id: request_id.clone(),
-            workspace_id: workspace_id.clone(),
-            document_id: source.document_id.clone(),
-            selection_start: i64::try_from(source.selection_start)?,
-            selection_end: i64::try_from(source.selection_end)?,
-            content_hash: source.content_hash.clone(),
-            memory_class: "semantic".to_string(),
-            status: PROPOSAL_STATUS_PENDING_REVIEW.to_string(),
-            review_gated: true,
-            created_at,
-            proposal: json!({
-                "proposal_id": &proposal_id,
-                "request_id": &request_id,
-                "workspace_id": &workspace_id,
-                "class": "semantic",
-                "content": content,
-                "source": source,
-                "review_gated": true,
-                "status": PROPOSAL_STATUS_PENDING_REVIEW,
-                "actor_id": "native_editor",
-            }),
-        };
-        let canonical = fems_memory::proposal_canonical_artifact(
-            &proposal,
-            fems_memory::LegacyArtifactHeal::Allow,
-        );
-        assert_eq!(
-            canonical.origin,
-            fems_memory::ProposalArtifactOrigin::HealedFromDurableColumns
-        );
-        proposal
-            .proposal
-            .as_object_mut()
-            .expect("rollback proposal payload is an object")
-            .insert("_canonical_artifact".to_owned(), canonical.value);
-        let receipt = NewKernelEvent::builder(
-            "forced-failure-task",
-            "forced-failure-session",
-            KernelEventType::ArtifactProposed,
-            KernelActor::System("forced-failure-test".to_string()),
-        )
-        .aggregate("fems_memory_proposal", proposal_id.clone())
-        .idempotency_key(format!("fems-memory-proposal:{proposal_id}"))
-        .source_component("fems_memory_proposal_intake")
-        .payload(json!({"proposal_id": &proposal_id, "workspace_id": &workspace_id}))
-        .build()?;
+            let workspace_id = create_test_workspace(&state, "rollback").await?;
+            let request_id = format!("forced-failure-{}", Uuid::now_v7());
+            let proposal_id = stable_proposal_id(&workspace_id, &request_id);
+            let content = "rollback after a valid proposal insert";
+            let source =
+                create_test_rich_source(&state, &workspace_id, "rollback-source", content).await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "rollback",
+                "native_editor",
+            )
+            .await?;
+            let created_at =
+                chrono::DateTime::from_timestamp_micros(chrono::Utc::now().timestamp_micros())
+                    .expect("normalized rollback fixture instant");
+            let mut proposal = fems_memory::StoredMemoryProposal {
+                proposal_id: proposal_id.clone(),
+                request_id: request_id.clone(),
+                workspace_id: workspace_id.clone(),
+                document_id: source.document_id.clone(),
+                selection_start: i64::try_from(source.selection_start)?,
+                selection_end: i64::try_from(source.selection_end)?,
+                content_hash: source.content_hash.clone(),
+                memory_class: "semantic".to_string(),
+                status: PROPOSAL_STATUS_PENDING_REVIEW.to_string(),
+                review_gated: true,
+                created_at,
+                proposal: json!({
+                    "proposal_id": &proposal_id,
+                    "request_id": &request_id,
+                    "workspace_id": &workspace_id,
+                    "class": "semantic",
+                    "content": content,
+                    "source": source,
+                    "review_gated": true,
+                    "status": PROPOSAL_STATUS_PENDING_REVIEW,
+                    "actor_id": "native_editor",
+                }),
+            };
+            let canonical = fems_memory::proposal_canonical_artifact(
+                &proposal,
+                fems_memory::LegacyArtifactHeal::Allow,
+            );
+            assert_eq!(
+                canonical.origin,
+                fems_memory::ProposalArtifactOrigin::HealedFromDurableColumns
+            );
+            proposal
+                .proposal
+                .as_object_mut()
+                .expect("rollback proposal payload is an object")
+                .insert("_canonical_artifact".to_owned(), canonical.value);
+            let receipt = NewKernelEvent::builder(
+                "forced-failure-task",
+                "forced-failure-session",
+                KernelEventType::ArtifactProposed,
+                KernelActor::System("forced-failure-test".to_string()),
+            )
+            .aggregate("fems_memory_proposal", proposal_id.clone())
+            .idempotency_key(format!("fems-memory-proposal:{proposal_id}"))
+            .source_component("fems_memory_proposal_intake")
+            .payload(json!({"proposal_id": &proposal_id, "workspace_id": &workspace_id}))
+            .build()?;
 
-        let forced = fems_memory::insert_memory_proposal_with_receipt_forced_failure(
-            &state.surreal,
-            &proposal,
-            receipt,
-        );
-        let error = state
-            .surreal
-            .with_record_user_scope(proposal_scope, forced)
-            .await
-            .expect_err("forced receipt-phase failure must surface");
-        assert!(
-            error.to_string().contains("forced failure after proposal insert"),
-            "rollback proof must reach the injected post-insert failure, got {error}"
-        );
-        assert!(
-            fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
-                .await?
-                .is_none(),
-            "partial proposal insert must roll back"
-        );
-        let receipt_count = usize::from(
-            memory_test_ledger_event(&state, &format!("fems-memory-proposal:{proposal_id}"))
-                .await?
-                .is_some(),
-        );
-        assert_eq!(
-            receipt_count, 0,
-            "failed transaction must append no receipt"
-        );
-        Ok::<(), Box<dyn std::error::Error>>(())
+            let forced = fems_memory::insert_memory_proposal_with_receipt_forced_failure(
+                &state.surreal,
+                &proposal,
+                receipt,
+            );
+            let error = state
+                .surreal
+                .with_record_user_scope(proposal_scope, forced)
+                .await
+                .expect_err("forced receipt-phase failure must surface");
+            assert!(
+                error
+                    .to_string()
+                    .contains("forced failure after proposal insert"),
+                "rollback proof must reach the injected post-insert failure, got {error}"
+            );
+            assert!(
+                fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
+                    .await?
+                    .is_none(),
+                "partial proposal insert must roll back"
+            );
+            let receipt_count = usize::from(
+                memory_test_ledger_event(&state, &format!("fems-memory-proposal:{proposal_id}"))
+                    .await?
+                    .is_some(),
+            );
+            assert_eq!(
+                receipt_count, 0,
+                "failed transaction must append no receipt"
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
         drop(state);
@@ -6287,120 +6318,120 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "negative").await?;
-        let memory_id = "MEM-COMMITTED-1";
-        let committed_content = "committed truth";
-        let committed_source = create_test_rich_source(
-            &state,
-            &workspace_id,
-            "negative-committed-source",
-            committed_content,
-        )
-        .await?;
-        let committed = serde_json::to_value(crate::ace::MemoryPackItem {
-            memory_id: memory_id.to_owned(),
-            memory_class: "semantic".to_owned(),
-            item_type: "fact".to_owned(),
-            summary: committed_content.to_owned(),
-            content: committed_content.to_owned(),
-            structured: None,
-            trust_level: "user_asserted".to_owned(),
-            confidence: 1.0,
-            scope_refs: Vec::new(),
-            source_refs: vec![FemsSourceRef {
-                kind: FemsSourceRefKind::DocBlock,
-                id: committed_source.document_id,
-                hash: Some(committed_source.content_hash),
-                selector: Some(format!(
-                    "bytes:{}-{}",
-                    committed_source.selection_start, committed_source.selection_end
-                )),
-                created_at: None,
-                classification: Some("low".to_owned()),
-            }],
-            pinned: false,
-            last_verified_at: None,
-        })?;
-        fems_memory::upsert_memory_item(&state.surreal, &workspace_id, memory_id, &committed)
+            let workspace_id = create_test_workspace(&state, "negative").await?;
+            let memory_id = "MEM-COMMITTED-1";
+            let committed_content = "committed truth";
+            let committed_source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "negative-committed-source",
+                committed_content,
+            )
             .await?;
-        let before = fems_memory::count_memory_items(&state.surreal, &workspace_id).await?;
-        assert_eq!(before, 1);
-        let Json(before_exact) =
-            get_committed_memory_count(State(state.clone()), Path(workspace_id.clone()))
+            let committed = serde_json::to_value(crate::ace::MemoryPackItem {
+                memory_id: memory_id.to_owned(),
+                memory_class: "semantic".to_owned(),
+                item_type: "fact".to_owned(),
+                summary: committed_content.to_owned(),
+                content: committed_content.to_owned(),
+                structured: None,
+                trust_level: "user_asserted".to_owned(),
+                confidence: 1.0,
+                scope_refs: Vec::new(),
+                source_refs: vec![FemsSourceRef {
+                    kind: FemsSourceRefKind::DocBlock,
+                    id: committed_source.document_id,
+                    hash: Some(committed_source.content_hash),
+                    selector: Some(format!(
+                        "bytes:{}-{}",
+                        committed_source.selection_start, committed_source.selection_end
+                    )),
+                    created_at: None,
+                    classification: Some("low".to_owned()),
+                }],
+                pinned: false,
+                last_verified_at: None,
+            })?;
+            fems_memory::upsert_memory_item(&state.surreal, &workspace_id, memory_id, &committed)
+                .await?;
+            let before = fems_memory::count_memory_items(&state.surreal, &workspace_id).await?;
+            assert_eq!(before, 1);
+            let Json(before_exact) =
+                get_committed_memory_count(State(state.clone()), Path(workspace_id.clone()))
+                    .await
+                    .map_err(|(code, body)| format!("committed count failed: {code} {body:?}"))?;
+            assert_eq!(before_exact.count, 1);
+
+            let other_workspace = create_test_workspace(&state, "negative-control").await?;
+            fems_memory::upsert_memory_item(
+                &state.surreal,
+                &other_workspace,
+                "MEM-OTHER-WORKSPACE",
+                &json!({"content": "must not leak into target count"}),
+            )
+            .await?;
+
+            // Submit a proposal that names the committed memory in its content.
+            let content = format!("overwrite {memory_id} with attacker text");
+            let source =
+                create_test_rich_source(&state, &workspace_id, "negative-source", &content).await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "negative",
+                "native_editor",
+            )
+            .await?;
+            let request = ProposalRequest {
+                request_id: None,
+                class: ProposalClass::Procedural,
+                content: content.clone(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("attacker".to_string()),
+            };
+            let create = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request),
+            );
+            let Json(ack) = state
+                .surreal
+                .with_record_user_scope(proposal_scope, create)
                 .await
-                .map_err(|(code, body)| format!("committed count failed: {code} {body:?}"))?;
-        assert_eq!(before_exact.count, 1);
+                .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
-        let other_workspace = create_test_workspace(&state, "negative-control").await?;
-        fems_memory::upsert_memory_item(
-            &state.surreal,
-            &other_workspace,
-            "MEM-OTHER-WORKSPACE",
-            &json!({"content": "must not leak into target count"}),
-        )
-        .await?;
+            // The committed item is byte-for-byte unchanged.
+            let after_item = fems_memory::get_memory_item(&state.surreal, &workspace_id, memory_id)
+                .await?
+                .expect("committed item still present");
+            assert_eq!(
+                after_item, committed,
+                "proposal must not mutate committed memory"
+            );
 
-        // Submit a proposal that names the committed memory in its content.
-        let content = format!("overwrite {memory_id} with attacker text");
-        let source =
-            create_test_rich_source(&state, &workspace_id, "negative-source", &content).await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "negative",
-            "native_editor",
-        )
-        .await?;
-        let request = ProposalRequest {
-            request_id: None,
-            class: ProposalClass::Procedural,
-            content: content.clone(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("attacker".to_string()),
-        };
-        let create = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request),
-        );
-        let Json(ack) = state
-            .surreal
-            .with_record_user_scope(proposal_scope, create)
-            .await
-        .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
+            // No new committed item was created; the count is unchanged.
+            let after = fems_memory::count_memory_items(&state.surreal, &workspace_id).await?;
+            assert_eq!(after, 1, "proposal must not create a committed memory item");
+            let Json(after_exact) =
+                get_committed_memory_count(State(state.clone()), Path(workspace_id.clone()))
+                    .await
+                    .map_err(|(code, body)| format!("committed count failed: {code} {body:?}"))?;
+            assert_eq!(
+                after_exact.count, 1,
+                "canonical endpoint must remain unchanged"
+            );
+            assert_eq!(after_exact.workspace_id, workspace_id);
 
-        // The committed item is byte-for-byte unchanged.
-        let after_item = fems_memory::get_memory_item(&state.surreal, &workspace_id, memory_id)
-            .await?
-            .expect("committed item still present");
-        assert_eq!(
-            after_item, committed,
-            "proposal must not mutate committed memory"
-        );
-
-        // No new committed item was created; the count is unchanged.
-        let after = fems_memory::count_memory_items(&state.surreal, &workspace_id).await?;
-        assert_eq!(after, 1, "proposal must not create a committed memory item");
-        let Json(after_exact) =
-            get_committed_memory_count(State(state.clone()), Path(workspace_id.clone()))
-                .await
-                .map_err(|(code, body)| format!("committed count failed: {code} {body:?}"))?;
-        assert_eq!(
-            after_exact.count, 1,
-            "canonical endpoint must remain unchanged"
-        );
-        assert_eq!(after_exact.workspace_id, workspace_id);
-
-        // The proposal itself is only pending_review.
-        let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
-            .await?
-            .expect("proposal stored");
-        assert_eq!(stored.status, PROPOSAL_STATUS_PENDING_REVIEW);
-        Ok::<(), Box<dyn std::error::Error>>(())
+            // The proposal itself is only pending_review.
+            let stored = fems_memory::get_memory_proposal(&state.surreal, &ack.proposal_id)
+                .await?
+                .expect("proposal stored");
+            assert_eq!(stored.status, PROPOSAL_STATUS_PENDING_REVIEW);
+            Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
         drop(state);
@@ -6415,141 +6446,146 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let target = create_test_workspace(&state, "cleanup-target").await?;
-        let control = create_test_workspace(&state, "cleanup-control").await?;
+            let target = create_test_workspace(&state, "cleanup-target").await?;
+            let control = create_test_workspace(&state, "cleanup-control").await?;
 
-        fems_memory::upsert_memory_pack(&state.surreal, &target, "", &seeded_pack(&target)).await?;
-        fems_memory::upsert_memory_pack(&state.surreal, &control, "", &seeded_pack(&control))
-            .await?;
-        fems_memory::upsert_memory_item(
-            &state.surreal,
-            &target,
-            &format!("MEM-TARGET-{}", Uuid::now_v7()),
-            &json!({"content": "target"}),
-        )
-        .await?;
-        fems_memory::upsert_memory_item(
-            &state.surreal,
-            &control,
-            &format!("MEM-CONTROL-{}", Uuid::now_v7()),
-            &json!({"content": "control"}),
-        )
-        .await?;
-
-        let target_content = "target pending proposal";
-        let target_source =
-            create_test_rich_source(&state, &target, "cleanup-target-source", target_content)
+            fems_memory::upsert_memory_pack(&state.surreal, &target, "", &seeded_pack(&target))
                 .await?;
-        let target_scope = proposal_create_test_scope(
-            &state,
-            &target,
-            &target_source.document_id,
-            "cleanup",
-            "native_editor",
-        )
-        .await?;
-        let target_request = ProposalRequest {
-            request_id: Some(format!("cleanup-target-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: target_content.to_string(),
-            source: target_source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("cleanup-test".to_string()),
-        };
-        let control_content = "control pending proposal";
-        let control_source =
-            create_test_rich_source(&state, &control, "cleanup-control-source", control_content)
+            fems_memory::upsert_memory_pack(&state.surreal, &control, "", &seeded_pack(&control))
                 .await?;
-        let control_scope = proposal_create_test_scope(
-            &state,
-            &control,
-            &control_source.document_id,
-            "cleanup",
-            "native_editor",
-        )
-        .await?;
-        let control_request = ProposalRequest {
-            request_id: Some(format!("cleanup-control-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: control_content.to_string(),
-            source: control_source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("cleanup-test".to_string()),
-        };
-        let target_call = create_memory_proposal(
-            State(state.clone()),
-            Path(target.clone()),
-            HeaderMap::new(),
-            Json(target_request),
-        );
-        let Json(target_ack) = state
-            .surreal
-            .with_record_user_scope(target_scope, target_call)
-            .await
-        .map_err(|(code, body)| format!("target proposal failed: {code} {body:?}"))?;
-        let control_call = create_memory_proposal(
-            State(state.clone()),
-            Path(control.clone()),
-            HeaderMap::new(),
-            Json(control_request),
-        );
-        let Json(control_ack) = state
-            .surreal
-            .with_record_user_scope(control_scope, control_call)
-            .await
-        .map_err(|(code, body)| format!("control proposal failed: {code} {body:?}"))?;
-
-        state
-            .storage
-            .delete_workspace(
-                &WriteContext::human(Some("fems-memory-test".to_owned())),
+            fems_memory::upsert_memory_item(
+                &state.surreal,
                 &target,
+                &format!("MEM-TARGET-{}", Uuid::now_v7()),
+                &json!({"content": "target"}),
+            )
+            .await?;
+            fems_memory::upsert_memory_item(
+                &state.surreal,
+                &control,
+                &format!("MEM-CONTROL-{}", Uuid::now_v7()),
+                &json!({"content": "control"}),
             )
             .await?;
 
-        assert!(
-            fems_memory::get_latest_memory_pack(&state.surreal, &target, None)
-                .await?
-                .is_none()
-        );
-        assert_eq!(
-            fems_memory::count_memory_items(&state.surreal, &target).await?,
-            0
-        );
-        assert!(
-            fems_memory::get_memory_proposal(&state.surreal, &target_ack.proposal_id)
-                .await?
-                .is_none()
-        );
-
-        assert!(
-            fems_memory::get_latest_memory_pack(&state.surreal, &control, None)
-                .await?
-                .is_some()
-        );
-        assert_eq!(
-            fems_memory::count_memory_items(&state.surreal, &control).await?,
-            1
-        );
-        assert!(
-            fems_memory::get_memory_proposal(&state.surreal, &control_ack.proposal_id)
-                .await?
-                .is_some()
-        );
-        let target_receipt_count = usize::from(
-            memory_test_ledger_event(
+            let target_content = "target pending proposal";
+            let target_source =
+                create_test_rich_source(&state, &target, "cleanup-target-source", target_content)
+                    .await?;
+            let target_scope = proposal_create_test_scope(
                 &state,
-                &format!("fems-memory-proposal:{}", target_ack.proposal_id),
+                &target,
+                &target_source.document_id,
+                "cleanup",
+                "native_editor",
             )
-            .await?
-            .is_some(),
-        );
-        assert_eq!(
-            target_receipt_count, 1,
-            "cleanup must preserve EventLedger receipt"
-        );
+            .await?;
+            let target_request = ProposalRequest {
+                request_id: Some(format!("cleanup-target-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: target_content.to_string(),
+                source: target_source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("cleanup-test".to_string()),
+            };
+            let control_content = "control pending proposal";
+            let control_source = create_test_rich_source(
+                &state,
+                &control,
+                "cleanup-control-source",
+                control_content,
+            )
+            .await?;
+            let control_scope = proposal_create_test_scope(
+                &state,
+                &control,
+                &control_source.document_id,
+                "cleanup",
+                "native_editor",
+            )
+            .await?;
+            let control_request = ProposalRequest {
+                request_id: Some(format!("cleanup-control-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: control_content.to_string(),
+                source: control_source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("cleanup-test".to_string()),
+            };
+            let target_call = create_memory_proposal(
+                State(state.clone()),
+                Path(target.clone()),
+                HeaderMap::new(),
+                Json(target_request),
+            );
+            let Json(target_ack) = state
+                .surreal
+                .with_record_user_scope(target_scope, target_call)
+                .await
+                .map_err(|(code, body)| format!("target proposal failed: {code} {body:?}"))?;
+            let control_call = create_memory_proposal(
+                State(state.clone()),
+                Path(control.clone()),
+                HeaderMap::new(),
+                Json(control_request),
+            );
+            let Json(control_ack) = state
+                .surreal
+                .with_record_user_scope(control_scope, control_call)
+                .await
+                .map_err(|(code, body)| format!("control proposal failed: {code} {body:?}"))?;
+
+            state
+                .storage
+                .delete_workspace(
+                    &WriteContext::human(Some("fems-memory-test".to_owned())),
+                    &target,
+                )
+                .await?;
+
+            assert!(
+                fems_memory::get_latest_memory_pack(&state.surreal, &target, None)
+                    .await?
+                    .is_none()
+            );
+            assert_eq!(
+                fems_memory::count_memory_items(&state.surreal, &target).await?,
+                0
+            );
+            assert!(
+                fems_memory::get_memory_proposal(&state.surreal, &target_ack.proposal_id)
+                    .await?
+                    .is_none()
+            );
+
+            assert!(
+                fems_memory::get_latest_memory_pack(&state.surreal, &control, None)
+                    .await?
+                    .is_some()
+            );
+            assert_eq!(
+                fems_memory::count_memory_items(&state.surreal, &control).await?,
+                1
+            );
+            assert!(
+                fems_memory::get_memory_proposal(&state.surreal, &control_ack.proposal_id)
+                    .await?
+                    .is_some()
+            );
+            let target_receipt_count = usize::from(
+                memory_test_ledger_event(
+                    &state,
+                    &format!("fems-memory-proposal:{}", target_ack.proposal_id),
+                )
+                .await?
+                .is_some(),
+            );
+            assert_eq!(
+                target_receipt_count, 1,
+                "cleanup must preserve EventLedger receipt"
+            );
             Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
@@ -6563,68 +6599,69 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "delete-race").await?;
-        let content = "proposal racing workspace deletion";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "delete-race-source", content).await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "delete-race",
-            "native_editor",
-        )
-        .await?;
-        let request = ProposalRequest {
-            request_id: Some(format!("delete-race-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: content.to_owned(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("delete-race-test".to_owned()),
-        };
-        let ctx = WriteContext::human(Some("delete-race-test".to_owned()));
+            let workspace_id = create_test_workspace(&state, "delete-race").await?;
+            let content = "proposal racing workspace deletion";
+            let source =
+                create_test_rich_source(&state, &workspace_id, "delete-race-source", content)
+                    .await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "delete-race",
+                "native_editor",
+            )
+            .await?;
+            let request = ProposalRequest {
+                request_id: Some(format!("delete-race-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: content.to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("delete-race-test".to_owned()),
+            };
+            let ctx = WriteContext::human(Some("delete-race-test".to_owned()));
 
-        let deletion = state.storage.delete_workspace(&ctx, &workspace_id);
-        let proposal_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(request.clone()),
-        );
-        let proposal = state
-            .surreal
-            .with_record_user_scope(proposal_scope, proposal_call);
-        let (deletion, proposal) = tokio::join!(deletion, proposal);
-        deletion?;
-        if let Err((status, _)) = proposal {
-            assert_eq!(status, StatusCode::NOT_FOUND);
-        }
+            let deletion = state.storage.delete_workspace(&ctx, &workspace_id);
+            let proposal_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(request.clone()),
+            );
+            let proposal = state
+                .surreal
+                .with_record_user_scope(proposal_scope, proposal_call);
+            let (deletion, proposal) = tokio::join!(deletion, proposal);
+            deletion?;
+            if let Err((status, _)) = proposal {
+                assert_eq!(status, StatusCode::NOT_FOUND);
+            }
 
-        assert!(state.storage.get_workspace(&workspace_id).await?.is_none());
-        let orphan_count = memory_test_count(
-            &state,
-            "SELECT count() AS count FROM fems_memory_proposals \
+            assert!(state.storage.get_workspace(&workspace_id).await?.is_none());
+            let orphan_count = memory_test_count(
+                &state,
+                "SELECT count() AS count FROM fems_memory_proposals \
              WHERE workspace_id = $workspace GROUP ALL;",
-            MemoryTestBindings {
-                workspace: Some(RecordId::new("workspaces", workspace_id.as_str())),
-                ..MemoryTestBindings::default()
-            },
-        )
-        .await?;
-        assert_eq!(orphan_count, 0, "workspace deletion must cascade proposals");
+                MemoryTestBindings {
+                    workspace: Some(RecordId::new("workspaces", workspace_id.as_str())),
+                    ..MemoryTestBindings::default()
+                },
+            )
+            .await?;
+            assert_eq!(orphan_count, 0, "workspace deletion must cascade proposals");
 
-        let after_delete = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id),
-            HeaderMap::new(),
-            Json(request),
-        )
-        .await
-        .expect_err("proposal route must reject a deleted workspace");
-        assert_eq!(after_delete.0, StatusCode::NOT_FOUND);
-        Ok::<(), Box<dyn std::error::Error>>(())
+            let after_delete = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id),
+                HeaderMap::new(),
+                Json(request),
+            )
+            .await
+            .expect_err("proposal route must reject a deleted workspace");
+            assert_eq!(after_delete.0, StatusCode::NOT_FOUND);
+            Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
         drop(state);
@@ -6638,226 +6675,229 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "fail-closed").await?;
+            let workspace_id = create_test_workspace(&state, "fail-closed").await?;
 
-        // Empty content_hash.
-        let bad_hash = ProposalRequest {
-            request_id: None,
-            class: ProposalClass::Episodic,
-            content: "x".to_string(),
-            source: ProposalSource {
-                content_hash: String::new(),
-                ..valid_source(&workspace_id, "doc-1", "x")
-            },
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: None,
-        };
-        let err = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(bad_hash),
-        )
-        .await
-        .expect_err("empty content_hash must be rejected");
-        assert_eq!(err.0, StatusCode::BAD_REQUEST);
-
-        let valid = ProposalRequest {
-            request_id: None,
-            class: ProposalClass::Episodic,
-            content: "x".to_owned(),
-            source: valid_source(&workspace_id, "doc-1", "x"),
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: None,
-        };
-
-        let missing_source = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(valid.clone()),
-        )
-        .await
-        .expect_err("nonexistent rich/code source must fail closed");
-        assert_eq!(missing_source.0, StatusCode::BAD_REQUEST);
-
-        for untrusted_gate in [None, Some(false)] {
-            let mut ungated = valid.clone();
-            ungated.review_gated = untrusted_gate;
+            // Empty content_hash.
+            let bad_hash = ProposalRequest {
+                request_id: None,
+                class: ProposalClass::Episodic,
+                content: "x".to_string(),
+                source: ProposalSource {
+                    content_hash: String::new(),
+                    ..valid_source(&workspace_id, "doc-1", "x")
+                },
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: None,
+            };
             let err = create_memory_proposal(
                 State(state.clone()),
                 Path(workspace_id.clone()),
                 HeaderMap::new(),
-                Json(ungated),
+                Json(bad_hash),
             )
             .await
-            .expect_err("false or omitted review gating must fail before persistence");
+            .expect_err("empty content_hash must be rejected");
             assert_eq!(err.0, StatusCode::BAD_REQUEST);
-        }
 
-        let mut empty_content = valid.clone();
-        empty_content.content.clear();
-        empty_content.source.selection_end = empty_content.source.selection_start;
-        empty_content.source.content_hash =
-            canonical_content_hash("").map_err(|_| "failed to build empty-content hash fixture")?;
-        let err = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(empty_content),
-        )
-        .await
-        .expect_err("empty selection must fail before persistence");
-        assert_eq!(err.0, StatusCode::BAD_REQUEST);
+            let valid = ProposalRequest {
+                request_id: None,
+                class: ProposalClass::Episodic,
+                content: "x".to_owned(),
+                source: valid_source(&workspace_id, "doc-1", "x"),
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: None,
+            };
 
-        let mut mismatched_range = valid.clone();
-        mismatched_range.source.selection_end = mismatched_range.source.selection_start + 2;
-        let err = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(mismatched_range),
-        )
-        .await
-        .expect_err("selection byte range/content mismatch must fail before persistence");
-        assert_eq!(err.0, StatusCode::BAD_REQUEST);
-
-        let unicode_content = "é🙂";
-        let unicode_source = create_test_rich_source(
-            &state,
-            &workspace_id,
-            "unicode-byte-source",
-            unicode_content,
-        )
-        .await?;
-        let unicode_request = ProposalRequest {
-            request_id: Some(format!("unicode-bytes-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: unicode_content.to_owned(),
-            source: unicode_source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("unicode-byte-test".to_owned()),
-        };
-        let unicode_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &unicode_request.source.document_id,
-            "unicode-byte",
-            "native_editor",
-        )
-        .await?;
-        let unicode_create = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(unicode_request),
-        );
-        let Json(unicode_ack) = state
-            .surreal
-            .with_record_user_scope(unicode_scope, unicode_create)
+            let missing_source = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(valid.clone()),
+            )
             .await
-        .map_err(|(code, body)| format!("valid UTF-8 byte range failed: {code} {body:?}"))?;
-        let unicode_stored =
-            fems_memory::get_memory_proposal(&state.surreal, &unicode_ack.proposal_id)
+            .expect_err("nonexistent rich/code source must fail closed");
+            assert_eq!(missing_source.0, StatusCode::BAD_REQUEST);
+
+            for untrusted_gate in [None, Some(false)] {
+                let mut ungated = valid.clone();
+                ungated.review_gated = untrusted_gate;
+                let err = create_memory_proposal(
+                    State(state.clone()),
+                    Path(workspace_id.clone()),
+                    HeaderMap::new(),
+                    Json(ungated),
+                )
+                .await
+                .expect_err("false or omitted review gating must fail before persistence");
+                assert_eq!(err.0, StatusCode::BAD_REQUEST);
+            }
+
+            let mut empty_content = valid.clone();
+            empty_content.content.clear();
+            empty_content.source.selection_end = empty_content.source.selection_start;
+            empty_content.source.content_hash = canonical_content_hash("")
+                .map_err(|_| "failed to build empty-content hash fixture")?;
+            let err = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(empty_content),
+            )
+            .await
+            .expect_err("empty selection must fail before persistence");
+            assert_eq!(err.0, StatusCode::BAD_REQUEST);
+
+            let mut mismatched_range = valid.clone();
+            mismatched_range.source.selection_end = mismatched_range.source.selection_start + 2;
+            let err = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(mismatched_range),
+            )
+            .await
+            .expect_err("selection byte range/content mismatch must fail before persistence");
+            assert_eq!(err.0, StatusCode::BAD_REQUEST);
+
+            let unicode_content = "é🙂";
+            let unicode_source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "unicode-byte-source",
+                unicode_content,
+            )
+            .await?;
+            let unicode_request = ProposalRequest {
+                request_id: Some(format!("unicode-bytes-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: unicode_content.to_owned(),
+                source: unicode_source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("unicode-byte-test".to_owned()),
+            };
+            let unicode_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &unicode_request.source.document_id,
+                "unicode-byte",
+                "native_editor",
+            )
+            .await?;
+            let unicode_create = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(unicode_request),
+            );
+            let Json(unicode_ack) = state
+                .surreal
+                .with_record_user_scope(unicode_scope, unicode_create)
+                .await
+                .map_err(|(code, body)| {
+                    format!("valid UTF-8 byte range failed: {code} {body:?}")
+                })?;
+            let unicode_stored =
+                fems_memory::get_memory_proposal(&state.surreal, &unicode_ack.proposal_id)
+                    .await?
+                    .expect("valid UTF-8 proposal persisted");
+            assert_eq!(
+                unicode_stored.selection_end - unicode_stored.selection_start,
+                unicode_content.len() as i64
+            );
+
+            let mut missing_workspace = valid.clone();
+            missing_workspace.source.workspace_id = None;
+            let err = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(missing_workspace),
+            )
+            .await
+            .expect_err("missing source.workspace_id must be rejected");
+            assert_eq!(err.0, StatusCode::BAD_REQUEST);
+
+            let mut mismatched_workspace = valid.clone();
+            mismatched_workspace.source.workspace_id = Some(format!("{workspace_id}-other"));
+            let err = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(mismatched_workspace),
+            )
+            .await
+            .expect_err("mismatched source.workspace_id must be rejected");
+            assert_eq!(err.0, StatusCode::BAD_REQUEST);
+
+            let mut overflowed_selection = valid.clone();
+            overflowed_selection.source.selection_end = u64::MAX;
+            let err = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(overflowed_selection),
+            )
+            .await
+            .expect_err("selection offsets beyond i64 must be rejected");
+            assert_eq!(err.0, StatusCode::BAD_REQUEST);
+
+            let mut wrong_canonical_hash = valid;
+            wrong_canonical_hash.source.content_hash = "a".repeat(64);
+            let err = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(wrong_canonical_hash),
+            )
+            .await
+            .expect_err("well-shaped hash for different content must be rejected");
+            assert_eq!(err.0, StatusCode::BAD_REQUEST);
+
+            // Empty document_id.
+            let bad_doc = ProposalRequest {
+                request_id: None,
+                class: ProposalClass::Episodic,
+                content: "x".to_string(),
+                source: valid_source(&workspace_id, "", "x"),
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: None,
+            };
+            let err = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(bad_doc),
+            )
+            .await
+            .expect_err("empty document_id must be rejected");
+            assert_eq!(err.0, StatusCode::BAD_REQUEST);
+
+            // Exactly the valid Unicode byte-range control was stored. Every rejected request above must
+            // leave no proposal or EventLedger residue.
+            fems_memory::ensure_fems_memory_schema(&state.surreal).await?;
+            let stored =
+                fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200).await?;
+            let count = stored.len();
+            assert_eq!(
+                count, 1,
+                "only the valid Unicode byte-range control may be stored"
+            );
+            let stored_ids: Vec<String> = stored
+                .into_iter()
+                .map(|proposal| proposal.proposal_id)
+                .collect();
+            assert_eq!(stored_ids, vec![unicode_ack.proposal_id.clone()]);
+            let receipt_count = state
+                .storage
+                .list_kernel_events_for_aggregate("fems_memory_proposal", &unicode_ack.proposal_id)
                 .await?
-                .expect("valid UTF-8 proposal persisted");
-        assert_eq!(
-            unicode_stored.selection_end - unicode_stored.selection_start,
-            unicode_content.len() as i64
-        );
-
-        let mut missing_workspace = valid.clone();
-        missing_workspace.source.workspace_id = None;
-        let err = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(missing_workspace),
-        )
-        .await
-        .expect_err("missing source.workspace_id must be rejected");
-        assert_eq!(err.0, StatusCode::BAD_REQUEST);
-
-        let mut mismatched_workspace = valid.clone();
-        mismatched_workspace.source.workspace_id = Some(format!("{workspace_id}-other"));
-        let err = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(mismatched_workspace),
-        )
-        .await
-        .expect_err("mismatched source.workspace_id must be rejected");
-        assert_eq!(err.0, StatusCode::BAD_REQUEST);
-
-        let mut overflowed_selection = valid.clone();
-        overflowed_selection.source.selection_end = u64::MAX;
-        let err = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(overflowed_selection),
-        )
-        .await
-        .expect_err("selection offsets beyond i64 must be rejected");
-        assert_eq!(err.0, StatusCode::BAD_REQUEST);
-
-        let mut wrong_canonical_hash = valid;
-        wrong_canonical_hash.source.content_hash = "a".repeat(64);
-        let err = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(wrong_canonical_hash),
-        )
-        .await
-        .expect_err("well-shaped hash for different content must be rejected");
-        assert_eq!(err.0, StatusCode::BAD_REQUEST);
-
-        // Empty document_id.
-        let bad_doc = ProposalRequest {
-            request_id: None,
-            class: ProposalClass::Episodic,
-            content: "x".to_string(),
-            source: valid_source(&workspace_id, "", "x"),
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: None,
-        };
-        let err = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(bad_doc),
-        )
-        .await
-        .expect_err("empty document_id must be rejected");
-        assert_eq!(err.0, StatusCode::BAD_REQUEST);
-
-        // Exactly the valid Unicode byte-range control was stored. Every rejected request above must
-        // leave no proposal or EventLedger residue.
-        fems_memory::ensure_fems_memory_schema(&state.surreal).await?;
-        let stored = fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200).await?;
-        let count = stored.len();
-        assert_eq!(
-            count, 1,
-            "only the valid Unicode byte-range control may be stored"
-        );
-        let stored_ids: Vec<String> = stored
-            .into_iter()
-            .map(|proposal| proposal.proposal_id)
-            .collect();
-        assert_eq!(stored_ids, vec![unicode_ack.proposal_id.clone()]);
-        let receipt_count = state
-            .storage
-            .list_kernel_events_for_aggregate("fems_memory_proposal", &unicode_ack.proposal_id)
-            .await?
-            .len();
-        assert_eq!(receipt_count, 1, "only the valid control emits a receipt");
-        Ok::<(), Box<dyn std::error::Error>>(())
+                .len();
+            assert_eq!(receipt_count, 1, "only the valid control emits a receipt");
+            Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
         drop(state);
@@ -6870,79 +6910,82 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "loom-reference").await?;
-        let block = state
-            .storage
-            .create_loom_block(
-                &WriteContext::human(Some("fems-loom-reference-test".to_owned())),
-                NewLoomBlock {
-                    block_id: None,
-                    workspace_id: workspace_id.clone(),
-                    content_type: LoomBlockContentType::Note,
-                    document_id: None,
-                    asset_id: None,
-                    title: Some("Canonical Loom reference".to_owned()),
-                    original_filename: None,
-                    content_hash: None,
-                    pinned: false,
-                    journal_date: None,
-                    imported_at: None,
-                    derived: LoomBlockDerived::default(),
+            let workspace_id = create_test_workspace(&state, "loom-reference").await?;
+            let block = state
+                .storage
+                .create_loom_block(
+                    &WriteContext::human(Some("fems-loom-reference-test".to_owned())),
+                    NewLoomBlock {
+                        block_id: None,
+                        workspace_id: workspace_id.clone(),
+                        content_type: LoomBlockContentType::Note,
+                        document_id: None,
+                        asset_id: None,
+                        title: Some("Canonical Loom reference".to_owned()),
+                        original_filename: None,
+                        content_hash: None,
+                        pinned: false,
+                        journal_date: None,
+                        imported_at: None,
+                        derived: LoomBlockDerived::default(),
+                    },
+                )
+                .await?;
+            let canonical_ref = format!("loom://{}", block.block_id);
+            let canonical = ProposalRequest {
+                request_id: Some(format!("loom-reference-{}", Uuid::now_v7())),
+                class: ProposalClass::Semantic,
+                content: canonical_ref.clone(),
+                source: ProposalSource {
+                    document_id: block.block_id.clone(),
+                    selection_start: 0,
+                    selection_end: canonical_ref.len() as u64,
+                    content_hash: canonical_content_hash(&canonical_ref)
+                        .expect("canonical Loom reference hash"),
+                    document_content_hash: None,
+                    pane_id: Some("pane-loom".to_owned()),
+                    workspace_id: Some(workspace_id.clone()),
                 },
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("loom-reference-test".to_owned()),
+            };
+
+            let Json(ack) = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(canonical.clone()),
             )
-            .await?;
-        let canonical_ref = format!("loom://{}", block.block_id);
-        let canonical = ProposalRequest {
-            request_id: Some(format!("loom-reference-{}", Uuid::now_v7())),
-            class: ProposalClass::Semantic,
-            content: canonical_ref.clone(),
-            source: ProposalSource {
-                document_id: block.block_id.clone(),
-                selection_start: 0,
-                selection_end: canonical_ref.len() as u64,
-                content_hash: canonical_content_hash(&canonical_ref)
-                    .expect("canonical Loom reference hash"),
-                document_content_hash: None,
-                pane_id: Some("pane-loom".to_owned()),
-                workspace_id: Some(workspace_id.clone()),
-            },
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("loom-reference-test".to_owned()),
-        };
+            .await
+            .map_err(|(status, body)| {
+                format!("canonical Loom reference failed: {status} {body:?}")
+            })?;
+            assert_eq!(ack.status, PROPOSAL_STATUS_PENDING_REVIEW);
 
-        let Json(ack) = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(canonical.clone()),
-        )
-        .await
-        .map_err(|(status, body)| format!("canonical Loom reference failed: {status} {body:?}"))?;
-        assert_eq!(ack.status, PROPOSAL_STATUS_PENDING_REVIEW);
-
-        let mut fabricated = canonical;
-        fabricated.request_id = Some(format!("loom-fabricated-{}", Uuid::now_v7()));
-        fabricated.source.document_id = Uuid::now_v7().to_string();
-        fabricated.content = format!("loom://{}", fabricated.source.document_id);
-        fabricated.source.selection_end = fabricated.content.len() as u64;
-        fabricated.source.content_hash =
-            canonical_content_hash(&fabricated.content).expect("fabricated Loom reference hash");
-        let rejected = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id),
-            HeaderMap::new(),
-            Json(fabricated),
-        )
-        .await
-        .expect_err("a fabricated Loom address must fail closed");
-        assert!(
-            matches!(rejected.0, StatusCode::BAD_REQUEST | StatusCode::NOT_FOUND),
-            "fabricated Loom address returned unexpected status {}",
-            rejected.0
-        );
-        Ok::<(), Box<dyn std::error::Error>>(())
-        })).await;
+            let mut fabricated = canonical;
+            fabricated.request_id = Some(format!("loom-fabricated-{}", Uuid::now_v7()));
+            fabricated.source.document_id = Uuid::now_v7().to_string();
+            fabricated.content = format!("loom://{}", fabricated.source.document_id);
+            fabricated.source.selection_end = fabricated.content.len() as u64;
+            fabricated.source.content_hash = canonical_content_hash(&fabricated.content)
+                .expect("fabricated Loom reference hash");
+            let rejected = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id),
+                HeaderMap::new(),
+                Json(fabricated),
+            )
+            .await
+            .expect_err("a fabricated Loom address must fail closed");
+            assert!(
+                matches!(rejected.0, StatusCode::BAD_REQUEST | StatusCode::NOT_FOUND),
+                "fabricated Loom address returned unexpected status {}",
+                rejected.0
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
+        }))
+        .await;
         drop(state);
         finish_mt109_memory_test(body, store, data_dir).await
     }
@@ -6991,91 +7034,92 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "strict-route").await?;
-        let content = "strict proposal";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "strict-route-source", content).await?;
-        let valid = json!({
-            "class": "semantic",
-            "content": content,
-            "source": source,
-            "review_gated": true,
-            "actor_id": "strict-route-actor"
-        });
-        let before_proposals =
-            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
-                .await?
-                .len();
-        let count_workspace_receipts = || {
-            memory_test_count(
-                &state,
-                "SELECT count() AS count FROM kernel_event_ledger \
+            let workspace_id = create_test_workspace(&state, "strict-route").await?;
+            let content = "strict proposal";
+            let source =
+                create_test_rich_source(&state, &workspace_id, "strict-route-source", content)
+                    .await?;
+            let valid = json!({
+                "class": "semantic",
+                "content": content,
+                "source": source,
+                "review_gated": true,
+                "actor_id": "strict-route-actor"
+            });
+            let before_proposals =
+                fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                    .await?
+                    .len();
+            let count_workspace_receipts = || {
+                memory_test_count(
+                    &state,
+                    "SELECT count() AS count FROM kernel_event_ledger \
                  WHERE event_type = $other AND payload.workspace_id = $value GROUP ALL;",
-                MemoryTestBindings {
-                    value: Some(workspace_id.clone()),
-                    other: Some(KernelEventType::ArtifactProposed.as_str().to_owned()),
-                    ..MemoryTestBindings::default()
-                },
-            )
-        };
-        let before_ledger = count_workspace_receipts().await?;
-        let before_flight_recorder = state
-            .flight_recorder
-            .list_events(EventFilter {
-                event_type: Some("memory_write_proposed".to_owned()),
-                wsid: Some(workspace_id.clone()),
-                ..EventFilter::default()
-            })
-            .await?
-            .len();
-        let (base, http, server) = serve_test_router(routes(state.clone())).await;
-        let endpoint = format!("{base}/workspaces/{workspace_id}/memory/proposals");
-
-        let mut unknown_field = valid.clone();
-        unknown_field["smuggled"] = json!("free text");
-        let response = http.post(&endpoint).json(&unknown_field).send().await?;
-        assert!(
-            response.status().is_client_error(),
-            "unknown proposal field must be rejected by the mounted route, got {}",
-            response.status()
-        );
-
-        let mut unknown_class = valid;
-        unknown_class["class"] = json!("working");
-        let response = http.post(&endpoint).json(&unknown_class).send().await?;
-        assert!(
-            response.status().is_client_error(),
-            "unknown proposal class must be rejected by the mounted route, got {}",
-            response.status()
-        );
-
-        let after_proposals =
-            fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                    MemoryTestBindings {
+                        value: Some(workspace_id.clone()),
+                        other: Some(KernelEventType::ArtifactProposed.as_str().to_owned()),
+                        ..MemoryTestBindings::default()
+                    },
+                )
+            };
+            let before_ledger = count_workspace_receipts().await?;
+            let before_flight_recorder = state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_type: Some("memory_write_proposed".to_owned()),
+                    wsid: Some(workspace_id.clone()),
+                    ..EventFilter::default()
+                })
                 .await?
                 .len();
-        let after_flight_recorder = state
-            .flight_recorder
-            .list_events(EventFilter {
-                event_type: Some("memory_write_proposed".to_owned()),
-                wsid: Some(workspace_id.clone()),
-                ..EventFilter::default()
-            })
-            .await?
-            .len();
-        let after_ledger = count_workspace_receipts().await?;
-        assert_eq!(
-            after_proposals, before_proposals,
-            "rejected bodies must persist no proposal"
-        );
-        assert_eq!(
-            after_ledger, before_ledger,
-            "rejected bodies must emit no EventLedger receipt"
-        );
-        assert_eq!(
-            after_flight_recorder, before_flight_recorder,
-            "rejected bodies must emit no memory-write-proposed Flight Recorder event"
-        );
-        server.abort();
+            let (base, http, server) = serve_test_router(routes(state.clone())).await;
+            let endpoint = format!("{base}/workspaces/{workspace_id}/memory/proposals");
+
+            let mut unknown_field = valid.clone();
+            unknown_field["smuggled"] = json!("free text");
+            let response = http.post(&endpoint).json(&unknown_field).send().await?;
+            assert!(
+                response.status().is_client_error(),
+                "unknown proposal field must be rejected by the mounted route, got {}",
+                response.status()
+            );
+
+            let mut unknown_class = valid;
+            unknown_class["class"] = json!("working");
+            let response = http.post(&endpoint).json(&unknown_class).send().await?;
+            assert!(
+                response.status().is_client_error(),
+                "unknown proposal class must be rejected by the mounted route, got {}",
+                response.status()
+            );
+
+            let after_proposals =
+                fems_memory::list_memory_proposals(&state.surreal, &workspace_id, 200)
+                    .await?
+                    .len();
+            let after_flight_recorder = state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_type: Some("memory_write_proposed".to_owned()),
+                    wsid: Some(workspace_id.clone()),
+                    ..EventFilter::default()
+                })
+                .await?
+                .len();
+            let after_ledger = count_workspace_receipts().await?;
+            assert_eq!(
+                after_proposals, before_proposals,
+                "rejected bodies must persist no proposal"
+            );
+            assert_eq!(
+                after_ledger, before_ledger,
+                "rejected bodies must emit no EventLedger receipt"
+            );
+            assert_eq!(
+                after_flight_recorder, before_flight_recorder,
+                "rejected bodies must emit no memory-write-proposed Flight Recorder event"
+            );
+            server.abort();
             Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
@@ -7109,241 +7153,243 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "proposal-review").await?;
-        let content = "review this durable fact";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "review-source", content).await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "proposal-review-create",
-            "canonical-proposer",
-        )
-        .await?;
-        let mut proposal_headers = HeaderMap::new();
-        proposal_headers.insert(HSK_HEADER_ACTOR_ID, "canonical-proposer".parse()?);
-        proposal_headers.insert(HSK_HEADER_ACTOR_KIND, "human".parse()?);
-        let proposal_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            proposal_headers.clone(),
-            Json(ProposalRequest {
-                request_id: Some(format!("review-request-{}", Uuid::now_v7())),
-                class: ProposalClass::Semantic,
-                content: content.to_owned(),
-                source,
-                source_document_content: None,
-                review_gated: Some(true),
-                actor_id: Some("canonical-proposer".to_owned()),
-            }),
-        );
-        let Json(proposal_ack) = state
-            .surreal
-            .with_record_user_scope(proposal_scope, proposal_call)
-            .await
-        .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
-
-        let pending = fems_memory::get_memory_proposal(&state.surreal, &proposal_ack.proposal_id)
-            .await?
-            .expect("proposal stored");
-        assert_eq!(pending.proposal["actor_id"], "canonical-proposer");
-        assert!(pending.created_at <= chrono::Utc::now());
-        assert!(
-            serde_json::to_value(&pending)?["created_at"].is_string(),
-            "proposal read APIs expose the authoritative SurrealDB creation timestamp"
-        );
-        let proposal_receipt = memory_test_ledger_event(
-            &state,
-            &format!("fems-memory-proposal:{}", proposal_ack.proposal_id),
-        )
-        .await?
-        .expect("proposal receipt");
-        assert_eq!(proposal_receipt.actor.actor_id(), "canonical-proposer");
-        assert_eq!(
-            proposal_receipt.correlation_id,
-            Some(format!("fems-memory-proposal:{}", proposal_ack.proposal_id))
-        );
-
-        let mut review_headers = HeaderMap::new();
-        review_headers.insert(HSK_HEADER_ACTOR_ID, "reviewer-1".parse()?);
-        review_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let review_request = ProposalReviewRequest {
-            decision: ProposalReviewDecision::Approved,
-            reviewer_kind: ProposalReviewerKind::User,
-            reason: Some("source checked".to_owned()),
-        };
-        let Json(first) = review_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), proposal_ack.proposal_id.clone())),
-            review_headers.clone(),
-            Json(review_request.clone()),
-        )
-        .await
-        .map_err(|(code, body)| format!("review failed: {code} {body:?}"))?;
-        assert_eq!(first.status, "approved");
-        let approved = fems_memory::get_memory_proposal(&state.surreal, &proposal_ack.proposal_id)
-            .await?
-            .expect("reviewed proposal stored");
-        assert_eq!(approved.status, "approved");
-        assert_eq!(approved.proposal["review"]["actor_id"], "reviewer-1");
-        assert_eq!(approved.proposal["review"]["decision"], "approved");
-
-        let review_receipt = memory_test_ledger_event(
-            &state,
-            &format!("fems-memory-proposal-review:{}", proposal_ack.proposal_id),
-        )
-        .await?
-        .expect("review receipt");
-        assert_eq!(
-            review_receipt.event_type,
-            KernelEventType::PromotionAccepted
-        );
-        assert_eq!(review_receipt.actor.actor_id(), "reviewer-1");
-        assert_eq!(
-            review_receipt.correlation_id,
-            Some(first.correlation_id.clone())
-        );
-        assert_eq!(review_receipt.payload["content_hash"], pending.content_hash);
-        assert_eq!(review_receipt.payload["reason_present"], true);
-        assert!(review_receipt.payload.get("content").is_none());
-
-        let events = state
-            .flight_recorder
-            .list_events(EventFilter {
-                event_id: Some(first.flight_recorder_event_id),
-                ..EventFilter::default()
-            })
+            let workspace_id = create_test_workspace(&state, "proposal-review").await?;
+            let content = "review this durable fact";
+            let source =
+                create_test_rich_source(&state, &workspace_id, "review-source", content).await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "proposal-review-create",
+                "canonical-proposer",
+            )
             .await?;
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].actor_id, "reviewer-1");
-        assert_eq!(
-            events[0].trace_id,
-            deterministic_uuid_from_seed(&first.correlation_id)
-        );
-        assert_eq!(events[0].payload["decision"], "approved");
-        assert!(
-            events[0].payload.get("commit_report_ref").is_none(),
-            "review events omit the optional commit report until a commit exists"
-        );
+            let mut proposal_headers = HeaderMap::new();
+            proposal_headers.insert(HSK_HEADER_ACTOR_ID, "canonical-proposer".parse()?);
+            proposal_headers.insert(HSK_HEADER_ACTOR_KIND, "human".parse()?);
+            let proposal_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                proposal_headers.clone(),
+                Json(ProposalRequest {
+                    request_id: Some(format!("review-request-{}", Uuid::now_v7())),
+                    class: ProposalClass::Semantic,
+                    content: content.to_owned(),
+                    source,
+                    source_document_content: None,
+                    review_gated: Some(true),
+                    actor_id: Some("canonical-proposer".to_owned()),
+                }),
+            );
+            let Json(proposal_ack) = state
+                .surreal
+                .with_record_user_scope(proposal_scope, proposal_call)
+                .await
+                .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
-        let Json(replay) = review_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), proposal_ack.proposal_id.clone())),
-            review_headers.clone(),
-            Json(review_request),
-        )
-        .await
-        .map_err(|(code, body)| format!("review replay failed: {code} {body:?}"))?;
-        assert_eq!(replay, first, "exact review retry must converge");
-        let receipt_count = usize::from(
-            memory_test_ledger_event(
+            let pending =
+                fems_memory::get_memory_proposal(&state.surreal, &proposal_ack.proposal_id)
+                    .await?
+                    .expect("proposal stored");
+            assert_eq!(pending.proposal["actor_id"], "canonical-proposer");
+            assert!(pending.created_at <= chrono::Utc::now());
+            assert!(
+                serde_json::to_value(&pending)?["created_at"].is_string(),
+                "proposal read APIs expose the authoritative SurrealDB creation timestamp"
+            );
+            let proposal_receipt = memory_test_ledger_event(
+                &state,
+                &format!("fems-memory-proposal:{}", proposal_ack.proposal_id),
+            )
+            .await?
+            .expect("proposal receipt");
+            assert_eq!(proposal_receipt.actor.actor_id(), "canonical-proposer");
+            assert_eq!(
+                proposal_receipt.correlation_id,
+                Some(format!("fems-memory-proposal:{}", proposal_ack.proposal_id))
+            );
+
+            let mut review_headers = HeaderMap::new();
+            review_headers.insert(HSK_HEADER_ACTOR_ID, "reviewer-1".parse()?);
+            review_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            let review_request = ProposalReviewRequest {
+                decision: ProposalReviewDecision::Approved,
+                reviewer_kind: ProposalReviewerKind::User,
+                reason: Some("source checked".to_owned()),
+            };
+            let Json(first) = review_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), proposal_ack.proposal_id.clone())),
+                review_headers.clone(),
+                Json(review_request.clone()),
+            )
+            .await
+            .map_err(|(code, body)| format!("review failed: {code} {body:?}"))?;
+            assert_eq!(first.status, "approved");
+            let approved =
+                fems_memory::get_memory_proposal(&state.surreal, &proposal_ack.proposal_id)
+                    .await?
+                    .expect("reviewed proposal stored");
+            assert_eq!(approved.status, "approved");
+            assert_eq!(approved.proposal["review"]["actor_id"], "reviewer-1");
+            assert_eq!(approved.proposal["review"]["decision"], "approved");
+
+            let review_receipt = memory_test_ledger_event(
                 &state,
                 &format!("fems-memory-proposal-review:{}", proposal_ack.proposal_id),
             )
             .await?
-            .is_some(),
-        );
-        assert_eq!(receipt_count, 1);
+            .expect("review receipt");
+            assert_eq!(
+                review_receipt.event_type,
+                KernelEventType::PromotionAccepted
+            );
+            assert_eq!(review_receipt.actor.actor_id(), "reviewer-1");
+            assert_eq!(
+                review_receipt.correlation_id,
+                Some(first.correlation_id.clone())
+            );
+            assert_eq!(review_receipt.payload["content_hash"], pending.content_hash);
+            assert_eq!(review_receipt.payload["reason_present"], true);
+            assert!(review_receipt.payload.get("content").is_none());
 
-        let opposite = review_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), proposal_ack.proposal_id.clone())),
-            review_headers,
-            Json(ProposalReviewRequest {
-                decision: ProposalReviewDecision::Rejected,
-                reviewer_kind: ProposalReviewerKind::User,
-                reason: Some("source checked".to_owned()),
-            }),
-        )
-        .await
-        .expect_err("opposite decision must conflict");
-        assert_eq!(opposite.0, StatusCode::CONFLICT);
-        assert_eq!(
-            fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
-            0,
-            "review transition alone must not silently commit memory"
-        );
+            let events = state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_id: Some(first.flight_recorder_event_id),
+                    ..EventFilter::default()
+                })
+                .await?;
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].actor_id, "reviewer-1");
+            assert_eq!(
+                events[0].trace_id,
+                deterministic_uuid_from_seed(&first.correlation_id)
+            );
+            assert_eq!(events[0].payload["decision"], "approved");
+            assert!(
+                events[0].payload.get("commit_report_ref").is_none(),
+                "review events omit the optional commit report until a commit exists"
+            );
 
-        let rejected_content = "reject this durable fact";
-        let rejected_source = create_test_rich_source(
-            &state,
-            &workspace_id,
-            "rejected-review-source",
-            rejected_content,
-        )
-        .await?;
-        let rejected_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &rejected_source.document_id,
-            "proposal-review-create",
-            "canonical-proposer",
-        )
-        .await?;
-        let rejected_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            proposal_headers,
-            Json(ProposalRequest {
-                request_id: Some(format!("reject-request-{}", Uuid::now_v7())),
-                class: ProposalClass::Episodic,
-                content: rejected_content.to_owned(),
-                source: rejected_source,
-                source_document_content: None,
-                review_gated: Some(true),
-                actor_id: Some("proposer-2".to_owned()),
-            }),
-        );
-        let Json(rejected_proposal) = state
-            .surreal
-            .with_record_user_scope(rejected_scope, rejected_call)
+            let Json(replay) = review_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), proposal_ack.proposal_id.clone())),
+                review_headers.clone(),
+                Json(review_request),
+            )
             .await
-        .map_err(|(code, body)| format!("rejected proposal failed: {code} {body:?}"))?;
-        let mut policy_headers = HeaderMap::new();
-        policy_headers.insert(HSK_HEADER_ACTOR_ID, "policy-reviewer".parse()?);
-        policy_headers.insert(HSK_HEADER_ACTOR_KIND, "policy".parse()?);
-        let Json(rejected) = review_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), rejected_proposal.proposal_id.clone())),
-            policy_headers,
-            Json(ProposalReviewRequest {
-                decision: ProposalReviewDecision::Rejected,
-                reviewer_kind: ProposalReviewerKind::Policy,
-                reason: None,
-            }),
-        )
-        .await
-        .map_err(|(code, body)| format!("reject review failed: {code} {body:?}"))?;
-        assert_eq!(rejected.status, "rejected");
-        let rejected_event = memory_test_ledger_event(
-            &state,
-            &format!(
-                "fems-memory-proposal-review:{}",
-                rejected_proposal.proposal_id
-            ),
-        )
-        .await?
-        .expect("rejected review receipt");
-        assert_eq!(
-            rejected_event.event_type,
-            KernelEventType::PromotionRejected
-        );
-        let rejected_events = state
-            .flight_recorder
-            .list_events(EventFilter {
-                event_id: Some(rejected.flight_recorder_event_id),
-                ..EventFilter::default()
-            })
+            .map_err(|(code, body)| format!("review replay failed: {code} {body:?}"))?;
+            assert_eq!(replay, first, "exact review retry must converge");
+            let receipt_count = usize::from(
+                memory_test_ledger_event(
+                    &state,
+                    &format!("fems-memory-proposal-review:{}", proposal_ack.proposal_id),
+                )
+                .await?
+                .is_some(),
+            );
+            assert_eq!(receipt_count, 1);
+
+            let opposite = review_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), proposal_ack.proposal_id.clone())),
+                review_headers,
+                Json(ProposalReviewRequest {
+                    decision: ProposalReviewDecision::Rejected,
+                    reviewer_kind: ProposalReviewerKind::User,
+                    reason: Some("source checked".to_owned()),
+                }),
+            )
+            .await
+            .expect_err("opposite decision must conflict");
+            assert_eq!(opposite.0, StatusCode::CONFLICT);
+            assert_eq!(
+                fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
+                0,
+                "review transition alone must not silently commit memory"
+            );
+
+            let rejected_content = "reject this durable fact";
+            let rejected_source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "rejected-review-source",
+                rejected_content,
+            )
             .await?;
-        assert_eq!(rejected_events.len(), 1);
-        assert_eq!(rejected_events[0].actor, FlightRecorderActor::System);
-        assert_eq!(rejected_events[0].actor_id, "policy-reviewer");
-        assert_eq!(rejected_events[0].payload["decision"], "rejected");
-        assert_eq!(
-            fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
-            0
-        );
+            let rejected_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &rejected_source.document_id,
+                "proposal-review-create",
+                "canonical-proposer",
+            )
+            .await?;
+            let rejected_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                proposal_headers,
+                Json(ProposalRequest {
+                    request_id: Some(format!("reject-request-{}", Uuid::now_v7())),
+                    class: ProposalClass::Episodic,
+                    content: rejected_content.to_owned(),
+                    source: rejected_source,
+                    source_document_content: None,
+                    review_gated: Some(true),
+                    actor_id: Some("proposer-2".to_owned()),
+                }),
+            );
+            let Json(rejected_proposal) = state
+                .surreal
+                .with_record_user_scope(rejected_scope, rejected_call)
+                .await
+                .map_err(|(code, body)| format!("rejected proposal failed: {code} {body:?}"))?;
+            let mut policy_headers = HeaderMap::new();
+            policy_headers.insert(HSK_HEADER_ACTOR_ID, "policy-reviewer".parse()?);
+            policy_headers.insert(HSK_HEADER_ACTOR_KIND, "policy".parse()?);
+            let Json(rejected) = review_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), rejected_proposal.proposal_id.clone())),
+                policy_headers,
+                Json(ProposalReviewRequest {
+                    decision: ProposalReviewDecision::Rejected,
+                    reviewer_kind: ProposalReviewerKind::Policy,
+                    reason: None,
+                }),
+            )
+            .await
+            .map_err(|(code, body)| format!("reject review failed: {code} {body:?}"))?;
+            assert_eq!(rejected.status, "rejected");
+            let rejected_event = memory_test_ledger_event(
+                &state,
+                &format!(
+                    "fems-memory-proposal-review:{}",
+                    rejected_proposal.proposal_id
+                ),
+            )
+            .await?
+            .expect("rejected review receipt");
+            assert_eq!(
+                rejected_event.event_type,
+                KernelEventType::PromotionRejected
+            );
+            let rejected_events = state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_id: Some(rejected.flight_recorder_event_id),
+                    ..EventFilter::default()
+                })
+                .await?;
+            assert_eq!(rejected_events.len(), 1);
+            assert_eq!(rejected_events[0].actor, FlightRecorderActor::System);
+            assert_eq!(rejected_events[0].actor_id, "policy-reviewer");
+            assert_eq!(rejected_events[0].payload["decision"], "rejected");
+            assert_eq!(
+                fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
+                0
+            );
             Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
@@ -7602,111 +7648,116 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "proposal-recovery").await?;
-        let content = "proposal survives recorder crash";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "proposal-recovery-source", content)
-                .await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "proposal-recovery",
-            "native_editor",
-        )
-        .await?;
-        let request_id = format!("proposal-recovery-{}", Uuid::now_v7());
-        let proposal_id = stable_proposal_id(&workspace_id, &request_id);
-        let durable_recorder = state.flight_recorder.clone();
-        let failed_state = AppState {
-            flight_recorder: Arc::new(FailNextRecordFlightRecorder {
-                inner: durable_recorder.clone(),
-                fail_next: AtomicBool::new(true),
-            }),
-            ..state.clone()
-        };
-        let failed_create = create_memory_proposal(
-            State(failed_state),
-            Path(workspace_id.clone()),
-            HeaderMap::new(),
-            Json(ProposalRequest {
-                request_id: Some(request_id),
-                class: ProposalClass::Semantic,
-                content: content.to_owned(),
-                source,
-                source_document_content: None,
-                review_gated: Some(true),
-                actor_id: Some("spoofed-proposal-actor".to_owned()),
-            }),
-        );
-        let failed = state
-            .surreal
-            .with_record_user_scope(proposal_scope, failed_create)
-            .await
-        .expect_err("injected recorder failure must fail the response honestly");
-        eprintln!("MT109_PROPOSAL_OUTBOX_INJECTED_FAILURE={failed:?}");
-        assert_eq!(failed.0, StatusCode::INTERNAL_SERVER_ERROR);
-        assert!(
-            fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
-                .await?
-                .is_some(),
-            "proposal transaction remains authoritative after projection failure"
-        );
-        let pending =
-            fems_memory::list_pending_memory_lifecycle_events(&state.surreal, &workspace_id, 200)
-                .await?
-                .into_iter()
-                .filter(|event| event.payload["proposal_id"] == proposal_id)
-                .count();
-        assert_eq!(
-            pending, 0,
-            "the bounded reconciler retries the transient first failure in the same call"
-        );
-        let expected_event_id =
-            deterministic_uuid_from_seed(&format!("fems-memory-proposal-event:{proposal_id}"));
-        assert_eq!(
-            durable_recorder
-                .list_events(EventFilter {
-                    event_id: Some(expected_event_id),
-                    ..EventFilter::default()
-                })
-                .await?
-                .len(),
-            1,
-            "the in-call retry publishes exactly one canonical event"
-        );
+            let workspace_id = create_test_workspace(&state, "proposal-recovery").await?;
+            let content = "proposal survives recorder crash";
+            let source =
+                create_test_rich_source(&state, &workspace_id, "proposal-recovery-source", content)
+                    .await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "proposal-recovery",
+                "native_editor",
+            )
+            .await?;
+            let request_id = format!("proposal-recovery-{}", Uuid::now_v7());
+            let proposal_id = stable_proposal_id(&workspace_id, &request_id);
+            let durable_recorder = state.flight_recorder.clone();
+            let failed_state = AppState {
+                flight_recorder: Arc::new(FailNextRecordFlightRecorder {
+                    inner: durable_recorder.clone(),
+                    fail_next: AtomicBool::new(true),
+                }),
+                ..state.clone()
+            };
+            let failed_create = create_memory_proposal(
+                State(failed_state),
+                Path(workspace_id.clone()),
+                HeaderMap::new(),
+                Json(ProposalRequest {
+                    request_id: Some(request_id),
+                    class: ProposalClass::Semantic,
+                    content: content.to_owned(),
+                    source,
+                    source_document_content: None,
+                    review_gated: Some(true),
+                    actor_id: Some("spoofed-proposal-actor".to_owned()),
+                }),
+            );
+            let failed = state
+                .surreal
+                .with_record_user_scope(proposal_scope, failed_create)
+                .await
+                .expect_err("injected recorder failure must fail the response honestly");
+            eprintln!("MT109_PROPOSAL_OUTBOX_INJECTED_FAILURE={failed:?}");
+            assert_eq!(failed.0, StatusCode::INTERNAL_SERVER_ERROR);
+            assert!(
+                fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
+                    .await?
+                    .is_some(),
+                "proposal transaction remains authoritative after projection failure"
+            );
+            let pending = fems_memory::list_pending_memory_lifecycle_events(
+                &state.surreal,
+                &workspace_id,
+                200,
+            )
+            .await?
+            .into_iter()
+            .filter(|event| event.payload["proposal_id"] == proposal_id)
+            .count();
+            assert_eq!(
+                pending, 0,
+                "the bounded reconciler retries the transient first failure in the same call"
+            );
+            let expected_event_id =
+                deterministic_uuid_from_seed(&format!("fems-memory-proposal-event:{proposal_id}"));
+            assert_eq!(
+                durable_recorder
+                    .list_events(EventFilter {
+                        event_id: Some(expected_event_id),
+                        ..EventFilter::default()
+                    })
+                    .await?
+                    .len(),
+                1,
+                "the in-call retry publishes exactly one canonical event"
+            );
 
-        state
-            .surreal
-            .provision_reconciliation_principal(std::slice::from_ref(&workspace_id), None)
-            .await?;
-        reconcile_all_memory_commit_events(&state)
-            .await
-            .map_err(|(status, body)| format!("startup recovery failed: {status} {body:?}"))?;
-        let recovered = durable_recorder
-            .list_events(EventFilter {
-                event_id: Some(expected_event_id),
-                ..EventFilter::default()
-            })
-            .await?;
-        assert_eq!(recovered.len(), 1);
-        assert_eq!(recovered[0].payload["event_code"], "FR-EVT-MEM-001");
-        assert_eq!(recovered[0].payload["proposal_id"], proposal_id);
-        reconcile_all_memory_commit_events(&state)
-            .await
-            .map_err(|(status, body)| format!("idempotent recovery failed: {status} {body:?}"))?;
-        assert_eq!(
-            durable_recorder
+            state
+                .surreal
+                .provision_reconciliation_principal(std::slice::from_ref(&workspace_id), None)
+                .await?;
+            reconcile_all_memory_commit_events(&state)
+                .await
+                .map_err(|(status, body)| format!("startup recovery failed: {status} {body:?}"))?;
+            let recovered = durable_recorder
                 .list_events(EventFilter {
                     event_id: Some(expected_event_id),
                     ..EventFilter::default()
                 })
-                .await?
-                .len(),
-            1,
-            "repeated recovery never duplicates the canonical event"
-        );
-        Ok::<(), Box<dyn std::error::Error>>(())
+                .await?;
+            assert_eq!(recovered.len(), 1);
+            assert_eq!(recovered[0].payload["event_code"], "FR-EVT-MEM-001");
+            assert_eq!(recovered[0].payload["proposal_id"], proposal_id);
+            reconcile_all_memory_commit_events(&state)
+                .await
+                .map_err(|(status, body)| {
+                    format!("idempotent recovery failed: {status} {body:?}")
+                })?;
+            assert_eq!(
+                durable_recorder
+                    .list_events(EventFilter {
+                        event_id: Some(expected_event_id),
+                        ..EventFilter::default()
+                    })
+                    .await?
+                    .len(),
+                1,
+                "repeated recovery never duplicates the canonical event"
+            );
+            Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;
         drop(state);
@@ -7719,176 +7770,184 @@ mod tests {
         let (store, state) = setup_state().await?;
         let data_dir = store.data_dir.clone();
         let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
-        let workspace_id = create_test_workspace(&state, "proposal-quarantine").await?;
-        let content = "proposal whose recorder projection is quarantined";
-        let source =
-            create_test_rich_source(&state, &workspace_id, "proposal-quarantine-source", content)
-                .await?;
-        let proposal_scope = proposal_create_test_scope(
-            &state,
-            &workspace_id,
-            &source.document_id,
-            "proposal-quarantine",
-            "native-process-a",
-        )
-        .await?;
-        let request = ProposalRequest {
-            request_id: None,
-            class: ProposalClass::Semantic,
-            content: content.to_owned(),
-            source,
-            source_document_content: None,
-            review_gated: Some(true),
-            actor_id: Some("spoofed-body-actor".to_owned()),
-        };
-        let request_id = stable_proposal_request_id(&workspace_id, &request)
-            .map_err(|(status, body)| format!("derive request id failed: {status} {body:?}"))?;
-        let proposal_id = stable_proposal_id(&workspace_id, &request_id);
-        let mut first_process_headers = HeaderMap::new();
-        first_process_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-a".parse()?);
-        first_process_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let initial_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id.clone()),
-            first_process_headers,
-            Json(request.clone()),
-        );
-        let Json(initial_ack) = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), initial_call)
-            .await
-        .map_err(|(status, body)| format!("canonical proposal setup failed: {status} {body:?}"))?;
-        assert_eq!(initial_ack.proposal_id, proposal_id);
+            let workspace_id = create_test_workspace(&state, "proposal-quarantine").await?;
+            let content = "proposal whose recorder projection is quarantined";
+            let source = create_test_rich_source(
+                &state,
+                &workspace_id,
+                "proposal-quarantine-source",
+                content,
+            )
+            .await?;
+            let proposal_scope = proposal_create_test_scope(
+                &state,
+                &workspace_id,
+                &source.document_id,
+                "proposal-quarantine",
+                "native-process-a",
+            )
+            .await?;
+            let request = ProposalRequest {
+                request_id: None,
+                class: ProposalClass::Semantic,
+                content: content.to_owned(),
+                source,
+                source_document_content: None,
+                review_gated: Some(true),
+                actor_id: Some("spoofed-body-actor".to_owned()),
+            };
+            let request_id = stable_proposal_request_id(&workspace_id, &request)
+                .map_err(|(status, body)| format!("derive request id failed: {status} {body:?}"))?;
+            let proposal_id = stable_proposal_id(&workspace_id, &request_id);
+            let mut first_process_headers = HeaderMap::new();
+            first_process_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-a".parse()?);
+            first_process_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            let initial_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id.clone()),
+                first_process_headers,
+                Json(request.clone()),
+            );
+            let Json(initial_ack) = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), initial_call)
+                .await
+                .map_err(|(status, body)| {
+                    format!("canonical proposal setup failed: {status} {body:?}")
+                })?;
+            assert_eq!(initial_ack.proposal_id, proposal_id);
 
-        let now = Datetime::from(chrono::Utc::now());
-        let updated = memory_test_execute(
-            &state,
-            "UPDATE fems_memory_lifecycle_fr_outbox SET published_at = NONE, \
+            let now = Datetime::from(chrono::Utc::now());
+            let updated = memory_test_execute(
+                &state,
+                "UPDATE fems_memory_lifecycle_fr_outbox SET published_at = NONE, \
              attempt_count = 3, last_error = 'injected persistent projection failure', \
              last_error_at = $at, quarantined_at = $at \
              WHERE proposal_id = $proposal AND event_code = 'FR-EVT-MEM-001' RETURN AFTER;",
-            MemoryTestBindings {
-                proposal: Some(RecordId::new("fems_memory_proposals", proposal_id.as_str())),
-                at: Some(now),
-                ..MemoryTestBindings::default()
-            },
-        )
-        .await?;
-        assert_eq!(updated, 1, "the exact proposed-event row is quarantined");
-        state
-            .flight_recorder
-            .delete_workspace_events(&workspace_id)
+                MemoryTestBindings {
+                    proposal: Some(RecordId::new("fems_memory_proposals", proposal_id.as_str())),
+                    at: Some(now),
+                    ..MemoryTestBindings::default()
+                },
+            )
             .await?;
-
-        let mut operator_headers = HeaderMap::new();
-        operator_headers.insert(HSK_HEADER_ACTOR_ID, "quarantine-reviewer".parse()?);
-        operator_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let review = review_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), proposal_id.clone())),
-            operator_headers.clone(),
-            Json(ProposalReviewRequest {
-                decision: ProposalReviewDecision::Approved,
-                reviewer_kind: ProposalReviewerKind::User,
-                reason: Some("must remain blocked without proposal event".to_owned()),
-            }),
-        )
-        .await
-        .expect_err("review must fail closed while FR-EVT-MEM-001 is quarantined");
-        assert_eq!(review.0, StatusCode::SERVICE_UNAVAILABLE);
-        assert_eq!(review.1["error"], "proposal_event_not_published");
-
-        let commit = commit_memory_proposal(
-            State(state.clone()),
-            Path((workspace_id.clone(), proposal_id.clone())),
-            operator_headers,
-        )
-        .await
-        .expect_err("commit must fail closed while FR-EVT-MEM-001 is quarantined");
-        assert_eq!(commit.0, StatusCode::SERVICE_UNAVAILABLE);
-        assert_eq!(commit.1["error"], "proposal_event_not_published");
-        let still_pending = fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
-            .await?
-            .expect("quarantined proposal remains authoritative");
-        assert_eq!(still_pending.status, PROPOSAL_STATUS_PENDING_REVIEW);
-        assert_eq!(
-            fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
-            0,
-            "neither review nor commit mutates memory behind an unpublished proposal event"
-        );
-
-        let persistently_failed_state = AppState {
-            flight_recorder: Arc::new(FailAllRecordFlightRecorder {
-                inner: state.flight_recorder.clone(),
-            }),
-            ..state.clone()
-        };
-        let mut restarted_process_headers = HeaderMap::new();
-        restarted_process_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-b".parse()?);
-        restarted_process_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let retry_call = create_memory_proposal(
-            State(persistently_failed_state),
-            Path(workspace_id.clone()),
-            restarted_process_headers,
-            Json(request.clone()),
-        );
-        let retry = state
-            .surreal
-            .with_record_user_scope(proposal_scope.clone(), retry_call)
-            .await
-        .expect_err("persistent recorder failure must never return a success acknowledgement");
-        assert!(
-            matches!(
-                retry.0,
-                StatusCode::INTERNAL_SERVER_ERROR | StatusCode::SERVICE_UNAVAILABLE
-            ),
-            "persistent projection failure returns an honest server error: {}",
-            retry.0
-        );
-        assert!(
+            assert_eq!(updated, 1, "the exact proposed-event row is quarantined");
             state
                 .flight_recorder
-                .list_events(EventFilter {
-                    event_id: Some(deterministic_uuid_from_seed(&format!(
-                        "fems-memory-proposal-event:{proposal_id}"
-                    ))),
-                    ..EventFilter::default()
-                })
-                .await?
-                .is_empty(),
-            "no canonical recorder row exists behind the failed acknowledgement"
-        );
+                .delete_workspace_events(&workspace_id)
+                .await?;
 
-        let publication_state = fems_memory::memory_lifecycle_publication_state(
-            &state.surreal,
-            &proposal_id,
-            "FR-EVT-MEM-001",
-        )
-        .await?;
-        assert_eq!(
-            publication_state,
-            fems_memory::MemoryLifecyclePublicationState::Quarantined,
-            "the bounded persistent retry returns to an explicit quarantine state"
-        );
-
-        let mut healthy_restart_headers = HeaderMap::new();
-        healthy_restart_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-c".parse()?);
-        healthy_restart_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let recovered_call = create_memory_proposal(
-            State(state.clone()),
-            Path(workspace_id),
-            healthy_restart_headers,
-            Json(request),
-        );
-        let Json(recovered) = state
-            .surreal
-            .with_record_user_scope(proposal_scope, recovered_call)
+            let mut operator_headers = HeaderMap::new();
+            operator_headers.insert(HSK_HEADER_ACTOR_ID, "quarantine-reviewer".parse()?);
+            operator_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            let review = review_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), proposal_id.clone())),
+                operator_headers.clone(),
+                Json(ProposalReviewRequest {
+                    decision: ProposalReviewDecision::Approved,
+                    reviewer_kind: ProposalReviewerKind::User,
+                    reason: Some("must remain blocked without proposal event".to_owned()),
+                }),
+            )
             .await
-        .map_err(|(status, body)| {
-            format!("healthy identical resubmission failed to recover: {status} {body:?}")
-        })?;
-        assert_eq!(recovered.proposal_id, proposal_id);
-        assert_eq!(
+            .expect_err("review must fail closed while FR-EVT-MEM-001 is quarantined");
+            assert_eq!(review.0, StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(review.1["error"], "proposal_event_not_published");
+
+            let commit = commit_memory_proposal(
+                State(state.clone()),
+                Path((workspace_id.clone(), proposal_id.clone())),
+                operator_headers,
+            )
+            .await
+            .expect_err("commit must fail closed while FR-EVT-MEM-001 is quarantined");
+            assert_eq!(commit.0, StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(commit.1["error"], "proposal_event_not_published");
+            let still_pending = fems_memory::get_memory_proposal(&state.surreal, &proposal_id)
+                .await?
+                .expect("quarantined proposal remains authoritative");
+            assert_eq!(still_pending.status, PROPOSAL_STATUS_PENDING_REVIEW);
+            assert_eq!(
+                fems_memory::count_memory_items(&state.surreal, &workspace_id).await?,
+                0,
+                "neither review nor commit mutates memory behind an unpublished proposal event"
+            );
+
+            let persistently_failed_state = AppState {
+                flight_recorder: Arc::new(FailAllRecordFlightRecorder {
+                    inner: state.flight_recorder.clone(),
+                }),
+                ..state.clone()
+            };
+            let mut restarted_process_headers = HeaderMap::new();
+            restarted_process_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-b".parse()?);
+            restarted_process_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            let retry_call = create_memory_proposal(
+                State(persistently_failed_state),
+                Path(workspace_id.clone()),
+                restarted_process_headers,
+                Json(request.clone()),
+            );
+            let retry = state
+                .surreal
+                .with_record_user_scope(proposal_scope.clone(), retry_call)
+                .await
+                .expect_err(
+                    "persistent recorder failure must never return a success acknowledgement",
+                );
+            assert!(
+                matches!(
+                    retry.0,
+                    StatusCode::INTERNAL_SERVER_ERROR | StatusCode::SERVICE_UNAVAILABLE
+                ),
+                "persistent projection failure returns an honest server error: {}",
+                retry.0
+            );
+            assert!(
+                state
+                    .flight_recorder
+                    .list_events(EventFilter {
+                        event_id: Some(deterministic_uuid_from_seed(&format!(
+                            "fems-memory-proposal-event:{proposal_id}"
+                        ))),
+                        ..EventFilter::default()
+                    })
+                    .await?
+                    .is_empty(),
+                "no canonical recorder row exists behind the failed acknowledgement"
+            );
+
+            let publication_state = fems_memory::memory_lifecycle_publication_state(
+                &state.surreal,
+                &proposal_id,
+                "FR-EVT-MEM-001",
+            )
+            .await?;
+            assert_eq!(
+                publication_state,
+                fems_memory::MemoryLifecyclePublicationState::Quarantined,
+                "the bounded persistent retry returns to an explicit quarantine state"
+            );
+
+            let mut healthy_restart_headers = HeaderMap::new();
+            healthy_restart_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-c".parse()?);
+            healthy_restart_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+            let recovered_call = create_memory_proposal(
+                State(state.clone()),
+                Path(workspace_id),
+                healthy_restart_headers,
+                Json(request),
+            );
+            let Json(recovered) = state
+                .surreal
+                .with_record_user_scope(proposal_scope, recovered_call)
+                .await
+                .map_err(|(status, body)| {
+                    format!("healthy identical resubmission failed to recover: {status} {body:?}")
+                })?;
+            assert_eq!(recovered.proposal_id, proposal_id);
+            assert_eq!(
             fems_memory::memory_lifecycle_publication_state(
                 &state.surreal,
                 &proposal_id,
@@ -7898,20 +7957,20 @@ mod tests {
             fems_memory::MemoryLifecyclePublicationState::Published,
             "identical resubmission explicitly requeues and publishes the exact quarantined event"
         );
-        assert_eq!(
-            state
-                .flight_recorder
-                .list_events(EventFilter {
-                    event_id: Some(deterministic_uuid_from_seed(&format!(
-                        "fems-memory-proposal-event:{proposal_id}"
-                    ))),
-                    ..EventFilter::default()
-                })
-                .await?
-                .len(),
-            1,
-            "recovery publishes exactly one canonical FR-EVT-MEM-001"
-        );
+            assert_eq!(
+                state
+                    .flight_recorder
+                    .list_events(EventFilter {
+                        event_id: Some(deterministic_uuid_from_seed(&format!(
+                            "fems-memory-proposal-event:{proposal_id}"
+                        ))),
+                        ..EventFilter::default()
+                    })
+                    .await?
+                    .len(),
+                1,
+                "recovery publishes exactly one canonical FR-EVT-MEM-001"
+            );
             Ok::<(), Box<dyn std::error::Error>>(())
         }))
         .await;

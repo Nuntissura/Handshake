@@ -2172,10 +2172,9 @@ mod tests {
     {
         let (state, store) = setup_state().await?;
         let data_dir = store.data_dir.clone();
-        let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(body(
-            state.clone(),
-        )))
-        .await;
+        let body =
+            futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(body(state.clone())))
+                .await;
         drop(state);
         finish_flight_recorder_test(body, store, data_dir).await
     }
@@ -2420,60 +2419,60 @@ mod tests {
     async fn list_events_preserves_model_session_id_filter_and_payload(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let trace_id = Uuid::now_v7();
+            let trace_id = Uuid::now_v7();
 
-        state
-            .flight_recorder
-            .record_event(
-                FlightRecorderEvent::new(
-                    FlightRecorderEventType::System,
-                    FlightRecorderActor::System,
-                    trace_id,
-                    json!({
-                        "type": "system",
-                        "event_id": "FR-EVT-SYS-001",
-                    }),
+            state
+                .flight_recorder
+                .record_event(
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::System,
+                        FlightRecorderActor::System,
+                        trace_id,
+                        json!({
+                            "type": "system",
+                            "event_id": "FR-EVT-SYS-001",
+                        }),
+                    )
+                    .with_model_session_id("sess-keep")
+                    .with_wsids(vec![TEST_WORKSPACE_ID.to_owned()]),
                 )
-                .with_model_session_id("sess-keep")
-                .with_wsids(vec![TEST_WORKSPACE_ID.to_owned()]),
-            )
-            .await?;
+                .await?;
 
-        state
-            .flight_recorder
-            .record_event(
-                FlightRecorderEvent::new(
-                    FlightRecorderEventType::System,
-                    FlightRecorderActor::System,
-                    trace_id,
-                    json!({
-                        "type": "system",
-                        "event_id": "FR-EVT-SYS-000",
-                    }),
+            state
+                .flight_recorder
+                .record_event(
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::System,
+                        FlightRecorderActor::System,
+                        trace_id,
+                        json!({
+                            "type": "system",
+                            "event_id": "FR-EVT-SYS-000",
+                        }),
+                    )
+                    .with_wsids(vec![TEST_WORKSPACE_ID.to_owned()]),
                 )
-                .with_wsids(vec![TEST_WORKSPACE_ID.to_owned()]),
+                .await?;
+
+            let response = list_events_scoped(
+                State(state),
+                Query(EventFilter {
+                    model_session_id: Some("sess-keep".to_string()),
+                    wsid: Some(TEST_WORKSPACE_ID.to_owned()),
+                    ..Default::default()
+                }),
             )
-            .await?;
+            .await;
+            let Json(events) = match response {
+                Ok(payload) => payload,
+                Err(_) => panic!("filtered flight recorder api response failed"),
+            };
 
-        let response = list_events_scoped(
-            State(state),
-            Query(EventFilter {
-                model_session_id: Some("sess-keep".to_string()),
-                wsid: Some(TEST_WORKSPACE_ID.to_owned()),
-                ..Default::default()
-            }),
-        )
-        .await;
-        let Json(events) = match response {
-            Ok(payload) => payload,
-            Err(_) => panic!("filtered flight recorder api response failed"),
-        };
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].model_session_id.as_deref(), Some("sess-keep"));
+            assert_eq!(events[0].event_type, "system");
 
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].model_session_id.as_deref(), Some("sess-keep"));
-        assert_eq!(events[0].event_type, "system");
-
-        Ok(())
+            Ok(())
         })
         .await
     }
@@ -2604,122 +2603,122 @@ mod tests {
     async fn native_editor_event_round_trips_and_mirrors_to_ledger(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event_id = Uuid::now_v7().to_string();
-        let uuid = Uuid::parse_str(&event_id)?;
-        // The durable, workspace-partitioned identity the recorder actually stores.
-        let durable_uuid = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, uuid);
-        assert_ne!(
-            durable_uuid, uuid,
-            "the durable id must not be the caller-controlled id"
-        );
-        let body = json!({
-            "schema_version": NATIVE_EDITOR_SCHEMA_VERSION,
-            "event_id": event_id,
-            "ts_utc": "2026-07-02T04:08:05Z",
-            "kind": "stage_embed_back",
-            // An envelope MAY confirm the authenticated identity; it may never set it.
-            "actor_id": TEST_ACTOR_ID,
-            "actor_kind": "human",
-            "pane_id": "pane-rich",
-            "surface": "stage",
-            "workspace_id": TEST_WORKSPACE_ID,
-            "payload": {
-                "artifact_id": "ART-1",
-                "target_pane_id": "pane-rich",
-                "sha256": "a".repeat(64),
-                "manifest_ref": "manifest-ART-1",
-                "causal_action_id": "stage-route-action-1"
-            }
-        });
-        let event: NativeEditorFrEventV0_1 = serde_json::from_value(body.clone())?;
+            let event_id = Uuid::now_v7().to_string();
+            let uuid = Uuid::parse_str(&event_id)?;
+            // The durable, workspace-partitioned identity the recorder actually stores.
+            let durable_uuid = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, uuid);
+            assert_ne!(
+                durable_uuid, uuid,
+                "the durable id must not be the caller-controlled id"
+            );
+            let body = json!({
+                "schema_version": NATIVE_EDITOR_SCHEMA_VERSION,
+                "event_id": event_id,
+                "ts_utc": "2026-07-02T04:08:05Z",
+                "kind": "stage_embed_back",
+                // An envelope MAY confirm the authenticated identity; it may never set it.
+                "actor_id": TEST_ACTOR_ID,
+                "actor_kind": "human",
+                "pane_id": "pane-rich",
+                "surface": "stage",
+                "workspace_id": TEST_WORKSPACE_ID,
+                "payload": {
+                    "artifact_id": "ART-1",
+                    "target_pane_id": "pane-rich",
+                    "sha256": "a".repeat(64),
+                    "manifest_ref": "manifest-ART-1",
+                    "causal_action_id": "stage-route-action-1"
+                }
+            });
+            let event: NativeEditorFrEventV0_1 = serde_json::from_value(body.clone())?;
 
-        let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
+            let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
+                .await
+                .map_err(|(code, _body)| format!("ingest failed: {code}"))?;
+            assert_eq!(ack["ok"], true);
+            assert_eq!(ack["kind"], "stage_embed_back");
+            assert_eq!(ack["event_id"], event_id, "the caller id is echoed back");
+            assert_eq!(
+                ack["fr_event_id"],
+                durable_uuid.to_string(),
+                "the ack names the durable workspace-partitioned recorder id"
+            );
+            assert_eq!(
+                ack["actor_id"], TEST_ACTOR_ID,
+                "attribution is server-derived, never caller-declared"
+            );
+
+            // Readable back via the existing GET route, keyed on event_id.
+            let Json(events) = list_events_scoped(
+                State(state.clone()),
+                Query(EventFilter {
+                    event_id: Some(durable_uuid),
+                    wsid: Some(TEST_WORKSPACE_ID.to_owned()),
+                    ..Default::default()
+                }),
+            )
             .await
-            .map_err(|(code, _body)| format!("ingest failed: {code}"))?;
-        assert_eq!(ack["ok"], true);
-        assert_eq!(ack["kind"], "stage_embed_back");
-        assert_eq!(ack["event_id"], event_id, "the caller id is echoed back");
-        assert_eq!(
-            ack["fr_event_id"],
-            durable_uuid.to_string(),
-            "the ack names the durable workspace-partitioned recorder id"
-        );
-        assert_eq!(
-            ack["actor_id"], TEST_ACTOR_ID,
-            "attribution is server-derived, never caller-declared"
-        );
+            .map_err(|_| "list failed")?;
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].event_type, "system");
+            assert_eq!(events[0].event_id, durable_uuid.to_string());
+            assert_eq!(events[0].actor_id, TEST_ACTOR_ID);
+            assert_eq!(events[0].payload["client_event_id"], event_id);
+            assert_eq!(events[0].payload["actor_id"], TEST_ACTOR_ID);
+            assert_eq!(events[0].payload["kind"], "stage_embed_back");
+            assert_eq!(events[0].payload["action"], "stage_embed_back");
+            assert_eq!(events[0].payload["schema"], NATIVE_EDITOR_SCHEMA_VERSION);
+            assert_eq!(events[0].payload["event_family"], "native_editor");
+            assert_eq!(
+                events[0].payload["native_payload"]["causal_action_id"],
+                "stage-route-action-1"
+            );
+            assert!(events[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()));
 
-        // Readable back via the existing GET route, keyed on event_id.
-        let Json(events) = list_events_scoped(
-            State(state.clone()),
-            Query(EventFilter {
-                event_id: Some(durable_uuid),
-                wsid: Some(TEST_WORKSPACE_ID.to_owned()),
-                ..Default::default()
-            }),
-        )
-        .await
-        .map_err(|_| "list failed")?;
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].event_type, "system");
-        assert_eq!(events[0].event_id, durable_uuid.to_string());
-        assert_eq!(events[0].actor_id, TEST_ACTOR_ID);
-        assert_eq!(events[0].payload["client_event_id"], event_id);
-        assert_eq!(events[0].payload["actor_id"], TEST_ACTOR_ID);
-        assert_eq!(events[0].payload["kind"], "stage_embed_back");
-        assert_eq!(events[0].payload["action"], "stage_embed_back");
-        assert_eq!(events[0].payload["schema"], NATIVE_EDITOR_SCHEMA_VERSION);
-        assert_eq!(events[0].payload["event_family"], "native_editor");
-        assert_eq!(
-            events[0].payload["native_payload"]["causal_action_id"],
-            "stage-route-action-1"
-        );
-        assert!(events[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()));
+            // Durable EventLedger mirror in the embedded authority store.
+            let ledger_count = native_editor_ledger_events(&state, durable_uuid.to_string())
+                .await?
+                .into_iter()
+                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                .count();
+            assert_eq!(
+                ledger_count, 1,
+                "one durable native-editor FR ledger receipt"
+            );
 
-        // Durable EventLedger mirror in the embedded authority store.
-        let ledger_count = native_editor_ledger_events(&state, durable_uuid.to_string())
-            .await?
-            .into_iter()
-            .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
-            .count();
-        assert_eq!(
-            ledger_count, 1,
-            "one durable native-editor FR ledger receipt"
-        );
+            // Idempotent re-POST of the same event_id.
+            let event_again: NativeEditorFrEventV0_1 = serde_json::from_value(body)?;
+            let Json(ack2) = ingest_native_editor(State(state.clone()), Json(event_again))
+                .await
+                .map_err(|(code, _body)| format!("re-ingest failed: {code}"))?;
+            assert_eq!(ack2["idempotent"], true);
 
-        // Idempotent re-POST of the same event_id.
-        let event_again: NativeEditorFrEventV0_1 = serde_json::from_value(body)?;
-        let Json(ack2) = ingest_native_editor(State(state.clone()), Json(event_again))
+            let Json(events_after) = list_events_scoped(
+                State(state.clone()),
+                Query(EventFilter {
+                    event_id: Some(durable_uuid),
+                    wsid: Some(TEST_WORKSPACE_ID.to_owned()),
+                    ..Default::default()
+                }),
+            )
             .await
-            .map_err(|(code, _body)| format!("re-ingest failed: {code}"))?;
-        assert_eq!(ack2["idempotent"], true);
+            .map_err(|_| "list failed")?;
+            assert_eq!(
+                events_after.len(),
+                1,
+                "idempotent: still exactly one FR row"
+            );
 
-        let Json(events_after) = list_events_scoped(
-            State(state.clone()),
-            Query(EventFilter {
-                event_id: Some(durable_uuid),
-                wsid: Some(TEST_WORKSPACE_ID.to_owned()),
-                ..Default::default()
-            }),
-        )
-        .await
-        .map_err(|_| "list failed")?;
-        assert_eq!(
-            events_after.len(),
-            1,
-            "idempotent: still exactly one FR row"
-        );
-
-        let ledger_after = native_editor_ledger_events(&state, durable_uuid.to_string())
-            .await?
-            .into_iter()
-            .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
-            .count();
-        assert_eq!(
-            ledger_after, 1,
-            "idempotent: still exactly one ledger receipt"
-        );
-        Ok(())
+            let ledger_after = native_editor_ledger_events(&state, durable_uuid.to_string())
+                .await?
+                .into_iter()
+                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                .count();
+            assert_eq!(
+                ledger_after, 1,
+                "idempotent: still exactly one ledger receipt"
+            );
+            Ok(())
         })
         .await
     }
@@ -2728,33 +2727,35 @@ mod tests {
     async fn native_editor_same_id_mutated_envelope_conflicts(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        for mutation in ["pane", "surface", "timestamp"] {
-            let event_id = Uuid::now_v7().to_string();
-            let mut original = native_editor_envelope(&event_id);
-            original.surface = Some("pane-rich".to_owned());
-            let Json(first_ack) = ingest_native_editor(State(state.clone()), Json(original.clone()))
-                .await
-                .map_err(|(status, _)| format!("initial ingest failed: {status}"))?;
-            assert_eq!(first_ack["idempotent"], false);
-            let Json(replay_ack) =
-                ingest_native_editor(State(state.clone()), Json(original.clone()))
-                    .await
-                    .map_err(|(status, _)| format!("unchanged replay failed: {status}"))?;
-            assert_eq!(replay_ack["idempotent"], true);
-            let mut changed = original;
-            match mutation {
-                "pane" => changed.pane_id = "pane-other".to_owned(),
-                "surface" => changed.surface = Some("surface-other".to_owned()),
-                "timestamp" => changed.ts_utc = "2026-07-02T04:08:06Z".to_owned(),
-                _ => unreachable!(),
+            for mutation in ["pane", "surface", "timestamp"] {
+                let event_id = Uuid::now_v7().to_string();
+                let mut original = native_editor_envelope(&event_id);
+                original.surface = Some("pane-rich".to_owned());
+                let Json(first_ack) =
+                    ingest_native_editor(State(state.clone()), Json(original.clone()))
+                        .await
+                        .map_err(|(status, _)| format!("initial ingest failed: {status}"))?;
+                assert_eq!(first_ack["idempotent"], false);
+                let Json(replay_ack) =
+                    ingest_native_editor(State(state.clone()), Json(original.clone()))
+                        .await
+                        .map_err(|(status, _)| format!("unchanged replay failed: {status}"))?;
+                assert_eq!(replay_ack["idempotent"], true);
+                let mut changed = original;
+                match mutation {
+                    "pane" => changed.pane_id = "pane-other".to_owned(),
+                    "surface" => changed.surface = Some("surface-other".to_owned()),
+                    "timestamp" => changed.ts_utc = "2026-07-02T04:08:06Z".to_owned(),
+                    _ => unreachable!(),
+                }
+                let changed_result =
+                    ingest_native_editor(State(state.clone()), Json(changed)).await;
+                assert!(
+                    matches!(changed_result, Err((StatusCode::CONFLICT, _))),
+                    "same event_id with changed {mutation} must conflict"
+                );
             }
-            let changed_result = ingest_native_editor(State(state.clone()), Json(changed)).await;
-            assert!(
-                matches!(changed_result, Err((StatusCode::CONFLICT, _))),
-                "same event_id with changed {mutation} must conflict"
-            );
-        }
-        Ok(())
+            Ok(())
         })
         .await
     }
@@ -2763,27 +2764,67 @@ mod tests {
     async fn native_editor_concurrent_same_id_converges_once_in_both_stores(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event_id = Uuid::now_v7().to_string();
-        let event = native_editor_envelope(&event_id);
+            let event_id = Uuid::now_v7().to_string();
+            let event = native_editor_envelope(&event_id);
 
-        let (left, right) = tokio::join!(
-            ingest_native_editor(State(state.clone()), Json(event.clone())),
-            ingest_native_editor(State(state.clone()), Json(event)),
-        );
-        assert!(left.is_ok(), "first concurrent ingest failed");
-        assert!(right.is_ok(), "second concurrent ingest failed");
+            let (left, right) = tokio::join!(
+                ingest_native_editor(State(state.clone()), Json(event.clone())),
+                ingest_native_editor(State(state.clone()), Json(event)),
+            );
+            assert!(left.is_ok(), "first concurrent ingest failed");
+            assert!(right.is_ok(), "second concurrent ingest failed");
 
-        let recorder_rows = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(durable_id_for(&event_id)),
-                ..Default::default()
-            })
-            .await?;
-        assert_eq!(recorder_rows.len(), 1, "exactly one Flight Recorder row");
+            let recorder_rows = state
+                .flight_recorder
+                .list_events(crate::flight_recorder::EventFilter {
+                    event_id: Some(durable_id_for(&event_id)),
+                    ..Default::default()
+                })
+                .await?;
+            assert_eq!(recorder_rows.len(), 1, "exactly one Flight Recorder row");
 
-        let ledger_rows =
-            native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
+            let ledger_rows =
+                native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
+                    .await?
+                    .into_iter()
+                    .filter(|row| {
+                        matches!(
+                            row.event_type,
+                            KernelEventType::FlightRecorderMirrorPending
+                                | KernelEventType::FlightRecorderMirrorRecorded
+                        )
+                    })
+                    .count();
+            assert_eq!(ledger_rows, 2, "one pending and one completion receipt");
+            Ok(())
+        })
+        .await
+    }
+
+    #[tokio::test]
+    async fn native_editor_canonical_uuid_and_timestamp_spellings_converge(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        run_flight_recorder_test(|state| async move {
+            let uuid = Uuid::now_v7();
+            let mut first =
+                native_editor_envelope(&format!("  {}  ", uuid.to_string().to_uppercase()));
+            first.ts_utc = "2026-07-02T06:08:05.123456789+02:00".to_owned();
+            let mut retry = native_editor_envelope(&uuid.to_string());
+            retry.ts_utc = "2026-07-02T04:08:05.123456789Z".to_owned();
+            let expected_timestamp =
+                DateTime::parse_from_rfc3339(&retry.ts_utc)?.with_timezone(&Utc);
+
+            ingest_native_editor(State(state.clone()), Json(first))
+                .await
+                .map_err(|(status, _)| format!("canonical initial ingest failed: {status}"))?;
+            let Json(ack) = ingest_native_editor(State(state.clone()), Json(retry))
+                .await
+                .map_err(|(status, _)| format!("canonical retry failed: {status}"))?;
+            assert_eq!(ack["idempotent"], true);
+
+            let durable_uuid = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, uuid);
+            let aggregate_id = durable_uuid.to_string();
+            let ledger_rows = native_editor_ledger_events(&state, &aggregate_id)
                 .await?
                 .into_iter()
                 .filter(|row| {
@@ -2794,67 +2835,29 @@ mod tests {
                     )
                 })
                 .count();
-        assert_eq!(ledger_rows, 2, "one pending and one completion receipt");
-        Ok(())
-        })
-        .await
-    }
-
-    #[tokio::test]
-    async fn native_editor_canonical_uuid_and_timestamp_spellings_converge(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        run_flight_recorder_test(|state| async move {
-        let uuid = Uuid::now_v7();
-        let mut first = native_editor_envelope(&format!("  {}  ", uuid.to_string().to_uppercase()));
-        first.ts_utc = "2026-07-02T06:08:05.123456789+02:00".to_owned();
-        let mut retry = native_editor_envelope(&uuid.to_string());
-        retry.ts_utc = "2026-07-02T04:08:05.123456789Z".to_owned();
-        let expected_timestamp = DateTime::parse_from_rfc3339(&retry.ts_utc)?.with_timezone(&Utc);
-
-        ingest_native_editor(State(state.clone()), Json(first))
-            .await
-            .map_err(|(status, _)| format!("canonical initial ingest failed: {status}"))?;
-        let Json(ack) = ingest_native_editor(State(state.clone()), Json(retry))
-            .await
-            .map_err(|(status, _)| format!("canonical retry failed: {status}"))?;
-        assert_eq!(ack["idempotent"], true);
-
-        let durable_uuid = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, uuid);
-        let aggregate_id = durable_uuid.to_string();
-        let ledger_rows = native_editor_ledger_events(&state, &aggregate_id)
-            .await?
-            .into_iter()
-            .filter(|row| {
-                matches!(
-                    row.event_type,
-                    KernelEventType::FlightRecorderMirrorPending
-                        | KernelEventType::FlightRecorderMirrorRecorded
-                )
-            })
-            .count();
-        assert_eq!(
-            ledger_rows, 2,
-            "one canonical pending/completion state machine"
-        );
-        let recorder_rows = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(durable_uuid),
-                ..Default::default()
-            })
-            .await?;
-        assert_eq!(recorder_rows.len(), 1);
-        assert_eq!(
-            recorder_rows[0].timestamp.timestamp_micros(),
-            expected_timestamp.timestamp_micros(),
-            "DuckDB readback must preserve the canonical storage microsecond"
-        );
-        assert_eq!(
-            recorder_rows[0].payload["ts_utc"],
-            json!("2026-07-02T04:08:05.123456789+00:00"),
-            "the immutable envelope retains the canonical nanosecond spelling"
-        );
-        Ok(())
+            assert_eq!(
+                ledger_rows, 2,
+                "one canonical pending/completion state machine"
+            );
+            let recorder_rows = state
+                .flight_recorder
+                .list_events(crate::flight_recorder::EventFilter {
+                    event_id: Some(durable_uuid),
+                    ..Default::default()
+                })
+                .await?;
+            assert_eq!(recorder_rows.len(), 1);
+            assert_eq!(
+                recorder_rows[0].timestamp.timestamp_micros(),
+                expected_timestamp.timestamp_micros(),
+                "DuckDB readback must preserve the canonical storage microsecond"
+            );
+            assert_eq!(
+                recorder_rows[0].payload["ts_utc"],
+                json!("2026-07-02T04:08:05.123456789+00:00"),
+                "the immutable envelope retains the canonical nanosecond spelling"
+            );
+            Ok(())
         })
         .await
     }
@@ -2863,18 +2866,18 @@ mod tests {
     async fn native_editor_decomposed_unicode_retry_matches_normalized_store(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event_id = Uuid::now_v7().to_string();
-        let mut event = native_editor_envelope(&event_id);
-        event.kind = NativeEditorFrEventKind::CodeEdit;
-        event.payload = json!({"file_path": "Cafe\u{301}.rs", "line_delta": 1});
-        ingest_native_editor(State(state.clone()), Json(event.clone()))
-            .await
-            .map_err(|(status, _)| format!("unicode initial ingest failed: {status}"))?;
-        let Json(ack) = ingest_native_editor(State(state), Json(event))
-            .await
-            .map_err(|(status, _)| format!("unicode retry failed: {status}"))?;
-        assert_eq!(ack["idempotent"], true);
-        Ok(())
+            let event_id = Uuid::now_v7().to_string();
+            let mut event = native_editor_envelope(&event_id);
+            event.kind = NativeEditorFrEventKind::CodeEdit;
+            event.payload = json!({"file_path": "Cafe\u{301}.rs", "line_delta": 1});
+            ingest_native_editor(State(state.clone()), Json(event.clone()))
+                .await
+                .map_err(|(status, _)| format!("unicode initial ingest failed: {status}"))?;
+            let Json(ack) = ingest_native_editor(State(state), Json(event))
+                .await
+                .map_err(|(status, _)| format!("unicode retry failed: {status}"))?;
+            assert_eq!(ack["idempotent"], true);
+            Ok(())
         })
         .await
     }
@@ -2953,44 +2956,44 @@ mod tests {
     async fn list_events_surface_filter_returns_only_native_system_events_for_that_surface(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let native_id = Uuid::now_v7();
-        let mut envelope = native_editor_envelope(&native_id.to_string());
-        envelope.surface = Some("pane-rich".to_owned());
-        state
-            .flight_recorder
-            .record_event(
-                native_editor_fr_event_from_envelope(&envelope)
-                    .map_err(|_| "native fixture rejected")?,
+            let native_id = Uuid::now_v7();
+            let mut envelope = native_editor_envelope(&native_id.to_string());
+            envelope.surface = Some("pane-rich".to_owned());
+            state
+                .flight_recorder
+                .record_event(
+                    native_editor_fr_event_from_envelope(&envelope)
+                        .map_err(|_| "native fixture rejected")?,
+                )
+                .await?;
+
+            let unrelated = FlightRecorderEvent::new(
+                FlightRecorderEventType::System,
+                FlightRecorderActor::System,
+                Uuid::now_v7(),
+                json!({"editor_surface": "pane-rich", "event_family": "runtime"}),
             )
-            .await?;
+            .with_actor_id("runtime-system");
+            state.flight_recorder.record_event(unrelated).await?;
 
-        let unrelated = FlightRecorderEvent::new(
-            FlightRecorderEventType::System,
-            FlightRecorderActor::System,
-            Uuid::now_v7(),
-            json!({"editor_surface": "pane-rich", "event_family": "runtime"}),
-        )
-        .with_actor_id("runtime-system");
-        state.flight_recorder.record_event(unrelated).await?;
-
-        let Json(rows) = list_events_scoped(
-            State(state),
-            Query(EventFilter {
-                surface: Some("pane-rich".to_owned()),
-                event_type: Some("system".to_owned()),
-                wsid: Some(TEST_WORKSPACE_ID.to_owned()),
-                ..Default::default()
-            }),
-        )
-        .await
-        .map_err(|(status, _)| format!("surface-filter list failed: {status}"))?;
-        assert_eq!(rows.len(), 1);
-        assert_eq!(
-            rows[0].event_id,
-            workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, native_id).to_string()
-        );
-        assert_eq!(rows[0].payload["event_family"], "native_editor");
-        Ok(())
+            let Json(rows) = list_events_scoped(
+                State(state),
+                Query(EventFilter {
+                    surface: Some("pane-rich".to_owned()),
+                    event_type: Some("system".to_owned()),
+                    wsid: Some(TEST_WORKSPACE_ID.to_owned()),
+                    ..Default::default()
+                }),
+            )
+            .await
+            .map_err(|(status, _)| format!("surface-filter list failed: {status}"))?;
+            assert_eq!(rows.len(), 1);
+            assert_eq!(
+                rows[0].event_id,
+                workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, native_id).to_string()
+            );
+            assert_eq!(rows[0].payload["event_family"], "native_editor");
+            Ok(())
         })
         .await
     }
@@ -3102,47 +3105,48 @@ mod tests {
     async fn native_editor_reconciler_repairs_durable_pending_after_restart_window(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event_id = Uuid::now_v7().to_string();
-        let event = native_editor_envelope(&event_id);
-        append_authorized_native_editor_event(&state, native_editor_pending_event(&event)).await?;
+            let event_id = Uuid::now_v7().to_string();
+            let event = native_editor_envelope(&event_id);
+            append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
+                .await?;
 
-        let before = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(durable_id_for(&event_id)),
-                ..Default::default()
-            })
-            .await?;
-        assert!(
-            before.is_empty(),
-            "fixture represents the post-ledger/pre-FR crash window"
-        );
+            let before = state
+                .flight_recorder
+                .list_events(crate::flight_recorder::EventFilter {
+                    event_id: Some(durable_id_for(&event_id)),
+                    ..Default::default()
+                })
+                .await?;
+            assert!(
+                before.is_empty(),
+                "fixture represents the post-ledger/pre-FR crash window"
+            );
 
-        // This is the same startup pass installed by `routes`: it discovers work from durable
-        // embedded EventLedger state rather than relying on an in-memory queue from the failed process.
-        reconcile_native_editor_pending(&state)
-            .await
-            .map_err(std::io::Error::other)?;
+            // This is the same startup pass installed by `routes`: it discovers work from durable
+            // embedded EventLedger state rather than relying on an in-memory queue from the failed process.
+            reconcile_native_editor_pending(&state)
+                .await
+                .map_err(std::io::Error::other)?;
 
-        let after = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(durable_id_for(&event_id)),
-                ..Default::default()
-            })
-            .await?;
-        assert_eq!(after.len(), 1, "startup reconciliation restored the FR row");
-        let completion_count =
-            native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
-                .await?
-                .into_iter()
-                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
-                .count();
-        assert_eq!(
-            completion_count, 1,
-            "completion exists only after FR recovery"
-        );
-        Ok(())
+            let after = state
+                .flight_recorder
+                .list_events(crate::flight_recorder::EventFilter {
+                    event_id: Some(durable_id_for(&event_id)),
+                    ..Default::default()
+                })
+                .await?;
+            assert_eq!(after.len(), 1, "startup reconciliation restored the FR row");
+            let completion_count =
+                native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
+                    .await?
+                    .into_iter()
+                    .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                    .count();
+            assert_eq!(
+                completion_count, 1,
+                "completion exists only after FR recovery"
+            );
+            Ok(())
         })
         .await
     }
@@ -3151,30 +3155,31 @@ mod tests {
     async fn native_editor_routes_autonomously_starts_reconciliation(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event_id = Uuid::now_v7().to_string();
-        let event = native_editor_envelope(&event_id);
-        append_authorized_native_editor_event(&state, native_editor_pending_event(&event)).await?;
-
-        let _mounted_routes = routes(state.clone());
-        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
-        loop {
-            let rows = state
-                .flight_recorder
-                .list_events(crate::flight_recorder::EventFilter {
-                    event_id: Some(durable_id_for(&event_id)),
-                    ..Default::default()
-                })
+            let event_id = Uuid::now_v7().to_string();
+            let event = native_editor_envelope(&event_id);
+            append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
                 .await?;
-            if rows.len() == 1 {
-                break;
+
+            let _mounted_routes = routes(state.clone());
+            let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+            loop {
+                let rows = state
+                    .flight_recorder
+                    .list_events(crate::flight_recorder::EventFilter {
+                        event_id: Some(durable_id_for(&event_id)),
+                        ..Default::default()
+                    })
+                    .await?;
+                if rows.len() == 1 {
+                    break;
+                }
+                assert!(
+                    tokio::time::Instant::now() < deadline,
+                    "routes() did not autonomously start native-editor reconciliation"
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
             }
-            assert!(
-                tokio::time::Instant::now() < deadline,
-                "routes() did not autonomously start native-editor reconciliation"
-            );
-            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-        }
-        Ok(())
+            Ok(())
         })
         .await
     }
@@ -3183,52 +3188,52 @@ mod tests {
     async fn native_editor_spurious_completion_does_not_suppress_recovery(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event_id = Uuid::now_v7().to_string();
-        let event = native_editor_envelope(&event_id);
-        let pending =
-            append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
-                .await?;
-        let spurious = NewKernelEvent::builder(
-            event.canonical_workspace_id().to_owned(),
-            event.event_id.clone(),
-            KernelEventType::FlightRecorderMirrorRecorded,
-            KernelActor::Operator(event.canonical_actor_id().to_owned()),
-        )
-        .aggregate("native_editor_event", event.event_id.clone())
-        .idempotency_key(format!(
-            "spurious-native-editor-completion:{}",
-            event.event_id
-        ))
-        .source_component("unrelated_component")
-        .causation_id("unrelated-cause")
-        .payload(json!({"fr_event_id": event.event_id, "envelope": {"wrong": true}}))
-        .build()?;
-        let spurious = state.storage.append_kernel_event(spurious).await?;
-        assert!(!native_editor_completion_matches(&pending, &spurious));
+            let event_id = Uuid::now_v7().to_string();
+            let event = native_editor_envelope(&event_id);
+            let pending =
+                append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
+                    .await?;
+            let spurious = NewKernelEvent::builder(
+                event.canonical_workspace_id().to_owned(),
+                event.event_id.clone(),
+                KernelEventType::FlightRecorderMirrorRecorded,
+                KernelActor::Operator(event.canonical_actor_id().to_owned()),
+            )
+            .aggregate("native_editor_event", event.event_id.clone())
+            .idempotency_key(format!(
+                "spurious-native-editor-completion:{}",
+                event.event_id
+            ))
+            .source_component("unrelated_component")
+            .causation_id("unrelated-cause")
+            .payload(json!({"fr_event_id": event.event_id, "envelope": {"wrong": true}}))
+            .build()?;
+            let spurious = state.storage.append_kernel_event(spurious).await?;
+            assert!(!native_editor_completion_matches(&pending, &spurious));
 
-        reconcile_native_editor_pending(&state)
-            .await
-            .map_err(std::io::Error::other)?;
-        assert_eq!(
-            state
-                .flight_recorder
-                .list_events(crate::flight_recorder::EventFilter {
-                    event_id: Some(durable_id_for(&event_id)),
-                    ..Default::default()
-                })
-                .await?
-                .len(),
-            1,
-            "spurious completion must not suppress the pending mirror"
-        );
-        let completion_count =
-            native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
-                .await?
-                .into_iter()
-                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
-                .count();
-        assert_eq!(completion_count, 1);
-        Ok(())
+            reconcile_native_editor_pending(&state)
+                .await
+                .map_err(std::io::Error::other)?;
+            assert_eq!(
+                state
+                    .flight_recorder
+                    .list_events(crate::flight_recorder::EventFilter {
+                        event_id: Some(durable_id_for(&event_id)),
+                        ..Default::default()
+                    })
+                    .await?
+                    .len(),
+                1,
+                "spurious completion must not suppress the pending mirror"
+            );
+            let completion_count =
+                native_editor_ledger_events(&state, durable_id_for(&event_id).to_string())
+                    .await?
+                    .into_iter()
+                    .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                    .count();
+            assert_eq!(completion_count, 1);
+            Ok(())
         })
         .await
     }
@@ -3237,45 +3242,46 @@ mod tests {
     async fn native_editor_completion_with_corrupt_hash_cannot_suppress_recovery(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event = native_editor_envelope(&Uuid::now_v7().to_string());
-        let pending =
-            append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
+            let event = native_editor_envelope(&Uuid::now_v7().to_string());
+            let pending =
+                append_authorized_native_editor_event(&state, native_editor_pending_event(&event))
+                    .await?;
+            state
+                .flight_recorder
+                .record_event(
+                    native_editor_fr_event_from_envelope(&event)
+                        .map_err(|_| "failed to build corrupt-hash FR fixture")?,
+                )
                 .await?;
-        state
-            .flight_recorder
-            .record_event(
-                native_editor_fr_event_from_envelope(&event)
-                    .map_err(|_| "failed to build corrupt-hash FR fixture")?,
-            )
-            .await?;
-        let completion = build_native_editor_completion(&pending, &event)?;
-        let canonical_completion_hash = completion.payload_hash.clone();
-        let completion = state.storage.append_kernel_event(completion).await?;
-        let completion_event_id = completion.event_id;
+            let completion = build_native_editor_completion(&pending, &event)?;
+            let canonical_completion_hash = completion.payload_hash.clone();
+            let completion = state.storage.append_kernel_event(completion).await?;
+            let completion_event_id = completion.event_id;
 
-        set_event_payload_hash(&state, completion_event_id.clone(), "0".repeat(64)).await?;
+            set_event_payload_hash(&state, completion_event_id.clone(), "0".repeat(64)).await?;
 
-        let candidates = state
-            .storage
-            .list_pending_native_editor_mirrors(0, 100)
-            .await?;
-        let candidate_found = candidates
-            .iter()
-            .any(|candidate| candidate.event_id == pending.event_id);
-        let corrupt_completion_rejected = reconcile_native_editor_pending_receipt(&state, pending)
-            .await
-            .is_err();
-        // Restore the test-injected fault so the embedded fixture remains internally consistent.
-        set_event_payload_hash(&state, completion_event_id, canonical_completion_hash).await?;
-        assert!(
-            candidate_found,
-            "completion with a non-canonical payload_hash suppressed recovery"
-        );
-        assert!(
-            corrupt_completion_rejected,
-            "corrupt completion was accepted as authentic"
-        );
-        Ok(())
+            let candidates = state
+                .storage
+                .list_pending_native_editor_mirrors(0, 100)
+                .await?;
+            let candidate_found = candidates
+                .iter()
+                .any(|candidate| candidate.event_id == pending.event_id);
+            let corrupt_completion_rejected =
+                reconcile_native_editor_pending_receipt(&state, pending)
+                    .await
+                    .is_err();
+            // Restore the test-injected fault so the embedded fixture remains internally consistent.
+            set_event_payload_hash(&state, completion_event_id, canonical_completion_hash).await?;
+            assert!(
+                candidate_found,
+                "completion with a non-canonical payload_hash suppressed recovery"
+            );
+            assert!(
+                corrupt_completion_rejected,
+                "corrupt completion was accepted as authentic"
+            );
+            Ok(())
         })
         .await
     }
@@ -3284,47 +3290,47 @@ mod tests {
     async fn native_editor_legacy_pending_without_expected_hash_remains_recoverable(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event = native_editor_envelope(&Uuid::now_v7().to_string());
-        let mut legacy_pending = native_editor_pending_event(&event);
-        legacy_pending
-            .payload
-            .as_object_mut()
-            .expect("pending payload object")
-            .remove("expected_completion_payload_hash");
-        legacy_pending.payload_hash = crate::kernel::context_bundle::sha256_hex(
-            &crate::kernel::context_bundle::canonical_json_bytes(&legacy_pending.payload),
-        );
-        let pending = append_authorized_native_editor_event(&state, legacy_pending).await?;
+            let event = native_editor_envelope(&Uuid::now_v7().to_string());
+            let mut legacy_pending = native_editor_pending_event(&event);
+            legacy_pending
+                .payload
+                .as_object_mut()
+                .expect("pending payload object")
+                .remove("expected_completion_payload_hash");
+            legacy_pending.payload_hash = crate::kernel::context_bundle::sha256_hex(
+                &crate::kernel::context_bundle::canonical_json_bytes(&legacy_pending.payload),
+            );
+            let pending = append_authorized_native_editor_event(&state, legacy_pending).await?;
 
-        reconcile_native_editor_pending_receipt(&state, pending.clone())
-            .await
-            .map_err(std::io::Error::other)?;
-        let recovered = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(durable_id(&event)),
-                ..Default::default()
-            })
-            .await?;
-        assert_eq!(
-            recovered.len(),
-            1,
-            "legacy pending row recovered its FR row"
-        );
+            reconcile_native_editor_pending_receipt(&state, pending.clone())
+                .await
+                .map_err(std::io::Error::other)?;
+            let recovered = state
+                .flight_recorder
+                .list_events(crate::flight_recorder::EventFilter {
+                    event_id: Some(durable_id(&event)),
+                    ..Default::default()
+                })
+                .await?;
+            assert_eq!(
+                recovered.len(),
+                1,
+                "legacy pending row recovered its FR row"
+            );
 
-        // Legacy rows remain candidates because their immutable payload cannot be
-        // backfilled. The exact Rust completion matcher makes reprocessing idempotent.
-        let candidates = state
-            .storage
-            .list_pending_native_editor_mirrors(0, 100)
-            .await?;
-        assert!(candidates
-            .iter()
-            .any(|candidate| candidate.event_id == pending.event_id));
-        reconcile_native_editor_pending_receipt(&state, pending)
-            .await
-            .map_err(std::io::Error::other)?;
-        Ok(())
+            // Legacy rows remain candidates because their immutable payload cannot be
+            // backfilled. The exact Rust completion matcher makes reprocessing idempotent.
+            let candidates = state
+                .storage
+                .list_pending_native_editor_mirrors(0, 100)
+                .await?;
+            assert!(candidates
+                .iter()
+                .any(|candidate| candidate.event_id == pending.event_id));
+            reconcile_native_editor_pending_receipt(&state, pending)
+                .await
+                .map_err(std::io::Error::other)?;
+            Ok(())
         })
         .await
     }
@@ -3333,59 +3339,63 @@ mod tests {
     async fn native_editor_persistent_restart_repairs_both_partial_write_windows(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|base_state| async move {
-        let temp = tempfile::tempdir()?;
-        let path = temp.path().join("native-editor-restart.duckdb");
-        let recorder_before = Arc::new(DuckDbFlightRecorder::new_on_path(&path, 32)?);
-        let state_before = state_with_recorder(&base_state, recorder_before.clone());
+            let temp = tempfile::tempdir()?;
+            let path = temp.path().join("native-editor-restart.duckdb");
+            let recorder_before = Arc::new(DuckDbFlightRecorder::new_on_path(&path, 32)?);
+            let state_before = state_with_recorder(&base_state, recorder_before.clone());
 
-        let before_fr = native_editor_envelope(&Uuid::now_v7().to_string());
-        let after_fr = native_editor_envelope(&Uuid::now_v7().to_string());
-        append_authorized_native_editor_events(
-            &state_before,
-            TEST_WORKSPACE_ID,
-            vec![
-                native_editor_pending_event(&before_fr),
-                native_editor_pending_event(&after_fr),
-            ],
-        )
-        .await?;
-        state_before
-            .flight_recorder
-            .record_event(native_editor_fr_event_from_envelope(&after_fr).map_err(|_| "fixture")?)
+            let before_fr = native_editor_envelope(&Uuid::now_v7().to_string());
+            let after_fr = native_editor_envelope(&Uuid::now_v7().to_string());
+            append_authorized_native_editor_events(
+                &state_before,
+                TEST_WORKSPACE_ID,
+                vec![
+                    native_editor_pending_event(&before_fr),
+                    native_editor_pending_event(&after_fr),
+                ],
+            )
             .await?;
-        drop(state_before);
-        drop(recorder_before);
+            state_before
+                .flight_recorder
+                .record_event(
+                    native_editor_fr_event_from_envelope(&after_fr).map_err(|_| "fixture")?,
+                )
+                .await?;
+            drop(state_before);
+            drop(recorder_before);
 
-        let recorder_after = Arc::new(DuckDbFlightRecorder::new_on_path(&path, 32)?);
-        let state_after = state_with_recorder(&base_state, recorder_after);
-        reconcile_native_editor_pending(&state_after)
-            .await
-            .map_err(std::io::Error::other)?;
+            let recorder_after = Arc::new(DuckDbFlightRecorder::new_on_path(&path, 32)?);
+            let state_after = state_with_recorder(&base_state, recorder_after);
+            reconcile_native_editor_pending(&state_after)
+                .await
+                .map_err(std::io::Error::other)?;
 
-        for event in [&before_fr, &after_fr] {
-            let uuid = durable_id(event);
-            assert_eq!(
-                state_after
-                    .flight_recorder
-                    .list_events(crate::flight_recorder::EventFilter {
-                        event_id: Some(uuid),
-                        ..Default::default()
-                    })
-                    .await?
-                    .len(),
-                1,
-                "restart must converge each partial-write window to one FR row"
-            );
-            let completion_count =
-                native_editor_ledger_events(&state_after, durable_id(&event).to_string())
-                    .await?
-                    .into_iter()
-                    .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
-                    .count();
-            assert_eq!(completion_count, 1);
-        }
-        drop(state_after);
-        Ok(())
+            for event in [&before_fr, &after_fr] {
+                let uuid = durable_id(event);
+                assert_eq!(
+                    state_after
+                        .flight_recorder
+                        .list_events(crate::flight_recorder::EventFilter {
+                            event_id: Some(uuid),
+                            ..Default::default()
+                        })
+                        .await?
+                        .len(),
+                    1,
+                    "restart must converge each partial-write window to one FR row"
+                );
+                let completion_count =
+                    native_editor_ledger_events(&state_after, durable_id(&event).to_string())
+                        .await?
+                        .into_iter()
+                        .filter(|row| {
+                            row.event_type == KernelEventType::FlightRecorderMirrorRecorded
+                        })
+                        .count();
+                assert_eq!(completion_count, 1);
+            }
+            drop(state_after);
+            Ok(())
         })
         .await
     }
@@ -3483,59 +3493,61 @@ mod tests {
     async fn native_editor_route_rejects_unknown_kind_and_field_without_durable_residue(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
-        let (token, _binding) = install_native_binding()?;
-        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
-        let before_fr = native_editor_fr_row_count(&state).await?;
-        let before_ledger = native_editor_ledger_row_count(&state).await?;
-        let (base, http, server) = serve_test_router(routes(state.clone())).await;
-        let endpoint =
-            format!("{base}/workspaces/{TEST_WORKSPACE_ID}/flight_recorder/native_editor_event");
+            let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+            let (token, _binding) = install_native_binding()?;
+            let session_token =
+                crate::api::authority::test_session_for_binding(&state, &token).await?;
+            let before_fr = native_editor_fr_row_count(&state).await?;
+            let before_ledger = native_editor_ledger_row_count(&state).await?;
+            let (base, http, server) = serve_test_router(routes(state.clone())).await;
+            let endpoint = format!(
+                "{base}/workspaces/{TEST_WORKSPACE_ID}/flight_recorder/native_editor_event"
+            );
 
-        let mut unknown_kind =
-            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
-        unknown_kind["kind"] = json!("smuggled_editor_kind");
-        let response = http
-            .post(&endpoint)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&unknown_kind)
-            .send()
-            .await?;
-        assert!(
-            response.status().is_client_error(),
-            "unknown kind must be rejected by the mounted route, got {}",
-            response.status()
-        );
+            let mut unknown_kind =
+                serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+            unknown_kind["kind"] = json!("smuggled_editor_kind");
+            let response = http
+                .post(&endpoint)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&unknown_kind)
+                .send()
+                .await?;
+            assert!(
+                response.status().is_client_error(),
+                "unknown kind must be rejected by the mounted route, got {}",
+                response.status()
+            );
 
-        let mut unknown_field =
-            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
-        unknown_field["smuggled"] = json!("free text");
-        let response = http
-            .post(&endpoint)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&unknown_field)
-            .send()
-            .await?;
-        assert!(
-            response.status().is_client_error(),
-            "unknown envelope field must be rejected by the mounted route, got {}",
-            response.status()
-        );
+            let mut unknown_field =
+                serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+            unknown_field["smuggled"] = json!("free text");
+            let response = http
+                .post(&endpoint)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&unknown_field)
+                .send()
+                .await?;
+            assert!(
+                response.status().is_client_error(),
+                "unknown envelope field must be rejected by the mounted route, got {}",
+                response.status()
+            );
 
-        let after_fr = native_editor_fr_row_count(&state).await?;
-        let after_ledger = native_editor_ledger_row_count(&state).await?;
-        assert_eq!(
-            after_fr, before_fr,
-            "rejected bodies must emit no native-editor FR row"
-        );
-        assert_eq!(
-            after_ledger, before_ledger,
-            "rejected bodies must emit no EventLedger receipt"
-        );
-        server.abort();
-        Ok(())
+            let after_fr = native_editor_fr_row_count(&state).await?;
+            let after_ledger = native_editor_ledger_row_count(&state).await?;
+            assert_eq!(
+                after_fr, before_fr,
+                "rejected bodies must emit no native-editor FR row"
+            );
+            assert_eq!(
+                after_ledger, before_ledger,
+                "rejected bodies must emit no EventLedger receipt"
+            );
+            server.abort();
+            Ok(())
         })
         .await
     }
@@ -3618,58 +3630,57 @@ mod tests {
     async fn native_editor_handler_accepts_all_documented_kinds_and_persists_each(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
+            for (kind, payload) in documented_payloads() {
+                let event = if kind == NativeEditorFrEventKind::DocumentSaved {
+                    authentic_document_saved_envelope(&state).await?
+                } else {
+                    let mut event = native_editor_envelope(&Uuid::now_v7().to_string());
+                    event.kind = kind;
+                    event.payload = payload;
+                    event
+                };
+                let workspace_id = event.canonical_workspace_id().to_owned();
+                let event_id = durable_id(&event);
+                let aggregate_id = event_id.to_string();
 
-        for (kind, payload) in documented_payloads() {
-            let event = if kind == NativeEditorFrEventKind::DocumentSaved {
-                authentic_document_saved_envelope(&state).await?
-            } else {
-                let mut event = native_editor_envelope(&Uuid::now_v7().to_string());
-                event.kind = kind;
-                event.payload = payload;
-                event
-            };
-            let workspace_id = event.canonical_workspace_id().to_owned();
-            let event_id = durable_id(&event);
-            let aggregate_id = event_id.to_string();
+                let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
+                    .await
+                    .map_err(|(status, _)| {
+                        format!(
+                            "handler rejected documented kind {}: {status}",
+                            kind.as_str()
+                        )
+                    })?;
+                assert_eq!(ack["ok"], true, "{} acknowledgement", kind.as_str());
+                assert_eq!(ack["kind"], kind.as_str());
 
-            let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
+                let Json(events) = list_events_scoped(
+                    State(state.clone()),
+                    Query(EventFilter {
+                        event_id: Some(event_id),
+                        wsid: Some(workspace_id.clone()),
+                        ..Default::default()
+                    }),
+                )
                 .await
-                .map_err(|(status, _)| {
-                    format!(
-                        "handler rejected documented kind {}: {status}",
-                        kind.as_str()
-                    )
-                })?;
-            assert_eq!(ack["ok"], true, "{} acknowledgement", kind.as_str());
-            assert_eq!(ack["kind"], kind.as_str());
+                .map_err(|_| format!("GET failed for documented kind {}", kind.as_str()))?;
+                assert_eq!(events.len(), 1, "{} must persist one FR row", kind.as_str());
+                assert_eq!(events[0].payload["kind"], kind.as_str());
+                assert_eq!(events[0].payload["workspace_id"], workspace_id);
 
-            let Json(events) = list_events_scoped(
-                State(state.clone()),
-                Query(EventFilter {
-                    event_id: Some(event_id),
-                    wsid: Some(workspace_id.clone()),
-                    ..Default::default()
-                }),
-            )
-            .await
-            .map_err(|_| format!("GET failed for documented kind {}", kind.as_str()))?;
-            assert_eq!(events.len(), 1, "{} must persist one FR row", kind.as_str());
-            assert_eq!(events[0].payload["kind"], kind.as_str());
-            assert_eq!(events[0].payload["workspace_id"], workspace_id);
-
-            let completion_count = native_editor_ledger_events(&state, &aggregate_id)
-                .await?
-                .into_iter()
-                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
-                .count();
-            assert_eq!(
-                completion_count,
-                1,
-                "{} must persist one completion receipt",
-                kind.as_str()
-            );
-        }
-        Ok(())
+                let completion_count = native_editor_ledger_events(&state, &aggregate_id)
+                    .await?
+                    .into_iter()
+                    .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                    .count();
+                assert_eq!(
+                    completion_count,
+                    1,
+                    "{} must persist one completion receipt",
+                    kind.as_str()
+                );
+            }
+            Ok(())
         })
         .await
     }
@@ -3779,61 +3790,60 @@ mod tests {
     async fn native_editor_handler_rejects_every_documented_payload_boundary_corruption(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-
-        for (kind, payload) in documented_payloads() {
-            let keys = payload
-                .as_object()
-                .expect("documented fixture is an object")
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>();
-            for key in keys {
-                for corruption in ["missing", "null"] {
-                    let mut event = native_editor_envelope(&Uuid::now_v7().to_string());
-                    event.kind = kind;
-                    event.payload = payload.clone();
-                    let map = event
-                        .payload
-                        .as_object_mut()
-                        .expect("documented fixture is an object");
-                    match corruption {
-                        "missing" => {
-                            map.remove(&key);
+            for (kind, payload) in documented_payloads() {
+                let keys = payload
+                    .as_object()
+                    .expect("documented fixture is an object")
+                    .keys()
+                    .cloned()
+                    .collect::<Vec<_>>();
+                for key in keys {
+                    for corruption in ["missing", "null"] {
+                        let mut event = native_editor_envelope(&Uuid::now_v7().to_string());
+                        event.kind = kind;
+                        event.payload = payload.clone();
+                        let map = event
+                            .payload
+                            .as_object_mut()
+                            .expect("documented fixture is an object");
+                        match corruption {
+                            "missing" => {
+                                map.remove(&key);
+                            }
+                            "null" => {
+                                map.insert(key.clone(), Value::Null);
+                            }
+                            _ => unreachable!(),
                         }
-                        "null" => {
-                            map.insert(key.clone(), Value::Null);
-                        }
-                        _ => unreachable!(),
+                        assert!(
+                            matches!(
+                                ingest_native_editor(State(state.clone()), Json(event)).await,
+                                Err((StatusCode::BAD_REQUEST, _))
+                            ),
+                            "handler accepted {corruption} {}.{key}",
+                            kind.as_str()
+                        );
                     }
-                    assert!(
-                        matches!(
-                            ingest_native_editor(State(state.clone()), Json(event)).await,
-                            Err((StatusCode::BAD_REQUEST, _))
-                        ),
-                        "handler accepted {corruption} {}.{key}",
-                        kind.as_str()
-                    );
                 }
-            }
 
-            let mut unknown = native_editor_envelope(&Uuid::now_v7().to_string());
-            unknown.kind = kind;
-            unknown.payload = payload;
-            unknown
-                .payload
-                .as_object_mut()
-                .expect("documented fixture is an object")
-                .insert("unknown".to_owned(), json!("smuggled"));
-            assert!(
-                matches!(
-                    ingest_native_editor(State(state.clone()), Json(unknown)).await,
-                    Err((StatusCode::BAD_REQUEST, _))
-                ),
-                "handler accepted an unknown field for {}",
-                kind.as_str()
-            );
-        }
-        Ok(())
+                let mut unknown = native_editor_envelope(&Uuid::now_v7().to_string());
+                unknown.kind = kind;
+                unknown.payload = payload;
+                unknown
+                    .payload
+                    .as_object_mut()
+                    .expect("documented fixture is an object")
+                    .insert("unknown".to_owned(), json!("smuggled"));
+                assert!(
+                    matches!(
+                        ingest_native_editor(State(state.clone()), Json(unknown)).await,
+                        Err((StatusCode::BAD_REQUEST, _))
+                    ),
+                    "handler accepted an unknown field for {}",
+                    kind.as_str()
+                );
+            }
+            Ok(())
         })
         .await
     }
@@ -3842,67 +3852,67 @@ mod tests {
     async fn native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let correlated = [
-            (
-                NativeEditorFrEventKind::RouteToStage,
-                json!({
-                    "content_kind": "selection",
-                    "causal_action_id": "stage-action-handler-1",
-                }),
-            ),
-            (
-                NativeEditorFrEventKind::StageEmbedBack,
-                json!({
-                    "artifact_id": "artifact-handler-1",
-                    "target_pane_id": "pane-rich",
-                    "sha256": "d".repeat(64),
-                    "manifest_ref": "manifest-handler-1",
-                    "causal_action_id": "stage-action-handler-1",
-                }),
-            ),
-        ];
+            let correlated = [
+                (
+                    NativeEditorFrEventKind::RouteToStage,
+                    json!({
+                        "content_kind": "selection",
+                        "causal_action_id": "stage-action-handler-1",
+                    }),
+                ),
+                (
+                    NativeEditorFrEventKind::StageEmbedBack,
+                    json!({
+                        "artifact_id": "artifact-handler-1",
+                        "target_pane_id": "pane-rich",
+                        "sha256": "d".repeat(64),
+                        "manifest_ref": "manifest-handler-1",
+                        "causal_action_id": "stage-action-handler-1",
+                    }),
+                ),
+            ];
 
-        for (kind, payload) in correlated {
-            let mut accepted = native_editor_envelope(&Uuid::now_v7().to_string());
-            accepted.kind = kind;
-            accepted.payload = payload.clone();
-            let Json(ack) = ingest_native_editor(State(state.clone()), Json(accepted))
-                .await
-                .map_err(|(status, _)| {
-                    format!("handler rejected correlated {}: {status}", kind.as_str())
-                })?;
-            assert_eq!(ack["ok"], true);
-            assert_eq!(ack["kind"], kind.as_str());
+            for (kind, payload) in correlated {
+                let mut accepted = native_editor_envelope(&Uuid::now_v7().to_string());
+                accepted.kind = kind;
+                accepted.payload = payload.clone();
+                let Json(ack) = ingest_native_editor(State(state.clone()), Json(accepted))
+                    .await
+                    .map_err(|(status, _)| {
+                        format!("handler rejected correlated {}: {status}", kind.as_str())
+                    })?;
+                assert_eq!(ack["ok"], true);
+                assert_eq!(ack["kind"], kind.as_str());
 
-            for invalid in [json!(""), json!("   "), Value::Null] {
-                let mut rejected = native_editor_envelope(&Uuid::now_v7().to_string());
-                rejected.kind = kind;
-                rejected.payload = payload.clone();
-                rejected
+                for invalid in [json!(""), json!("   "), Value::Null] {
+                    let mut rejected = native_editor_envelope(&Uuid::now_v7().to_string());
+                    rejected.kind = kind;
+                    rejected.payload = payload.clone();
+                    rejected
+                        .payload
+                        .as_object_mut()
+                        .expect("correlated fixture is an object")
+                        .insert("causal_action_id".to_owned(), invalid);
+                    assert!(matches!(
+                        ingest_native_editor(State(state.clone()), Json(rejected)).await,
+                        Err((StatusCode::BAD_REQUEST, _))
+                    ));
+                }
+
+                let mut unknown = native_editor_envelope(&Uuid::now_v7().to_string());
+                unknown.kind = kind;
+                unknown.payload = payload;
+                unknown
                     .payload
                     .as_object_mut()
                     .expect("correlated fixture is an object")
-                    .insert("causal_action_id".to_owned(), invalid);
+                    .insert("unknown_correlation".to_owned(), json!("smuggled"));
                 assert!(matches!(
-                    ingest_native_editor(State(state.clone()), Json(rejected)).await,
+                    ingest_native_editor(State(state.clone()), Json(unknown)).await,
                     Err((StatusCode::BAD_REQUEST, _))
                 ));
             }
-
-            let mut unknown = native_editor_envelope(&Uuid::now_v7().to_string());
-            unknown.kind = kind;
-            unknown.payload = payload;
-            unknown
-                .payload
-                .as_object_mut()
-                .expect("correlated fixture is an object")
-                .insert("unknown_correlation".to_owned(), json!("smuggled"));
-            assert!(matches!(
-                ingest_native_editor(State(state.clone()), Json(unknown)).await,
-                Err((StatusCode::BAD_REQUEST, _))
-            ));
-        }
-        Ok(())
+            Ok(())
         })
         .await
     }
@@ -3912,74 +3922,73 @@ mod tests {
     #[tokio::test]
     async fn native_editor_event_handler_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
+            let mut wrong_schema = native_editor_envelope(&Uuid::now_v7().to_string());
+            wrong_schema.schema_version = "wrong@0.0".to_string();
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(wrong_schema)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let mut wrong_schema = native_editor_envelope(&Uuid::now_v7().to_string());
-        wrong_schema.schema_version = "wrong@0.0".to_string();
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(wrong_schema)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            let mut bad_id = native_editor_envelope("not-a-uuid");
+            bad_id.payload = Value::Null;
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(bad_id)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let mut bad_id = native_editor_envelope("not-a-uuid");
-        bad_id.payload = Value::Null;
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(bad_id)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            let mut free_text_payload = native_editor_envelope(&Uuid::now_v7().to_string());
+            free_text_payload.payload = json!("free text string");
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(free_text_payload)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let mut free_text_payload = native_editor_envelope(&Uuid::now_v7().to_string());
-        free_text_payload.payload = json!("free text string");
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(free_text_payload)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            let mut invalid_timestamp = native_editor_envelope(&Uuid::now_v7().to_string());
+            invalid_timestamp.ts_utc = "not-rfc3339".to_owned();
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(invalid_timestamp)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let mut invalid_timestamp = native_editor_envelope(&Uuid::now_v7().to_string());
-        invalid_timestamp.ts_utc = "not-rfc3339".to_owned();
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(invalid_timestamp)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            let mut incomplete_document = native_editor_envelope(&Uuid::now_v7().to_string());
+            incomplete_document.kind = NativeEditorFrEventKind::DocumentSaved;
+            incomplete_document.payload = json!({"document_id": "DOC-MISSING-HASH"});
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(incomplete_document)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let mut incomplete_document = native_editor_envelope(&Uuid::now_v7().to_string());
-        incomplete_document.kind = NativeEditorFrEventKind::DocumentSaved;
-        incomplete_document.payload = json!({"document_id": "DOC-MISSING-HASH"});
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(incomplete_document)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            let mut missing_pane = native_editor_envelope(&Uuid::now_v7().to_string());
+            missing_pane.pane_id.clear();
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(missing_pane)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let mut missing_pane = native_editor_envelope(&Uuid::now_v7().to_string());
-        missing_pane.pane_id.clear();
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(missing_pane)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            // A blank body workspace no longer "falls back" to anything: it disagrees with the
+            // authenticated path workspace, so it is a workspace rejection, not a shape error.
+            let mut blank_workspace = native_editor_envelope(&Uuid::now_v7().to_string());
+            blank_workspace.workspace_id = Some(String::new());
+            assert!(matches!(
+                record_native_editor_event(
+                    State(state.clone()),
+                    Path(TEST_WORKSPACE_ID.to_owned()),
+                    Extension(test_recorder_authority(TEST_WORKSPACE_ID)),
+                    Json(blank_workspace),
+                )
+                .await,
+                Err((StatusCode::FORBIDDEN, _))
+            ));
 
-        // A blank body workspace no longer "falls back" to anything: it disagrees with the
-        // authenticated path workspace, so it is a workspace rejection, not a shape error.
-        let mut blank_workspace = native_editor_envelope(&Uuid::now_v7().to_string());
-        blank_workspace.workspace_id = Some(String::new());
-        assert!(matches!(
-            record_native_editor_event(
-                State(state.clone()),
-                Path(TEST_WORKSPACE_ID.to_owned()),
-                Extension(test_recorder_authority(TEST_WORKSPACE_ID)),
-                Json(blank_workspace),
-            )
-            .await,
-            Err((StatusCode::FORBIDDEN, _))
-        ));
-
-        // An unknown path workspace is denied (never implicitly created) and is indistinguishable
-        // from an unauthorized one, so the route discloses nothing about workspace existence.
-        let unknown_workspace_event =
-            native_editor_envelope_in("WS-DOES-NOT-EXIST", &Uuid::now_v7().to_string());
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(unknown_workspace_event)).await,
-            Err((StatusCode::FORBIDDEN, _))
-        ));
-        Ok(())
+            // An unknown path workspace is denied (never implicitly created) and is indistinguishable
+            // from an unauthorized one, so the route discloses nothing about workspace existence.
+            let unknown_workspace_event =
+                native_editor_envelope_in("WS-DOES-NOT-EXIST", &Uuid::now_v7().to_string());
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(unknown_workspace_event)).await,
+                Err((StatusCode::FORBIDDEN, _))
+            ));
+            Ok(())
         })
         .await
     }
@@ -3988,38 +3997,38 @@ mod tests {
     async fn document_saved_requires_exact_canonical_save_receipt(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let authentic = authentic_document_saved_envelope(&state).await?;
+            let authentic = authentic_document_saved_envelope(&state).await?;
 
-        let mut missing = authentic.clone();
-        missing
-            .payload
-            .as_object_mut()
-            .expect("document payload")
-            .remove("save_receipt_event_id");
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(missing)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            let mut missing = authentic.clone();
+            missing
+                .payload
+                .as_object_mut()
+                .expect("document payload")
+                .remove("save_receipt_event_id");
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(missing)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let mut fabricated = authentic.clone();
-        fabricated.payload["save_receipt_event_id"] = json!(format!("KE-{}", Uuid::now_v7()));
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(fabricated)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            let mut fabricated = authentic.clone();
+            fabricated.payload["save_receipt_event_id"] = json!(format!("KE-{}", Uuid::now_v7()));
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(fabricated)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let mut corrupt = authentic.clone();
-        corrupt.payload["content_hash"] = json!("b".repeat(64));
-        assert!(matches!(
-            ingest_native_editor(State(state.clone()), Json(corrupt)).await,
-            Err((StatusCode::BAD_REQUEST, _))
-        ));
+            let mut corrupt = authentic.clone();
+            corrupt.payload["content_hash"] = json!("b".repeat(64));
+            assert!(matches!(
+                ingest_native_editor(State(state.clone()), Json(corrupt)).await,
+                Err((StatusCode::BAD_REQUEST, _))
+            ));
 
-        let Json(ack) = ingest_native_editor(State(state), Json(authentic))
-            .await
-            .map_err(|(status, _)| format!("authentic receipt rejected: {status}"))?;
-        assert_eq!(ack["ok"], true);
-        Ok(())
+            let Json(ack) = ingest_native_editor(State(state), Json(authentic))
+                .await
+                .map_err(|(status, _)| format!("authentic receipt rejected: {status}"))?;
+            assert_eq!(ack["ok"], true);
+            Ok(())
         })
         .await
     }
@@ -4034,39 +4043,40 @@ mod tests {
     async fn document_saved_receipt_minted_by_another_principal_is_unclaimable(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        // Principal A is some OTHER live native process; the ingesting principal is TEST_ACTOR_ID.
-        let other_principal = "handshake-native:999999:0f0f0f0f";
-        assert_ne!(other_principal, TEST_ACTOR_ID);
-        let foreign = authentic_document_saved_envelope_minted_by(&state, other_principal).await?;
+            // Principal A is some OTHER live native process; the ingesting principal is TEST_ACTOR_ID.
+            let other_principal = "handshake-native:999999:0f0f0f0f";
+            assert_ne!(other_principal, TEST_ACTOR_ID);
+            let foreign =
+                authentic_document_saved_envelope_minted_by(&state, other_principal).await?;
 
-        let fr_before = native_editor_fr_row_count(&state).await?;
-        let ledger_before = native_editor_ledger_row_count(&state).await?;
-        let (status, _) = ingest_native_editor(State(state.clone()), Json(foreign.clone()))
-            .await
-            .expect_err("a receipt minted by another principal must not be claimable");
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-        assert_eq!(
-            native_editor_fr_row_count(&state).await?,
-            fr_before,
-            "cross-principal rejection wrote a Flight Recorder row"
-        );
-        assert_eq!(
-            native_editor_ledger_row_count(&state).await?,
-            ledger_before,
-            "cross-principal rejection wrote an EventLedger pending row"
-        );
+            let fr_before = native_editor_fr_row_count(&state).await?;
+            let ledger_before = native_editor_ledger_row_count(&state).await?;
+            let (status, _) = ingest_native_editor(State(state.clone()), Json(foreign.clone()))
+                .await
+                .expect_err("a receipt minted by another principal must not be claimable");
+            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(
+                native_editor_fr_row_count(&state).await?,
+                fr_before,
+                "cross-principal rejection wrote a Flight Recorder row"
+            );
+            assert_eq!(
+                native_editor_ledger_row_count(&state).await?,
+                ledger_before,
+                "cross-principal rejection wrote an EventLedger pending row"
+            );
 
-        // Flip ONLY the receipt to one minted by the claiming principal: the same envelope shape now
-        // ingests, so nothing but the principal was ever in question.
-        let owned = authentic_document_saved_envelope_minted_by(&state, TEST_ACTOR_ID).await?;
-        let mut same_shape = foreign;
-        same_shape.workspace_id = owned.workspace_id.clone();
-        same_shape.payload = owned.payload.clone();
-        let Json(ack) = ingest_native_editor(State(state.clone()), Json(same_shape))
-            .await
-            .map_err(|(status, _)| format!("own-principal receipt rejected: {status}"))?;
-        assert_eq!(ack["ok"], true);
-        Ok(())
+            // Flip ONLY the receipt to one minted by the claiming principal: the same envelope shape now
+            // ingests, so nothing but the principal was ever in question.
+            let owned = authentic_document_saved_envelope_minted_by(&state, TEST_ACTOR_ID).await?;
+            let mut same_shape = foreign;
+            same_shape.workspace_id = owned.workspace_id.clone();
+            same_shape.payload = owned.payload.clone();
+            let Json(ack) = ingest_native_editor(State(state.clone()), Json(same_shape))
+                .await
+                .map_err(|(status, _)| format!("own-principal receipt rejected: {status}"))?;
+            assert_eq!(ack["ok"], true);
+            Ok(())
         })
         .await
     }
@@ -4078,59 +4088,61 @@ mod tests {
     async fn document_saved_receipt_without_minted_by_principal_is_unclaimable(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        for mutate in [None, Some(""), Some("   ")] {
-            let envelope = authentic_document_saved_envelope(&state).await?;
-            let receipt_id = envelope.payload["save_receipt_event_id"]
-                .as_str()
-                .expect("fixture receipt id")
-                .to_owned();
-            let document_id = envelope.payload["document_id"]
-                .as_str()
-                .expect("fixture document id");
-            let receipt = state
-                .storage
-                .list_kernel_events_for_aggregate("knowledge_rich_document", document_id)
-                .await?
-                .into_iter()
-                .find(|event| event.event_id == receipt_id)
-                .expect("fixture receipt row");
-            let mut receipt_payload = receipt.payload;
-            let receipt_object = receipt_payload
-                .as_object_mut()
-                .expect("receipt payload object");
-            let field = crate::api::knowledge_documents::SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD;
-            match mutate {
-                None => {
-                    receipt_object.remove(field);
+            for mutate in [None, Some(""), Some("   ")] {
+                let envelope = authentic_document_saved_envelope(&state).await?;
+                let receipt_id = envelope.payload["save_receipt_event_id"]
+                    .as_str()
+                    .expect("fixture receipt id")
+                    .to_owned();
+                let document_id = envelope.payload["document_id"]
+                    .as_str()
+                    .expect("fixture document id");
+                let receipt = state
+                    .storage
+                    .list_kernel_events_for_aggregate("knowledge_rich_document", document_id)
+                    .await?
+                    .into_iter()
+                    .find(|event| event.event_id == receipt_id)
+                    .expect("fixture receipt row");
+                let mut receipt_payload = receipt.payload;
+                let receipt_object = receipt_payload
+                    .as_object_mut()
+                    .expect("receipt payload object");
+                let field = crate::api::knowledge_documents::SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD;
+                match mutate {
+                    None => {
+                        receipt_object.remove(field);
+                    }
+                    Some(value) => {
+                        receipt_object.insert(field.to_owned(), Value::String(value.to_owned()));
+                    }
                 }
-                Some(value) => {
-                    receipt_object.insert(field.to_owned(), Value::String(value.to_owned()));
-                }
-            }
-            set_event_payload(&state, receipt_id, receipt_payload).await?;
+                set_event_payload(&state, receipt_id, receipt_payload).await?;
 
-            let fr_before = native_editor_fr_row_count(&state).await?;
-            let ledger_before = native_editor_ledger_row_count(&state).await?;
-            let (status, _) = ingest_native_editor(State(state.clone()), Json(envelope))
-                .await
-                .expect_err("a receipt without a server-written ownership anchor is unclaimable");
-            assert_eq!(
-                status,
-                StatusCode::BAD_REQUEST,
-                "minted_by_principal={mutate:?} must reject"
-            );
-            assert_eq!(
-                native_editor_fr_row_count(&state).await?,
-                fr_before,
-                "absent-anchor rejection wrote a Flight Recorder row"
-            );
-            assert_eq!(
-                native_editor_ledger_row_count(&state).await?,
-                ledger_before,
-                "absent-anchor rejection wrote an EventLedger pending row"
-            );
-        }
-        Ok(())
+                let fr_before = native_editor_fr_row_count(&state).await?;
+                let ledger_before = native_editor_ledger_row_count(&state).await?;
+                let (status, _) = ingest_native_editor(State(state.clone()), Json(envelope))
+                    .await
+                    .expect_err(
+                        "a receipt without a server-written ownership anchor is unclaimable",
+                    );
+                assert_eq!(
+                    status,
+                    StatusCode::BAD_REQUEST,
+                    "minted_by_principal={mutate:?} must reject"
+                );
+                assert_eq!(
+                    native_editor_fr_row_count(&state).await?,
+                    fr_before,
+                    "absent-anchor rejection wrote a Flight Recorder row"
+                );
+                assert_eq!(
+                    native_editor_ledger_row_count(&state).await?,
+                    ledger_before,
+                    "absent-anchor rejection wrote an EventLedger pending row"
+                );
+            }
+            Ok(())
         })
         .await
     }
@@ -4141,27 +4153,27 @@ mod tests {
     async fn native_editor_replay_repairs_fr_only_partial_write(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let event_id = Uuid::now_v7();
-        let event = native_editor_envelope(&event_id.to_string());
-        let aggregate_id = durable_id(&event).to_string();
-        let fr_only = native_editor_fr_event_from_envelope(&event)
-            .map_err(|_| "failed to build exact FR-only fixture")?;
-        state.flight_recorder.record_event(fr_only).await?;
+            let event_id = Uuid::now_v7();
+            let event = native_editor_envelope(&event_id.to_string());
+            let aggregate_id = durable_id(&event).to_string();
+            let fr_only = native_editor_fr_event_from_envelope(&event)
+                .map_err(|_| "failed to build exact FR-only fixture")?;
+            state.flight_recorder.record_event(fr_only).await?;
 
-        let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
-            .await
-            .map_err(|(code, _)| format!("repair replay failed: {code}"))?;
-        assert_eq!(ack["idempotent"], true);
-        let ledger_count = native_editor_ledger_events(&state, aggregate_id)
-            .await?
-            .into_iter()
-            .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
-            .count();
-        assert_eq!(
-            ledger_count, 1,
-            "replay repaired the missing embedded EventLedger mirror"
-        );
-        Ok(())
+            let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
+                .await
+                .map_err(|(code, _)| format!("repair replay failed: {code}"))?;
+            assert_eq!(ack["idempotent"], true);
+            let ledger_count = native_editor_ledger_events(&state, aggregate_id)
+                .await?
+                .into_iter()
+                .filter(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                .count();
+            assert_eq!(
+                ledger_count, 1,
+                "replay repaired the missing embedded EventLedger mirror"
+            );
+            Ok(())
         })
         .await
     }
@@ -4206,109 +4218,111 @@ mod tests {
     async fn flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
-        let (token, _binding) = install_native_binding()?;
-        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
-        let before_fr = native_editor_fr_row_count(&state).await?;
-        let before_ledger = native_editor_ledger_row_count(&state).await?;
-        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+            let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+            let (token, _binding) = install_native_binding()?;
+            let session_token =
+                crate::api::authority::test_session_for_binding(&state, &token).await?;
+            let before_fr = native_editor_fr_row_count(&state).await?;
+            let before_ledger = native_editor_ledger_row_count(&state).await?;
+            let (base, http, server) = serve_test_router(routes(state.clone())).await;
 
-        let envelope = serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
-        let chat = runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None);
+            let envelope =
+                serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+            let chat = runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None);
 
-        for (label, response) in [
-            (
-                "GET /flight_recorder without binding",
-                http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}"))
-                    .send()
-                    .await?,
-            ),
-            (
-                "GET /events without binding",
-                http.get(format!("{base}/events?wsid={TEST_WORKSPACE_ID}"))
-                    .send()
-                    .await?,
-            ),
-            (
-                "GET /flight_recorder with a forged token",
-                http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}"))
-                    .header("x-hsk-session-token", "b".repeat(64))
-                    .send()
-                    .await?,
-            ),
-            (
-                "POST native_editor_event without binding",
-                http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
-                    .json(&envelope)
-                    .send()
-                    .await?,
-            ),
-            (
-                "POST native_editor_event with a forged token",
-                http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
-                    .header("x-hsk-session-token", "c".repeat(64))
-                    .json(&envelope)
-                    .send()
-                    .await?,
-            ),
-            (
-                "POST runtime_chat_event without binding",
-                http.post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
-                    .json(&chat)
-                    .send()
-                    .await?,
-            ),
-        ] {
-            assert_eq!(
-                response.status(),
-                StatusCode::FORBIDDEN,
-                "{label} must use the constant protected-resource denial"
-            );
-            let body: Value = response.json().await?;
-            assert_eq!(
-                body["error"], "HSK-403-PROTECTED-RESOURCE",
-                "{label} error code"
-            );
-        }
-
-        assert_eq!(
-            native_editor_fr_row_count(&state).await?,
-            before_fr,
-            "unauthenticated calls must leave no native-editor FR row"
-        );
-        assert_eq!(
-            native_editor_ledger_row_count(&state).await?,
-            before_ledger,
-            "unauthenticated calls must leave no EventLedger receipt"
-        );
-
-        // Every denial is attributable and redacted.
-        for capability_id in [
-            FR_READ_CAPABILITY,
-            FR_INGEST_NATIVE_EDITOR_CAPABILITY,
-            FR_INGEST_RUNTIME_CHAT_CAPABILITY,
-        ] {
-            let denies = capability_decisions(&state, capability_id, "deny").await?;
-            assert!(!denies.is_empty(), "{capability_id} denial must be audited");
-            for deny in &denies {
-                let payload = deny.payload.as_object().expect("audit payload object");
+            for (label, response) in [
+                (
+                    "GET /flight_recorder without binding",
+                    http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}"))
+                        .send()
+                        .await?,
+                ),
+                (
+                    "GET /events without binding",
+                    http.get(format!("{base}/events?wsid={TEST_WORKSPACE_ID}"))
+                        .send()
+                        .await?,
+                ),
+                (
+                    "GET /flight_recorder with a forged token",
+                    http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}"))
+                        .header("x-hsk-session-token", "b".repeat(64))
+                        .send()
+                        .await?,
+                ),
+                (
+                    "POST native_editor_event without binding",
+                    http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+                        .json(&envelope)
+                        .send()
+                        .await?,
+                ),
+                (
+                    "POST native_editor_event with a forged token",
+                    http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+                        .header("x-hsk-session-token", "c".repeat(64))
+                        .json(&envelope)
+                        .send()
+                        .await?,
+                ),
+                (
+                    "POST runtime_chat_event without binding",
+                    http.post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
+                        .json(&chat)
+                        .send()
+                        .await?,
+                ),
+            ] {
                 assert_eq!(
-                    payload.len(),
-                    4,
-                    "the capability audit must carry exactly the redacted contract keys"
+                    response.status(),
+                    StatusCode::FORBIDDEN,
+                    "{label} must use the constant protected-resource denial"
                 );
-                assert_eq!(payload["capability_id"], capability_id);
-                assert_eq!(payload["decision_outcome"], "deny");
-                assert_eq!(payload["actor_id"], "unauthenticated-native-client");
-                let rendered = serde_json::to_string(&deny.payload)?;
-                assert!(
-                    !rendered.contains(&token) && !rendered.contains("body_sha256"),
-                    "the audit must never carry the session token or request body"
+                let body: Value = response.json().await?;
+                assert_eq!(
+                    body["error"], "HSK-403-PROTECTED-RESOURCE",
+                    "{label} error code"
                 );
             }
-        }
-        server.abort();
-        Ok(())
+
+            assert_eq!(
+                native_editor_fr_row_count(&state).await?,
+                before_fr,
+                "unauthenticated calls must leave no native-editor FR row"
+            );
+            assert_eq!(
+                native_editor_ledger_row_count(&state).await?,
+                before_ledger,
+                "unauthenticated calls must leave no EventLedger receipt"
+            );
+
+            // Every denial is attributable and redacted.
+            for capability_id in [
+                FR_READ_CAPABILITY,
+                FR_INGEST_NATIVE_EDITOR_CAPABILITY,
+                FR_INGEST_RUNTIME_CHAT_CAPABILITY,
+            ] {
+                let denies = capability_decisions(&state, capability_id, "deny").await?;
+                assert!(!denies.is_empty(), "{capability_id} denial must be audited");
+                for deny in &denies {
+                    let payload = deny.payload.as_object().expect("audit payload object");
+                    assert_eq!(
+                        payload.len(),
+                        4,
+                        "the capability audit must carry exactly the redacted contract keys"
+                    );
+                    assert_eq!(payload["capability_id"], capability_id);
+                    assert_eq!(payload["decision_outcome"], "deny");
+                    assert_eq!(payload["actor_id"], "unauthenticated-native-client");
+                    let rendered = serde_json::to_string(&deny.payload)?;
+                    assert!(
+                        !rendered.contains(&token) && !rendered.contains("body_sha256"),
+                        "the audit must never carry the session token or request body"
+                    );
+                }
+            }
+            server.abort();
+            Ok(())
         })
         .await
     }
@@ -4934,50 +4948,51 @@ mod tests {
     async fn recorder_read_without_scope_is_denied_for_lack_of_global_capability(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
-        let (token, _binding) = install_native_binding()?;
-        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
-        let before_fr = native_editor_fr_row_count(&state).await?;
-        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+            let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+            let (token, _binding) = install_native_binding()?;
+            let session_token =
+                crate::api::authority::test_session_for_binding(&state, &token).await?;
+            let before_fr = native_editor_fr_row_count(&state).await?;
+            let (base, http, server) = serve_test_router(routes(state.clone())).await;
 
-        for url in [
-            format!("{base}/flight_recorder"),
-            format!("{base}/events"),
-            // A blank scope must not read as "all workspaces".
-            format!("{base}/flight_recorder?wsid="),
-        ] {
-            let response = http
-                .get(&url)
-                .header("x-hsk-session-token", &session_token)
-                .header("x-hsk-channel-binding-token", &token)
-                .send()
-                .await?;
+            for url in [
+                format!("{base}/flight_recorder"),
+                format!("{base}/events"),
+                // A blank scope must not read as "all workspaces".
+                format!("{base}/flight_recorder?wsid="),
+            ] {
+                let response = http
+                    .get(&url)
+                    .header("x-hsk-session-token", &session_token)
+                    .header("x-hsk-channel-binding-token", &token)
+                    .send()
+                    .await?;
+                assert_eq!(
+                    response.status(),
+                    StatusCode::FORBIDDEN,
+                    "unscoped recorder enumeration must be 403 at {url}"
+                );
+                let body: Value = response.json().await?;
+                assert_eq!(body["error"], "HSK-403-PROTECTED-RESOURCE");
+            }
+
+            let denies = capability_decisions(&state, FR_READ_CAPABILITY, "deny").await?;
             assert_eq!(
-                response.status(),
-                StatusCode::FORBIDDEN,
-                "unscoped recorder enumeration must be 403 at {url}"
+                denies.len(),
+                3,
+                "one exact deny audit per unscoped read attempt"
             );
-            let body: Value = response.json().await?;
-            assert_eq!(body["error"], "HSK-403-PROTECTED-RESOURCE");
-        }
-
-        let denies = capability_decisions(&state, FR_READ_CAPABILITY, "deny").await?;
-        assert_eq!(
-            denies.len(),
-            3,
-            "one exact deny audit per unscoped read attempt"
-        );
-        for deny in &denies {
-            assert_eq!(deny.payload["actor_id"], "unauthenticated-native-client");
-            assert_eq!(deny.capability_id.as_deref(), Some(FR_READ_CAPABILITY));
-        }
-        assert_eq!(
-            native_editor_fr_row_count(&state).await?,
-            before_fr,
-            "a denied read must not mutate recorder state"
-        );
-        server.abort();
-        Ok(())
+            for deny in &denies {
+                assert_eq!(deny.payload["actor_id"], "unauthenticated-native-client");
+                assert_eq!(deny.capability_id.as_deref(), Some(FR_READ_CAPABILITY));
+            }
+            assert_eq!(
+                native_editor_fr_row_count(&state).await?,
+                before_fr,
+                "a denied read must not mutate recorder state"
+            );
+            server.abort();
+            Ok(())
         })
         .await
     }
@@ -4988,141 +5003,143 @@ mod tests {
     async fn native_editor_ingest_rejects_spoofed_identity_and_derives_attribution(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
-        let (token, _binding) = install_native_binding()?;
-        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
-        let actor_id = authenticated_actor_id(&token);
-        assert_eq!(actor_id, "local_operator");
-        let before_fr = native_editor_fr_row_count(&state).await?;
-        let before_ledger = native_editor_ledger_row_count(&state).await?;
-        let (base, http, server) = serve_test_router(routes(state.clone())).await;
-        let endpoint = native_editor_endpoint(&base, TEST_WORKSPACE_ID);
+            let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+            let (token, _binding) = install_native_binding()?;
+            let session_token =
+                crate::api::authority::test_session_for_binding(&state, &token).await?;
+            let actor_id = authenticated_actor_id(&token);
+            assert_eq!(actor_id, "local_operator");
+            let before_fr = native_editor_fr_row_count(&state).await?;
+            let before_ledger = native_editor_ledger_row_count(&state).await?;
+            let (base, http, server) = serve_test_router(routes(state.clone())).await;
+            let endpoint = native_editor_endpoint(&base, TEST_WORKSPACE_ID);
 
-        let mut spoofed_actor =
-            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
-        spoofed_actor["actor_id"] = json!("operator-i-am-not");
-        let response = http
-            .post(&endpoint)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&spoofed_actor)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::FORBIDDEN, "spoofed actor_id");
-        assert_eq!(
-            response.json::<Value>().await?["error"],
-            "HSK-403-FR-ACTOR-SPOOF"
-        );
-
-        let mut spoofed_kind =
-            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
-        spoofed_kind["actor_id"] = json!(actor_id);
-        spoofed_kind["actor_kind"] = json!("system");
-        let response = http
-            .post(&endpoint)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&spoofed_kind)
-            .send()
-            .await?;
-        assert_eq!(
-            response.status(),
-            StatusCode::FORBIDDEN,
-            "spoofed actor_kind"
-        );
-
-        let mut spoofed_workspace =
-            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
-        spoofed_workspace["actor_id"] = json!(actor_id);
-        spoofed_workspace["workspace_id"] = json!(OTHER_TEST_WORKSPACE_ID);
-        let response = http
-            .post(&endpoint)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&spoofed_workspace)
-            .send()
-            .await?;
-        assert_eq!(
-            response.status(),
-            StatusCode::FORBIDDEN,
-            "body workspace must not contradict the authenticated path"
-        );
-        assert_eq!(
-            response.json::<Value>().await?["error"],
-            "HSK-403-FR-WORKSPACE"
-        );
-
-        assert_eq!(
-            native_editor_fr_row_count(&state).await?,
-            before_fr,
-            "spoof attempts must leave no native-editor FR row"
-        );
-        assert_eq!(
-            native_editor_ledger_row_count(&state).await?,
-            before_ledger,
-            "spoof attempts must leave no EventLedger receipt"
-        );
-
-        // A clean envelope that names NO identity at all is accepted, and the server fills it.
-        let client_event_id = Uuid::now_v7();
-        let mut clean = serde_json::to_value(native_editor_envelope(&client_event_id.to_string()))?;
-        clean["actor_id"] = Value::Null;
-        clean["actor_kind"] = Value::Null;
-        clean["workspace_id"] = Value::Null;
-        let response = http
-            .post(&endpoint)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&clean)
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        let ack: Value = response.json().await?;
-        let durable = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, client_event_id);
-        assert_eq!(ack["fr_event_id"], durable.to_string());
-        assert_eq!(ack["actor_id"], actor_id);
-        assert_eq!(ack["workspace_id"], TEST_WORKSPACE_ID);
-
-        let stored = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(durable),
-                ..Default::default()
-            })
-            .await?;
-        assert_eq!(stored.len(), 1);
-        assert_eq!(
-            stored[0].actor_id, actor_id,
-            "server-derived FR attribution"
-        );
-        assert!(stored[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()));
-
-        let ledger_actor = native_editor_ledger_events(&state, durable.to_string())
-            .await?
-            .into_iter()
-            .find(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
-            .expect("completion receipt")
-            .actor
-            .actor_id()
-            .to_owned();
-        assert_eq!(
-            ledger_actor, actor_id,
-            "the durable EventLedger attribution is server-derived"
-        );
-
-        let allows =
-            capability_decisions(&state, FR_INGEST_NATIVE_EDITOR_CAPABILITY, "allow").await?;
-        assert!(!allows.is_empty(), "accepted ingest must be audited");
-        for allow in &allows {
-            assert_eq!(allow.payload["actor_id"], actor_id);
+            let mut spoofed_actor =
+                serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+            spoofed_actor["actor_id"] = json!("operator-i-am-not");
+            let response = http
+                .post(&endpoint)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&spoofed_actor)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN, "spoofed actor_id");
             assert_eq!(
-                allow.payload.as_object().expect("audit object").len(),
-                4,
-                "redacted audit contract"
+                response.json::<Value>().await?["error"],
+                "HSK-403-FR-ACTOR-SPOOF"
             );
-        }
-        server.abort();
-        Ok(())
+
+            let mut spoofed_kind =
+                serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+            spoofed_kind["actor_id"] = json!(actor_id);
+            spoofed_kind["actor_kind"] = json!("system");
+            let response = http
+                .post(&endpoint)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&spoofed_kind)
+                .send()
+                .await?;
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "spoofed actor_kind"
+            );
+
+            let mut spoofed_workspace =
+                serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+            spoofed_workspace["actor_id"] = json!(actor_id);
+            spoofed_workspace["workspace_id"] = json!(OTHER_TEST_WORKSPACE_ID);
+            let response = http
+                .post(&endpoint)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&spoofed_workspace)
+                .send()
+                .await?;
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "body workspace must not contradict the authenticated path"
+            );
+            assert_eq!(
+                response.json::<Value>().await?["error"],
+                "HSK-403-FR-WORKSPACE"
+            );
+
+            assert_eq!(
+                native_editor_fr_row_count(&state).await?,
+                before_fr,
+                "spoof attempts must leave no native-editor FR row"
+            );
+            assert_eq!(
+                native_editor_ledger_row_count(&state).await?,
+                before_ledger,
+                "spoof attempts must leave no EventLedger receipt"
+            );
+
+            // A clean envelope that names NO identity at all is accepted, and the server fills it.
+            let client_event_id = Uuid::now_v7();
+            let mut clean =
+                serde_json::to_value(native_editor_envelope(&client_event_id.to_string()))?;
+            clean["actor_id"] = Value::Null;
+            clean["actor_kind"] = Value::Null;
+            clean["workspace_id"] = Value::Null;
+            let response = http
+                .post(&endpoint)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&clean)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            let ack: Value = response.json().await?;
+            let durable = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, client_event_id);
+            assert_eq!(ack["fr_event_id"], durable.to_string());
+            assert_eq!(ack["actor_id"], actor_id);
+            assert_eq!(ack["workspace_id"], TEST_WORKSPACE_ID);
+
+            let stored = state
+                .flight_recorder
+                .list_events(crate::flight_recorder::EventFilter {
+                    event_id: Some(durable),
+                    ..Default::default()
+                })
+                .await?;
+            assert_eq!(stored.len(), 1);
+            assert_eq!(
+                stored[0].actor_id, actor_id,
+                "server-derived FR attribution"
+            );
+            assert!(stored[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()));
+
+            let ledger_actor = native_editor_ledger_events(&state, durable.to_string())
+                .await?
+                .into_iter()
+                .find(|row| row.event_type == KernelEventType::FlightRecorderMirrorRecorded)
+                .expect("completion receipt")
+                .actor
+                .actor_id()
+                .to_owned();
+            assert_eq!(
+                ledger_actor, actor_id,
+                "the durable EventLedger attribution is server-derived"
+            );
+
+            let allows =
+                capability_decisions(&state, FR_INGEST_NATIVE_EDITOR_CAPABILITY, "allow").await?;
+            assert!(!allows.is_empty(), "accepted ingest must be audited");
+            for allow in &allows {
+                assert_eq!(allow.payload["actor_id"], actor_id);
+                assert_eq!(
+                    allow.payload.as_object().expect("audit object").len(),
+                    4,
+                    "redacted audit contract"
+                );
+            }
+            server.abort();
+            Ok(())
         })
         .await
     }
@@ -5134,104 +5151,105 @@ mod tests {
     async fn cross_workspace_event_id_preemption_cannot_conflict_or_leak(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
-        let (token, _binding) = install_native_binding()?;
-        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
-        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+            let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+            let (token, _binding) = install_native_binding()?;
+            let session_token =
+                crate::api::authority::test_session_for_binding(&state, &token).await?;
+            let (base, http, server) = serve_test_router(routes(state.clone())).await;
 
-        // The attacker pre-seeds a client event id inside the workspace it DOES hold.
-        let contested = Uuid::now_v7();
-        let mut attacker = serde_json::to_value(native_editor_envelope_in(
-            OTHER_TEST_WORKSPACE_ID,
-            &contested.to_string(),
-        ))?;
-        attacker["pane_id"] = json!("attacker-pane");
-        attacker["actor_id"] = Value::Null;
-        let response = http
-            .post(native_editor_endpoint(&base, OTHER_TEST_WORKSPACE_ID))
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&attacker)
-            .send()
-            .await?;
-        assert_eq!(
-            response.status(),
-            StatusCode::OK,
-            "attacker's own workspace"
-        );
-
-        // The victim workspace submits the SAME client id with different content. Before the
-        // partition this was a 409 that denied the victim its own event.
-        let mut victim = serde_json::to_value(native_editor_envelope_in(
-            TEST_WORKSPACE_ID,
-            &contested.to_string(),
-        ))?;
-        victim["pane_id"] = json!("victim-pane");
-        victim["actor_id"] = Value::Null;
-        let response = http
-            .post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&victim)
-            .send()
-            .await?;
-        assert_eq!(
-            response.status(),
-            StatusCode::OK,
-            "a foreign workspace must not be able to convert this into a conflict"
-        );
-        let victim_ack: Value = response.json().await?;
-        assert_eq!(victim_ack["idempotent"], false);
-
-        let attacker_durable = workspace_scoped_fr_event_id(OTHER_TEST_WORKSPACE_ID, contested);
-        let victim_durable = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, contested);
-        assert_ne!(attacker_durable, victim_durable);
-        assert_eq!(victim_ack["fr_event_id"], victim_durable.to_string());
-
-        // Two disjoint aggregates, two disjoint pending/completion state machines.
-        for (workspace_id, durable) in [
-            (OTHER_TEST_WORKSPACE_ID, attacker_durable),
-            (TEST_WORKSPACE_ID, victim_durable),
-        ] {
-            let receipts = native_editor_ledger_events(&state, durable.to_string())
-                .await?
-                .len();
+            // The attacker pre-seeds a client event id inside the workspace it DOES hold.
+            let contested = Uuid::now_v7();
+            let mut attacker = serde_json::to_value(native_editor_envelope_in(
+                OTHER_TEST_WORKSPACE_ID,
+                &contested.to_string(),
+            ))?;
+            attacker["pane_id"] = json!("attacker-pane");
+            attacker["actor_id"] = Value::Null;
+            let response = http
+                .post(native_editor_endpoint(&base, OTHER_TEST_WORKSPACE_ID))
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&attacker)
+                .send()
+                .await?;
             assert_eq!(
-                receipts, 2,
-                "{workspace_id} owns its own pending+completion"
+                response.status(),
+                StatusCode::OK,
+                "attacker's own workspace"
             );
-        }
 
-        // A scoped read cannot reach the other workspace's row, even by naming its exact id.
-        let leaked = http
-            .get(format!(
-                "{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}&event_id={attacker_durable}"
-            ))
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .send()
-            .await?;
-        assert_eq!(leaked.status(), StatusCode::OK);
-        let rows: Vec<FlightEvent> = leaked.json().await?;
-        assert!(
+            // The victim workspace submits the SAME client id with different content. Before the
+            // partition this was a 409 that denied the victim its own event.
+            let mut victim = serde_json::to_value(native_editor_envelope_in(
+                TEST_WORKSPACE_ID,
+                &contested.to_string(),
+            ))?;
+            victim["pane_id"] = json!("victim-pane");
+            victim["actor_id"] = Value::Null;
+            let response = http
+                .post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&victim)
+                .send()
+                .await?;
+            assert_eq!(
+                response.status(),
+                StatusCode::OK,
+                "a foreign workspace must not be able to convert this into a conflict"
+            );
+            let victim_ack: Value = response.json().await?;
+            assert_eq!(victim_ack["idempotent"], false);
+
+            let attacker_durable = workspace_scoped_fr_event_id(OTHER_TEST_WORKSPACE_ID, contested);
+            let victim_durable = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, contested);
+            assert_ne!(attacker_durable, victim_durable);
+            assert_eq!(victim_ack["fr_event_id"], victim_durable.to_string());
+
+            // Two disjoint aggregates, two disjoint pending/completion state machines.
+            for (workspace_id, durable) in [
+                (OTHER_TEST_WORKSPACE_ID, attacker_durable),
+                (TEST_WORKSPACE_ID, victim_durable),
+            ] {
+                let receipts = native_editor_ledger_events(&state, durable.to_string())
+                    .await?
+                    .len();
+                assert_eq!(
+                    receipts, 2,
+                    "{workspace_id} owns its own pending+completion"
+                );
+            }
+
+            // A scoped read cannot reach the other workspace's row, even by naming its exact id.
+            let leaked = http
+                .get(format!(
+                    "{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}&event_id={attacker_durable}"
+                ))
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .send()
+                .await?;
+            assert_eq!(leaked.status(), StatusCode::OK);
+            let rows: Vec<FlightEvent> = leaked.json().await?;
+            assert!(
             rows.is_empty(),
             "a cross-workspace event id must return an empty list, not the row and not an error"
         );
 
-        // The scoped read returns exactly the caller's own row.
-        let own = http
-            .get(format!(
-                "{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}&event_id={victim_durable}"
-            ))
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .send()
-            .await?;
-        let rows: Vec<FlightEvent> = own.json().await?;
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].payload["pane_id"], "victim-pane");
-        server.abort();
-        Ok(())
+            // The scoped read returns exactly the caller's own row.
+            let own = http
+                .get(format!(
+                    "{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}&event_id={victim_durable}"
+                ))
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .send()
+                .await?;
+            let rows: Vec<FlightEvent> = own.json().await?;
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].payload["pane_id"], "victim-pane");
+            server.abort();
+            Ok(())
         })
         .await
     }
@@ -5242,58 +5260,59 @@ mod tests {
     async fn recorder_read_scope_cannot_be_widened_by_query_filters(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
-        let (token, _binding) = install_native_binding()?;
-        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
-        let actor_id = authenticated_actor_id(&token);
-        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+            let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+            let (token, _binding) = install_native_binding()?;
+            let session_token =
+                crate::api::authority::test_session_for_binding(&state, &token).await?;
+            let actor_id = authenticated_actor_id(&token);
+            let (base, http, server) = serve_test_router(routes(state.clone())).await;
 
-        for workspace_id in [TEST_WORKSPACE_ID, OTHER_TEST_WORKSPACE_ID] {
-            let mut body = serde_json::to_value(native_editor_envelope_in(
-                workspace_id,
-                &Uuid::now_v7().to_string(),
-            ))?;
-            body["actor_id"] = Value::Null;
-            let response = http
-                .post(native_editor_endpoint(&base, workspace_id))
-                .header("x-hsk-session-token", &session_token)
-                .header("x-hsk-channel-binding-token", &token)
-                .json(&body)
-                .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::OK);
-        }
-
-        for alias in ["flight_recorder", "events"] {
-            // Both workspaces share one actor and one surface, so neither filter may widen scope.
-            for query in [
-                format!("wsid={TEST_WORKSPACE_ID}"),
-                format!("wsid={TEST_WORKSPACE_ID}&actor_id={actor_id}"),
-                format!("wsid={TEST_WORKSPACE_ID}&surface=pane-rich&event_type=system"),
-                format!("wsid={TEST_WORKSPACE_ID}&actor=human"),
-            ] {
+            for workspace_id in [TEST_WORKSPACE_ID, OTHER_TEST_WORKSPACE_ID] {
+                let mut body = serde_json::to_value(native_editor_envelope_in(
+                    workspace_id,
+                    &Uuid::now_v7().to_string(),
+                ))?;
+                body["actor_id"] = Value::Null;
                 let response = http
-                    .get(format!("{base}/{alias}?{query}"))
+                    .post(native_editor_endpoint(&base, workspace_id))
                     .header("x-hsk-session-token", &session_token)
                     .header("x-hsk-channel-binding-token", &token)
+                    .json(&body)
                     .send()
                     .await?;
-                assert_eq!(response.status(), StatusCode::OK, "{alias}?{query}");
-                let rows: Vec<FlightEvent> = response.json().await?;
-                assert!(
-                    rows.iter()
-                        .all(|row| row.wsids.contains(&TEST_WORKSPACE_ID.to_string())),
-                    "{alias}?{query} leaked a row outside the authenticated workspace"
-                );
-                assert!(
-                    rows.iter()
-                        .all(|row| !row.wsids.contains(&OTHER_TEST_WORKSPACE_ID.to_string())),
-                    "{alias}?{query} leaked the other workspace"
-                );
+                assert_eq!(response.status(), StatusCode::OK);
             }
-        }
-        server.abort();
-        Ok(())
+
+            for alias in ["flight_recorder", "events"] {
+                // Both workspaces share one actor and one surface, so neither filter may widen scope.
+                for query in [
+                    format!("wsid={TEST_WORKSPACE_ID}"),
+                    format!("wsid={TEST_WORKSPACE_ID}&actor_id={actor_id}"),
+                    format!("wsid={TEST_WORKSPACE_ID}&surface=pane-rich&event_type=system"),
+                    format!("wsid={TEST_WORKSPACE_ID}&actor=human"),
+                ] {
+                    let response = http
+                        .get(format!("{base}/{alias}?{query}"))
+                        .header("x-hsk-session-token", &session_token)
+                        .header("x-hsk-channel-binding-token", &token)
+                        .send()
+                        .await?;
+                    assert_eq!(response.status(), StatusCode::OK, "{alias}?{query}");
+                    let rows: Vec<FlightEvent> = response.json().await?;
+                    assert!(
+                        rows.iter()
+                            .all(|row| row.wsids.contains(&TEST_WORKSPACE_ID.to_string())),
+                        "{alias}?{query} leaked a row outside the authenticated workspace"
+                    );
+                    assert!(
+                        rows.iter()
+                            .all(|row| !row.wsids.contains(&OTHER_TEST_WORKSPACE_ID.to_string())),
+                        "{alias}?{query} leaked the other workspace"
+                    );
+                }
+            }
+            server.abort();
+            Ok(())
         })
         .await
     }
@@ -5304,68 +5323,69 @@ mod tests {
     async fn runtime_chat_ingest_is_capability_gated_and_workspace_bound(
     ) -> Result<(), Box<dyn std::error::Error>> {
         run_flight_recorder_test(|state| async move {
-        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
-        let (token, _binding) = install_native_binding()?;
-        let session_token = crate::api::authority::test_session_for_binding(&state, &token).await?;
-        let (base, http, server) = serve_test_router(routes(state.clone())).await;
-        let endpoint = runtime_chat_endpoint(&base, TEST_WORKSPACE_ID);
+            let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+            let (token, _binding) = install_native_binding()?;
+            let session_token =
+                crate::api::authority::test_session_for_binding(&state, &token).await?;
+            let (base, http, server) = serve_test_router(routes(state.clone())).await;
+            let endpoint = runtime_chat_endpoint(&base, TEST_WORKSPACE_ID);
 
-        let mismatched = runtime_chat_body(
-            Uuid::now_v7(),
-            Uuid::now_v7(),
-            Some(OTHER_TEST_WORKSPACE_ID),
-        );
-        let response = http
-            .post(&endpoint)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&mismatched)
-            .send()
-            .await?;
-        assert_eq!(
-            response.status(),
-            StatusCode::FORBIDDEN,
-            "a runtime-chat body wsid must not contradict the authenticated path"
-        );
+            let mismatched = runtime_chat_body(
+                Uuid::now_v7(),
+                Uuid::now_v7(),
+                Some(OTHER_TEST_WORKSPACE_ID),
+            );
+            let response = http
+                .post(&endpoint)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&mismatched)
+                .send()
+                .await?;
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "a runtime-chat body wsid must not contradict the authenticated path"
+            );
 
-        let unknown_workspace = runtime_chat_endpoint(&base, "WS-DOES-NOT-EXIST");
-        let response = http
-            .post(&unknown_workspace)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+            let unknown_workspace = runtime_chat_endpoint(&base, "WS-DOES-NOT-EXIST");
+            let response = http
+                .post(&unknown_workspace)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
 
-        let session_id = Uuid::now_v7();
-        let response = http
-            .post(&endpoint)
-            .header("x-hsk-session-token", &session_token)
-            .header("x-hsk-channel-binding-token", &token)
-            .json(&runtime_chat_body(session_id, Uuid::now_v7(), None))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
+            let session_id = Uuid::now_v7();
+            let response = http
+                .post(&endpoint)
+                .header("x-hsk-session-token", &session_token)
+                .header("x-hsk-channel-binding-token", &token)
+                .json(&runtime_chat_body(session_id, Uuid::now_v7(), None))
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
 
-        let rows = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter {
-                trace_id: Some(session_id),
-                ..Default::default()
-            })
-            .await?;
-        assert_eq!(rows.len(), 1);
-        assert!(
-            rows[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()),
-            "runtime-chat workspace attribution is taken from the authenticated path"
-        );
-        assert_eq!(
-            rows[0].payload["wsid"], TEST_WORKSPACE_ID,
-            "the stored envelope carries the server-derived workspace"
-        );
-        server.abort();
-        Ok(())
+            let rows = state
+                .flight_recorder
+                .list_events(crate::flight_recorder::EventFilter {
+                    trace_id: Some(session_id),
+                    ..Default::default()
+                })
+                .await?;
+            assert_eq!(rows.len(), 1);
+            assert!(
+                rows[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()),
+                "runtime-chat workspace attribution is taken from the authenticated path"
+            );
+            assert_eq!(
+                rows[0].payload["wsid"], TEST_WORKSPACE_ID,
+                "the stored envelope carries the server-derived workspace"
+            );
+            server.abort();
+            Ok(())
         })
         .await
     }
