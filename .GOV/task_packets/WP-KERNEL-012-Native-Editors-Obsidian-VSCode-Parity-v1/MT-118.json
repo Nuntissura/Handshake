@@ -22,7 +22,7 @@
   "title": "B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T19:10:56.234Z",
-  "updated_at_utc": "2026-09-04T02:31:10.495Z",
+  "updated_at_utc": "2026-09-15T21:00:43.520Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -364,5 +364,26 @@
         }
       ]
     }
+  },
+  "contract_reconciliation_20260915": {
+    "schema_id": "hsk.mt_contract_reconciliation@1",
+    "authority": "reconciled by orchestrator on Operator ruling 2026-09-15",
+    "recorded_by": "INTEGRATION_VALIDATOR-20260915-121355 (orchestrating session)",
+    "recorded_at_utc": "2026-09-15T21:00:43.520Z",
+    "drafted_by": "WP_VALIDATOR-B1-20260915-200500",
+    "basis": "MT-139.json#lifecycle.operator_decision_2026_08_18_sever (SEVER); migration_0345_old_schema_identity_and_down_up_retry_converge retired with the corpus (disclosed in MT-118 ready_for_validation_summary).",
+    "unsatisfiable_as_written": {
+      "AC-118-5": "names the retired migration_0345_* test"
+    },
+    "replacement_wording": {
+      "AC-118-5": "MT-112 canonical identity work stays green: canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges and surreal_identity_and_exact_retry_converge still pass against the embedded SurrealDB store; schema completeness is carried by the MT-139 schema.surql coverage tests."
+    },
+    "satisfying_tests_at_head": [
+      "api::memory::legacy_retry_heals_missing_receipt_once_and_converges (AC-118-1)",
+      "api::memory::non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path (AC-118-2)",
+      "api::memory::canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges (AC-118-5)",
+      "api::memory::surreal_identity_and_exact_retry_converge (AC-118-5)"
+    ],
+    "validator_note": "presence verified by grep at HEAD; green status judged from the batch lib log in Phase C; PT-118-3 still requires every api::memory red attributed (3 reds expected in MT-146's scope)."
   }
 }

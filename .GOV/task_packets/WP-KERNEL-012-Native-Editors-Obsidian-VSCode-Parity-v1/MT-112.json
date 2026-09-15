@@ -22,7 +22,7 @@
   "title": "B4-MT-112-Converge-Proposal-Request-Id-Identity-Rust-Vs-Migration-0345",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T13:23:33.064Z",
-  "updated_at_utc": "2026-08-12T13:15:00Z",
+  "updated_at_utc": "2026-09-15T21:00:43.520Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -149,5 +149,33 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  },
+  "contract_reconciliation_20260915": {
+    "schema_id": "hsk.mt_contract_reconciliation@1",
+    "authority": "reconciled by orchestrator on Operator ruling 2026-09-15",
+    "recorded_by": "INTEGRATION_VALIDATOR-20260915-121355 (orchestrating session)",
+    "recorded_at_utc": "2026-09-15T21:00:43.520Z",
+    "drafted_by": "WP_VALIDATOR-B1-20260915-200500",
+    "basis": "MT-139.json#lifecycle.operator_decision_2026_08_18_sever (SEVER): the PostgreSQL migration corpus was removed from src/; 0 .sql files exist at HEAD 6f19a524. Migration-based clauses are stale per CX-503R/CX-503S.",
+    "unsatisfiable_as_written": {
+      "AC-112-2": "requires a NEW superseding migration with tested down path",
+      "AC-112-4": "requires migration_0345_old_schema_identity_and_down_up_retry_converge (removed with the corpus)",
+      "PT-112-3": "up/down/up migration proof"
+    },
+    "replacement_wording": {
+      "AC-112-2": "Convergence ships as Rust-canonical request_id derivation; the SurrealDB schema.surql is the sole declarative authority and its completeness is proven by storage::surreal::schema::{declarative_schema_catalog_is_complete_and_content_sensitive, mt139_current_schema_info_pin_matches_fresh_mem_catalog, predecessor_registry_hash_rejects_changed_nonempty_retired_source}. No migration artifact is required.",
+      "AC-112-4": "legacy_retry_heals_missing_receipt_once_and_converges AND surreal_identity_and_exact_retry_converge both pass against the Handshake-managed embedded SurrealDB store, proving a healed legacy row and a live retry converge on one identity. Neither test may be weakened or deleted.",
+      "PT-112-3": "SUPERSEDED: replaced by the schema coverage tests above plus canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges (Rust-vs-embedded-contract differential, PT-112-2)."
+    },
+    "satisfying_tests_at_head": [
+      "api::memory::canonical_request_identity_matches_embedded_contract_across_actor_and_hash_edges",
+      "api::memory::surreal_identity_and_exact_retry_converge",
+      "api::memory::legacy_retry_heals_missing_receipt_once_and_converges",
+      "api::memory::proposal_missing_provenance_fails_closed",
+      "api::memory::simultaneous_proposal_retries_converge_to_one_row_and_receipt",
+      "storage::surreal::schema::declarative_schema_catalog_is_complete_and_content_sensitive",
+      "storage::surreal::schema::mt139_current_schema_info_pin_matches_fresh_mem_catalog"
+    ],
+    "validator_note": "test presence verified by grep at HEAD 6f19a524 (api/memory.rs, schema.rs); green status is judged only from the batch lib log (features duckdb-flight-recorder,test-utils) in Phase C."
   }
 }

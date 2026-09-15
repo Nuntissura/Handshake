@@ -25,19 +25,19 @@
   "title": "E11-MT-135-Project-Memory-Backed-Context-Menus-Into-The-MCP-Capture-Pass-So-Models-Can-See-Them",
   "group": "E11",
   "created_at_utc": "2026-08-16T04:40:00Z",
-  "updated_at_utc": "2026-08-16T08:05:00Z",
+  "updated_at_utc": "2026-09-15T20:59:35.947Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-135.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "FAIL_V1",
     "depends_on": [
       "MT-121"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V1",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260815-173127",
     "origin": "Discovered and proven during MT-121 implementation on 2026-08-16; deferred to a new MT in the same WP per Operator directive so the finding is not lost.",
@@ -109,7 +109,18 @@
       "resolution": "MT-113 regression root-caused (egui node-id drift of the saved-search Remove row) and fixed in product commit b4ba94a8; MT-113 12/12; native reproof green at b4ba94a8."
     },
     "ready_for_validation_at_utc": "2026-09-03T00:03:28.778Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260902-224325"
+    "ready_for_validation_by": "KERNEL_BUILDER-20260902-224325",
+    "next_actor": "KERNEL_BUILDER",
+    "validation_v1_transition": {
+      "at_utc": "2026-09-15T20:59:10.296Z",
+      "by": "WP_VALIDATOR-B1-20260915-200500",
+      "previous": {
+        "status": "READY_FOR_VALIDATION_V4",
+        "validator_verdict": null,
+        "completed_by": null
+      },
+      "reason": "validation_v1 FAIL_V1 on static grounds per Operator ruling 2026-09-15"
+    }
   },
   "scope": {
     "summary": "HandshakeApp::refresh_mcp_snapshot builds a BRAND-NEW egui::Context for the model-vision capture pass. That fresh context has an EMPTY egui::Memory, so any surface whose open/closed state lives in egui::Memory is absent from the published MCP snapshot even when it is visibly open in the live window. app.rs already works around this for two surfaces by hand-copying the Reading-mode store and the open top-menu into the capture context, but pointer-opened PANE CONTEXT MENUS have no such projection. Consequence: a model driving Argus cannot see, target, or steer any context menu - it is invisible in argus.inspect while a human sees it on screen. This was proven live during MT-121 by tests/test_mcp_snapshot_viewport.rs::mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass, which shows author_id 'ctx-menu.pane.pop_out' present in the rendered kittest frame and absent from the published snapshot. MT-121 fixed viewport SIZING only and deliberately did not fix this; the failing condition is asserted as current behaviour there, so that assertion MUST be inverted by this MT.",
@@ -271,6 +282,115 @@
           "checked_at_utc": "2026-09-03T00:02:18.890Z"
         }
       ]
+    },
+    "next_actor": "KERNEL_BUILDER"
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "status": "FAIL_V1",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "risk_tier": null,
+    "validated_by": "WP_VALIDATOR-B1-20260915-200500",
+    "validated_at_utc": "2026-09-15T20:59:10.296Z",
+    "validated_commit": "6f19a52425333d32673d7628f72727c869de7e51",
+    "basis": "STATIC_REVIEW_ON_OPERATOR_RULING_2026_09_15 — no cargo executed by this session; verdict rests on committed history and source inspection at HEAD 6f19a52425333d32673d7628f72727c869de7e51. Operator ruling relayed by the Orchestrator 2026-09-15: 'MT-135: FAIL, route to builder'.",
+    "authority_refs": [
+      "WP_VALIDATOR_PROTOCOL Job 2 (Scope Containment, HARD)",
+      "CX-573D ZERO_PLACEHOLDER_POLICY",
+      "CX-573F HARD_RUNTIME_PROOF_OVER_SCAFFOLDING",
+      "Spec-Realism Gate sub-rule 1 (new placeholder error variant of the same shape)"
+    ],
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "rows_cited": [],
+      "note": "not used; MT-135's own proofs are handshake_native (not in the batch) and the verdict is static"
+    },
+    "reviewed_commit": {
+      "sha": "6be71449a19a7eba8ed830bdc2d9dd251c63c72b",
+      "date": "2026-08-16",
+      "subject": "feat(WP-KERNEL-012 MT-135): project open popups into the MCP capture pass",
+      "files": [
+        "src/backend/handshake_core/src/storage/knowledge.rs (+422/-81)",
+        "src/frontend/handshake_native/src/accessibility/mod.rs",
+        "src/frontend/handshake_native/src/accessibility/popup_projection.rs",
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+      ]
+    },
+    "independent_findings": [
+      {
+        "id": "F-135-V1-1",
+        "class": "SCOPE_SPILL",
+        "severity": "BLOCKING",
+        "detail": "Commit 6be71449 (the only MT-135-tagged commit) modifies src/backend/handshake_core/src/storage/knowledge.rs (numstat: 422\t81\tsrc/backend/handshake_core/src/storage/knowledge.rs) which is outside allowed_paths [src/frontend/handshake_native/src/app.rs, src/frontend/handshake_native/src/accessibility/, src/frontend/handshake_native/src/mcp/, src/frontend/handshake_native/tests/]. The only recorded out-of-scope waiver (lifecycle.out_of_scope_waiver_status_2026_09_02, GRANTED_BY_OPERATOR) covers src/frontend/handshake_native/src/manual_content_editors.rs only. A 400+ line backend storage-trait change inside a frontend capture MT is a clear scope spill, not an ancillary file."
+      },
+      {
+        "id": "F-135-V1-2",
+        "class": "PLACEHOLDER_PATTERN",
+        "severity": "BLOCKING",
+        "detail": "The hunk converts required methods of `pub trait KnowledgeStore` into default bodies returning `Err(StorageError::NotImplemented(\"surreal knowledge edge backend\"))`. At HEAD: 82 trait methods, 82 carry a NotImplemented default; 0 of those are NOT overridden by `impl KnowledgeStore for SurrealDatabase` (the only impl in the crate) and are therefore live placeholder error paths reachable from any caller of the trait: (none). This is the placeholder/hollow pattern CX-573D forbids in /src/ and the 'new placeholder error variant of the same shape' named by Spec-Realism sub-rule 1. `StorageError::NotImplemented` is used in 4 product files: src/backend/handshake_core/src/storage/knowledge.rs, src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/surreal/database.rs, src/backend/handshake_core/src/workflows.rs."
+      },
+      {
+        "id": "F-135-V1-3",
+        "class": "PROVENANCE",
+        "severity": "INFO",
+        "detail": "The backend hunk plausibly belongs to the same-day PostgreSQL-removal consolidation (4f92cc25 2026-08-16); the MT-135 contract records no justification for it. Re-attribution, if the Orchestrator chooses it, must be recorded in this contract; it does not remove F-135-V1-2 from the product tree."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1_no_deferred_live_escape": {
+        "result": "FAIL",
+        "detail": "NotImplemented placeholder variant introduced by the reviewed commit and live at HEAD in product source (see F-135-V1-2); MT-135's own frontend proof path (test_mcp_snapshot_viewport) does not reach it, but the committed diff does."
+      },
+      "sub_rule_2_managed_resource_touch": {
+        "result": "NOT_EVALUATED",
+        "detail": "MT-135's own proofs (mounted AccessKit tree of a live HandshakeApp, popup projection, PT-135-1..4) are handshake_native and were not executed by this session; deferred to the native lane after remediation."
+      },
+      "sub_rule_3_no_self_certification": {
+        "result": "PASS",
+        "claimed_by": "KERNEL_BUILDER-20260815-173127",
+        "proposed_completed_by": "WP_VALIDATOR-B1-20260915-200500"
+      }
+    },
+    "resolved_prior_findings": [],
+    "remediation_required": [
+      {
+        "id": "R-135-1",
+        "anchor": "src/backend/handshake_core/src/storage/knowledge.rs `pub trait KnowledgeStore`",
+        "requirement": "For every trait method that currently defaults to Err(StorageError::NotImplemented(..)) either (a) implement it in `impl KnowledgeStore for SurrealDatabase` against the real embedded store, or (b) remove the default so the compiler forces an implementation, or (c) remove the method if no live caller exists (record which). No trait method may return a placeholder error on a live product path. Test anchor: a lib test in storage::surreal::knowledge (or storage::knowledge) that enumerates the trait's method set and asserts each is overridden by SurrealDatabase, plus the existing knowledge_* set-A integration binaries green. The 0 currently un-overridden methods are the minimum list: (none)."
+      },
+      {
+        "id": "R-135-2",
+        "anchor": "MT-135.json allowed_paths / commit 6be71449",
+        "requirement": "Restore scope: either move the backend hunk to its owning MT/commit (record the re-attribution in this contract) or obtain and record an Operator out_of_scope_edit_waiver naming src/backend/handshake_core/src/storage/knowledge.rs. A waiver does not close R-135-1."
+      },
+      {
+        "id": "R-135-3",
+        "anchor": "PT-135-1..PT-135-4",
+        "requirement": "Re-run MT-135's own proofs on the remediated tree in the native lane: test_mcp_snapshot_viewport (inverted MT-121 assertion RED/GREEN, projected menu bounds match rendered frame, closed-menu negative) and the full native lib suite; open the mounted frame with a context menu per gui_obligation."
+      }
+    ],
+    "residual_uncertainty": [
+      "Override completeness was computed by name-matching the SurrealDatabase impl block; a method overridden via a different impl path would be missed (none found by grep).",
+      "Whether the NotImplemented defaults are reachable from a mounted-app path at runtime was not exercised (static review)."
+    ]
+  },
+  "validation_v1_amendment_1": {
+    "schema_id": "hsk.mt_validation_verdict_amendment@1",
+    "amends": "validation_v1",
+    "by": "WP_VALIDATOR-B1-20260915-200500",
+    "at_utc": "2026-09-15T20:59:35.947Z",
+    "verdict_unchanged": "FAIL_V1",
+    "correction": "The override inventory computed at write time shows all 82 NotImplemented trait defaults in storage/knowledge.rs ARE overridden by `impl KnowledgeStore for SurrealDatabase` (0 un-overridden). F-135-V1-2 is therefore a CX-573D code-hygiene defect (dead placeholder defaults that silently become live for any future KnowledgeStore impl that omits a method), NOT a currently reachable runtime placeholder path. Its severity is corrected from BLOCKING to MAJOR; spec_realism_gate.sub_rule_1 is corrected from FAIL to ADVISORY (no placeholder reachable from a live SurrealDatabase call path). The FAIL_V1 verdict stands on F-135-V1-1 (scope spill outside allowed_paths with no covering waiver) and the Operator ruling 2026-09-15; R-135-1 remains required (remove the defaults or add the enumeration test so a future impl cannot inherit them), R-135-2 and R-135-3 unchanged.",
+    "finding_severity_overrides": {
+      "F-135-V1-2": "MAJOR"
+    },
+    "spec_realism_gate_overrides": {
+      "sub_rule_1_no_deferred_live_escape": "ADVISORY"
     }
   }
 }
