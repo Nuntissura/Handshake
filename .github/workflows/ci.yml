@@ -137,6 +137,10 @@ jobs:
 
   backend-storage:
     runs-on: ubuntu-latest
+    env:
+      # The embedded SurrealDB test backend also requires an owner-scoped store
+      # root that already exists as a strict descendant of the artifacts root.
+      HANDSHAKE_SURREAL_TEST_STORE_ROOT: "${{ github.workspace }}/../Handshake_Artifacts/ci/${{ github.run_id }}/${{ github.job }}/surreal-store"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -149,8 +153,8 @@ jobs:
       - name: Install Linux build deps
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
 
-      - name: Prepare embedded artifacts root
-        run: mkdir -p "${{ github.workspace }}/../Handshake_Artifacts"
+      - name: Prepare embedded artifacts and test store roots
+        run: mkdir -p "${{ github.workspace }}/../Handshake_Artifacts" "$HANDSHAKE_SURREAL_TEST_STORE_ROOT"
 
       - name: Storage conformance tests
         run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test storage_conformance
