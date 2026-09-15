@@ -756,14 +756,18 @@ fn atelier_schema_ddl() -> String {
 pub async fn bootstrap_loom_receipt_test_schema(
     storage: &SurrealStorage,
 ) -> Result<(), SurrealStorageError> {
-    // FOURTH pin over the Loom receipt-test table set (not the whole schema). Re-pinned by
-    // MT-152 (I-152-2): the value below is the catalog WITH MT-151's `loom_blocks.journal_key`
-    // field and `uq_loom_blocks_journal_key` index, which MT-151 added inside this table set
-    // without moving the pin (previous value 77ab023e..., pinned at e9b81814; run
-    // mt142-LIB-20260911T234638Z, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH
-    // observed). The MT-152 loom_folders DDL is outside this set.
+    // FIFTH pin over the Loom receipt-test table set (not the whole schema). Re-pinned by
+    // MT-109 (V17 F02): the value below is the catalog WITH MT-109's authority surface inside
+    // this table set - `loom_blocks.source_rich_document_id`, the `mt109_loom_source_integrity`
+    // event, the record-user SELECT permissions on `loom_blocks` / `knowledge_rich_documents`,
+    // and the SCHEMAFULL `wsids` + `authority_*` fields on `kernel_event_ledger` - which MT-109
+    // added without moving the pin (previous value 2d3490115ab484a75ef8896bff1152b95798f3c44
+    // 37fd45404898172aa87b1c2, pinned by MT-152; validator run MT109-V17-PR-005/PR-006,
+    // HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH observed).
+    // FOURTH pin (MT-152, I-152-2) was the catalog WITH MT-151's `loom_blocks.journal_key` field
+    // and `uq_loom_blocks_journal_key` index (previous value 77ab023e..., pinned at e9b81814).
     const EXPECTED_CATALOG_SHA256: &str =
-        "2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2";
+        "dc04737a586a4b743e727a2ff215a97e09ab7553df2ef33bc4d045f6a59b1676";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -4367,7 +4371,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2"
+            "dc04737a586a4b743e727a2ff215a97e09ab7553df2ef33bc4d045f6a59b1676"
         );
     }
 

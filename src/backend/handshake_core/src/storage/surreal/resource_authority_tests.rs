@@ -319,6 +319,15 @@ async fn clear_principal_grant_field(
     Ok(())
 }
 
+/// Credential lifetime for every NON-expiry control principal in the direct record-user
+/// negative matrix. The matrix re-signs a record user per probe across many tables and verbs,
+/// so wall time scales with matrix size and host load (~340-350 s observed at 4 threads on the
+/// V17 validator host). A 300 s TTL let a control session expire mid-matrix and turned the
+/// wrong-access-space DELETE probe into a misclassified non-authorization failure. The dedicated
+/// expired-session case keeps its own 1 ms TTL; only the controls that must stay valid for the
+/// whole proof use this lifetime, and the elapsed guard at the end compares against it.
+const DIRECT_NEGATIVE_CONTROL_TTL: Duration = Duration::from_secs(3600);
+
 async fn provision_direct_negative_principal(
     storage: &super::SurrealStorage,
     principal_key: &str,
@@ -334,7 +343,7 @@ async fn provision_direct_negative_principal(
             capabilities,
             "direct-negative-space-a",
             Some("direct-negative-binding"),
-            Duration::from_secs(300),
+            DIRECT_NEGATIVE_CONTROL_TTL,
         )
         .await
 }
@@ -1719,7 +1728,7 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                     &capabilities,
                     "direct-negative-space-a",
                     Some("direct-negative-binding"),
-                    Duration::from_secs(300),
+                    DIRECT_NEGATIVE_CONTROL_TTL,
                 )
                 .await?;
             grant_every_route(storage, &owner, &workspace.id).await?;
@@ -1955,7 +1964,7 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                     &capabilities,
                     "direct-negative-space-b",
                     Some("direct-negative-binding"),
-                    Duration::from_secs(300),
+                    DIRECT_NEGATIVE_CONTROL_TTL,
                 )
                 .await?;
             assert_eq!(wrong_space.identity.account_id, owner.identity.account_id);
@@ -1991,7 +2000,7 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                     &capabilities,
                     "direct-negative-space-a",
                     Some("direct-negative-binding"),
-                    Duration::from_secs(300),
+                    DIRECT_NEGATIVE_CONTROL_TTL,
                 )
                 .await?;
             grant_every_route(storage, &wrong_resource, &wrong_resource_workspace.id).await?;
@@ -2012,7 +2021,7 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                     &capabilities,
                     "direct-negative-space-a",
                     Some("direct-negative-binding"),
-                    Duration::from_secs(300),
+                    DIRECT_NEGATIVE_CONTROL_TTL,
                 )
                 .await?;
             grant_every_route(storage, &stale_space, &workspace.id).await?;
@@ -2032,7 +2041,7 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                     &capabilities,
                     "direct-negative-foreign-space",
                     Some("direct-negative-binding"),
-                    Duration::from_secs(300),
+                    DIRECT_NEGATIVE_CONTROL_TTL,
                 )
                 .await?;
             grant_existing_route_resources_to(storage, &owner, &foreign, &workspace.id, None, None, None)
@@ -2047,7 +2056,7 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                     &capabilities,
                     "direct-negative-space-a",
                     Some("direct-negative-binding"),
-                    Duration::from_secs(300),
+                    DIRECT_NEGATIVE_CONTROL_TTL,
                 )
                 .await?;
             grant_every_route(storage, &revoked, &workspace.id).await?;
@@ -2505,9 +2514,13 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                     }
                 }
             }
-            assert!(proof_started.elapsed() < Duration::from_secs(300),
+            assert!(proof_started.elapsed() < DIRECT_NEGATIVE_CONTROL_TTL,
                 "non-expiry controls exceeded the minimum credential lifetime");
-            eprintln!("MT109_NON_EXPIRY_PROOF elapsed_ms={} minimum_ttl_ms=300000", proof_started.elapsed().as_millis());
+            eprintln!(
+                "MT109_NON_EXPIRY_PROOF elapsed_ms={} control_ttl_ms={}",
+                proof_started.elapsed().as_millis(),
+                DIRECT_NEGATIVE_CONTROL_TTL.as_millis()
+            );
             Ok(())
         })
     })
