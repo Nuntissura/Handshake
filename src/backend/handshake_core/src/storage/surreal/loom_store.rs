@@ -5039,6 +5039,11 @@ mod tests {
     async fn edge_mutations_refresh_metrics_and_graph_traversal() {
         let temp = tempfile::tempdir().expect("create temporary data root");
         let (_, store) = open_store(&temp).await;
+        // MT-150: edge mutations now read and append `kernel_event_ledger` inside their
+        // transaction, so the production schema must exist (as it always does at runtime).
+        super::super::schema::bootstrap_schema(&store)
+            .await
+            .expect("bootstrap production schema");
         let workspace_id = "loom-graph-workspace";
         seed_workspace(&store, workspace_id).await;
         let base = Utc::now();
@@ -5116,7 +5121,10 @@ mod tests {
         let workspace = workspace_id.to_owned();
         store
             .with_storage_operation(move |db| {
-                Box::pin(async move { delete_loom_edge(&db, &workspace, "edge-ab").await })
+                Box::pin(async move {
+                    delete_loom_edge(&db, &workspace, "edge-ab", metadata("edge-ab", Utc::now()))
+                        .await
+                })
             })
             .await
             .expect("edge delete lifecycle")

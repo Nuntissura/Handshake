@@ -59,7 +59,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // MT-150 re-pin: catalog identities gained the loom_edges event_ledger_event_id field/index
 // (previous value 9881bff3f6bd7d02797fb95c88ad51f1ae6f19777f89477e3285cc014c37d014, MT-109).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "MT150_DECLARATIVE_PENDING";
+    "70e5b64ba1141642e37bf7fff598b596f82cc7520cec40829a442fb2cced2754";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -84,7 +84,7 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // and reached identically by the in-place MT-150 upgrade
 // (`mt150_exact_mt109_pin_upgrade_adds_loom_edge_receipt_field_and_restarts_current`).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "MT150_INFO_PENDING";
+    "a4a7ef4c4f92e25186dcb4d0f331d22b150687b4102786d3a9a871028e7e93e7";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -4382,10 +4382,10 @@ mod tests {
                         })
                         .collect::<Vec<_>>()
                 );
-                // Response index 149 is the injected THROW immediately before the schema-state
+                // Response index 151 is the injected THROW immediately before the schema-state
                 // UPDATE: three transaction/precondition statements, 144 authority statements,
-                // and two Loom backfill statements precede it. The remaining tail statements
-                // must be cancelled.
+                // two Loom backfill statements and the two MT-150 `loom_edges` receipt DDL
+                // statements precede it. The remaining tail statements must be cancelled.
                 let primary_errors = rollback_errors
                     .iter()
                     .filter(|(_, error)| {
@@ -4396,9 +4396,9 @@ mod tests {
                 assert_eq!(
                     primary_errors,
                     vec![
-                        (149, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
-                        (150, "The query was not executed due to a cancelled transaction"),
-                        (151, "Cannot COMMIT: the transaction was aborted due to a prior error"),
+                        (151, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
+                        (152, "The query was not executed due to a cancelled transaction"),
+                        (153, "Cannot COMMIT: the transaction was aborted due to a prior error"),
                     ],
                     "injected rollback did not fail at the exact pre-marker-update statement"
                 );
@@ -5986,7 +5986,7 @@ mod tests {
                         )
                         .await?;
                     ensure_knowledge_schema_registry(&database).await?;
-                    let before = inspect_schema(&database).await?;
+                    let before = read_schema_catalog(&database).await?;
                     assert_eq!(
                         before.info_fingerprint_sha256, PRE_MT150_SCHEMA_INFO_SHA256,
                         "the synthesized MT-109-pin store must carry the exact MT-109 live fingerprint"

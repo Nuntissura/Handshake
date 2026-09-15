@@ -391,6 +391,10 @@ async fn project_one_row(
     rows.remove(0).values
 }
 
+/// NOTE (MT-150): since f5f41d3f the inspector projects plain JSON (`Value::into_json_value`),
+/// so scalars arrive untagged and record links arrive as `table:`key`` strings; the tagged
+/// shapes described below are kept for the older encoding, and both collapse identically.
+///
 /// `SurrealTestInspector::project` (used by `project_one_row`) serializes each projected
 /// `surrealdb::types::Value` (`surrealdb-types` 3.2.0, `#[derive(Serialize)]`, no `#[serde]`
 /// container attribute -- i.e. default EXTERNALLY TAGGED enum representation) rather than a
@@ -412,6 +416,17 @@ fn scalar(tagged: &Value) -> Value {
     }
     match tagged {
         Value::String(tag) if is_absent_tag(tag) => Value::Null,
+        // Since f5f41d3f the inspector projects through `Value::into_json_value()`, which
+        // renders a record LINK to `kernel_event_ledger` as the plain string
+        // "kernel_event_ledger:`KE-...`" (key backticked because it contains `-`) rather than
+        // the tagged `{"RecordId": ..}` object handled below. Collapse that form to the bare
+        // key too, so every ledger-link projection in this file yields the event id exactly as
+        // the product's own `record_key` does (MT-150 re-check against the current tree).
+        Value::String(link) if link.starts_with("kernel_event_ledger:") => Value::String(
+            link["kernel_event_ledger:".len()..]
+                .trim_matches(|c| c == '`' || c == '⟨' || c == '⟩')
+                .to_owned(),
+        ),
         Value::Object(map) if map.len() == 1 => {
             let (tag, inner) = map.iter().next().expect("single-entry tagged object");
             if is_absent_tag(tag) {

@@ -131,6 +131,14 @@ async fn durable_claim_and_lease() {
             .contains("invalid kernel session transition"),
         "unexpected invalid-transition error: {invalid}"
     );
+    // MT-150: close through the harness's explicit async teardown (the pattern every sibling
+    // suite uses) instead of the Drop path, which shuts the store down from a blocking thread
+    // while the current-thread test runtime is parked and cannot drain the engine lease.
+    drop(db);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close and remove the embedded test store");
 }
 
 /// Full restore — see the module-level doc comment. Kept the original
@@ -219,6 +227,14 @@ async fn kernel_event_ledger_contract_metadata_idempotency_and_sequence() {
         events[1].causation_id.as_deref(),
         Some(events[0].event_id.as_str())
     );
+    // MT-150: close through the harness's explicit async teardown (the pattern every sibling
+    // suite uses) instead of the Drop path, which shuts the store down from a blocking thread
+    // while the current-thread test runtime is parked and cannot drain the engine lease.
+    drop(db);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close and remove the embedded test store");
 }
 
 /// PARTIAL restore — see the module-level doc comment. Adds the
@@ -312,6 +328,14 @@ async fn kernel_event_ledger_api_appends_and_lists_kernel_events_for_session() {
     assert_eq!(events[0].correlation_id.as_deref(), Some(correlation_id.as_str()));
     assert_eq!(events[1].payload["claim"]["lane"], "codex");
     assert!(events[0].created_at <= events[1].created_at);
+    // MT-150: close through the harness's explicit async teardown (the pattern every sibling
+    // suite uses) instead of the Drop path, which shuts the store down from a blocking thread
+    // while the current-thread test runtime is parked and cannot drain the engine lease.
+    drop(db);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close and remove the embedded test store");
 }
 
 /// PARTIAL restore — see the module-level doc comment. The cited coverage
@@ -412,4 +436,12 @@ async fn durable_claim_matches_retry_backpressure_and_deadletter_state_table() {
         .await
         .expect("deadletter claim miss");
     assert!(dead_claim.is_none(), "dead-lettered work must be terminal");
+    // MT-150: close through the harness's explicit async teardown (the pattern every sibling
+    // suite uses) instead of the Drop path, which shuts the store down from a blocking thread
+    // while the current-thread test runtime is parked and cannot drain the engine lease.
+    drop(db);
+    backend
+        .close_and_remove()
+        .await
+        .expect("close and remove the embedded test store");
 }
