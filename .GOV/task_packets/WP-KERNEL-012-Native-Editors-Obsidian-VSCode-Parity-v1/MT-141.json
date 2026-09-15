@@ -30,7 +30,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V1",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -38,7 +38,7 @@
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "FAIL_V1",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260909-212427",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
@@ -763,7 +763,19 @@
       "not_a_product_blocker": "Fast-close product work is complete and proven (mt120 3/3; MT-148 fresh-worktree 5/0). This blocks only the governance handoff mechanics.",
       "waived_by": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
       "waived_at_utc": "2026-09-10T01:45:58.115Z"
-    }
+    },
+    "validated_by": "WP_VALIDATOR-20260915-134500",
+    "validated_at_utc": "2026-09-15T16:53:17.899Z",
+    "next_actor": "KERNEL_BUILDER",
+    "validation_history": [
+      {
+        "verdict": "FAIL_V1",
+        "by": "WP_VALIDATOR-20260915-134500",
+        "at_utc": "2026-09-15T16:53:17.899Z",
+        "commit": "6f19a52425333d32673d7628f72727c869de7e51",
+        "record": "validation_v1"
+      }
+    ]
   },
   "scope": {
     "summary": "Port src/backend/handshake_core/tests/ off sqlx/PostgreSQL onto the embedded SurrealDB store. These tests compile against the handshake_core lib, so this MT is implementable only after MT-136/137/138 make the lib compile cleanly. Patterns to follow: unit-adjacent storage tests use SurrealStorage opened at a temporary HANDSHAKE_DATA_DIR (see tests/surreal_test_store_support/ and storage/surreal/test_inspector.rs behind the surreal-test-support feature); API-level tests exercise the product HTTP surface; migration-corpus assertions (apply_migration, DDL-constant asserts) are retired with the corpus per MT-139's recorded SEVER decision and replaced by the schema.surql coverage proof. Test-only isolation comes from per-run data directories, never from schemas or shared clusters. No assertion may be weakened or deleted to make a file compile; each file's proof intent is preserved at equivalent strength or the file's owning behavior is recorded as no-longer-existing with the superseding proof named.",
@@ -1048,7 +1060,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-10T01:45:58.115Z",
+  "updated_at_utc": "2026-09-15T16:53:17.899Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -1177,5 +1189,2295 @@
     "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_documents_api_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast mt120 -- --nocapture",
     "grep -rn --include=*.rs -E \"^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://\" src/backend/handshake_core/tests/",
     "grep -n -i -E \"sqlx|postgres|sqlite|rusqlite|diesel|tokio-postgres\" src/backend/handshake_core/Cargo.toml"
-  ]
+  ],
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V1",
+    "verdict_label": "FAIL",
+    "status": "FAIL",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validator_layer": "WP_VALIDATOR (per-MT adversarial review; CX-503J)",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR-20260915-134500",
+    "validated_at_utc": "2026-09-15T16:53:17.899Z",
+    "validated_commit": "6f19a52425333d32673d7628f72727c869de7e51",
+    "builder_claims_policy": "Implementer evidence (acceptance_evidence_20260909, LANE-A/D/E/F reports, mt120b run, MT-150 lane reports, orchestrator triage notes) was used as triage input only [VPX-002]; every claim cited here was re-derived by this session from source, git, or its own executions.",
+    "mandatory_reads_ack": [
+      "ACK: read .GOV/codex/Handshake_Codex_v1.4.md (1016 lines, full)",
+      "ACK: read .GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (402 lines, full)",
+      "ACK: read MT-141.json (scope, proof_commands, lifecycle incl. pt_141_3_disposition_table, disposition_table_2026_09_06, red_team_findings_2026_09_06, handoff, owned_files)",
+      "ACK: read MT-150.json lifecycle.pt_150_1_disposition_table, remediation_v3, validation_v3"
+    ],
+    "source_state": {
+      "head_sha": "6f19a52425333d32673d7628f72727c869de7e51",
+      "worktree": "wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012",
+      "remote": "git ls-remote origin refs/heads/feat/WP-KERNEL-012 = 6f19a524 (matches HEAD; the local remote-tracking ref origin/feat/WP-KERNEL-012 was stale at 6d5d705f, 63 commits behind, and is not authority)",
+      "tree_state": "CLEAN for src/, app/, tests/, Cargo.toml, Cargo.lock, rust-toolchain.toml, .cargo (git status --porcelain empty; .GOV junction noise ignored)",
+      "handoff_commit": "2876bcf0 (READY_FOR_VALIDATION by KERNEL_BUILDER-20260909-212427); MT-141's only product commit is 0513d99b (tests/knowledge_documents_api_tests.rs +498, no .GOV, no src/)",
+      "range_reviewed": "2876bcf0..6f19a524 (MT-150/MT-142/MT-151/MT-152/MT-109/MT-147 land in between; 26 test files +18712/-63; 57 src files)",
+      "git_actions": "none (no checkout/switch/reset/clean/restore/stash; no branches/worktrees; no product edits)"
+    },
+    "proof_environment": {
+      "toolchain": "cargo 1.97.1 (c980f4866 2026-06-30) / rustc 1.97.1 (8bab26f4f 2026-07-14); rust-toolchain.toml channel 1.97.1; invoked as `cargo +1.97.1` with --locked",
+      "CARGO_TARGET_DIR": "<HANDSHAKE_ARTIFACTS_ROOT>/WP-KERNEL-012/MT-109/wpv-v15/target (WP-shared warm cache; validator-owned execution; build-cache reuse per VPX-001)",
+      "lane_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/{logs,tmp,runtime,workspace}",
+      "HANDSHAKE_ARTIFACTS_ROOT": "absolute artifacts root",
+      "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<lane>/runtime (pre-created; strict descendant of the artifacts root)",
+      "HANDSHAKE_WORKSPACE_ROOT": "<lane>/workspace/run-NNN-<target> (fresh directory per binary)",
+      "TMP_TEMP": "<lane>/tmp",
+      "features_integration": "surreal-test-support,test-utils",
+      "features_lib_planned": "duckdb-flight-recorder,test-utils (NOT RUN this session)",
+      "features_app_runtime_bundle_planned": "app-runtime,surreal-test-support,test-utils (NOT RUN this session)",
+      "jobs": 4,
+      "test_threads": "default (no --test-threads override); --no-fail-fast; -- --nocapture",
+      "cargo_processes_before_lane": 0,
+      "single_cargo_lane": true,
+      "driver": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/run_binaries.sh (copy in validator scratch; sequential per-binary cargo test)",
+      "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/00-lane.txt"
+    },
+    "proof_records": [
+      {
+        "id": "PR-141-1-scan",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-1",
+        "command": "grep -rn --include=*.rs -E \"^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://\" src/backend/handshake_core/tests/",
+        "exit_code": 0,
+        "result": "8 hits in 3 files, all inside string literals: tests/model_registry_tests.rs:240; tests/security_portability_validation_tests.rs:403,415,419,446,543,602; tests/wp009_integration_validator_evidence_pack_tests.rs:240",
+        "classification": "tripwire token lists / no-SQLite tripwire fixtures / scan_source_text fixture: EXEMPT (a)",
+        "executed_by": "WP_VALIDATOR-20260915-134500",
+        "at_commit": "6f19a52425333d32673d7628f72727c869de7e51"
+      },
+      {
+        "id": "PR-141-1-cargo-toml",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-1",
+        "command": "grep -n -i -E \"sqlx|postgres|sqlite|rusqlite|diesel|tokio-postgres\" src/backend/handshake_core/Cargo.toml",
+        "exit_code": 1,
+        "result": "0 hits",
+        "executed_by": "WP_VALIDATOR-20260915-134500",
+        "at_commit": "6f19a52425333d32673d7628f72727c869de7e51"
+      },
+      {
+        "id": "PR-141-1-cargo-lock",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-1",
+        "command": "grep -n -i -E '^name = \"(sqlx.*|postgres.*|tokio-postgres|rusqlite|libsqlite3-sys|sqlite.*|diesel.*|pq-sys|sea-orm.*)\"' src/backend/handshake_core/Cargo.lock",
+        "exit_code": 1,
+        "result": "0 forbidden crates resolved",
+        "executed_by": "WP_VALIDATOR-20260915-134500",
+        "at_commit": "6f19a52425333d32673d7628f72727c869de7e51"
+      },
+      {
+        "id": "PR-141-1-broad",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-1",
+        "command": "grep -rn -i -E 'sqlx|postgres|psql|sqlite|rusqlite|plpgsql|pl/pgsql|DATABASE_URL|tokio-postgres|PGHOST|PGPORT|PGUSER|PGPASSWORD|PGDATABASE' src/backend/handshake_core/tests/",
+        "result": "179 lines / 33 files over 482 files (406 top-level .rs); every hit classified: negative assertions and tripwire token lists, concat!()-split rejection fixtures, JSON fixture forbidden_substrings / invalid_sqlite_source_id, doc comments, retirement/disposition records. One import-shaped hit tests/kernel_kb003_security_denial_matrix_tests.rs:37-39 imports the product's own no_sqlite_tripwire guard module (src/kernel/sandbox/mod.rs:48): detection tripwire, EXEMPT (a). Extra classes apply_migration(/PgPool/Pool<Postgres>/\"psql\"/pg_dump/env reads of PG*|DATABASE_URL/cfg(feature=pg|postgres|sqlite): 0 hits.",
+        "verdict": "ZERO_VIOLATIONS",
+        "executed_by": "WP_VALIDATOR-20260915-134500",
+        "at_commit": "6f19a52425333d32673d7628f72727c869de7e51"
+      },
+      {
+        "id": "PR-141-2-build",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-2 (compile half of AC-141-2, AC-141-4 precondition)",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --no-run --jobs 4",
+        "started_utc": "2026-09-15T13:48:45Z",
+        "finished_utc": "2026-09-15T15:21:39Z",
+        "exit_code": 0,
+        "result": "Finished test profile in 92m 39s; 394 executables (lib unittests + 393 integration binaries); 0 errors",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/01-build-integration.log",
+        "sha256": "bb51338db80e364594d6e37ef43ea6a54a4e60144dd43b54798b1e7f0b8c3d07",
+        "target_dir": "<HANDSHAKE_ARTIFACTS_ROOT>/WP-KERNEL-012/MT-109/wpv-v15/target (WP-shared warm cache; validator-owned execution; build-cache reuse per VPX-001)",
+        "executed_by": "WP_VALIDATOR-20260915-134500",
+        "at_commit": "6f19a52425333d32673d7628f72727c869de7e51"
+      },
+      {
+        "id": "PR-141-2-setA-partial",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-2",
+        "status": "PARTIAL_STOPPED_BY_OPERATOR",
+        "command_shape": "for each target: cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features surreal-test-support,test-utils --test <target> -j 4 --no-fail-fast -- --nocapture (fresh HANDSHAKE_WORKSPACE_ROOT per run)",
+        "started_utc": "2026-09-15T15:21:41Z",
+        "stopped_utc": "2026-09-15T16:44:14Z",
+        "executed_binaries": 32,
+        "green_binaries": 21,
+        "red_binaries": 11,
+        "executed_tests_total": 207,
+        "not_run_binaries": 361,
+        "stop_reason": "Operator decision relayed by the orchestrator at 16:43Z: stop the baseline set-A run; remediation proceeds on the reds catalogued so far; the complete suite runs once on the builder's candidate for the PASS verdict. Driver (validator-owned bash) stopped at 16:44:14Z; the in-flight binary 033 atelier_manual_rows_parity_tests was allowed to finish on its own (7 passed / 0 failed; exit derived from the log because the driver no longer wrote the ledger line); no cargo/rustc/test process was killed; 0 cargo/rustc processes confirmed afterwards.",
+        "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/00-lane.txt",
+        "per_binary_json": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/per_binary_results_setA_partial.json",
+        "red_catalogue_json": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/red_catalogue_setA_partial.json",
+        "executed_by": "WP_VALIDATOR-20260915-134500",
+        "at_commit": "6f19a52425333d32673d7628f72727c869de7e51"
+      },
+      {
+        "id": "PR-141-2-proof-cmd-0",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-2 / AC-141-2 mt120 restoration",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test knowledge_documents_api_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast mt120 -- --nocapture",
+        "status": "NOT_RUN_BASELINE_STOPPED_BY_OPERATOR (knowledge_documents_api_tests is target index >033 in the alphabetical set-A order)",
+        "note": "Builder's mt120b run (3/3 at 0513d99b) is triage input only; src/api/knowledge_documents.rs is unchanged since 0513d99b (git log 0513d99b..HEAD -- that file is empty) and the guard is present at :98/:467, but the validator has not executed this proof.",
+        "executed_by": null
+      },
+      {
+        "id": "PR-141-2-lib",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-2 / AC-141-4 lib suite",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils -j 4 --no-fail-fast",
+        "status": "NOT_RUN_BASELINE_STOPPED_BY_OPERATOR",
+        "executed_by": null
+      },
+      {
+        "id": "PR-141-2-app-runtime-bundle",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-2 / AC-141-4 required-features targets",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils --test <t> ... for t in ai_ready_data_arch_tests, crash_recovery_e2e, distillation_corpus_extractor_tests, mcp_e2e_tests, mcp_gate_tests, mex_tests, micro_task_executor_tests, model_session_scheduler_tests, parallel_swarm_state_recovery_tests, role_mailbox_tests, role_registry_append_only_tests, runtime_chat_events_tests, terminal_guards_tests, terminal_session_tests",
+        "status": "NOT_RUN_BASELINE_STOPPED_BY_OPERATOR",
+        "note": "These 14 targets declare required-features app-runtime / duckdb-flight-recorder and are silently skipped by the surreal-test-support,test-utils build; they must be built and run in this bundle for 'every binary' to be true.",
+        "executed_by": null
+      },
+      {
+        "id": "PR-141-2-inspector-bundle",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-2 / AC-141-4 crate-cfg-gated targets",
+        "command": "cargo +1.97.1 test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features inspector,surreal-test-support,test-utils --test a3_inspector_smoke --test inspector_server_tests --test replay_drive_tests --test trace_projection_tests",
+        "status": "NOT_RUN_BASELINE_STOPPED_BY_OPERATOR",
+        "note": "These 4 files carry #![cfg(feature = \"inspector\")] and compile to 0-test binaries under set A (002 a3_inspector_smoke executed 0 tests, exit 0). They were untouched by the port (0 commits since 7f279596^; 0 forbidden tokens).",
+        "executed_by": null
+      },
+      {
+        "id": "PR-141-3-disposition",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "PT-141-3",
+        "method": "node reconciliation of MT-141 pt_141_3_disposition_table (57 rows) against MT-150 pt_150_1_disposition_table (47 rows) and grep of every restored/superseding test at HEAD",
+        "result": "57/57 rows resolve at HEAD: 3 removed-behaviour verified, 4 superseding proofs present, 3 restored mt120 tests present (knowledge_documents_api_tests.rs:3428/3494/3551), 47 routed rows map 1:1 onto MT-150 and all 47 restorations exist as active tests (no #[ignore] in any MT-150 file), 6 renamed. Typed-table drift recorded under independent_findings F04.",
+        "reconciliation_field": "validation_v1.disposition_reconciliation_at_head",
+        "executed_by": "WP_VALIDATOR-20260915-134500",
+        "at_commit": "6f19a52425333d32673d7628f72727c869de7e51"
+      },
+      {
+        "id": "PR-141-AC3-durability",
+        "covers": [
+          "MT-141"
+        ],
+        "proof_target": "AC-141-3",
+        "method": "read helper bodies and cited call sites; git show of pre-4f92cc25 originals for the naming-trap files",
+        "result": "see acceptance_criteria_status.AC-141-3",
+        "executed_by": "WP_VALIDATOR-20260915-134500",
+        "at_commit": "6f19a52425333d32673d7628f72727c869de7e51"
+      }
+    ],
+    "per_binary_results": {
+      "set": "A (surreal-test-support,test-utils)",
+      "executed": [
+        {
+          "index": "002",
+          "target": "a3_inspector_smoke",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/002-a3_inspector_smoke.log",
+          "sha256": "862c745941a510af30a5be0bdbb5521e400079aac3c74ea8b8de9e89495baab3",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 0,
+          "executed": 0
+        },
+        {
+          "index": "003",
+          "target": "abliterate_review_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/003-abliterate_review_tests.log",
+          "sha256": "9b58b0cc6219da2bd9897ba8a7c544dfeddcf99cc1ce05b27e0045aa9ee49d51",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 0.04,
+          "executed": 6
+        },
+        {
+          "index": "004",
+          "target": "abliterate_tool_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/004-abliterate_tool_tests.log",
+          "sha256": "292b3b54d868260bdfe200172b6add13e5d92e73a05d40fdbbb9651f1db6c7d4",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 0.03,
+          "executed": 2
+        },
+        {
+          "index": "005",
+          "target": "abliteration_offline_invariant_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/005-abliteration_offline_invariant_tests.log",
+          "sha256": "3ef965d0e4bee75c29cb4d3ec0c1203eea0b230c584c7d2b8f361e7381dcab80",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 0.12,
+          "executed": 7
+        },
+        {
+          "index": "006",
+          "target": "ac_distill_negative_path_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/006-ac_distill_negative_path_tests.log",
+          "sha256": "56fee16ec2163a98ff47937008a8a47949a8e800a4b6d8c21115376576282373",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 0.57,
+          "executed": 4
+        },
+        {
+          "index": "007",
+          "target": "activation_steering_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/007-activation_steering_tests.log",
+          "sha256": "74fd277ebac9ace08d40b40f9fa5d2a9a4d50d4c71aec265f0ce16f56002ab44",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 0.38,
+          "executed": 4
+        },
+        {
+          "index": "008",
+          "target": "atelier_action_receipt_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/008-atelier_action_receipt_tests.log",
+          "sha256": "cd0d76839b39aba03d0ac7081b21cee82061a95448178c55b1668a6a6f57fd79",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 66.88,
+          "executed": 2
+        },
+        {
+          "index": "009",
+          "target": "atelier_bulk_operations_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/009-atelier_bulk_operations_tests.log",
+          "sha256": "ad497294aa69588c6e51ae961af1da87576e4a0f5b268e4229f1b42158a54ddc",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 211.9,
+          "executed": 7
+        },
+        {
+          "index": "010",
+          "target": "atelier_collaboration_panel_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/010-atelier_collaboration_panel_tests.log",
+          "sha256": "ac885600f014d2bbf9fc2c09d246183a4bc34b2e16762373c4a347a9ff679995",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 0.03,
+          "executed": 3
+        },
+        {
+          "index": "011",
+          "target": "atelier_comfy_intake_routing_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/011-atelier_comfy_intake_routing_tests.log",
+          "sha256": "bfbfa5ca493ab4a1cd1526b6d3f338f6b61fb7727c5dac937bd55ff02f2c4c06",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 33.37,
+          "executed": 4
+        },
+        {
+          "index": "012",
+          "target": "atelier_comfy_job_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/012-atelier_comfy_job_tests.log",
+          "sha256": "b03447c59345f12b7a8d33293489e6131b72c56ed0532d78428aedcea7185c01",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 94.43,
+          "executed": 3
+        },
+        {
+          "index": "013",
+          "target": "atelier_comfy_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/013-atelier_comfy_tests.log",
+          "sha256": "cce8190e09b5b30d04be070e6b264707efd8e20f88d0971515f517a64ad15b98",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 300.07,
+          "executed": 10
+        },
+        {
+          "index": "014",
+          "target": "atelier_command_corpus_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/014-atelier_command_corpus_tests.log",
+          "sha256": "4b2db02892d882c07dfd73bbbb01aabfe53b8239124b870ba086b322689c3adf",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 5,
+          "failed": 2,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 315.07,
+          "executed": 7
+        },
+        {
+          "index": "015",
+          "target": "atelier_command_log_session_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/015-atelier_command_log_session_tests.log",
+          "sha256": "2436072facc018146bcb0163553daab1be1049399eb3101e086c663783dd30b9",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 1,
+          "failed": 1,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 72.1,
+          "executed": 2
+        },
+        {
+          "index": "016",
+          "target": "atelier_core_data_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/016-atelier_core_data_tests.log",
+          "sha256": "c67c01dac262f64a8d0398fb952fd05080333936f2351b085c7574ecc1e56dd9",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 34,
+          "failed": 20,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 1435.79,
+          "executed": 54
+        },
+        {
+          "index": "017",
+          "target": "atelier_dcc_flight_recorder_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/017-atelier_dcc_flight_recorder_tests.log",
+          "sha256": "9e215d5238bd797c536ef21a097adbbd813d8b555ea0c4b26d6df76fa384f034",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 125.93,
+          "executed": 5
+        },
+        {
+          "index": "018",
+          "target": "atelier_diagnostic_bundle_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/018-atelier_diagnostic_bundle_tests.log",
+          "sha256": "c586b6d9f8944b56c04f2d01d57d592fefbe1a5e4b5ae50bfd739843ee839a62",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 35.59,
+          "executed": 1
+        },
+        {
+          "index": "019",
+          "target": "atelier_diagnostics_projections_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/019-atelier_diagnostics_projections_tests.log",
+          "sha256": "fca664596abe257040169596564c157f3654c6536a604dfc0d45c09699a9f809",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 2,
+          "failed": 2,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 106.7,
+          "executed": 4
+        },
+        {
+          "index": "020",
+          "target": "atelier_diagnostics_typed_surfaces_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/020-atelier_diagnostics_typed_surfaces_tests.log",
+          "sha256": "ec662093093bbb5865882b5a235b2f5c60c3e0ac10733f89891ac95692200632",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 4,
+          "failed": 1,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 106.49,
+          "executed": 5
+        },
+        {
+          "index": "021",
+          "target": "atelier_diagnostics_validation_matrix_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/021-atelier_diagnostics_validation_matrix_tests.log",
+          "sha256": "bcfd2a96aca3ff778acfffed406c4295fac4c0f2c952e205038ac0872737cf8b",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 396.21,
+          "executed": 15
+        },
+        {
+          "index": "022",
+          "target": "atelier_downloader_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/022-atelier_downloader_tests.log",
+          "sha256": "7f333c1b74a5e591efeb164cffeb2896422f158e8194e50489a2ba20af95b5ae",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 5,
+          "failed": 2,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 181.28,
+          "executed": 7
+        },
+        {
+          "index": "023",
+          "target": "atelier_editable_surface_authority_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/023-atelier_editable_surface_authority_tests.log",
+          "sha256": "a86b8b56acad5762266facea71708d70b13eaa2616f67cb4f234ae3c70ab9c2a",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 2,
+          "failed": 2,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 108.74,
+          "executed": 4
+        },
+        {
+          "index": "024",
+          "target": "atelier_event_ledger_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/024-atelier_event_ledger_tests.log",
+          "sha256": "35a3f71ea9480f804d635a54d25f352d3c5ff1736d793eb133257481b9d4f65e",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 286.57,
+          "executed": 11
+        },
+        {
+          "index": "025",
+          "target": "atelier_fixture_corpus_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/025-atelier_fixture_corpus_tests.log",
+          "sha256": "da1475da83b121dec03724a9262cc1900d5668587efea1a973d03e8cf0dfdf05",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 6,
+          "failed": 4,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 271.75,
+          "executed": 10
+        },
+        {
+          "index": "026",
+          "target": "atelier_foundation_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/026-atelier_foundation_tests.log",
+          "sha256": "e0e4db9554083fc712283f91578da0466be48f1f4ba69a08b45aef2460aafb8a",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 33.02,
+          "executed": 1
+        },
+        {
+          "index": "027",
+          "target": "atelier_image_import_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/027-atelier_image_import_tests.log",
+          "sha256": "c1b9cef20654ee8e04b5bdbb6c81bd41d0aa6ebce9b6601f67e225688d6fb1bc",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 8,
+          "failed": 1,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 241.04,
+          "executed": 9
+        },
+        {
+          "index": "028",
+          "target": "atelier_intake_folder_scan_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/028-atelier_intake_folder_scan_tests.log",
+          "sha256": "ce66570df30834fe100b2599d984c8c2643a8e0afb77735474e31ac5f33e4225",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 157.96,
+          "executed": 6
+        },
+        {
+          "index": "029",
+          "target": "atelier_kernel_diagnostic_bundle_manifest_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/029-atelier_kernel_diagnostic_bundle_manifest_tests.log",
+          "sha256": "d6ca731426267c2bdae7dfdc2aedefa6ad25d430309700fa1287a508acbad4c5",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 59.15,
+          "executed": 2
+        },
+        {
+          "index": "030",
+          "target": "atelier_kernel_diagnostics_anchor_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/030-atelier_kernel_diagnostics_anchor_tests.log",
+          "sha256": "45ceeaabcca12ecffd1271f1a8f446823d2ca412dc0d4dc4d7ee7b202d490373",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 58.45,
+          "executed": 2
+        },
+        {
+          "index": "031",
+          "target": "atelier_kernel_smoke_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/031-atelier_kernel_smoke_tests.log",
+          "sha256": "ccf05d246d445c313961602b1a1c9e1c601aa30e5ac9b0a6b6fab48480145d2a",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 1,
+          "failed": 1,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 35.07,
+          "executed": 2
+        },
+        {
+          "index": "032",
+          "target": "atelier_loom_projection_api_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/032-atelier_loom_projection_api_tests.log",
+          "sha256": "bd9484188851728590b3c525cd210574701245489e9ed49ac01719bddf16b33e",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 0,
+          "failed": 1,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 37.98,
+          "executed": 1
+        },
+        {
+          "index": "033",
+          "target": "atelier_manual_rows_parity_tests",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/033-atelier_manual_rows_parity_tests.log",
+          "sha256": "de1b3392a9ba935c8791c3f3381a281c8ddbb8f292fb5f48d815ba980b37b86e",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 147.45,
+          "executed": 7
+        }
+      ],
+      "not_run_baseline_stopped_by_operator": [
+        "atelier_media_annotation_overlay_proof_tests",
+        "atelier_media_artifact_tests",
+        "atelier_model_config_apply_tests",
+        "atelier_model_lease_tests",
+        "atelier_model_manual_merge_tests",
+        "atelier_pose_deferred_feature_tests",
+        "atelier_pose_fixture_corpus_tests",
+        "atelier_pose_pipeline_integration_tests",
+        "atelier_pose_tests",
+        "atelier_replay_contract_tests",
+        "atelier_self_improve_promotion_gate_tests",
+        "atelier_sheet_parser_tests",
+        "atelier_source_evidence_tests",
+        "atelier_sourcing_tests",
+        "atelier_state_probe_tests",
+        "atelier_stealth_window_tests",
+        "atelier_swarm_ingestion_tests",
+        "atelier_transcript_tests",
+        "atelier_visual_diff_baseline_tests",
+        "atelier_visual_diff_result_tests",
+        "atelier_visual_retention_redaction_tests",
+        "atelier_visual_steer_feedback_tests",
+        "atelier_workflow_spec_tests",
+        "automation_first_audit_runtime_tests",
+        "automation_first_audit_tests",
+        "bitemporal_indexing_tests",
+        "calendar_storage_tests",
+        "calibration_tests",
+        "candle_e2e_smoke",
+        "candle_hooks_tests",
+        "candle_lora_tests",
+        "candle_mamba2_tests",
+        "candle_runtime_adapter_tests",
+        "candle_rwkv_tests",
+        "candle_rwkv_v7_tests",
+        "candle_state_vector_tests",
+        "candle_transformer_tests",
+        "cdp_console_stream_tests",
+        "cdp_dom_snapshot_tests",
+        "cdp_screenshot_tests",
+        "cloud_anthropic_byok_tests",
+        "cloud_hypervisor_adapter_tests",
+        "cloud_local_parity_smoke",
+        "cloud_official_cli_bridge_live_tests",
+        "cloud_official_cli_bridge_tests",
+        "cloud_openai_byok_tests",
+        "cloud_os_keychain_vault_tests",
+        "cloud_secrets_consent_tests",
+        "corpus_split_tests",
+        "debug_adapter_breakpoint_persistence",
+        "debug_adapter_node_session",
+        "distill_candidate_registry_tests",
+        "distillation_content_review_tests",
+        "distillation_peft_pipeline_tests",
+        "distillation_session_flag_tests",
+        "docker_adapter_tests",
+        "editable_surface_tests",
+        "fems_integration_e2e_tests",
+        "fems_v1_integration_tests",
+        "flight_recorder_span_tests",
+        "focus_audit_tests",
+        "foreground_exception_tests",
+        "fr_event_registry_tests",
+        "goodhart_sentinel_tests",
+        "gvisor_adapter_tests",
+        "hbr_build_rules_read_evidence_tests",
+        "hbr_e2e_smoke_test",
+        "hbr_handoff_gate_tests",
+        "hbr_registry_tests",
+        "hbr_violation_tests",
+        "hbr_vis_gap_tests",
+        "hygiene_manager_tests",
+        "idempotency_tests",
+        "inf1_lora_parity_tests",
+        "inf3_repe_known_case_test",
+        "inf4_refusal_metrics_tests",
+        "inf4_refusal_vector_tests",
+        "inf5_caa_eval",
+        "inf5_caa_tests",
+        "inf8_spec_perf_eval",
+        "inf9_cross_session_state_tests",
+        "inf9_ssm_lora_tests",
+        "inf9_ssm_steering_tests",
+        "inf9_state_vector_prefix_reuse_tests",
+        "inf9_subquadratic_full_parity_smoke",
+        "injection_scoring_tests",
+        "inspector_ipc_tests",
+        "inspector_read_tests",
+        "inspector_server_tests",
+        "kernel_003_migration_tests",
+        "kernel_003_sandbox_consumer_migration_tests",
+        "kernel_action_catalog_residual_tests",
+        "kernel_action_catalog_tests",
+        "kernel_action_envelope_tests",
+        "kernel_coder_handoff_validation_request_tests",
+        "kernel_collaboration_memory_handoff_context_tests",
+        "kernel_collaboration_memory_poisoning_guardrails_tests",
+        "kernel_collaboration_memory_tests",
+        "kernel_collaboration_memory_write_safeguards_tests",
+        "kernel_crdt_adr_tests",
+        "kernel_crdt_conflict_presence_tests",
+        "kernel_crdt_context_slice_tests",
+        "kernel_crdt_identity_tests",
+        "kernel_crdt_persistence_tests",
+        "kernel_crdt_promotion_bridge_tests",
+        "kernel_crdt_snapshot_tests",
+        "kernel_crdt_validity_guard_tests",
+        "kernel_dcc_layout_projection_registry_tests",
+        "kernel_dcc_mvp_runtime_surface_tests",
+        "kernel_dcc_session_spawn_tree_tests",
+        "kernel_dcc_structured_artifact_viewer_tests",
+        "kernel_direct_edit_guard_tests",
+        "kernel_direct_edit_regression_harness_tests",
+        "kernel_end_to_end_tests",
+        "kernel_event_ledger_tests",
+        "kernel_flight_recorder_tests",
+        "kernel_fold_manifest_tests",
+        "kernel_generated_documentation_status_projection_tests",
+        "kernel_git_engine_decision_gate_tests",
+        "kernel_governance_overlay_boundary_tests",
+        "kernel_governance_pack_instantiation_tests",
+        "kernel_kb003_authority_boundary_runtime_tests",
+        "kernel_kb003_disk_agnostic_paths_tests",
+        "kernel_kb003_promotion_failure_matrix_tests",
+        "kernel_kb003_restart_replay_tests",
+        "kernel_kb003_security_denial_matrix_tests",
+        "kernel_local_first_mcp_posture_tests",
+        "kernel_local_model_microtask_loop_tests",
+        "kernel_locus_mt_validation_work_graph_tests",
+        "kernel_locus_work_tracking_reset_tests",
+        "kernel_markdown_mirror_sync_drift_guard_tests",
+        "kernel_mechanical_contract_generation_tests",
+        "kernel_mirror_advisory_tests",
+        "kernel_model_manual_tests",
+        "kernel_mt_loop_scheduler_contract_tests",
+        "kernel_overlay_coordination_records_tests",
+        "kernel_overlay_lifecycle_recovery_tests",
+        "kernel_pre_use_acceptance_run_tests",
+        "kernel_product_screenshot_capture_tests",
+        "kernel_promotion_trace_tests",
+        "kernel_remediation_work_generation_contract_tests",
+        "kernel_reset_invariants_tests",
+        "kernel_role_mailbox_claim_lease_tests",
+        "kernel_role_mailbox_contract_tests",
+        "kernel_role_mailbox_handoff_bundle_tests",
+        "kernel_role_mailbox_inbox_evidence_bridge_tests",
+        "kernel_role_mailbox_loop_control_tests",
+        "kernel_role_mailbox_triage_queue_tests",
+        "kernel_role_turn_isolation_tests",
+        "kernel_runtime_tests",
+        "kernel_session_anti_pattern_registry_tests",
+        "kernel_session_run_ledger_tests",
+        "kernel_session_spawn_conversation_distillation_tests",
+        "kernel_software_delivery_runtime_truth_tests",
+        "kernel_tail_contract_json_roundtrip_tests",
+        "kernel_task_contract_lifecycle_tests",
+        "kernel_validator_finding_report_contract_tests",
+        "kernel_validator_verdict_mediation_contract_tests",
+        "kernel_visual_debugging_loop_tests",
+        "kernel_work_packet_full_detail_authority_tests",
+        "kernel_work_profiles_tests",
+        "kernel_workflow_transition_registry_tests",
+        "kernel_write_boxes_tests",
+        "keyboard_inject_neg_tests",
+        "knowledge_claims_tests",
+        "knowledge_code_index_tests",
+        "knowledge_code_nav_api_tests",
+        "knowledge_crdt_bridge_api_tests",
+        "knowledge_crdt_concurrency_tests",
+        "knowledge_crdt_lease_recovery_tests",
+        "knowledge_crdt_model_tests",
+        "knowledge_crdt_proof_tests",
+        "knowledge_crdt_proposal_tests",
+        "knowledge_delete_title_race_tests",
+        "knowledge_document_model_tests",
+        "knowledge_documents_api_tests",
+        "knowledge_documents_tests",
+        "knowledge_fail_closed_tests",
+        "knowledge_graph_tests",
+        "knowledge_idempotency_tests",
+        "knowledge_ingestion_api_tests",
+        "knowledge_ingestion_fixture_tests",
+        "knowledge_ingestion_hardening_tests",
+        "knowledge_ingestion_lifecycle_tests",
+        "knowledge_ingestion_pipeline_tests",
+        "knowledge_ingestion_policy_tests",
+        "knowledge_memory_api_tests",
+        "knowledge_memory_bridge_tests",
+        "knowledge_memory_conflict_tests",
+        "knowledge_memory_facts_tests",
+        "knowledge_memory_fixtures_tests",
+        "knowledge_memory_ontology_tests",
+        "knowledge_memory_projection_tests",
+        "knowledge_migration_tests",
+        "knowledge_parallel_write_conflict_fixture_tests",
+        "knowledge_retrieval_bridges_tests",
+        "knowledge_retrieval_debug_api_tests",
+        "knowledge_retrieval_pipeline_tests",
+        "knowledge_retrieval_replay_tests",
+        "knowledge_schema_tests",
+        "knowledge_tiptap_roundtrip_fixture_tests",
+        "kv_cache_security_tests",
+        "kv_cache_technique_tests",
+        "lens_viewmode_tests",
+        "llama_cpp_adapter_tests",
+        "llama_cpp_e2e_smoke",
+        "llama_cpp_generate_tests",
+        "llama_cpp_kv_cache_tests",
+        "llama_cpp_loader_tests",
+        "llama_cpp_lora_tests",
+        "llama_cpp_perf_stats_tests",
+        "llama_cpp_score_embed_tests",
+        "llama_cpp_speculative_tests",
+        "llm_client_local_routing_tests",
+        "loom_ai_suggestions_api_tests",
+        "loom_atomic_receipt_tests",
+        "loom_backlink_tests",
+        "loom_block_collection_views_tests",
+        "loom_breadcrumb_tests",
+        "loom_canvas_board_tests",
+        "loom_daily_journal_tests",
+        "loom_folder_tests",
+        "loom_graph_search_filters_tests",
+        "loom_graph_tests",
+        "loom_knowledge_bridge_tests",
+        "loom_media_tiers_tests",
+        "loom_navigation_fixtures_tests",
+        "loom_pins_views_tests",
+        "loom_retrieval_bias_visibility_tests",
+        "loom_search_v2_tests",
+        "loom_tag_hub_tests",
+        "loom_transclusion_tests",
+        "loom_visual_debug_views_tests",
+        "loom_wiki_boundary_tests",
+        "loop_promotion_gate_tests",
+        "loop_scheduler_tests",
+        "lora_hotswap_techniques_tests",
+        "manual_no_context_harness",
+        "memory_builder_tests",
+        "memory_capsule_e2e_tests",
+        "memory_capsule_recorder_surreal_tests",
+        "memory_capsule_tests",
+        "memory_injection_into_local_router_tests",
+        "memory_injection_tests",
+        "memory_ipc_tests",
+        "memory_persistence_tests",
+        "memory_policy_table_tests",
+        "micro_task_job_tests",
+        "model_adapter_sandbox_binding_tests",
+        "model_manual_tests",
+        "model_registry_tests",
+        "model_runtime_contract_tests",
+        "model_runtime_invariant_tests",
+        "model_runtime_kv_cache_tests",
+        "model_runtime_lora_tests",
+        "model_runtime_process_ledger_tests",
+        "model_runtime_steering_tests",
+        "model_runtime_trait_surface_tests",
+        "model_runtime_trait_tests",
+        "model_session_durable_record_tests",
+        "model_swap_events_tests",
+        "mt137_restart_recovery_tests",
+        "mt151_early_lock_release_race_tests",
+        "mt152_anchor_reclamation_tests",
+        "mt152_fems_stage_guard_tests",
+        "mt152_lock_migration_tests",
+        "mt_cancellation_tests",
+        "mt_executor_integration_tests",
+        "mt_executor_tests",
+        "mt_loop_control_tests",
+        "mt_outcome_tests",
+        "mt_scheduler_tests",
+        "native_screenshot_capture_tests",
+        "observability_aggregate_queries_tests",
+        "observability_fr_integration_tests",
+        "observability_span_repo_tests",
+        "outcome_feedback_tests",
+        "peft_pipeline_tests",
+        "pinned_core_tests",
+        "process_ledger_reclaim_tests",
+        "process_ledger_tests",
+        "process_ledger_writer_tests",
+        "progressive_retrieval_tests",
+        "project_wiki_bootstrap_tests",
+        "project_wiki_drift_tests",
+        "project_wiki_fanout_tests",
+        "promotion_floor_tests",
+        "promotion_gate_pause_e2e_tests",
+        "quick_switcher_recents_tests",
+        "quiet_window_tests",
+        "replay_drive_tests",
+        "replay_eval_tests",
+        "restart_resume_tests",
+        "retrieval_mode_tests",
+        "role_mailbox_backpressure_tests",
+        "role_mailbox_exporter_tests",
+        "role_mailbox_families_tests",
+        "role_mailbox_handoff_tests",
+        "role_mailbox_lease_tests",
+        "role_mailbox_repo_tests",
+        "role_mailbox_router_tests",
+        "role_mailbox_v1_tests",
+        "sandbox_adapter_trait_tests",
+        "sandbox_bootstrap_tests",
+        "sandbox_compat_only_tests",
+        "sandbox_cross_adapter_parity_tests",
+        "sandbox_escape_negative_tests",
+        "sandbox_ipc_tests",
+        "sandbox_isolation_tier_tests",
+        "sandbox_promotion_binding_tests",
+        "sandbox_selection_tests",
+        "sandbox_types_tests",
+        "security_portability_validation_tests",
+        "self_improve_e2e_iteration_tests",
+        "self_improve_ipc_tests",
+        "self_improve_loop_core_tests",
+        "self_improve_loop_tests",
+        "session_checkpoint_tests",
+        "source_control_api_tests",
+        "source_control_backend_tests",
+        "spawn_tree_harvester_tests",
+        "speculative_decoding_technique_tests",
+        "steering_vector_store_tests",
+        "storage_conformance",
+        "subquadratic_technique_tests",
+        "surreal_block_crud_tests",
+        "surreal_document_crud_tests",
+        "surreal_storage_lifecycle_tests",
+        "surreal_swarm_lifecycle_tests",
+        "surreal_swarm_load_tests",
+        "surreal_swarm_semantics_tests",
+        "surreal_test_inspector_contract_tests",
+        "surreal_test_store_crash_safety_tests",
+        "surreal_workspace_crud_tests",
+        "swarm_cli_tests",
+        "swarm_distillation_trace_tests",
+        "swarm_harness_baseline_tests",
+        "swarm_invariants_tests",
+        "swarm_ipc_tests",
+        "swarm_n8_perf_tests",
+        "swarm_review_probe_1",
+        "terminal_event_ledger_tests",
+        "tokenization_service_tests",
+        "tokenization_tests",
+        "trace_export_tests",
+        "trace_projection_tests",
+        "user_manual_api_tests",
+        "user_manual_content_tests",
+        "user_manual_freshness_fixture_tests",
+        "user_manual_storage_tests",
+        "uuid_v7_sweep_guard_tests",
+        "validation_runner_sandbox_binding_tests",
+        "validator_first_pass_evaluator_tests",
+        "warm_vm_runtime_tests",
+        "windows_native_jail_adapter_tests",
+        "work_packet_scope_binder_tests",
+        "workbench_layout_state_tests",
+        "workspace_settings_state_tests",
+        "wp009_integration_validator_evidence_pack_tests",
+        "wp_kernel_012_native_editor_routes_tests",
+        "wsl2_podman_adapter_tests"
+      ],
+      "feature_gated_empty_under_set_A": {
+        "inspector": [
+          "a3_inspector_smoke",
+          "inspector_server_tests",
+          "replay_drive_tests",
+          "trace_projection_tests"
+        ],
+        "candle_runtime_engine": [
+          "candle_lora_tests",
+          "candle_mamba2_tests",
+          "candle_rwkv_tests",
+          "candle_rwkv_v7_tests",
+          "candle_transformer_tests",
+          "inf9_subquadratic_full_parity_smoke"
+        ],
+        "note": "candle-runtime-engine targets require the Candle engine feature and Operator-provided model weights (CX-983); they were untouched by the port and carry no forbidden tokens; they are recorded NOT_RUN(feature-gated) and are not an MT-141 proof surface unless the Operator asks for that lane."
+      },
+      "required_features_bundle_B": {
+        "features": "app-runtime,surreal-test-support,test-utils",
+        "targets": [
+          "ai_ready_data_arch_tests",
+          "crash_recovery_e2e",
+          "distillation_corpus_extractor_tests",
+          "mcp_e2e_tests",
+          "mcp_gate_tests",
+          "mex_tests",
+          "micro_task_executor_tests",
+          "model_session_scheduler_tests",
+          "parallel_swarm_state_recovery_tests",
+          "role_mailbox_tests",
+          "role_registry_append_only_tests",
+          "runtime_chat_events_tests",
+          "terminal_guards_tests",
+          "terminal_session_tests"
+        ],
+        "status": "NOT_RUN_BASELINE_STOPPED_BY_OPERATOR"
+      },
+      "lib_suite": {
+        "features": "duckdb-flight-recorder,test-utils",
+        "status": "NOT_RUN_BASELINE_STOPPED_BY_OPERATOR"
+      }
+    },
+    "red_catalogue": [
+      {
+        "index": "014",
+        "target": "atelier_command_corpus_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 315.07s",
+        "failing_tests": [
+          "corpus_entry_upsert_roundtrip_idempotency_and_event",
+          "corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events"
+        ],
+        "panics": [
+          {
+            "test": "corpus_entry_upsert_roundtrip_idempotency_and_event",
+            "at": "tests/atelier_command_corpus_tests.rs:137:10",
+            "message": "re-upsert same action_id: Database(Database(Error { code: -32000, message: \"Database index `uq_atelier_command_corpus_entry_1` already contains 'test.command-d23f4bc8-c18e-4be1-95d0-b94f449fd0d4', with record `atelier_command_corpus_entry:u'01a0a5b7-1078-7893-9ec8-cf43c0df491f'`\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events",
+            "at": "tests/atelier_command_corpus_tests.rs:256:10",
+            "message": "re-record same (action_id, reason): Database(Database(Error { code: -32000, message: \"Database index `uq_atelier_command_corpus_blocked_1` already contains ['test.command-d84edd76-073f-492a-80b2-c035a3e71a7e', 'no_manual_anchor'], with record `atelier_command_corpus_blocked:u'01a0a5b9-9025-7832-8a97-c32d4b631ef0'`\", details: Internal, cause: None }))"
+          }
+        ]
+      },
+      {
+        "index": "015",
+        "target": "atelier_command_log_session_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 72.10s",
+        "failing_tests": [
+          "mt144_stale_session_detected_and_evidence_preserved"
+        ],
+        "panics": [
+          {
+            "test": "mt144_stale_session_detected_and_evidence_preserved",
+            "at": "tests/atelier_command_log_session_tests.rs:179:5",
+            "message": "pure detection must NOT flag the fresh session"
+          }
+        ]
+      },
+      {
+        "index": "016",
+        "target": "atelier_core_data_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 34 passed; 20 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1435.79s",
+        "failing_tests": [
+          "atelier_character_relationships_crud_endpoint_validation_and_graph_projection",
+          "atelier_exports_request_result_idempotency_and_manifest",
+          "atelier_media_source_provenance_refs_direct_row_constraint_probe",
+          "atelier_collections_membership_dedup_order_and_contact_sheet",
+          "atelier_filesystem_health_reports_sidecar_visibility_anomaly_from_catalog_drift",
+          "atelier_collection_batch_metadata_applies_tags_to_members_preserving_photo_tags",
+          "atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts",
+          "atelier_intake_sheet_collection_links_survive_export",
+          "atelier_intake_classification_apply_links_media_and_rolls_back_invalid_target",
+          "atelier_lens_search_filters_default_tier1_and_sfw_hard_drop_without_mutation",
+          "atelier_contact_sheet_svg_artifact_regenerates_from_manifest",
+          "atelier_media_source_provenance_refs_survive_export_pending_archive_and_reingest",
+          "atelier_moodboard_operations_and_export_hooks_produce_receipts_without_gov_outputs",
+          "atelier_moodboard_schema_layer_model_round_trips_full_structure",
+          "atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest",
+          "atelier_saved_searches_reproduce_filters_and_retrieval_projection",
+          "atelier_search_tags_rules_and_similarity",
+          "atelier_story_cards_and_beats_parallel_writes_keep_dense_order",
+          "atelier_web_portfolio_export_records_portable_manifest_contract",
+          "mt067_core_data_integration_smoke_path"
+        ],
+        "panics": [
+          {
+            "test": "atelier_character_relationships_crud_endpoint_validation_and_graph_projection",
+            "at": "tests/atelier_core_data_tests.rs:4521:10",
+            "message": "project relationship graph from source: Database(Database(Error { code: -32000, message: \"Parse error: Missing order idiom `updated_at_utc` in statement selection\\n --> [1:330]\\n  |\\n1 | ... ORDER BY updated_at_utc DESC, relationship_id ASC\\n  |              ^^^^^^^^^^^^^^^^^^^\\n --> [1:8]\\n  |\\n1 | SELECT record::id(edge_id) AS relationship_id, record::id(source_character_id...\\n  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^ …"
+          },
+          {
+            "test": "atelier_exports_request_result_idempotency_and_manifest",
+            "at": "tests/atelier_core_data_tests.rs:6084:10",
+            "message": "re-record identical export result: Database(Database(Error { code: -32000, message: \"Database index `uq_atelier_export_result_1` already contains [atelier_export_request:u'e8324330-7224-4835-96fe-9d5e27b1d006', 'sha256-cadd87e5-7d15-4bb8-bfda-03572252cbe5'], with record `atelier_export_result:u'41cf0ed8-d8c6-4967-9884-f359f6f499de'`\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "atelier_media_source_provenance_refs_direct_row_constraint_probe",
+            "at": "tests/atelier_core_data_tests.rs:1251:10",
+            "message": "live schema must reject all-none provenance refs: ()"
+          },
+          {
+            "test": "atelier_collections_membership_dedup_order_and_contact_sheet",
+            "at": "tests/atelier_core_data_tests.rs:2556:10",
+            "message": "add three images: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "atelier_filesystem_health_reports_sidecar_visibility_anomaly_from_catalog_drift",
+            "at": "tests/atelier_core_data_tests.rs:470:10",
+            "message": "record valid sidecar relation: Validation(\"media sidecar cannot reference itself as parent\")"
+          },
+          {
+            "test": "atelier_collection_batch_metadata_applies_tags_to_members_preserving_photo_tags",
+            "at": "tests/atelier_core_data_tests.rs:2669:10",
+            "message": "add collection members for metadata batch: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts",
+            "at": "tests/atelier_core_data_tests.rs:5066:10",
+            "message": "record searchable moodboard snapshot: Database(Database(Error { code: -32000, message: \"Failed to deserialize field 'current_version_id' on type 'DocumentHeadRow': Failed to convert to none | record: Expected record, got uuid\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "atelier_intake_sheet_collection_links_survive_export",
+            "at": "tests/atelier_core_data_tests.rs:2466:10",
+            "message": "attach version-agnostic intake link to export: Database(Database(Error { code: -32000, message: \"Incorrect arguments for function record::id(). Argument 1 was the wrong type. Expected `record` but found `NONE`\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "atelier_intake_classification_apply_links_media_and_rolls_back_invalid_target",
+            "at": "tests/atelier_core_data_tests.rs:1920:10",
+            "message": "apply accepted classification to media target: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "atelier_lens_search_filters_default_tier1_and_sfw_hard_drop_without_mutation",
+            "at": "tests/atelier_core_data_tests.rs:5254:10",
+            "message": "run default lens search: Database(Database(Error { code: -32000, message: \"Incorrect arguments for function array::sort::asc(). Expected 1 argument\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "atelier_contact_sheet_svg_artifact_regenerates_from_manifest",
+            "at": "tests/atelier_core_data_tests.rs:2786:10",
+            "message": "add members for svg contact sheet: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "atelier_media_source_provenance_refs_survive_export_pending_archive_and_reingest",
+            "at": "tests/atelier_core_data_tests.rs:906:14",
+            "message": "add provenance media to source collection: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "atelier_moodboard_operations_and_export_hooks_produce_receipts_without_gov_outputs",
+            "at": "tests/atelier_core_data_tests.rs:3864:10",
+            "message": "record source moodboard snapshot for operation/export proof: Database(Database(Error { code: -32000, message: \"Failed to deserialize field 'current_version_id' on type 'DocumentHeadRow': Failed to convert to none | record: Expected record, got uuid\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "atelier_moodboard_schema_layer_model_round_trips_full_structure",
+            "at": "tests/atelier_core_data_tests.rs:3637:10",
+            "message": "record moodboard snapshot: Database(Database(Error { code: -32000, message: \"Failed to deserialize field 'current_version_id' on type 'DocumentHeadRow': Failed to convert to none | record: Expected record, got uuid\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest",
+            "at": "tests/atelier_core_data_tests.rs:6975:10",
+            "message": "record preferences-only reset: Database(Database(Error { code: -32000, message: \"Parse error: Unexpected token `END` expected delimiter `}`\\n --> [1:424]\\n  |\\n1 | ... { NONE } END }; IF $domain.preserve_original_media { CREATE $domain.manif...\\n  |              ^^^\\n --> [1:87]\\n  |\\n1 | ...d CONTENT { reset_id: $domain.reset_id, mode: $domain.mode, requested_by: ...\\n  |              ^ expected this delimiter to cl …"
+          },
+          {
+            "test": "atelier_saved_searches_reproduce_filters_and_retrieval_projection",
+            "at": "tests/atelier_core_data_tests.rs:5503:10",
+            "message": "add scoped assets to collection: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "atelier_search_tags_rules_and_similarity",
+            "at": "tests/atelier_core_data_tests.rs:5791:5",
+            "message": "the near (1-bit) asset is returned within the threshold"
+          },
+          {
+            "test": "atelier_story_cards_and_beats_parallel_writes_keep_dense_order",
+            "at": "tests/atelier_core_data_tests.rs:3420:18",
+            "message": "parallel card insert: Database(Database(Error { code: -32000, message: \"Database index `uq_atelier_story_card_1` already contains [atelier_character_document:u'01a0a5cd-37ed-7f03-a5de-e53ce4194084', 6], with record `atelier_story_card:u'01a0a5cd-3bcf-7770-befe-e6b443afcd13'`\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "atelier_web_portfolio_export_records_portable_manifest_contract",
+            "at": "tests/atelier_core_data_tests.rs:6484:10",
+            "message": "add web portfolio members: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "mt067_core_data_integration_smoke_path",
+            "at": "tests/atelier_core_data_tests.rs:7595:10",
+            "message": "apply accepted intake classification: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          }
+        ]
+      },
+      {
+        "index": "019",
+        "target": "atelier_diagnostics_projections_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 106.70s",
+        "failing_tests": [
+          "mt153_stealth_capture_extension",
+          "mt147_work_state_projection_round_trips"
+        ],
+        "panics": [
+          {
+            "test": "mt153_stealth_capture_extension",
+            "at": "tests/atelier_diagnostics_projections_tests.rs:316:10",
+            "message": "re-store screenshot artifact (pin): Database(Database(Error { code: -32000, message: \"Couldn't coerce value for field `created_at_utc` of `atelier_screenshot_artifact_storage:`sas-1acd9d03-69b3-47fd-8056-f25e49b774f7``: Expected `datetime` but found `NONE`\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "mt147_work_state_projection_round_trips",
+            "at": "tests/atelier_diagnostics_projections_tests.rs:106:10",
+            "message": "re-record work-state projection: Database(Database(Error { code: -32000, message: \"Couldn't coerce value for field `created_at_utc` of `atelier_work_state_projection:`wsp-7d795114-5e5c-4a35-bb38-aa2b385493a9``: Expected `datetime` but found `NONE`\", details: Internal, cause: None }))"
+          }
+        ]
+      },
+      {
+        "index": "020",
+        "target": "atelier_diagnostics_typed_surfaces_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 106.49s",
+        "failing_tests": [
+          "mt166_reset_orphan_diagnostics_projection"
+        ],
+        "panics": [
+          {
+            "test": "mt166_reset_orphan_diagnostics_projection",
+            "at": "tests/atelier_diagnostics_typed_surfaces_tests.rs:246:10",
+            "message": "record full-preserve reset: Database(Database(Error { code: -32000, message: \"Parse error: Missing order idiom `created_at_utc` in statement selection\\n --> [1:438]\\n  |\\n1 | ... ORDER BY created_at_utc ASC, asset_id ASC\\n  |              ^^^^^^^^^^^^^^^^^^\\n --> [1:8]\\n  |\\n1 | SELECT id AS asset_ref, content_hash, artifact_ref, mime, byte_len, retention...\\n  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ …"
+          }
+        ]
+      },
+      {
+        "index": "022",
+        "target": "atelier_downloader_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 181.28s",
+        "failing_tests": [
+          "downloader_auth_context_rejects_inline_secrets_and_redacts",
+          "downloader_config_allowlist_and_portability_guard"
+        ],
+        "panics": [
+          {
+            "test": "downloader_auth_context_rejects_inline_secrets_and_redacts",
+            "at": "tests/atelier_downloader_tests.rs:628:10",
+            "message": "re-register same label: Database(Database(Error { code: -32000, message: \"Couldn't coerce value for field `created_at_utc` of `atelier_md_auth_context:u'f02499e7-ffc8-5012-a7c1-7a049d988293'`: Expected `datetime` but found `NONE`\", details: Internal, cause: None }))"
+          },
+          {
+            "test": "downloader_config_allowlist_and_portability_guard",
+            "at": "tests/atelier_downloader_tests.rs:466:10",
+            "message": "re-set same output root: Database(Database(Error { code: -32000, message: \"Couldn't coerce value for field `created_at_utc` of `atelier_md_output_root:u'9b1999b9-cbe0-57c1-8042-a9887a9e7808'`: Expected `datetime` but found `NONE`\", details: Internal, cause: None }))"
+          }
+        ]
+      },
+      {
+        "index": "023",
+        "target": "atelier_editable_surface_authority_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 108.74s",
+        "failing_tests": [
+          "mt149_retrieval_policy_surface_defaults_then_promotes_to_embedded_store",
+          "mt149_policy_surface_clamps_out_of_range_proposals_before_any_durable_write"
+        ],
+        "panics": [
+          {
+            "test": "mt149_retrieval_policy_surface_defaults_then_promotes_to_embedded_store",
+            "at": "tests/atelier_editable_surface_authority_tests.rs:210:47",
+            "message": "snapshot policy surface: Io { message: \"atelier database error: embedded database error: Parse error: Unexpected token `,`, expected an expression\\n --> [1:13]\\n  |\\n1 | SELECT value, updated_by, updated_at_utc FROM atelier_retrieval_policy WHERE ...\\n  |             ^\\n\" }"
+          },
+          {
+            "test": "mt149_policy_surface_clamps_out_of_range_proposals_before_any_durable_write",
+            "at": "tests/atelier_editable_surface_authority_tests.rs:308:47",
+            "message": "snapshot policy surface: Io { message: \"atelier database error: embedded database error: Parse error: Unexpected token `,`, expected an expression\\n --> [1:13]\\n  |\\n1 | SELECT value, updated_by, updated_at_utc FROM atelier_retrieval_policy WHERE ...\\n  |             ^\\n\" }"
+          }
+        ]
+      },
+      {
+        "index": "025",
+        "target": "atelier_fixture_corpus_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 6 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 271.75s",
+        "failing_tests": [
+          "mt066_reset_orphan_fixture_corpus_round_trips",
+          "mt063_collection_contact_sheet_fixture_corpus_round_trips",
+          "mt076_web_portfolio_export_fixture_corpus_round_trips",
+          "mt064_docs_moodboard_relations_fixture_corpus_round_trips"
+        ],
+        "panics": [
+          {
+            "test": "mt066_reset_orphan_fixture_corpus_round_trips",
+            "at": "tests/atelier_fixture_corpus_tests.rs:1273:10",
+            "message": "record preferences-only reset from fixture: Database(Database(Error { code: -32000, message: \"Parse error: Unexpected token `END` expected delimiter `}`\\n --> [1:424]\\n  |\\n1 | ... { NONE } END }; IF $domain.preserve_original_media { CREATE $domain.manif...\\n  |              ^^^\\n --> [1:87]\\n  |\\n1 | ...d CONTENT { reset_id: $domain.reset_id, mode: $domain.mode, requested_by: ...\\n  |              ^ expected this de …"
+          },
+          {
+            "test": "mt063_collection_contact_sheet_fixture_corpus_round_trips",
+            "at": "tests/atelier_fixture_corpus_tests.rs:480:10",
+            "message": "add images to collection: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "mt076_web_portfolio_export_fixture_corpus_round_trips",
+            "at": "tests/atelier_fixture_corpus_tests.rs:1539:10",
+            "message": "add web portfolio members: Database(Database(Error { code: -32006, message: \"An error occurred: Cannot perform subtraction with 'int' and 'none'\", details: Thrown, cause: None }))"
+          },
+          {
+            "test": "mt064_docs_moodboard_relations_fixture_corpus_round_trips",
+            "at": "tests/atelier_fixture_corpus_tests.rs:771:22",
+            "message": "record moodboard snapshot from fixture: Database(Database(Error { code: -32000, message: \"Failed to deserialize field 'current_version_id' on type 'DocumentHeadRow': Failed to convert to none | record: Expected record, got uuid\", details: Internal, cause: None }))"
+          }
+        ]
+      },
+      {
+        "index": "027",
+        "target": "atelier_image_import_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 241.04s",
+        "failing_tests": [
+          "url_image_import_redacts_path_material_before_persistence"
+        ],
+        "panics": [
+          {
+            "test": "url_image_import_redacts_path_material_before_persistence",
+            "at": "tests/atelier_image_import_tests.rs:456:5",
+            "message": "assertion `left == right` failed"
+          }
+        ]
+      },
+      {
+        "index": "031",
+        "target": "atelier_kernel_smoke_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.07s",
+        "failing_tests": [
+          "mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_embedded_store"
+        ],
+        "panics": [
+          {
+            "test": "mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_embedded_store",
+            "at": "tests/atelier_kernel_smoke_tests.rs:151:10",
+            "message": "claim smoke lease: Database(Database(Error { code: -32000, message: \"Parse error: Invalid function/constant path, did you maybe mean `duration::from_secs`\\n --> [1:1192]\\n  |\\n1 | ...c: $now + duration::from::secs($ttl_seconds), prior_claim_id: $prior, link...\\n  |              ^^^^^^^^^^^^^^^^^^^^\\n\", details: Validation(None), cause: None }))"
+          }
+        ]
+      },
+      {
+        "index": "032",
+        "target": "atelier_loom_projection_api_tests",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.98s",
+        "failing_tests": [
+          "real_atelier_endpoint_returns_durable_canonical_loom_identity"
+        ],
+        "panics": [
+          {
+            "test": "real_atelier_endpoint_returns_durable_canonical_loom_identity",
+            "at": "tests/atelier_loom_projection_api_tests.rs:227:5",
+            "message": "assertion `left == right` failed"
+          }
+        ]
+      }
+    ],
+    "expected_red_by_disposition": [],
+    "expected_red_note": "No MT-150 row remains BLOCKED_ON_PRODUCT_SEAM / BLOCKED_ON_PRODUCT_DEFECT at HEAD (MT-150 validation_v3 PASS_V3 at 7f9998e3: 47/47 PORTED; all five formerly blocked Loom tests and the three memory-IPC tests exist as active tests). Every red in red_catalogue is therefore an MT-141 failure under the packet rule, with product-side root causes routed as below.",
+    "carried_debt_known_not_relitigated": [
+      "lib: storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin (9 vs 10 fn::mt109_*; MT-109 lane; MT150-V3-F04)",
+      "lib: 3 schemaless in-source storage::surreal::loom_store::tests (collection_replacement_is_atomic_and_survives_close_reopen, block_search_projection_update_and_view_ordering_use_real_store, graph_search_covers_every_declared_source_kind)",
+      "124 legacy leaked stores under the global handshake-test root (pre-existing)",
+      "NOT OBSERVED this session because the lib suite was not run."
+    ],
+    "acceptance_criteria_status": {
+      "AC-141-1": "MET. PR-141-1-scan / -cargo-toml / -cargo-lock / -broad: zero dependencies; every token hit is a string-literal tripwire, content fixture, comment, or disposition record. Observation (not a violation, out of MT-141 scope): tests/kernel_action_catalog_residual_tests.rs:36,43 asserts the live product action id kernel.postgres_residual.project / hook postgres_residual_mapping in the src/ catalog.",
+      "AC-141-2": "SUBSTANTIVELY_SATISFIED_WITH_FINDINGS. Compile half: PR-141-2-build exit 0 (394 executables). Preservation half: PR-141-3-disposition 57/57 resolved at HEAD. Findings: (F03) tests/atelier_command_log_session_tests.rs mt144 port inverted the original proof design (R12) - a retained test whose proof intent is not preserved at equivalent strength; (F04) typed-table drift (see independent_findings). The mt120 restoration proof (proof_commands[0]) has not been executed by the validator this session.",
+      "AC-141-3": "MET. Process ledger: process_ledger_tests.rs:24-40 helper (shutdown + SurrealStorage::open on backend.data_dir) at :236; mt137_restart_recovery_tests.rs:388-521 (shutdown :500-501, open(&path) :503; helper :262-271); crash_recovery_e2e/runtime_chaos.rs:235-248 (real child hard-kill, reopen of its data_dir). Session checkpoint: session_checkpoint_tests.rs:18-32 helper at :604/633/675/1732/1771; mt137_restart_recovery_tests.rs:718. CRDT persistence: knowledge_crdt_proof_tests.rs:39-60 helper at :579 inside drafts_snapshot_promote_replay_identically_with_idempotency (reopened handle lists updates, replays, reads bytes and snapshots :580-600); kernel_crdt_promotion_bridge_tests.rs:268; knowledge_crdt_concurrency_tests.rs:340; knowledge_crdt_lease_recovery_tests.rs:402/613/758. EventLedger: atelier_event_ledger_tests.rs:159-161 via atelier_surreal_support/mod.rs:167-203 (shutdown, reopen on the retained directory); terminal_event_ledger_tests.rs:17-35 at :84; kernel_end_to_end_tests.rs:299-335 restart_reconstruction_proof (shutdown :328, reopen :333). SurrealStorage::shutdown (src/storage/surreal.rs:1361) drains and drops the sole engine handle and on Windows waits for the RocksDB LOCK release. Finding F05 (naming overclaim) below.",
+      "AC-141-4": "NOT_MET. Baseline set A executed 32/393 binaries (207 tests) before the Operator stopped it: 21 green, 11 red (37 failing tests). Lib suite, the 14-target app-runtime bundle and the 4-target inspector bundle not run. Per-run isolation held (fresh workspace per binary, runtime root empty after every run); see residue_inventory for the tempfile-rooted store leak."
+    },
+    "disposition_reconciliation_at_head": {
+      "basis": "HEAD 6f19a52425333d32673d7628f72727c869de7e51; MT-150 renames applied: derived_native_principal_from_stage_route -> document_save_authenticates_same_native_principal_as_independent_stage_route; kernel_action_catalog_exposes_postgres_residual_projection_action -> kernel_action_catalog_exposes_residual_projection_action; mt122/mt123/mt124/mt125_*_live_pg_surface -> *_live_surface; capsule_recorder_persists_via_kernel_action_catalog_against_postgres -> ..._against_embedded_store; capsule_recorder_postgres_dedup_collapses_duplicate_submissions -> capsule_recorder_dedup_collapses_duplicate_submissions; memory_ipc_*_via/through_postgres_store* -> *_surreal_store*; capsule_builder_injector_recorder_and_ipc_compose_over_real_postgres -> ..._over_embedded_surreal",
+      "rows": [
+        {
+          "test": "stage_0348_repairs_legacy_recovered_byte_integrity",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "RETIRED_BEHAVIOUR_REMOVED",
+          "head_state": "REMOVED_BEHAVIOUR_VERIFIED",
+          "head_evidence": "PostgreSQL jsonb::text round-trip corrupting byte-derived digest fields (migration 0341->0346->0348 repair). The defect and its repair mechanism do not exist without PostgreSQL."
+        },
+        {
+          "test": "postgres_residual_scope_preserves_folded_stubs_and_maps_without_reopening_bundle",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_control_plane_residual_tests.rs",
+          "typed_disposition_mt141": "RETIRED_BEHAVIOUR_REMOVED",
+          "head_state": "REMOVED_BEHAVIOUR_VERIFIED",
+          "head_evidence": "grep PostgresControlPlaneResidualScopeV1 / StorageAuthorityMode over src/: 0 hits at HEAD"
+        },
+        {
+          "test": "postgres_residual_scope_rejects_sqlite_as_authority_for_postgres_required_work",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_control_plane_residual_tests.rs",
+          "typed_disposition_mt141": "RETIRED_BEHAVIOUR_REMOVED",
+          "head_state": "REMOVED_BEHAVIOUR_VERIFIED",
+          "head_evidence": "grep PostgresControlPlaneResidualScopeV1 / StorageAuthorityMode over src/: 0 hits at HEAD"
+        },
+        {
+          "test": "mt045_code_nav_index_returns_symbol_count",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "COVERED_ELSEWHERE",
+          "head_state": "SUPERSEDING_PROOF_PRESENT_AT_HEAD",
+          "head_evidence": "tests/knowledge_code_nav_api_tests.rs:103 mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded"
+        },
+        {
+          "test": "kernel_event_ledger_migration",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+          "typed_disposition_mt141": "COVERED_ELSEWHERE",
+          "head_state": "SUPERSEDING_PROOF_PRESENT_AT_HEAD",
+          "head_evidence": "tests/atelier_source_evidence_tests.rs:599 mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_schema"
+        },
+        {
+          "test": "kernel_event_ledger_replays_by_aggregate_id_in_sequence_order",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+          "typed_disposition_mt141": "COVERED_ELSEWHERE",
+          "head_state": "SUPERSEDING_PROOF_PRESENT_AT_HEAD",
+          "head_evidence": "tests/terminal_event_ledger_tests.rs:59 terminal_capture_session_receipts_land_in_surreal_event_ledger (reopen via helper :17-35, used :84)"
+        },
+        {
+          "test": "kernel_event_ledger_idempotency_rejects_divergent_duplicate",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+          "typed_disposition_mt141": "COVERED_ELSEWHERE",
+          "head_state": "SUPERSEDING_PROOF_PRESENT_AT_HEAD",
+          "head_evidence": "tests/knowledge_code_index_tests.rs:91,132 event_ledger_idempotency_uses_payload_hash_not_jsonb_shape / _conflict_reports_key_and_hashes"
+        },
+        {
+          "test": "mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "RESTORED_IN_MT-141",
+          "head_state": "RESTORED_TEST_PRESENT_AT_HEAD",
+          "head_evidence": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs:3428",
+          "typed_proof_status_in_mt141_table": "PENDING_COMPILE_AND_RUN",
+          "proof_at_head": "NOT_RUN_THIS_SESSION (baseline stopped at Operator direction before knowledge_documents_api_tests; prior builder run 3/3 at 0513d99b is triage input only)"
+        },
+        {
+          "test": "mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_identity",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "RESTORED_IN_MT-141",
+          "head_state": "RESTORED_TEST_PRESENT_AT_HEAD",
+          "head_evidence": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs:3494",
+          "typed_proof_status_in_mt141_table": "PENDING_COMPILE_AND_RUN",
+          "proof_at_head": "NOT_RUN_THIS_SESSION (baseline stopped at Operator direction before knowledge_documents_api_tests; prior builder run 3/3 at 0513d99b is triage input only)"
+        },
+        {
+          "test": "mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "RESTORED_IN_MT-141",
+          "head_state": "RESTORED_TEST_PRESENT_AT_HEAD",
+          "head_evidence": "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs:3551",
+          "typed_proof_status_in_mt141_table": "PENDING_COMPILE_AND_RUN",
+          "proof_at_head": "NOT_RUN_THIS_SESSION (baseline stopped at Operator direction before knowledge_documents_api_tests; prior builder run 3/3 at 0513d99b is triage input only)"
+        },
+        {
+          "test": "stage_capture_rejects_crash_stale_binding_without_residue",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "stage_capture_rejects_crash_stale_binding_without_residue",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:1182",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "derived_native_principal_from_stage_route",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "document_save_authenticates_same_native_principal_as_independent_stage_route",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:1332",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN",
+          "renamed": true
+        },
+        {
+          "test": "activity_span_write_is_event_and_workspace_scoped",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "activity_span_write_is_event_and_workspace_scoped",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:1416",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "route1_locus_work_packet_resolve",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "route1_locus_work_packet_resolve",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:1597",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "route1_locus_micro_task_resolve",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "route1_locus_micro_task_resolve",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:1644",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "route2_stage_artifact_create_and_resolve",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "route2_stage_artifact_create_and_resolve",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:1679",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "stage_flight_projection_failure_returns_500_and_retry_heals_once",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "stage_flight_projection_failure_returns_500_and_retry_heals_once",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:2042",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt067_calendar_event_populates_daily_note_doc_id",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt067_calendar_event_populates_daily_note_doc_id",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:2230",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt067_activity_span_create_and_query_round_trip",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt067_activity_span_create_and_query_round_trip",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:2275",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_residue",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt067_storage_boundary_rejects_invalid_temporal_rows_without_authority_residue",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:2376",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "durable_claim_and_lease",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "durable_claim_and_lease",
+          "head_evidence": "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs:68",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt022_folder_create_appends_atomic_receipt_and_survives_restart",
+          "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt022_folder_create_appends_atomic_receipt_and_survives_restart",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:456",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt022_folder_update_delete_member_are_atomic_with_receipts",
+          "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt022_folder_update_delete_member_are_atomic_with_receipts",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:505",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt022_folder_create_rolls_back_when_ledger_append_fails",
+          "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt022_folder_create_rolls_back_when_ledger_append_fails",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:567",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt023_tag_edge_create_appends_atomic_receipt_and_survives_restart",
+          "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt023_tag_edge_create_appends_atomic_receipt_and_survives_restart",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:847",
+          "mt150_typed_disposition_at_67ce701c": "BLOCKED_ON_PRODUCT_SEAM"
+        },
+        {
+          "test": "mt023_tag_edge_create_rolls_back_when_ledger_append_fails",
+          "origin_file": "src/backend/handshake_core/tests/loom_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt023_tag_edge_create_rolls_back_when_ledger_append_fails",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:913",
+          "mt150_typed_disposition_at_67ce701c": "BLOCKED_ON_PRODUCT_SEAM"
+        },
+        {
+          "test": "mt024_pin_order_set_appends_atomic_receipt_and_survives_restart",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt024_pin_order_set_appends_atomic_receipt_and_survives_restart",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:621",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt024_pin_order_set_rolls_back_when_ledger_append_fails",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt024_pin_order_set_rolls_back_when_ledger_append_fails",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:673",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt024_favorite_mutation_appends_atomic_receipt_and_survives_restart",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt024_favorite_mutation_appends_atomic_receipt_and_survives_restart",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:973",
+          "mt150_typed_disposition_at_67ce701c": "BLOCKED_ON_PRODUCT_SEAM"
+        },
+        {
+          "test": "mt024_favorite_mutation_rolls_back_when_ledger_append_fails",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt024_favorite_mutation_rolls_back_when_ledger_append_fails",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:1055",
+          "mt150_typed_disposition_at_67ce701c": "BLOCKED_ON_PRODUCT_SEAM"
+        },
+        {
+          "test": "mt024_pin_removal_rolls_back_and_leaves_no_partial_state",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt024_pin_removal_rolls_back_and_leaves_no_partial_state",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:784",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt024_mention_edge_backlink_is_atomic_and_survives_restart",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt024_mention_edge_backlink_is_atomic_and_survives_restart",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:1121",
+          "mt150_typed_disposition_at_67ce701c": "BLOCKED_ON_PRODUCT_SEAM"
+        },
+        {
+          "test": "mt025_wiki_overlay_appends_atomic_receipt_and_survives_restart",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt025_wiki_overlay_appends_atomic_receipt_and_survives_restart",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:1780",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt025_wiki_overlay_rolls_back_when_ledger_append_fails",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt025_wiki_overlay_rolls_back_when_ledger_append_fails",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:1839",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt164_build_rule_read_evidence_passes_gate_and_persists_ledger_row",
+          "origin_file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt164_build_rule_read_evidence_passes_gate_and_persists_ledger_row",
+          "head_evidence": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs:107",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt164_unacknowledged_build_rule_blocks_gate_with_durable_block_row",
+          "origin_file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt164_unacknowledged_build_rule_blocks_gate_with_durable_block_row",
+          "head_evidence": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs:155",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt164_manual_hbr_rows_are_wired_with_concrete_routes",
+          "origin_file": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt164_manual_hbr_rows_are_wired_with_concrete_routes",
+          "head_evidence": "src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs:209",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "kernel_action_catalog_exposes_postgres_residual_projection_action",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_control_plane_residual_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "kernel_action_catalog_exposes_residual_projection_action",
+          "head_evidence": "src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs:31",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN",
+          "renamed": true
+        },
+        {
+          "test": "memory_ipc_list_and_get_round_trips_via_postgres_store",
+          "origin_file": "src/backend/handshake_core/tests/memory_ipc_postgres_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "memory_ipc_list_and_get_round_trips_via_surreal_store",
+          "head_evidence": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:256",
+          "mt150_typed_disposition_at_67ce701c": "BLOCKED_ON_PRODUCT_DEFECT (typed table stale; MT-150 validation_v3 records 47/47 PORTED at 7f9998e3; typed file also wrong: lists atelier_manual_rows_parity_tests.rs)",
+          "renamed": true
+        },
+        {
+          "test": "memory_ipc_suppression_persists_through_postgres_store_durably",
+          "origin_file": "src/backend/handshake_core/tests/memory_ipc_postgres_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "memory_ipc_suppression_persists_through_surreal_store_durably",
+          "head_evidence": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:301",
+          "mt150_typed_disposition_at_67ce701c": "BLOCKED_ON_PRODUCT_DEFECT (typed table stale; MT-150 validation_v3 records 47/47 PORTED at 7f9998e3; typed file also wrong: lists atelier_manual_rows_parity_tests.rs)",
+          "renamed": true
+        },
+        {
+          "test": "capsule_builder_injector_recorder_and_ipc_compose_over_real_postgres",
+          "origin_file": "src/backend/handshake_core/tests/memory_capsule_e2e_postgres_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "capsule_builder_injector_recorder_and_ipc_compose_over_embedded_surreal",
+          "head_evidence": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:357",
+          "mt150_typed_disposition_at_67ce701c": "BLOCKED_ON_PRODUCT_DEFECT (typed table stale; MT-150 validation_v3 records 47/47 PORTED at 7f9998e3; typed file also wrong: lists atelier_manual_rows_parity_tests.rs)",
+          "renamed": true
+        },
+        {
+          "test": "capsule_recorder_persists_via_kernel_action_catalog_against_postgres",
+          "origin_file": "src/backend/handshake_core/tests/memory_persistence_postgres_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "capsule_recorder_persists_via_kernel_action_catalog_against_embedded_store",
+          "head_evidence": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:156",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN",
+          "renamed": true
+        },
+        {
+          "test": "capsule_recorder_postgres_dedup_collapses_duplicate_submissions",
+          "origin_file": "src/backend/handshake_core/tests/memory_persistence_postgres_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "capsule_recorder_dedup_collapses_duplicate_submissions",
+          "head_evidence": "src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs:218",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_RED_ON_PRODUCT_DEFECT:DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE",
+          "renamed": true
+        },
+        {
+          "test": "stage_denial_limits_and_attribution_apply_at_the_authentication_boundary",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "stage_denial_limits_and_attribution_apply_at_the_authentication_boundary",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:2547",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "route3_calendar_events_returns_events_in_window",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "route3_calendar_events_returns_events_in_window",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:2723",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "route6_document_soft_delete_tombstones_and_receipts",
+          "origin_file": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "route6_document_soft_delete_tombstones_and_receipts",
+          "head_evidence": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs:2936",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt024_pin_removal_is_atomic_and_survives_restart",
+          "origin_file": "src/backend/handshake_core/tests/loom_block_wiki_atomic_receipt_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt024_pin_removal_is_atomic_and_survives_restart",
+          "head_evidence": "src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs:723",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "kernel_event_ledger_contract_metadata_idempotency_and_sequence",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "kernel_event_ledger_contract_metadata_idempotency_and_sequence",
+          "head_evidence": "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs:151",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "kernel_event_ledger_api_appends_and_lists_kernel_events_for_session",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "kernel_event_ledger_api_appends_and_lists_kernel_events_for_session",
+          "head_evidence": "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs:244",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "durable_claim_matches_retry_backpressure_and_deadletter_state_table",
+          "origin_file": "src/backend/handshake_core/tests/kernel_postgres_event_ledger_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "durable_claim_matches_retry_backpressure_and_deadletter_state_table",
+          "head_evidence": "src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs:349",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt074_llm_evidence_pack_manual_row_documents_live_export_surface",
+          "origin_file": "src/backend/handshake_core/tests/atelier_manual_source_rows_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt074_llm_evidence_pack_manual_row_documents_live_export_surface",
+          "head_evidence": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs:153",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt075_backup_manual_rows_document_live_backup_and_preflight_surface",
+          "origin_file": "src/backend/handshake_core/tests/atelier_manual_source_rows_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt075_backup_manual_rows_document_live_backup_and_preflight_surface",
+          "head_evidence": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs:277",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        },
+        {
+          "test": "mt122_pose_context_and_rig_manual_rows_document_live_pg_surface",
+          "origin_file": "src/backend/handshake_core/tests/atelier_pose_comfy_manual_rows_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt122_pose_context_and_rig_manual_rows_document_live_surface",
+          "head_evidence": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs:403",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN",
+          "renamed": true
+        },
+        {
+          "test": "mt123_pose_sidecar_and_identity_manual_rows_document_live_pg_surface",
+          "origin_file": "src/backend/handshake_core/tests/atelier_pose_comfy_manual_rows_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt123_pose_sidecar_and_identity_manual_rows_document_live_surface",
+          "head_evidence": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs:523",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN",
+          "renamed": true
+        },
+        {
+          "test": "mt124_comfy_workflow_receipt_manual_rows_document_live_pg_surface",
+          "origin_file": "src/backend/handshake_core/tests/atelier_pose_comfy_manual_rows_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt124_comfy_workflow_receipt_manual_rows_document_live_surface",
+          "head_evidence": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs:708",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN",
+          "renamed": true
+        },
+        {
+          "test": "mt125_deferred_boundary_manual_rows_document_live_pg_surface",
+          "origin_file": "src/backend/handshake_core/tests/atelier_pose_comfy_manual_rows_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt125_deferred_boundary_manual_rows_document_live_surface",
+          "head_evidence": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs:917",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN",
+          "renamed": true
+        },
+        {
+          "test": "mt130_job_lifecycle_and_registration_recovery_event_families_land_in_ledger",
+          "origin_file": "src/backend/handshake_core/tests/atelier_comfy_job_registration_event_families_pg_tests.rs",
+          "typed_disposition_mt141": "ROUTED_TO_MT-150",
+          "head_state": "RESTORED_IN_MT-150_PRESENT_AT_HEAD",
+          "restored_as": "mt130_job_lifecycle_and_registration_recovery_event_families_land_in_ledger",
+          "head_evidence": "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs:1108",
+          "mt150_typed_disposition_at_67ce701c": "PORTED_GREEN"
+        }
+      ]
+    },
+    "resolved_prior_findings": [
+      {
+        "id": "builder AC-141-1 MET claim",
+        "status": "CONFIRMED by PR-141-1-* (validator's own scans)"
+      },
+      {
+        "id": "builder AC-141-3 MET claim + naming_trap_recorded",
+        "status": "CONFIRMED; the two misnamed CRDT tests never reopen, and neither did their pre-4f92cc25 originals (kernel_crdt_updates_persist_and_replay_after_postgres_reconnect / ..._after_restart used one handle), so strength is equivalent"
+      },
+      {
+        "id": "builder AC-141-2 resolution_2026_09_10 (Option A: 47 routed to MT-150)",
+        "status": "CONFIRMED structurally at HEAD (PR-141-3-disposition); typed table stale (F04)"
+      },
+      {
+        "id": "builder AC-141-4 NOT_MET (suite-run-1 36 lib failures, genuine src defects)",
+        "status": "CONSISTENT: this session's partial baseline surfaces 16 product-side root-cause groups plus one tests/ defect; lib not re-run"
+      },
+      {
+        "id": "coordinator triage: HEAD differs from 7f9998e3 only in ci.yml",
+        "status": "CONFIRMED (git log 7f9998e3..6f19a524 = fix(MT-147) .github/workflows change only)"
+      },
+      {
+        "id": "coordinator triage: api/knowledge_documents.rs changed after 0513d99b",
+        "status": "NOT CONFIRMED: git log 0513d99b..HEAD -- src/backend/handshake_core/src/api/knowledge_documents.rs is empty; the guard at :98/:467 is unchanged"
+      },
+      {
+        "id": "coordinator triage: $existing shadowing localization",
+        "status": "CONFIRMED at all six product sites (R1) and refuted for pose.rs:1841/1868, bulk.rs, media.rs, downloader.rs (reads precede the splice)"
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "F01",
+        "severity": "BLOCKING",
+        "class": "PRODUCT_DEFECT",
+        "summary": "11 of 32 executed set-A binaries red, 39 failing tests, 16 root-cause groups (R1-R16); 15 groups are src/ defects surfaced by the ported tests, 1 (R12) is a tests/ port defect.",
+        "refs": "red_catalogue, remediation_required"
+      },
+      {
+        "id": "F02",
+        "severity": "BLOCKING",
+        "class": "PROOF_INCOMPLETE",
+        "summary": "AC-141-4 baseline stopped at Operator direction after 32/393 binaries; lib suite, app-runtime bundle (14) and inspector bundle (4) not executed; proof_commands[0] (mt120) not executed by the validator."
+      },
+      {
+        "id": "F03",
+        "severity": "HIGH",
+        "class": "AC-141-2_PROOF_INTENT_INVERTED",
+        "summary": "tests/atelier_command_log_session_tests.rs:140-176 mt144: fresh heartbeat recorded first, 'stale' heartbeat second, 10 ms sleep, 1 ms timeout; the original (git show 4f92cc25^) seeded a deterministically old heartbeat and used minutes(10). MT-141-owned tests/ defect (R12)."
+      },
+      {
+        "id": "F04",
+        "severity": "LOW",
+        "class": "TYPED_TABLE_DRIFT",
+        "summary": "MT-141 pt_141_3_disposition_table: the 3 RESTORED_IN_MT-141 rows still read proof_status PENDING_COMPILE_AND_RUN; the 47 ROUTED rows carry no HEAD-bound restored_as/file. MT-150 pt_150_1_disposition_table at 67ce701c still shows 5 BLOCKED_ON_PRODUCT_SEAM, 3 BLOCKED_ON_PRODUCT_DEFECT, 1 PORTED_RED although validation_v3 records 47/47 PORTED at 7f9998e3, and the three memory-IPC rows name file atelier_manual_rows_parity_tests.rs while the tests live in memory_capsule_recorder_surreal_tests.rs:256/301/357. disposition_reconciliation_at_head in this record carries the HEAD-bound truth; a builder addendum is optional, not required for PASS."
+      },
+      {
+        "id": "F05",
+        "severity": "LOW",
+        "class": "TEST_NAME_OVERCLAIM",
+        "summary": "kernel_crdt_persistence_tests.rs:133 kernel_crdt_updates_persist_and_replay_after_surreal_reopen and kernel_crdt_snapshot_tests.rs:146 kernel_crdt_snapshot_persists_in_surreal_and_bounds_replay_after_restart never shut down or reopen the store (same as their originals); real CRDT reopen proof lives in knowledge_crdt_proof_tests.rs:579 and kernel_crdt_promotion_bridge_tests.rs:268. Non-blocking; rename or add a reopen when the files are next touched."
+      },
+      {
+        "id": "F06",
+        "severity": "MEDIUM",
+        "class": "HANDSHAKE_TEST_STORE_CLEANUP_FAILURE",
+        "summary": "167 embedded SurrealDB stores (each <tmp>/.tmpXXXXXX/handshake-surreal with a RocksDB LOCK file, 20-32 KB) leaked under the lane tmp root across 23 atelier binaries, green ones included (51 from atelier_core_data_tests, 15 atelier_diagnostics_validation_matrix_tests, 10 atelier_fixture_corpus_tests, 10 atelier_comfy_tests, 9 atelier_image_import_tests, 9 atelier_event_ledger_tests, ...). Source: tests/atelier_surreal_support/mod.rs AtelierSurrealHarness::create() adopts tempdir().keep(); OwnedTempRoot::drop does `let _ = fs::remove_dir_all` which fails silently while the engine still holds LOCK when a test drops the harness without shutdown(). Not under HANDSHAKE_SURREAL_TEST_STORE_ROOT (that root stayed empty after every run) and not under workspace/, so per-run isolation held; hygiene defect in the MT-148-owned harness inside MT-141's tree. Non-blocking for this verdict; fix by shutting down before drop or by a Drop that awaits release."
+      },
+      {
+        "id": "F07",
+        "severity": "LOW",
+        "class": "CONCURRENCY_RISK",
+        "summary": "tests/knowledge_documents_api_tests.rs:3145 Mt120NativeBinding::install() mutates process-global HANDSHAKE_STAGE_BINDING_FILE, serialized only among the mt120 tests via MT120_NATIVE_BINDING_LOCK; other tests in the same binary that call stage::capture_context can race it. Not observed (binary not run)."
+      },
+      {
+        "id": "F08",
+        "severity": "LOW",
+        "class": "PRODUCT_NAMING_RESIDUE",
+        "summary": "src/ kernel action catalog still exposes kernel.postgres_residual.project / postgres_residual_mapping (asserted by tests/kernel_action_catalog_residual_tests.rs:36,43). Out of MT-141 scope."
+      },
+      {
+        "id": "F09",
+        "severity": "MEDIUM",
+        "class": "PREDICTED_RED_NOT_YET_RUN",
+        "summary": "src/storage/knowledge_crdt.rs:616,:743,:918 carry the same invalid `duration::from::secs` path as R14; knowledge_crdt_lease_recovery_tests / knowledge_crdt_concurrency_tests / knowledge_crdt_proof_tests are expected red at HEAD until fixed."
+      }
+    ],
+    "remediation_required": {
+      "verdict_rule": "PASS_V2 requires the COMPLETE per-binary suite green on the candidate commit, executed by this validator on a clean tree at that commit: set A (all 393 surreal-test-support,test-utils binaries), the app-runtime bundle (14 targets), the inspector bundle (4 targets), the lib suite (duckdb-flight-recorder,test-utils), and proof_commands[0]; zero failures and a nonzero executed count per binary except the recorded feature-gated candle targets and the carried lib debt listed above (which must be listed, not counted). Builder proof is triage input only.",
+      "groups": [
+        {
+          "id": "R1",
+          "root_cause": "SurrealQL variable shadowing: `atelier_event_sql!()` (src/backend/handshake_core/src/atelier/mod.rs:775) rebinds `$existing` to the kernel_event_ledger idempotency lookup; statements that read bare `$existing` AFTER the splice see the ledger value (NONE for a fresh event) instead of their own row lookup, so CREATE re-runs into the unique index or arithmetic on NONE throws.",
+          "validator_verified": true,
+          "product_sites": [
+            "src/atelier/command_corpus.rs:566-576 UPSERT_ENTRY_STATEMENT (reads $existing at :569,:576 after splice at :568)",
+            "src/atelier/command_corpus.rs:599-606 RECORD_BLOCKED_STATEMENT (:603,:606 after :602)",
+            "src/atelier/exports.rs:1550-1557 RECORD_EXPORT_RESULT_STATEMENT (:1554,:1557 after :1553)",
+            "src/atelier/exports.rs:1585-1593 RECORD_PORTFOLIO_RESULT_STATEMENT (:1590,:1593 after :1589)",
+            "src/atelier/pose.rs:1766-1790 WRITE_POSE_RIG_STATEMENT (:1787 after :1786; silent NONE on update path)",
+            "src/atelier/collections.rs:713-731 ADD_IMAGES_STATEMENT (:728 `array::len($domain.items) - $existing` after :720 -> 'Cannot perform subtraction with int and none')"
+          ],
+          "unaffected_sites_checked": [
+            "src/atelier/pose.rs:1838-1841 (reads before splice)",
+            "src/atelier/pose.rs:1866-1868 (before splice)",
+            "src/atelier/bulk.rs:256,:402 (no splice)",
+            "src/atelier/media.rs:769 (no splice)",
+            "src/atelier/downloader.rs:1043,:1045 (reads before splice)",
+            "src/atelier/collections.rs:787 (FOR-scoped, after splice but re-LET inside loop)"
+          ],
+          "failing_tests": [
+            "014 atelier_command_corpus_tests::corpus_entry_upsert_roundtrip_idempotency_and_event (tests/atelier_command_corpus_tests.rs:137)",
+            "014 atelier_command_corpus_tests::corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events (:256)",
+            "016 atelier_core_data_tests::atelier_exports_request_result_idempotency_and_manifest (:6084 uq_atelier_export_result_1)",
+            "016 atelier_core_data_tests::{atelier_collections_membership_dedup_order_and_contact_sheet:2556, atelier_collection_batch_metadata_applies_tags_to_members_preserving_photo_tags:2669, atelier_intake_classification_apply_links_media_and_rolls_back_invalid_target:1920, atelier_contact_sheet_svg_artifact_regenerates_from_manifest:2786, atelier_media_source_provenance_refs_survive_export_pending_archive_and_reingest:906, atelier_saved_searches_reproduce_filters_and_retrieval_projection:5503, atelier_web_portfolio_export_records_portable_manifest_contract:6484, mt067_core_data_integration_smoke_path:7595} (all 'Cannot perform subtraction with int and none' via add_images_to_collection)",
+            "025 atelier_fixture_corpus_tests::mt063_collection_contact_sheet_fixture_corpus_round_trips (:480)",
+            "025 atelier_fixture_corpus_tests::mt076_web_portfolio_export_fixture_corpus_round_trips (:1539)"
+          ],
+          "fix": "Rename the macro-owned variable (proposed `$existing_ledger_event`) in atelier/mod.rs:775-777 so no caller-scoped `$existing` is shadowed; no caller edit needed. Product change under the Operator out-of-scope waiver relayed by the orchestrator.",
+          "focused_rerun_targets": [
+            "atelier_command_corpus_tests",
+            "atelier_core_data_tests",
+            "atelier_fixture_corpus_tests",
+            "atelier_media_annotation_overlay_proof_tests",
+            "atelier_pose_fixture_corpus_tests",
+            "atelier_pose_pipeline_integration_tests",
+            "atelier_pose_tests",
+            "atelier_manual_rows_parity_tests"
+          ],
+          "all_binaries_splicing_the_macro": "every binary that references handshake_core::atelier or atelier_surreal_support (58 at HEAD; list in ../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v1/logs/atelier_targets.txt)"
+        },
+        {
+          "id": "R2",
+          "root_cause": "Re-store of an existing row drops `created_at_utc` (UPSERT ... CONTENT replaces the whole row; the schema field has no DEFAULT on re-write), so the second write fails coercion 'Expected datetime but found NONE'. Coordinator-localized as UPSERT CONTENT vs MERGE; validator confirmed the error class on four tables and that src/atelier/state_probe.rs (5) and src/atelier/downloader.rs (3) carry `UPSERT ... CONTENT` statements; exact statement lines NOT_INSPECTED.",
+          "validator_verified": "error class verified; statement lines not inspected",
+          "failing_tests": [
+            "019 atelier_diagnostics_projections_tests::mt153_stealth_capture_extension (tests/atelier_diagnostics_projections_tests.rs:316; atelier_screenshot_artifact_storage)",
+            "019 atelier_diagnostics_projections_tests::mt147_work_state_projection_round_trips (:106; atelier_work_state_projection)",
+            "022 atelier_downloader_tests::downloader_auth_context_rejects_inline_secrets_and_redacts (tests/atelier_downloader_tests.rs:628; atelier_md_auth_context)",
+            "022 atelier_downloader_tests::downloader_config_allowlist_and_portability_guard (:466; atelier_md_output_root)"
+          ],
+          "fix": "Use MERGE (or CONTENT that carries created_at_utc from the existing row / DEFAULT ALWAYS) for idempotent re-stores of those four tables.",
+          "focused_rerun_targets": [
+            "atelier_diagnostics_projections_tests",
+            "atelier_downloader_tests"
+          ]
+        },
+        {
+          "id": "R3",
+          "root_cause": "SurrealQL `ORDER BY` on a field not in the SELECT projection ('Missing order idiom ... in statement selection').",
+          "validator_verified": true,
+          "product_sites": [
+            "src/atelier/relationships.rs:260,:271 (ORDER BY updated_at_utc DESC, relationship_id ASC)",
+            "src/atelier/intake.rs:1317 (ORDER BY created_at_utc ASC, asset_id ASC)"
+          ],
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_character_relationships_crud_endpoint_validation_and_graph_projection (:4521)",
+            "020 atelier_diagnostics_typed_surfaces_tests::mt166_reset_orphan_diagnostics_projection (tests/atelier_diagnostics_typed_surfaces_tests.rs:246)"
+          ],
+          "fix": "Project the ordering fields (or order on projected aliases).",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests",
+            "atelier_diagnostics_typed_surfaces_tests"
+          ]
+        },
+        {
+          "id": "R4",
+          "root_cause": "`array::sort::asc()` called with the wrong arity ('Expected 1 argument').",
+          "validator_verified": true,
+          "product_sites": [
+            "src/atelier/search.rs:1273"
+          ],
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_lens_search_filters_default_tier1_and_sfw_hard_drop_without_mutation (:5254)"
+          ],
+          "fix": "Call array::sort::asc(array) with one argument (compose concat first).",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests"
+          ]
+        },
+        {
+          "id": "R5",
+          "root_cause": "`DocumentHeadRow.current_version_id` is typed as record but the stored value is a uuid ('Failed to convert to none | record: Expected record, got uuid').",
+          "validator_verified": "error class verified; struct/statement site NOT_INSPECTED",
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts (:5066)",
+            "016 atelier_core_data_tests::atelier_moodboard_operations_and_export_hooks_produce_receipts_without_gov_outputs (:3864)",
+            "016 atelier_core_data_tests::atelier_moodboard_schema_layer_model_round_trips_full_structure (:3637)",
+            "025 atelier_fixture_corpus_tests::mt064_docs_moodboard_relations_fixture_corpus_round_trips (:771)"
+          ],
+          "fix": "Align the moodboard snapshot write (record id vs uuid) with the DocumentHeadRow read type in src/atelier/documents.rs.",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests",
+            "atelier_fixture_corpus_tests"
+          ]
+        },
+        {
+          "id": "R6",
+          "root_cause": "`record::id()` invoked on NONE when attaching a version-agnostic intake link to an export.",
+          "validator_verified": "error verified; site NOT_INSPECTED",
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_intake_sheet_collection_links_survive_export (:2466)"
+          ],
+          "fix": "Guard the NONE branch (IF $x = NONE) before record::id in the intake-link attach statement.",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests"
+          ]
+        },
+        {
+          "id": "R7",
+          "root_cause": "Stray `END` token after `ELSE { NONE }` in the reset statement ('Parse error: Unexpected token END expected delimiter }').",
+          "validator_verified": true,
+          "product_sites": [
+            "src/atelier/intake.rs:1339"
+          ],
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest (:6975)",
+            "025 atelier_fixture_corpus_tests::mt066_reset_orphan_fixture_corpus_round_trips (:1273)"
+          ],
+          "fix": "Remove the `END` token.",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests",
+            "atelier_fixture_corpus_tests"
+          ]
+        },
+        {
+          "id": "R8",
+          "root_cause": "atelier_story_card sequence race under parallel inserts: two writers compute the same dense `seq` and collide on `uq_atelier_story_card_1` (documents.rs:470-490,:758 per coordinator; NOT_INSPECTED by validator).",
+          "validator_verified": "error verified; site NOT_INSPECTED",
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_story_cards_and_beats_parallel_writes_keep_dense_order (:3420)"
+          ],
+          "fix": "Allocate seq inside the same transaction as the insert (or retry on the unique-index conflict) so parallel writers keep dense order.",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests"
+          ]
+        },
+        {
+          "id": "R9",
+          "root_cause": "Live schema does not reject all-NONE provenance refs on atelier_media_asset (schema.surql:1265 `source_provenance option<string>` carries no ASSERT), so the constraint probe passes a row it must reject.",
+          "validator_verified": "schema field verified; intended ASSERT NOT_INSPECTED",
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_media_source_provenance_refs_direct_row_constraint_probe (:1251)"
+          ],
+          "fix": "Restore the provenance ASSERT (at least one provenance ref non-NONE) in schema.surql and re-pin schema fingerprints.",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests"
+          ]
+        },
+        {
+          "id": "R10",
+          "root_cause": "UNVERIFIED: similarity search does not return the near (1-bit) asset within the threshold.",
+          "validator_verified": false,
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_search_tags_rules_and_similarity (:5791)"
+          ],
+          "fix": "Diagnose from the test's threshold and the search_store similarity query; state root cause before patching.",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests"
+          ]
+        },
+        {
+          "id": "R11",
+          "root_cause": "UNVERIFIED: the sidecar-relation fixture is rejected by product validation 'media sidecar cannot reference itself as parent'; either the ported fixture seeds a self-parent relation the original did not, or the validation is over-strict.",
+          "validator_verified": false,
+          "failing_tests": [
+            "016 atelier_core_data_tests::atelier_filesystem_health_reports_sidecar_visibility_anomaly_from_catalog_drift (:470)"
+          ],
+          "fix": "Diff the ported fixture against the pre-4f92cc25 original before changing product validation.",
+          "focused_rerun_targets": [
+            "atelier_core_data_tests"
+          ]
+        },
+        {
+          "id": "R12",
+          "root_cause": "MT-141 tests/ port inverted the proof: the original seeded the stale session with a deterministically old heartbeat (raw INSERT) and detected with Duration::minutes(10); the port (7f279596) records the FRESH heartbeat first, then the 'stale' heartbeat, sleeps 10 ms, and detects with Duration::milliseconds(1), so the fresh session is always older than the cutoff and always flagged. Deterministic, not a flake. AC-141-2 proof-intent violation inside MT-141's owned tree.",
+          "validator_verified": true,
+          "failing_tests": [
+            "015 atelier_command_log_session_tests::mt144_stale_session_detected_and_evidence_preserved (tests/atelier_command_log_session_tests.rs:179; seeding :140-152, detection :168-176)"
+          ],
+          "fix": "Seed the stale session's last_heartbeat_utc deterministically in the past (test-support seam or inspector-free UPDATE through the store), record the fresh heartbeat immediately before detection, and restore a realistic timeout (minutes(10)) for both the pure and persisted flagging paths; preserve the evidence-preservation assertions unchanged.",
+          "focused_rerun_targets": [
+            "atelier_command_log_session_tests"
+          ]
+        },
+        {
+          "id": "R13",
+          "root_cause": "`value` is a reserved word in SurrealQL SELECT; `SELECT value, updated_by, updated_at_utc FROM atelier_retrieval_policy` fails to parse.",
+          "validator_verified": true,
+          "product_sites": [
+            "src/atelier/editable_surface_authority.rs:154"
+          ],
+          "failing_tests": [
+            "023 atelier_editable_surface_authority_tests::mt149_retrieval_policy_surface_defaults_then_promotes_to_embedded_store (tests/atelier_editable_surface_authority_tests.rs:210)",
+            "023 atelier_editable_surface_authority_tests::mt149_policy_surface_clamps_out_of_range_proposals_before_any_durable_write (:308)"
+          ],
+          "fix": "Backtick-quote the field (`value`) or rename the column.",
+          "focused_rerun_targets": [
+            "atelier_editable_surface_authority_tests"
+          ]
+        },
+        {
+          "id": "R14",
+          "root_cause": "Invalid SurrealQL function path `duration::from::secs` (should be `duration::from_secs`).",
+          "validator_verified": true,
+          "product_sites": [
+            "src/atelier/model_lease.rs:287,:352",
+            "src/storage/knowledge_crdt.rs:616,:743,:918 (same defect outside atelier; predicted red for knowledge_crdt lease binaries not yet run)"
+          ],
+          "failing_tests": [
+            "031 atelier_kernel_smoke_tests::mt181_diagnostics_integration_smoke_path_runs_end_to_end_on_embedded_store (tests/atelier_kernel_smoke_tests.rs:151)"
+          ],
+          "fix": "Replace all five sites with duration::from_secs.",
+          "focused_rerun_targets": [
+            "atelier_kernel_smoke_tests",
+            "atelier_model_lease_tests",
+            "knowledge_crdt_lease_recovery_tests",
+            "knowledge_crdt_concurrency_tests",
+            "knowledge_crdt_proof_tests"
+          ]
+        },
+        {
+          "id": "R15",
+          "root_cause": "UNVERIFIED: POST /atelier/intake/batches/{id}/items returns 401 where the test expects 201; likely the MT-109 resource-authority/native-principal requirement now applies to the intake route and the test sends only x-hsk-actor-id.",
+          "validator_verified": false,
+          "failing_tests": [
+            "032 atelier_loom_projection_api_tests::real_atelier_endpoint_returns_durable_canonical_loom_identity (tests/atelier_loom_projection_api_tests.rs:227; left 401 right 201)"
+          ],
+          "fix": "Determine whether the route contract requires authentication (then authenticate in the test as the mt120 tests do) or the route is over-strict; do not weaken the assertion.",
+          "focused_rerun_targets": [
+            "atelier_loom_projection_api_tests"
+          ]
+        },
+        {
+          "id": "R16",
+          "root_cause": "UNVERIFIED: inspector projection by RowFilter::IdEquals(import_id) returns 0 rows for atelier_image_import_request after a URL import (record-id shape vs import_id string, or the redaction path never persisted).",
+          "validator_verified": false,
+          "failing_tests": [
+            "027 atelier_image_import_tests::url_image_import_redacts_path_material_before_persistence (tests/atelier_image_import_tests.rs:456; left 0 right 1)"
+          ],
+          "fix": "Inspect the persisted row id shape and the IdEquals filter; state root cause before patching.",
+          "focused_rerun_targets": [
+            "atelier_image_import_tests"
+          ]
+        }
+      ],
+      "tests_owned_by_mt141": [
+        "R12 (tests/atelier_command_log_session_tests.rs) is the only remediation inside MT-141's allowed_paths; every other group is src/ product code and requires the Operator's out-of-scope waiver (relayed by the orchestrator) or routing to an MT that owns src/."
+      ],
+      "do_not": [
+        "Do not weaken, delete, or #[ignore] any failing assertion to reach green (MT-141 scope rule).",
+        "Do not run cargo against the shared target until the validator reports 'lane released' for the candidate run."
+      ]
+    },
+    "residue_inventory": {
+      "runtime_root": "0 entries after every run (HANDSHAKE_SURREAL_TEST_STORE_ROOT clean)",
+      "workspace": "7 of 32 per-run workspace roots retain a product-owned `.handshake/artifacts/L1/<uuid>` ArtifactStore tree (run-009, -016, -020, -025, -026, -027, -033; 2-126 KB each): expected per-run product-runtime output under HANDSHAKE_WORKSPACE_ROOT, not a leaked store; deletable.",
+      "tmp": "167 leaked embedded stores (F06), 3.4 MB total; deletable now that no test process runs (validator-owned lane output; logs retained).",
+      "cleanup_decision": "Not deleted at verdict time; the validator will clean workspace/ and tmp/ (never logs/) before the candidate run, per CX-984-006, after re-verifying 0 cargo/test processes and that the paths resolve under the lane."
+    },
+    "residual_uncertainty": [
+      "361 set-A binaries, the lib suite, the app-runtime bundle and the inspector bundle were not executed at 6f19a524; additional reds beyond R1-R16 are likely (F09 is one predicted class).",
+      "Root causes R5, R6, R8, R10, R11, R15, R16 are stated from the failing assertion / error text; their product sites were not inspected by the validator.",
+      "Default test-thread parallelism was used inside each binary; none of the 39 failures has a timing signature (all are deterministic parse/index/type errors or the deterministic mt144 inversion), but a single-thread rerun was not performed."
+    ],
+    "lane_state": "lane released (0 cargo/rustc/test processes at 2026-09-15T16:53:17.899Z)"
+  }
 }
