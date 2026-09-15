@@ -5887,7 +5887,9 @@ mod tests {
     /// receipt block, proven byte-exact against `PRE_MT150_GENERATED_SURREALQL_SHA256`.
     fn mt150_pin_schema() -> String {
         assert_eq!(
-            SCHEMA.matches(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS).count(),
+            SCHEMA
+                .matches(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS)
+                .count(),
             1,
             "MT-150 block drifted: {MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS}"
         );
@@ -5933,7 +5935,8 @@ mod tests {
         );
         assert!(upgrade[0].contains("ON TABLE loom_edges TYPE option<record<kernel_event_ledger>>"));
         assert!(upgrade[0].contains("REFERENCE ON DELETE REJECT"));
-        assert!(upgrade[1].contains("idx_loom_edges_event ON TABLE loom_edges FIELDS event_ledger_event_id"));
+        assert!(upgrade[1]
+            .contains("idx_loom_edges_event ON TABLE loom_edges FIELDS event_ledger_event_id"));
         // The MT-109 pin (schema_pre_mt109.surql) predates the block, so it must NOT carry it.
         assert_eq!(
             PRE_MT109_SCHEMA
@@ -5941,8 +5944,12 @@ mod tests {
                 .count(),
             0
         );
-        assert!(post_mt109_upgrade_statements().contains(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS));
-        assert!(mt109_authority_upgrade_query().contains(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS));
+        assert!(
+            post_mt109_upgrade_statements().contains(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS)
+        );
+        assert!(
+            mt109_authority_upgrade_query().contains(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS)
+        );
         assert_ne!(
             PRE_MT150_GENERATED_SURREALQL_SHA256,
             GENERATED_SURREALQL_SHA256

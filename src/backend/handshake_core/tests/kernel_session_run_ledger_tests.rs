@@ -325,7 +325,10 @@ async fn kernel_event_ledger_api_appends_and_lists_kernel_events_for_session() {
         events[1].causation_id.as_deref(),
         Some(events[0].event_id.as_str())
     );
-    assert_eq!(events[0].correlation_id.as_deref(), Some(correlation_id.as_str()));
+    assert_eq!(
+        events[0].correlation_id.as_deref(),
+        Some(correlation_id.as_str())
+    );
     assert_eq!(events[1].payload["claim"]["lane"], "codex");
     assert!(events[0].created_at <= events[1].created_at);
     // MT-150: close through the harness's explicit async teardown (the pattern every sibling

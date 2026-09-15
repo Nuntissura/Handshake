@@ -399,12 +399,8 @@ async fn capsule_builder_injector_recorder_and_ipc_compose_over_embedded_surreal
     let recorder = CapsuleRecorder {
         action_catalog: &submitter,
     };
-    let record = CapsuleRecord::from_capsule(
-        &injected_capsule,
-        Utc::now(),
-        E2E_SESSION_ID,
-        E2E_ROLE_ID,
-    );
+    let record =
+        CapsuleRecord::from_capsule(&injected_capsule, Utc::now(), E2E_SESSION_ID, E2E_ROLE_ID);
     let _receipt = recorder.record(record.clone()).expect("recorder.record");
 
     // Confirm the ledger now carries the catalog-action event.

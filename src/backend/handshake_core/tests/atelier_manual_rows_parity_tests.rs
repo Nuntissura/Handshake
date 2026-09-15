@@ -74,8 +74,7 @@ fn assert_schema_fields_are_real(
     nested: &[&serde_json::Value],
 ) {
     for field in row.schema_fields {
-        let found =
-            value.get(field).is_some() || nested.iter().any(|doc| doc.get(field).is_some());
+        let found = value.get(field).is_some() || nested.iter().any(|doc| doc.get(field).is_some());
         assert!(
             found,
             "manual row {} documents schema field {field} that the runtime value does not carry",
@@ -322,7 +321,9 @@ async fn mt075_backup_manual_rows_document_live_backup_and_preflight_surface() {
         serde_json::json!(BACKUP_MANIFEST_SCHEMA_ID)
     );
     assert!(
-        backup_row.expected_output.contains(BACKUP_MANIFEST_SCHEMA_ID),
+        backup_row
+            .expected_output
+            .contains(BACKUP_MANIFEST_SCHEMA_ID),
         "backup manual expected_output must document runtime schema id {BACKUP_MANIFEST_SCHEMA_ID}"
     );
     let backup_value = serde_json::to_value(&reread).expect("serialize re-read backup manifest");
@@ -341,7 +342,8 @@ async fn mt075_backup_manual_rows_document_live_backup_and_preflight_surface() {
         .expect("same-version restore preflight is accepted");
     assert_eq!(accepted.status, BackupRestorePreflightStatus::Accepted);
     assert!(accepted.refusal_reason.is_none());
-    let preflight_value = serde_json::to_value(&accepted).expect("serialize runtime preflight record");
+    let preflight_value =
+        serde_json::to_value(&accepted).expect("serialize runtime preflight record");
     assert_schema_fields_are_real(preflight_row, &preflight_value, &[]);
 
     // A newer-schema backup is refused with the typed reason the manual's
@@ -530,7 +532,8 @@ async fn mt123_pose_sidecar_and_identity_manual_rows_document_live_surface() {
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
-    let json_artifact = atelier_surreal_support::write_native_media_artifact(b"mt-123-openpose-json");
+    let json_artifact =
+        atelier_surreal_support::write_native_media_artifact(b"mt-123-openpose-json");
     let sidecar = store
         .record_pose_sidecar(&NewPoseSidecar {
             rig_id: rig.rig_id,
@@ -710,7 +713,10 @@ async fn mt124_comfy_workflow_receipt_manual_rows_document_live_surface() {
     let fallback_row = manual_command("atelier_mark_saveimage_fallback");
     let failure_row = manual_command("atelier_record_comfy_output_registration_failure");
     let retry_row = manual_command("atelier_retry_comfy_output_registration_failure");
-    assert_eq!(receipt_row.name, "AtelierStore::record_comfy_workflow_receipt");
+    assert_eq!(
+        receipt_row.name,
+        "AtelierStore::record_comfy_workflow_receipt"
+    );
     assert_eq!(
         retry_row.name,
         "AtelierStore::retry_comfy_output_registration_failure"
@@ -741,7 +747,9 @@ async fn mt124_comfy_workflow_receipt_manual_rows_document_live_surface() {
         serde_json::json!(COMFY_WORKFLOW_RECEIPT_SCHEMA)
     );
     assert!(
-        receipt_row.description.contains(COMFY_WORKFLOW_RECEIPT_SCHEMA),
+        receipt_row
+            .description
+            .contains(COMFY_WORKFLOW_RECEIPT_SCHEMA),
         "manual row must name the runtime receipt schema {COMFY_WORKFLOW_RECEIPT_SCHEMA}"
     );
     let receipt_value =
@@ -876,7 +884,10 @@ async fn mt124_comfy_workflow_receipt_manual_rows_document_live_surface() {
             Some(registration.registration_id),
         )
         .await;
-    assert!(second_retry.is_err(), "registered failure is no longer retryable");
+    assert!(
+        second_retry.is_err(),
+        "registered failure is no longer retryable"
+    );
     assert!(
         failure_marker_documented(retry_row, "not retryable"),
         "manual row must document the not-retryable refusal"
@@ -909,7 +920,10 @@ async fn mt125_deferred_boundary_manual_rows_document_live_surface() {
     let rejects_row = manual_command("atelier_list_capability_rejects");
     let url_import_row = manual_command("atelier_record_url_image_import");
     let blocked_row = manual_command("atelier_set_calibration_blocked");
-    assert_eq!(capability_row.name, "AtelierStore::register_bridge_capability");
+    assert_eq!(
+        capability_row.name,
+        "AtelierStore::register_bridge_capability"
+    );
     assert_eq!(url_import_row.status, CommandStatus::Wired);
     assert_eq!(
         url_import_row.ipc_channel,
@@ -972,8 +986,10 @@ async fn mt125_deferred_boundary_manual_rows_document_live_surface() {
         ComfyBridgeFakeAdapterV1::CAPABILITY_PROFILE_ID,
         &format!("artifact://atelier/capability-evidence/{}", Uuid::new_v4()),
     );
-    bad_registration.capability_grant_ref =
-        format!("capgrant://wrong-capability/profile/evidence-{}", Uuid::new_v4());
+    bad_registration.capability_grant_ref = format!(
+        "capgrant://wrong-capability/profile/evidence-{}",
+        Uuid::new_v4()
+    );
     let bad_grant = store
         .register_bridge_capability(&bad_registration)
         .await
@@ -1133,14 +1149,20 @@ async fn mt130_job_lifecycle_and_registration_recovery_event_families_land_in_le
         .mark_comfy_job_completed(job.job_id)
         .await
         .expect("resolve job to COMPLETED");
-    assert_eq!(job.workflow_run_id, run_id, "job lifecycle stays in this run's aggregate scope");
+    assert_eq!(
+        job.workflow_run_id, run_id,
+        "job lifecycle stays in this run's aggregate scope"
+    );
     let reread_job = store
         .get_comfy_job(job.job_id)
         .await
         .expect("re-read job")
         .expect("job persisted");
     assert_eq!(reread_job.status, ComfyJobStatus::Completed);
-    assert!(reread_job.started_at.is_some(), "RUNNING stamped started_at");
+    assert!(
+        reread_job.started_at.is_some(),
+        "RUNNING stamped started_at"
+    );
     assert!(
         reread_job.finished_at.is_some(),
         "COMPLETED stamped finished_at"
@@ -1184,7 +1206,10 @@ async fn mt130_job_lifecycle_and_registration_recovery_event_families_land_in_le
         })
         .await
         .expect("preserve saved output whose registration failed for THIS job's run");
-    assert_eq!(failure.status, ComfyOutputRegistrationFailureStatus::Retryable);
+    assert_eq!(
+        failure.status,
+        ComfyOutputRegistrationFailureStatus::Retryable
+    );
     let failure_value = serde_json::to_value(&failure).expect("serialize failure row");
     assert_schema_fields_are_real(failure_row, &failure_value, &[]);
 

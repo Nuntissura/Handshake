@@ -54,7 +54,9 @@ use handshake_core::kernel::KernelEventType;
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
-use handshake_core::storage::surreal::{RowFilter, ScalarValue, TestFieldMutation, TestMutationValue};
+use handshake_core::storage::surreal::{
+    RowFilter, ScalarValue, TestFieldMutation, TestMutationValue,
+};
 use handshake_core::storage::{
     CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
     CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
@@ -311,11 +313,14 @@ fn doc_body(workspace_id: &str, title: &str) -> Value {
 
 /// Create a document as the operator (the privileged setup path).
 async fn create_doc(base: &str, http: &reqwest::Client, workspace_id: &str, title: &str) -> Value {
-    let resp = operator_headers(http.post(format!("{base}/knowledge/documents")), "doc-setup")
-        .json(&doc_body(workspace_id, title))
-        .send()
-        .await
-        .expect("create doc request");
+    let resp = operator_headers(
+        http.post(format!("{base}/knowledge/documents")),
+        "doc-setup",
+    )
+    .json(&doc_body(workspace_id, title))
+    .send()
+    .await
+    .expect("create doc request");
     assert_eq!(resp.status(), 200, "operator create must succeed");
     resp.json().await.expect("create doc json")
 }
@@ -564,7 +569,12 @@ fn wpk012_sample_micro_task(wp_id: &str, mt_id: &str, name: &str) -> locus_types
 /// Create `wp_id` (default "stub" status; no status transition required — `RegisterMts`
 /// only requires the work-packet record to exist) and register + start `mt_id`, landing it
 /// in the engine's canonical `in_progress` state.
-async fn seed_running_micro_task(store: &EmbeddedKnowledgeStore, wp_id: &str, mt_id: &str, name: &str) {
+async fn seed_running_micro_task(
+    store: &EmbeddedKnowledgeStore,
+    wp_id: &str,
+    mt_id: &str,
+    name: &str,
+) {
     store
         .db
         .execute_locus_operation(locus_types::LocusOperation::CreateWp(
@@ -1328,10 +1338,8 @@ async fn document_save_authenticates_same_native_principal_as_independent_stage_
     let state = test_state(&store, recorder.clone()).await;
     let workspace_id = store.create_workspace().await;
     let stage_binding = StageBindingEnv::install();
-    let (base, http, server) = route_server(
-        docs_api::routes(state.clone()).merge(stage_api::routes(state.clone())),
-    )
-    .await;
+    let (base, http, server) =
+        route_server(docs_api::routes(state.clone()).merge(stage_api::routes(state.clone()))).await;
 
     let created = create_doc(&base, &http, &workspace_id, "WPK012 Cross-Route Principal").await;
     let doc_id = created["document"]["rich_document_id"]
@@ -1344,9 +1352,14 @@ async fn document_save_authenticates_same_native_principal_as_independent_stage_
 
     // Ground truth: what does an UNRELATED capture_context-gated route derive for this exact
     // binding?
-    let derived_from_stage_route =
-        derived_native_principal_from_stage_route(&base, &http, &stage_binding, &recorder, &workspace_id)
-            .await;
+    let derived_from_stage_route = derived_native_principal_from_stage_route(
+        &base,
+        &http,
+        &stage_binding,
+        &recorder,
+        &workspace_id,
+    )
+    .await;
 
     // The document save is authenticated with the SAME binding but a DIFFERENT client-declared
     // per-agent actor id.
@@ -1834,7 +1847,10 @@ async fn route2_stage_artifact_create_and_resolve() {
     assert_eq!(fetched["label"], "Selected snippet");
     assert_eq!(fetched["size_bytes"], exact_bytes.len());
     assert_eq!(fetched["correlation_id"], "wpk012-correlation-1");
-    let job_id = fetched["job_id"].as_str().expect("Job History id").to_string();
+    let job_id = fetched["job_id"]
+        .as_str()
+        .expect("Job History id")
+        .to_string();
     let event_id = fetched["event_ledger_event_id"]
         .as_str()
         .expect("ArtifactStored EventLedger id")
@@ -1909,7 +1925,8 @@ async fn route2_stage_artifact_create_and_resolve() {
 
     let mut concurrent_request = request.clone();
     concurrent_request["idempotency_key"] = Value::String("wpk012-concurrent-1".to_owned());
-    concurrent_request["correlation_id"] = Value::String("wpk012-concurrent-correlation".to_owned());
+    concurrent_request["correlation_id"] =
+        Value::String("wpk012-concurrent-correlation".to_owned());
     let first = stage_binding
         .headers(http.post(&path))
         .json(&concurrent_request)
@@ -2099,7 +2116,8 @@ async fn stage_flight_projection_failure_returns_500_and_retry_heals_once() {
         .as_str()
         .expect("ArtifactStored row links the allow decision before retry")
         .to_string();
-    let decision_events = kernel_events_for(&state, "stage_capture_authorization", &artifact_id).await;
+    let decision_events =
+        kernel_events_for(&state, "stage_capture_authorization", &artifact_id).await;
     assert!(
         decision_events
             .iter()
@@ -2666,14 +2684,17 @@ async fn stage_denial_limits_and_attribution_apply_at_the_authentication_boundar
         .all(|event| event.actor_id != "unauthenticated"));
     drop(all_events);
 
-    let mut authenticated_denials = kernel_events_for(&state, "stage_capture_authorization", &workspace_id).await;
-    authenticated_denials.extend(
-        kernel_events_for(&state, "stage_capture_authorization", &missing_workspace).await,
-    );
+    let mut authenticated_denials =
+        kernel_events_for(&state, "stage_capture_authorization", &workspace_id).await;
+    authenticated_denials
+        .extend(kernel_events_for(&state, "stage_capture_authorization", &missing_workspace).await);
     let authenticated_denial_count = authenticated_denials
         .iter()
         .filter(|event| {
-            event.actor.actor_id().starts_with(&authenticated_actor_prefix)
+            event
+                .actor
+                .actor_id()
+                .starts_with(&authenticated_actor_prefix)
                 && event.event_type == KernelEventType::ToolDecisionRecorded
                 && event.payload["decision_outcome"] == "deny"
         })
@@ -2831,7 +2852,9 @@ async fn route3_calendar_events_returns_events_in_window() {
                     TestMutationValue::string("Historic incomplete event"),
                 ),
                 TestFieldMutation::new(
-                    events_table.field("start_local").expect("start_local field"),
+                    events_table
+                        .field("start_local")
+                        .expect("start_local field"),
                     TestMutationValue::none(),
                 ),
                 TestFieldMutation::new(

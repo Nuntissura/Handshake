@@ -55,8 +55,8 @@ use handshake_core::storage::surreal::{
 };
 use handshake_core::storage::{
     Database, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdgeCreatedBy,
-    LoomEdgeType, LoomFolderSortMode, LoomFolderUpdate, NewLoomBlock, NewLoomEdge,
-    NewLoomFolder, NewWorkspace, StorageError, WriteContext,
+    LoomEdgeType, LoomFolderSortMode, LoomFolderUpdate, NewLoomBlock, NewLoomEdge, NewLoomFolder,
+    NewWorkspace, StorageError, WriteContext,
 };
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 
@@ -73,9 +73,10 @@ const TAG_EVENT_TYPE: &str = "KNOWLEDGE_LOOM_TAG_MUTATED";
 // restart proof used by `collection_replacement_is_atomic_and_survives_close_reopen`.
 // ---------------------------------------------------------------------------
 
-async fn open_store(dir: &std::path::Path) -> (SurrealStorageConfig, SurrealStorage, SurrealDatabase) {
-    let config =
-        SurrealStorageConfig::for_data_dir(dir).expect("configure embedded Surreal store");
+async fn open_store(
+    dir: &std::path::Path,
+) -> (SurrealStorageConfig, SurrealStorage, SurrealDatabase) {
+    let config = SurrealStorageConfig::for_data_dir(dir).expect("configure embedded Surreal store");
     let storage = SurrealStorage::open(config.clone())
         .await
         .expect("open embedded Surreal store");
@@ -314,7 +315,10 @@ async fn edge_row_count(storage: &SurrealStorage) -> i64 {
 
 /// (mention_count, tag_count, backlink_count) of a block as the product reads it back.
 async fn counts(db: &SurrealDatabase, ws: &str, block: &str) -> (i64, i64, i64) {
-    let read = db.get_loom_block(ws, block).await.expect("read block counts");
+    let read = db
+        .get_loom_block(ws, block)
+        .await
+        .expect("read block counts");
     (
         read.derived.mention_count,
         read.derived.tag_count,
@@ -408,7 +412,8 @@ struct NoBindings {
 const INSTALL_LEDGER_FAIL_DDL: &str =
     "DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT false;";
 /// Verbatim `schema.surql` definition of `kernel_event_ledger.event_id` (the seam's restore).
-const REMOVE_LEDGER_FAIL_DDL: &str = "DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger \
+const REMOVE_LEDGER_FAIL_DDL: &str =
+    "DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger \
      TYPE string ASSERT $value = record::id($this.id);";
 
 async fn install_ledger_fail(storage: &SurrealStorage) {
@@ -485,7 +490,10 @@ async fn mt022_folder_create_appends_atomic_receipt_and_survives_restart() {
     let restart_receipt = folder_receipt_id(&reopened_storage, &folder.folder_id)
         .await
         .expect("receipt id persists across restart");
-    assert_eq!(receipt, restart_receipt, "receipt id is stable across restart");
+    assert_eq!(
+        receipt, restart_receipt,
+        "receipt id is stable across restart"
+    );
 
     reopened_storage
         .shutdown()
@@ -515,7 +523,9 @@ async fn mt022_folder_update_delete_member_are_atomic_with_receipts() {
     )
     .await
     .expect("update folder");
-    assert!(folder_receipt_id(&storage, &folder.folder_id).await.is_some());
+    assert!(folder_receipt_id(&storage, &folder.folder_id)
+        .await
+        .is_some());
     assert_eq!(
         ledger_count(&storage, FOLDER_EVENT_TYPE, &folder.folder_id).await,
         2,
@@ -648,7 +658,10 @@ async fn mt024_pin_order_set_appends_atomic_receipt_and_survives_restart() {
     let restart_receipt = block_receipt_id(&reopened_storage, &block)
         .await
         .expect("receipt id persists across restart");
-    assert_eq!(receipt, restart_receipt, "receipt id is stable across restart");
+    assert_eq!(
+        receipt, restart_receipt,
+        "receipt id is stable across restart"
+    );
 
     reopened_storage
         .shutdown()
@@ -665,7 +678,9 @@ async fn mt024_pin_order_set_rolls_back_when_ledger_append_fails() {
     let ctx = WriteContext::human(None);
 
     install_ledger_fail(&storage).await;
-    let result = db.set_loom_block_pin_order(&ctx, &ws, &block, Some(9)).await;
+    let result = db
+        .set_loom_block_pin_order(&ctx, &ws, &block, Some(9))
+        .await;
     assert!(
         result.is_err(),
         "set pin order must fail when the atomic ledger append fails"
@@ -754,7 +769,10 @@ async fn mt024_pin_removal_is_atomic_and_survives_restart() {
         .await
         .expect("restart read");
     assert!(!read.pinned, "unpin persists across restart");
-    assert_eq!(read.pin_order, None, "cleared ordinal persists across restart");
+    assert_eq!(
+        read.pin_order, None,
+        "cleared ordinal persists across restart"
+    );
 
     reopened_storage
         .shutdown()
@@ -800,7 +818,10 @@ async fn mt024_pin_removal_rolls_back_and_leaves_no_partial_state() {
         .get_loom_block(&ws, &block)
         .await
         .expect("restart read");
-    assert!(read.pinned, "block remains pinned after rolled-back removal");
+    assert!(
+        read.pinned,
+        "block remains pinned after rolled-back removal"
+    );
     assert_eq!(
         read.pin_order,
         Some(5),
@@ -1060,7 +1081,10 @@ async fn mt024_favorite_mutation_rolls_back_when_ledger_append_fails() {
     // The search-index refresh in the same transaction rolled back with the block write.
     let (search_after, indexed_after) = search_index_row(&storage, &block).await;
     assert_eq!(search_before, search_after);
-    assert_eq!(indexed_before, indexed_after, "search index was NOT re-indexed");
+    assert_eq!(
+        indexed_before, indexed_after,
+        "search index was NOT re-indexed"
+    );
 
     storage
         .shutdown()
@@ -1164,8 +1188,7 @@ async fn mt024_mention_edge_backlink_is_atomic_and_survives_restart() {
 /// conflict that leaves favorite, receipt linkage and ledger untouched -- also across a
 /// close/reopen.
 #[tokio::test]
-async fn mt150_favorite_exact_retry_reuses_receipt_and_divergent_retry_conflicts_without_residue(
-) {
+async fn mt150_favorite_exact_retry_reuses_receipt_and_divergent_retry_conflicts_without_residue() {
     let temp = tempfile::tempdir().expect("create temporary data root");
     let (config, storage, db) = open_store(temp.path()).await;
     let ws = seed_workspace(&db).await;
@@ -1207,7 +1230,10 @@ async fn mt150_favorite_exact_retry_reuses_receipt_and_divergent_retry_conflicts
         .await
         .expect("identical retry returns the original durable outcome");
     assert!(retried.favorite);
-    assert_eq!(retried.updated_at, first.updated_at, "retry did not re-apply");
+    assert_eq!(
+        retried.updated_at, first.updated_at,
+        "retry did not re-apply"
+    );
     assert_eq!(
         block_receipt_id(&storage, &block).await.as_deref(),
         Some(receipt.as_str()),
@@ -1252,7 +1278,10 @@ async fn mt150_favorite_exact_retry_reuses_receipt_and_divergent_retry_conflicts
         .get_loom_block(&ws, &block)
         .await
         .expect("restart read");
-    assert!(read.favorite, "divergent retry left the accepted value in place");
+    assert!(
+        read.favorite,
+        "divergent retry left the accepted value in place"
+    );
     assert_eq!(
         block_receipt_id(&reopened_storage, &block).await.as_deref(),
         Some(receipt.as_str())
@@ -1363,7 +1392,10 @@ async fn mt150_block_update_rollback_leaves_search_index_and_fields_untouched() 
     assert!(!read.favorite);
     let (search_after, indexed_after) = search_index_row(&reopened_storage, &block).await;
     assert_eq!(search_before, search_after, "search text was NOT rewritten");
-    assert_eq!(indexed_before, indexed_after, "search index was NOT re-indexed");
+    assert_eq!(
+        indexed_before, indexed_after,
+        "search index was NOT re-indexed"
+    );
     assert_eq!(block_receipt_id(&reopened_storage, &block).await, None);
     assert_eq!(
         ledger_count(&reopened_storage, BLOCK_EVENT_TYPE, &block).await,
@@ -1380,8 +1412,7 @@ async fn mt150_block_update_rollback_leaves_search_index_and_fields_untouched() 
 /// reusing the committed edge id is a typed \`loom_edge_exists\` conflict -- and none of them
 /// leave an orphan ledger row, a second edge, or count drift, including after close/reopen.
 #[tokio::test]
-async fn mt150_tag_edge_exact_retry_reuses_receipt_and_conflicting_requests_leave_no_residue()
-{
+async fn mt150_tag_edge_exact_retry_reuses_receipt_and_conflicting_requests_leave_no_residue() {
     let temp = tempfile::tempdir().expect("create temporary data root");
     let (config, storage, db) = open_store(temp.path()).await;
     let ws = seed_workspace(&db).await;
@@ -1414,7 +1445,10 @@ async fn mt150_tag_edge_exact_retry_reuses_receipt_and_conflicting_requests_leav
         .await
         .expect("identical retry returns the original durable outcome");
     assert_eq!(retried.edge_id, edge_id);
-    assert_eq!(retried.event_ledger_event_id.as_deref(), Some(receipt.as_str()));
+    assert_eq!(
+        retried.event_ledger_event_id.as_deref(),
+        Some(receipt.as_str())
+    );
     assert_eq!(retried.created_at, first.created_at);
     assert_eq!(
         ledger_count(&storage, TAG_EVENT_TYPE, &edge_id).await,
@@ -1460,7 +1494,10 @@ async fn mt150_tag_edge_exact_retry_reuses_receipt_and_conflicting_requests_leav
         .await
         .expect("restart edge list");
     assert_eq!(edges.len(), 1, "exactly one edge survives");
-    assert_eq!(edges[0].target_block_id, hub, "the accepted target survives");
+    assert_eq!(
+        edges[0].target_block_id, hub,
+        "the accepted target survives"
+    );
     assert_eq!(
         edges[0].event_ledger_event_id.as_deref(),
         Some(receipt.as_str())
@@ -1507,16 +1544,30 @@ async fn mt150_edge_delete_appends_durable_receipt_and_rolls_back_with_counts() 
     // Rollback first: the tag delete fails at the receipt append.
     install_ledger_fail(&storage).await;
     let result = db.delete_loom_edge(&ctx, &ws, &tag.edge_id).await;
-    assert!(result.is_err(), "delete must fail when the ledger append fails");
+    assert!(
+        result.is_err(),
+        "delete must fail when the ledger append fails"
+    );
     remove_ledger_fail(&storage).await;
     assert_eq!(
         edge_receipt_id(&storage, &tag.edge_id).await,
         tag.event_ledger_event_id,
         "rolled-back delete leaves the edge and its create receipt in place"
     );
-    assert_eq!(ledger_count(&storage, TAG_EVENT_TYPE, &tag.edge_id).await, 1);
-    assert_eq!(counts(&db, &ws, &src).await, (1, 1, 0), "no partial count change");
-    assert_eq!(counts(&db, &ws, &hub).await, (0, 0, 1), "no partial count change");
+    assert_eq!(
+        ledger_count(&storage, TAG_EVENT_TYPE, &tag.edge_id).await,
+        1
+    );
+    assert_eq!(
+        counts(&db, &ws, &src).await,
+        (1, 1, 0),
+        "no partial count change"
+    );
+    assert_eq!(
+        counts(&db, &ws, &hub).await,
+        (0, 0, 1),
+        "no partial count change"
+    );
 
     // Success: one delete receipt per accepted deletion, counts drop on both endpoints.
     let deleted_tag = db
@@ -1529,7 +1580,11 @@ async fn mt150_edge_delete_appends_durable_receipt_and_rolls_back_with_counts() 
         2,
         "create + delete receipts, durable although the row is gone"
     );
-    assert_eq!(edge_receipt_id(&storage, &tag.edge_id).await, None, "row is gone");
+    assert_eq!(
+        edge_receipt_id(&storage, &tag.edge_id).await,
+        None,
+        "row is gone"
+    );
     db.delete_loom_edge(&ctx, &ws, &mention.edge_id)
         .await
         .expect("delete mention edge");
@@ -1545,7 +1600,10 @@ async fn mt150_edge_delete_appends_durable_receipt_and_rolls_back_with_counts() 
         db.delete_loom_edge(&ctx, &ws, &tag.edge_id).await,
         Err(StorageError::NotFound("loom_edge"))
     ));
-    assert_eq!(ledger_count(&storage, TAG_EVENT_TYPE, &tag.edge_id).await, 2);
+    assert_eq!(
+        ledger_count(&storage, TAG_EVENT_TYPE, &tag.edge_id).await,
+        2
+    );
 
     storage
         .shutdown()
@@ -1622,7 +1680,10 @@ async fn mt150_concurrent_identical_and_conflicting_requests_settle_without_resi
         }
     }
     assert_eq!(accepted.len(), 1, "exactly one stable accepted outcome");
-    assert_eq!(conflicts, 7, "every other request is a deterministic typed conflict");
+    assert_eq!(
+        conflicts, 7,
+        "every other request is a deterministic typed conflict"
+    );
     let winner = &accepted[0];
     assert_eq!(
         ledger_count(&storage, TAG_EVENT_TYPE, &edge_id).await,
@@ -1694,11 +1755,13 @@ async fn mt150_concurrent_identical_and_conflicting_requests_settle_without_resi
         ledger_count(&reopened_storage, TAG_EVENT_TYPE, &edge_id).await,
         1
     );
-    assert!(reopened_db
-        .get_loom_block(&ws, &fav)
-        .await
-        .expect("restart read")
-        .favorite);
+    assert!(
+        reopened_db
+            .get_loom_block(&ws, &fav)
+            .await
+            .expect("restart read")
+            .favorite
+    );
     assert_eq!(
         ledger_count(&reopened_storage, BLOCK_EVENT_TYPE, &fav).await,
         1

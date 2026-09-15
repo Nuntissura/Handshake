@@ -203,7 +203,10 @@ impl SurrealDatabase {
         let block_id = block_id.to_owned();
         self.guarded_storage_mutation(
             vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
-            Replay::idempotent(format!("loom-block-update:{block_id}:{}", metadata.edit_event_id)),
+            Replay::idempotent(format!(
+                "loom-block-update:{block_id}:{}",
+                metadata.edit_event_id
+            )),
             (workspace_id, block_id, update, metadata),
             |database, (workspace_id, block_id, update, metadata)| {
                 Box::pin(async move {
@@ -236,7 +239,10 @@ impl SurrealDatabase {
         // edges touching one block collide at commit and the loser's retry recounts.
         self.guarded_storage_mutation(
             vec![LockKey::record(LOOM_EDGES_TABLE, edge_id.clone())],
-            Replay::idempotent(format!("loom-edge-create:{edge_id}:{}", metadata.edit_event_id)),
+            Replay::idempotent(format!(
+                "loom-edge-create:{edge_id}:{}",
+                metadata.edit_event_id
+            )),
             (edge, metadata),
             |database, (edge, metadata)| {
                 Box::pin(async move {
@@ -258,7 +264,10 @@ impl SurrealDatabase {
         let edge_id = edge_id.to_owned();
         self.guarded_storage_mutation(
             vec![LockKey::record(LOOM_EDGES_TABLE, edge_id.clone())],
-            Replay::idempotent(format!("loom-edge-delete:{edge_id}:{}", metadata.edit_event_id)),
+            Replay::idempotent(format!(
+                "loom-edge-delete:{edge_id}:{}",
+                metadata.edit_event_id
+            )),
             (workspace_id, edge_id, metadata),
             |database, (workspace_id, edge_id, metadata)| {
                 Box::pin(async move {
@@ -519,7 +528,9 @@ impl Database for SurrealDatabase {
             Replay::idempotent(format!("media-tier:{row_id}")),
             upsert,
             |database, upsert| {
-                Box::pin(async move { super::loom_store::upsert_media_tier(&database, upsert).await })
+                Box::pin(
+                    async move { super::loom_store::upsert_media_tier(&database, upsert).await },
+                )
             },
         )
         .await
@@ -1790,7 +1801,10 @@ impl Database for SurrealDatabase {
         let block_id = block_id.to_owned();
         self.guarded_storage_mutation(
             vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
-            Replay::idempotent(format!("loom-block-pin:{block_id}:{}", metadata.edit_event_id)),
+            Replay::idempotent(format!(
+                "loom-block-pin:{block_id}:{}",
+                metadata.edit_event_id
+            )),
             (workspace_id, block_id, metadata),
             move |database, (workspace_id, block_id, metadata)| {
                 Box::pin(async move {
@@ -1819,7 +1833,10 @@ impl Database for SurrealDatabase {
         let block_id = block_id.to_owned();
         self.guarded_storage_mutation(
             vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
-            Replay::idempotent(format!("loom-block-unpin:{block_id}:{}", metadata.edit_event_id)),
+            Replay::idempotent(format!(
+                "loom-block-unpin:{block_id}:{}",
+                metadata.edit_event_id
+            )),
             (workspace_id, block_id, metadata),
             |database, (workspace_id, block_id, metadata)| {
                 Box::pin(async move {
@@ -2148,13 +2165,8 @@ impl Database for SurrealDatabase {
         workspace_id: &str,
         placement_id: &str,
     ) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
-        super::loom_canvas_store::remove_canvas_placement(
-            self,
-            ctx,
-            workspace_id,
-            placement_id,
-        )
-        .await
+        super::loom_canvas_store::remove_canvas_placement(self, ctx, workspace_id, placement_id)
+            .await
     }
 
     async fn add_canvas_visual_edge(
@@ -2184,13 +2196,8 @@ impl Database for SurrealDatabase {
         workspace_id: &str,
         visual_edge_id: &str,
     ) -> StorageResult<()> {
-        super::loom_canvas_store::remove_canvas_visual_edge(
-            self,
-            ctx,
-            workspace_id,
-            visual_edge_id,
-        )
-        .await
+        super::loom_canvas_store::remove_canvas_visual_edge(self, ctx, workspace_id, visual_edge_id)
+            .await
     }
 
     async fn create_block_view(
@@ -2388,14 +2395,7 @@ impl Database for SurrealDatabase {
         title: &str,
         markdown: &str,
     ) -> StorageResult<LoomMarkdownImport> {
-        super::wiki_store::import_markdown_to_loom(
-            self,
-            ctx,
-            workspace_id,
-            title,
-            markdown,
-        )
-        .await
+        super::wiki_store::import_markdown_to_loom(self, ctx, workspace_id, title, markdown).await
     }
 
     async fn loom_block_breadcrumbs(

@@ -122,7 +122,11 @@ pub(crate) fn loom_folder_sibling_key(
 /// the two ids cannot be confused. Also the `LockKey::record` id membership
 /// writes are shaped on (MT-152).
 pub(crate) fn folder_member_id(folder_id: &str, block_id: &str) -> String {
-    format!("{}:{folder_id}--{}:{block_id}", folder_id.len(), block_id.len())
+    format!(
+        "{}:{folder_id}--{}:{block_id}",
+        folder_id.len(),
+        block_id.len()
+    )
 }
 
 /// Record id of the per-workspace folder-tree version anchor (MT-151).
@@ -3363,7 +3367,6 @@ fn build_loom_mutation_event(
     Ok(event)
 }
 
-
 #[derive(SurrealValue)]
 struct PinMutationBinding {
     block: RecordId,
@@ -3588,11 +3591,8 @@ pub(crate) async fn create_loom_folder(
         &LoomMutationIdentity::per_call(),
     )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
-    let sibling_key = loom_folder_sibling_key(
-        workspace_id,
-        folder.parent_folder_id.as_deref(),
-        name,
-    );
+    let sibling_key =
+        loom_folder_sibling_key(workspace_id, folder.parent_folder_id.as_deref(), name);
     // Result-set index 4: BEGIN(0), receipt read(1), append(2), bind(3), CREATE(4), COMMIT(5).
     let rows = db
         .query_values_at::<FolderRow, _>(
@@ -4248,8 +4248,7 @@ mod tests {
     #[test]
     fn loom_folder_sibling_key_is_injective_for_legal_adversarial_components() {
         let root = loom_folder_sibling_key("workspace|one", None, " Name|A ");
-        let parent_named_root =
-            loom_folder_sibling_key("workspace|one", Some("root"), "Name|A");
+        let parent_named_root = loom_folder_sibling_key("workspace|one", Some("root"), "Name|A");
         let shifted_boundaries = loom_folder_sibling_key("workspace", Some("one|root"), "Name|A");
         let empty_parent = loom_folder_sibling_key("workspace|one", Some(""), "Name|A");
 
