@@ -17,23 +17,53 @@
 //! schema-bootstrapped `Arc<dyn Database>` -- no Atelier domain data is
 //! involved) and require no external server, so unlike the deleted originals
 //! they are NOT `#[ignore]`d.
+//!
+//! MT-150 V3-PRE-03: the three memory-IPC items formerly typed
+//! `BLOCKED_ON_PRODUCT_DEFECT` (DEF-MEMORY-IPC-NO-PRODUCTION-STORE) are ported
+//! here too, now that the production store exists
+//! (`SurrealMemoryCapsuleStore`, `src/memory/persistence.rs`, wired at Tauri
+//! startup): `memory_ipc_list_and_get_round_trips_via_surreal_store` and
+//! `memory_ipc_suppression_persists_through_surreal_store_durably` (from the
+//! deleted `memory_ipc_postgres_tests.rs`) and
+//! `capsule_builder_injector_recorder_and_ipc_compose_over_embedded_surreal`
+//! (from the deleted `memory_capsule_e2e_postgres_tests.rs`), each with the
+//! original assertions. The Surreal store is EventLedger-replayed rather than
+//! row-backed, so `save_capsule_record` VERIFIES the durable state written by
+//! the recorder instead of inserting a second copy -- the original
+//! `recorder.record(..)` + `store.save_capsule_record(..)` sequence is kept
+//! and `save_capsule_record` is asserted to accept the identical record.
 
 mod atelier_surreal_support;
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use chrono::{DateTime, Utc};
 use handshake_core::{
     memory::{
         persistence::{MEMORY_CAPSULE_AGGREGATE_TYPE, MEMORY_CAPSULE_SOURCE_COMPONENT},
-        CapsuleAuditEntry, CapsuleAuditLog, CapsuleRecord, CapsuleRecorder, DegradationTier,
-        MemoryCapsuleIpcStore, MemoryIpcService, RetrievalPolicy, SuppressItemRequest,
+        CapsuleAuditEntry, CapsuleAuditLog, CapsuleBuilder, CapsuleFlightRecorderEvent,
+        CapsulePolicyTable, CapsuleRecord, CapsuleRecorder, DegradationTier, FemsError,
+        FemsFlightRecorder, FemsFlightRecorderError, FemsRetriever, GetCapsuleRequest,
+        InjectionDecision, ListRecentCapsulesRequest, MemoryCapsuleIpcStore, MemoryIpcService,
+        ModelCallContext, RetrievalPolicy, RetrievedItem, SuppressItemRequest,
         SurrealKernelActionSubmitter, SurrealMemoryCapsuleStore, TaskType,
         MEMORY_CAPSULE_RECORD_ACTION_ID,
     },
     storage::Database,
 };
+use serde::Deserialize;
 use uuid::Uuid;
+
+const E2E_QUERY: &str = "how do I add a new HBR rule applicability tag";
+const E2E_ROLE_ID: &str = "KERNEL_BUILDER";
+const E2E_SESSION_ID: &str = "KERNEL_BUILDER-MT-150-SURREAL";
+const FIXTURE_RELATIVE_PATH: &str = "tests/fixtures/memory_capsule_e2e/sample_fems_items.json";
 
 /// An isolated, schema-bootstrapped embedded SurrealDB `Arc<dyn Database>`,
 /// reusing the shared Atelier test harness purely for its store plumbing.
@@ -218,6 +248,311 @@ async fn capsule_recorder_dedup_collapses_duplicate_submissions() {
     // first submission must remain visible.
     assert_eq!(events[0].aggregate_id, record.capsule_id.to_string());
     let _ = (first, second);
+}
+
+/// Restored from `memory_ipc_postgres_tests.rs`: list_recent / get round-trip through
+/// `MemoryIpcService` bound to the production `SurrealMemoryCapsuleStore`.
+#[tokio::test(flavor = "multi_thread")]
+async fn memory_ipc_list_and_get_round_trips_via_surreal_store() {
+    let (db, _harness) = embedded_database().await;
+    let store = SurrealMemoryCapsuleStore::with_db(Arc::clone(&db));
+    let submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&db));
+    let flight_recorder = NoopFlightRecorder::default();
+
+    let service = MemoryIpcService::new(&store, &submitter, &flight_recorder);
+
+    let record = sample_capsule_record();
+    // The production store is EventLedger-replayed: the recorder is the durable write path and
+    // `save_capsule_record` verifies that exact durable state (the original's save call kept).
+    CapsuleRecorder {
+        action_catalog: &submitter,
+    }
+    .record(record.clone())
+    .expect("record capsule through the kernel action catalog");
+    store
+        .save_capsule_record(record.clone())
+        .expect("save_capsule_record");
+
+    // list_recent should include the just-saved record.
+    let list = service
+        .list_recent(ListRecentCapsulesRequest { limit: 25 })
+        .expect("list_recent");
+    assert!(
+        list.capsules
+            .iter()
+            .any(|capsule| capsule.capsule_id == record.capsule_id),
+        "Surreal-backed store must surface the just-saved record"
+    );
+
+    // get should round-trip the same record.
+    let fetched = service
+        .get(GetCapsuleRequest {
+            capsule_id: record.capsule_id,
+        })
+        .expect("get");
+    assert_eq!(fetched.record.capsule_id, record.capsule_id);
+    assert_eq!(fetched.record.task_type, record.task_type);
+}
+
+/// Restored from `memory_ipc_postgres_tests.rs`: a suppression persists through the
+/// production store durably -- re-fetched through a FRESH store instance over the same
+/// database (the original's simulated process restart).
+#[tokio::test(flavor = "multi_thread")]
+async fn memory_ipc_suppression_persists_through_surreal_store_durably() {
+    let (db, _harness) = embedded_database().await;
+    let store = SurrealMemoryCapsuleStore::with_db(Arc::clone(&db));
+    let submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&db));
+    let flight_recorder = NoopFlightRecorder::default();
+
+    let service = MemoryIpcService::new(&store, &submitter, &flight_recorder);
+
+    let record = sample_capsule_record();
+    CapsuleRecorder {
+        action_catalog: &submitter,
+    }
+    .record(record.clone())
+    .expect("record capsule through the kernel action catalog");
+    store
+        .save_capsule_record(record.clone())
+        .expect("save_capsule_record");
+
+    let suppression = service
+        .suppress_item(SuppressItemRequest {
+            capsule_id: record.capsule_id,
+            item_id: record.audit_log.entries[0].item_id.clone(),
+            reason: "operator rejected MT-150 surreal-test capsule context".to_string(),
+            actor_id: "KERNEL_BUILDER".to_string(),
+            session_id: "session-mt-150-surreal".to_string(),
+        })
+        .expect("suppress_item");
+    assert_eq!(suppression.capsule_id, record.capsule_id);
+
+    // Re-fetch through a FRESH store instance -- this proves durability across a
+    // simulated process restart. The previous store no longer holds the record
+    // in memory; the data must come from the embedded SurrealDB EventLedger.
+    let restarted_store = SurrealMemoryCapsuleStore::with_db(Arc::clone(&db));
+    let restarted_service = MemoryIpcService::new(&restarted_store, &submitter, &flight_recorder);
+    let after_restart = restarted_service
+        .get(GetCapsuleRequest {
+            capsule_id: record.capsule_id,
+        })
+        .expect("get after restart");
+    let suppressed_entry = after_restart
+        .record
+        .audit_log
+        .entries
+        .iter()
+        .find(|entry| entry.item_id == record.audit_log.entries[0].item_id)
+        .expect("suppressed entry must remain visible");
+    assert!(!suppressed_entry.included);
+    assert!(suppressed_entry.suppression_reason.is_some());
+}
+
+/// Restored from `memory_capsule_e2e_postgres_tests.rs`: the full MT-143 -> MT-144 -> MT-145
+/// -> MT-146 spine composed over the real embedded SurrealDB authority: CapsuleBuilder
+/// (fixture-backed FEMS) -> CapsuleInjector -> CapsuleRecorder -> SurrealKernelActionSubmitter
+/// (real catalog + kernel_event_ledger) -> MemoryIpcService over SurrealMemoryCapsuleStore
+/// (durable list/get/suppress), then suppression durability across a fresh store instance.
+#[tokio::test(flavor = "multi_thread")]
+async fn capsule_builder_injector_recorder_and_ipc_compose_over_embedded_surreal() {
+    let (db, _harness) = embedded_database().await;
+
+    let fixture_items = load_fixture_items();
+    let fems = TestFemsAdapter::new(fixture_items);
+    let policy_table = CapsulePolicyTable;
+    let builder = CapsuleBuilder::new(&fems, &policy_table);
+
+    // MT-143: build the capsule from the FEMS fixture adapter.
+    let _built_capsule = builder
+        .build(handshake_core::memory::BuildContext {
+            task_type: TaskType::KernelBuilderMtImplementation,
+            query: E2E_QUERY.to_string(),
+            role_id: E2E_ROLE_ID.to_string(),
+            session_id: E2E_SESSION_ID.to_string(),
+            override_policy: None,
+        })
+        .expect("CapsuleBuilder must succeed against the MT-147 fixture");
+
+    // MT-144: inject the capsule into the model-call context boundary. The
+    // recording flight-recorder lets us observe the injection event.
+    let flight_recorder = NoopFlightRecorder::default();
+    let injector = handshake_core::memory::CapsuleInjector::new(&builder, &flight_recorder);
+    let model_call_context = ModelCallContext::eligible(
+        TaskType::KernelBuilderMtImplementation,
+        E2E_QUERY,
+        E2E_ROLE_ID,
+        E2E_SESSION_ID,
+    );
+    let decision = injector
+        .inject_for_call(&model_call_context)
+        .expect("CapsuleInjector must produce an Inject decision over the fixture");
+    let injected_capsule = match decision {
+        InjectionDecision::Inject { capsule, .. } => capsule,
+        InjectionDecision::Skip { reason } => {
+            panic!("expected Inject decision, got Skip {reason:?}")
+        }
+    };
+
+    // MT-145: record the capsule through the real embedded-Surreal-backed kernel
+    // action catalog dispatcher.
+    let submitter = SurrealKernelActionSubmitter::with_db(Arc::clone(&db));
+    let recorder = CapsuleRecorder {
+        action_catalog: &submitter,
+    };
+    let record = CapsuleRecord::from_capsule(
+        &injected_capsule,
+        Utc::now(),
+        E2E_SESSION_ID,
+        E2E_ROLE_ID,
+    );
+    let _receipt = recorder.record(record.clone()).expect("recorder.record");
+
+    // Confirm the ledger now carries the catalog-action event.
+    let events = db
+        .list_kernel_events_for_aggregate(
+            MEMORY_CAPSULE_AGGREGATE_TYPE,
+            &record.capsule_id.to_string(),
+        )
+        .await
+        .expect("list ledger events for capsule aggregate");
+    assert!(events.iter().any(|event| event
+        .payload
+        .get("catalog_action_id")
+        .and_then(|v| v.as_str())
+        == Some(MEMORY_CAPSULE_RECORD_ACTION_ID)));
+
+    // MT-146: list/get/suppress over the durable Surreal-backed IPC store.
+    let store = SurrealMemoryCapsuleStore::with_db(Arc::clone(&db));
+    store
+        .save_capsule_record(record.clone())
+        .expect("store.save_capsule_record");
+
+    let service = MemoryIpcService::new(&store, &submitter, &flight_recorder);
+    let list = service
+        .list_recent(ListRecentCapsulesRequest { limit: 50 })
+        .expect("list_recent");
+    assert!(list
+        .capsules
+        .iter()
+        .any(|capsule| capsule.capsule_id == record.capsule_id));
+
+    let fetched = service
+        .get(GetCapsuleRequest {
+            capsule_id: record.capsule_id,
+        })
+        .expect("get");
+    assert_eq!(fetched.record.capsule_id, record.capsule_id);
+
+    // Exercise suppression and confirm durability across a simulated restart.
+    let included_item_id = record
+        .audit_log
+        .entries
+        .iter()
+        .find(|entry| entry.included)
+        .map(|entry| entry.item_id.clone())
+        .expect("fixture must produce at least one included audit entry");
+    let _suppression = service
+        .suppress_item(SuppressItemRequest {
+            capsule_id: record.capsule_id,
+            item_id: included_item_id.clone(),
+            reason: "MT-150 surreal E2E suppression".to_string(),
+            actor_id: E2E_ROLE_ID.to_string(),
+            session_id: E2E_SESSION_ID.to_string(),
+        })
+        .expect("suppress_item");
+
+    let restarted_store = SurrealMemoryCapsuleStore::with_db(Arc::clone(&db));
+    let restarted_service = MemoryIpcService::new(&restarted_store, &submitter, &flight_recorder);
+    let after_restart = restarted_service
+        .get(GetCapsuleRequest {
+            capsule_id: record.capsule_id,
+        })
+        .expect("get after restart");
+    let suppressed_entry = after_restart
+        .record
+        .audit_log
+        .entries
+        .iter()
+        .find(|entry| entry.item_id == included_item_id)
+        .expect("suppressed item must survive restart");
+    assert!(!suppressed_entry.included);
+    assert!(suppressed_entry.suppression_reason.is_some());
+}
+
+#[derive(Default)]
+struct NoopFlightRecorder {
+    events: RefCell<Vec<CapsuleFlightRecorderEvent>>,
+}
+
+impl FemsFlightRecorder for NoopFlightRecorder {
+    fn record_event(
+        &self,
+        event: CapsuleFlightRecorderEvent,
+    ) -> Result<(), FemsFlightRecorderError> {
+        self.events.borrow_mut().push(event);
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct TestFemsAdapter {
+    items: Vec<RetrievedItem>,
+    calls: RefCell<Vec<(String, u32)>>,
+}
+
+impl TestFemsAdapter {
+    fn new(items: Vec<RetrievedItem>) -> Self {
+        Self {
+            items,
+            calls: RefCell::new(Vec::new()),
+        }
+    }
+}
+
+impl FemsRetriever for TestFemsAdapter {
+    fn retrieve(&self, query: &str, top_k: u32) -> Result<Vec<RetrievedItem>, FemsError> {
+        self.calls.borrow_mut().push((query.to_string(), top_k));
+        Ok(self.items.clone())
+    }
+}
+
+fn load_fixture_items() -> Vec<RetrievedItem> {
+    let fixture_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(Path::new(FIXTURE_RELATIVE_PATH));
+    let raw = fs::read_to_string(&fixture_path).unwrap_or_else(|error| {
+        panic!(
+            "MT-147 fixture file is required at {}: {error}",
+            fixture_path.display()
+        )
+    });
+    let fixture: FixtureFile = serde_json::from_str(&raw).unwrap_or_else(|error| {
+        panic!(
+            "MT-147 fixture file must match strict JSON contract at {}: {error}",
+            fixture_path.display()
+        )
+    });
+    // Sanity-check the fixture is the same one the in-memory MT-147 e2e uses so
+    // we are exercising the spec-required path, not an ad-hoc test fixture.
+    assert_eq!(fixture.schema_version, "sample_fems_items.v1");
+    assert_eq!(
+        fixture.fixture_id,
+        "mt-147-memory-capsule-e2e-sample-fems-items"
+    );
+    assert_eq!(fixture.wp_id, "WP-KERNEL-004");
+    assert_eq!(fixture.mt_id, "MT-147");
+    fixture.items
+}
+
+#[derive(Debug, Deserialize)]
+struct FixtureFile {
+    schema_version: String,
+    fixture_id: String,
+    wp_id: String,
+    mt_id: String,
+    #[serde(default)]
+    #[allow(dead_code)]
+    intended_task_type: String,
+    items: Vec<RetrievedItem>,
 }
 
 fn sample_capsule_record() -> CapsuleRecord {

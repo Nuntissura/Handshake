@@ -468,6 +468,11 @@ pub struct LoomEdge {
     pub created_at: DateTime<Utc>,
     pub crdt_site_id: Option<String>,
     pub source_anchor: Option<LoomSourceAnchor>,
+    /// MT-150: the exact `kernel_event_ledger` receipt (KNOWLEDGE_LOOM_TAG_MUTATED) committed
+    /// atomically with this edge's creation. `None` only for edges projected by the
+    /// rich-document backlink bridge, which writes them without a per-edge receipt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event_ledger_event_id: Option<String>,
 }
 
 #[derive(Clone, Debug)]

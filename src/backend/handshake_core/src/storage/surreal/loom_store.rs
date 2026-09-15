@@ -34,6 +34,32 @@ const BLOCKS_TABLE: &str = "loom_blocks";
 const EDGES_TABLE: &str = "loom_edges";
 const COLLECTIONS_TABLE: &str = "loom_collections";
 
+/// The one canonical in-transaction EventLedger append for Loom mutations (MT-150). The
+/// enclosing `BEGIN TRANSACTION; ... COMMIT TRANSACTION;` query binds `$ledger` to the
+/// `event_ledger::LedgerWrite` prepared by `event_ledger::prepare_event` from
+/// `build_loom_mutation_event`. Three statements:
+///   1. read any committed receipt for this deterministic idempotency key;
+///   2. append the receipt when absent, or THROW `HSK-LOOM-RECEIPT-DIVERGENT` when the same
+///      request identity arrives with different content (the caller's transaction, and every
+///      domain/count write in it, rolls back with zero residue);
+///   3. bind `$receipt` to the durable ledger record id (the original one on an exact replay).
+/// Callers test `$existing_receipt = NONE` to apply the domain write only once: an exact retry
+/// of an already-committed request re-reads the committed state instead of re-applying it.
+/// Because the receipt CREATE is a real statement in the caller's transaction, a failing
+/// `kernel_event_ledger` write (the test-support fault seam redefines `event_id` with
+/// `ASSERT false`) aborts the whole mutation.
+macro_rules! loom_ledger_append_sql {
+    () => {
+        concat!(
+            "LET $existing_receipt = (SELECT id, payload_hash FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0]; ",
+            "IF $existing_receipt = NONE { ",
+            "CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; ",
+            "} ELSE IF $existing_receipt.payload_hash != $ledger.payload_hash { THROW 'HSK-LOOM-RECEIPT-DIVERGENT'; }; ",
+            "LET $receipt = $existing_receipt.id ?? $ledger.record; "
+        )
+    };
+}
+
 // Concurrency (MT-152 I-152-2, replacing the process-global Loom mutation mutex):
 // every invariant a Loom mutation depends on is owned database-side - record identity
 // by `pk_loom_blocks` / `pk_loom_edges`, the journal get-or-create natural key by
@@ -154,6 +180,10 @@ fn guarded_err(error: SurrealStorageError) -> StorageError {
         StorageError::Conflict("loom_journal_date_exists")
     } else if rendered.contains("HSK-LOOM-FOLDER-TREE-STALE") {
         StorageError::Conflict("loom_folder_tree_changed_concurrently")
+    } else if rendered.contains("HSK-LOOM-RECEIPT-DIVERGENT") {
+        StorageError::Conflict("loom_mutation_receipt_divergent")
+    } else if rendered.contains("HSK-LOOM-EDGE-EXISTS") {
+        StorageError::Conflict("loom_edge_exists")
     } else {
         StorageError::Database(rendered)
     }
@@ -1070,8 +1100,16 @@ struct BlockUpdateBinding {
     updated_at: Datetime,
     search: RecordId,
     search_text: String,
+    ledger: event_ledger::LedgerWrite,
 }
 
+/// Block metadata mutation (favorite / pinned / title / journal_date / pin_order). MT-150: the
+/// KNOWLEDGE_LOOM_BLOCK_MUTATED receipt is appended by `loom_ledger_append_sql!` inside the SAME
+/// transaction as the block row AND the search-index update, and the block binds
+/// `event_ledger_event_id` to that exact receipt. A request that changes nothing (every requested
+/// value already equals the stored value) is a no-op: no write, no receipt. An exact retry of an
+/// already-committed request (same `MutationMetadata`, hence the same deterministic idempotency
+/// key) re-reads the committed row without re-applying or re-receipting it.
 pub(crate) async fn update_loom_block(
     db: &SurrealDataContext<'_>,
     workspace_id: &str,
@@ -1082,24 +1120,78 @@ pub(crate) async fn update_loom_block(
     require_guarded_resource(&metadata, block_id)?;
     let existing = get_loom_block(db, workspace_id, block_id).await?;
     let mut projected = existing.clone();
+    let mut fields_changed: Vec<&str> = Vec::new();
     if let Some(value) = update.title.clone() {
+        if projected.title.as_deref() != Some(value.as_str()) {
+            fields_changed.push("title");
+        }
         projected.title = Some(value);
     }
     if let Some(value) = update.pinned {
+        if projected.pinned != value {
+            fields_changed.push("pinned");
+        }
         projected.pinned = value;
     }
     if let Some(value) = update.favorite {
+        if projected.favorite != value {
+            fields_changed.push("favorite");
+        }
         projected.favorite = value;
     }
     if let Some(value) = update.pin_order {
+        if projected.pin_order != Some(value) {
+            fields_changed.push("pin_order");
+        }
         projected.pin_order = Some(value);
     }
     if let Some(value) = update.journal_date.clone() {
+        if projected.journal_date.as_deref() != Some(value.as_str()) {
+            fields_changed.push("journal_date");
+        }
         projected.journal_date = Some(value);
     }
+    if fields_changed.is_empty() {
+        if let Some(expected) = update.expected_updated_at {
+            if existing.updated_at != expected {
+                return Err(StorageError::Conflict("loom_block_stale_updated_at"));
+            }
+        }
+        return Ok(existing);
+    }
+    let identity = LoomMutationIdentity::from_metadata(&metadata);
+    let event = build_loom_mutation_event(
+        workspace_id,
+        "loom_block",
+        block_id,
+        "update",
+        json!({
+            "fields_changed": fields_changed,
+            "title": projected.title,
+            "pinned": projected.pinned,
+            "favorite": projected.favorite,
+            "pin_order": projected.pin_order,
+            "journal_date": projected.journal_date,
+        }),
+        &identity,
+    )?;
+    let (_, ledger) = event_ledger::prepare_event(event)?;
+    // Result-set index 6: BEGIN(0), workspace guard(1), receipt read(2), receipt append(3),
+    // receipt bind(4), apply-once block(5), read(6), COMMIT(7).
     let rows = db
         .query_values_at::<BlockRow, _>(
-            "BEGIN TRANSACTION; IF (SELECT VALUE workspace_id FROM $block LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-NOT-FOUND'; }; IF $expected_updated_at != NONE AND (SELECT VALUE updated_at FROM $block LIMIT 1)[0] != $expected_updated_at { THROW 'HSK-LOOM-STALE'; }; UPDATE $block SET title = IF $title = NONE { title } ELSE { $title }, pinned = IF $pinned = NONE { pinned } ELSE { $pinned }, favorite = IF $favorite = NONE { favorite } ELSE { $favorite }, pin_order = IF $pin_order = NONE { pin_order } ELSE { $pin_order }, journal_date = IF $journal_date = NONE { journal_date } ELSE { $journal_date }, last_job_id = $last_job_id, last_workflow_id = $last_workflow_id, last_actor_id = $last_actor_id, edit_event_id = $edit_event_id, last_actor_kind = $last_actor_kind, updated_at = $updated_at RETURN AFTER; UPDATE $search SET search_text = $search_text, indexed_at = time::now(); COMMIT TRANSACTION;",
+            concat!(
+                "BEGIN TRANSACTION; ",
+                "IF (SELECT VALUE workspace_id FROM $block LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-NOT-FOUND'; }; ",
+                loom_ledger_append_sql!(),
+                "IF $existing_receipt = NONE { ",
+                "IF $expected_updated_at != NONE AND (SELECT VALUE updated_at FROM $block LIMIT 1)[0] != $expected_updated_at { THROW 'HSK-LOOM-STALE'; }; ",
+                "UPDATE $block SET title = IF $title = NONE { title } ELSE { $title }, pinned = IF $pinned = NONE { pinned } ELSE { $pinned }, favorite = IF $favorite = NONE { favorite } ELSE { $favorite }, pin_order = IF $pin_order = NONE { pin_order } ELSE { $pin_order }, journal_date = IF $journal_date = NONE { journal_date } ELSE { $journal_date }, last_job_id = $last_job_id, last_workflow_id = $last_workflow_id, last_actor_id = $last_actor_id, edit_event_id = $edit_event_id, last_actor_kind = $last_actor_kind, updated_at = $updated_at, event_ledger_event_id = $receipt RETURN NONE; ",
+                "UPDATE $search SET search_text = $search_text, indexed_at = time::now() RETURN NONE; ",
+                "}; ",
+                "SELECT * FROM $block; ",
+                "COMMIT TRANSACTION;"
+            ),
             BlockUpdateBinding {
                 block: thing(BLOCKS_TABLE, block_id),
                 workspace: thing("workspaces", workspace_id),
@@ -1117,8 +1209,9 @@ pub(crate) async fn update_loom_block(
                 updated_at: Datetime::from(metadata.timestamp),
                 search: thing("loom_block_search_index", block_id),
                 search_text: loom_search_text(&projected),
+                ledger,
             },
-            3,
+            6,
         )
         .await
         .map_err(guarded_err)?;
@@ -1221,6 +1314,7 @@ struct EdgeRow {
     source_text_block_id: Option<String>,
     offset_start: Option<i64>,
     offset_end: Option<i64>,
+    event_ledger_event_id: Option<RecordId>,
 }
 
 fn edge_to_domain(row: EdgeRow) -> StorageResult<LoomEdge> {
@@ -1259,6 +1353,7 @@ fn edge_to_domain(row: EdgeRow) -> StorageResult<LoomEdge> {
         created_at: row.created_at.into_inner(),
         crdt_site_id: row.crdt_site_id,
         source_anchor,
+        event_ledger_event_id: opt_record_key(row.event_ledger_event_id, "kernel_event_ledger")?,
     })
 }
 
@@ -1290,8 +1385,16 @@ struct EdgeCreateBinding {
     workspace: RecordId,
     source: RecordId,
     target: RecordId,
+    ledger: event_ledger::LedgerWrite,
 }
 
+/// Edge creation (tag / mention / ...). MT-150: the KNOWLEDGE_LOOM_TAG_MUTATED receipt
+/// (aggregate_type `loom_edge`, aggregate_id = edge_id, operation `create`) is appended by
+/// `loom_ledger_append_sql!` inside the SAME transaction as the edge CREATE and BOTH endpoint
+/// mention/tag/backlink recomputes, and the edge binds `event_ledger_event_id` to that exact
+/// receipt. An exact retry of an already-committed request re-reads the committed edge; a
+/// different request reusing a committed edge id is a typed conflict
+/// (`HSK-LOOM-EDGE-EXISTS`) whose transaction -- including the receipt it appended -- rolls back.
 pub(crate) async fn create_loom_edge(
     db: &SurrealDataContext<'_>,
     edge: NewLoomEdge,
@@ -1302,6 +1405,28 @@ pub(crate) async fn create_loom_edge(
         .clone()
         .unwrap_or_else(|| Uuid::now_v7().to_string());
     require_guarded_resource(&metadata, &id)?;
+    let identity = LoomMutationIdentity::from_metadata(&metadata);
+    let event = build_loom_mutation_event(
+        &edge.workspace_id,
+        "loom_edge",
+        &id,
+        "create",
+        json!({
+            "source_block_id": edge.source_block_id,
+            "target_block_id": edge.target_block_id,
+            "edge_type": edge.edge_type.as_str(),
+            "created_by": edge.created_by.as_str(),
+            "crdt_site_id": edge.crdt_site_id,
+            "source_anchor": edge.source_anchor.as_ref().map(|anchor| json!({
+                "document_id": anchor.document_id,
+                "block_id": anchor.block_id,
+                "offset_start": anchor.offset_start,
+                "offset_end": anchor.offset_end,
+            })),
+        }),
+        &identity,
+    )?;
+    let (_, ledger) = event_ledger::prepare_event(event)?;
     let (source_document_id, source_text_block_id, offset_start, offset_end) =
         match edge.source_anchor {
             Some(anchor) => (
@@ -1314,9 +1439,24 @@ pub(crate) async fn create_loom_edge(
         };
     let source = thing(BLOCKS_TABLE, edge.source_block_id);
     let target = thing(BLOCKS_TABLE, edge.target_block_id);
+    // Result-set index 6: BEGIN(0), endpoint guard(1), receipt read(2), receipt append(3),
+    // receipt bind(4), create-once block(5), read(6), COMMIT(7).
     let rows = db
         .query_values_at::<EdgeRow, _>(
-            "BEGIN TRANSACTION; IF (SELECT VALUE workspace_id FROM $source LIMIT 1)[0] != $workspace OR (SELECT VALUE workspace_id FROM $target LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-NOT-FOUND'; }; CREATE $edge CONTENT $content RETURN AFTER; UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])); UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])); COMMIT TRANSACTION;",
+            concat!(
+                "BEGIN TRANSACTION; ",
+                "IF (SELECT VALUE workspace_id FROM $source LIMIT 1)[0] != $workspace OR (SELECT VALUE workspace_id FROM $target LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-NOT-FOUND'; }; ",
+                loom_ledger_append_sql!(),
+                "IF $existing_receipt = NONE { ",
+                "IF record::exists($edge) { THROW 'HSK-LOOM-EDGE-EXISTS'; }; ",
+                "CREATE $edge CONTENT $content RETURN NONE; ",
+                "UPDATE $edge SET event_ledger_event_id = $receipt RETURN NONE; ",
+                "UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN NONE; ",
+                "UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN NONE; ",
+                "}; ",
+                "SELECT * FROM $edge; ",
+                "COMMIT TRANSACTION;"
+            ),
             EdgeCreateBinding {
                 edge: thing(EDGES_TABLE, id.clone()),
                 content: EdgeContent {
@@ -1341,8 +1481,9 @@ pub(crate) async fn create_loom_edge(
                 workspace: thing("workspaces", edge.workspace_id),
                 source,
                 target,
+                ledger,
             },
-            2,
+            6,
         )
         .await
         .map_err(guarded_err)?;
@@ -1353,11 +1494,18 @@ pub(crate) async fn create_loom_edge(
     )
 }
 
+/// Edge deletion. MT-150: the KNOWLEDGE_LOOM_TAG_MUTATED receipt (operation `delete`) is
+/// appended by `loom_ledger_append_sql!` inside the SAME transaction as the edge DELETE and
+/// BOTH endpoint count recomputes; it stays durable in the ledger under aggregate_id = edge_id
+/// although the edge row is gone. The domain read-back returns the deleted edge with the
+/// receipt it carried while it existed; the delete receipt itself is read from the ledger.
 pub(crate) async fn delete_loom_edge(
     db: &SurrealDataContext<'_>,
     workspace_id: &str,
     edge_id: &str,
+    metadata: MutationMetadata,
 ) -> StorageResult<LoomEdge> {
+    require_guarded_resource(&metadata, edge_id)?;
     let existing = db
         .query_first::<EdgeRow, _>(
             "SELECT * FROM $record WHERE workspace_id = $workspace LIMIT 1;",
@@ -1370,13 +1518,36 @@ pub(crate) async fn delete_loom_edge(
         .map_err(map_err)?
         .ok_or(StorageError::NotFound("loom_edge"))?;
     let mapped = edge_to_domain(existing)?;
+    let identity = LoomMutationIdentity::from_metadata(&metadata);
+    let event = build_loom_mutation_event(
+        workspace_id,
+        "loom_edge",
+        edge_id,
+        "delete",
+        json!({
+            "source_block_id": mapped.source_block_id,
+            "target_block_id": mapped.target_block_id,
+            "edge_type": mapped.edge_type.as_str(),
+        }),
+        &identity,
+    )?;
+    let (_, ledger) = event_ledger::prepare_event(event)?;
     db.execute_returning(
-        "BEGIN TRANSACTION; IF (SELECT VALUE workspace_id FROM $record LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-EDGE-NOT-FOUND'; }; DELETE $record RETURN BEFORE; UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])); UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])); COMMIT TRANSACTION;",
+        concat!(
+            "BEGIN TRANSACTION; ",
+            "IF (SELECT VALUE workspace_id FROM $record LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-EDGE-NOT-FOUND'; }; ",
+            loom_ledger_append_sql!(),
+            "DELETE $record RETURN NONE; ",
+            "UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN NONE; ",
+            "UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN NONE; ",
+            "COMMIT TRANSACTION;"
+        ),
         DeleteEdgeBinding {
             workspace: thing("workspaces", workspace_id),
             record: thing(EDGES_TABLE, edge_id),
             source: thing(BLOCKS_TABLE, mapped.source_block_id.clone()),
             target: thing(BLOCKS_TABLE, mapped.target_block_id.clone()),
+            ledger,
         },
     )
     .await
@@ -1390,6 +1561,7 @@ struct DeleteEdgeBinding {
     record: RecordId,
     source: RecordId,
     target: RecordId,
+    ledger: event_ledger::LedgerWrite,
 }
 
 #[derive(SurrealValue)]
@@ -3043,71 +3215,154 @@ pub(crate) async fn list_blocks_for_tag(
         .collect())
 }
 
+/// Request identity of one Loom mutation (MT-150): the deterministic components every Loom
+/// receipt idempotency key is derived from. `request_id` is the guard-minted
+/// `MutationMetadata::edit_event_id` for the metadata-carrying block/edge mutations -- the exact
+/// value the `SurrealDatabase` guarded retry loop re-runs the store function with, so a transient
+/// retry of one logical request maps onto one ledger row -- or a fresh per-call nonce for the
+/// folder mutations whose `Database` surface carries no `WriteContext` (every folder call is
+/// its own request, exactly as before MT-150).
+struct LoomMutationIdentity {
+    request_id: String,
+    actor_kind: String,
+    actor_id: Option<String>,
+    job_id: Option<String>,
+    workflow_id: Option<String>,
+}
+
+impl LoomMutationIdentity {
+    fn from_metadata(metadata: &MutationMetadata) -> Self {
+        Self {
+            request_id: metadata.edit_event_id.to_string(),
+            actor_kind: metadata.actor_kind.as_str().to_owned(),
+            actor_id: metadata.actor_id.clone(),
+            job_id: metadata.job_id.map(|id| id.to_string()),
+            workflow_id: metadata.workflow_id.map(|id| id.to_string()),
+        }
+    }
+
+    fn per_call() -> Self {
+        Self {
+            request_id: format!("call-{}", Uuid::now_v7()),
+            actor_kind: "SYSTEM".to_owned(),
+            actor_id: None,
+            job_id: None,
+            workflow_id: None,
+        }
+    }
+}
+
+/// Deterministic Loom receipt idempotency key (MT-150): workspace, aggregate kind, exact
+/// aggregate id, operation, request identity and actor context. The payload hash is
+/// deliberately NOT part of the key: the ledger keys idempotency by request identity and uses
+/// `payload_hash` as the divergence discriminator (`event_ledger::append` /
+/// `ensure_same_event` do the same), which is what lets `loom_ledger_append_sql!` reject a
+/// reused request identity carrying different content instead of silently minting a second
+/// receipt for it.
+fn loom_mutation_idempotency_key(
+    aggregate_kind: &str,
+    workspace_id: &str,
+    aggregate_id: &str,
+    operation: &str,
+    identity: &LoomMutationIdentity,
+) -> String {
+    format!(
+        "KEI-loom:{aggregate_kind}:{workspace_id}:{aggregate_id}:{operation}:{}:{}:{}",
+        identity.request_id,
+        identity.actor_kind,
+        identity.actor_id.as_deref().unwrap_or("-")
+    )
+}
+
+/// The one canonical typed Loom mutation-event builder (MT-150): folder, block (favorite / pin
+/// / metadata) and edge (tag / mention / ...) mutations all prepare their EventLedger receipt
+/// here, with a deterministic idempotency key and a payload that is a pure function of the
+/// request (no clock reads, no fresh ids), so an exact retry hashes identically.
 fn build_loom_mutation_event(
     workspace_id: &str,
     aggregate_kind: &'static str,
     aggregate_id: &str,
     operation: &str,
     detail: JsonValue,
+    identity: &LoomMutationIdentity,
 ) -> StorageResult<NewKernelEvent> {
-    let (event_type, actor_id, source_component, schema_id, payload_type) =
-        if aggregate_kind == "loom_folder" {
-            (
+    let (event_type, actor_id, source_component, schema_id, payload_type, id_field, run_kind) =
+        match aggregate_kind {
+            "loom_folder" => (
                 KernelEventType::KnowledgeLoomFolderMutated,
                 "loom-folder",
                 "loom_folder",
                 "hsk.loom_folder_mutation@1",
                 "knowledge_loom_folder_mutated",
-            )
-        } else {
-            (
+                "folder_id",
+                "FOLDER",
+            ),
+            "loom_edge" => (
+                KernelEventType::KnowledgeLoomTagMutated,
+                "loom-edge",
+                "loom_edge",
+                "hsk.loom_edge_mutation@1",
+                "knowledge_loom_tag_mutated",
+                "edge_id",
+                "EDGE",
+            ),
+            _ => (
                 KernelEventType::KnowledgeLoomBlockMutated,
                 "loom-block",
                 "loom_block",
                 "hsk.loom_block_mutation@1",
                 "knowledge_loom_block_mutated",
-            )
+                "block_id",
+                "BLOCK",
+            ),
         };
-    let run_id = format!(
-        "LOOM-{}-{workspace_id}",
-        if aggregate_kind == "loom_folder" {
-            "FOLDER"
-        } else {
-            "BLOCK"
-        }
-    );
+    let run_id = format!("LOOM-{run_kind}-{workspace_id}");
     let mut payload = json!({
         "type": payload_type,
         "schema_id": schema_id,
         "workspace_id": workspace_id,
         "operation": operation,
+        "request": {
+            "edit_event_id": identity.request_id,
+            "actor_kind": identity.actor_kind,
+            "actor_id": identity.actor_id,
+            "job_id": identity.job_id,
+            "workflow_id": identity.workflow_id,
+        },
     });
     if let JsonValue::Object(map) = &mut payload {
         map.insert(
-            if aggregate_kind == "loom_folder" {
-                "folder_id"
-            } else {
-                "block_id"
-            }
-            .to_owned(),
+            id_field.to_owned(),
             JsonValue::String(aggregate_id.to_owned()),
         );
         if let JsonValue::Object(detail) = detail {
             map.extend(detail);
         }
     }
-    NewKernelEvent::builder(
+    let mut event = NewKernelEvent::builder(
         run_id.clone(),
         run_id,
         event_type,
         KernelActor::System(actor_id.to_owned()),
     )
     .aggregate(aggregate_kind, aggregate_id.to_owned())
+    .idempotency_key(loom_mutation_idempotency_key(
+        aggregate_kind,
+        workspace_id,
+        aggregate_id,
+        operation,
+        identity,
+    ))
     .source_component(source_component)
     .payload(payload)
     .build()
-    .map_err(|_| StorageError::Validation("loom mutation event build failed"))
+    .map_err(|_| StorageError::Validation("loom mutation event build failed"))?;
+    event
+        .validate()
+        .map_err(|_| StorageError::Validation("loom mutation event build failed"))?;
+    Ok(event)
 }
+
 
 #[derive(SurrealValue)]
 struct PinMutationBinding {
@@ -3125,8 +3380,8 @@ struct PinMutationBinding {
 }
 
 #[derive(SurrealValue)]
-struct EventRecordBinding {
-    record: RecordId,
+struct EventKeyBinding {
+    idempotency_key: String,
 }
 
 #[derive(SurrealValue)]
@@ -3146,24 +3401,35 @@ async fn mutate_pin(
     metadata: MutationMetadata,
 ) -> StorageResult<(LoomBlock, LoomMutationEventReceipt)> {
     require_guarded_resource(&metadata, block_id)?;
+    let identity = LoomMutationIdentity::from_metadata(&metadata);
     let event = build_loom_mutation_event(
         workspace_id,
         "loom_block",
         block_id,
         operation,
-        json!({ "fields_changed": if pinned.is_some() { vec!["pin_order", "pinned"] } else { vec!["pin_order"] } }),
+        json!({
+            "fields_changed": if pinned.is_some() { vec!["pin_order", "pinned"] } else { vec!["pin_order"] },
+            "pin_order": pin_order,
+            "pinned": pinned,
+        }),
+        &identity,
     )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
-    let event_record = ledger.record.clone();
+    let idempotency_key = ledger.idempotency_key.clone();
+    // Result-set index 6: BEGIN(0), block guard(1), receipt read(2), receipt append(3),
+    // receipt bind(4), apply-once block(5), read(6), COMMIT(7).
     let rows = db
         .query_values_at::<BlockRow, _>(
-            "BEGIN TRANSACTION; \
-             IF (SELECT VALUE id FROM $block WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-NOT-FOUND'; }; \
-             IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] = NONE { \
-                CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; \
-             }; \
-             UPDATE $block SET pin_order = $pin_order, pinned = $pinned ?? pinned, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id, updated_at = $updated_at, event_ledger_event_id = $ledger.record RETURN AFTER; \
-             COMMIT TRANSACTION;",
+            concat!(
+                "BEGIN TRANSACTION; ",
+                "IF (SELECT VALUE id FROM $block WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-NOT-FOUND'; }; ",
+                loom_ledger_append_sql!(),
+                "IF $existing_receipt = NONE { ",
+                "UPDATE $block SET pin_order = $pin_order, pinned = $pinned ?? pinned, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id, updated_at = $updated_at, event_ledger_event_id = $receipt RETURN NONE; ",
+                "}; ",
+                "SELECT * FROM $block; ",
+                "COMMIT TRANSACTION;"
+            ),
             PinMutationBinding {
                 block: thing(BLOCKS_TABLE, block_id),
                 workspace: thing("workspaces", workspace_id),
@@ -3177,7 +3443,7 @@ async fn mutate_pin(
                 updated_at: Datetime::from(metadata.timestamp),
                 ledger,
             },
-            3,
+            6,
         )
         .await
         .map_err(guarded_err)?;
@@ -3186,12 +3452,12 @@ async fn mutate_pin(
         .next()
         .ok_or(StorageError::NotFound("loom_block"))
         .and_then(block_to_domain)?;
+    // The deterministic key resolves the committed receipt on the first attempt AND on an exact
+    // replay (where the original row, not the freshly prepared record id, is the durable one).
     let event: Option<MutationEventRow> = db
         .query_first(
-            "SELECT event_id, event_sequence, created_at FROM $record;",
-            EventRecordBinding {
-                record: event_record,
-            },
+            "SELECT event_id, event_sequence, created_at FROM kernel_event_ledger WHERE idempotency_key = $idempotency_key LIMIT 1;",
+            EventKeyBinding { idempotency_key },
         )
         .await
         .map_err(guarded_err)?;
@@ -3313,22 +3579,29 @@ pub(crate) async fn create_loom_folder(
     let folder_id = folder
         .folder_id
         .unwrap_or_else(|| format!("LFD-{}", Uuid::now_v7().simple()));
-    let event =
-        build_loom_mutation_event(workspace_id, "loom_folder", &folder_id, "create", json!({}))?;
+    let event = build_loom_mutation_event(
+        workspace_id,
+        "loom_folder",
+        &folder_id,
+        "create",
+        json!({}),
+        &LoomMutationIdentity::per_call(),
+    )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
     let sibling_key = loom_folder_sibling_key(
         workspace_id,
         folder.parent_folder_id.as_deref(),
         name,
     );
+    // Result-set index 4: BEGIN(0), receipt read(1), append(2), bind(3), CREATE(4), COMMIT(5).
     let rows = db
         .query_values_at::<FolderRow, _>(
-            "BEGIN TRANSACTION; \
-             IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] = NONE { \
-                CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; \
-             }; \
-             CREATE $folder SET folder_id = record::id($folder), workspace_id = $workspace, parent_folder_id = $parent, name = $name, sibling_key = $sibling_key, color = $color, sort_mode = $sort_mode, sort_order = $sort_order, project_ref = $project_ref, event_ledger_event_id = $ledger.record RETURN AFTER; \
-             COMMIT TRANSACTION;",
+            concat!(
+                "BEGIN TRANSACTION; ",
+                loom_ledger_append_sql!(),
+                "CREATE $folder SET folder_id = record::id($folder), workspace_id = $workspace, parent_folder_id = $parent, name = $name, sibling_key = $sibling_key, color = $color, sort_mode = $sort_mode, sort_order = $sort_order, project_ref = $project_ref, event_ledger_event_id = $receipt RETURN AFTER; ",
+                "COMMIT TRANSACTION;"
+            ),
             FolderCreateBinding {
                 folder: thing("loom_folders", folder_id),
                 workspace: thing("workspaces", workspace_id),
@@ -3341,7 +3614,7 @@ pub(crate) async fn create_loom_folder(
                 project_ref: folder.project_ref,
                 ledger,
             },
-            2,
+            4,
         )
         .await
         .map_err(guarded_err)?;
@@ -3505,24 +3778,32 @@ pub(crate) async fn update_loom_folder(
         target_parent_folder_id,
         name.unwrap_or(current.name.as_str()),
     );
-    let event =
-        build_loom_mutation_event(workspace_id, "loom_folder", folder_id, "update", json!({}))?;
+    let event = build_loom_mutation_event(
+        workspace_id,
+        "loom_folder",
+        folder_id,
+        "update",
+        json!({}),
+        &LoomMutationIdentity::per_call(),
+    )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
+    // Result-set index 5: BEGIN(0), folder guard(1), receipt read(2), append(3), bind(4),
+    // UPDATE(5), sibling UPDATE(6), reparent block(7), COMMIT(8).
     let rows = db
         .query_values_at::<FolderRow, _>(
-            "BEGIN TRANSACTION; \
-             IF (SELECT VALUE id FROM $folder WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-FOLDER-NOT-FOUND'; }; \
-             IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] = NONE { \
-                CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; \
-             }; \
-             UPDATE $folder SET name = $name ?? name, color = IF $set_color { $color } ELSE { color }, sort_mode = $sort_mode ?? sort_mode, sort_order = IF $set_sort_order { $sort_order } ELSE { sort_order }, parent_folder_id = IF $set_parent { $parent } ELSE { parent_folder_id }, project_ref = IF $set_project_ref { $project_ref } ELSE { project_ref }, event_ledger_event_id = $ledger.record, updated_at = time::now() RETURN AFTER; \
-             UPDATE $folder SET sibling_key = $sibling_key RETURN NONE; \
-             IF $reparent { \
-                LET $anchor_version = (SELECT VALUE version FROM $anchor)[0] ?? 0; \
-                IF $anchor_version != $expected_anchor_version { THROW 'HSK-LOOM-FOLDER-TREE-STALE'; }; \
-                UPSERT $anchor SET anchor_key = $anchor_key, graph_kind = $graph_kind, scope_key = $scope_key, version = $anchor_version + 1, updated_at = time::now(); \
-             }; \
-             COMMIT TRANSACTION;",
+            concat!(
+                "BEGIN TRANSACTION; ",
+                "IF (SELECT VALUE id FROM $folder WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-FOLDER-NOT-FOUND'; }; ",
+                loom_ledger_append_sql!(),
+                "UPDATE $folder SET name = $name ?? name, color = IF $set_color { $color } ELSE { color }, sort_mode = $sort_mode ?? sort_mode, sort_order = IF $set_sort_order { $sort_order } ELSE { sort_order }, parent_folder_id = IF $set_parent { $parent } ELSE { parent_folder_id }, project_ref = IF $set_project_ref { $project_ref } ELSE { project_ref }, event_ledger_event_id = $receipt, updated_at = time::now() RETURN AFTER; ",
+                "UPDATE $folder SET sibling_key = $sibling_key RETURN NONE; ",
+                "IF $reparent { ",
+                "LET $anchor_version = (SELECT VALUE version FROM $anchor)[0] ?? 0; ",
+                "IF $anchor_version != $expected_anchor_version { THROW 'HSK-LOOM-FOLDER-TREE-STALE'; }; ",
+                "UPSERT $anchor SET anchor_key = $anchor_key, graph_kind = $graph_kind, scope_key = $scope_key, version = $anchor_version + 1, updated_at = time::now(); ",
+                "}; ",
+                "COMMIT TRANSACTION;"
+            ),
             FolderUpdateBinding {
                 folder: thing("loom_folders", folder_id),
                 workspace: thing("workspaces", workspace_id),
@@ -3553,7 +3834,7 @@ pub(crate) async fn update_loom_folder(
                 scope_key: workspace_id.to_owned(),
                 expected_anchor_version,
             },
-            3,
+            5,
         )
         .await
         .map_err(folder_tree_err)?;
@@ -3575,23 +3856,31 @@ pub(crate) async fn delete_loom_folder(
     workspace_id: &str,
     folder_id: &str,
 ) -> StorageResult<()> {
-    let event =
-        build_loom_mutation_event(workspace_id, "loom_folder", folder_id, "delete", json!({}))?;
+    let event = build_loom_mutation_event(
+        workspace_id,
+        "loom_folder",
+        folder_id,
+        "delete",
+        json!({}),
+        &LoomMutationIdentity::per_call(),
+    )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
+    // Result-set index 6 (COMMIT): BEGIN(0), delete(1), guard(2), receipt read(3), append(4),
+    // bind(5), COMMIT(6).
     db.query_values_at::<JsonValue, _>(
-        "BEGIN TRANSACTION; \
-         LET $deleted = (DELETE $folder WHERE workspace_id = $workspace RETURN BEFORE); \
-         IF array::len($deleted) = 0 { THROW 'HSK-LOOM-FOLDER-NOT-FOUND'; }; \
-         IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] = NONE { \
-            CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; \
-         }; \
-         COMMIT TRANSACTION;",
+        concat!(
+            "BEGIN TRANSACTION; ",
+            "LET $deleted = (DELETE $folder WHERE workspace_id = $workspace RETURN BEFORE); ",
+            "IF array::len($deleted) = 0 { THROW 'HSK-LOOM-FOLDER-NOT-FOUND'; }; ",
+            loom_ledger_append_sql!(),
+            "COMMIT TRANSACTION;"
+        ),
         FolderDeleteBinding {
             folder: thing("loom_folders", folder_id),
             workspace: thing("workspaces", workspace_id),
             ledger,
         },
-        4,
+        6,
     )
     .await
     .map_err(guarded_err)?;
@@ -3623,15 +3912,18 @@ pub(crate) async fn add_block_to_loom_folder(
         folder_id,
         "add_member",
         json!({ "block_id": block_id }),
+        &LoomMutationIdentity::per_call(),
     )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
+    // Result-set index 5 (COMMIT): BEGIN(0), receipt read(1), append(2), bind(3), UPSERT(4),
+    // COMMIT(5).
     db.query_values_at::<JsonValue, _>(
-        "BEGIN TRANSACTION; \
-         IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] = NONE { \
-            CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; \
-         }; \
-         UPSERT $member SET folder_id = $folder, block_id = $block, workspace_id = $workspace, sort_order = $sort_order, event_ledger_event_id = $ledger.record; \
-         COMMIT TRANSACTION;",
+        concat!(
+            "BEGIN TRANSACTION; ",
+            loom_ledger_append_sql!(),
+            "UPSERT $member SET folder_id = $folder, block_id = $block, workspace_id = $workspace, sort_order = $sort_order, event_ledger_event_id = $receipt; ",
+            "COMMIT TRANSACTION;"
+        ),
         FolderMemberBinding {
             member: thing(FOLDER_MEMBERS_TABLE, folder_member_id(folder_id, block_id)),
             folder: thing("loom_folders", folder_id),
@@ -3640,7 +3932,7 @@ pub(crate) async fn add_block_to_loom_folder(
             sort_order: sort_order.map(i64::from),
             ledger,
         },
-        3,
+        5,
     )
     .await
     .map_err(map_err)?;
@@ -3659,15 +3951,19 @@ pub(crate) async fn remove_block_from_loom_folder(
         folder_id,
         "remove_member",
         json!({ "block_id": block_id }),
+        &LoomMutationIdentity::per_call(),
     )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
+    // Result-set index 3 (COMMIT): BEGIN(0), delete(1), receipt-if-deleted block(2), COMMIT(3).
     db.query_values_at::<JsonValue, _>(
-        "BEGIN TRANSACTION; \
-         LET $deleted = (DELETE loom_folder_members WHERE workspace_id = $workspace AND folder_id = $folder AND block_id = $block RETURN BEFORE); \
-         IF array::len($deleted) > 0 AND (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] = NONE { \
-            CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; \
-         }; \
-         COMMIT TRANSACTION;",
+        concat!(
+            "BEGIN TRANSACTION; ",
+            "LET $deleted = (DELETE loom_folder_members WHERE workspace_id = $workspace AND folder_id = $folder AND block_id = $block RETURN BEFORE); ",
+            "IF array::len($deleted) > 0 { ",
+            loom_ledger_append_sql!(),
+            "}; ",
+            "COMMIT TRANSACTION;"
+        ),
         FolderMemberBinding {
             member: thing(FOLDER_MEMBERS_TABLE, folder_member_id(folder_id, block_id)),
             folder: thing("loom_folders", folder_id),

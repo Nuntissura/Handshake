@@ -46,15 +46,20 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-151 re-pin: schema.surql gained loom_blocks.journal_key and storage_graph_anchors.
 // MT-152 re-pin: schema.surql gained fems_workspace_write_anchors, then
 // loom_folders.sibling_key / uq_loom_folders_sibling_key (I-152-2 sweep finding).
+// MT-150 re-pin: schema.surql gained loom_edges.event_ledger_event_id / idx_loom_edges_event
+// (previous value 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6, the MT-109
+// pin, retained as PRE_MT150_GENERATED_SURREALQL_SHA256).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6";
+    "5cc902f3afe7691b07338a6170a16a35535e6ff40a1c119a4ccc65c3464c7779";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
 // MT-152 re-pin: catalog identities gained the fems_workspace_write_anchors objects, then the
 // loom_folders sibling_key field/index (I-152-2 sweep finding).
+// MT-150 re-pin: catalog identities gained the loom_edges event_ledger_event_id field/index
+// (previous value 9881bff3f6bd7d02797fb95c88ad51f1ae6f19777f89477e3285cc014c37d014, MT-109).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "9881bff3f6bd7d02797fb95c88ad51f1ae6f19777f89477e3285cc014c37d014";
+    "MT150_DECLARATIVE_PENDING";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -72,8 +77,14 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-152 re-pin (I-152-2 sweep finding): loom_folders.sibling_key / uq_loom_folders_sibling_key
 // applied; run mt142-LIB-20260911T233822Z, `mt139_current_schema_info_pin_matches_fresh_mem_catalog`
 // observed, and reached identically by both in-place MT-152 upgrade proofs.
+// MT-150 re-pin: live STRUCTURE fingerprint with loom_edges.event_ledger_event_id /
+// idx_loom_edges_event applied (previous value
+// f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384, the MT-109 pin, retained as
+// PRE_MT150_SCHEMA_INFO_SHA256); observed by `mt139_current_schema_info_pin_matches_fresh_mem_catalog`
+// and reached identically by the in-place MT-150 upgrade
+// (`mt150_exact_mt109_pin_upgrade_adds_loom_edge_receipt_field_and_restarts_current`).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384";
+    "MT150_INFO_PENDING";
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
     "25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585";
 const PENDING_SCHEMA_INFO_SHA256: &str =
@@ -105,6 +116,26 @@ const PRE_MT152_GENERATED_SURREALQL_SHA256: &str =
     "a8bb72c7fd73c1a2ea0b9563ee2f0534bd9cd435d153975b61bf6794ff9a598a";
 const PRE_MT152_SCHEMA_INFO_SHA256: &str =
     "294530f11ca454f1afba332ac9e70e909ab39cac12ce35ad661daff2fd0ff222";
+/// Sixth allowlisted lineage (MT-150): every store bootstrapped at the MT-109 pin, before
+/// `loom_edges.event_ledger_event_id` / `idx_loom_edges_event` existed. These are the exact
+/// MT-109 pins of [`GENERATED_SURREALQL_SHA256`] and [`EXPECTED_SCHEMA_INFO_SHA256`]; such
+/// stores are upgraded in place by `upgrade_pre_mt150_current`. Every older allowlisted
+/// lineage receives the MT-150 statements inside its own upgrade transaction, because the
+/// finalize gate pins the current fingerprint.
+const PRE_MT150_GENERATED_SURREALQL_SHA256: &str =
+    "0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6";
+const PRE_MT150_SCHEMA_INFO_SHA256: &str =
+    "f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384";
+/// MT-150 upgrade statements: the durable EventLedger receipt binding on `loom_edges`, so a
+/// tag/mention edge create or delete carries the same atomic receipt linkage as `loom_blocks`
+/// and `loom_folders`. Applied with the state update in one transaction on top of every
+/// allowlisted predecessor lineage. Both statements must stay identical to `schema.surql`
+/// (proven by `mt150_upgrade_statements_match_schema`). No backfill: edges written before the
+/// field existed keep `NONE` (the field is optional, exactly like `loom_blocks`).
+const MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS: &str = "\
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE loom_edges TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE INDEX OVERWRITE idx_loom_edges_event ON TABLE loom_edges FIELDS event_ledger_event_id;
+";
 /// MT-152 upgrade statements, applied with the state update in one transaction on top of every
 /// allowlisted predecessor lineage. Every DDL statement must stay identical to `schema.surql`
 /// (proven by `mt152_upgrade_statements_match_schema`). No backfill: the anchor rows are
@@ -308,8 +339,10 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 // alias assertion) and loom_blocks.journal_key (+1 field, +1 uq index); no REFERENCE field.
 // MT-152 re-pin: +1 table (fems_workspace_write_anchors: +4 fields, +1 pk index, +1 record-id
 // alias assertion); no REFERENCE field.
+// MT-150 re-pin: loom_edges.event_ledger_event_id (+1 field, +1 REFERENCE field, +1 explicit
+// record::exists assertion) and idx_loom_edges_event (+1 named index); no new table.
 const TABLE_DEFINITION_COUNT: usize = 292;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3191;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3192;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 238;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -324,7 +357,7 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 55;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 812;
+const INDEX_DEFINITION_COUNT: usize = 813;
 const EVENT_DEFINITION_COUNT: usize = 20;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
@@ -332,12 +365,12 @@ const ACCESS_DEFINITION_COUNT: usize = 1;
 const FUNCTION_DEFINITION_COUNT: usize = 10;
 const SOURCE_TABLE_COUNT: usize = 289;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 552;
+const SOURCE_NAMED_INDEX_COUNT: usize = 553;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 259;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
-const REFERENCE_FIELD_COUNT: usize = 406;
-const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 405;
+const REFERENCE_FIELD_COUNT: usize = 407;
+const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 406;
 const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 228;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
@@ -1360,6 +1393,15 @@ impl SchemaState {
             && self.info_fingerprint_sha256 == PRE_MT109_SCHEMA_INFO_SHA256
     }
 
+    /// Exact MT-109 current lineage (revision 157 with the authority surface, before the
+    /// MT-150 `loom_edges.event_ledger_event_id` receipt binding).
+    fn is_exact_pre_mt150_current(&self) -> bool {
+        self.has_stable_v1_identity()
+            && self.generated_surql_sha256 == PRE_MT150_GENERATED_SURREALQL_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_MT150_SCHEMA_INFO_SHA256
+    }
+
     fn is_exact_supported_predecessor(&self) -> bool {
         self.has_stable_v1_identity()
             && self.generated_surql_sha256 == PREDECESSOR_GENERATED_SURREALQL_SHA256
@@ -1740,6 +1782,11 @@ pub async fn bootstrap_schema(
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
                     }
+                    Some(state) if state.is_exact_pre_mt150_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_mt150_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
                     Some(state) if state.is_exact_pre_mt109_current() => {
                         verified_observed = Some(upgrade_pre_mt109_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
@@ -1989,6 +2036,17 @@ fn resource_authority_upgrade_statements() -> String {
         "{}\n{}",
         resource_authority_schema_statements(),
         MT109_LOOM_SOURCE_BACKFILL
+    )
+}
+
+/// Every lineage older than the MT-109 pin receives the MT-109 authority delta AND the MT-150
+/// `loom_edges` receipt binding in its own upgrade transaction, because the finalize gate pins
+/// the current fingerprint (which includes both).
+fn post_mt109_upgrade_statements() -> String {
+    format!(
+        "{}\n{}",
+        resource_authority_upgrade_statements(),
+        MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS
     )
 }
 
@@ -2288,7 +2346,7 @@ UPDATE ONLY handshake_schema_state:primary SET
     apply_state = 'schema_applied',
     updated_at = time::now();
 COMMIT TRANSACTION;
-"#.replace("UPDATE ONLY handshake_schema_state:primary SET", &format!("{}\nUPDATE ONLY handshake_schema_state:primary SET", resource_authority_upgrade_statements())).as_str(),
+"#.replace("UPDATE ONLY handshake_schema_state:primary SET", &format!("{}\nUPDATE ONLY handshake_schema_state:primary SET", post_mt109_upgrade_statements())).as_str(),
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
@@ -2555,7 +2613,7 @@ async fn upgrade_pre_mt142_current(
         PRE_MT142_SCHEMA_INFO_SHA256,
     )
     .await?;
-    let authority_delta = resource_authority_upgrade_statements();
+    let authority_delta = post_mt109_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -2670,7 +2728,7 @@ async fn upgrade_pre_mt151_current(
         PRE_MT151_SCHEMA_INFO_SHA256,
     )
     .await?;
-    let authority_delta = resource_authority_upgrade_statements();
+    let authority_delta = post_mt109_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -2777,7 +2835,7 @@ async fn upgrade_pre_mt152_current(
         PRE_MT152_SCHEMA_INFO_SHA256,
     )
     .await?;
-    let authority_delta = resource_authority_upgrade_statements();
+    let authority_delta = post_mt109_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -2862,6 +2920,103 @@ COMMIT TRANSACTION;\n"
     }
 }
 
+/// MT-150: upgrades an exact MT-109 current store in place by adding
+/// `loom_edges.event_ledger_event_id` and `idx_loom_edges_event` inside one transaction guarded
+/// by the exact prior state, then finalizes through the same fingerprint gate as every other
+/// lineage. Every application row is untouched; pre-existing edges keep `NONE`.
+async fn upgrade_pre_mt150_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_mt150_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $schema_revision\n\
+    OR $current.target_revision != $schema_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_STATE_CHANGED';\n\
+}};\n\
+{MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS}\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT150_GENERATED_SURREALQL_SHA256.to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_MT150_SCHEMA_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
 fn mt109_authority_upgrade_bindings() -> PredecessorUpgradeBindings {
     PredecessorUpgradeBindings {
         schema_version: SCHEMA_VERSION.to_owned(),
@@ -2878,7 +3033,7 @@ fn mt109_authority_upgrade_bindings() -> PredecessorUpgradeBindings {
 }
 
 fn mt109_authority_upgrade_query() -> String {
-    let authority_delta = resource_authority_upgrade_statements();
+    let authority_delta = post_mt109_upgrade_statements();
     format!(
         r#"
 BEGIN TRANSACTION;
@@ -5726,6 +5881,222 @@ mod tests {
             .await
             .expect("verify exact-current durable reopen after the MT-151 upgrade");
         current.shutdown().await.expect("close current store");
+    }
+
+    /// MT-150: the exact MT-109 pin is the current script minus the MT-150 `loom_edges`
+    /// receipt block, proven byte-exact against `PRE_MT150_GENERATED_SURREALQL_SHA256`.
+    fn mt150_pin_schema() -> String {
+        assert_eq!(
+            SCHEMA.matches(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS).count(),
+            1,
+            "MT-150 block drifted: {MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS}"
+        );
+        let pinned = SCHEMA.replace(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS, "");
+        assert_eq!(
+            sha256_hex(pinned.as_bytes()),
+            PRE_MT150_GENERATED_SURREALQL_SHA256,
+            "the pre-MT-150 allowlist must be exactly the current script minus the MT-150 block"
+        );
+        pinned
+    }
+
+    /// MT-150: the upgrade DDL is byte-identical (whitespace-normalised) to the fresh-script
+    /// `loom_edges.event_ledger_event_id` / `idx_loom_edges_event` lines, the field precedes its
+    /// index, every older lineage's upgrade query carries the block, and the lineage pins moved.
+    #[test]
+    fn mt150_upgrade_statements_match_schema() {
+        fn statements(source: &str) -> Vec<String> {
+            source
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .split(';')
+                .map(|statement| statement.split_whitespace().collect::<Vec<_>>().join(" "))
+                .filter(|statement| statement.starts_with("DEFINE "))
+                .collect()
+        }
+        let upgrade = statements(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS);
+        assert_eq!(upgrade.len(), 2);
+        let schema = statements(SCHEMA);
+        let field_at = schema
+            .iter()
+            .position(|s| s == &upgrade[0])
+            .expect("MT-150 field in schema.surql");
+        let index_at = schema
+            .iter()
+            .position(|s| s == &upgrade[1])
+            .expect("MT-150 index in schema.surql");
+        assert!(
+            field_at < index_at,
+            "event_ledger_event_id field must precede idx_loom_edges_event"
+        );
+        assert!(upgrade[0].contains("ON TABLE loom_edges TYPE option<record<kernel_event_ledger>>"));
+        assert!(upgrade[0].contains("REFERENCE ON DELETE REJECT"));
+        assert!(upgrade[1].contains("idx_loom_edges_event ON TABLE loom_edges FIELDS event_ledger_event_id"));
+        // The MT-109 pin (schema_pre_mt109.surql) predates the block, so it must NOT carry it.
+        assert_eq!(
+            PRE_MT109_SCHEMA
+                .matches(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS)
+                .count(),
+            0
+        );
+        assert!(post_mt109_upgrade_statements().contains(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS));
+        assert!(mt109_authority_upgrade_query().contains(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS));
+        assert_ne!(
+            PRE_MT150_GENERATED_SURREALQL_SHA256,
+            GENERATED_SURREALQL_SHA256
+        );
+        assert_ne!(PRE_MT150_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
+        // The MT-150 predecessor is the MT-109 current pin, so the hops chain.
+        assert_ne!(
+            PRE_MT150_GENERATED_SURREALQL_SHA256,
+            PRE_MT109_GENERATED_SURREALQL_SHA256
+        );
+        let _ = mt150_pin_schema();
+    }
+
+    /// MT-150: a store at the exact MT-109 pin (the current script minus the MT-150 block,
+    /// proven byte-exact against `PRE_MT150_GENERATED_SURREALQL_SHA256`) holding a workspace, two
+    /// blocks and a tag edge written before the receipt field existed is upgraded in place:
+    /// `loom_edges.event_ledger_event_id` exists, the pre-existing edge survives with `NONE`, the
+    /// live fingerprint is the current pin, and the state survives a reopen.
+    #[tokio::test]
+    async fn mt150_exact_mt109_pin_upgrade_adds_loom_edge_receipt_field_and_restarts_current() {
+        let mt150_pin_schema = mt150_pin_schema();
+        let directory = tempfile::tempdir().expect("temporary MT-109-pin store");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open MT-109-pin store");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_bound(
+                            mt150_pin_schema.as_str(),
+                            BootstrapBindings {
+                                schema_version: SCHEMA_VERSION.to_owned(),
+                                schema_revision: SCHEMA_REVISION,
+                                namespace: DEFAULT_NAMESPACE.to_owned(),
+                                database: DEFAULT_DATABASE.to_owned(),
+                                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                                generated_surql_sha256: PRE_MT150_GENERATED_SURREALQL_SHA256
+                                    .to_owned(),
+                            },
+                        )
+                        .await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    let before = inspect_schema(&database).await?;
+                    assert_eq!(
+                        before.info_fingerprint_sha256, PRE_MT150_SCHEMA_INFO_SHA256,
+                        "the synthesized MT-109-pin store must carry the exact MT-109 live fingerprint"
+                    );
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET \
+                             info_fingerprint_sha256 = '{PRE_MT150_SCHEMA_INFO_SHA256}', \
+                             apply_state = 'complete', updated_at = time::now(); \
+                             CREATE workspaces:mt150_pin CONTENT {{ name: 'sentinel' }}; \
+                             CREATE loom_blocks:mt150_src CONTENT {{ block_id: 'mt150_src', \
+                             workspace_id: workspaces:mt150_pin, content_type: 'note', title: 'src' }}; \
+                             CREATE loom_blocks:mt150_hub CONTENT {{ block_id: 'mt150_hub', \
+                             workspace_id: workspaces:mt150_pin, content_type: 'note', title: 'hub' }}; \
+                             CREATE loom_edges:mt150_edge CONTENT {{ edge_id: 'mt150_edge', \
+                             workspace_id: workspaces:mt150_pin, source_block_id: loom_blocks:mt150_src, \
+                             target_block_id: loom_blocks:mt150_hub, edge_type: 'tag', created_by: 'user' }};"
+                        ))
+                        .await?
+                        .check()?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("construct exact MT-109-pin store with a workspace, blocks and an edge");
+        storage.shutdown().await.expect("close MT-109-pin store");
+
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen MT-109-pin store");
+        let upgraded = match bootstrap_schema(&reopened).await {
+            Ok(report) => report,
+            Err(error) => {
+                let reference = fresh_mem_catalog().await;
+                let observed = reopened
+                    .with_admin_operation(|database| {
+                        Box::pin(async move { canonical_catalog(&database).await })
+                    })
+                    .await
+                    .expect("inspect the failed upgrade");
+                report_catalog_drift("MT150_UPGRADE", &reference, &observed);
+                panic!("upgrade exact MT-109-pin store: {error}");
+            }
+        };
+        assert!(upgraded.reused_existing_schema);
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        reopened
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut edges = database
+                        .query("INFO FOR TABLE loom_edges STRUCTURE;")
+                        .await?;
+                    let info: SurrealValueData = edges.take(0)?;
+                    let fields = parse_named_array(&info, "fields")
+                        .unwrap_or_else(|reason| panic!("invalid loom_edges INFO: {reason}"));
+                    assert!(fields.iter().any(|field| field == "event_ledger_event_id"));
+                    let indexes = parse_named_array(&info, "indexes")
+                        .unwrap_or_else(|reason| panic!("invalid loom_edges INFO: {reason}"));
+                    assert!(indexes.iter().any(|index| index == "idx_loom_edges_event"));
+                    let mut edge = database
+                        .query(
+                            "RETURN loom_edges:mt150_edge.edge_id; \
+                             RETURN loom_edges:mt150_edge.event_ledger_event_id;",
+                        )
+                        .await?;
+                    let edge_id: Option<String> = edge.take(0)?;
+                    assert_eq!(edge_id.as_deref(), Some("mt150_edge"));
+                    let receipt: Option<RecordId> = edge.take(1)?;
+                    assert!(
+                        receipt.is_none(),
+                        "an edge written before MT-150 keeps NONE; no receipt is fabricated"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("inspect upgraded MT-109-pin store");
+        reopened.shutdown().await.expect("close upgraded store");
+
+        let restarted = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded store");
+        let reused = bootstrap_schema(&restarted)
+            .await
+            .expect("bootstrap on the upgraded store");
+        assert_eq!(reused.outcome, SchemaBootstrapOutcome::ReusedExactCurrent);
+        restarted
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("upgraded state survives reopen");
+                    assert!(state.is_exact_current());
+                    let mut sentinel = database.query("RETURN workspaces:mt150_pin.name;").await?;
+                    let name: Option<String> = sentinel.take(0)?;
+                    assert_eq!(name.as_deref(), Some("sentinel"));
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify restarted upgraded store");
+        restarted.shutdown().await.expect("close restarted store");
     }
 
     /// MT-152: a store at the exact MT-151 pin (the current script minus the MT-152 block,

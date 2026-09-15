@@ -1118,20 +1118,40 @@ fn page_notes_loom_surface() -> NewUserManualPage {
             ),
             section(
                 "safety",
-                "Durable folder/tag mutation receipts and diagnostic posture",
+                "Durable folder/edge/block mutation receipts and diagnostic posture",
                 "Folder-tree mutations (`POST/PATCH/DELETE .../loom/folders...` and folder \
-                 membership `PUT/DELETE .../loom/folders/:folder_id/blocks/:block_id`) and \
-                 tag-edge mutations (`POST/DELETE .../loom/edges` with `edge_type='tag'`) each \
-                 append a durable EventLedger receipt in the SAME embedded SurrealDB transaction as the \
-                 domain write. Event types: `KNOWLEDGE_LOOM_FOLDER_MUTATED` \
-                 (aggregate_type=`loom_folder`, aggregate_id=folder_id) and \
-                 `KNOWLEDGE_LOOM_TAG_MUTATED` (aggregate_type=`loom_edge`, aggregate_id=edge_id). \
-                 The receipt id is stored on `loom_folders.event_ledger_event_id`, \
-                 `loom_folder_members.event_ledger_event_id`, and \
-                 `loom_edges.event_ledger_event_id` with a foreign key to `kernel_event_ledger`, \
+                 membership `PUT/DELETE .../loom/folders/:folder_id/blocks/:block_id`), EVERY \
+                 edge mutation (`POST/DELETE .../loom/edges` for tag, mention and every other \
+                 `edge_type`; MT-150), and block bookmark/metadata mutations (favorite, pinned, \
+                 title, journal_date via `PATCH .../loom/blocks/:block_id`; pin order and unpin \
+                 via the pin routes) each append a durable EventLedger receipt in the SAME \
+                 embedded SurrealDB transaction as the domain write, the derived \
+                 mention/tag/backlink count recomputes on both edge endpoints, and the block \
+                 search-index refresh. Event families: `KNOWLEDGE_LOOM_FOLDER_MUTATED` \
+                 (aggregate_type=`loom_folder`, aggregate_id=folder_id, payload.operation \
+                 create|update|delete|add_member|remove_member), `KNOWLEDGE_LOOM_TAG_MUTATED` \
+                 (aggregate_type=`loom_edge`, aggregate_id=edge_id, payload.operation \
+                 create|delete, payload.edge_type tag|mention|...), and \
+                 `KNOWLEDGE_LOOM_BLOCK_MUTATED` (aggregate_type=`loom_block`, \
+                 aggregate_id=block_id, payload.operation update|pin_order_set|pin_order_clear| \
+                 pin_removed, payload.fields_changed). The receipt id is stored on \
+                 `loom_folders.event_ledger_event_id`, `loom_folder_members.event_ledger_event_id`, \
+                 `loom_edges.event_ledger_event_id` (also returned as `LoomEdge.event_ledger_event_id`; \
+                 NONE only on backlink edges projected by the rich-document bridge) and \
+                 `loom_blocks.event_ledger_event_id`, each a foreign key to `kernel_event_ledger`, \
                  so a committed mutation can never lack durable evidence and a failed receipt \
-                 append rolls the whole mutation back — no partial folder/edge row survives a \
-                 restart. Correlate the receipt on `GET .../events`.\n\
+                 append rolls the whole mutation back — no partial folder/edge/block row, count \
+                 or search-index change survives a restart. A delete receipt stays readable in \
+                 the ledger under its aggregate_id after the row is gone. Receipt idempotency \
+                 keys are deterministic (`KEI-loom:<aggregate>:<workspace>:<id>:<operation>: \
+                 <edit_event_id>:<actor_kind>:<actor_id>`): an exact retry of one request reuses \
+                 the original receipt and re-reads the committed state; the same request identity \
+                 with different content fails closed with `HSK-LOOM-RECEIPT-DIVERGENT` \
+                 (typed `loom_mutation_receipt_divergent` conflict) and rolls back; a second \
+                 request reusing a committed edge id fails with `loom_edge_exists`; a block \
+                 update that changes nothing is a no-op and emits no receipt. Recovery: replay \
+                 the aggregate's receipts on `GET .../events` (filter by aggregate_type / \
+                 aggregate_id) — the payload carries the post-mutation field values.\n\
                  - Diagnostic posture (HBR-INT-009): Tier 1 Flight Recorder = WIRED (folder \
                  mutations emit `loom_folder_mutated`; tag-edge mutations emit \
                  `loom_edge_created`/`loom_edge_deleted`; these best-effort DuckDB mirrors are \

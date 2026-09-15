@@ -2955,6 +2955,26 @@ async fn route6_document_soft_delete_tombstones_and_receipts() {
         "receipt id is a kernel event: {receipt}"
     );
 
+    // The tombstone landed on the authority row (deleted_at set, row not dropped) and the
+    // row-side receipt link is EXACTLY the receipt the response returned (restored original
+    // assertion; MT-150 V3-PRE-02).
+    let tombstone = project_one_row(
+        &store,
+        "knowledge_rich_documents",
+        &["deleted_at", "deleted_receipt_event_id"],
+        RowFilter::IdEquals(doc_id.clone()),
+    )
+    .await;
+    assert!(
+        !scalar(&tombstone["deleted_at"]).is_null(),
+        "deleted_at must be set"
+    );
+    assert_eq!(
+        scalar(&tombstone["deleted_receipt_event_id"]).as_str(),
+        Some(receipt),
+        "the row binds the exact receipt the delete response returned"
+    );
+
     // The delete left a KNOWLEDGE_RICH_DOCUMENT_DELETED EventLedger receipt.
     let events = state
         .storage

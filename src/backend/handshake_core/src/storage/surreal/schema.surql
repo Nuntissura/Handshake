@@ -520,6 +520,8 @@ DEFINE FIELD OVERWRITE offset_end ON TABLE loom_edges TYPE option<int> ASSERT $v
 DEFINE INDEX OVERWRITE pk_loom_edges ON TABLE loom_edges FIELDS edge_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_loom_edges_workspace_source ON TABLE loom_edges FIELDS workspace_id, source_block_id;
 DEFINE INDEX OVERWRITE idx_loom_edges_workspace_target ON TABLE loom_edges FIELDS workspace_id, target_block_id;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE loom_edges TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE INDEX OVERWRITE idx_loom_edges_event ON TABLE loom_edges FIELDS event_ledger_event_id;
 DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE loom_edges
     WHEN ($event = 'CREATE' OR $event = 'UPDATE')
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE

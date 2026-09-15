@@ -187,6 +187,136 @@ impl SurrealDatabase {
     }
 }
 
+impl SurrealDatabase {
+    /// The guarded block-metadata mutation with caller-held `MutationMetadata` (MT-150). The
+    /// `Database` wrapper mints the metadata from the write guard and delegates here; the
+    /// metadata is the request identity the Loom receipt idempotency key is derived from, and
+    /// the guarded retry loop re-runs the store function with this same value.
+    async fn update_loom_block_with_metadata(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        update: LoomBlockUpdate,
+        metadata: MutationMetadata,
+    ) -> StorageResult<LoomBlock> {
+        let workspace_id = workspace_id.to_owned();
+        let block_id = block_id.to_owned();
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!("loom-block-update:{block_id}:{}", metadata.edit_event_id)),
+            (workspace_id, block_id, update, metadata),
+            |database, (workspace_id, block_id, update, metadata)| {
+                Box::pin(async move {
+                    super::loom_store::update_loom_block(
+                        &database,
+                        &workspace_id,
+                        &block_id,
+                        update,
+                        metadata,
+                    )
+                    .await
+                })
+            },
+        )
+        .await
+    }
+
+    /// The guarded edge creation with caller-held `MutationMetadata` (MT-150); `edge.edge_id`
+    /// must be set and must equal `metadata.resource_id`.
+    async fn create_loom_edge_with_metadata(
+        &self,
+        edge: NewLoomEdge,
+        metadata: MutationMetadata,
+    ) -> StorageResult<LoomEdge> {
+        let edge_id = edge
+            .edge_id
+            .clone()
+            .unwrap_or_else(|| metadata.resource_id.clone());
+        // Endpoint counters are `array::len` recomputes inside the transaction, so two
+        // edges touching one block collide at commit and the loser's retry recounts.
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_EDGES_TABLE, edge_id.clone())],
+            Replay::idempotent(format!("loom-edge-create:{edge_id}:{}", metadata.edit_event_id)),
+            (edge, metadata),
+            |database, (edge, metadata)| {
+                Box::pin(async move {
+                    super::loom_store::create_loom_edge(&database, edge, metadata).await
+                })
+            },
+        )
+        .await
+    }
+
+    /// The guarded edge deletion with caller-held `MutationMetadata` (MT-150).
+    async fn delete_loom_edge_with_metadata(
+        &self,
+        workspace_id: &str,
+        edge_id: &str,
+        metadata: MutationMetadata,
+    ) -> StorageResult<LoomEdge> {
+        let workspace_id = workspace_id.to_owned();
+        let edge_id = edge_id.to_owned();
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_EDGES_TABLE, edge_id.clone())],
+            Replay::idempotent(format!("loom-edge-delete:{edge_id}:{}", metadata.edit_event_id)),
+            (workspace_id, edge_id, metadata),
+            |database, (workspace_id, edge_id, metadata)| {
+                Box::pin(async move {
+                    super::loom_store::delete_loom_edge(
+                        &database,
+                        &workspace_id,
+                        &edge_id,
+                        metadata,
+                    )
+                    .await
+                })
+            },
+        )
+        .await
+    }
+
+    /// Test-support replay seam (MT-150): runs the REAL guarded block update with an explicit,
+    /// caller-held request identity, so a proof can submit one exact request twice (the
+    /// production retry shape) and prove the receipt is reused, or resubmit the same identity
+    /// with different content and prove the typed divergence conflict rolls everything back.
+    /// Obtain the metadata from `Database::validate_write_with_guard`.
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pub async fn test_update_loom_block_with_metadata(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        update: LoomBlockUpdate,
+        metadata: MutationMetadata,
+    ) -> StorageResult<LoomBlock> {
+        self.update_loom_block_with_metadata(workspace_id, block_id, update, metadata)
+            .await
+    }
+
+    /// Test-support replay seam (MT-150) for the REAL guarded edge creation; see
+    /// [`Self::test_update_loom_block_with_metadata`].
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pub async fn test_create_loom_edge_with_metadata(
+        &self,
+        edge: NewLoomEdge,
+        metadata: MutationMetadata,
+    ) -> StorageResult<LoomEdge> {
+        self.create_loom_edge_with_metadata(edge, metadata).await
+    }
+
+    /// Test-support replay seam (MT-150) for the REAL guarded edge deletion; see
+    /// [`Self::test_update_loom_block_with_metadata`].
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    pub async fn test_delete_loom_edge_with_metadata(
+        &self,
+        workspace_id: &str,
+        edge_id: &str,
+        metadata: MutationMetadata,
+    ) -> StorageResult<LoomEdge> {
+        self.delete_loom_edge_with_metadata(workspace_id, edge_id, metadata)
+            .await
+    }
+}
+
 static RETRY_JITTER: LazyLock<SystemJitter> = LazyLock::new(SystemJitter::new);
 
 fn closed_store_error() -> StorageError {
@@ -728,26 +858,8 @@ impl Database for SurrealDatabase {
         update: LoomBlockUpdate,
     ) -> StorageResult<LoomBlock> {
         let metadata = self.mutation_metadata(ctx, block_id).await?;
-        let workspace_id = workspace_id.to_owned();
-        let block_id = block_id.to_owned();
-        self.guarded_storage_mutation(
-            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
-            Replay::idempotent(format!("loom-block-update:{block_id}:{}", metadata.edit_event_id)),
-            (workspace_id, block_id, update, metadata),
-            |database, (workspace_id, block_id, update, metadata)| {
-                Box::pin(async move {
-                    super::loom_store::update_loom_block(
-                        &database,
-                        &workspace_id,
-                        &block_id,
-                        update,
-                        metadata,
-                    )
-                    .await
-                })
-            },
-        )
-        .await
+        self.update_loom_block_with_metadata(workspace_id, block_id, update, metadata)
+            .await
     }
 
     async fn set_loom_block_preview(
@@ -817,19 +929,7 @@ impl Database for SurrealDatabase {
             .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
         edge.edge_id = Some(edge_id.clone());
         let metadata = self.mutation_metadata(ctx, &edge_id).await?;
-        // Endpoint counters are `array::len` recomputes inside the transaction, so two
-        // edges touching one block collide at commit and the loser's retry recounts.
-        self.guarded_storage_mutation(
-            vec![LockKey::record(LOOM_EDGES_TABLE, edge_id.clone())],
-            Replay::idempotent(format!("loom-edge-create:{edge_id}")),
-            (edge, metadata),
-            |database, (edge, metadata)| {
-                Box::pin(async move {
-                    super::loom_store::create_loom_edge(&database, edge, metadata).await
-                })
-            },
-        )
-        .await
+        self.create_loom_edge_with_metadata(edge, metadata).await
     }
 
     async fn delete_loom_edge(
@@ -838,20 +938,9 @@ impl Database for SurrealDatabase {
         workspace_id: &str,
         edge_id: &str,
     ) -> StorageResult<LoomEdge> {
-        self.mutation_metadata(ctx, edge_id).await?;
-        let workspace_id = workspace_id.to_owned();
-        let edge_id = edge_id.to_owned();
-        self.guarded_storage_mutation(
-            vec![LockKey::record(LOOM_EDGES_TABLE, edge_id.clone())],
-            Replay::idempotent(format!("loom-edge-delete:{edge_id}")),
-            (workspace_id, edge_id),
-            |database, (workspace_id, edge_id)| {
-                Box::pin(async move {
-                    super::loom_store::delete_loom_edge(&database, &workspace_id, &edge_id).await
-                })
-            },
-        )
-        .await
+        let metadata = self.mutation_metadata(ctx, edge_id).await?;
+        self.delete_loom_edge_with_metadata(workspace_id, edge_id, metadata)
+            .await
     }
 
     async fn list_loom_edges_for_block(
