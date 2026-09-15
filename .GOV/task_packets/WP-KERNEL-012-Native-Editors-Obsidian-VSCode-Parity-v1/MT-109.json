@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-14T21:23:00.325Z",
+  "updated_at_utc": "2026-09-15T01:55:03.856Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,7 +35,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "FAIL_V16",
+    "status": "FAIL_V17",
     "depends_on": [],
     "blocks": [
       "MT-036",
@@ -44,14 +44,14 @@
       "MT-074"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V16",
+    "validator_verdict": "FAIL_V17",
     "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
     "ready_for_validation_at_utc": "2026-07-24T15:45:00.000Z",
     "proof_status": "PASS_REMEDIATION_V2: real managed-PostgreSQL/EventLedger native-editor ingestion, readback, strict decoding, idempotency, reconciliation, real ace::MemoryPack readback, review-gated proposal provenance, immutable committed memory before approval, and typed zero-residue rejection were implemented and independently adversarially reviewed. Historical FAIL_V1 remains preserved for independent V2 validation.",
     "post_implementation_adversarial_review_status": "PASS_2026-07-17_NO_SOURCE_BLOCKERS_AND_REQUIRED_RUNTIME_PROOFS_GREEN",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260914-AUDIT-109-V16",
-    "validated_at_utc": "2026-09-14T12:15:23.1043026Z",
+    "validated_by": "WP_VALIDATOR-20260914-234332",
+    "validated_at_utc": "2026-09-15T01:55:03.856Z",
     "remediation_appendage": "Build the backend routes that E5/E9/E10 native-editor work is typed-blocked on: (1) FR native-editor ingestion - extend api/flight_recorder.rs beyond the closed RuntimeChatEventV0_1 shape (deny_unknown_fields, 3-variant enum, hardcoded actor_id runtime_chat, UUID-only session_id) to accept a versioned native-editor event family covering NativeEditorAction kinds plus the 5 un-emitted interop kinds (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP); (2) GET /memory/pack returning the REAL ace::MemoryPack shape (memory_id/memory_class/source_refs - the native client model must be aligned in the paired frontend change); (3) POST /memory/proposals review-gated intake (proposals land as pending review items, NEVER direct memory commits). All PostgreSQL/EventLedger-backed, no SQLite. Frontend pairing (emit variants + client model alignment + un-ignoring the gated E9 proofs) is wave-2 native work that this MT unblocks.",
     "completed_by": null,
     "implementation_evidence": "PROVEN on real managed PostgreSQL 2026-07-02 (durable log MT-109-managed-pg-verify-kb.log): api::memory::tests 6/6 (incl. proposal_cannot_mutate_committed_memory + missing-provenance fail-closed negatives), api::flight_recorder native_editor 4/4 (unknown-kind rejection, all documented kinds, ledger mirror, fail-closed). Ran with --features runtime-full,duckdb-flight-recorder,test-utils. No SQLite. Committed product 2fe559ed. Unblocks frontend MT-036/063/064/074 (their live proofs run in the managed-PG proof day).",
@@ -6543,5 +6543,1303 @@
       ]
     },
     "residual_uncertainty": "There is no committed clean V16 candidate and no validator-owned Cargo result. Forty-eight blocking finding IDs remain officially unresolved. F46 is now exactly diagnosed: the expected idempotency-content conflict is internally detected but misclassified as public 500 instead of 409. A selective mapping fix and focused/full reproof are pending. The reused schema-log claim remains invalid pending final inventory and independent proof."
+  },
+  "remediation_v17": {
+    "schema_note": "Append-only remediation record authored by KERNEL_BUILDER-20260914-234332; builder proof is triage input only, never validator PASS evidence.",
+    "candidate_sha": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+    "base_sha": "6e239eeefd5427e11407d17113a63c467f91f0a5",
+    "worktree": "wtc-native-editors-v1",
+    "branch": "feat/WP-KERNEL-012",
+    "session": "KERNEL_BUILDER-20260914-234332",
+    "files_changed": [
+      "src/backend/handshake_core/src/api/flight_recorder.rs",
+      "src/backend/handshake_core/src/api/memory.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority_schema.surql (deleted)"
+    ],
+    "f46_fix_summary": "Root cause: event_ledger::ensure_same_event raises the idempotency-content conflict as StorageError::ConflictDetails { code: \"kernel event idempotency key was reused with different event content\", detail }, but api::flight_recorder::map_native_editor_ledger_error only matched the bare StorageError::Conflict(&str) variant, so the ConflictDetails spelling fell through to db_error and surfaced as 500 HSK-500-DB. Fix: the match arm now binds `Conflict(code) | ConflictDetails { code, .. }` with the same `code.starts_with(<idempotency-content-conflict code>)` guard and returns the existing typed 409 envelope HSK-409-EVENT-ID-CONFLICT (event_conflict()). Every other Conflict/ConflictDetails code (e.g. HSK-STORAGE-RETRY-EXHAUSTED, lock-wait timeout) and every Database/Serialization/Migration error still maps to the opaque 500 HSK-500-DB exactly as before. Same Conflict|ConflictDetails idiom already used by api::memory::storage_error and self_improve::promotion_gate_adapter.",
+    "validator_relay_items": {
+      "2a_orphan_authority_surql": "Deleted src/backend/handshake_core/src/storage/surreal/resource_authority_schema.surql (git rm). Verified zero consumers: no include_str!/read_to_string/path reference in src/, app/, tests/; the only string hits are the unrelated Rust fns resource_authority_schema_blocks/_statements in schema.rs which read the MT109_AUTHORITY blocks of schema.surql. schema.surql is now the single authority-policy source.",
+      "2b_pre_mt109_include_gating": "schema.rs: `const PRE_MT109_SCHEMA: &str = include_str!(\"schema_pre_mt109.surql\")` is now `#[cfg(test)]`. Verified every reader (lines 4075+, 4376+, 4801+, 5426+, 5578+) lives inside `mod tests` (starts at schema.rs:3392). PRE_MT109_GENERATED_SURREALQL_SHA256 / PRE_MT109_SCHEMA_INFO_SHA256 / PRE_MT109_AUTHORITY_INFO_SHA256 remain non-test because product code reads them (schema.rs:1353-1355, 2867-2868, 2920-2921).",
+      "2c_scope_expansion": "see scope_expansion[]",
+      "2d_product_eprintln": "Removed the `#[cfg(test)] eprintln!(\"MEMORY_STORAGE_ERROR={other:?}\")` from product fn api::memory::storage_error. No eprintln! exists in api/flight_recorder.rs at HEAD 6e239eee or in the candidate (the F46 diagnostic prints from PR-147/PR-148/PR-149 were never committed). Remaining eprintln! are test-side only: api/memory.rs (MT109_* phase markers for F01/F06 timeout-vs-deadlock isolation, inside #[cfg(test)] mod tests), storage/surreal/schema.rs tests, storage/surreal/event_ledger.rs tests (`event-ledger-test stage=` markers, pre-existing on 2aa0c6d3), resource_authority_tests.rs. None are F46 diagnostics."
+    },
+    "scope_expansion": [
+      {
+        "path": "src/backend/handshake_core/src/atelier/mod.rs",
+        "reason": "Direct CREATE into SCHEMAFULL kernel_event_ledger; had to bind the new required wsids + authority_resource_id/authority_session_id/authority_capability_id/authority_action fields via prepare_event/LedgerWrite (checkpoint 6e239eee, +283/-203)."
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/sheet.rs",
+        "reason": "BULK_APPEND_SHEETS_STATEMENT CREATE into kernel_event_ledger gained the same five new fields (1 line)."
+      },
+      {
+        "path": "src/backend/handshake_core/src/flight_recorder/spans.rs",
+        "reason": "Three inline kernel_event_ledger CREATE statements gained wsids: [] and authority_*: NONE so they satisfy the SCHEMAFULL definition (+6 lines)."
+      },
+      {
+        "path": "src/backend/handshake_core/src/knowledge_code_index/engine.rs",
+        "reason": "Two kernel_event_ledger CREATE statements gained the five new $event.* bindings (2 lines)."
+      },
+      {
+        "path": "src/backend/handshake_core/src/user_manual/store.rs",
+        "reason": "Two kernel_event_ledger CREATE statements gained the five new $event.* bindings (2 lines)."
+      }
+    ],
+    "scope_expansion_note": "All five are mechanical propagation of the MT-109 SCHEMAFULL ledger field additions (wsids + authority_*) already committed in checkpoint 6e239eee; none were touched by this remediation. Operator scope waiver requested per protocol.",
+    "fmt_status": "`cargo fmt --check` cannot run on this crate on this host (Windows os error 206: command line too long). rustfmt --edition 2021 --check on the three edited .rs files reports 33 (flight_recorder.rs) and 39 (memory.rs) pre-existing diff hunks, identical counts on the HEAD 6e239eee blobs, all inside test modules (line >= 2172 / 2696), none in the remediated hunks; schema.rs is clean. Left untouched per the prior validator instruction in this contract to avoid broad unrelated rustfmt churn.",
+    "proofs": [
+      {
+        "id": "F46-FOCUSED",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils api::flight_recorder::tests::native_editor_same_id_mutated_envelope_conflicts -- --test-threads=4",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v18/logs/fr-mutated-envelope-f46-focused-1.log",
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "filtered": 2205,
+        "exit_code": 0,
+        "duration_s": 351.76,
+        "sha256_of_log": "412c0fce2aba57079e6c515fbce1a56bcd81166013c80c402379cc7823079257",
+        "log_bytes": 71910
+      },
+      {
+        "id": "PT-109-3",
+        "command": "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v18/logs/pt-109-3-cargo-check-1.log",
+        "result": "ok",
+        "passed": null,
+        "failed": null,
+        "filtered": null,
+        "exit_code": 0,
+        "errors": 0,
+        "sha256_of_log": "519594ea34182699032d5960e23c8bb6e7e71d74dad24e7a5556a650ed4d2b75",
+        "log_bytes": 65994
+      },
+      {
+        "id": "PT-109-1",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils api::flight_recorder:: -- --test-threads=4",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v18/logs/pt-109-1-flight-recorder-full-1.log",
+        "result": "ok",
+        "passed": 40,
+        "failed": 0,
+        "filtered": 2166,
+        "exit_code": 0,
+        "duration_s": 533.02,
+        "sha256_of_log": "af7ec762dca036912b8a5d19236753dae7ac061f54f2783d3ae9c962a243afd7",
+        "log_bytes": 79622
+      },
+      {
+        "id": "PT-109-2",
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils api::memory:: -- --test-threads=4",
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-v18/logs/pt-109-2-memory-full-1.log",
+        "result": "ok",
+        "passed": 33,
+        "failed": 0,
+        "filtered": 2173,
+        "exit_code": 0,
+        "duration_s": 1798.1,
+        "sha256_of_log": "01429a3589b493486fccd11020f2410f70a9ca2e2f311864a9d4b7ca9b5d7e2e",
+        "log_bytes": 76091
+      }
+    ],
+    "leftover_instrumentation_removed": true,
+    "leftover_instrumentation_note": "No F46 eprintln! instrumentation existed in the committed tree; the only product-code eprintln! (api::memory::storage_error, cfg(test)-gated) was removed. Test-side phase markers retained.",
+    "runtime_store_residue": "kb-v18/runtime and kb-v18/tmp empty after every run (ls -A); no HANDSHAKE_TEST_STORE_CLEANUP_FAILURE in any log",
+    "remote_backup": "origin/feat/WP-KERNEL-012 = d42886d6 (git ls-remote verified)",
+    "proof_environment": "HANDSHAKE_ARTIFACTS_ROOT=<abs Handshake_Artifacts> HANDSHAKE_SURREAL_TEST_STORE_ROOT=<abs>/WP-KERNEL-012/MT-109/kb-v18/runtime CARGO_TARGET_DIR=<abs>/WP-KERNEL-012/MT-109/wpv-v15/target TMP=TEMP=<abs>/WP-KERNEL-012/MT-109/kb-v18/tmp; cwd=worktree root",
+    "proof_tree_note": "All four proofs ran on the exact working tree later committed as d42886d6 (git status clean after commit; no source edits between the focused run and the commit). Builder-owned runs; triage input only.",
+    "completed_at_utc": "2026-09-15T00:46:54.304Z"
+  },
+  "validation_v17": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V17",
+    "verdict_label": "FAIL V17",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-20260914-234332",
+    "validated_at_utc": "2026-09-15T01:55:03.856Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+      "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+      "base_sha": "6e239eeefd5427e11407d17113a63c467f91f0a5",
+      "reviewed_range": "2aa0c6d3153b0b9964de8b08203d5614d48df029..d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+      "worktree": "wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012",
+      "tree_state": "CLEAN_AT_HANDOFF_AND_AT_EVERY_PROOF_START",
+      "note": "Independent validator lane wpv-v17; warm shared CARGO_TARGET_DIR wpv-v15/target per VPX-001; execution, exit codes, result lines and logs are validator-owned. Builder remediation_v17 proofs were triage only."
+    },
+    "method": "Phase A read-only diff audit of 2aa0c6d3..HEAD (forbidden patterns, weakened assertions, authorization loosening, orphaned/duplicated authority surfaces) followed by Phase B validator-executed proof at the clean candidate: PT-109-3, PT-109-1 (4 threads), PT-109-2 (4 threads), the V15/V16-mandated resource_authority predecessor (4 threads), a focused schema pin/migration bundle, and an isolated single-thread rerun of the two failures to separate host-load effects from deterministic defects. Runtime-store residue was inventoried after every run under the validator-owned root and the legacy global root.",
+    "master_spec_evidence": [
+      "02-system-architecture.md:2621-2640 SurrealDB/EventLedger is the exclusive authority; PostgreSQL wording in AC-109-1..3 is stale provenance text and the candidate is judged against SurrealDB/EventLedger.",
+      "02-system-architecture.md:11097-11140 MemoryPack shape (AC-109-2) - pinned field-by-field by get_memory_pack_returns_real_ace_shape.",
+      "02-system-architecture.md:11175-11200 MemoryWriteProposal write path is validator/policy-gated; proposals never commit directly (AC-109-3) - proposal_cannot_mutate_committed_memory.",
+      "03-local-first-infrastructure.md:951-953 record-user permissions + server-derived authorization context; 05-security-and-observability.md:1930-1936 default-deny, protected observability scope, required adversarial proof set (PT-109-4 negatives)."
+    ],
+    "acceptance_criteria_status": {
+      "AC-109-1": {
+        "status": "PROVED",
+        "proof_ids": [
+          "MT109-V17-PR-002"
+        ],
+        "note": "Versioned native-editor envelope ingestion, typed rejection of unknown kinds/fields, FR store readback via GET, event_id idempotency incl. 409 on mutated replay; proven on embedded SurrealDB/EventLedger (not PostgreSQL - stale AC wording)."
+      },
+      "AC-109-2": {
+        "status": "PROVED",
+        "proof_ids": [
+          "MT109-V17-PR-003"
+        ],
+        "note": "get_memory_pack_returns_real_ace_shape asserts full MemoryPack equality plus field-by-field pins."
+      },
+      "AC-109-3": {
+        "status": "PROVED",
+        "proof_ids": [
+          "MT109-V17-PR-003"
+        ],
+        "note": "Review-gated intake, provenance fail-closed (400 matrix), proposal_cannot_mutate_committed_memory negative."
+      },
+      "AC-109-4": {
+        "status": "NOT_PROVED",
+        "proof_ids": [
+          "MT109-V17-PR-001",
+          "MT109-V17-PR-004",
+          "MT109-V17-PR-005",
+          "MT109-V17-PR-006"
+        ],
+        "note": "cargo check green and no SQLite/PostgreSQL/Docker introduced, but 'targeted backend tests green' fails: resource_authority predecessor 13/14 (MT109-V17-F01) and schema/Loom pin test red with a regression into loom_store tests (MT109-V17-F02)."
+      }
+    },
+    "proof_targets_status": {
+      "PT-109-1": "PASS (40/40, exit 0)",
+      "PT-109-2": "PASS (33/33, exit 0)",
+      "PT-109-3": "PASS (exit 0, 0 errors)",
+      "PT-109-4": "PASS via mounted-router negatives inside PT-109-1/PT-109-2 (unauthenticated 401 zero residue, capability 403 + audit, spoofed actor/body workspace 403, cross-workspace pre-emption isolation, filter widening blocked on both GET aliases, runtime_chat gating)"
+    },
+    "spec_realism_gate": {
+      "sub_rule_1_deferred_live_escape": "PASS - no LiveClientUnavailable/not yet wired/deferred/pending-MT/placeholder patterns added in 2aa0c6d3..HEAD",
+      "sub_rule_2_managed_resource_touch": "PASS - proofs exercise real embedded SurrealDB record-user permissions, EventLedger append/replay, FR store readback and mounted axum routers; no mocks/fixtures substitute the authority boundary",
+      "sub_rule_3_self_certification": "PASS - claimed_by KERNEL_BUILDER-*, completed_by null, this validator issues the verdict"
+    },
+    "forbidden_pattern_audit": "No SQLite/rusqlite/PostgreSQL/Docker/compose additions (one comment mentioning pg_trgm); no #[ignore]/should_panic/todo!/unimplemented!/TODO added; no product-code eprintln!/dbg!/println! in api/flight_recorder.rs or api/memory.rs; resource_authority_schema.surql orphan removed and zero consumers remain (grep); PRE_MT109_SCHEMA include gated #[cfg(test)]; test-side MT109_* phase-marker eprintln! remain (cfg(test) only).",
+    "proof_records": [
+      {
+        "proof_id": "MT109-V17-PR-001",
+        "owner_role": "WP_VALIDATOR",
+        "validated_by": "WP_VALIDATOR-20260914-234332",
+        "candidate_sha": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "tree_state_at_start": "CLEAN",
+        "target": "PT-109-3",
+        "command": "cargo check --lib --features duckdb-flight-recorder,test-utils",
+        "features": "duckdb-flight-recorder,test-utils",
+        "test_threads": 4,
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target",
+        "runtime_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/runtime",
+        "artifacts_root_env": "HANDSHAKE_ARTIFACTS_ROOT=../Handshake_Artifacts (absolute on host)",
+        "tmp_env": "TMP/TEMP=../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/tmp",
+        "rust_toolchain": "1.91.1",
+        "utc_start": "2026-09-15T00:48:48Z",
+        "utc_end": "2026-09-15T00:48:51Z",
+        "result": "PASS",
+        "exit_code": 0,
+        "result_line": null,
+        "selected_test_count": null,
+        "passed_test_count": null,
+        "failed_test_count": null,
+        "filtered_out_count": null,
+        "duration_s": null,
+        "compile_error_count": 0,
+        "cleanup_failure_marker_count": 0,
+        "panic_count": 0,
+        "stack_buffer_overrun": false,
+        "runtime_entries_after": 0,
+        "failed_tests": [],
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/01-pt-109-3-cargo-check.log",
+        "log_sha256": "22ae61e05e001702079ccb2f7bb665519eec8f7f26478e1e7be6131fe0aee9eb",
+        "log_bytes": 66572,
+        "covers": [
+          "MT-109"
+        ]
+      },
+      {
+        "proof_id": "MT109-V17-PR-002",
+        "owner_role": "WP_VALIDATOR",
+        "validated_by": "WP_VALIDATOR-20260914-234332",
+        "candidate_sha": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "tree_state_at_start": "CLEAN",
+        "target": "PT-109-1",
+        "command": "cargo test --lib --features duckdb-flight-recorder,test-utils api::flight_recorder:: -- --test-threads=4",
+        "features": "duckdb-flight-recorder,test-utils",
+        "test_threads": 4,
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target",
+        "runtime_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/runtime",
+        "artifacts_root_env": "HANDSHAKE_ARTIFACTS_ROOT=../Handshake_Artifacts (absolute on host)",
+        "tmp_env": "TMP/TEMP=../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/tmp",
+        "rust_toolchain": "1.91.1",
+        "utc_start": "2026-09-15T00:49:03Z",
+        "utc_end": "2026-09-15T00:58:18Z",
+        "result": "PASS",
+        "exit_code": 0,
+        "result_line": "test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 2166 filtered out; finished in 553.39s",
+        "selected_test_count": 40,
+        "passed_test_count": 40,
+        "failed_test_count": 0,
+        "filtered_out_count": 2166,
+        "duration_s": 553.39,
+        "compile_error_count": 0,
+        "cleanup_failure_marker_count": 0,
+        "panic_count": 0,
+        "stack_buffer_overrun": false,
+        "runtime_entries_after": 0,
+        "failed_tests": [],
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log",
+        "log_sha256": "a27b04a7119859510eab4ae0f00836d3557efa751aa3d840eb5dc82e6caea8bf",
+        "log_bytes": 80109,
+        "covers": [
+          "MT-109"
+        ]
+      },
+      {
+        "proof_id": "MT109-V17-PR-003",
+        "owner_role": "WP_VALIDATOR",
+        "validated_by": "WP_VALIDATOR-20260914-234332",
+        "candidate_sha": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "tree_state_at_start": "CLEAN",
+        "target": "PT-109-2",
+        "command": "cargo test --lib --features duckdb-flight-recorder,test-utils api::memory:: -- --test-threads=4",
+        "features": "duckdb-flight-recorder,test-utils",
+        "test_threads": 4,
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target",
+        "runtime_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/runtime",
+        "artifacts_root_env": "HANDSHAKE_ARTIFACTS_ROOT=../Handshake_Artifacts (absolute on host)",
+        "tmp_env": "TMP/TEMP=../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/tmp",
+        "rust_toolchain": "1.91.1",
+        "utc_start": "2026-09-15T00:58:19Z",
+        "utc_end": "2026-09-15T01:30:24Z",
+        "result": "PASS",
+        "exit_code": 0,
+        "result_line": "test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 2173 filtered out; finished in 1923.05s",
+        "selected_test_count": 33,
+        "passed_test_count": 33,
+        "failed_test_count": 0,
+        "filtered_out_count": 2173,
+        "duration_s": 1923.05,
+        "compile_error_count": 0,
+        "cleanup_failure_marker_count": 0,
+        "panic_count": 0,
+        "stack_buffer_overrun": false,
+        "runtime_entries_after": 0,
+        "failed_tests": [],
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log",
+        "log_sha256": "11e08356138b8ea788de9586e35fd8dc029523031ac458e44e9b53ce90f2207d",
+        "log_bytes": 76701,
+        "covers": [
+          "MT-109"
+        ]
+      },
+      {
+        "proof_id": "MT109-V17-PR-004",
+        "owner_role": "WP_VALIDATOR",
+        "validated_by": "WP_VALIDATOR-20260914-234332",
+        "candidate_sha": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "tree_state_at_start": "CLEAN",
+        "target": "V15-PREDECESSOR",
+        "command": "cargo test --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=4",
+        "features": "duckdb-flight-recorder,test-utils",
+        "test_threads": 4,
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target",
+        "runtime_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/runtime",
+        "artifacts_root_env": "HANDSHAKE_ARTIFACTS_ROOT=../Handshake_Artifacts (absolute on host)",
+        "tmp_env": "TMP/TEMP=../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/tmp",
+        "rust_toolchain": "1.91.1",
+        "utc_start": "2026-09-15T01:30:25Z",
+        "utc_end": "2026-09-15T01:36:15Z",
+        "result": "FAIL",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 2192 filtered out; finished in 348.44s",
+        "selected_test_count": 14,
+        "passed_test_count": 13,
+        "failed_test_count": 1,
+        "filtered_out_count": 2192,
+        "duration_s": 348.44,
+        "compile_error_count": 1,
+        "cleanup_failure_marker_count": 0,
+        "panic_count": 1,
+        "stack_buffer_overrun": false,
+        "runtime_entries_after": 0,
+        "failed_tests": [
+          "storage::surreal::resource_authority_tests::direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny"
+        ],
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/04-resource-authority.log",
+        "log_sha256": "605a8dfa662a8c6fbfe8514a67bddf62bcdc882d229bacc7239c48d430ed1406",
+        "log_bytes": 75427,
+        "covers": [
+          "MT-109"
+        ]
+      },
+      {
+        "proof_id": "MT109-V17-PR-005",
+        "owner_role": "WP_VALIDATOR",
+        "validated_by": "WP_VALIDATOR-20260914-234332",
+        "candidate_sha": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "tree_state_at_start": "CLEAN",
+        "target": "F03-F04-SCHEMA",
+        "command": "cargo test --lib --features duckdb-flight-recorder,test-utils -- --test-threads=4 storage::surreal::schema::tests::mt109_ storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive storage::surreal::schema::tests::bootstrap_resumes_exact_current_schema_applied_state",
+        "features": "duckdb-flight-recorder,test-utils",
+        "test_threads": 4,
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target",
+        "runtime_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/runtime",
+        "artifacts_root_env": "HANDSHAKE_ARTIFACTS_ROOT=../Handshake_Artifacts (absolute on host)",
+        "tmp_env": "TMP/TEMP=../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/tmp",
+        "rust_toolchain": "1.91.1",
+        "utc_start": "2026-09-15T01:36:15Z",
+        "utc_end": "2026-09-15T01:44:41Z",
+        "result": "FAIL",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 2200 filtered out; finished in 502.50s",
+        "selected_test_count": 6,
+        "passed_test_count": 5,
+        "failed_test_count": 1,
+        "filtered_out_count": 2200,
+        "duration_s": 502.5,
+        "compile_error_count": 1,
+        "cleanup_failure_marker_count": 0,
+        "panic_count": 1,
+        "stack_buffer_overrun": false,
+        "runtime_entries_after": 0,
+        "failed_tests": [
+          "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic"
+        ],
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log",
+        "log_sha256": "89038b16c2981aa1ee5612c85a16ffd4c7567ecdf6f87de107fc6c125f7a9969",
+        "log_bytes": 74297,
+        "covers": [
+          "MT-109"
+        ]
+      },
+      {
+        "proof_id": "MT109-V17-PR-006",
+        "owner_role": "WP_VALIDATOR",
+        "validated_by": "WP_VALIDATOR-20260914-234332",
+        "candidate_sha": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "tree_state_at_start": "CLEAN",
+        "target": "ISOLATION-RERUN",
+        "command": "cargo test --lib --features duckdb-flight-recorder,test-utils -- --test-threads=1 storage::surreal::resource_authority_tests::direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny storage::surreal::loom_store::tests::concurrent_pin_removals_return_their_exact_committed_event_identity",
+        "features": "duckdb-flight-recorder,test-utils",
+        "test_threads": 1,
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target",
+        "runtime_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/runtime",
+        "artifacts_root_env": "HANDSHAKE_ARTIFACTS_ROOT=../Handshake_Artifacts (absolute on host)",
+        "tmp_env": "TMP/TEMP=../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/tmp",
+        "rust_toolchain": "1.91.1",
+        "utc_start": "2026-09-15T01:45:29Z",
+        "utc_end": "2026-09-15T01:51:21Z",
+        "result": "FAIL",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 2204 filtered out; finished in 350.23s",
+        "selected_test_count": 2,
+        "passed_test_count": 0,
+        "failed_test_count": 2,
+        "filtered_out_count": 2204,
+        "duration_s": 350.23,
+        "compile_error_count": 1,
+        "cleanup_failure_marker_count": 0,
+        "panic_count": 2,
+        "stack_buffer_overrun": false,
+        "runtime_entries_after": 0,
+        "failed_tests": [
+          "storage::surreal::loom_store::tests::concurrent_pin_removals_return_their_exact_committed_event_identity",
+          "storage::surreal::resource_authority_tests::direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny"
+        ],
+        "log_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/06-isolation-rerun.log",
+        "log_sha256": "1682c258692b95498ace21a24728282189ce0d4b559867181fee0cf2c1d41a96",
+        "log_bytes": 74612,
+        "covers": [
+          "MT-109"
+        ]
+      }
+    ],
+    "resolved_prior_findings": [
+      {
+        "finding_id": "MT109-V15-F01",
+        "resolution_status": "FAIL",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "The mandatory storage::surreal::resource_authority_tests:: predecessor did NOT complete green: validator run MT109-V17-PR-004 = 13 passed / 1 failed, exit 101. Teardown itself is repaired (0 cleanup-failure markers, runtime root empty, TestStoreCleanupGuard now panics), but the 14/14 green required by validation_v15/v16 is not met. See MT109-V17-F01 for the failing test's cause (proof wall-time exceeds the 300 s credential TTL the test provisions).",
+        "test_proofs": [
+          {
+            "test": "storage::surreal::resource_authority_tests::direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny",
+            "status": "FAILED",
+            "proof_id": "MT109-V17-PR-006",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/06-isolation-rerun.log"
+          },
+          {
+            "test": "storage::surreal::resource_authority_tests::resource_authority_failure_paths_preserve_body_and_cleanup_errors",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-004",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/04-resource-authority.log"
+          },
+          {
+            "test": "storage::surreal::resource_authority_tests::cross_account_and_capability_without_grant_fail_closed",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-004",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/04-resource-authority.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/06-isolation-rerun.log",
+        "failing_test": "storage::surreal::resource_authority_tests::direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny"
+      },
+      {
+        "finding_id": "MT109-V15-F02",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "storage/tests.rs test_store_root now requires HANDSHAKE_SURREAL_TEST_STORE_ROOT (absolute, pre-existing, strict descendant of HANDSHAKE_ARTIFACTS_ROOT). Validator ran every proof with that root = wpv-v17/runtime; live stores were observed only under that root during runs (4 concurrent store-* dirs), runtime_entries_after=0 for all six runs, and the legacy global root Handshake_Artifacts/handshake-test/storage-conformance received zero new entries dated 2026-09-15 (124 pre-existing entries, newest 2026-09-14T00:56, untouched). Independent physical root-isolation proof is therefore established on the clean candidate.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_event_round_trips_and_mirrors_to_ledger",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          },
+          {
+            "test": "api::memory::tests::create_proposal_stores_pending_review_and_receipt",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          },
+          {
+            "test": "storage::surreal::resource_authority_tests::cross_account_and_capability_without_grant_fail_closed",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-004",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/04-resource-authority.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F01",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Complete four-thread Memory suite passed with no timeout; the derivative-authority proposal POST (mt109_memory_derivatives_do_not_widen_source_read_authority) and the 2000-read empty-pack test both completed (suite 1923.05 s). get_memory_pack_empty_is_deterministic_and_unknown_workspace_is_not_found passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::get_memory_pack_empty_is_deterministic_and_unknown_workspace_is_not_found",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F02",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Revocation race zero-residue proof mt109_source_revocation_before_proposal_transaction_leaves_zero_residue passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::mt109_source_revocation_before_proposal_transaction_leaves_zero_residue",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F03",
+        "resolution_status": "FAIL",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Authority/current-schema pins are green (mt109_authority_catalog_pins_are_deterministic ok, mt139_current_schema_info_pin_matches_fresh_mem_catalog ok, declarative_schema_catalog_is_complete_and_content_sensitive ok in MT109-V17-PR-005), but the Loom receipt-test catalog pin drifted: mt109_loom_catalog_dependencies_are_complete_and_deterministic FAILED at schema.rs:4368 (observed dc04737a586a4b743e727a2ff215a97e09ab7553df2ef33bc4d045f6a59b1676 vs pinned 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2). Fingerprint drift is therefore not fully resolved. See MT109-V17-F02.",
+        "test_proofs": [
+          {
+            "test": "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-005",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log"
+          },
+          {
+            "test": "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-005",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log"
+          },
+          {
+            "test": "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-005",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log"
+          },
+          {
+            "test": "storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic",
+            "status": "FAILED",
+            "proof_id": "MT109-V17-PR-005",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log"
+      },
+      {
+        "finding_id": "MT109-V16-F04",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Clean predecessor migration plus injected rollback passed: mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back ok and bootstrap_resumes_exact_current_schema_applied_state ok in MT109-V17-PR-005 (validator run, exit 101 only because of the unrelated Loom pin test).",
+        "test_proofs": [
+          {
+            "test": "storage::surreal::schema::tests::mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-005",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log"
+          },
+          {
+            "test": "storage::surreal::schema::tests::bootstrap_resumes_exact_current_schema_applied_state",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-005",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/05-schema-focused.log"
+      },
+      {
+        "finding_id": "MT109-V16-F05",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Memory reconciliation service reaches reconciliation with explicit service identity and exact workspace queue grant; FR reconciler restart repair and the authority negative both passed in validator runs.",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::mt109_memory_reconciler_processes_only_explicitly_granted_pending_workspace",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          },
+          {
+            "test": "api::flight_recorder::tests::native_editor_reconciler_repairs_durable_pending_after_restart_window",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          },
+          {
+            "test": "storage::surreal::resource_authority_tests::reconciliation_requires_explicit_service_identity_and_workspace_grant",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-004",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/04-resource-authority.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F06",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Required PT-109-2 full api::memory:: suite produced a normal summary under four threads: MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run); no crash, no double panic.",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_missing_provenance_fails_closed",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          },
+          {
+            "test": "api::memory::tests::legacy_retry_heals_missing_receipt_once_and_converges",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F07",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Authenticated positive proposal request through the mounted router succeeds (no HTTP 400): memory_routes_require_live_binding_ignore_spoofed_actor_and_audit_decisions passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::memory_routes_require_live_binding_ignore_spoofed_actor_and_audit_decisions",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F08",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Proposal-list bounded/deterministic/workspace-scoped proof list_proposals_is_bounded_deterministic_and_workspace_scoped passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::list_proposals_is_bounded_deterministic_and_workspace_scoped",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F09",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Outbox-retry injected-500 recovery proof proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F10",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Post-insert failure rollback / zero-residue proof proposal_insert_rolls_back_when_receipt_phase_fails passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_insert_rolls_back_when_receipt_phase_fails",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F11",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "No-mutation (AC-109-3 negative) proof proposal_cannot_mutate_committed_memory passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_cannot_mutate_committed_memory",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F12",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Retry idempotency / payload-drift conflict proof proposal_retry_is_idempotent_and_payload_drift_conflicts passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_retry_is_idempotent_and_payload_drift_conflicts",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F13",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Delete-race zero-orphan proof proposal_delete_race_never_leaves_workspace_orphans passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_delete_race_never_leaves_workspace_orphans",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F14",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Malformed-provenance 400 matrix / UTF-8 byte-range control proposal_missing_provenance_fails_closed passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_missing_provenance_fails_closed",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F15",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Corrupt-receipt retry proof proposal_retry_rejects_corrupt_receipt_but_allows_new_retry_headers passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_retry_rejects_corrupt_receipt_but_allows_new_retry_headers",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F16",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Surreal identity / exact retry convergence proof surreal_identity_and_exact_retry_converge passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::surreal_identity_and_exact_retry_converge",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F17",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Rich replay drift rejection proof rich_proposal_replay_rejects_code_only_snapshot_drift passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::rich_proposal_replay_rejects_code_only_snapshot_drift",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F18",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Simultaneous retry convergence proof simultaneous_proposal_retries_converge_to_one_row_and_receipt passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::simultaneous_proposal_retries_converge_to_one_row_and_receipt",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F19",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Scoped workspace-memory cleanup proof workspace_memory_cleanup_is_scoped_and_preserves_receipts passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::workspace_memory_cleanup_is_scoped_and_preserves_receipts",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F20",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Review-transition audit/idempotency/conflict proof proposal_review_transitions_are_audited_idempotent_and_conflict_safe passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::proposal_review_transitions_are_audited_idempotent_and_conflict_safe",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F21",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Quarantined outbox no-false-ack proof quarantined_proposal_outbox_never_returns_a_false_success_ack passed inside MT109-V17-PR-003 (validator-run PT-109-2: 33 passed / 0 failed, exit 0, 4 threads, 0 cleanup-failure markers, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::memory::tests::quarantined_proposal_outbox_never_returns_a_false_success_ack",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-003",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/03-pt-109-2-memory.log"
+      },
+      {
+        "finding_id": "MT109-V16-F22",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "document_saved_receipt_without_minted_by_principal_is_unclaimable passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::document_saved_receipt_without_minted_by_principal_is_unclaimable",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F23",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "document_saved_receipt_minted_by_another_principal_is_unclaimable passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::document_saved_receipt_minted_by_another_principal_is_unclaimable",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F24",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "document_saved_requires_exact_canonical_save_receipt passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::document_saved_requires_exact_canonical_save_receipt",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F25",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "cross_workspace_event_id_preemption_cannot_conflict_or_leak passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::cross_workspace_event_id_preemption_cannot_conflict_or_leak",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F26",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F27",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "list_events_preserves_model_session_id_filter_and_payload passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::list_events_preserves_model_session_id_filter_and_payload",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F28",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "list_events_surface_filter_returns_only_native_system_events_for_that_surface passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::list_events_surface_filter_returns_only_native_system_events_for_that_surface",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F29",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_canonical_uuid_and_timestamp_spellings_converge passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_canonical_uuid_and_timestamp_spellings_converge",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F30",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_completion_with_corrupt_hash_cannot_suppress_recovery passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_completion_with_corrupt_hash_cannot_suppress_recovery",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F31",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_concurrent_same_id_converges_once_in_both_stores passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_concurrent_same_id_converges_once_in_both_stores",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F32",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_decomposed_unicode_retry_matches_normalized_store passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_decomposed_unicode_retry_matches_normalized_store",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F33",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_event_handler_fails_closed passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_event_handler_fails_closed",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F34",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_event_round_trips_and_mirrors_to_ledger passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_event_round_trips_and_mirrors_to_ledger",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F35",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_handler_accepts_all_documented_kinds_and_persists_each passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_handler_accepts_all_documented_kinds_and_persists_each",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F36",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_handler_accepts_correlated_stage_payloads_and_rejects_bad_correlation",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F37",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_handler_rejects_every_documented_payload_boundary_corruption passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_handler_rejects_every_documented_payload_boundary_corruption",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F38",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_ingest_rejects_spoofed_identity_and_derives_attribution passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_ingest_rejects_spoofed_identity_and_derives_attribution",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F39",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_persistent_restart_repairs_both_partial_write_windows passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_persistent_restart_repairs_both_partial_write_windows",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F40",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_legacy_pending_without_expected_hash_remains_recoverable passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_legacy_pending_without_expected_hash_remains_recoverable",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F41",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_reconciler_repairs_durable_pending_after_restart_window passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_reconciler_repairs_durable_pending_after_restart_window",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F42",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_persistent_restart_repairs_both_partial_write_windows passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_persistent_restart_repairs_both_partial_write_windows",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F43",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Required PT-109-1 completed with a normal libtest summary and no STATUS_STACK_BUFFER_OVERRUN: MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run).",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_same_id_mutated_envelope_conflicts",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          },
+          {
+            "test": "api::flight_recorder::tests::runtime_chat_ingest_is_capability_gated_and_workspace_bound",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F44",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_reconciler_repairs_durable_pending_after_restart_window passed inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run); per-test panic-preserving teardown asserted store-root absence; no cleanup timeout or preserved store observed.",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_reconciler_repairs_durable_pending_after_restart_window",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      },
+      {
+        "finding_id": "MT109-V16-F45",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "Validator evidence lineage is unique and immutable: six numbered logs under wpv-v17/logs, each created only if absent (runner refuses existing paths), sha256 recorded per proof record; no builder log is cited as PASS evidence.",
+        "test_proofs": [],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/"
+      },
+      {
+        "finding_id": "MT109-V16-F46",
+        "resolution_status": "PASS",
+        "candidate_commit": "d42886d63499e0ea3a7a98af05eaabcbeabdc189",
+        "observed_proof": "native_editor_same_id_mutated_envelope_conflicts passed (pane/surface/timestamp mutations of a replayed event_id all return 409) inside MT109-V17-PR-002 (validator-run PT-109-1: 40 passed / 0 failed, exit 0, 4 threads, 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, 0 panics, runtime root empty after run). Adversarial source read of d42886d6: map_native_editor_ledger_error binds `Conflict(code) | ConflictDetails { code, .. }` under one `starts_with(\"kernel event idempotency key was reused with different event content\")` guard -> event_conflict() (409 HSK-409-EVENT-ID-CONFLICT); any other Conflict/ConflictDetails code and every Database/Serialization/Migration error still falls to db_error (500 HSK-500-DB). ensure_same_event (event_ledger.rs:858-896) is the producer of the ConflictDetails spelling on the single-append path. No debug instrumentation remains in product code (grep: zero eprintln!/dbg!/println! outside test modules in flight_recorder.rs and memory.rs).",
+        "test_proofs": [
+          {
+            "test": "api::flight_recorder::tests::native_editor_same_id_mutated_envelope_conflicts",
+            "status": "ok",
+            "proof_id": "MT109-V17-PR-002",
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+          }
+        ],
+        "test_or_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v17/logs/02-pt-109-1-flight-recorder.log"
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "MT109-V17-F01",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "discovered_at_utc": "2026-09-15T01:55:03.856Z",
+        "summary": "The mandatory storage::surreal::resource_authority_tests:: predecessor cannot pass on the validator host: direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny takes ~340-350 s of wall time while every control session it provisions has a 300 s TTL.",
+        "evidence": [
+          "MT109-V17-PR-004 (4 threads): 13 passed / 1 failed, exit 101; the wrong-access-space DELETE probe on fems_memory_commit_fr_outbox errored `embedded database error: no record was returned` (record-user signin of an expired control session) and the harness classified it as a non-authorization failure at resource_authority_tests.rs:499.",
+          "MT109-V17-PR-006 (isolated, --test-threads=1): the same test completed every probe with authorization-classified denials, then failed its own guard at resource_authority_tests.rs:2508 `non-expiry controls exceeded the minimum credential lifetime` (elapsed > 300 s).",
+          "resource_authority_tests.rs:1687-1730 provisions the owner and every control principal with Duration::from_secs(300); the negative matrix re-signs a record user per probe across many tables/verbs, so wall time is proportional to matrix size and host load.",
+          "Product behavior is not disproven: post-expiry denial is fail-closed. The defect is proof validity: the predecessor required by validation_v15 remediation item 6 and validation_v16 (resolve MT109-V15-F01 individually) is not green at the candidate."
+        ],
+        "failure_scenario": "Any validator or CI host slower than the builder's turns the authority predecessor red or, worse, into a misclassified denial; the 14/14 gate becomes host-dependent and cannot be relied on as AC-109-4 proof."
+      },
+      {
+        "id": "MT109-V17-F02",
+        "severity": "BLOCKER",
+        "blocking": true,
+        "failed_acceptance": [
+          "AC-109-4"
+        ],
+        "discovered_at_utc": "2026-09-15T01:55:03.856Z",
+        "summary": "MT-109 changed DDL inside the pinned Loom receipt-test table set (loom_blocks, knowledge_rich_documents, kernel_event_ledger) without re-pinning EXPECTED_CATALOG_SHA256, so mt109_loom_catalog_dependencies_are_complete_and_deterministic fails and every consumer of bootstrap_loom_receipt_test_schema is broken.",
+        "evidence": [
+          "MT109-V17-PR-005: storage::surreal::schema::tests::mt109_loom_catalog_dependencies_are_complete_and_deterministic FAILED at schema.rs:4368: observed dc04737a586a4b743e727a2ff215a97e09ab7553df2ef33bc4d045f6a59b1676, pinned 2d3490115ab484a75ef8896bff1152b95798f3c4437fd45404898172aa87b1c2 (schema.rs:766 and :4370). Determinism itself held (fingerprints[0] == fingerprints[1]).",
+          "MT109-V17-PR-006: storage::surreal::loom_store::tests::concurrent_pin_removals_return_their_exact_committed_event_identity FAILED at loom_store.rs:4176 with HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH (same expected/observed pair) - a regression outside api::flight_recorder/api::memory caused by this MT.",
+          "Predicted (NOT_EXECUTED): the three storage::surreal::loom_canvas_store tests that call open_store() -> bootstrap_loom_receipt_test_schema (loom_canvas_store.rs:2684-2691) fail identically.",
+          "git diff 2aa0c6d3..d42886d6 -- schema.surql adds loom_blocks.source_rich_document_id, the mt109_loom_source_integrity event, new SELECT permissions on loom_blocks/knowledge_rich_documents, and the wsids/authority_* fields on kernel_event_ledger; all three tables are in loom_receipt_test_tables() (schema.rs:818-836)."
+        ],
+        "failure_scenario": "The broad-suite boundary run for the WP will be red in loom_store/loom_canvas_store, and any later MT that touches those tables inherits a stale pin with no attribution."
+      },
+      {
+        "id": "MT109-V17-F03",
+        "severity": "HIGH",
+        "blocking": false,
+        "failed_acceptance": [],
+        "discovered_at_utc": "2026-09-15T01:55:03.856Z",
+        "summary": "Formatting regression: api/flight_recorder.rs and api/memory.rs were rustfmt-clean at 2aa0c6d3 but now carry 33 and 39 `rustfmt --check` hunks (all in the MT-109 test modules added since); builder's claim that they are 'pre-existing' holds only relative to its own checkpoint 6e239eee.",
+        "evidence": [
+          "rustfmt --edition 2021 --check on the candidate: flight_recorder.rs 33 hunks (first at line 2172), memory.rs 39 hunks (first at 2696), fems_memory.rs 8 hunks (pre-existing: identical 8 on 2aa0c6d3); schema.rs, event_ledger.rs, storage/tests.rs, resource_authority*.rs, authority.rs clean.",
+          "Same command on `git show 2aa0c6d3:` blobs of flight_recorder.rs and memory.rs: 0 hunks each.",
+          "The prior validator instruction in this contract only asked to avoid unrelated rustfmt churn in schema.rs; it does not license leaving newly authored code unformatted (CX-631 hygiene commands)."
+        ],
+        "failure_scenario": "cargo fmt --check style gates and reviewer diffs are polluted by MT-109's own code."
+      },
+      {
+        "id": "MT109-V17-F04",
+        "severity": "MEDIUM",
+        "blocking": false,
+        "failed_acceptance": [],
+        "discovered_at_utc": "2026-09-15T01:55:03.856Z",
+        "summary": "Scope containment: five files outside MT-109 allowed_paths are modified at the candidate (atelier/mod.rs, atelier/sheet.rs, flight_recorder/spans.rs, knowledge_code_index/engine.rs, user_manual/store.rs). Builder recorded them in remediation_v17.scope_expansion with a mechanical-propagation reason and requested an Operator waiver; the waiver itself is not yet recorded in the contract.",
+        "evidence": [
+          "remediation_v17.scope_expansion[] lists the five paths and reasons; validator inspection confirms each change only adds the new SCHEMAFULL kernel_event_ledger fields (wsids + authority_*) to raw CREATE statements or the MT-138 guard-test message expectations."
+        ],
+        "failure_scenario": "Without a recorded waiver (as remediation_v4 did for capabilities.rs) the Integration Validator's mechanical scope check will flag the MT."
+      },
+      {
+        "id": "MT109-V17-F05",
+        "severity": "LOW",
+        "blocking": false,
+        "failed_acceptance": [],
+        "discovered_at_utc": "2026-09-15T01:55:03.856Z",
+        "summary": "Observations, not defects of this candidate: (a) api::memory::storage_error maps every StorageError::Conflict/ConflictDetails code (including HSK-STORAGE-RETRY-EXHAUSTED / lock-wait timeouts) to 409, and api::flight_recorder maps every StorageError::Validation to 409 HSK-409-EVENT-ID-CONFLICT - both pre-existing at 2aa0c6d3; (b) get_memory_pack clears pack.warnings when visibility filtering drops items, discarding truncation flags the spec asks to log (02-system-architecture.md:11060); (c) the legacy global root Handshake_Artifacts/handshake-test/storage-conformance still holds 124 leaked stores from pre-V15 lanes (not touched by this validator per WPV-ART-004).",
+        "evidence": [
+          "api/memory.rs:686-712",
+          "api/flight_recorder.rs:158 (Validation(_) => event_conflict())",
+          "api/memory.rs get_memory_pack visibility block (pack.warnings.clear())"
+        ],
+        "failure_scenario": "Misclassified transient storage errors as client conflicts; lost audit signal on degraded packs."
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "KERNEL_BUILDER",
+      "priority_order": [
+        "MT109-V17-F02 (schema/Loom pin): confirm the loom_blocks / knowledge_rich_documents / kernel_event_ledger DDL changes are the intended MT-109 authority surface, then re-pin EXPECTED_CATALOG_SHA256 at schema.rs:766 and the assert at schema.rs:4370 to the canonical fingerprint derived from the current DDL (record previous pin 2d3490... and the reason in the existing comment block exactly as the MT-151/MT-152 re-pins did). Prove: `cargo test --lib --features duckdb-flight-recorder,test-utils -- --test-threads=4 storage::surreal::schema::tests::mt109_ storage::surreal::loom_store::tests::concurrent_pin_removals_return_their_exact_committed_event_identity storage::surreal::loom_canvas_store::tests::` must report 0 failed and no HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH.",
+        "MT109-V17-F01 (authority predecessor TTL): make direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_default_deny complete within the credential lifetime on a loaded host. Preferred: provision the non-expiry control principals (owner, wrong-space, stale-space, cross-account, etc.) with a TTL that exceeds worst-case matrix wall time by margin (e.g. 3600 s) while keeping the dedicated expired-session case on its short TTL, and make the elapsed guard at resource_authority_tests.rs:2508 compare against the provisioned TTL rather than a hard-coded 300 s; secondarily reduce per-probe re-signin cost. Do NOT weaken the denial classification at resource_authority_tests.rs:489-506. Prove: `cargo test --lib --features duckdb-flight-recorder,test-utils storage::surreal::resource_authority_tests:: -- --test-threads=4` = 14 passed / 0 failed, exit 0, no cleanup-failure marker, runtime root empty.",
+        "MT109-V17-F03 (fmt): run `rustfmt --edition 2021 src/backend/handshake_core/src/api/flight_recorder.rs src/backend/handshake_core/src/api/memory.rs` (per-file rustfmt works on this host; crate-wide cargo fmt hits os error 206) and commit; leave fems_memory.rs's 8 pre-existing hunks alone. Prove: `rustfmt --edition 2021 --check` on both files reports 0 hunks.",
+        "MT109-V17-F04 (scope): obtain and record the Operator scope waiver for the five out-of-allowed-path files in the MT contract (mirror remediation_v4.out_of_scope_edit_waiver shape), or move the mechanical ledger-field propagation into a separately signed MT.",
+        "Rerun PT-109-1 and PT-109-2 only if the F01/F02/F03 changes touch flight_recorder.rs, memory.rs, schema.surql, event_ledger.rs, fems_memory.rs or storage/tests.rs (rustfmt of test modules does not change asserted behavior but does change the source tree: rerun the affected focused tests, not the full suites, per CX-503I1). Then hand off a clean committed candidate SHA with the Cargo lane released; the validator will append validation_v18.",
+        "Optional (non-blocking, MT109-V17-F05): narrow api::memory::storage_error's blanket Conflict->409 mapping to conflict codes that are genuinely client-visible conflicts, and preserve pack.warnings (append a visibility-filter warning instead of clearing) in get_memory_pack."
+      ],
+      "minimal_reentry_proof": [
+        "Exact clean V18 candidate; validator-owned runs of storage::surreal::resource_authority_tests:: 14/14 and the schema mt109_ bundle + loom_store/loom_canvas_store receipt tests 0 failed, both at 4 threads, no cleanup-failure markers, runtime root empty.",
+        "Focused reruns of any api::flight_recorder / api::memory tests whose source changed; PT-109-1/PT-109-2 validator proof records MT109-V17-PR-002/PR-003 may be reused only if those files are byte-identical at V18 (VPX-004)."
+      ]
+    },
+    "residual_uncertainty": "PT-109-1, PT-109-2 and PT-109-3 are independently green at d42886d6 and AC-109-1..3 are proven on SurrealDB/EventLedger; 46 of 48 prior finding IDs are individually resolved with validator evidence. AC-109-4 is not proven: the V15/V16-mandated resource-authority predecessor is 13/14 because the negative matrix outruns its own 300 s credential TTL (proof-validity defect, product denial behavior not disproven), and the Loom receipt-test catalog pin was not re-pinned after MT-109 changed pinned tables, which also breaks loom_store/loom_canvas_store tests outside this MT's proof targets. The three loom_canvas_store consumers were predicted from the shared helper, not executed. No broad/full Cargo suite was run (intermediate per-MT review per WPV-CAD-001)."
   }
 }
