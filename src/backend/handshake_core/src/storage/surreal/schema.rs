@@ -192,6 +192,7 @@ CREATE ONLY knowledge_schema_registry:rich_document_title_anchors CONTENT {
 ";
 
 const SCHEMA: &str = include_str!("schema.surql");
+#[cfg(test)]
 const PRE_MT109_SCHEMA: &str = include_str!("schema_pre_mt109.surql");
 const PRE_MT109_GENERATED_SURREALQL_SHA256: &str =
     "46eac57c4ac3e39acc9d18ac0a43fc62ec01461e8cf3b70b7e2711de2a59da10";

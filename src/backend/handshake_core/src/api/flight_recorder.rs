@@ -149,11 +149,17 @@ fn event_conflict() -> ApiError {
     )
 }
 
+/// Maps EventLedger append failures for the native-editor ingestion path. Only the
+/// idempotency-content conflict is a caller-visible `409`; the ledger raises it as either the
+/// bare `Conflict(code)` variant or `ConflictDetails { code, .. }` (from `ensure_same_event`,
+/// which carries the payload-hash/aggregate diagnostic), so both spellings of the same code
+/// must map identically. Every other storage failure stays an opaque `500`.
 fn map_native_editor_ledger_error(error: crate::storage::StorageError) -> ApiError {
     match error {
         crate::storage::StorageError::Validation(_) => event_conflict(),
-        crate::storage::StorageError::Conflict(message)
-            if message.starts_with(
+        crate::storage::StorageError::Conflict(code)
+        | crate::storage::StorageError::ConflictDetails { code, .. }
+            if code.starts_with(
                 "kernel event idempotency key was reused with different event content",
             ) =>
         {

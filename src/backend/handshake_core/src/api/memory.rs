@@ -698,8 +698,6 @@ fn storage_error(err: StorageError) -> ApiError {
             Json(json!({"error": "conflict", "detail": detail})),
         ),
         other => {
-            #[cfg(test)]
-            eprintln!("MEMORY_STORAGE_ERROR={other:?}");
             tracing::error!(
                 target: "handshake_core::memory_api",
                 error = %other,
