@@ -14,7 +14,7 @@
   "title": "E12-MT-072-EditorSettingsSections",
   "group": "E12",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-31T23:19:34.2027350Z",
+  "updated_at_utc": "2026-09-15T22:38:41.986Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-072.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -668,5 +668,15 @@
       "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
     ],
     "no_context_instruction": "Read MT-072.json completely, then packet.json, SPEC_CURRENT v02.202 section 10.17, the current preference API/schema/storage code, settings_editor_section.rs, settings_dialog.rs, workspace_settings.rs, code and rich editor keymap/dispatch code, and all five focused test binaries. First obtain an authorized contract refinement that preserves PreferenceRecord authority and resolves the editor-keybinding shape. Then implement mounted rich override consumption, broaden live-PG and visual proof, remove the duplicate waiver key through the governance owner, rerun all listed verification with external artifacts, and hand off READY_FOR_VALIDATION without regressing to opaque /settings persistence or relying on stub-only success."
+  },
+  "operator_decision_20260915_keybinding_authority": {
+    "schema_id": "hsk.mt_operator_decision@1",
+    "decision_id": "RD-MT072-EDITOR-KEYBINDING-SPEC-AUTHORITY",
+    "decided_at_utc": "2026-09-15T22:38:41.986Z",
+    "decided_by": "OPERATOR (ruling 2026-09-15, relayed by orchestrator INTEGRATION_VALIDATOR-20260915-121355)",
+    "option_chosen": "A",
+    "ruling": "The EXISTING separate namespaced editor-keybinding preference/list is authorized as the current design. No Master Spec enrichment is required. MT-072 AC-001/AC-005/AC-009 and PT-001/PT-004 are read against the typed PreferenceRecord architecture of Master Spec 10.17 (per remediation_v4 item_1_contract_reconciliation) with the editor-keybinding namespace treated as an authorized product-level extension of SET-SCOPE-001 for this WP; the absence of a keybinding namespace in the spec text is recorded as spec debt, not as an MT-072 acceptance failure.",
+    "effect_on_validation": "Validators judge MT-072 normally; BLOCKED_ON_OPERATOR_DECISION is not a valid verdict for this item after this ruling. Any remaining FAIL must be on product behavior or proof, not on spec authority for the keybinding namespace.",
+    "spec_debt_note": "Master Spec 10.17 SET-SCOPE-001 does not enumerate an editor-keybinding namespace; carried as WP-level spec debt for a future governed enrichment; not blocking."
   }
 }

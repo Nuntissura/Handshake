@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-14T18:32:14.171Z",
+  "updated_at_utc": "2026-09-15T22:38:41.986Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -833,13 +833,19 @@
         "id": "RD-MT072-EDITOR-KEYBINDING-SPEC-AUTHORITY",
         "raised_at_utc": "2026-08-05T08:16:32.184Z",
         "raised_by": "KERNEL_BUILDER-20260805-054937",
-        "status": "OPEN_NEEDS_OPERATOR_DECISION",
+        "status": "RESOLVED_OPERATOR_DECISION_A_20260915",
         "blocks": "MT-072 acceptance criteria AC-005 (and the AC-001/AC-009/PT-001/PT-004 reconciliation required by MT-072 validation_v4 remediation items 1 and 3).",
         "finding": "The current Master Spec is v02.203 (the V4 validators wrote against v02.202). FEAT-SETTINGS-PREFERENCES resolves to spec anchor 10.17, whose SET-SCOPE-001 enumerates EXACTLY four in-scope namespaces: data-roots, view-defaults, retention, feature-toggles. There is NO editor-keybinding namespace, and a search of every module in the v02.203 bundle finds no editor keybinding / keymap / chord authority anywhere (the only keybinding hits are a Sidecar TUI non-goal and an incidental Ctrl+S example). MT-072 AC-005 therefore requires behavior that current Master Spec authority does not define.",
         "why_not_self_resolved": "CX-105A does not list KERNEL_BUILDER among the roles permitted to edit current Master Spec content under .GOV/spec/**, and CX-405/CX-406 require a Spec Proposal to be presented and confirmed by the Operator before any Master Spec change. Inventing a keybinding namespace to satisfy a stale acceptance criterion would be fabricating spec authority, which [HSK-NOSPEC-001..006] and CX-032 forbid.",
         "operator_decision_required": "Choose one: (A) authorize the EXISTING separate namespaced editor-keybinding preference/list as the current design and reconcile MT-072 AC-001/AC-005/AC-009 + PT-001/PT-004 text to the typed PreferenceRecord architecture, OR (B) approve a governed Master Spec enrichment (copy-first versioned bundle per CX-105B/105C) that adds an editor-keybinding namespace/authority to 10.17 or a successor anchor.",
         "not_blocking": "MT-072 remediation items 4,5,6,7,8,10 (live rich-editor keymap seam, full live-PostgreSQL coverage beyond font size, adversarial validation cases, unfiltered Editor/Syntax/Keybindings visuals, preservation of green behavior) are spec-neutral because they preserve the PreferenceRecord architecture that v02.203 10.17 already mandates. Those proceed independently of this decision.",
-        "already_done": "MT-072 validation_v4 remediation item 9 is COMPLETE: the duplicate case-colliding waiver_GRANTED / waiver_granted keys were merged into a single waiver_granted field preserving both disclosures verbatim; the contract now parses under both case-sensitive and case-insensitive semantics with zero key collisions."
+        "already_done": "MT-072 validation_v4 remediation item 9 is COMPLETE: the duplicate case-colliding waiver_GRANTED / waiver_granted keys were merged into a single waiver_granted field preserving both disclosures verbatim; the contract now parses under both case-sensitive and case-insensitive semantics with zero key collisions.",
+        "resolution": {
+          "decided_at_utc": "2026-09-15T22:38:41.986Z",
+          "option": "A",
+          "summary": "The EXISTING separate namespaced editor-keybinding preference/list is authorized as the current design. No Master Spec enrichment is required. MT-072 AC-001/AC-005/AC-009 and PT-001/PT-004 are read against the typed PreferenceRecord architecture of Master Spec 10.17 (per remediation_v4 item_1_contract_reconciliation) with the editor-keybinding namespace treated as an authorized product-level extension of SET-SCOPE-001 for this WP; the absence of a keybinding namespace in the spec text is recorded as spec debt, not as an MT-072 acceptance failure.",
+          "recorded_in": "MT-072.json#operator_decision_20260915_keybinding_authority"
+        }
       },
       {
         "id": "RD-WP012-SCOPED-ARTIFACT-RETENTION-DEFERRAL",
