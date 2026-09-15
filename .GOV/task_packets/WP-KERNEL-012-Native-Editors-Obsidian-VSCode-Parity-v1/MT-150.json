@@ -31,16 +31,16 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "PASS_V3",
     "depends_on": [
       "MT-141"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": "FAIL_V2",
-    "validated_by": "WP_VALIDATOR-20260913-RECHECK-109-150",
-    "validated_at_utc": "2026-09-13T10:27:45.433Z",
-    "completed_by": null,
+    "validator_verdict": "PASS_V3",
+    "validated_by": "WP_VALIDATOR-20260915-024213",
+    "validated_at_utc": "2026-09-15T12:02:02.054Z",
+    "completed_by": "WP_VALIDATOR-20260915-024213",
     "claimed_by": "KERNEL_BUILDER-20260910-073935",
     "created_by": "KERNEL_BUILDER-20260909-212427",
     "created_at_utc": "2026-09-10T00:18:07.212Z",
@@ -720,7 +720,17 @@
     "operator_waiver_20260910": {
       "waiver_id": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
       "applied_to": "MT-150 by extension: same helper drift, same batch, same Operator direction (paperwork not of essence; state recovery and status only)."
-    }
+    },
+    "completed_at_utc": "2026-09-15T12:02:02.054Z",
+    "validation_history": [
+      {
+        "verdict": "PASS_V3",
+        "by": "WP_VALIDATOR-20260915-024213",
+        "at_utc": "2026-09-15T12:02:02.054Z",
+        "candidate": "7f9998e3e33159c97064b58ef13aa25c05b765df",
+        "record": "validation_v3"
+      }
+    ]
   },
   "scope": {
     "summary": "Port the 47 deleted tests listed in restoration_set onto the embedded SurrealDB store, preserving every original assertion at equivalent strength. For PARTIAL items, add only the assertions the existing partial coverage does not already make; do not duplicate. Recover each original body with `git show 4f92cc25^:<origin_file>`.",
@@ -1338,15 +1348,11 @@
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "coder_session": "KERNEL_BUILDER-20260910-073935",
-    "wp_validator_session": null,
+    "wp_validator_session": "WP_VALIDATOR-20260915-024213",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "unblocks": null,
-    "open_blockers": [
-      "DEF-LOOM-EDGE-NO-LEDGER-RECEIPT (5 items)",
-      "DEF-MEMORY-IPC-NO-PRODUCTION-STORE (3 items)",
-      "DEF-CAPSULE-RECORDER-IDEMPOTENT-PAYLOAD-DIVERGENCE (1 red test)"
-    ],
+    "open_blockers": [],
     "next_actor": "INTEGRATION_VALIDATOR",
     "kb_ready_checklist_evidence": {
       "schema_id": "hsk.kb_ready_checklist_evidence@1",
@@ -1545,7 +1551,7 @@
     ],
     "residual_uncertainty": "The central Cargo batch must rerun all seven MT-150 targets after repair; static evidence does not replace managed-store rollback and durability proof."
   },
-  "updated_at_utc": "2026-09-15T05:21:00.311Z",
+  "updated_at_utc": "2026-09-15T12:02:02.054Z",
   "owned_files": [
     "src/backend/handshake_core/tests/knowledge_documents_api_tests.rs",
     "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
@@ -2459,5 +2465,413 @@
       "The in-source loom_store schemaless tests and mt138 atelier catalog assertion remain red as pre-existing failures outside MT-150 scope (evidence above); no MT-150 proof command depends on them."
     ],
     "completed_at_utc": "2026-09-15T05:21:00.310Z"
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V3",
+    "verdict_label": "PASS V3",
+    "validator_layer": "WP_VALIDATOR (advisory per CX-218E; Integration Validator retains final technical/merge authority per handoff.validation_topology)",
+    "validated_by": "WP_VALIDATOR-20260915-024213",
+    "validated_at_utc": "2026-09-15T12:02:02.054Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "risk_tier": "HIGH",
+    "spec_version": "v02.206",
+    "source_state": {
+      "head_sha": "7f9998e3e33159c97064b58ef13aa25c05b765df",
+      "candidate_commit": "7f9998e3e33159c97064b58ef13aa25c05b765df",
+      "fix_commit": "7534728dda1bacabbfbab7b451dba612dd5610ea",
+      "phase_a_base": "25104a9a4e5090af0db783bb141d80ef5c485a80",
+      "diff_range_reviewed": "25104a9a..7f9998e3 (11 files, +3040/-290)",
+      "worktree": "wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012",
+      "tree_state": "CLEAN (git status --porcelain empty before the lane and after ALL DONE; HEAD unchanged)",
+      "cargo_processes_before_lane": 0
+    },
+    "proof_environment": {
+      "CARGO_TARGET_DIR": "<HANDSHAKE_ARTIFACTS_ROOT>/WP-KERNEL-012/MT-109/wpv-v15/target (WP-shared warm cache; validator-owned execution, build-cache reuse per VPX-001)",
+      "lane_root": "<HANDSHAKE_ARTIFACTS_ROOT>/WP-KERNEL-012/MT-150/wpv-v3/{logs,tmp,workspace,runtime}",
+      "HANDSHAKE_ARTIFACTS_ROOT": "absolute artifacts root",
+      "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<lane>/runtime (pre-created; strict descendant of the artifacts root as storage/tests.rs:47-113 requires)",
+      "HANDSHAKE_WORKSPACE_ROOT": "<lane>/workspace/run-NN-<target> (fresh dir per run; AC-150-4)",
+      "TMP_TEMP_TMPDIR": "<lane>/tmp",
+      "features": "surreal-test-support,test-utils",
+      "jobs": 4,
+      "single_cargo_lane": true,
+      "serialized": true,
+      "driver": "<lane>/run_phase_b.sh",
+      "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/00-lane.txt"
+    },
+    "tests": {
+      "status": "ALL_SEVEN_PROOF_TARGETS_GREEN_ON_VALIDATOR_RUN",
+      "executed_tests": 55,
+      "executed_tests_green": 55,
+      "executed_tests_red": 0,
+      "per_target": [
+        {
+          "id": "PT-150-2/loom",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test loom_atomic_receipt_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/01-loom_atomic_receipt_tests.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 540.22,
+          "failing_tests": [],
+          "sha256_of_log": "68daa375458003d6c1910e701dda61abefaaa040e1fe47293c9cb46b0f2ff37b",
+          "log_bytes": 70786,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 0 top entries",
+          "note": "14 restored originals (incl. the 5 formerly BLOCKED_ON_PRODUCT_SEAM) + 6 mt150_* adversarial cases"
+        },
+        {
+          "id": "PT-150-2/routes",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test wp_kernel_012_native_editor_routes_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/02-wp_kernel_012_native_editor_routes_tests.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 333.08,
+          "failing_tests": [],
+          "sha256_of_log": "f827af3b92cd1cdf846b9f0c5713970b8953b6f067c0d4c02e9baf13787670f9",
+          "log_bytes": 69582,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 0 top entries"
+        },
+        {
+          "id": "PT-150-2/session-ledger",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kernel_session_run_ledger_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/03-kernel_session_run_ledger_tests.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 104.88,
+          "failing_tests": [],
+          "sha256_of_log": "6bd1829ded0fdd560c0aa0c7f6dc02b2c7eff8618f94d3ec47afed7d4b010c15",
+          "log_bytes": 67975,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 0 top entries",
+          "note": "no teardown panic on the close_and_remove() path"
+        },
+        {
+          "id": "PT-150-2/hbr",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test hbr_build_rules_read_evidence_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/04-hbr_build_rules_read_evidence_tests.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 52.33,
+          "failing_tests": [],
+          "sha256_of_log": "0552af14fe4696ac015113808232caffa21c526ba1272545968f2015729eb1c4",
+          "log_bytes": 67779,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 0 top entries"
+        },
+        {
+          "id": "PT-150-2/catalog-residual",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kernel_action_catalog_residual_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/05-kernel_action_catalog_residual_tests.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 0,
+          "failing_tests": [],
+          "sha256_of_log": "bfb0ff6f7697b18f6f936a7fe0811f893e2a94bf9ed19371ce036c17993c8cbe",
+          "log_bytes": 67629,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 0 top entries"
+        },
+        {
+          "id": "PT-150-2/manual-rows",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_manual_rows_parity_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/06-atelier_manual_rows_parity_tests.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 157.25,
+          "failing_tests": [],
+          "sha256_of_log": "bef651a4d734cb4a4bfa0ecd4b7c8ad7a6f4bce3daf9addb57c55206353a1030",
+          "log_bytes": 71165,
+          "residue_after_run": "residue workspace: 27 entries; runtime: 0 top entries; tmp: 6 top entries",
+          "note": "V3-PRE-01 restored manual-parity assertions included"
+        },
+        {
+          "id": "PT-150-2/memory",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test memory_capsule_recorder_surreal_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/07-memory_capsule_recorder_surreal_tests.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 160.06,
+          "failing_tests": [],
+          "sha256_of_log": "7d03b2264738e9b60a15c565867ff6ae888611c282a1cfcd3608579be48a8a77",
+          "log_bytes": 71282,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 11 top entries",
+          "note": "3 formerly BLOCKED_ON_PRODUCT_DEFECT IPC items now ported onto SurrealMemoryCapsuleStore"
+        },
+        {
+          "id": "FOCUSED/loom-1thread",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test loom_atomic_receipt_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture --test-threads=1",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/08-focused-loom-1thread.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 510.43,
+          "failing_tests": [],
+          "sha256_of_log": "4c1b3c714ec90aab5371f6f8c0e8cf69cc5144b8251263f4c0f99ed0853e9675",
+          "log_bytes": 68880,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 11 top entries",
+          "note": "single-thread rerun of all 20 incl. the 5 newly enabled originals and every survives_restart/rolls_back case"
+        },
+        {
+          "id": "FOCUSED/ledger-durable-claim-1thread",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kernel_session_run_ledger_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture --test-threads=1 durable_claim",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/09-focused-restart-ledger-1thread.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 2,
+          "duration_s": 53.1,
+          "failing_tests": [],
+          "sha256_of_log": "0bac5073351269464b96c9e9852c9628cb2ef82c45f82bb75d3205c6210a5fe0",
+          "log_bytes": 67535,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 11 top entries"
+        },
+        {
+          "id": "FOCUSED/memory-1thread",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test memory_capsule_recorder_surreal_tests --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture --test-threads=1",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/10-focused-memory-1thread.log",
+          "exit_code": 0,
+          "result": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "duration_s": 146.16,
+          "failing_tests": [],
+          "sha256_of_log": "76e613a4ec1069a4c08545522e87389a86be8db1b27047e0de603f779d627893",
+          "log_bytes": 70673,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 16 top entries",
+          "note": "includes the close/reopen suppression + Flight Recorder evidence case"
+        },
+        {
+          "id": "PT-150-3",
+          "command": "grep -rn --include=*.rs -E '^\\s*use\\s+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://' src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs src/backend/handshake_core/tests/loom_atomic_receipt_tests.rs src/backend/handshake_core/tests/kernel_session_run_ledger_tests.rs src/backend/handshake_core/tests/hbr_build_rules_read_evidence_tests.rs src/backend/handshake_core/tests/kernel_action_catalog_residual_tests.rs src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs src/backend/handshake_core/tests/memory_capsule_recorder_surreal_tests.rs   # PT-150-3: expect no matches (exit 1)",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/11-pt-150-3-grep.log",
+          "exit_code": 1,
+          "result": "no matches (expected exit 1)",
+          "sha256_of_log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "log_bytes": 0
+        },
+        {
+          "id": "EXTRA/lib schema+loom_store (not an MT-150 proof command)",
+          "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -j 4 --no-fail-fast -- --nocapture schema:: loom_store::",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/12-lib-schema-lineage-loom-store.log",
+          "exit_code": 101,
+          "result": "FAILED",
+          "passed": 55,
+          "failed": 4,
+          "ignored": 0,
+          "filtered": 2008,
+          "duration_s": 350.03,
+          "failing_tests": [
+            "storage::surreal::loom_store::tests::collection_replacement_is_atomic_and_survives_close_reopen",
+            "storage::surreal::loom_store::tests::block_search_projection_update_and_view_ordering_use_real_store",
+            "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+            "storage::surreal::loom_store::tests::graph_search_covers_every_declared_source_kind"
+          ],
+          "sha256_of_log": "1f5fcb471bc1116b706239f05210aac154e1f3d8fbc4145f1e76e14c3b7a552c",
+          "log_bytes": 74881,
+          "residue_after_run": "residue workspace: 0 entries; runtime: 0 top entries; tmp: 19 top entries",
+          "note": "4 failures are pre-existing and unchanged by the MT-150 diff: 3 schemaless in-source loom_store tests fail with 'The table X does not exist' (same class recorded red in MT-141 suite-run-1 at 0513d99b, lines 1684-1691/2248-2387; the block_search test's first failing statement moved from loom_edges to kernel_event_ledger because update_loom_block now reads the ledger) and schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin asserts 9 fn::mt109_* functions vs 10 present in schema.surql at both 25104a9a and HEAD (test body byte-identical between base and HEAD; MT-109 lane). The 2 new MT-150 lineage tests and mt109_loom_catalog_dependencies_are_complete_and_deterministic pass."
+        }
+      ]
+    },
+    "method": "Independent adversarial validation: (1) Phase A verification matrix built from the 12 recovered origin bodies (git show 4f92cc25^:...) diffed test-by-test against the restored files; (2) full read of the product diff 25104a9a..7f9998e3 (loom_store.rs macro/builder/transactions, database.rs guarded paths + test seams, schema.surql/schema.rs pins and lineage upgrade, loom.rs, seed.rs); (3) validator-owned serialized Cargo lane on the exact clean candidate tree with per-run workspace isolation, numbered logs, .exit files, sha256 and residue inventory; (4) single-thread focused reruns; (5) forbidden-pattern audit (CX-573E) and Spec-Realism sub-rules 1-3.",
+    "diff_attack_surfaces": [
+      "loom_ledger_append_sql! placement relative to every domain write, derived-count recompute and search-index refresh",
+      "deterministic idempotency key composition and payload determinism across the guarded retry loop",
+      "exact-retry vs divergent-retry vs duplicate-id conflict semantics and residue",
+      "fault seam hitting the real CREATE $ledger.record statement (not a wrapper or mock)",
+      "the 5 enabled tests vs recovered original assertions",
+      "schema lineage/pin re-pin and PRE_MT150 upgrade path",
+      "seed.rs UserManual claim vs emitted event families",
+      "out_of_scope_edit_waiver vs actual files touched",
+      "test-side repairs (scalar() link collapse; close_and_remove teardown) vs product-behavior masking",
+      "disposition of items 29-31 after SurrealMemoryCapsuleStore exists"
+    ],
+    "independent_checks_run": [
+      "Verified all 47 restoration_set items map to a restored test in the 7 targets (remediation_v3.restoration_set_disposition rows cross-checked against test function names and my Phase A matrix); the 2 PG-only residual-scope tests are outside the 47 and correctly retired (zero src/ occurrences of PostgresControlPlaneResidualScopeV1).",
+      "Diffed the 5 newly enabled loom tests against the recovered bodies: every original assertion present (receipt id non-null on the row, exactly 1 KNOWLEDGE_LOOM_TAG_MUTATED per edge incl. mention, favorite set=1/clear=2 receipts, is_err on injected failure, before==after row counts, no phantom ledger row, restart readback) plus strengthening (derived counts on both endpoints, receipt linkage after reopen, search-index unchanged on rollback).",
+      "Read loom_ledger_append_sql!: LET existing (by idempotency_key) -> CREATE when absent / THROW HSK-LOOM-RECEIPT-DIVERGENT when payload_hash differs -> LET $receipt; confirmed it is inlined inside BEGIN..COMMIT before the domain write in update_loom_block (block UPDATE + search UPDATE inside IF $existing_receipt = NONE), create_loom_edge (record::exists guard, CREATE, bind, both endpoint recomputes), delete_loom_edge (DELETE + both recomputes), mutate_pin, and all five folder writers.",
+      "Confirmed build_loom_mutation_event now sets an explicit idempotency_key (KEI-loom:<kind>:<ws>:<id>:<op>:<edit_event_id>:<actor_kind>:<actor_id|->) and a payload that is a pure function of the request/projected state; NewKernelEvent::build no longer falls back to a fresh KEI-uuid for Loom events; the guarded retry loop re-runs the store fn with the same cloned MutationMetadata so the key is stable across transient retries.",
+      "Confirmed database.rs test_*_with_metadata seams are #[cfg(any(test, feature = \"surreal-test-support\"))] and delegate to the same private *_with_metadata functions the Database trait impl uses (real guarded path: keyed locks, Replay::idempotent, retry, with_storage_operation); validate_write_with_guard is a production Database trait method (storage/mod.rs:3246).",
+      "Confirmed the fault seam (DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT false) fails the real CREATE inside the new transactions: mt023_tag_edge_create_rolls_back, mt024_favorite_mutation_rolls_back, mt150_block_update_rollback_leaves_search_index_and_fields_untouched, mt150_edge_delete_* rollback half all green; restore DDL matches schema.surql:832 verbatim.",
+      "Confirmed schema.surql adds loom_edges.event_ledger_event_id (option<record<kernel_event_ledger>> ... REFERENCE ON DELETE REJECT) + idx_loom_edges_event; schema.rs re-pins GENERATED/DECLARATIVE/INFO with the previous values retained as PRE_MT150_* and adds upgrade_pre_mt150_current plus the MT-150 DDL to every older lineage upgrade; lineage tests green in my lib run.",
+      "Confirmed seed.rs claim now names KNOWLEDGE_LOOM_TAG_MUTATED for every edge_type (aggregate loom_edge/edge_id, operation create|delete), KNOWLEDGE_LOOM_BLOCK_MUTATED for update|pin_* with fields_changed, receipt fields on loom_edges/loom_blocks, conflict codes and no-op semantics, matching the emitted code paths.",
+      "Confirmed the out_of_scope_edit_waiver file list equals the six product files in git diff --stat 25104a9a..7f9998e3 (loom.rs, database.rs, loom_store.rs, schema.rs, schema.surql, seed.rs); the other 5 changed files are MT-150 owned test files.",
+      "Judged the two test-side repairs: scalar() additionally collapses the inspector's kernel_event_ledger:<backticked KE key> link string introduced by f5f41d3f (test_inspector.rs, Value::into_json_value) to the bare key (representation adapter only; the compared value is unchanged); kernel_session_run_ledger_tests now tear down via EmbeddedTestBackend::close_and_remove().await like sibling suites (teardown only). Neither weakens a product assertion.",
+      "Confirmed V3-PRE-01/02/03 are addressed: all 10 original common_errors markers, mt074 expected_output/recovery_steps, mt075 expected_output, mt124 live empty-fallback_reason refusal and second-retry is_err, mt130 event_family::ALL x8 + 5 per-aggregate ledger counts restored; route6 asserts deleted_at set and deleted_receipt_event_id == response receipt; the 3 memory IPC items ported with the original assertions onto SurrealMemoryCapsuleStore.",
+      "CX-573E forbidden-pattern audit over the 7 files: PT-150-3 exit 1; no #[ignore], should_panic, docker, LiveClientUnavailable/LiveSpawnUnavailable/LiveRuntimeUnavailable/TrainerUnavailable/NativeToolchainUnavailable, 'not yet wired', 'deferred to follow-on', 'pending MT-', 'live store not attached' outside doc comments; the 2 sleeps are inherited from the originals (lease expiry 1200 ms; subprocess readiness poll 20 ms).",
+      "Spec-Realism sub-rules: (1) no deferred-live escape; (2) every proof exercises the real embedded SurrealDB store, real kernel_event_ledger rows, real axum listeners for routes, real close/reopen; (3) claimed_by KERNEL_BUILDER-20260910-073935 / remediated by KERNEL_BUILDER-20260915-024213, completed_by set to this validator session."
+    ],
+    "counterfactual_checks": [
+      "If the receipt CREATE were outside the transaction, mt023_tag_edge_create_rolls_back / mt024_favorite_mutation_rolls_back / mt150_block_update_rollback_* / mt150_edge_delete_* rollback half would observe a committed edge/favorite/search-index change or a phantom ledger row after reopen; all four assert zero residue and pass.",
+      "If the idempotency key still fell back to a fresh KEI-uuid per call, the exact retry in mt150_tag_edge_exact_retry_* would either mint a second receipt or hit HSK-LOOM-EDGE-EXISTS; it returns the committed edge with the original receipt and ledger_count stays 1.",
+      "If payload_hash were folded into the key, the same-identity/different-content case would mint a second receipt instead of conflicting; mt150_favorite_exact_retry_* and mt150_tag_edge_exact_retry_* prove Conflict(\"loom_mutation_receipt_divergent\") with zero residue after reopen. The builder's key design (request identity in the key, payload_hash as discriminator, mirroring event_ledger::append) satisfies the V2 requirement #4 intent; accepted.",
+      "If the derived-count recompute were outside the edge transaction, mt150_concurrent_identical_and_conflicting_requests_settle_without_residue would show count drift on the loser target after 7 typed conflicts; counts are (0,1,0)/(0,0,1)/(0,0,0) before and after reopen.",
+      "If the 5 enabled tests were source-text or mocked checks, the --lib schemaless loom_store tests would not have started failing on 'kernel_event_ledger does not exist' at the new read; they do, which independently shows the production writer now touches the ledger table."
+    ],
+    "boundary_probes": [
+      "Database trait -> SurrealDatabase::*_with_metadata -> guarded_storage_mutation (lock, Replay::idempotent, retry) -> loom_store transaction -> kernel_event_ledger CREATE + event_ledger_event_id binding -> close/reopen readback via list_loom_edges_for_block / get_loom_block / raw select_one",
+      "CapsuleRecorder -> SurrealKernelActionSubmitter -> EventLedger -> SurrealMemoryCapsuleStore -> MemoryIpcService list/get/suppress -> control-plane shutdown/reopen",
+      "HTTP route (axum) -> stage/docs/locus/calendar routers -> embedded knowledge store -> inspector projection"
+    ],
+    "negative_path_checks": [
+      "injected ledger append failure on favorite/title update, tag edge create, edge delete, pin order set, pin removal, folder create, wiki overlay: all roll back with zero residue after reopen",
+      "same request identity with different content: typed divergence conflict, no residue",
+      "new request reusing a committed edge id: Conflict(\"loom_edge_exists\"), its own appended receipt rolled back",
+      "8-way concurrent identical/conflicting edge creates: exactly one accepted, seven typed conflicts, one receipt",
+      "8-way concurrent identical favorite sets: one receipt, seven no-ops",
+      "delete of an already-deleted edge: NotFound(\"loom_edge\"), no second receipt"
+    ],
+    "resolved_prior_findings": [
+      {
+        "id": "MT150-V2-F01",
+        "status": "PASS",
+        "observed_proof": "update_loom_block, create_loom_edge and delete_loom_edge now append the typed receipt through loom_ledger_append_sql! inside the same transaction as the domain write, search-index refresh and both endpoint count recomputes, and bind event_ledger_event_id; loom_edges carries the new field; all five formerly omitted tests are enabled with their original assertions and green on my run (loom 20/20 twice: multi-thread and --test-threads=1).",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/01-loom_atomic_receipt_tests.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/08-focused-loom-1thread.log"
+      },
+      {
+        "id": "MT150-V1-F01",
+        "status": "PASS (runtime-proven)",
+        "observed_proof": "capsule_recorder_dedup_collapses_duplicate_submissions green on my run (identical resubmission accepted, ledger collapses to one aggregate row).",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/07-memory_capsule_recorder_surreal_tests.log"
+      },
+      {
+        "id": "MT150-V1-F02",
+        "status": "PASS (runtime-proven)",
+        "observed_proof": "capsule_suppression_and_flight_recorder_evidence_survive_store_reopen plus the 3 ported IPC items (list/get round trip, suppression durability, builder/injector/recorder/ipc composition) green on my run against SurrealMemoryCapsuleStore.",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/07-memory_capsule_recorder_surreal_tests.log; ../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/10-focused-memory-1thread.log"
+      },
+      {
+        "id": "V3-PRE-01",
+        "status": "PASS",
+        "observed_proof": "atelier_manual_rows_parity_tests 7/7 with the un-duplicated manual-parity assertions restored (verified by grep and read).",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/06-atelier_manual_rows_parity_tests.log"
+      },
+      {
+        "id": "V3-PRE-02",
+        "status": "PASS",
+        "observed_proof": "route6 asserts deleted_at set and deleted_receipt_event_id == response receipt on the authority row; routes 14/14.",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/02-wp_kernel_012_native_editor_routes_tests.log"
+      },
+      {
+        "id": "V3-PRE-03",
+        "status": "PASS",
+        "observed_proof": "items 29-31 ported onto SurrealMemoryCapsuleStore with original assertions; DEF-MEMORY-IPC-NO-PRODUCTION-STORE no longer cited; memory 6/6.",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/07-memory_capsule_recorder_surreal_tests.log"
+      }
+    ],
+    "acceptance_criteria_status": {
+      "AC-150-1": "PROVED: 47/47 PORTED (no BLOCKED disposition remains); assertion-by-assertion diff against recovered bodies by this validator; no weakened or silently dropped assertion found after the V3-PRE-01/02 restorations.",
+      "AC-150-2": "PROVED: PT-150-3 exit 1; no sqlx/PostgreSQL/SQLite/psql/DSN/PL-pgSQL dependency; embedded SurrealDB only.",
+      "AC-150-3": "PROVED: every survives_restart / rolls_back / reopen case closes and reopens the real embedded store (loom 14 originals + mt150 cases, memory reopen, session-ledger durable claims).",
+      "AC-150-4": "PROVED: all 55 tests green on the validator's own run with HANDSHAKE_WORKSPACE_ROOT isolated per run, single serialized cargo lane, warm shared target.",
+      "AC-150-5": "PROVED: assert_schema_fields_are_real defined once and applied to every manual row the originals checked (15 original call sites + blocked_row), plus the restored common_errors/expected_output/recovery_steps parity checks.",
+      "AC-150-6": "PROVED: mt123/mt125 assertion-by-assertion diff performed by this validator in Phase A; the un-duplicated assertions identified there are now restored and green."
+    },
+    "independent_findings": [
+      {
+        "id": "MT150-V3-F01",
+        "severity": "LOW",
+        "blocking": false,
+        "summary": "Behavior change outside the restoration set: update_loom_block now treats a same-value request as a no-op (no updated_at bump, no actor/edit_event_id stamp, no receipt) and returns Conflict(\"loom_block_stale_updated_at\") when expected_updated_at is stale on a no-op. Intended (documented in seed.rs and proven by mt150_block_update_without_change_is_a_no_op_without_receipt) but not exercised by any broad-suite consumer in this MT-level run.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs update_loom_block fields_changed early return"
+        ],
+        "route": "Integration Validator broad-suite boundary (WP-level); no MT-150 action required."
+      },
+      {
+        "id": "MT150-V3-F02",
+        "severity": "LOW",
+        "blocking": false,
+        "summary": "UserManual prose states 'an exact retry of one request reuses the original receipt' for all Loom receipts, but folder mutations use LoomMutationIdentity::per_call() (fresh nonce per call, unchanged pre-MT-150 behavior) because the folder Database surface carries no WriteContext; USER_MANUAL_VERSION was not bumped (builder cites MT-142/MT-152 precedent; MT-150 contract set manual_version_bump_required=false).",
+        "evidence": [
+          "src/backend/handshake_core/src/user_manual/seed.rs Loom safety section",
+          "loom_store.rs LoomMutationIdentity::per_call"
+        ],
+        "route": "HBR-MAN wording tidy for a later manual pass; not blocking."
+      },
+      {
+        "id": "MT150-V3-F03",
+        "severity": "LOW",
+        "blocking": false,
+        "summary": "Projected KDLNK- mention edges written by the rich-document backlink bridge (knowledge.rs BACKLINK_WRITE_STATEMENTS, wiki_store.rs import) still carry no per-edge receipt (LoomEdge.event_ledger_event_id None); they are derived from a document save that has its own receipt and were never in the restoration set. Documented in the manual.",
+        "evidence": [
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs:1499",
+          "src/backend/handshake_core/src/storage/surreal/wiki_store.rs:1265"
+        ],
+        "route": "CONCERN for the WP-level EventLedger completeness review; not MT-150 scope."
+      },
+      {
+        "id": "MT150-V3-F04",
+        "severity": "INFO",
+        "blocking": false,
+        "summary": "Pre-existing lib failures unchanged by this diff and outside MT-150 proof commands: 3 schemaless in-source loom_store tests ('table does not exist'), and schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin (asserts 9 fn::mt109_* functions, schema.surql has 10 since 6e239eee; test body identical at 25104a9a and HEAD). The latter is an MT-109-lane regression that should be routed to that lane.",
+        "evidence": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-150/wpv-v3/logs/12-lib-schema-lineage-loom-store.log"
+        ],
+        "route": "Orchestrator: MT-109 lane (mt138 pin) and a later loom_store in-source test bootstrap tidy."
+      },
+      {
+        "id": "MT150-V3-F05",
+        "severity": "INFO",
+        "blocking": false,
+        "summary": "Residue: the atelier harness leaves .handshake/artifacts under the per-run HANDSHAKE_WORKSPACE_ROOT (24K) and tempfile-based embedded stores in memory/lib tests leave .tmp* dirs under TMP on Windows (388K); all confined to the validator-owned lane dir. AC-150-4 (isolation) holds.",
+        "evidence": [
+          "per-run residue lines in each log"
+        ],
+        "route": "none required; validator cleans its own tmp."
+      },
+      {
+        "id": "MT150-V3-F06",
+        "severity": "LOW",
+        "blocking": false,
+        "summary": "mt125's original non-vacuity guard '!rejects.is_empty()' was not restored (the rejects round-trip equality could pass vacuously if the fake adapter declared no rejects).",
+        "evidence": [
+          "src/backend/handshake_core/tests/atelier_manual_rows_parity_tests.rs mt125"
+        ],
+        "route": "optional one-line restore in a later tidy."
+      }
+    ],
+    "remediation_required": {
+      "next_actor": "INTEGRATION_VALIDATOR",
+      "required_behavioral_changes": [],
+      "adversarial_tests": [],
+      "note": "No MT-150 remediation open. Integration Validator boundary: broad/full suite on the final tree (MT150-V3-F01), WP artifact cleanup, and the MT-109-lane mt138 pin regression (MT150-V3-F04)."
+    },
+    "residual_uncertainty": "Broad workspace/all-target suite not run at this MT boundary (WPV-CAD-001; Integration Validator boundary). The four lib failures are shown unchanged-by-diff statically and by prior MT-141 evidence but were not re-executed at 25104a9a by this session (checkout forbidden). Folder receipts remain one-receipt-per-call by design."
   }
 }
