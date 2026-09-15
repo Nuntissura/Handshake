@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "FAIL_V5",
+    "status": "PASS_V6",
     "depends_on": [],
     "blocks": [
       "MT-118",
@@ -40,10 +40,10 @@
       "MT-146"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V5",
-    "validated_by": "WP_VALIDATOR:/root/wpv_recover_115_147",
-    "validated_at_utc": "2026-09-13T11:45:17.160Z",
-    "completed_by": null,
+    "validator_verdict": "PASS_V6",
+    "validated_by": "WP_VALIDATOR-20260915-123904",
+    "validated_at_utc": "2026-09-15T13:40:51.522Z",
+    "completed_by": "WP_VALIDATOR-20260915-123904",
     "claimed_by": "KERNEL_BUILDER-20260903-213930",
     "claimed_at_utc": "2026-09-03T23:37:02.315Z",
     "created_by": "KERNEL_BUILDER-20260903-213930",
@@ -176,8 +176,16 @@
         "reason": "Implementation complete and proven at 70c289cb. KB_READY_CHECKLIST_RECEIPT PASS with no blockers.",
         "previous_status": "CLAIMED",
         "new_status": "READY_FOR_VALIDATION_V4"
+      },
+      {
+        "at_utc": "2026-09-15T13:40:51.522Z",
+        "by": "WP_VALIDATOR-20260915-123904",
+        "reason": "validation_v6 recorded from owned GitHub Actions run 34970538161 at 6f19a524; MT147-V5-F01 resolved.",
+        "previous_status": "FAIL_V5",
+        "new_status": "PASS_V6"
       }
-    ]
+    ],
+    "completed_at_utc": "2026-09-15T13:40:51.522Z"
   },
   "scope": {
     "summary": "Repair .github/workflows/ci.yml on feat/WP-KERNEL-012 so the pipeline runs the jobs it claims to run, and add a job that answers the cross-platform build question directly. The pipeline is product CI: nine of its eleven jobs test product code, and only the governance and traceability jobs are repo governance.",
@@ -467,7 +475,7 @@
     ],
     "residual_uncertainty": "After repair, the scheduler must inspect the real GitHub Actions run and attribute any remaining action/tool-install failures."
   },
-  "updated_at_utc": "2026-09-13T11:45:17.160Z",
+  "updated_at_utc": "2026-09-15T13:40:51.522Z",
   "validation_v5": {
     "schema_id": "WP_VALIDATOR_PRODUCT_REVIEW_V1",
     "verdict": "FAIL_V5",
@@ -573,5 +581,630 @@
       "No exact-SHA GitHub run exists, so Linux acceptance is explicitly rejected rather than inferred from Windows."
     ],
     "residual_uncertainty": "The local Windows compiler result substantially reduces source-level risk, but Linux package/linker/shell behavior and the actual job conclusion remain unproven until the exact-SHA Actions run."
+  },
+  "remediation_v6": {
+    "schema_id": "KERNEL_BUILDER_REMEDIATION_V1",
+    "session": "KERNEL_BUILDER-20260915-123904",
+    "role": "KERNEL_BUILDER",
+    "written_at_utc": "2026-09-15T13:40:00Z",
+    "responds_to_finding": "MT147-V5-F01",
+    "base_sha": "7f9998e3e33159c97064b58ef13aa25c05b765df",
+    "candidate_sha": "6f19a52425333d32673d7628f72727c869de7e51",
+    "branch": "feat/WP-KERNEL-012",
+    "worktree": "../wtc-native-editors-v1",
+    "commit_subject": "fix(MT-147): create and export the embedded SurrealDB test store root in the backend-storage job",
+    "push_confirmation": "git ls-remote origin feat/WP-KERNEL-012 -> 6f19a52425333d32673d7628f72727c869de7e51 (Operator waiver in force for the push)",
+    "files_changed": [
+      ".github/workflows/ci.yml"
+    ],
+    "diff_summary": {
+      "stat": ".github/workflows/ci.yml | 8 ++++++-- (6 insertions, 2 deletions)",
+      "hunks": [
+        "backend-storage job: added job-level env HANDSHAKE_SURREAL_TEST_STORE_ROOT=\"${{ github.workspace }}/../Handshake_Artifacts/ci/${{ github.run_id }}/${{ github.job }}/surreal-store\" with a two-line comment",
+        "backend-storage job: step 'Prepare embedded artifacts root' renamed to 'Prepare embedded artifacts and test store roots' and its mkdir -p now also creates \"$HANDSHAKE_SURREAL_TEST_STORE_ROOT\""
+      ],
+      "untouched": "cross-platform-build job (nonzero integration_test_targets assertion and integration-only compile_error probe preserved verbatim), all other jobs, workflow-level env",
+      "line_endings": "file is LF except line 406 (CRLF, pre-existing); edit made byte-exact in binary mode, no normalization",
+      "yaml_validation": "python -c 'import yaml' (PyYAML 6.0.3) parsed the file; jobs list unchanged; backend-storage env and 6 steps confirmed"
+    },
+    "defect_localized": {
+      "id": "D-147-11",
+      "observed_in_run": "34931666946 at 7f9998e3: backend-storage step 'Storage conformance tests' panics 3 tests at init with 'HANDSHAKE_SURREAL_TEST_STORE_ROOT must name an existing owner-scoped directory' (tests/storage_conformance.rs:10,26,42)",
+      "cause": "src/backend/handshake_core/src/storage/tests.rs:47-110 test_store_root() requires HANDSHAKE_SURREAL_TEST_STORE_ROOT to be set, absolute, already existing, and (after dunce::canonicalize) a strict descendant of canonical HANDSHAKE_ARTIFACTS_ROOT. ci.yml set only HANDSHAKE_ARTIFACTS_ROOT and mkdir'd it. The store-root gate entered the product at commit 6e239eee (MT-109), after the v5-reviewed ff2eda5d, which is why backend-storage went red after v5.",
+      "owner_class": "infrastructure",
+      "fix": "job-level env plus mkdir in the backend-storage job (see diff_summary)",
+      "scope_of_env": "Only test targets that call embedded_test_backend() need the env. Verified by grep: storage_conformance.rs (3 tests) and mcp_e2e_tests.rs (line 249) call it; in mex_tests.rs the sole caller is calendar_sync_test_state (line 83), which ci_secret_scan_runs_via_terminal_service (line 1629) and the vuln/sbom/license selections do not use. The four supply-chain jobs were therefore left untouched."
+    },
+    "ci_run": {
+      "run_id": 34970538161,
+      "url": "https://github.com/Nuntissura/Handshake/actions/runs/34970538161",
+      "head_sha": "6f19a52425333d32673d7628f72727c869de7e51",
+      "head_sha_matches_candidate": true,
+      "status": "completed",
+      "conclusion": "failure",
+      "conclusion_note": "Overall failure comes solely from the five attributed carried jobs below; every job MT-147 owns is green."
+    },
+    "green_job_evidence": {
+      "cross-platform-build": {
+        "job_id": 104385461327,
+        "url": "https://github.com/Nuntissura/Handshake/actions/runs/34970538161/job/104385461327",
+        "conclusion": "success",
+        "integration_test_targets_line": "integration_test_targets=407",
+        "negative_probe_observed": "error: MT-147 intentional all-targets negative probe / error: could not compile `handshake_core` (test \"mt147_all_targets_negative_probe\") due to 1 previous error",
+        "probe_removed": "trap 'rm -f \"$probe\"' EXIT plus explicit rm -f \"$probe\" in the step script; the subsequent positive check compiled without the probe error",
+        "positive_check_finish_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.12s (positive cargo check --all-targets --all-features after the probe run; the 11.12s reflects reuse of units compiled during the probe pass)"
+      },
+      "backend-storage": {
+        "job_id": 104385461391,
+        "url": "https://github.com/Nuntissura/Handshake/actions/runs/34970538161/job/104385461391",
+        "conclusion": "success",
+        "env_seen_in_log": "HANDSHAKE_SURREAL_TEST_STORE_ROOT: /home/runner/work/Handshake/Handshake/../Handshake_Artifacts/ci/34970538161/backend-storage/surreal-store",
+        "storage_conformance_result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 132.08s",
+        "mcp_e2e_result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.52s"
+      }
+    },
+    "per_job_table": {
+      "columns": [
+        "job",
+        "baseline_33666580708_at_88e71285",
+        "before_34931666946_at_7f9998e3",
+        "after_34970538161_at_6f19a524",
+        "after_cause",
+        "owner_class",
+        "owned_by_mt_147"
+      ],
+      "rows": [
+        [
+          "cross-platform-build",
+          "job did not exist",
+          "success",
+          "success",
+          "green; see green_job_evidence",
+          "n/a",
+          true
+        ],
+        [
+          "backend-storage",
+          "failure x2 (sqlite/postgres matrix, Storage conformance tests)",
+          "failure (Storage conformance tests: HANDSHAKE_SURREAL_TEST_STORE_ROOT must name an existing owner-scoped directory)",
+          "success",
+          "green; D-147-11 fixed by this remediation",
+          "infrastructure (FIXED)",
+          true
+        ],
+        [
+          "traceability",
+          "success",
+          "success",
+          "success",
+          "green",
+          "n/a",
+          false
+        ],
+        [
+          "vuln_scan",
+          "failure (Run supply-chain MEX (vuln_scan))",
+          "success",
+          "success",
+          "green",
+          "n/a",
+          false
+        ],
+        [
+          "sbom_generate",
+          "failure (Install syft (pinned))",
+          "success",
+          "success",
+          "green",
+          "n/a",
+          false
+        ],
+        [
+          "license_scan",
+          "failure (Run supply-chain MEX (license_scan))",
+          "success",
+          "success",
+          "green",
+          "n/a",
+          false
+        ],
+        [
+          "secret_scan",
+          "failure (Install gitleaks (pinned))",
+          "failure (Run supply-chain MEX (secret_scan))",
+          "failure (Run supply-chain MEX (secret_scan))",
+          "thread 'ci_secret_scan_runs_via_terminal_service' panicked at tests/mex_tests.rs:1690:5: assertion `left == right` failed, left: Failed, right: Succeeded; exit code 101. MEX supply-chain gitleaks envelope returns EngineStatus::Failed where the test requires Succeeded.",
+          "product-test",
+          false
+        ],
+        [
+          "validate",
+          "failure (Setup Node.js)",
+          "failure (Codex checks)",
+          "failure (Codex checks)",
+          "Codex check 'Disallow direct fetch in app/src (outside lib/api.ts)' matches and exits 1; real direct calls at app/src/lib/editor/embed_assets.ts:383 and app/src/lib/editor/export_formats.ts:214 (other matches are comments/fixtures containing the literal).",
+          "product-policy",
+          false
+        ],
+        [
+          "dependency_audit",
+          "failure (Setup Node.js)",
+          "failure (Frontend audit)",
+          "failure (Frontend audit)",
+          "pnpm -C app audit --audit-level high: '124 vulnerabilities found', exit code 1; 1 critical (Vitest UI arbitrary file read) plus high findings in minimatch, rollup, vite, flatted, picomatch, lodash, ws, brace-expansion, js-yaml, immutable, linkify-it, fast-uri, postcss (48 critical/high table rows).",
+          "product-deps",
+          false
+        ],
+        [
+          "governance (ubuntu-latest)",
+          "failure (Governance check)",
+          "failure (Governance check)",
+          "failure (Governance check)",
+          "error: recipe `gov-check` failed on line 82 with exit code 1",
+          "repo-governance-abandoned",
+          false
+        ],
+        [
+          "governance (windows-latest)",
+          "failure (Governance check)",
+          "failure (Governance check)",
+          "failure (Governance check)",
+          "error: recipe `gov-check` failed on line 82 with exit code 1",
+          "repo-governance-abandoned",
+          false
+        ]
+      ],
+      "red_job_ids_in_after_run": {
+        "secret_scan": 104385461352,
+        "validate": 104385461176,
+        "dependency_audit": 104385461288,
+        "governance (ubuntu-latest)": 104385461160,
+        "governance (windows-latest)": 104385461271
+      },
+      "error_lines_source": "gh run view --job <id> --log-failed on run 34970538161 (not copied from the previous run)"
+    },
+    "carried_attribution_corrections": [
+      {
+        "job": "dependency_audit",
+        "supersedes": "scope.carried_failures_not_owned_by_mt_147 entry 'ERR_SOCKET_TIMEOUT posting to registry.npmjs.org, transient'",
+        "corrected_attribution": "At 7f9998e3 (run 34931666946) and again at 6f19a524 (run 34970538161) the audit endpoint is reachable and reports real findings: 1 critical (Vitest UI) plus high findings in minimatch, rollup, vite, flatted, picomatch, lodash, ws, brace-expansion, js-yaml, immutable, linkify-it, fast-uri, postcss. Owner: product frontend dependencies (app/). Not transient, not CI infrastructure.",
+        "owner_class": "product-deps"
+      }
+    ],
+    "carried_infrastructure": [
+      {
+        "id": "D-147-12",
+        "job": "validate",
+        "step": "Rust tests (ci.yml:135-136, plain `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`)",
+        "gap": "This step also opens the embedded store: 18 files under src/backend/handshake_core/src and 39 under src/backend/handshake_core/tests call embedded_test_backend() (grep -rl, verified 2026-09-15). The validate job declares no HANDSHAKE_SURREAL_TEST_STORE_ROOT, so once the step becomes reachable it will fail at store init with the same D-147-11 signature.",
+        "currently_unreachable_because": "validate exits earlier at the Codex 'Disallow direct fetch in app/src' check (product-policy), so the gap has not surfaced in any run.",
+        "fix": "Same two-line change as the backend-storage job: add a job-level env HANDSHAKE_SURREAL_TEST_STORE_ROOT=\"${{ github.workspace }}/../Handshake_Artifacts/ci/${{ github.run_id }}/${{ github.job }}/surreal-store\" to the validate job and mkdir -p both the artifacts root and \"$HANDSHAKE_SURREAL_TEST_STORE_ROOT\" before 'Rust tests'.",
+        "not_applied_here_because": "Orchestrator instruction relaying the Operator: no second commit on this candidate; validator is reviewing 6f19a524 as-is.",
+        "owner": "MT-147 follow-on / ci.yml",
+        "owner_class": "infrastructure (CARRIED, not fixed)"
+      }
+    ],
+    "supply_chain_jobs_env_decision": "secret_scan, vuln_scan, sbom_generate, license_scan do not need HANDSHAKE_SURREAL_TEST_STORE_ROOT: their mex_tests selections never reach calendar_sync_test_state, the only embedded_test_backend caller in tests/mex_tests.rs. Left untouched.",
+    "out_of_scope_edit_waiver": [],
+    "root_file_rule_note": ".github/workflows/ci.yml is a root control surface normally authored from main only; editing it from the wtc-* worktree was confirmed by the Operator today (2026-09-15) over that rule, relayed by the orchestrator, and is the sole allowed product change of MT-147.",
+    "local_cargo_run": "NOT_RUN. No local storage_conformance run was executed (proof surface for this MT is the GitHub run). No new CARGO_TARGET_DIR or artifact lane was created; Handshake_Artifacts/WP-KERNEL-012/MT-147/kb-v6 was not created. Runtime/workspace lane residue: NOT_APPLICABLE (no lane created).",
+    "gov_commit_rule": "No .GOV/ file staged or committed on feat/WP-KERNEL-012; MT-147.json edited through the live junction (target: wt-gov-kernel/.GOV) for the orchestrator to snapshot on gov_kernel.",
+    "honesty": {
+      "inspected": [
+        "ci.yml diff (git diff) and PyYAML parse",
+        "run 34970538161 per-job table via gh run view --json",
+        "failed-step logs of the five red jobs on run 34970538161 via gh run view --job --log-failed",
+        "backend-storage and cross-platform-build full logs for the green evidence lines quoted above",
+        "src/backend/handshake_core/src/storage/tests.rs:47-110 store-root rule and embedded_test_backend callers via grep"
+      ],
+      "not_inspected": [
+        "the exact set of tests in the validate job's 'Rust tests' step that would open the store (count from grep only, not from a run)",
+        "whether the 124 dependency_audit findings include any not listed by package name above (only the critical/high table rows were read)"
+      ],
+      "monitor_note": "A background poll monitor armed for the run emitted no events and expired; run state was obtained directly from gh run view after the orchestrator relayed completion. No claim in this record rests on the monitor."
+    },
+    "validator_handoff": {
+      "next_actor": "WP_VALIDATOR",
+      "request": "Revalidate MT147-V5-F01 against run 34970538161 at head 6f19a524 (exact candidate match). AC-147-1, PT-147-2, PT-147-3, PT-147-4 evidence is in ci_run, green_job_evidence and per_job_table above."
+    }
+  },
+  "validation_v6": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V6",
+    "status": "PASS_V6",
+    "blocking": false,
+    "next_actor": "ORCHESTRATOR",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR-20260915-123904",
+    "validated_at_utc": "2026-09-15T13:40:51.522Z",
+    "validated_commit": "6f19a52425333d32673d7628f72727c869de7e51",
+    "reviewed_range": "7f9998e3e33159c97064b58ef13aa25c05b765df..6f19a52425333d32673d7628f72727c869de7e51",
+    "ci_run": {
+      "id": "34970538161",
+      "url": "https://github.com/Nuntissura/Handshake/actions/runs/34970538161",
+      "head_sha": "6f19a52425333d32673d7628f72727c869de7e51",
+      "head_branch": "feat/WP-KERNEL-012",
+      "created_at_utc": "2026-09-15T12:43:27Z",
+      "overall_conclusion": "failure",
+      "fetched_by": "WP_VALIDATOR-20260915-123904 via gh run view (owned fetch; builder logs not cited)"
+    },
+    "operator_waivers": [
+      "Carried from validation_v5: Operator excluded repo-governance ceremony, paperwork, and path-governance adherence from MT product pass criteria; product behavior versus MT/WP/Master Spec remained binding."
+    ],
+    "authority": [
+      "scope.acceptance_criteria AC-147-1 through AC-147-6",
+      "scope.proof_targets PT-147-1 through PT-147-4",
+      "validation_v5 finding MT147-V5-F01 pass_conditions",
+      "src/backend/handshake_core/src/storage/tests.rs:47-110 (test_store_root contract enforced by the backend-storage tests)"
+    ],
+    "worktree_verification": {
+      "head": "6f19a52425333d32673d7628f72727c869de7e51",
+      "git_status_non_gov": "clean",
+      "origin_feat_WP_KERNEL_012": "6f19a52425333d32673d7628f72727c869de7e51",
+      "cargo_processes": 0,
+      "local_cargo_run_by_validator": false,
+      "lane": "Handshake_Artifacts/WP-KERNEL-012/MT-147/wpv-v6",
+      "lane_runtime_and_workspace_empty_after": true
+    },
+    "diff_audit": {
+      "command": "git diff --stat 7f9998e3..6f19a524",
+      "result": ".github/workflows/ci.yml | 8 ++++++-- (1 file changed, 6 insertions(+), 2 deletions(-))",
+      "changes": [
+        "backend-storage job-level env HANDSHAKE_SURREAL_TEST_STORE_ROOT=${{ github.workspace }}/../Handshake_Artifacts/ci/${{ github.run_id }}/${{ github.job }}/surreal-store (ci.yml:140-143)",
+        "Prepare step widened to mkdir -p \"<artifacts root>\" \"$HANDSHAKE_SURREAL_TEST_STORE_ROOT\" before both cargo test steps (ci.yml:156-157)"
+      ],
+      "store_root_rule_check": "Value is absolute, pre-created by the prepare step, and canonicalizes to a strict descendant of the canonical artifacts root; satisfies tests.rs:73-109 (set, absolute, already exists, strict descendant). Confirmed at runtime: backend-storage log shows the env exported to every step and mkdir executed (log L479-489).",
+      "other_jobs_weakened": false,
+      "sqlite_postgres_grep": "grep -n -i -E \"sqlite|postgres\" .github/workflows/ci.yml -> no match"
+    },
+    "proofs": {
+      "PT-147-1": {
+        "status": "PROVED",
+        "evidence": "Baseline run 33666580708 at 88e71285b7e08e05ffe4a984802ddd5835132778 (created 2026-09-02T18:20:20Z): 10 of 11 jobs failure, traceability success. Owned --log-failed fetch. Signatures: (1) validate L150 and dependency_audit L141 '##[error]Unable to locate executable file: pnpm'; (2) governance (ubuntu-latest) L317/L351 and backend-storage (sqlite) L1371/L1405 'failed to run custom build command for libdbus-sys v0.2.7 ... The system library dbus-1 required by crate libdbus-sys was not found'; (3) secret_scan L445 'go: github.com/gitleaks/gitleaks/v8@v8.18.4: version constraints conflict' and sbom_generate L445 'go.mod ... contains one or more replace directives' (go install refusal); (4) backend-storage (sqlite) L435-460 DATABASE_URL=sqlite::memory: and backend-storage (postgres) L440-467 POSTGRES_TEST_URL/DATABASE_URL matrix legs. Attribution correction: vuln_scan L1164 and license_scan L1297 failed at 'target mex_tests requires the features: duckdb-flight-recorder, test-utils' (D-147-8), not in the dbus build script as D-147-2 lists them.",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/run-33666580708-baseline.json"
+      },
+      "PT-147-2": {
+        "status": "PROVED",
+        "evidence": "Run 34970538161 per-job conclusions verbatim: sbom_generate success (104385460896); vuln_scan success (104385461056); governance (ubuntu-latest) failure (104385461160); validate failure (104385461176); governance (windows-latest) failure (104385461271); dependency_audit failure (104385461288); license_scan success (104385461322); cross-platform-build success (104385461327); secret_scan failure (104385461352); backend-storage success (104385461391); traceability success (104385461395). 6 green / 5 red.",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/run-34970538161.json"
+      },
+      "PT-147-3": {
+        "status": "PROVED",
+        "evidence": "Run 34970538161 job cross-platform-build (job id 104385461327) conclusion success on ubuntu-latest at head 6f19a524. Log: L482 'integration_test_targets=407'; L4488 'error: MT-147 intentional all-targets negative probe'; L4494 'error: could not compile handshake_core (test \"mt147_all_targets_negative_probe\") due to 1 previous error' (probe step exited as expected and its trap removed the probe, proven by the following positive step compiling); L4497 step 'Cross-platform all-targets all-features build check (Linux)' ran cargo check --all-targets --all-features; L7285 'Finished dev profile [unoptimized + debuginfo] target(s) in 11.12s'.",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/34970538161-cross-platform-build.log"
+      },
+      "PT-147-4": {
+        "status": "PROVED",
+        "evidence": "Per-job before/after table recorded in carried_red_jobs and per_job_table below (baseline 33666580708 -> prior head 34931666946 at 7f9998e3 -> candidate 34970538161 at 6f19a524). Every red job is attributed with a decisive log line and an owner.",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/"
+      },
+      "AC-147-1": {
+        "status": "PROVED",
+        "evidence": "See PT-147-3: cross-platform-build green on ubuntu-latest, cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features completed, integration-test target count nonzero (407), negative probe rejected."
+      },
+      "AC-147-2": {
+        "status": "PROVED",
+        "evidence": "Run 34970538161 validate job log L263 'Done in 4.6s using pnpm v9.15.9' after 'pnpm -C app install --frozen-lockfile'; dependency_audit job log L258 'Done in 4.1s using pnpm v9.15.9'. Both jobs proceed to later steps (validate to Codex checks; dependency_audit to pnpm audit)."
+      },
+      "AC-147-3": {
+        "status": "PROVED",
+        "evidence": "Owned grep of every failed-step log at 34970538161 for 'dbus-1|libdbus': secret_scan has only 'Downloaded libdbus-sys v0.2.7' (L391) and 'Compiling libdbus-sys v0.2.7' (L970); validate, dependency_audit, governance (ubuntu-latest), governance (windows-latest) have zero hits. backend-storage compiled libdbus-sys (log L1395) and passed."
+      },
+      "AC-147-4": {
+        "status": "PROVED",
+        "evidence": "backend-storage is one job, no matrix, no services (ci.yml:138-163); grep -n -i -E 'sqlite|postgres' .github/workflows/ci.yml at 6f19a524 -> empty. Run 34970538161 backend-storage log: storage_conformance 'test result: ok. 3 passed; 0 failed' (L3438, 132.08s) and mcp_e2e_tests 'test result: ok. 1 passed; 0 failed' (L5375, 18.52s) against the embedded SurrealDB store created under HANDSHAKE_SURREAL_TEST_STORE_ROOT=/home/runner/work/Handshake/Handshake/../Handshake_Artifacts/ci/34970538161/backend-storage/surreal-store."
+      },
+      "AC-147-5": {
+        "status": "PROVED",
+        "evidence": "git diff --stat 7f9998e3..6f19a524 lists only .github/workflows/ci.yml (+6/-2). No src/, app/, tests/, .GOV/, or sandbox-cross-platform-gating-check.yml change."
+      },
+      "AC-147-6": {
+        "status": "PROVED",
+        "evidence": "backend-storage (the sole job red for an infrastructure reason at 7f9998e3) is green at 6f19a524. Each of the five remaining red jobs fails on its own content with a named owner; see carried_red_jobs. No check was weakened to turn a job green."
+      }
+    },
+    "per_job_table": [
+      {
+        "job": "cross-platform-build",
+        "baseline_33666580708": "absent (job did not exist)",
+        "prior_34931666946": "success",
+        "candidate_34970538161": "success"
+      },
+      {
+        "job": "backend-storage",
+        "baseline_33666580708": "failure x2 legs (sqlite, postgres): dbus-1 not found",
+        "prior_34931666946": "failure: 3 tests panic 'HANDSHAKE_SURREAL_TEST_STORE_ROOT must name an existing owner-scoped directory' (storage_conformance.rs:10/26/42)",
+        "candidate_34970538161": "success: 3 passed + 1 passed"
+      },
+      {
+        "job": "traceability",
+        "baseline_33666580708": "success",
+        "prior_34931666946": "success",
+        "candidate_34970538161": "success"
+      },
+      {
+        "job": "license_scan",
+        "baseline_33666580708": "failure: mex_tests requires features (L1297)",
+        "prior_34931666946": "success",
+        "candidate_34970538161": "success"
+      },
+      {
+        "job": "vuln_scan",
+        "baseline_33666580708": "failure: mex_tests requires features (L1164)",
+        "prior_34931666946": "success",
+        "candidate_34970538161": "success"
+      },
+      {
+        "job": "sbom_generate",
+        "baseline_33666580708": "failure: go install syft replace directives (L445)",
+        "prior_34931666946": "success",
+        "candidate_34970538161": "success"
+      },
+      {
+        "job": "secret_scan",
+        "baseline_33666580708": "failure: go install gitleaks version constraints conflict (L445)",
+        "prior_34931666946": "failure: mex_tests.rs:1690 assertion Failed != Succeeded",
+        "candidate_34970538161": "failure: same assertion (failed log L3024-3027, 'test result: FAILED. 0 passed; 1 failed', exit 101)"
+      },
+      {
+        "job": "validate",
+        "baseline_33666580708": "failure: pnpm not on PATH (L150)",
+        "prior_34931666946": "failure: Codex check direct fetch in app/src",
+        "candidate_34970538161": "failure: same Codex check (failed log L29-41), exit 1"
+      },
+      {
+        "job": "dependency_audit",
+        "baseline_33666580708": "failure: pnpm not on PATH (L141)",
+        "prior_34931666946": "failure: pnpm audit --audit-level high advisories",
+        "candidate_34970538161": "failure: '124 vulnerabilities found / Severity: 11 low | 62 moderate | 50 high | 1 critical' (failed log L1135-1136), exit 1"
+      },
+      {
+        "job": "governance (ubuntu-latest)",
+        "baseline_33666580708": "failure: dbus-1 not found in libdbus-sys build script (L317/L351)",
+        "prior_34931666946": "failure: just gov-check exit 1 (justfile line 82)",
+        "candidate_34970538161": "failure: gov-check receipt actual_exit_code 1 for node .GOV/roles_shared/checks/gov-check.mjs at candidate_sha 6f19a524; 'recipe gov-check failed on line 82 with exit code 1' (failed log L3593)"
+      },
+      {
+        "job": "governance (windows-latest)",
+        "baseline_33666580708": "failure",
+        "prior_34931666946": "failure: just gov-check exit 1",
+        "candidate_34970538161": "failure: 'recipe gov-check failed on line 82 with exit code 1' (failed log L3537)"
+      }
+    ],
+    "carried_red_jobs": [
+      {
+        "job": "secret_scan",
+        "decisive_line": "thread 'ci_secret_scan_runs_via_terminal_service' panicked at tests/mex_tests.rs:1690:5: assertion left == right failed, left: Failed, right: Succeeded (run 34970538161 job 104385461352 failed log L3024-3027)",
+        "cause_class": "PRODUCT",
+        "attribution": "Product behavior: the MEX supply-chain secret_scan engine run through TerminalServiceRunner returns EngineStatus::Failed where the test requires Succeeded. gitleaks installed and reported its version; the job compiled handshake_core and ran the test, so this is not CI infrastructure. Whether gitleaks reports findings or the envelope misclassifies cannot be settled from ci.yml.",
+        "owner": "MEX supply-chain surface (product backend, tests/mex_tests.rs + terminal service runner); needs its own product MT per scope.carried_failures_not_owned_by_mt_147."
+      },
+      {
+        "job": "validate",
+        "decisive_line": "Codex check 'Disallow direct fetch in app/src (outside lib/api.ts)' matches app/src/lib/editor/embed_assets.ts:383 'return globalThis.fetch(url, init);' and app/src/lib/editor/export_formats.ts:214 (run 34970538161 job 104385461176 failed log L29-41), exit 1",
+        "cause_class": "PRODUCT",
+        "attribution": "Genuine frontend violation of an existing Codex policy check plus comment/test-fixture false positives from the check's regex breadth. Loosening the regex inside ci.yml would change a governance rule to turn a check green and is forbidden by AC-147-6.",
+        "owner": "Frontend product code (app/src/lib/editor) and Codex-check precision owner; outside MT-147 allowed_paths.",
+        "latent_infrastructure_note": "Once this product failure is fixed, validate's later 'Rust tests' step (ci.yml:136, plain cargo test) will need HANDSHAKE_SURREAL_TEST_STORE_ROOT + mkdir like backend-storage: 18 src/ files and 39 tests/ files call embedded_test_backend. Carried with owner: the next ci.yml MT (or MT-147 follow-up) must add the same job-level env + mkdir to validate. Not the cause of the current red."
+      },
+      {
+        "job": "dependency_audit",
+        "decisive_line": "pnpm -C app audit --audit-level high: '124 vulnerabilities found', 'Severity: 11 low | 62 moderate | 50 high | 1 critical' (run 34970538161 job 104385461288 failed log L1135-1136), exit 1; critical = 'When Vitest UI server is listening, arbitrary file can ...'; high include minimatch, rollup, vite, flatted, picomatch, lodash, ws, brace-expansion, js-yaml, immutable, linkify-it, fast-uri, postcss",
+        "cause_class": "PRODUCT",
+        "attribution": "Real frontend dependency advisories at or above the configured high threshold in app/pnpm-lock.yaml. Corrects the stale scope.carried_failures_not_owned_by_mt_147 entry that recorded a transient ERR_SOCKET_TIMEOUT: the audit endpoint now answers and reports findings.",
+        "owner": "Frontend dependency owner (app/package.json, app/pnpm-lock.yaml); outside MT-147 allowed_paths."
+      },
+      {
+        "job": "governance (ubuntu-latest) and governance (windows-latest)",
+        "decisive_line": "'error: recipe gov-check failed on line 82 with exit code 1' on both legs (ubuntu failed log L3593, windows failed log L3537); ubuntu prints receipt hsk.current_candidate_command_receipt@1 for node .GOV/roles_shared/checks/gov-check.mjs with actual_exit_code 1 at candidate_sha 6f19a524",
+        "cause_class": "REPO_GOVERNANCE",
+        "attribution": "Governance-content check failure, not CI infrastructure: the handshake binary builds, just and ripgrep install, and gov-check itself runs to a verdict. The failing check names are not surfaced in the failed-step log (stdout is an artifact ref); NOT_INSPECTED beyond exit code. The orchestrator states the Operator has declared repo governance abandoned; that declaration is orchestrator-asserted and not inspected by this validator.",
+        "owner": "Repo governance (Orchestrator / gov_kernel), outside this packet per scope.carried_failures_not_owned_by_mt_147. MT-147 may not edit governance content to turn it green."
+      }
+    ],
+    "resolved_prior_findings": [
+      {
+        "id": "MT147-V5-F01",
+        "resolution": "RESOLVED",
+        "how": "GitHub Actions run 34970538161 exists at the exact reviewed head 6f19a524 (worktree HEAD == origin/feat/WP-KERNEL-012 == run headSha). cross-platform-build on ubuntu-latest is green; its log proves integration_test_targets=407, the intentional integration-only compile_error probe failed compilation as required and was removed, and the final cargo check --all-targets --all-features completed. The per-job before/after table (PT-147-4) is recorded with every red job attributed to a concrete cause and owner; the one infrastructure red (backend-storage store root) is fixed in the candidate. The v5 remediation's 'no product code change / no weakening of the all-targets workflow' condition holds: the diff touches only the backend-storage env/mkdir."
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "MT147-V6-C01",
+        "severity": "LOW",
+        "kind": "CONCERN",
+        "blocking": false,
+        "summary": "Latent store-root gap in validate's Rust tests step (ci.yml:136); see carried_red_jobs[validate].latent_infrastructure_note. Non-blocking for AC-147-6 because validate's current red is a product cause and the step is unreachable until that is fixed."
+      },
+      {
+        "id": "MT147-V6-C02",
+        "severity": "LOW",
+        "kind": "CONCERN",
+        "blocking": false,
+        "summary": "scope.defects D-147-2 attributes vuln_scan and license_scan baseline failures to the dbus build script; the owned baseline logs show both were refused by cargo for missing required features (D-147-8) before any build script ran (vuln_scan L1164, license_scan L1297). Contract narrative drift only; outcomes unaffected. Route to Orchestrator for a contract note if desired."
+      },
+      {
+        "id": "MT147-V6-C03",
+        "severity": "LOW",
+        "kind": "CONCERN",
+        "blocking": false,
+        "summary": "scope.carried_failures_not_owned_by_mt_147 entry for dependency_audit (transient ERR_SOCKET_TIMEOUT) is stale; the candidate run reports 124 advisories (1 critical, 50 high). Re-attributed in carried_red_jobs; the packet-level entry should be refreshed by the Orchestrator."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1_no_deferred_live_escape": "PASS: diff is CI configuration only; no placeholder error variants or deferred-live tokens in the reviewed range.",
+      "sub_rule_2_handshake_owned_resource_touch": "PASS: backend-storage executes storage_conformance (3 tests) and mcp_e2e_tests (1 test) against a real embedded SurrealDB store created under the exported store root on ubuntu-latest; cross-platform-build compiles all targets/features of handshake_core on Linux.",
+      "sub_rule_3_no_self_certification": "PASS: lifecycle.claimed_by KERNEL_BUILDER-20260903-213930; completed_by WP_VALIDATOR-20260915-123904 (different actor)."
+    },
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-147-CI-001",
+        "command": "gh run view 34970538161 --json headSha,conclusion,status,headBranch,url,createdAt,jobs",
+        "cwd": ".",
+        "commit": "6f19a52425333d32673d7628f72727c869de7e51",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260915-123904",
+        "target_dir": "WP-KERNEL-012/MT-147/wpv-v6/target",
+        "started_utc": "2026-09-15T13:35:43Z",
+        "finished_utc": "2026-09-15T13:37:05Z",
+        "exit_code": 0,
+        "result_line": "headSha=6f19a52425333d32673d7628f72727c869de7e51 status=completed conclusion=failure; cross-platform-build=success backend-storage=success license_scan=success vuln_scan=success sbom_generate=success traceability=success; secret_scan/validate/dependency_audit/governance(ubuntu)/governance(windows)=failure",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/run-34970538161.json",
+        "env_knobs": {
+          "HANDSHAKE_ARTIFACTS_ROOT": "../Handshake_Artifacts"
+        },
+        "covers": [
+          "MT-147",
+          "PT-147-2",
+          "AC-147-6"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-147-CI-002",
+        "command": "gh run view 34970538161 --job 104385461327 --log",
+        "cwd": ".",
+        "commit": "6f19a52425333d32673d7628f72727c869de7e51",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260915-123904",
+        "target_dir": "WP-KERNEL-012/MT-147/wpv-v6/target",
+        "started_utc": "2026-09-15T13:35:43Z",
+        "finished_utc": "2026-09-15T13:37:05Z",
+        "exit_code": 0,
+        "result_line": "integration_test_targets=407; error: could not compile `handshake_core` (test \"mt147_all_targets_negative_probe\") due to 1 previous error; Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.12s",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/34970538161-cross-platform-build.log",
+        "features": [
+          "all-features",
+          "all-targets"
+        ],
+        "covers": [
+          "MT-147",
+          "AC-147-1",
+          "PT-147-3"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-147-CI-003",
+        "command": "gh run view 34970538161 --job 104385461391 --log",
+        "cwd": ".",
+        "commit": "6f19a52425333d32673d7628f72727c869de7e51",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260915-123904",
+        "target_dir": "WP-KERNEL-012/MT-147/wpv-v6/target",
+        "started_utc": "2026-09-15T13:35:43Z",
+        "finished_utc": "2026-09-15T13:37:05Z",
+        "exit_code": 0,
+        "result_line": "storage_conformance: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 132.08s | mcp_e2e_tests: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.52s",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/34970538161-backend-storage.log",
+        "features": [
+          "test-utils",
+          "duckdb-flight-recorder"
+        ],
+        "env_knobs": {
+          "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "/home/runner/work/Handshake/Handshake/../Handshake_Artifacts/ci/34970538161/backend-storage/surreal-store"
+        },
+        "covers": [
+          "MT-147",
+          "AC-147-3",
+          "AC-147-4"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-147-CI-004",
+        "command": "gh run view 34970538161 --job <id> --log-failed for 104385461352 104385461176 104385461288 104385461160 104385461271; grep -c -i -E 'dbus-1|libdbus' on each",
+        "cwd": ".",
+        "commit": "6f19a52425333d32673d7628f72727c869de7e51",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260915-123904",
+        "target_dir": "WP-KERNEL-012/MT-147/wpv-v6/target",
+        "started_utc": "2026-09-15T13:35:43Z",
+        "finished_utc": "2026-09-15T13:37:05Z",
+        "exit_code": 0,
+        "result_line": "secret_scan: mex_tests.rs:1690 assertion Failed!=Succeeded (dbus hits 2, both Downloaded/Compiling libdbus-sys); validate: direct fetch Codex check exit 1 (dbus 0); dependency_audit: 124 vulnerabilities found, 1 critical 50 high (dbus 0); governance ubuntu/windows: recipe gov-check failed on line 82 exit 1 (dbus 0)",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/",
+        "covers": [
+          "MT-147",
+          "AC-147-3",
+          "AC-147-6",
+          "PT-147-4"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-147-CI-005",
+        "command": "gh run view 33666580708 --json headSha,conclusion,status,headBranch,createdAt,jobs; gh run view 33666580708 --job <id> --log-failed for the ten failed baseline jobs",
+        "cwd": ".",
+        "commit": "6f19a52425333d32673d7628f72727c869de7e51",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260915-123904",
+        "target_dir": "WP-KERNEL-012/MT-147/wpv-v6/target",
+        "started_utc": "2026-09-15T13:35:43Z",
+        "finished_utc": "2026-09-15T13:38:08Z",
+        "exit_code": 0,
+        "result_line": "baseline 88e71285: 10 failure / 1 success (traceability); signatures: pnpm not found; dbus-1 not found; go install refusals (gitleaks version constraint, syft replace directives); sqlite/postgres matrix legs; mex_tests required-features refusal",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/run-33666580708-baseline.json",
+        "covers": [
+          "MT-147",
+          "PT-147-1",
+          "PT-147-4"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-V6-MT-147-DIFF-006",
+        "command": "git rev-parse HEAD; git status --short; git ls-remote origin feat/WP-KERNEL-012; git diff --stat 7f9998e3..6f19a524; git diff 7f9998e3..6f19a524; grep -n -i -E \"sqlite|postgres\" .github/workflows/ci.yml",
+        "cwd": ".",
+        "commit": "6f19a52425333d32673d7628f72727c869de7e51",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-20260915-123904",
+        "target_dir": "WP-KERNEL-012/MT-147/wpv-v6/target",
+        "started_utc": "2026-09-15T13:35:43Z",
+        "finished_utc": "2026-09-15T13:37:05Z",
+        "exit_code": 0,
+        "result_line": "HEAD=6f19a524 clean; origin tip 6f19a524; stat: .github/workflows/ci.yml 1 file +6/-2; sqlite|postgres grep: no match",
+        "log_path": "WP-KERNEL-012/MT-147/wpv-v6/logs/",
+        "covers": [
+          "MT-147",
+          "AC-147-4",
+          "AC-147-5"
+        ]
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Exact commit-to-run binding (head SHA of the cited run versus reviewed head)",
+      "Store-root env semantics: absolute, pre-existing, strict descendant of the canonical artifacts root, exported to both cargo steps",
+      "Silent weakening of other jobs or reintroduction of sqlite/postgres wiring",
+      "Negative-probe false green (probe not compiled, trap not removing the probe, warm cache masking)",
+      "Infrastructure red mislabeled as product red or vice versa in the per-job table"
+    ],
+    "independent_checks_run": [
+      "Read src/backend/handshake_core/src/storage/tests.rs:47-110 and tests/surreal_test_store_support/mod.rs to derive the store-root contract independently of the builder's description.",
+      "Traced the gate's origin to commit 6e239eee (MT-109); absent at the v5 commit ff2eda5d.",
+      "Enumerated every CI step that opens the embedded store: backend-storage (both steps), validate 'Rust tests' (latent); supply-chain ci_* tests do not.",
+      "Fetched run 34970538161 job table and the cross-platform-build, backend-storage and five failed-step logs myself; fetched baseline 33666580708 job table and failed-step logs myself.",
+      "Verified worktree HEAD, clean status, remote tip, zero cargo processes, diff scope, and the sqlite/postgres grep."
+    ],
+    "counterfactual_checks": [
+      "If the env were only step-scoped or the mkdir omitted, test_store_root would fail at tests.rs:86-97 (must already exist); the log shows the env on every step and mkdir executed before both cargo steps.",
+      "If the value canonicalized to the artifacts root itself or outside it, tests.rs:104-109 would reject it; the value sits four levels below the root.",
+      "If the probe had been ignored, the probe step would have printed 'all-targets unexpectedly ignored...' and exited 1; instead the compile_error surfaced and the step ended normally, then the positive check compiled."
+    ],
+    "negative_path_checks": [
+      "Probe step: 'error: could not compile handshake_core (test mt147_all_targets_negative_probe)' present at L4494; positive step completed afterwards (L7285), proving the trap removed the probe.",
+      "backend-storage: no panic on store-root init; previous run's 3 init panics are gone; 3+1 tests pass."
+    ],
+    "remediation_required": [],
+    "residual_uncertainty": "The final positive cargo check finished in 11.12s because it reused the target dir warmed by the probe step in the same job; cargo's fingerprinting makes that a valid full check of the unchanged tree after probe removal. governance failing check names were not visible in the failed-step log (exit code and receipt only). secret_scan root cause (gitleaks findings vs envelope classification) is not determinable from ci.yml and is carried to its product owner. The validate 'Rust tests' step will need the same store-root env once its earlier product failure is fixed (MT147-V6-C01).",
+    "validation_boundary": "WP_VALIDATOR per-MT verdict only; whole-WP verdict, merge readiness, and .GOV/spec remain INTEGRATION_VALIDATOR authority. No local cargo executed; no product files edited; no .GOV commit on the feature branch."
   }
 }
