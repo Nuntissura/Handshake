@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use super::documents::CharacterDocumentType;
 use super::{
-    atelier_event_sql, event_ref_for_text, uuid_from_record_link, AtelierError, AtelierResult,
+    atelier_event_sql, event_ref_for_text, AtelierError, AtelierResult,
     AtelierStore,
 };
 
@@ -1078,7 +1078,9 @@ struct ExportLookupBinding {
 #[derive(SurrealValue)]
 struct DocumentHeadRow {
     doc_type: String,
-    current_version_id: Option<RecordId>,
+    /// `atelier_character_document.current_version_id` is `option<uuid>` in schema.surql
+    /// (the same shape `documents.rs` / `links.rs` read); MT-141 R5.
+    current_version_id: Option<SurrealUuid>,
 }
 
 #[derive(Clone, SurrealValue)]
@@ -1178,7 +1180,9 @@ const RECORD_SNAPSHOT_STATEMENT: &str = concat!(
        document_version_id: $domain.document_version_id, schema_id: $domain.schema_id, \
        schema_version: $domain.schema_version, raw_json_text: $domain.raw_json_text, \
        moodboard_json: $domain.moodboard_json, content_sha256: $domain.content_sha256, \
-       author: $domain.author })[0]; };"
+       author: $domain.author } RETURN ",
+    snapshot_columns!(),
+    ")[0]; };"
 );
 const RECORD_OPERATION_STATEMENT: &str = concat!(
     "RETURN { LET $rid = $domain.record_id; ",
@@ -1188,7 +1192,9 @@ const RECORD_OPERATION_STATEMENT: &str = concat!(
        document_id: $domain.document_id, document_version_id: $domain.document_version_id, \
        operation_kind: $domain.operation_kind, operation_payload: $domain.operation_payload, \
        operation_payload_sha256: $domain.operation_payload_sha256, \
-       receipt_json: $domain.receipt_json, actor: $domain.actor })[0]; };"
+       receipt_json: $domain.receipt_json, actor: $domain.actor } RETURN ",
+    operation_columns!(),
+    ")[0]; };"
 );
 const LIST_OPERATIONS_STATEMENT: &str = concat!(
     "SELECT ",
@@ -1204,7 +1210,9 @@ const RECORD_EXPORT_STATEMENT: &str = concat!(
        document_id: $domain.document_id, document_version_id: $domain.document_version_id, \
        format: $domain.format, status: $domain.status, label: $domain.label, \
        manifest_json: $domain.manifest_json, receipt_json: $domain.receipt_json, \
-       requested_by: $domain.requested_by })[0]; RETURN $created; };"
+       requested_by: $domain.requested_by } RETURN ",
+    export_columns!(),
+    ")[0]; RETURN $created; };"
 );
 const FIND_EXPORT_STATEMENT: &str = concat!(
     "SELECT ",
@@ -1288,16 +1296,21 @@ impl AtelierStore {
                 new.document_id
             )));
         }
-        let document_version_link = doc_row.current_version_id.ok_or_else(|| {
-            AtelierError::Validation(format!(
-                "moodboard document {} has no current version",
-                new.document_id
-            ))
-        })?;
-        let document_version_id = uuid_from_record_link(
-            "atelier_character_document.current_version_id",
-            &document_version_link,
-        )?;
+        let document_version_id: Uuid = doc_row
+            .current_version_id
+            .ok_or_else(|| {
+                AtelierError::Validation(format!(
+                    "moodboard document {} has no current version",
+                    new.document_id
+                ))
+            })?
+            .into();
+        // The moodboard row links `record<atelier_character_document_version>`; the head row
+        // above only carries the version uuid, so rebuild the link here.
+        let document_version_link = RecordId::new(
+            "atelier_character_document_version",
+            SurrealUuid::from(document_version_id),
+        );
         #[derive(SurrealValue)]
         struct ExistingBinding {
             document_id: RecordId,

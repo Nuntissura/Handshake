@@ -151,7 +151,7 @@ const UPSERT_MODEL_MANUAL_SECTION_STATEMENT: &str = concat!(
 );
 
 const GET_RETRIEVAL_POLICY_STATEMENT: &str =
-    "SELECT value, updated_by, updated_at_utc FROM atelier_retrieval_policy \
+    "SELECT `value`, updated_by, updated_at_utc FROM atelier_retrieval_policy \
      WHERE task_type = $task_type AND parameter = $parameter LIMIT 1;";
 
 const UPSERT_RETRIEVAL_POLICY_STATEMENT: &str = concat!(

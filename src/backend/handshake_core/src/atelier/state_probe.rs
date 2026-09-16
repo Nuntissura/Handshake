@@ -967,7 +967,7 @@ struct OptionalMatrixKindBinding {
 }
 
 const WRITE_DIAGNOSTICS_VALIDATION_STATEMENT: &str = concat!(
-    "RETURN { LET $row = (UPSERT $domain.record_id CONTENT { row_id: $domain.row_id, matrix_kind: $domain.matrix_kind, surface: $domain.surface, check_id: $domain.check_id, requirement: $domain.requirement, status: $domain.status, evidence_ref: $domain.evidence_ref } RETURN AFTER)[0]; ",
+    "RETURN { LET $row = (UPSERT $domain.record_id SET row_id = $domain.row_id, matrix_kind = $domain.matrix_kind, surface = $domain.surface, check_id = $domain.check_id, requirement = $domain.requirement, status = $domain.status, evidence_ref = $domain.evidence_ref RETURN AFTER)[0]; ",
     atelier_event_sql!(),
     " RETURN $row; };"
 );
@@ -2098,19 +2098,19 @@ struct SpecDriftWriteBindings {
 }
 
 const WRITE_WORK_STATE_STATEMENT: &str = concat!(
-    "RETURN { LET $row = (UPSERT $domain.record_id CONTENT { projection_id: $domain.projection_id, active_mt: $domain.active_mt, owner: $domain.owner, status: $domain.status, blocker: $domain.blocker, receipts_ref: $domain.receipts_ref, next_action: $domain.next_action, evidence_ref: $domain.evidence_ref } RETURN AFTER)[0]; ",
+    "RETURN { LET $row = (UPSERT $domain.record_id SET projection_id = $domain.projection_id, active_mt = $domain.active_mt, owner = $domain.owner, status = $domain.status, blocker = $domain.blocker, receipts_ref = $domain.receipts_ref, next_action = $domain.next_action, evidence_ref = $domain.evidence_ref RETURN AFTER)[0]; ",
     atelier_event_sql!(),
     " RETURN $row; };"
 );
 
 const WRITE_DCC_PANEL_STATEMENT: &str = concat!(
-    "RETURN { LET $row = (UPSERT $domain.record_id CONTENT { panel_id: $domain.panel_id, panel_kind: $domain.panel_kind, state_json: $domain.state_json } RETURN AFTER)[0]; ",
+    "RETURN { LET $row = (UPSERT $domain.record_id SET panel_id = $domain.panel_id, panel_kind = $domain.panel_kind, state_json = $domain.state_json RETURN AFTER)[0]; ",
     atelier_event_sql!(),
     " RETURN $row; };"
 );
 
 const WRITE_SCREENSHOT_STATEMENT: &str = concat!(
-    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_screenshot_artifact_storage WHERE capture_id = $domain.capture_id LIMIT 1)[0]; LET $target = IF $existing = NONE { $domain.record_id } ELSE { $existing }; LET $row = (UPSERT $target CONTENT { storage_id: record::id($target), capture_id: $domain.capture_id, artifact_manifest_id: $domain.artifact_manifest_id, content_sha256: $domain.content_sha256, mime: $domain.mime, width_px: $domain.width_px, height_px: $domain.height_px, byte_len: $domain.byte_len, label: $domain.label, retention_ttl_days: $domain.retention_ttl_days, pinned: $domain.pinned, retention_class: $domain.retention_class, exportable: $domain.exportable, redaction_applied: $domain.redaction_applied } RETURN AFTER)[0]; ",
+    "RETURN { LET $existing = (SELECT VALUE id FROM atelier_screenshot_artifact_storage WHERE capture_id = $domain.capture_id LIMIT 1)[0]; LET $target = IF $existing = NONE { $domain.record_id } ELSE { $existing }; LET $row = (UPSERT $target SET storage_id = record::id($target), capture_id = $domain.capture_id, artifact_manifest_id = $domain.artifact_manifest_id, content_sha256 = $domain.content_sha256, mime = $domain.mime, width_px = $domain.width_px, height_px = $domain.height_px, byte_len = $domain.byte_len, label = $domain.label, retention_ttl_days = $domain.retention_ttl_days, pinned = $domain.pinned, retention_class = $domain.retention_class, exportable = $domain.exportable, redaction_applied = $domain.redaction_applied RETURN AFTER)[0]; ",
     atelier_event_sql!(),
     " RETURN $row; };"
 );
@@ -2122,7 +2122,7 @@ const DELETE_SCREENSHOT_STATEMENT: &str = concat!(
 );
 
 const WRITE_SPEC_DRIFT_STATEMENT: &str = concat!(
-    "RETURN { LET $row = (UPSERT $domain.record_id CONTENT { finding_id: $domain.finding_id, doc_ref: $domain.doc_ref, spec_ref: $domain.spec_ref, drift_kind: $domain.drift_kind, detail: $domain.detail } RETURN AFTER)[0]; ",
+    "RETURN { LET $row = (UPSERT $domain.record_id SET finding_id = $domain.finding_id, doc_ref = $domain.doc_ref, spec_ref = $domain.spec_ref, drift_kind = $domain.drift_kind, detail = $domain.detail RETURN AFTER)[0]; ",
     atelier_event_sql!(),
     " RETURN $row; };"
 );

@@ -1165,7 +1165,9 @@ fn filter_clause(
 ) -> Result<String, SurrealTestInspectorError> {
     match filter {
         RowFilter::All => Ok(String::new()),
-        RowFilter::IdEquals(_) => Ok(" WHERE id = $filter_value".to_owned()),
+        // Compare the stringified record key so uuid-keyed and string-keyed rows both
+        // match the caller's `to_string()` form (MT-141 R16).
+        RowFilter::IdEquals(_) => Ok(" WHERE <string>record::id(id) = $filter_value".to_owned()),
         RowFilter::FieldEquals { field, .. } => {
             validate_field_for_table(table, field)?;
             Ok(format!(
@@ -1182,10 +1184,7 @@ fn filter_binding(
 ) -> Result<Option<SurrealValueData>, SurrealTestInspectorError> {
     match filter {
         RowFilter::All => Ok(None),
-        RowFilter::IdEquals(id) => Ok(Some(SurrealValueData::RecordId(RecordId::new(
-            table.name.clone(),
-            id.clone(),
-        )))),
+        RowFilter::IdEquals(id) => Ok(Some(id.clone().into_value())),
         RowFilter::FieldEquals { field, value } => {
             validate_field_for_table(table, field)?;
             Ok(Some(match value {

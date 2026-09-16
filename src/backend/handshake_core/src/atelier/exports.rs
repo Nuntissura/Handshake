@@ -34,6 +34,7 @@ use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
+    uuid_from_record_link,
     atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult,
     AtelierStore,
 };
@@ -1227,26 +1228,39 @@ struct ExportIntakeLinkRow {
     export_id: SurrealUuid,
     batch_id: SurrealUuid,
     item_id: SurrealUuid,
-    target_character_id: Option<SurrealUuid>,
-    target_sheet_version_id: Option<SurrealUuid>,
-    target_collection_id: Option<SurrealUuid>,
+    // Optional record links are read raw and converted in Rust: `record::id(NONE)` is an
+    // engine error, so the projection cannot apply it to an absent target (MT-141 R6).
+    target_character_id: Option<RecordId>,
+    target_sheet_version_id: Option<RecordId>,
+    target_collection_id: Option<RecordId>,
     version_agnostic: bool,
     created_at_utc: Datetime,
 }
 
-impl From<ExportIntakeLinkRow> for ExportIntakeLink {
-    fn from(row: ExportIntakeLinkRow) -> Self {
-        Self {
+impl TryFrom<ExportIntakeLinkRow> for ExportIntakeLink {
+    type Error = AtelierError;
+
+    fn try_from(row: ExportIntakeLinkRow) -> AtelierResult<Self> {
+        Ok(Self {
             link_id: row.link_id.into(),
             export_id: row.export_id.into(),
             batch_id: row.batch_id.into(),
             item_id: row.item_id.into(),
-            target_character_id: row.target_character_id.map(Into::into),
-            target_sheet_version_id: row.target_sheet_version_id.map(Into::into),
-            target_collection_id: row.target_collection_id.map(Into::into),
+            target_character_id: row
+                .target_character_id
+                .map(|link| uuid_from_record_link("target_character_id", &link))
+                .transpose()?,
+            target_sheet_version_id: row
+                .target_sheet_version_id
+                .map(|link| uuid_from_record_link("target_sheet_version_id", &link))
+                .transpose()?,
+            target_collection_id: row
+                .target_collection_id
+                .map(|link| uuid_from_record_link("target_collection_id", &link))
+                .transpose()?,
             version_agnostic: row.version_agnostic,
             created_at_utc: row.created_at_utc.into(),
-        }
+        })
     }
 }
 
@@ -1293,10 +1307,10 @@ struct SharePackMediaRow {
 
 #[derive(SurrealValue)]
 struct IntakeBatchTargetRow {
-    character_internal_id: Option<SurrealUuid>,
-    target_character_id: Option<SurrealUuid>,
-    target_sheet_version_id: Option<SurrealUuid>,
-    target_collection_id: Option<SurrealUuid>,
+    character_internal_id: Option<RecordId>,
+    target_character_id: Option<RecordId>,
+    target_sheet_version_id: Option<RecordId>,
+    target_collection_id: Option<RecordId>,
 }
 
 #[derive(SurrealValue)]
@@ -1364,10 +1378,8 @@ macro_rules! backup_preflight_select {
 macro_rules! intake_link_select {
     () => {
         "link_id, record::id(export_id) AS export_id, record::id(batch_id) AS batch_id, \
-         record::id(item_id) AS item_id, record::id(target_character_id) AS target_character_id, \
-         record::id(target_sheet_version_id) AS target_sheet_version_id, \
-         record::id(target_collection_id) AS target_collection_id, version_agnostic, \
-         created_at_utc"
+         record::id(item_id) AS item_id, target_character_id, target_sheet_version_id, \
+         target_collection_id, version_agnostic, created_at_utc"
     };
 }
 
@@ -2412,10 +2424,10 @@ impl AtelierStore {
                 move |ctx| {
                     Box::pin(async move {
                         ctx.query_first(
-                            "SELECT record::id(character_internal_id) AS character_internal_id, \
-                             record::id(target_character_id) AS target_character_id, \
-                             record::id(target_sheet_version_id) AS target_sheet_version_id, \
-                             record::id(target_collection_id) AS target_collection_id \
+                            // Optional links are read raw: `record::id(NONE)` is an engine
+                            // error, so the projection cannot apply it (MT-141 R6).
+                            "SELECT character_internal_id, target_character_id, \
+                             target_sheet_version_id, target_collection_id \
                              FROM $record_ref;",
                             RecordBinding { record_ref },
                         )
@@ -2425,11 +2437,22 @@ impl AtelierStore {
             })
             .await?
             .ok_or_else(|| AtelierError::NotFound(format!("intake batch {batch_id}")))?;
-        let batch_character_id: Option<Uuid> = batch_row.character_internal_id.map(Uuid::from);
-        let target_character_id: Option<Uuid> = batch_row.target_character_id.map(Uuid::from);
-        let target_sheet_version_id: Option<Uuid> =
-            batch_row.target_sheet_version_id.map(Uuid::from);
-        let target_collection_id: Option<Uuid> = batch_row.target_collection_id.map(Uuid::from);
+        let batch_character_id: Option<Uuid> = batch_row
+            .character_internal_id
+            .map(|link| uuid_from_record_link("character_internal_id", &link))
+            .transpose()?;
+        let target_character_id: Option<Uuid> = batch_row
+            .target_character_id
+            .map(|link| uuid_from_record_link("target_character_id", &link))
+            .transpose()?;
+        let target_sheet_version_id: Option<Uuid> = batch_row
+            .target_sheet_version_id
+            .map(|link| uuid_from_record_link("target_sheet_version_id", &link))
+            .transpose()?;
+        let target_collection_id: Option<Uuid> = batch_row
+            .target_collection_id
+            .map(|link| uuid_from_record_link("target_collection_id", &link))
+            .transpose()?;
         let effective_target_character_id = target_character_id.or(batch_character_id);
 
         if let Some(target_character_id) = effective_target_character_id {
@@ -2552,7 +2575,7 @@ impl AtelierStore {
             })
             .await?;
         if let Some(existing) = existing {
-            return Ok(existing.into());
+            return existing.try_into();
         }
 
         let version_agnostic = target_sheet_version_id.is_none();
@@ -2594,8 +2617,8 @@ impl AtelierStore {
                 }),
             )
             .await?;
-        row.map(Into::into)
-            .ok_or_else(|| AtelierError::Internal("intake link write returned no row".into()))
+        row.map(TryInto::try_into)
+            .ok_or_else(|| AtelierError::Internal("intake link write returned no row".into()))?
     }
 
     /// Export-linked intake target refs, ordered by durable attach time.
@@ -2622,7 +2645,7 @@ impl AtelierStore {
                 })
             })
             .await?;
-        Ok(rows.into_iter().map(Into::into).collect())
+        rows.into_iter().map(TryInto::try_into).collect()
     }
 
     /// Preserve PNG/JPG contact-sheet export as an explicit planned capability

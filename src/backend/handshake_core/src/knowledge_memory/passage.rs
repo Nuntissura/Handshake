@@ -37,6 +37,9 @@ struct PassageClaimBindings {
 #[derive(SurrealValue)]
 struct PassageIdRow {
     passage_id: String,
+    /// Projected only for the `ORDER BY` (SurrealDB 3 requires it; MT-141 R3 class).
+    #[allow(dead_code)]
+    created_at: surrealdb::types::Datetime,
 }
 
 /// List the passage ids of a workspace (newest first), then load each through
@@ -60,7 +63,7 @@ pub async fn load_passages_for_workspace(
             Box::pin(async move {
                 database
                     .query_values(
-                        "SELECT record::id(id) AS passage_id FROM knowledge_memory_passages \
+                        "SELECT record::id(id) AS passage_id, created_at FROM knowledge_memory_passages \
                          WHERE workspace_id = $workspace \
                          ORDER BY created_at DESC, passage_id DESC LIMIT $limit;",
                         bindings,

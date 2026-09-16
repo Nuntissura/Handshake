@@ -589,11 +589,24 @@ const ANCHOR_ENTRY_STATEMENT: &str = concat!(
        WHERE action_id=$domain.action_id LIMIT 1)[0]; IF $rid IS NONE { RETURN NONE; }; ",
     atelier_event_sql!(),
     " UPDATE $rid SET manual_anchor=$domain.manual_anchor, updated_at_utc=time::now(); \
+       LET $cleared = (SELECT VALUE blocked_id FROM atelier_command_corpus_blocked \
+         WHERE action_id=$domain.action_id AND blocked_reason='no_manual_anchor'); \
        DELETE atelier_command_corpus_blocked WHERE action_id=$domain.action_id \
-         AND blocked_reason='no_manual_anchor'; RETURN (SELECT ",
+         AND blocked_reason='no_manual_anchor'; RETURN { entry: (SELECT ",
     entry_columns!(),
-    " FROM $rid); };"
+    " FROM $rid)[0], cleared: $cleared }; };"
 );
+
+/// MT-141 R1 follow-up: the Surreal port never emitted `CORPUS_BLOCKED_CLEARED` (the
+/// PostgreSQL original recorded it inside the anchor transaction). The clear is appended as its
+/// own event after the anchor transaction committed; see `anchor_command_manual`.
+const EMIT_EVENT_ONLY_STATEMENT: &str = concat!("RETURN { ", atelier_event_sql!(), " RETURN NONE; };");
+
+#[derive(SurrealValue)]
+struct AnchorOutcomeRow {
+    entry: CommandCorpusEntryRow,
+    cleared: Vec<SurrealUuid>,
+}
 
 const RECORD_BLOCKED_STATEMENT: &str = concat!(
     "RETURN { LET $existing = (SELECT VALUE id FROM atelier_command_corpus_blocked \
@@ -815,7 +828,7 @@ impl AtelierStore {
             ));
         }
 
-        let row: Option<CommandCorpusEntryRow> = self
+        let outcome: Option<AnchorOutcomeRow> = self
             .write_with_event(
                 ANCHOR_ENTRY_STATEMENT,
                 AnchorBindings {
@@ -831,9 +844,32 @@ impl AtelierStore {
                 }),
             )
             .await?;
-        entry_from_row(row.ok_or_else(|| {
+        let outcome = outcome.ok_or_else(|| {
             AtelierError::NotFound(format!("command corpus entry action_id={action_id}"))
-        })?)
+        })?;
+        // Ordering guarantee: the anchor transaction (entry update + BLOCKED delete) has
+        // committed before any cleared event is appended, so a CORPUS_BLOCKED_CLEARED event
+        // never exists without its anchor; a crash between the two leaves the block cleared
+        // without its event (recorded deviation from the PostgreSQL single transaction).
+        for blocked_id in &outcome.cleared {
+            let blocked_id = Uuid::from(blocked_id.clone());
+            let _: Option<surrealdb::types::Value> = self
+                .write_with_event(
+                    EMIT_EVENT_ONLY_STATEMENT,
+                    EmptyBindings {},
+                    CORPUS_BLOCKED_CLEARED,
+                    "atelier_command_corpus_blocked",
+                    action_id,
+                    serde_json::json!({
+                        "blocked_id": blocked_id,
+                        "action_id": action_id,
+                        "blocked_reason": "no_manual_anchor",
+                        "cleared_by_manual_anchor": manual_command_id,
+                    }),
+                )
+                .await?;
+        }
+        entry_from_row(outcome.entry)
     }
 
     /// Record (open or refresh) a durable BLOCKED record for a command
@@ -2131,7 +2167,11 @@ struct StaleBindings {
 }
 const RECORD_COMMAND_LOG:&str=concat!("RETURN { ",atelier_event_sql!()," CREATE $domain.rid CONTENT {command_log_id:$domain.command_log_id,session_ref:$domain.session_ref,command_id:$domain.command_id,status:$domain.status,receipt_ref:$domain.receipt_ref,evidence_ref:$domain.evidence_ref};RETURN (SELECT command_log_id,session_ref,command_id,status,receipt_ref,evidence_ref,recorded_at_utc FROM $domain.rid);};");
 const RECORD_HEARTBEAT:&str=concat!("RETURN { ",atelier_event_sql!()," UPSERT $domain.rid SET session_ref=$domain.session_ref,status='ACTIVE',last_heartbeat_utc=time::now();RETURN (SELECT session_ref,status,last_heartbeat_utc,created_at_utc FROM $domain.rid);};");
-const FLAG_STALE:&str=concat!("RETURN { ",atelier_event_sql!()," LET $rows=(SELECT VALUE id FROM atelier_diagnostics_session WHERE last_heartbeat_utc<$domain.cutoff AND status!='STALE');UPDATE atelier_diagnostics_session SET status='STALE' WHERE id IN $rows;RETURN (SELECT session_ref,status,last_heartbeat_utc,created_at_utc FROM atelier_diagnostics_session WHERE id IN $rows);};");
+const FLAG_STALE:&str=concat!("RETURN { ",atelier_event_sql!()," LET $rows=(SELECT VALUE id FROM atelier_diagnostics_session WHERE last_heartbeat_utc<$domain.cutoff AND status!='STALE');UPDATE atelier_diagnostics_session SET status='STALE' WHERE id IN $rows;RETURN { rows: (SELECT session_ref,status,last_heartbeat_utc,created_at_utc FROM atelier_diagnostics_session WHERE id IN $rows) };};");
+#[derive(SurrealValue)]
+struct FlaggedSessionRows {
+    rows: Vec<DiagnosticsSessionRow>,
+}
 
 /// Pure stale-session detection over already-loaded session records (MT-144).
 ///
@@ -2305,7 +2345,7 @@ impl AtelierStore {
             .iter()
             .map(|row| row.session_ref.clone())
             .collect();
-        let rows: Option<Vec<DiagnosticsSessionRow>> = self
+        let rows: Option<FlaggedSessionRows> = self
             .write_with_event(
                 FLAG_STALE,
                 StaleBindings {
@@ -2321,7 +2361,8 @@ impl AtelierStore {
                 }),
             )
             .await?;
-        rows.unwrap_or_default()
+        rows.map(|flagged| flagged.rows)
+            .unwrap_or_default()
             .into_iter()
             .map(diagnostics_session_from_row)
             .collect()

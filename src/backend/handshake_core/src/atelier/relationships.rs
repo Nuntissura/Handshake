@@ -139,6 +139,10 @@ struct GraphEdgeRow {
     target_character_id: SurrealUuid,
     relationship_kind: String,
     label: Option<String>,
+    /// Projected only because SurrealDB 3 requires every `ORDER BY` field in the
+    /// selection (MT-141 R3); the sort is the only consumer.
+    #[allow(dead_code)]
+    updated_at_utc: Datetime,
 }
 
 /// One graph node row from `atelier_character`.
@@ -262,10 +266,10 @@ const LIST_RELATIONSHIPS_STATEMENT: &str = concat!(
 
 /// Edges around one character, from the stored-edge projection table, newest
 /// first (the former edge sort: updated DESC, id ASC).
-const GRAPH_EDGES_STATEMENT: &str = "SELECT record::id(edge_id) AS relationship_id, \
+const GRAPH_EDGES_STATEMENT: &str = "SELECT edge_id AS relationship_id, \
             record::id(source_character_id) AS source_character_id, \
             record::id(target_character_id) AS target_character_id, \
-            relationship_kind, label \
+            relationship_kind, label, updated_at_utc \
      FROM atelier_character_relationship_graph_projection \
      WHERE source_character_id = $character_ref OR target_character_id = $character_ref \
      ORDER BY updated_at_utc DESC, relationship_id ASC;";

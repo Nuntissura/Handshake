@@ -1308,7 +1308,8 @@ const WRITE_LOOM_PROJECTION_STATEMENT: &str = concat!(
 const COUNT_PREFERENCES_STATEMENT: &str =
     "RETURN array::len((SELECT VALUE id FROM atelier_preference));";
 const LIST_ORIGINAL_MEDIA_STATEMENT: &str =
-    "SELECT id AS asset_ref, content_hash, artifact_ref, mime, byte_len, retention_class \
+    "SELECT asset_id, content_hash, artifact_ref, mime, byte_len, retention_class, \
+       created_at_utc \
      FROM atelier_media_asset WHERE retention_class = $retention_class \
        AND string::trim(content_hash) = content_hash AND content_hash != '' \
        AND string::trim(artifact_ref) = artifact_ref AND artifact_ref != '' \
@@ -1336,7 +1337,7 @@ const WRITE_RESET_STATEMENT: &str = concat!(
          preferences_deleted_count: $domain.preferences_deleted_count, \
          original_media_preserved_count: $domain.original_media_preserved_count, \
          orphan_manifest_id: IF $domain.preserve_original_media { $domain.manifest_id } \
-           ELSE { NONE } END }; \
+           ELSE { NONE } }; \
        IF $domain.preserve_original_media { \
          CREATE $domain.manifest_ref CONTENT { manifest_id: $domain.manifest_id, reset_id: $rid, \
            manifest_json: $domain.manifest_json, item_count: $domain.original_media_preserved_count }; \
@@ -2321,7 +2322,10 @@ impl AtelierStore {
                     SurrealUuid::from(manifest_item_id),
                 ),
                 manifest_item_id: SurrealUuid::from(manifest_item_id),
-                asset_ref: row.get("asset_ref"),
+                asset_ref: RecordId::new(
+                    "atelier_media_asset",
+                    SurrealUuid::from(row.get::<Uuid, _>("asset_id")),
+                ),
                 content_hash: row.get("content_hash"),
                 artifact_ref: row.get("artifact_ref"),
                 mime: row.get("mime"),

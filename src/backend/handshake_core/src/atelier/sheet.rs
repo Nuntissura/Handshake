@@ -1823,7 +1823,7 @@ const APPEND_SHEET_STATEMENT: &str = concat!(
 );
 
 const WRITE_PARSE_SNAPSHOT_STATEMENT: &str = concat!(
-    "RETURN { LET $row = (UPSERT $domain.record CONTENT { parse_id: $domain.parse_id, version_id: $domain.version, template_id: $domain.template_id, source_path: $domain.source_path, template_version: $domain.template_version, template_hash: $domain.template_hash, ast: $domain.ast, unmapped_lines: $domain.unmapped_lines } RETURN AFTER)[0]; ",
+    "RETURN { LET $row = (UPSERT $domain.record SET parse_id = $domain.parse_id, version_id = $domain.version, template_id = $domain.template_id, source_path = $domain.source_path, template_version = $domain.template_version, template_hash = $domain.template_hash, ast = $domain.ast, unmapped_lines = $domain.unmapped_lines RETURN AFTER)[0]; ",
     atelier_event_sql!(),
     " RETURN $row; };"
 );

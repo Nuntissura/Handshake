@@ -719,6 +719,11 @@ struct GuardScopeBinding {
 struct PreviousDriftGuardRow {
     manual_version: String,
     wired_surface_sha256: String,
+    /// Projected only for the `ORDER BY` (SurrealDB 3 requires it; MT-141 R3 class).
+    #[allow(dead_code)]
+    created_at_utc: Datetime,
+    #[allow(dead_code)]
+    run_id: SurrealUuid,
 }
 
 #[derive(Clone, SurrealValue)]
@@ -754,7 +759,8 @@ const LATEST_MANUAL_ROW_MERGE_STATEMENT: &str =
      ORDER BY created_at_utc DESC, run_id DESC LIMIT 1;";
 
 const PREVIOUS_MANUAL_DRIFT_GUARD_STATEMENT: &str =
-    "SELECT manual_version, wired_surface_sha256 FROM atelier_model_manual_drift_guard \
+    "SELECT manual_version, wired_surface_sha256, created_at_utc, run_id \
+     FROM atelier_model_manual_drift_guard \
      WHERE guard_scope = $guard_scope ORDER BY created_at_utc DESC, run_id DESC LIMIT 1;";
 
 const RECORD_MANUAL_DRIFT_GUARD_STATEMENT: &str = concat!(

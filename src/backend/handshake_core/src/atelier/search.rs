@@ -337,6 +337,14 @@ pub enum LensContentTier {
 }
 
 impl LensContentTier {
+    fn as_token(self) -> &'static str {
+        match self {
+            Self::Sfw => "sfw",
+            Self::AdultSoft => "adult_soft",
+            Self::AdultExplicit => "adult_explicit",
+        }
+    }
+
     fn parse(raw: &str) -> AtelierResult<Self> {
         match raw {
             "sfw" => Ok(Self::Sfw),
@@ -450,6 +458,8 @@ pub struct SavedSearchProjectionHit {
     pub matched_color_hex: Option<String>,
     pub content_tier: Option<LensContentTier>,
     pub view_mode: LensViewMode,
+    /// Collections the asset belongs to; drives `SavedSearchScope::Collection`.
+    pub collection_ids: Vec<Uuid>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -751,13 +761,33 @@ struct GlobalSearchCandidateRow {
     sort_at: Datetime,
 }
 
+/// Lower-cases marker text and turns `_`, `-` and `=` into spaces so
+/// `lens_extraction_tier=tier2` / `content_tier=sfw` match the phrase markers.
+fn normalize_marker_text(text: &str) -> String {
+    text.to_ascii_lowercase().replace(['_', '-', '='], " ")
+}
+
+/// Content tier declared by marker text (`content_tier=sfw|adult_soft|adult_explicit`).
+fn content_tier_from_marker_text(text: &str) -> Option<&'static str> {
+    let normalized = normalize_marker_text(text);
+    if normalized.contains("content tier adult explicit") {
+        Some("adult_explicit")
+    } else if normalized.contains("content tier adult soft") {
+        Some("adult_soft")
+    } else if normalized.contains("content tier sfw") {
+        Some("sfw")
+    } else {
+        None
+    }
+}
+
 fn global_search_hit_from_row(
     row: GlobalSearchCandidateRow,
     query: &str,
     view_mode: LensViewMode,
 ) -> AtelierResult<GlobalSearchHit> {
     let search_text = row.search_text;
-    let normalized = search_text.to_ascii_lowercase().replace(['_', '-'], " ");
+    let normalized = normalize_marker_text(&search_text);
     let extraction_tier_raw = if normalized.contains("extraction tier tier3")
         || normalized.contains("extraction tier 3")
     {
@@ -849,24 +879,52 @@ struct SavedSearchProjectionRow {
     tags_json: serde_json::Value,
     favorite: bool,
     rating: i64,
-    matched_color_hex: Option<String>,
-    content_tier: Option<String>,
-    view_mode: String,
+    source_provenance: Option<String>,
+    palette_json: Option<serde_json::Value>,
+    collection_ids: Vec<SurrealUuid>,
+    /// Projected only for the `ORDER BY` (SurrealDB 3 requires it; MT-141 R3 class).
+    #[allow(dead_code)]
+    created_at_utc: Datetime,
 }
 
+/// Palette hex values (`palette_json.dominant[].hex`) of a similarity projection.
+fn palette_hexes(palette: &serde_json::Value) -> Vec<String> {
+    palette
+        .get("dominant")
+        .and_then(serde_json::Value::as_array)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|entry| entry.get("hex").and_then(serde_json::Value::as_str))
+                .map(str::to_ascii_lowercase)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// MT-141: the saved-search projection was ported without its colour, scope and view-mode
+/// narrowing (`NONE AS matched_color_hex`, `'NSFW' AS view_mode`); the row now carries the
+/// asset's provenance markers, palette and collection membership and the saved filters decide.
 fn saved_search_projection_hit_from_row(
     row: SavedSearchProjectionRow,
+    filters: &SavedSearchFilters,
 ) -> AtelierResult<SavedSearchProjectionHit> {
-    let view_mode = row.view_mode;
-    let view_mode = match view_mode.as_str() {
-        "NSFW" => LensViewMode::Nsfw,
-        "SFW" => LensViewMode::Sfw,
-        other => {
-            return Err(AtelierError::Validation(format!(
-                "unknown saved search projection view_mode: {other}"
-            )));
-        }
-    };
+    let view_mode = filters.view_mode;
+    let content_tier = row
+        .source_provenance
+        .as_deref()
+        .and_then(content_tier_from_marker_text)
+        .map(LensContentTier::parse)
+        .transpose()?;
+    let matched_color_hex = filters.color_hex.as_ref().and_then(|wanted| {
+        let wanted = wanted.to_ascii_lowercase();
+        row.palette_json
+            .as_ref()
+            .map(palette_hexes)
+            .unwrap_or_default()
+            .contains(&wanted)
+            .then_some(wanted)
+    });
     Ok(SavedSearchProjectionHit {
         saved_search_id: row.saved_search_id.into(),
         asset_id: row.asset_id.into(),
@@ -877,13 +935,10 @@ fn saved_search_projection_hit_from_row(
         favorite: row.favorite,
         rating: i16::try_from(row.rating)
             .map_err(|_| AtelierError::Internal("saved search rating exceeds i16".into()))?,
-        matched_color_hex: row.matched_color_hex,
-        content_tier: row
-            .content_tier
-            .as_deref()
-            .map(LensContentTier::parse)
-            .transpose()?,
+        matched_color_hex,
+        content_tier,
         view_mode,
+        collection_ids: row.collection_ids.into_iter().map(Uuid::from).collect(),
     })
 }
 
@@ -1266,16 +1321,17 @@ impl AtelierStore {
         }
         let limit = limit.clamp(1, 50);
         let bindings = QueryLimitBindings {
-            query: trimmed.to_ascii_lowercase(),
+            // `string::lowercase` in the statement folds Unicode; mirror it here (MT-141).
+            query: trimmed.to_lowercase(),
             limit,
         };
         let rows: Vec<GlobalSearchCandidateRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
-            ctx.query_values("RETURN array::slice(array::sort::asc(array::concat(\
+            ctx.query_values("RETURN array::concat(array::concat(\
               (SELECT 'sheet' AS target_kind, <string>version_id AS target_id, string::concat('atelier://sheet/', <string>record::id(character_internal_id), '/', <string>version_id) AS jump_target, string::concat('Sheet v', <string>seq, ' - ', character_internal_id.display_name) AS title, raw_text AS search_text, 10 AS rank, created_at_utc AS sort_at FROM atelier_sheet_version WHERE string::lowercase(raw_text) CONTAINS $query), \
-              (SELECT doc_type AS target_kind, <string>document_id AS target_id, string::concat('atelier://document/', <string>document_id) AS jump_target, current_version_id.title AS title, string::concat(current_version_id.title, ' ', current_version_id.body_raw_text, ' ', <string>tags_json) AS search_text, 20 AS rank, current_version_id.created_at_utc AS sort_at FROM atelier_character_document WHERE string::lowercase(string::concat(current_version_id.title, ' ', current_version_id.body_raw_text, ' ', <string>tags_json)) CONTAINS $query), \
+              (SELECT doc_type AS target_kind, <string>document_id AS target_id, string::concat('atelier://document/', <string>document_id) AS jump_target, type::record('atelier_character_document_version', current_version_id).title AS title, string::concat(type::record('atelier_character_document_version', current_version_id).title, ' ', type::record('atelier_character_document_version', current_version_id).body_raw_text, ' ', <string>tags_json) AS search_text, 20 AS rank, type::record('atelier_character_document_version', current_version_id).created_at_utc AS sort_at FROM atelier_character_document WHERE current_version_id != NONE AND string::lowercase(string::concat(type::record('atelier_character_document_version', current_version_id).title, ' ', type::record('atelier_character_document_version', current_version_id).body_raw_text, ' ', <string>tags_json)) CONTAINS $query)), array::concat( \
               (SELECT 'moodboard_snapshot' AS target_kind, <string>snapshot_id AS target_id, string::concat('atelier://moodboard/', <string>snapshot_id) AS jump_target, moodboard_json.name ?? 'Moodboard' AS title, raw_json_text AS search_text, 30 AS rank, created_at_utc AS sort_at FROM atelier_moodboard WHERE string::lowercase(raw_json_text) CONTAINS $query), \
               (SELECT 'image' AS target_kind, <string>asset_id AS target_id, string::concat('atelier://image/', <string>asset_id) AS jump_target, string::concat(mime, ' ', string::slice(content_hash, 0, 12)) AS title, string::concat(mime, ' ', content_hash, ' ', source_provenance ?? '', ' ', artifact_ref) AS search_text, 40 AS rank, created_at_utc AS sort_at FROM atelier_media_asset WHERE string::lowercase(string::concat(mime, ' ', content_hash, ' ', source_provenance ?? '', ' ', artifact_ref)) CONTAINS $query)\
-            ), true), 0, $limit);", bindings).await
+            ));", bindings).await
         })).await?;
         let mut hits: Vec<GlobalSearchHit> = rows
             .into_iter()
@@ -1457,14 +1513,23 @@ impl AtelierStore {
             limit: i64,
         }
         let rows: Vec<SavedSearchProjectionRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
-            ctx.query_values("SELECT $saved_search_id AS saved_search_id, asset_id, content_hash, artifact_ref, string::concat('atelier://image/',<string>asset_id) AS jump_target, (SELECT VALUE tag_id.text FROM atelier_media_asset_tag WHERE asset_id=$parent.id) AS tags_json, (SELECT VALUE favorite FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? false AS favorite, (SELECT VALUE rating FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? 0 AS rating, NONE AS matched_color_hex, NONE AS content_tier, 'NSFW' AS view_mode FROM atelier_media_asset ORDER BY created_at_utc DESC LIMIT $limit;", RunSavedBindings{saved_search_id:saved_search_id.into(),limit}).await
+            ctx.query_values("SELECT $saved_search_id AS saved_search_id, asset_id, content_hash, artifact_ref, created_at_utc, string::concat('atelier://image/',<string>asset_id) AS jump_target, (SELECT VALUE tag_id.text FROM atelier_media_asset_tag WHERE asset_id=$parent.id) AS tags_json, (SELECT VALUE favorite FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? false AS favorite, (SELECT VALUE rating FROM atelier_media_review_metadata WHERE asset_id=$parent.id LIMIT 1)[0] ?? 0 AS rating, source_provenance, (SELECT VALUE palette_json FROM atelier_similarity_projection WHERE asset_internal_id=$parent.id LIMIT 1)[0] AS palette_json, (SELECT VALUE record::id(collection_id) FROM atelier_collection_item WHERE asset_id=$parent.id) AS collection_ids FROM atelier_media_asset ORDER BY created_at_utc DESC LIMIT $limit;", RunSavedBindings{saved_search_id:saved_search_id.into(),limit}).await
         })).await?;
         let mut hits: Vec<SavedSearchProjectionHit> = rows
             .into_iter()
-            .map(saved_search_projection_hit_from_row)
+            .map(|row| saved_search_projection_hit_from_row(row, &saved.filters))
             .collect::<AtelierResult<_>>()?;
         hits.retain(|hit| {
-            saved
+            (saved.filters.color_hex.is_none() || hit.matched_color_hex.is_some())
+                && match saved.filters.scope {
+                    SavedSearchScope::AllMedia => true,
+                    SavedSearchScope::Collection(collection_id) => {
+                        hit.collection_ids.contains(&collection_id)
+                    }
+                }
+                && (saved.filters.view_mode != LensViewMode::Sfw
+                    || hit.content_tier == Some(LensContentTier::Sfw))
+                && saved
                 .filters
                 .include_tags
                 .iter()
@@ -1484,7 +1549,98 @@ impl AtelierStore {
                     .is_none_or(|favorite| hit.favorite == favorite)
         });
         hits.truncate(limit as usize);
+        self.refresh_saved_search_retrieval_projection(saved_search_id, &hits)
+            .await?;
         Ok(hits)
+    }
+
+    /// MT-141: replace the durable `atelier_saved_search_retrieval_projection` rows of one saved
+    /// search with the hits just computed, so the database projection matches the API projection
+    /// (the PostgreSQL view the port dropped was defined over the same inputs).
+    async fn refresh_saved_search_retrieval_projection(
+        &self,
+        saved_search_id: Uuid,
+        hits: &[SavedSearchProjectionHit],
+    ) -> AtelierResult<()> {
+        #[derive(SurrealValue)]
+        struct ProjectionRowBinding {
+            record_id: RecordId,
+            projection_id: SurrealUuid,
+            // Denormalised id columns are strings (the projection is a read model keyed by text,
+            // like `jump_target`); the harness and API compare them as text.
+            saved_search_id: String,
+            asset_id: String,
+            content_hash: String,
+            artifact_ref: String,
+            jump_target: String,
+            tags_json: serde_json::Value,
+            favorite: bool,
+            rating: i64,
+            matched_color_hex: Option<String>,
+            content_tier: Option<String>,
+            view_mode: String,
+        }
+        #[derive(SurrealValue)]
+        struct RefreshBindings {
+            saved_search_id: String,
+            rows: Vec<ProjectionRowBinding>,
+        }
+        let rows = hits
+            .iter()
+            .map(|hit| {
+                let projection_id = Uuid::now_v7();
+                ProjectionRowBinding {
+                    record_id: RecordId::new(
+                        "atelier_saved_search_retrieval_projection",
+                        SurrealUuid::from(projection_id),
+                    ),
+                    projection_id: SurrealUuid::from(projection_id),
+                    saved_search_id: saved_search_id.to_string(),
+                    asset_id: hit.asset_id.to_string(),
+                    content_hash: hit.content_hash.clone(),
+                    artifact_ref: hit.artifact_ref.clone(),
+                    jump_target: hit.jump_target.clone(),
+                    tags_json: serde_json::Value::Array(
+                        hit.tags.iter().cloned().map(serde_json::Value::String).collect(),
+                    ),
+                    favorite: hit.favorite,
+                    rating: i64::from(hit.rating),
+                    matched_color_hex: hit.matched_color_hex.clone(),
+                    content_tier: hit.content_tier.map(|tier| tier.as_token().to_owned()),
+                    view_mode: match hit.view_mode {
+                        LensViewMode::Sfw => "SFW".to_owned(),
+                        LensViewMode::Nsfw => "NSFW".to_owned(),
+                    },
+                }
+            })
+            .collect();
+        let bindings = RefreshBindings {
+            saved_search_id: saved_search_id.to_string(),
+            rows,
+        };
+        let _: Vec<surrealdb::types::Value> = self
+            .store()
+            .with_data_operation(move |ctx| {
+                Box::pin(async move {
+                    ctx.query_values(
+                        "BEGIN TRANSACTION; \
+                         DELETE atelier_saved_search_retrieval_projection \
+                           WHERE saved_search_id = $saved_search_id; \
+                         FOR $row IN $rows { CREATE $row.record_id CONTENT { \
+                           projection_id: $row.projection_id, saved_search_id: $row.saved_search_id, \
+                           asset_id: $row.asset_id, content_hash: $row.content_hash, \
+                           artifact_ref: $row.artifact_ref, jump_target: $row.jump_target, \
+                           tags_json: $row.tags_json, favorite: $row.favorite, rating: $row.rating, \
+                           matched_color_hex: $row.matched_color_hex, content_tier: $row.content_tier, \
+                           view_mode: $row.view_mode } RETURN NONE; }; \
+                         COMMIT TRANSACTION;",
+                        bindings,
+                    )
+                    .await
+                })
+            })
+            .await?;
+        Ok(())
     }
 
     // ----- Tag dictionary -------------------------------------------------

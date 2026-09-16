@@ -179,6 +179,10 @@ struct ModelLeaseRow {
     linked_micro_task_id: String,
     lease_age_seconds: i64,
     lease_expired: bool,
+    /// Projected by the thread-history SELECT only because SurrealDB 3 requires every
+    /// `ORDER BY` field in the selection (MT-141 R3 class); other lease selects omit it.
+    #[allow(dead_code)]
+    created_at_utc: Option<Datetime>,
 }
 
 impl TryFrom<ModelLeaseRow> for ModelLeaseRecord {
@@ -284,7 +288,7 @@ const CLAIM_LEASE_STATEMENT: &str = concat!(
            lease_state: 'active', \
            claimed_at_utc: $now, \
            ttl_seconds: $ttl_seconds, \
-           lease_expires_at_utc: $now + duration::from::secs($ttl_seconds), \
+           lease_expires_at_utc: $now + duration::from_secs($ttl_seconds), \
            prior_claim_id: $prior, \
            linked_work_packet_id: $linked_work_packet_id, \
            linked_micro_task_id: $linked_micro_task_id \
@@ -349,7 +353,7 @@ const GET_LEASE_STATEMENT: &str = concat!(
 const RENEW_LEASE_STATEMENT: &str = concat!(
     "RETURN { \
        LET $updated = (UPDATE atelier_model_coordination_lease SET \
-           lease_expires_at_utc = time::now() + duration::from::secs($extend_seconds), \
+           lease_expires_at_utc = time::now() + duration::from_secs($extend_seconds), \
            ttl_seconds = $extend_seconds \
          WHERE claim_id = $claim_id AND actor_id = $actor_id \
            AND lease_state = 'active' AND time::now() < lease_expires_at_utc \
@@ -386,7 +390,7 @@ const LIST_LEASES_FOR_THREAD_STATEMENT: &str = concat!(
      claimed_at_utc, ttl_seconds, lease_expires_at_utc, released_at_utc, taken_over_at_utc, \
      takeover_reason, prior_claim_id, linked_work_packet_id, linked_micro_task_id, \
      math::max([0, duration::secs(time::now() - claimed_at_utc)]) AS lease_age_seconds, \
-     (time::now() >= lease_expires_at_utc) AS lease_expired",
+     (time::now() >= lease_expires_at_utc) AS lease_expired, created_at_utc",
     " FROM atelier_model_coordination_lease WHERE thread_id = $thread_id \
      ORDER BY created_at_utc DESC;"
 );

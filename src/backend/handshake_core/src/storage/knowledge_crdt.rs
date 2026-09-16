@@ -613,7 +613,7 @@ pub async fn insert_lease(
                                  session_id: $session_id, correlation_id: $correlation_id, \
                                  scope_kind: $scope_kind, scope_id: $scope_id, \
                                  claimed_at_utc: $now, \
-                                 expires_at_utc: $now + duration::from::secs($ttl_seconds), \
+                                 expires_at_utc: $now + duration::from_secs($ttl_seconds), \
                                  renewal_count: 0, takeover_of: $takeover_of })[0]; \
                              RETURN { inserted: true, lease: { \
                                lease_id: $created.lease_id, lane_id: $created.lane_id, \
@@ -739,12 +739,13 @@ pub async fn renew_lease(
                     .query_values(
                         "{ \
                            LET $now = time::now(); \
-                           LET $ids = (UPDATE knowledge_crdt_agent_lane_leases \
-                             SET expires_at_utc = $now + duration::from::secs($ttl_seconds), \
+                           LET $updated = (UPDATE type::record('knowledge_crdt_agent_lane_leases', $lease_id) \
+                             SET expires_at_utc = $now + duration::from_secs($ttl_seconds), \
                                  renewal_count = renewal_count + 1 \
-                             WHERE lease_id = $lease_id AND actor_id = $actor_id \
+                             WHERE actor_id = $actor_id \
                                AND released_at_utc = NONE AND expires_at_utc > $now \
-                             RETURN AFTER).lease_id; \
+                             RETURN AFTER); \
+                           LET $ids = $updated.lease_id; \
                            RETURN SELECT lease_id, lane_id, actor_id, actor_kind, session_id, \
                              correlation_id, scope_kind, scope_id, claimed_at_utc, \
                              expires_at_utc, renewal_count, released_at_utc, expired_at_utc, \
@@ -915,7 +916,7 @@ pub async fn takeover_lease(
                                  session_id: $session_id, correlation_id: $correlation_id, \
                                  scope_kind: $scope_kind, scope_id: $scope_id, \
                                  claimed_at_utc: $now, \
-                                 expires_at_utc: $now + duration::from::secs($ttl_seconds), \
+                                 expires_at_utc: $now + duration::from_secs($ttl_seconds), \
                                  renewal_count: 0, \
                                  takeover_of: type::record( \
                                    'knowledge_crdt_agent_lane_leases', $prior_lease_id) })[0]; \

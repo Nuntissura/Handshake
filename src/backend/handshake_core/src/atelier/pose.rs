@@ -1839,20 +1839,31 @@ const WRITE_POSE_WORKSPACE_RIG_STATEMENT: &str = concat!(
        WHERE workspace_ref = $domain.workspace_ref AND session_ref = $domain.session_ref \
          AND rig_id = $domain.rig_ref LIMIT 1)[0]; ",
     "LET $rid = IF $existing = NONE { $domain.record_id } ELSE { $existing }; ",
+    "LET $deactivated = IF $domain.active { (SELECT VALUE record::id(rig_id) FROM atelier_pose_workspace_rig_state \
+       WHERE workspace_ref = $domain.workspace_ref AND session_ref = $domain.session_ref \
+         AND open = true AND active = true AND rig_id != $domain.rig_ref) } ELSE { [] }; ",
     "IF $domain.active { UPDATE atelier_pose_workspace_rig_state SET active = false, \
        requested_by = $domain.requested_by, updated_at_utc = time::now() \
        WHERE workspace_ref = $domain.workspace_ref AND session_ref = $domain.session_ref \
          AND open = true AND active = true AND rig_id != $domain.rig_ref; }; ",
     atelier_event_sql!(),
-    " UPSERT $rid MERGE { workspace_ref: $domain.workspace_ref, session_ref: $domain.session_ref, \
-       rig_id: $domain.rig_ref, open: $domain.open, sort_order: $domain.sort_order, \
-       active: $domain.active, dirty_calibration: $domain.dirty_calibration, \
-       panel_state: $domain.panel_state, requested_by: $domain.requested_by, \
-       updated_at_utc: time::now() }; ",
-    "RETURN (SELECT ",
+    " UPSERT $rid SET workspace_ref = $domain.workspace_ref, session_ref = $domain.session_ref, \
+       rig_id = $domain.rig_ref, open = $domain.open, sort_order = $domain.sort_order, \
+       active = $domain.active, dirty_calibration = $domain.dirty_calibration, \
+       panel_state = $domain.panel_state, requested_by = $domain.requested_by, \
+       updated_at_utc = time::now(); ",
+    "RETURN { state: (SELECT ",
     workspace_rig_state_columns!(),
-    " FROM ONLY $rid); };"
+    " FROM ONLY $rid), deactivated: $deactivated }; };"
 );
+
+/// MT-141: appends one atelier event and writes nothing else; used to emit the
+/// `POSE_WORKSPACE_RIG_STATE_SET` deactivation event of the previously active rig after an
+/// activation switch committed (the workspace-state statement can carry only one event).
+const POSE_EMIT_EVENT_ONLY_STATEMENT: &str = concat!("RETURN { ", atelier_event_sql!(), " RETURN NONE; };");
+
+#[derive(SurrealValue)]
+struct NoDomainBindings {}
 
 const LIST_POSE_WORKSPACE_RIG_STATEMENT: &str = concat!(
     "SELECT ",
@@ -2706,12 +2717,48 @@ impl AtelierStore {
                 }),
             )
             .await?;
-        let row = row.ok_or_else(|| {
+        let mut outcome = row.ok_or_else(|| {
             AtelierError::Validation(
                 "pose workspace sort_order must be unique among open rigs".into(),
             )
         })?;
-        Ok(workspace_rig_state_from_row(&pose_row(row)?))
+        let deactivated: Vec<Uuid> = outcome
+            .get("deactivated")
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()
+            .map_err(|error| AtelierError::Internal(format!("deactivated rig ids: {error}")))?
+            .unwrap_or_default();
+        let state = outcome
+            .get_mut("state")
+            .map(serde_json::Value::take)
+            .ok_or_else(|| AtelierError::Internal("workspace rig state write returned no row".into()))?;
+        // Ordering guarantee: the state transaction (switch + upsert) committed first; each
+        // deactivation event is appended afterwards for the rig it describes, so an event never
+        // exists without the committed switch (deviation from a single transaction, recorded).
+        for rig_id in deactivated {
+            let deactivated_aggregate =
+                format!("{}:{}:{}", new.workspace_ref, new.session_ref, rig_id);
+            let _: Option<serde_json::Value> = self
+                .write_with_event(
+                    POSE_EMIT_EVENT_ONLY_STATEMENT,
+                    NoDomainBindings {},
+                    POSE_WORKSPACE_RIG_STATE_SET,
+                    "atelier_pose_workspace_rig_state",
+                    &deactivated_aggregate,
+                    serde_json::json!({
+                        "workspace_ref": new.workspace_ref,
+                        "session_ref": new.session_ref,
+                        "rig_id": rig_id,
+                        "active": false,
+                        "reason": "deactivated_by_active_rig_switch",
+                        "deactivated_by_rig_id": new.rig_id,
+                        "requested_by": new.requested_by,
+                    }),
+                )
+                .await?;
+        }
+        Ok(workspace_rig_state_from_row(&pose_row(state)?))
     }
 
     /// List open rig tab state for a workspace in deterministic tab order.
