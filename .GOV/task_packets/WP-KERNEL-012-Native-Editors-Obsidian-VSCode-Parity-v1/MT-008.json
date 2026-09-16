@@ -14,7 +14,7 @@
   "title": "E1-MT-008-LspClient",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-08-01T05:52:43.153Z",
+  "updated_at_utc": "2026-09-16T23:19:46.908Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,17 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-001",
       "MT-007"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-31T20:44:06.3426516Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:46.908Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Current MT-008 remediation state: the reopen finding was that real LSP was not reachable from the shipped app path, didOpen/didChange were not proven, real-process LSP Drop proof was absent, and backend-populated AC-005/006 were overclaimed. KERNEL_BUILDER-20260704-122106 implemented app-level LSP attach/sync, deterministic didOpen/didChange frame proof, real-process spawn/initialize/Drop proof, URI-scoped publishDiagnostics gutter proof, completion/hover fallback raw-symbol queue proof, manual coverage, and honest typed blockers for backend-populated content that still needs a seeded indexed-code workspace.",
@@ -116,7 +116,9 @@
       "negative_paths": "PASS: absent/crashed LSP, timeout/EOF/malformed/oversized/stale responses, URI/version diagnostic filtering, HTTP 500, malformed JSON, dropped CodeNav connection, and exact cleanup are covered.",
       "reviews": "Three independent final adversarial reviewers bound to the final 9-file manifest and regenerated PNG returned READY_FOR_VALIDATION_V3. The initial screenshot/tree mismatch was repaired with an ordinary-paint refresh plus exact canonical-item pixel gate and independently re-inspected.",
       "residuals": "The broad UserManual aggregate still fails an unrelated MT-063 FEMS needle and is not represented as green. The canonical action receipt is indeterminate, but exact buffer mutation, popup closure, fresh tree absence, and didChange prove application. Historical validation_v2 FAIL_V2 remains preserved."
-    }
+    },
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "Goal: Implement an LSP (Language Server Protocol) client for the native code editor that provides: completion (triggered on `.`, `:`, `_` or Ctrl+Space), hover documentation (on cursor dwell), go-to-definition, find-references, and diagnostics (pushing results to the gutter from MT-007 via `push_diagnostics`). Additionally, bind the existing Handshake backend knowledge/code-nav APIs (`/knowledge/code/symbols`, `/knowledge/code/symbols/{id}`, `/knowledge/code/symbols/{id}/references`, `/knowledge/code/files/{path}/lens`) as a fallback intelligence source when no language server is attached. Port the `CodeSymbolPanel` component and `code_intelligence.ts` logic.\n\nExpected diff shape: new module `src/frontend/handshake_native/src/code_editor/lsp_client.rs` (LSP JSON-RPC client over stdio to a language server process), new module `src/frontend/handshake_native/src/code_editor/code_nav.rs` (Handshake backend code-nav API calls via the existing HTTP client), edits to `src/frontend/handshake_native/src/code_editor/mod.rs` (wiring completion and hover popups into the editor panel), and `src/frontend/handshake_native/src/code_editor/editor_view.rs` (completion popup widget and hover tooltip widget).\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/lsp_client.rs` — `LspClient { process: Option<Child>, sender: mpsc::Sender<LspRequest>, receiver: mpsc::Receiver<LspResponse> }`. Uses `tower-lsp` client-side or raw JSON-RPC over stdio. Implements: `initialize(root_uri)`, `did_open(uri, language_id, text)`, `did_change(uri, version, changes)`, `completion(uri, position) -> Vec<CompletionItem>`, `hover(uri, position) -> Option<HoverResult>`, `goto_definition(uri, position) -> Option<Location>`, `references(uri, position) -> Vec<Location>`, `publish_diagnostics callback -> Vec<LspDiagnostic>`. All requests are async; results are returned via a `tokio::sync::oneshot` channel. The LSP process is launched lazily on first `did_open`. If no language server is configured or the process fails to start, all methods return empty/None gracefully.\n- CREATE `src/frontend/handshake_native/src/code_editor/code_nav.rs` — `CodeNavClient` that wraps the Handshake backend HTTP calls. Ports the logic from `app/src/lib/monaco/code_intelligence.ts`. Methods: `lookup_symbols(workspace_id: &str, prefix: &str, limit: usize) -> Vec<CodeSymbolNavProjection>`, `get_symbol(entity_id: &str) -> Option<CodeSymbolResponse>`, `get_references(entity_id: &str) -> CodeSymbolReferencesResponse`, `get_file_lens(workspace_id: &str, path: &str, content_hash: &str, parser_version: &str) -> CodeFileLensResponse`. REUSE the existing `src/frontend/handshake_native/src/backend_client.rs` HTTP client for all backend code-nav calls (do NOT introduce a second HTTP stack); add the code-nav routes as new methods on that client. Reuse `src/frontend/handshake_native/src/error.rs` for error typing.\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — add `lsp_client: Option<LspClient>`, `code_nav_client: CodeNavClient`, `completion_state: Option<CompletionState>`, `hover_state: Option<HoverState>`. On each `did_change` event (after TextBuffer edit), call `lsp_client.did_change(...)` async. On cursor dwell (500ms without movement), trigger `hover(cursor_position)`. On Ctrl+Space or trigger characters, trigger `completion(cursor_position)`. Wire diagnostics: `lsp_client.on_publish_diagnostics(|diags| panel.push_diagnostics(diags_to_markers(diags)))`.  \n- EDIT `src/frontend/handshake_native/src/code_editor/editor_view.rs` — render completion popup as a floating `egui::Window` at the cursor position with a scrollable list of `CompletionItem` (label, kind icon, detail). Arrow keys navigate; Enter accepts; Escape dismisses. Render hover tooltip as a floating `egui::Frame` with markdown-rendered documentation (use `egui_commonmark` if available, otherwise plain text). Render go-to-definition link in the hover (click opens the target file in a new editor pane or scrolls to the line if same file). REUSE the existing command-palette popup pattern from `src/frontend/handshake_native/src/command_palette.rs` + `src/frontend/handshake_native/src/command_registry.rs` for the keyboard-navigable floating list (selection/keyboard semantics), rather than reinventing list navigation.\n\nExact crates/functions/APIs to use:\n- `tower-lsp = \"0.20\"` or `lsp-types = \"0.95\"` + raw stdio JSON-RPC — use `lsp-types` for the type definitions and implement a lightweight JSON-RPC stdio transport rather than the full tower-lsp server stack (tower-lsp is server-side). Use `tokio::process::Command` to spawn the language server.\n- `tokio` — already required for async backend calls. LSP requests run on the tokio runtime.\n- backend HTTP via `src/frontend/handshake_native/src/backend_client.rs` — for CodeNavClient HTTP calls (reuse the existing client; do not add a separate reqwest stack).\n- `serde_json` — for LSP JSON-RPC serialization.\n- `egui_commonmark` (optional) — for markdown rendering in hover tooltips.\n- AccessKit (via `src/frontend/handshake_native/src/accessibility/*`): `author_id = \"code_editor_completion_popup\"` `Role::ListBox` on the completion popup; `author_id = \"code_editor_completion_item_{n}\"` `Role::Option` on each item; `author_id = \"code_editor_hover\"` `Role::Tooltip` on the hover widget. Register nodes through the existing accessibility registry rather than emitting raw AccessKit.\n\nReact reference files:\n- `app/src/lib/monaco/code_intelligence.ts` — the entire file is the reference. Ports: `ensureHandshakeCodeIntelligenceProviders` -> `CodeNavClient` methods; `completionKind` -> native equivalent; `refreshHandshakeCodeIntelligenceMarkers` -> `push_diagnostics` call; `codeSymbolStalenessLabel` -> same utility function in Rust.\n- `app/src/components/CodeSymbolPanel.tsx` — displays symbol detail from `getCodeSymbol` and `getCodeFileLens`. The native equivalent is the hover tooltip showing the same data.\n- `app/src/lib/api.ts` functions: `getCodeSymbol` -> `GET /knowledge/code/symbols/{entity_id}`, `lookupCodeSymbols` -> `GET /knowledge/code/symbols?workspace_id=...&prefix=...`, `getCodeSymbolReferences` -> `GET /knowledge/code/symbols/{id}/references`, `getCodeFileLens` -> `GET /knowledge/code/files/{path}/lens?workspace_id=...&content_hash=...&parser_version=...`.\n- `app/src/harness/mt249_code_intelligence_harness.tsx` — the proof harness for the backend code-nav integration; the native equivalent must pass equivalent real-backend tests.\n\nStep-by-step implementation notes:\n1. LSP client stdio transport: open `tokio::process::Command::new(server_bin).stdin(Stdio::piped()).stdout(Stdio::piped())`. Spawn a tokio task that reads stdout line-by-line (LSP messages are header+content), parses JSON-RPC responses, and routes them to pending request futures via a `HashMap<RequestId, oneshot::Sender<Value>>`.\n2. `completion` request: send `textDocument/completion` with `TextDocumentPositionParams`. Map response `CompletionItem.kind` integers to a `CompletionItemKind` enum using the LSP spec table.\n3. `hover` request: send `textDocument/hover`. Extract `contents.value` (MarkupContent) for display.\n4. Diagnostics: LSP servers push `textDocument/publishDiagnostics` notifications (not responses to requests). The reader task must detect notification messages (no `id` field) and route them to a notification channel. The `on_publish_diagnostics` callback is called from there.\n5. CodeNavClient: all methods are `async fn`; call them from the egui frame using `tokio::task::spawn` and a `std::sync::mpsc::channel` to return results to the next frame (avoid blocking the egui thread).\n6. Completion popup rendering: on each frame, if `completion_state.is_some()` and the popup has items, render a `Window::new(\"completion\").fixed_pos(cursor_px_pos).show(ui.ctx(), ...)`. Intercept Arrow Up/Down in the window to navigate `selected_index`. On Enter: insert the selected item's `insert_text` at the cursor using `cursor_set.insert_at_all`.\n7. Staleness markers: for CodeNavClient responses, check `staleness.fresh` field (as in `refreshHandshakeCodeIntelligenceMarkers`); if not fresh, push a `GutterMarker::Diagnostic(Warning)` for the affected lines.\n\nDependencies/unblock conditions: MT-001 (TextBuffer, Highlighter), MT-007 (`push_diagnostics` stub). Requires a real PostgreSQL backend (`handshake_core`) running for proof targets that call the backend code-nav APIs. If backend is unavailable, LSP and CodeNav return empty results gracefully. Cross-WP note: the backend HTTP client this MT reuses (`backend_client.rs`) was delivered by WP-KERNEL-011; this dependency is a reuse pointer, not a depends_on edge.\nRisk if missed: No code intelligence means operators cannot use completion, hover, or go-to-definition — the primary productivity features of the VS Code parity goal. Diagnostic markers from LSP are also missing from the gutter.",
@@ -618,5 +620,494 @@
       "Rerun the three focused binaries to retain 34/34 LSP, 18/18 CodeNav client, and 16/16 completion-hover/accessibility proof, including process cleanup and negative-path coverage."
     ],
     "no_context_instruction": "Read MT-008.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the currently green editor/LSP behavior. Repair only the canonical Argus causal completion predicate/receipt binding, rerun the integration-enabled exact mounted test plus the three focused binaries using the external artifact root, open the regenerated terminal receipt and visual artifacts, then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:46.908Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_code_nav_client=RED@306{live_backend::ac001_lookup_symbols_returns_populated_live_symbol,live_backend::ac002_get_symbol_returns_populated_live_definition,live_backend::ac003_get_references_returns_populated_live_caller}; test_completion_hover_accesskit=RED@308{ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc}). Live-attach at C-prime used the OWNED mt249_code_intelligence_fixture.exe (seq 305; PROVENANCE: prebuilt by the backend validator at fd9060de 05:37Z, not rebuilt at C-prime because only one cargo invocation was authorized) -> every live lookup (ac001/ac002/ac003, ac005/ac006) fails with code-nav 500. test_lsp_client 109 and test_app_host_mount 298@C-prime green; the non-live completion_hover test passed alone (240). All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-008-N1B-109",
+        "command": "test_lsp_client-3d20b16861d28690.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:16:17.452Z",
+        "finished_utc": "2026-09-16T07:16:22.566Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 34 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/109_test_lsp_client.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-109-test_lsp_client",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-008"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-008-N1B-110",
+        "command": "test_manual_content-836725be149f464b.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:16:22.568Z",
+        "finished_utc": "2026-09-16T07:16:24.671Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 41 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/110_test_manual_content.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-110-test_manual_content",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-008"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-008-N1B-240",
+        "command": "test_completion_hover_accesskit-70dcc619c7b4f116.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T12:11:31.163Z",
+        "finished_utc": "2026-09-16T12:14:15.884Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 17 passed; 2 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/240_test_completion_hover_accesskit_solo.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-240-test_completion_hover_accesskit",
+          "tag": "solo"
+        },
+        "covers": [
+          "MT-008"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-008-N1B-264",
+        "command": "test_find_in_files-7bf52789c196e0d7.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:37:39.398Z",
+        "finished_utc": "2026-09-16T21:40:11.009Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 35 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/264_test_find_in_files_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-264-test_find_in_files",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-008"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-008-N1B-298",
+        "command": "test_app_host_mount-ad0d5e2c7a61c812.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:46:53.116Z",
+        "finished_utc": "2026-09-16T22:54:58.049Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 60 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/298_test_app_host_mount_pass3-solo.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-298-test_app_host_mount",
+          "tag": "pass3-solo"
+        },
+        "covers": [
+          "MT-008"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-008-N1B-306",
+        "command": "test_code_nav_client-8bc72fcf9f2df92b.exe live_backend --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T23:01:54.570Z",
+        "finished_utc": "2026-09-16T23:02:14.166Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 3 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/306_test_code_nav_client_pass3-live.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-306-test_code_nav_client",
+          "tag": "pass3-live"
+        },
+        "covers": [
+          "MT-008"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-008-N1B-307",
+        "command": "test_completion_hover_accesskit-70dcc619c7b4f116.exe ac005_live_backend --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T23:02:14.224Z",
+        "finished_utc": "2026-09-16T23:03:30.635Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/307_test_completion_hover_accesskit_pass3-live-ac005.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-307-test_completion_hover_accesskit",
+          "tag": "pass3-live-ac005"
+        },
+        "covers": [
+          "MT-008"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-008-N1B-308",
+        "command": "test_completion_hover_accesskit-70dcc619c7b4f116.exe ac006_live_backend --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T23:03:30.692Z",
+        "finished_utc": "2026-09-16T23:03:40.144Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/308_test_completion_hover_accesskit_pass3-live-ac006.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-308-test_completion_hover_accesskit",
+          "tag": "pass3-live-ac006"
+        },
+        "covers": [
+          "MT-008"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-008-N1B-109": {
+        "binary": "test_lsp_client",
+        "log_sha256": "1afb0fbe99de09ae8e7573024c9238b8b7e17f935357477d2ba0636c59876eee",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 5,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-008-N1B-110": {
+        "binary": "test_manual_content",
+        "log_sha256": "ae09ea8f635d2cfa7af4528b4bafddbc37b154e574e004090ad50c28c7d6a50c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 2,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-008-N1B-240": {
+        "binary": "test_completion_hover_accesskit",
+        "log_sha256": "682dbe68b199bc839f516fe47de562ec4854123d5ca9b1192dc9e757fa419f89",
+        "exit_raw": "101",
+        "failing_tests": [],
+        "wall_s": 165,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-008-N1B-264": {
+        "binary": "test_find_in_files",
+        "log_sha256": "7807a72b4dfaeedc6f66395b2af8c526d4b68acc88f6a27ff73fc4de1f4b1acb",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 152,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-008-N1B-298": {
+        "binary": "test_app_host_mount",
+        "log_sha256": "119321dfc6f4b3cc9d6bbc5f8a5dd727f331894c3e179b344195d531e1d5a6d5",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 485,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-008-N1B-306": {
+        "binary": "test_code_nav_client",
+        "log_sha256": "aa6fc983b04d0f187d2f1e6f5b62686bfae4ab13dd0cc90db8452304c8247e01",
+        "exit_raw": "101",
+        "failing_tests": [
+          "live_backend::ac001_lookup_symbols_returns_populated_live_symbol",
+          "live_backend::ac002_get_symbol_returns_populated_live_definition",
+          "live_backend::ac003_get_references_returns_populated_live_caller"
+        ],
+        "wall_s": 20,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-008-N1B-307": {
+        "binary": "test_completion_hover_accesskit",
+        "log_sha256": "ff3146b736ea2eb4d7959028412d9528c6c9b0d86c8dbb5e42d88bcd9b3c5e3d",
+        "exit_raw": "101",
+        "failing_tests": [
+          "ac005_live_backend_completion_reaches_accesskit_and_stale_gutter"
+        ],
+        "wall_s": 76,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-008-N1B-308": {
+        "binary": "test_completion_hover_accesskit",
+        "log_sha256": "5e259af71f5d69da82643ede394e177710b02fee1ed2e35b7eaabb7b0ef54d49",
+        "exit_raw": "101",
+        "failing_tests": [
+          "ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc"
+        ],
+        "wall_s": 9,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_code_nav_client=RED@306{live_backend::ac001_lookup_symbols_returns_populated_live_symbol,live_backend::ac002_get_symbol_returns_populated_live_definition,live_backend::ac003_get_references_returns_populated_live_caller}",
+      "test_completion_hover_accesskit=RED@308{ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-F500",
+        "class": "BACKEND_LEDGER_WSIDS_COERCION_500",
+        "severity": "BLOCKING",
+        "detail": "GET /knowledge/code/symbols (code-nav lookup, also reached by the mounted CodeNavClient) returns 500 {error: quiet_receipt_failed, detail: 'embedded store error: embedded database error: Couldn't coerce value for field `wsids` of `kernel_event_ledger:KE-...`: Expected `array` but found `NONE`'}. Path: api/knowledge_code_nav.rs record_quiet_nav_receipt -> ParallelSwarmStateRecoveryStore::record_quiet_background_work (swarm_orchestration/state_recovery.rs) writes a kernel_event_ledger row without the SCHEMAFULL `wsids` array (storage/surreal/schema.surql:5758 DEFINE FIELD OVERWRITE wsids ... TYPE array<string>). Backend product defect. Reproduced through the fd9060de-built mt249_code_intelligence_fixture as well (seq 306), so it predates C-prime. Owner: backend lane (MT-141/MT-135/MT-109 state-recovery + ledger schema)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

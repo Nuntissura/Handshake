@@ -14,7 +14,7 @@
   "title": "E9-MT-064-FemsMemoryWriteProposalFromEditor",
   "group": "E9",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-31T22:48:14.5735617Z",
+  "updated_at_utc": "2026-09-16T23:19:50.487Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-064.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-063"
@@ -33,10 +33,10 @@
     "blocks": [
       "MT-074"
     ],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260731-195928",
-    "validated_at_utc": "2026-07-31T22:48:14.5735617Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:50.487Z",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt064",
       "mode": "VERIFY_AND_PROVE",
@@ -126,7 +126,9 @@
         "blockers": 0
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
-    }
+    },
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "Goal: turn editor context into FEMS (Pillar 12 typed-memory system, Pillar 12) memory-write PROPOSALS that are always review-gated and NEVER directly committed by the editor. Add a 'Propose to Memory' command that operates on the current SharedSelection (any editor pane: code, rich-text, loom block, canvas). When invoked, the command builds a typed memory-write proposal carrying full source provenance, submits it to the EXISTING review-gated FEMS write path (the proposal endpoint), and emits an FR-EVT-MEM-001 (memory_write_proposed) Flight Recorder event through the MT-036 NativeEditorEventEmitter. The commit step stays operator/review-gated downstream; this MT only creates the PROPOSAL and the observability event. This is the editor entry point into the FEMS proposal->review->commit loop.\n\nThis MT is PURE FRONTEND. No backend build, no schema changes, no SQLite anywhere. It binds the EXISTING handshake_core FEMS proposal API. If the proposal endpoint does not exist on the current API surface, STOP and raise a TYPED BLOCKER (do not invent, add, or rewrite a backend endpoint; do not fall back to a direct memory commit).\n\nFile to CREATE:\n  - src/frontend/handshake_native/src/fems/memory_proposal.rs (~300-450 lines) — defines the proposal data model, the pure proposal-builder function, the typed blocker, and the egui command/dialog wiring. Lives under a new (or existing) src/frontend/handshake_native/src/fems/ module so all Pillar-12 editor integration is colocated. If src/frontend/handshake_native/src/fems/mod.rs does not yet exist, create it and add `pub mod memory_proposal;`; otherwise edit the existing src/frontend/handshake_native/src/fems/mod.rs to add the module declaration. Also register the module in src/frontend/handshake_native/src/lib.rs (`pub mod fems;`) if fems is not already declared there.\n\nFile to EDIT:\n  - src/frontend/handshake_native/src/command_registry.rs — register the 'Propose to Memory' command into the WP-011 command registry / command bus (command_registry.rs) so it appears in the command palette and can be keybound. The command reads the live SharedSelection from the WP-011 selection/event substrate (command_registry.rs + event_bus.rs), builds the proposal, and dispatches submission. Do NOT duplicate the registry/bus; reuse the existing command_registry.rs registration API and the SharedSelection that the WP-011 command/event substrate already owns. Wire the MT-036 NativeEditorEventEmitter (already wired through event_bus.rs per MT-036) to emit the FR event after a successful proposal submission.\n\nProposal data model (in memory_proposal.rs):\n  pub enum MemoryClass { Episodic, Semantic, Procedural }\n  pub struct MemorySourceProvenance { document_id: String, selection_start: usize, selection_end: usize, content_hash: String, pane_id: String, workspace_id: String }\n  pub struct MemoryWriteProposal { class: MemoryClass, content: String, source: MemorySourceProvenance, review_gated: bool, actor_id: String }\n  pub enum MemoryProposalError { MissingEndpoint, NoSelection, SubmitFailed(String) }  // MissingEndpoint == the TYPED BLOCKER\n\nPure proposal-builder (trivially unit-testable, no I/O):\n  pub fn build_proposal(sel: &SharedSelection, class: MemoryClass, workspace_id: &str, actor_id: &str) -> Result<MemoryWriteProposal, MemoryProposalError>\n  - Reads document_id, selection start/end byte offsets, pane_id, and the selected text from the SharedSelection variant (TextRange { pane_id, start, end, text } per MT-031; BlockRef / NodeRef variants resolve their document_id and use a whole-block/whole-node range). Returns MemoryProposalError::NoSelection if SharedSelection is None.\n  - content_hash: compute a stable SHA-256 (or the same hashing primitive MT-032 / the loom content_hash uses — reuse the loom_graph.rs content-hash primitive, do not introduce a second hashing scheme) over the exact selected content; store as lowercase hex in MemorySourceProvenance.content_hash.\n  - review_gated: ALWAYS true for Procedural class (spec requires procedural-class proposals to be review-gated); for Episodic/Semantic default to true as well (commit is never editor-direct). Never set review_gated=false from the editor.\n\nSubmission (off the egui frame thread, same pattern as MT-036 emit):\n  pub async fn submit_proposal(proposal: &MemoryWriteProposal, client: &HandshakeCoreClient) -> Result<ProposalAck, MemoryProposalError>\n  - POST /workspaces/{workspace_id}/memory/proposals with the typed proposal body (existing review-gated FEMS write path). On 404 / route-absent / capability-missing, return MemoryProposalError::MissingEndpoint — this is the TYPED BLOCKER the coder surfaces; do NOT silently commit or fall back to any direct memory-write route.\n  - On success, parse ProposalAck { proposal_id, status } and trigger the FR event emit.\n\nFR event (reuse MT-036 emitter; do NOT build a new emitter):\n  - After a successful submit, emit a NativeEditorEvent through the MT-036 NativeEditorEventEmitter (wired via event_bus.rs) whose action maps to FR-EVT-MEM-001 (memory_write_proposed). The payload carries: { action: 'memory_write_proposed', proposal_id, class, document_id, selection_start, selection_end, content_hash, review_gated, pane_id }. The event_type stays 'system' and schema stays the closed FR schema per MT-036 (do NOT invent a new event_type; embed the native_editor payload as MT-036 specifies). FR-EVT-MEM-001 is the stable event-name marker carried in the payload action, not a new ledger schema.\n\negui command / dialog wiring:\n  - Register CommandDescriptor { id: 'fems.propose_to_memory', label: 'Propose to Memory', keybind: None (palette-driven; do not steal a VS Code binding), handler } into the WP-011 command registry via command_registry.rs (the same registration API that backs command_palette.rs).\n  - The handler reads the live SharedSelection from the WP-011 command/event substrate (command_registry.rs + event_bus.rs), opens a small egui confirmation dialog letting the operator pick MemoryClass (Episodic/Semantic/Procedural radio) and preview the selected content + computed content_hash, then on confirm fires submit_proposal off-thread.\n  - AccessKit: command palette entry already covered by MT-031 (author_id 'cmd-fems.propose_to_memory' via the cmd-{id} convention). The dialog gets author_id 'fems-propose-dialog' role Dialog; the class radios get author_id 'fems-class-{episodic|semantic|procedural}' role RadioButton; the confirm button gets author_id 'fems-propose-confirm' role Button. Register all ids through the WP-011 AccessKit id registry (accessibility/registry.rs), never ad-hoc.\n\nReuse WP-011 shell primitives: command registry / command palette (command_registry.rs + command_palette.rs — register the command), the WP-011 command/event substrate that owns SharedSelection (command_registry.rs + event_bus.rs), and the AccessKit id registry (accessibility/registry.rs for the dialog + radio + button ids). Reuse the MT-036 NativeEditorEventEmitter (wired via event_bus.rs) for the FR event. Reuse the MT-037 knowledge_documents client wiring / HandshakeCoreClient (built on backend_client.rs) for the HTTP call. Do not duplicate any of those substrates.\n\nStep-by-step implementation notes:\n  1. Create src/frontend/handshake_native/src/fems/memory_proposal.rs with the data model, build_proposal (pure), submit_proposal (async), and the dialog/command wiring.\n  2. Make build_proposal pure and side-effect-free so it is trivially unit-testable; submission and FR emit are separate steps that consume its output.\n  3. content_hash MUST reuse the loom/MT-032 content-hash primitive in loom_graph.rs (same algorithm, same hex encoding) so a proposal's hash matches the document's block hash for the same content; do not introduce a second hashing scheme.\n  4. review_gated is hard-set true for Procedural and never settable to false from the editor; assert this in a unit test.\n  5. submit_proposal runs off the egui frame thread (tokio::spawn or the same async mechanism MT-036 uses); never block the frame.\n  6. On MissingEndpoint, surface the typed blocker to the coder/validator (return the typed error, log to the MT-036 in-memory error ring, and do NOT commit anything). The absence of the proposal endpoint is a BLOCKER, not a reason to write memory directly.\n  7. After a successful ack, emit FR-EVT-MEM-001 via the MT-036 emitter; if the emit fails it must not crash the frame (MT-036 error-ring behavior).\n  8. Tests: (a) unit build_proposal sets class + full source provenance (document_id, selection_start/end, content_hash, pane_id) correctly from a TextRange selection; (b) unit Procedural-class proposal has review_gated=true and is never auto-committed (no direct-commit code path exists); (c) integration (real PG): invoking 'Propose to Memory' on a selection creates a proposal record via the FEMS proposal endpoint AND an FR-EVT-MEM-001 (memory_write_proposed) event appears in the flight-recorder ledger; (d) unit missing-endpoint path returns MemoryProposalError::MissingEndpoint (the typed blocker) and performs no commit and no silent fallback.\n\nDependencies / unblock conditions:\n  - WP-011 command/event substrate (command_registry.rs + event_bus.rs, owning the command bus + SharedSelection) MUST be present — the command registers into command_registry.rs and reads SharedSelection from the WP-011 substrate. This is a cross-WP dependency on the WP-011 native shell, not an intra-WP MT dependency.\n  - MT-031 (CommandBus + SharedSelection editor binding) MUST be merged — the command registers into the command registry and reads SharedSelection. (MT-031 is delivered against the WP-011 substrate; see implementation_notes for the cross-WP relationship.)\n  - MT-036 (NativeEditorEventEmitter + FR runtime_chat_event wiring through event_bus.rs) MUST be merged — the FR-EVT-MEM-001 emit reuses this emitter; do not build a new one.\n  - MT-037 (knowledge documents API binding / HandshakeCoreClient on backend_client.rs) MUST be merged — provides the typed HTTP client used for the proposal POST.\n  - MT-063 MUST be merged — provides the preceding FEMS editor-integration surface this MT builds on.\n  - The FEMS proposal endpoint (POST /workspaces/{workspace_id}/memory/proposals) must exist on the current handshake_core API surface; if absent, raise the typed blocker.\n\nRisk if missed: Editing work cannot feed the memory pillar; FEMS loses its richest provenance source (operator/model selections in real documents with exact document_id + range + content hash) and the proposal->review->commit loop has no editor entry point. Without it, Pillar 12 memory is fed only by non-editor sources and the native editors fail the FEMS interop edge.",
@@ -519,5 +521,411 @@
       "All artifacts remain under ../Handshake_Artifacts, hashes parse/verify, scenario-owned rows and backend children are cleaned, and no repo-local target/test_output/screenshots are introduced."
     ],
     "no_context_instruction": "Read MT-064.json completely, packet.json, SPEC_CURRENT v02.202 section 11.5.13, memory_proposal.rs, test_memory_proposal.rs, test_memory_proposal_argus.rs, and canonical_argus_driver.rs. Start from external artifact run-ac254752ff0b4d838574972e7611e99f and its SHA-256. Preserve the now-correct proposal and FR-EVT-MEM-001 behavior. Repair canonical action completion predicates/rebinding for all seven actions—especially procedural selection and confirm successor status—add fail-closed negative tests, rerun the exact live mounted test until argus.finish succeeds with zero indeterminate receipts, then rerun local/backend/manual regressions. Return READY_FOR_VALIDATION only after every V4 verification requirement is evidenced; do not self-issue PASS."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:50.487Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_memory_proposal_argus=RED@277{mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve}; test_fems_interop_proofs=RED@263{proof_fems_01_memorypack_render,proof_fems_02_propose_creates_proposal_and_event,proof_fems_03_swarm_drives_fems_via_accesskit,proof_fems_04_procedural_proposal_stays_review_gated,proof_fems_approved_proposal_recovers_commit_only_after_native_restart,proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc,proof_fems_cross_pane_focus_invalidates_already_staged_selection,proof_fems_duplicate_submission_replays_one_proposal_and_one_event,proof_fems_editor_switch_invalidates_identical_text_range_selection,proof_fems_focus_change_after_request_drain_invalidates_open_dialog,proof_fems_review_approval_and_rejection_persist_end_to_end}; test_event_emitter=RED@262{event_emitter_native_editor_round_trip}). test_memory_proposal 189 green (non-live). All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-064-N1B-110",
+        "command": "test_manual_content-836725be149f464b.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:16:22.568Z",
+        "finished_utc": "2026-09-16T07:16:24.671Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 41 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/110_test_manual_content.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-110-test_manual_content",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-064"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-064-N1B-138",
+        "command": "test_editor_settings_section_renders-7d67738cb98e7209.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:20:01.784Z",
+        "finished_utc": "2026-09-16T07:20:44.577Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 8 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/138_test_editor_settings_section_renders.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-138-test_editor_settings_section_renders",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-064"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-064-N1B-189",
+        "command": "test_memory_proposal-cd31ed73461a97e8.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:39:23.530Z",
+        "finished_utc": "2026-09-16T07:39:46.914Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 10 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/189_test_memory_proposal.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-189-test_memory_proposal",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-064"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-064-N1B-262",
+        "command": "test_event_emitter-7bcaeb7fe86668c3.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:25:31.354Z",
+        "finished_utc": "2026-09-16T21:27:42.168Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 38 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/262_test_event_emitter_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-262-test_event_emitter",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-064"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-064-N1B-263",
+        "command": "test_fems_interop_proofs-b44913f1a9f2fe7d.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:27:42.221Z",
+        "finished_utc": "2026-09-16T21:37:39.337Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 22 passed; 11 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/263_test_fems_interop_proofs_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-263-test_fems_interop_proofs",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-064"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-064-N1B-277",
+        "command": "test_memory_proposal_argus-9e778139b7b42d65.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:04:26.470Z",
+        "finished_utc": "2026-09-16T22:06:34.689Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 16 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/277_test_memory_proposal_argus_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-277-test_memory_proposal_argus",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-064"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-064-N1B-110": {
+        "binary": "test_manual_content",
+        "log_sha256": "ae09ea8f635d2cfa7af4528b4bafddbc37b154e574e004090ad50c28c7d6a50c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 2,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-064-N1B-138": {
+        "binary": "test_editor_settings_section_renders",
+        "log_sha256": "0c02ebf66ee7bcb73381a66ed249e78c79284b054e0ff63ccf7ef138cb3cabcf",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 43,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-064-N1B-189": {
+        "binary": "test_memory_proposal",
+        "log_sha256": "3a58204a977b9e633dc889c384a009b6c63edb2ef2fa210cc28dd289a62e963e",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 23,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-064-N1B-262": {
+        "binary": "test_event_emitter",
+        "log_sha256": "2c808d0e639f96e85f1048f9e69e13c34557a024576aa9baa3320a37ee0ba75c",
+        "exit_raw": "101",
+        "failing_tests": [
+          "event_emitter_native_editor_round_trip"
+        ],
+        "wall_s": 131,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-064-N1B-263": {
+        "binary": "test_fems_interop_proofs",
+        "log_sha256": "35f103aa93a81d9126a61868d1e991682db78ed997b8d2ac0fac82037e32f7d3",
+        "exit_raw": "101",
+        "failing_tests": [
+          "proof_fems_01_memorypack_render",
+          "proof_fems_02_propose_creates_proposal_and_event",
+          "proof_fems_03_swarm_drives_fems_via_accesskit",
+          "proof_fems_04_procedural_proposal_stays_review_gated",
+          "proof_fems_approved_proposal_recovers_commit_only_after_native_restart",
+          "proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc",
+          "proof_fems_cross_pane_focus_invalidates_already_staged_selection",
+          "proof_fems_duplicate_submission_replays_one_proposal_and_one_event",
+          "proof_fems_editor_switch_invalidates_identical_text_range_selection",
+          "proof_fems_focus_change_after_request_drain_invalidates_open_dialog",
+          "proof_fems_review_approval_and_rejection_persist_end_to_end"
+        ],
+        "wall_s": 597,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-064-N1B-277": {
+        "binary": "test_memory_proposal_argus",
+        "log_sha256": "6e4881a5e16442aa91c38ad81166926a6f63ad9983e04e17ad1b42435f6315e5",
+        "exit_raw": "101",
+        "failing_tests": [
+          "mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve"
+        ],
+        "wall_s": 128,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_memory_proposal_argus=RED@277{mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve}",
+      "test_fems_interop_proofs=RED@263{proof_fems_01_memorypack_render,proof_fems_02_propose_creates_proposal_and_event,proof_fems_03_swarm_drives_fems_via_accesskit,proof_fems_04_procedural_proposal_stays_review_gated,proof_fems_approved_proposal_recovers_commit_only_after_native_restart,proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc,proof_fems_cross_pane_focus_invalidates_already_staged_selection,proof_fems_duplicate_submission_replays_one_proposal_and_one_event,proof_fems_editor_switch_invalidates_identical_text_range_selection,proof_fems_focus_change_after_request_drain_invalidates_open_dialog,proof_fems_review_approval_and_rejection_persist_end_to_end}",
+      "test_event_emitter=RED@262{event_emitter_native_editor_round_trip}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-F500",
+        "class": "BACKEND_LEDGER_WSIDS_COERCION_500",
+        "severity": "BLOCKING",
+        "detail": "GET /knowledge/code/symbols (code-nav lookup, also reached by the mounted CodeNavClient) returns 500 {error: quiet_receipt_failed, detail: 'embedded store error: embedded database error: Couldn't coerce value for field `wsids` of `kernel_event_ledger:KE-...`: Expected `array` but found `NONE`'}. Path: api/knowledge_code_nav.rs record_quiet_nav_receipt -> ParallelSwarmStateRecoveryStore::record_quiet_background_work (swarm_orchestration/state_recovery.rs) writes a kernel_event_ledger row without the SCHEMAFULL `wsids` array (storage/surreal/schema.surql:5758 DEFINE FIELD OVERWRITE wsids ... TYPE array<string>). Backend product defect. Reproduced through the fd9060de-built mt249_code_intelligence_fixture as well (seq 306), so it predates C-prime. Owner: backend lane (MT-141/MT-135/MT-109 state-recovery + ledger schema)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

@@ -14,7 +14,7 @@
   "title": "E11-MT-070-WireEditorContextMenusAndNavigationBus",
   "group": "E11",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-31T23:12:20.5687398Z",
+  "updated_at_utc": "2026-09-16T23:19:51.546Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-070.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt070",
       "mode": "VERIFY_AND_PROVE",
@@ -45,10 +45,10 @@
     "blocks": [
       "MT-072"
     ],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260731-195928",
-    "validated_at_utc": "2026-07-31T23:12:20.5687398Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:51.546Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: the MT-070 context-menu layer is NOT wired into the live render loop - show_editor_body_menu/show_node_menu/editor_body_context_items/node_context_items have NO product call site (module WIRING STATUS comment discloses it); live code-editor right-click still shows the pre-existing 2-entry menu; canvas/loom node menus still use the MT-021 layer. navigation_bus::dispatch has NO product caller; NavigationTarget byte_offset intentionally ignored (no scroll-to-byte seam). implementation_result claims AC-070-1..9 PASS and omits the load-bearing disclosure that exists only in code comments - overstatement on the contract surface. Root cause recorded in-code: BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE (allowed_paths forbids the call-site files the scope mandates). Fix: resolve the allowed-paths conflict, wire panel.rs/canvas/loom call sites + shell nav-bus consumption, add scroll-to-byte seam carry, re-prove AC-070 against the live app, amend implementation_result.",
@@ -158,7 +158,9 @@
         "blockers": 0
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
-    }
+    },
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "Goal: complete the 'melt-together' click-through by wiring the WP-011 context-menu surfaces and the shell NavigationTarget bus to the REAL WP-012 editor actions. This MT is dispatch-only glue: it does NOT build new context-menu infrastructure (the context-menu primitive already exists from WP-011 as context_menu.rs / context_menu_surfaces.rs) and it does NOT build new editor actions (Rename Symbol, Quick Fix, Format Selection, Peek/Go-to-Def, Create-note-from-link already exist as MT-048/MT-049/MT-050/MT-008/MT-057). It connects the two: every context-menu entry must fire a real editor action handler, and every cross-surface click (quick-switcher, link click, node click) must route a NavigationTarget into the correct editor or pane addressed by stable id. The expected diff shape is: (a) EDIT the existing WP-011 module src/frontend/handshake_native/src/context_menu_surfaces.rs (~250-400 lines added) to define the two menu population functions (editor body menu, canvas/loom node menu) and bind each entry to the corresponding real action handler obtained from the pane registry (pane_registry.rs) and command bus (command_registry.rs + event_bus.rs), (b) one CREATED module src/frontend/handshake_native/src/navigation_bus.rs (~200-350 lines) that completes the NavigationTarget enum, the dispatch function, and the per-pane registration table so a NavigationTarget resolves to a live pane by stable id and focuses/scrolls it, and (c) egui_kittest integration tests proving the menus fire real handlers and the bus routes targets to the right pane.\n\nFiles to CREATE or EDIT (EDIT context_menu_surfaces.rs in place since it already exists from WP-011, never duplicate WP-011 infra; CREATE navigation_bus.rs):\n  - src/frontend/handshake_native/src/context_menu_surfaces.rs  -- EDIT the existing WP-011 module; this is the only place WP-012 context-menu wiring lives. Define `populate_editor_body_menu(ui: &mut egui::Ui, ctx: &AppContext, target: EditorMenuTarget)` and `populate_node_context_menu(ui: &mut egui::Ui, ctx: &AppContext, target: NodeMenuTarget)`. Each function adds entries by calling the WP-011 context-menu primitive (the existing context_menu.rs / context_menu_surfaces.rs builder API, e.g. an entry(label, accesskit_id, on_activate) call); the `on_activate` closure must call the REAL action handler resolved from the command bus (command_registry.rs) / pane registry (pane_registry.rs) -- never a placeholder, never a TODO, never a no-op.\n  - src/frontend/handshake_native/src/navigation_bus.rs  -- CREATE this new module to complete the NavigationTarget bus. Define `enum NavigationTarget { EditorAtSymbol { pane_id: PaneId, symbol: SymbolRef }, EditorAtLocation { pane_id: PaneId, byte_offset: usize }, OpenNote { note_id: String }, RevealNode { pane_id: PaneId, node_id: String }, FocusPane { pane_id: PaneId } }` (match the variants the depended-on MTs actually emit; reconcile names against the live pane_registry.rs types). Define `fn dispatch(&self, target: NavigationTarget) -> Result<(), NavError>` that looks the pane up by stable id in pane_registry.rs, calls `registry.focus(pane_id)`, then calls the pane's `reveal(target)` method. Define a registration hook `fn register_nav_handler(pane_id: PaneId, handler: Arc<dyn NavHandler>)` so each editor pane registers how it reveals a target.\n\nFiles to EDIT (thin call-site changes only; do NOT reimplement these modules):\n  - src/frontend/handshake_native/src/lib.rs  -- add `pub mod navigation_bus;` (and ensure `pub mod context_menu_surfaces;` is declared) if not already declared; expose the singletons through the existing AppContext.\n  - src/frontend/handshake_native/src/quick_switcher.rs (the quick-switcher module from MT-030) -- replace its placeholder navigation call with `navigation_bus.dispatch(NavigationTarget::FocusPane{..})` / `EditorAtSymbol{..}` so selecting a result actually focuses the target editor/pane by stable id.\n  - the code-editor pane module that owns the body context menu (the new WP-012 code_editor/ module created under src/frontend/handshake_native/src/code_editor/) -- ensure its right-click handler calls `populate_editor_body_menu(...)` (it must already register a `NavHandler` via `register_nav_handler` so the bus can reveal a location/symbol inside it).\n  - the canvas/loom node modules (src/frontend/handshake_native/src/canvas_board.rs and src/frontend/handshake_native/src/loom_graph.rs) -- ensure right-click on a node calls `populate_node_context_menu(...)` and that node click emits the corresponding NavigationTarget (RevealNode / OpenNote).\n\nExact action bindings each context-menu entry MUST fire (no dead handlers on the required path):\n  - 'Rename Symbol'    -> the real handler from MT-048 (rename-symbol command id, e.g. command_bus.dispatch_command(\"editor.rename_symbol\", ctx)).\n  - 'Quick Fix'        -> the real handler from MT-049 (quick-fix command).\n  - 'Format Selection' -> the real handler from MT-050 (format-selection command).\n  - 'Peek Definition' / 'Go to Definition' -> the real handler from MT-008 (peek / go-to-def code-nav, which is the only one of these that touches a backend API).\n  - 'Create note from link' -> the real handler from MT-057 (create-note-from-link).\nThe canvas/loom node menu must offer the node-appropriate subset (Open note, Reveal node, Create note from link) bound to the same real handlers.\n\nStep-by-step implementation notes:\n  1. Locate the WP-011 context-menu primitive (context_menu.rs and the existing context_menu_surfaces.rs builder/entry API). Do not rebuild it. Use its builder/entry API verbatim. Each entry takes a label, a stable AccessKit id, and an activation closure.\n  2. Locate the WP-011 pane registry (pane_registry.rs) and command bus (command_registry.rs + event_bus.rs) on AppContext. The pane registry maps stable PaneId -> live pane handle; the command bus dispatches command-id -> handler. Resolve every menu action through one of these two -- never inline the action logic here.\n  3. In context_menu_surfaces.rs, implement `populate_editor_body_menu`. For each of Rename Symbol, Quick Fix, Format Selection, Peek/Go-to-Def, Create-note-from-link, add an entry whose `on_activate` calls the real command via the command bus. Gate enablement on whether the action is available for the current selection (e.g. Rename Symbol disabled when no symbol under cursor) -- a disabled entry is acceptable, a dead-but-enabled entry is a FAIL.\n  4. Implement `populate_node_context_menu` the same way for canvas/loom nodes (Open note via OpenNote NavigationTarget, Reveal node via RevealNode, Create note from link via MT-057 handler).\n  5. In navigation_bus.rs, finalize the NavigationTarget enum to exactly cover what MT-008 (location/symbol), MT-030 (quick-switcher target), and MT-057/canvas (note/node) emit. Implement `dispatch`: resolve pane_id in pane_registry.rs; if absent return `Err(NavError::PaneNotFound)`; else focus the pane then call its registered NavHandler::reveal(target). For OpenNote, route through the note-open path that opens/focuses the note's pane then reveals it.\n  6. Each editor/canvas pane registers a NavHandler in its constructor/mount via `register_nav_handler(pane_id, handler)` so the bus has a live reveal path. The handler is owned by the pane (this MT only ensures registration call sites exist and are wired; the reveal bodies belong to the panes' own MTs and are reused, not rewritten).\n  7. Wire the MT-030 quick-switcher (quick_switcher.rs): on result confirm, build the NavigationTarget for the selected item (by its stable id) and call `navigation_bus.dispatch(target)`. Assert the correct pane is focused by stable id.\n  8. AccessKit: every context-menu entry uses a stable AccessKit author_id from the existing WP-011 id registry (accessibility/registry.rs) (e.g. \"ctxmenu-editor-rename-symbol\", \"ctxmenu-node-open-note\"); reuse the registry, do not invent a parallel id scheme. The menu container and each item carry role=Menu / role=MenuItem so swarm agents can address and activate them.\n  9. Keep this MT dispatch-only: NO new context-menu rendering infra, NO new editor-action logic, NO backend rewrite. The only backend touchpoint is indirect via MT-008's existing code-nav API; this module binds to that handler, it does not call the backend directly.\n  10. Tests: an egui_kittest test that right-clicks the code body and asserts the menu shows Rename Symbol / Quick Fix / Format Selection / Peek entries and that activating each fires the real handler (assert the handler side-effect, e.g. command dispatched / pane state changed). An egui_kittest test that drives the MT-030 quick-switcher and asserts a NavigationTarget routes into the correct editor pane addressed by stable id. A cargo test asserting canvas/loom node context-menu actions dispatch to real handlers. A cargo test asserting NO context-menu entry on the required path hits a dead/placeholder handler (e.g. scan that every required entry's on_activate resolves to a registered command id or registered NavHandler).\n\nDependencies / unblock conditions:\n  - MT-008 (Peek/Go-to-Definition code-nav, backend-bound) must be merged.\n  - MT-030 (quick-switcher) must be merged so there is a NavigationTarget producer to wire.\n  - MT-048 (Rename Symbol), MT-049 (Quick Fix), MT-050 (Format Selection), MT-057 (Create-note-from-link) must be merged so the real handlers exist to bind.\n  - WP-011 (cross-WP dependency) must provide the context-menu primitive (context_menu.rs / context_menu_surfaces.rs), the pane registry (pane_registry.rs), the command bus (command_registry.rs + event_bus.rs), and the AccessKit id registry (accessibility/registry.rs) -- reused, not rebuilt.\n\nRisk if missed: editor context menus and cross-surface navigation stay placeholder; right-click does nothing real and the quick-switcher cannot focus the right editor by id, leaving the 'melt-together' click-through incomplete and blocking MT-072.",
@@ -600,5 +602,739 @@
       "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
     ],
     "no_context_instruction": "Read MT-070.json completely, then packet.json, MT-008.json, MT-030.json, MT-048.json, MT-049.json, MT-050.json, MT-057.json, current SPEC_CURRENT v02.202 context-menu/navigation clauses, test_context_menu_surfaces.rs, test_navigation_bus.rs, test_editor_body_context_menu.rs, and canonical_argus_driver.rs. Reproduce the six finish failures at source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e or a declared successor, bind every dispatched action to an authoritative product-specific terminal predicate, resolve MT-008, rerun all focused matrices with external artifacts, inspect any frames, and hand off READY_FOR_VALIDATION without weakening the final gate or relying on prior V3 counts."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:51.546Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_canvas_board_argus=RED@310{mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges}; test_stage_interop=RED@281{live_route_round_trip_real_surrealdb,mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent,mt066_canvas_board_evidence_does_not_block_product_cleanup,mt066_stage_card_bridge_evidence_does_not_block_product_cleanup}). Non-fixture binaries of this MT (context_menu_surfaces 051/052, navigation_bus 122, editor_body_context_menu 066, quick_switcher 199, canvas_board 253@C-prime, graph_view 268@C-prime) are green. All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-052",
+        "command": "test_context_menu_surfaces_part2-2f451431696b4be9.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:06:36.272Z",
+        "finished_utc": "2026-09-16T07:06:36.694Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 20 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/052_test_context_menu_surfaces_part2.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-052-test_context_menu_surfaces_part2",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-066",
+        "command": "test_editor_body_context_menu-bd92f0227f5b529f.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:07:36.474Z",
+        "finished_utc": "2026-09-16T07:07:36.973Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 8 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/066_test_editor_body_context_menu.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-066-test_editor_body_context_menu",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-118",
+        "command": "test_mt108_argus_matrix-129599086e695fb7.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:17:57.770Z",
+        "finished_utc": "2026-09-16T07:17:57.858Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 0 passed; 0 failed; 2 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/118_test_mt108_argus_matrix.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-118-test_mt108_argus_matrix",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-122",
+        "command": "test_navigation_bus-fbef26577b342c38.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:17:58.346Z",
+        "finished_utc": "2026-09-16T07:17:58.704Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 5 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/122_test_navigation_bus.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-122-test_navigation_bus",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-190",
+        "command": "test_menu_wireup-aa1d8aa36f316ad7.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:39:46.940Z",
+        "finished_utc": "2026-09-16T07:40:57.340Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 41 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/190_test_menu_wireup.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-190-test_menu_wireup",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-199",
+        "command": "test_quick_switcher-32b9f887d980f80f.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:51:02.241Z",
+        "finished_utc": "2026-09-16T07:51:32.477Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 15 passed; 0 failed; 1 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/199_test_quick_switcher.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-199-test_quick_switcher",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-253",
+        "command": "test_canvas_board-ef04b079c26f54b2.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:04:21.985Z",
+        "finished_utc": "2026-09-16T21:05:46.059Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 46 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/253_test_canvas_board_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-253-test_canvas_board",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-268",
+        "command": "test_graph_view-04a78d4c7f3d0c42.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:43:54.068Z",
+        "finished_utc": "2026-09-16T21:44:48.837Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 25 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/268_test_graph_view_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-268-test_graph_view",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-269",
+        "command": "test_graph_view_argus-8e2c62f8557033cc.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:44:48.888Z",
+        "finished_utc": "2026-09-16T21:46:55.622Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 19 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/269_test_graph_view_argus_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-269-test_graph_view_argus",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-281",
+        "command": "test_stage_interop-aed60d996a7bcc26.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:13:14.110Z",
+        "finished_utc": "2026-09-16T22:18:41.473Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 32 passed; 4 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/281_test_stage_interop_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-281-test_stage_interop",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-284",
+        "command": "test_undo_scope-75301b8f5d5f7f3a.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:22:45.178Z",
+        "finished_utc": "2026-09-16T22:24:03.940Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 47 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/284_test_undo_scope_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-284-test_undo_scope",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-289",
+        "command": "test_context_menu_surfaces-092fa17398ee55ee.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:31:12.256Z",
+        "finished_utc": "2026-09-16T22:31:53.802Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 35 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/289_test_context_menu_surfaces_pass3-gpu-fix.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-289-test_context_menu_surfaces",
+          "tag": "pass3-gpu-fix"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-070-N1B-310",
+        "command": "test_canvas_board_argus-95332f258500469e.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T23:05:17.016Z",
+        "finished_utc": "2026-09-16T23:16:57.695Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 20 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/310_test_canvas_board_argus_pass3-solo.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-310-test_canvas_board_argus",
+          "tag": "pass3-solo"
+        },
+        "covers": [
+          "MT-070"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-070-N1B-052": {
+        "binary": "test_context_menu_surfaces_part2",
+        "log_sha256": "e384f45e139cfdf6ca45d4ee014c564a2071b223956f5593dd3a0a5fe8b02f6c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 0,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-066": {
+        "binary": "test_editor_body_context_menu",
+        "log_sha256": "289906c6d8a10b82dc820c88f8ffd84039a137ed9b14dac38ede4010c7abdbca",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 0,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-118": {
+        "binary": "test_mt108_argus_matrix",
+        "log_sha256": "d2a807d08aaa5cfe0c73ed7d619c8062eae3a70a93061e881add6732915ea714",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 0,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-122": {
+        "binary": "test_navigation_bus",
+        "log_sha256": "7b0b511f9c8cfe2dde2896bb42b96d69d950c87f0c7d0d7c615f2b510fae81ba",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 0,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-190": {
+        "binary": "test_menu_wireup",
+        "log_sha256": "048f1259fe9d7963e9110c6579e49fb166a9e907ecb7549cd732f17bc0e55175",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 70,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-199": {
+        "binary": "test_quick_switcher",
+        "log_sha256": "b54f1ede362a44d30f4545305bb372f2a92454bfe74504155d371686ccdc1c3d",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 30,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-253": {
+        "binary": "test_canvas_board",
+        "log_sha256": "bbcdba0ed55e5e6549359c2585d11dbec9b77deaeeb7d300b307b6b39de8fbc1",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 84,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [],
+        "dirt_note": "clean",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-268": {
+        "binary": "test_graph_view",
+        "log_sha256": "4de8df9a1e69d3cc846d55097dbc9e148bd147ff9262655c6ddbd1f9a3dbc205",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 55,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-269": {
+        "binary": "test_graph_view_argus",
+        "log_sha256": "f75bbb217814abc6870dada28bff226238e4291253484339676c897ed0688d47",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 127,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-281": {
+        "binary": "test_stage_interop",
+        "log_sha256": "628f1433e083e610769dd65dc274fb78101508257e108945048c7216d62d55a8",
+        "exit_raw": "101",
+        "failing_tests": [
+          "live_route_round_trip_real_surrealdb",
+          "mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent",
+          "mt066_canvas_board_evidence_does_not_block_product_cleanup",
+          "mt066_stage_card_bridge_evidence_does_not_block_product_cleanup"
+        ],
+        "wall_s": 327,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-284": {
+        "binary": "test_undo_scope",
+        "log_sha256": "fec0ec18c5998620b24c176cbb376f4c5454047324b628fa954690aa4db3eca0",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 79,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-289": {
+        "binary": "test_context_menu_surfaces",
+        "log_sha256": "1327267c079c0fa2e8f8ac227bb38ec8ffdec23fa4d6bc8fa47b730a7c5ee461",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 42,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-070-N1B-310": {
+        "binary": "test_canvas_board_argus",
+        "log_sha256": "c040d855d8e39bdfb82d2e71dfc4913f78091bd5ae4f592ac67e746dabf52911",
+        "exit_raw": "101",
+        "failing_tests": [
+          "mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges"
+        ],
+        "wall_s": 701,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-FCANVAS; N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-FCANVAS; N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_canvas_board_argus=RED@310{mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges}",
+      "test_stage_interop=RED@281{live_route_round_trip_real_surrealdb,mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent,mt066_canvas_board_evidence_does_not_block_product_cleanup,mt066_stage_card_bridge_evidence_does_not_block_product_cleanup}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-FCANVAS",
+        "class": "CANVAS_VISUAL_EDGE_REFETCH_TIMEOUT",
+        "severity": "BLOCKING_MT-026",
+        "detail": "test_canvas_board_argus::mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges timed out waiting for 'mounted canvas re-fetch reflects the persisted visual edge from real SurrealDB' (seq 254, 397s). No 403/500 visible in the native log. See solo rerun row for reproducibility."
+      },
+      {
+        "id": "N1B-P3-F403",
+        "class": "BACKEND_AUTHORITY_DENIES_NATIVE_FR_READS",
+        "severity": "BLOCKING",
+        "detail": "Flight Recorder / EventLedger reads issued by native proofs (`GET /api/flight_recorder?wsid=`, `GET /events?wsid=`, 'ledger GET', 'GET Flight Recorder') return 403 {error: HSK-403-PROTECTED-RESOURCE} = api/authority.rs constant_denial() from authorize_request (protected-resource grant layer; 2e28ff91 'MT-109 enforce protected resource grants' + MT-141 backend remediation on this branch). The native proof support (tests/backend_proof_support/mod.rs live_flight_recorder_session_token, get_json_with_session_token) presents only x-hsk-session-token and never performs the POST /authority/session local-session exchange, so every native FR read is denied. Present with the fd9060de-built backend too (pass-1 logs 025/026 show the same 403 before the env-invalid failures), i.e. not introduced by C-prime. Owner: backend authority contract (MT-109/MT-141) vs native proof support; needs an Orchestrator decision on which side adapts (credential the native fixture/clients through /authority/session, or grant FR reads to the FR session token)."
+      },
+      {
+        "id": "N1B-P3-F500",
+        "class": "BACKEND_LEDGER_WSIDS_COERCION_500",
+        "severity": "BLOCKING",
+        "detail": "GET /knowledge/code/symbols (code-nav lookup, also reached by the mounted CodeNavClient) returns 500 {error: quiet_receipt_failed, detail: 'embedded store error: embedded database error: Couldn't coerce value for field `wsids` of `kernel_event_ledger:KE-...`: Expected `array` but found `NONE`'}. Path: api/knowledge_code_nav.rs record_quiet_nav_receipt -> ParallelSwarmStateRecoveryStore::record_quiet_background_work (swarm_orchestration/state_recovery.rs) writes a kernel_event_ledger row without the SCHEMAFULL `wsids` array (storage/surreal/schema.surql:5758 DEFINE FIELD OVERWRITE wsids ... TYPE array<string>). Backend product defect. Reproduced through the fd9060de-built mt249_code_intelligence_fixture as well (seq 306), so it predates C-prime. Owner: backend lane (MT-141/MT-135/MT-109 state-recovery + ledger schema)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-FCANVAS; N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

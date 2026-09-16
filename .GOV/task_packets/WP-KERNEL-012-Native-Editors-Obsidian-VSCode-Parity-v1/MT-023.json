@@ -14,7 +14,7 @@
   "title": "E3-MT023-TagsTagHubs",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-08-01T10:45:16.9219257Z",
+  "updated_at_utc": "2026-09-16T23:19:47.711Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -34,10 +34,10 @@
       "MT-024",
       "MT-027"
     ],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-31T20:53:46.1158223Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:47.711Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: LoomTagsPanel/LoomTagHubPanel (978 lines) mounted by NO host - zero references in app.rs/editor_pane_factories/pane_registry/left_rail/module_switcher; events have no consumer; LoomTagClient never constructed for this panel. Not in MT-079/080 mount scope; no owner MT. Widget itself sound (real interactions, verified /loom/tags routes, matching PNGs). Fix: mount + event consumer wiring only.",
@@ -101,7 +101,9 @@
     "claimed_at_utc": "2026-07-23T15:40:05.803Z",
     "remediation_v3_in_progress": false,
     "proof_status": "IMPLEMENTER_PROOFS_PASS_VALIDATOR_REVALIDATION_PENDING",
-    "completed_by": null
+    "completed_by": null,
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "Goal: Implement a Tags panel and Tag Hubs panel in the native egui frontend. The Tags panel lists all tag blocks (content_type='tag_hub') across the workspace fetched from the real PostgreSQL backend, shows the number of blocks linked to each tag, and lets the user click a tag to open it as a filter (fires on_filter_tag callback). The Tag Hubs panel renders tag_hub-typed LoomBlocks as first-class content pages (like Obsidian's 'tag page'): showing the hub's title, description (from content_json), and the list of blocks tagged with it. Expected diff shape: one new file src/frontend/handshake_native/src/loom/tags_panel.rs containing LoomTagsPanel and LoomTagHubPanel widgets, edits to src/frontend/handshake_native/src/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/loom/tags_panel.rs — LoomTagsPanel (tag list) + LoomTagHubPanel (tag hub page)\n- EDIT src/frontend/handshake_native/src/loom/mod.rs — pub mod tags_panel; + re-exports\n\nExact APIs / React reference:\n- React reference: WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) calls queryLoomView with contentType filter (LoomViewQuery.contentType, api.ts line 1061). bookmarkKind() in WorkspaceSidebar.tsx line 44 identifies tag_hub blocks. The React component does not have a standalone Tags panel; this is a new surface.\n- LoomBlock.content_type == 'tag_hub' (api.ts line 933) is the tag hub block type.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub — list all tag hub blocks\n  - GET /workspaces/{workspace_id}/loom/views/all?tag_ids={tag_hub_block_id} — list blocks tagged with a specific tag hub\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id} — load tag hub block detail\n  - GET /workspaces/{workspace_id}/loom/views/sorted?tag_ids={tag_hub_block_id} — grouped members of a tag hub\n  - POST /workspaces/{workspace_id}/loom/edges (createLoomEdge edge_type='tag') — tag a block with a hub (future use; wire callback slot)\n\nStep-by-step implementation notes:\n1. Define TagEntry { block_id: String, title: String, member_count: u32 } in tags_panel.rs.\n2. Define LoomTagsPanel { workspace_id: String, tags: Vec<TagEntry>, on_open_tag: Callback<String>, on_filter_tag: Callback<String>, loading: bool, error: Option<String>, search_filter: String }.\n3. On init, call GET /workspaces/{id}/loom/views/all?content_type=tag_hub to enumerate all tag hubs. For each hub, member_count = members.len() (or show 0 if not yet loaded). Display a flat list sorted by title.\n4. Render a search box at top of panel (egui::TextEdit::singleline, author_id='tags.search', placeholder='Filter tags...'). Filter displayed tags client-side by title prefix match.\n5. Each tag row: colored tag chip (egui::Button with background color derived from title hash), member count badge, click fires on_open_tag(block_id) to navigate to the hub page.\n6. LoomTagHubPanel (separate widget, shown when a tag hub block_id is provided as the active page):\n   a. Load tag hub block via GET /workspaces/{id}/loom/blocks/{block_id}.\n   b. Load members via GET /workspaces/{id}/loom/views/all?tag_ids={block_id}, limit=100.\n   c. Render hub title as H1, description from content_json if present.\n   d. Render members as a scrollable list of block rows (title + content_type). Click on member -> on_open(member_block_id).\n   e. 'Add tag to block' button (author_id='tag-hub.add-tag.{block_id}'): opens a quick-switcher-style popup to search for a block and tag it (fires POST /workspaces/{id}/loom/edges with edge_type='tag', source=selected_block_id, target=hub_block_id).\n7. AccessKit:\n   - LoomTagsPanel: search box author_id='tags.search', each tag row 'tags.row.{block_id}' role=ListItem with DefaultAction=open, member count as accessible description.\n   - LoomTagHubPanel: hub title label 'tag-hub.title.{block_id}', member list items 'tag-hub.member.{block_id}', add-tag button 'tag-hub.add-tag.{block_id}'.\n\nReuse pointers (existing WP-011 modules under src/frontend/handshake_native/src/): reuse the existing Loom graph/knowledge surface in loom_graph.rs for the tag_hub block model and graph navigation; reuse command_registry.rs + event_bus.rs for the shared selection/command bus and for emitting on_open/on_filter navigation events; reuse accessibility/ (mod.rs, live.rs, registry.rs, snapshot.rs) for AccessKit author_id registration of tag rows and hub panel nodes; reuse mcp/ for exposing tag navigation as parallel-model actions where applicable. The new tags_panel surface is added inside a new loom/ subdir under src/frontend/handshake_native/src/.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client infrastructure. MT-023 does not depend on MT-022. Cross-WP: this MT builds on the WP-011 native shell modules listed above (loom_graph.rs, command_registry.rs, event_bus.rs, accessibility/*, mcp/*).\n\nRisk if missed: Tag-based navigation and filtering are unavailable. MT-027 (BlockCollectionViews kanban lanes) depends on tag identity resolved here.",
@@ -612,5 +614,443 @@
       "Open the regenerated pre/post tree, action receipt, and screenshot, then rerun focused tags filtering, hub membership, add/remove relationship, rollback, restart-readback, and EventLedger tests."
     ],
     "no_context_instruction": "Read MT-023.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the current tag/tag-hub implementation. Introduce an authoritative terminal tag-navigation receipt bound to tag ID, workspace generation, and loaded hub state; repair the canonical Argus predicate; rerun focused live PostgreSQL and mounted Argus proofs from committed current HEAD with external artifacts; open the regenerated terminal receipt/tree/screenshot; then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:47.711Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_tags_panel=RED@300{tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip}). test_tags_panel_argus 283@C-prime green; the argus half of the surface is proven, the self-seeded member round trip is not. All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-023-N1B-057",
+        "command": "test_app_host_mount_secondary-e64fe254545e88a6.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:06:45.589Z",
+        "finished_utc": "2026-09-16T07:08:06.310Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 51 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/057_test_app_host_mount_secondary.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-057-test_app_host_mount_secondary",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-023"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-023-N1B-110",
+        "command": "test_manual_content-836725be149f464b.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:16:22.568Z",
+        "finished_utc": "2026-09-16T07:16:24.671Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 41 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/110_test_manual_content.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-110-test_manual_content",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-023"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-023-N1B-170",
+        "command": "test_theme-8c9e9f46bd2a3158.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:31:15.400Z",
+        "finished_utc": "2026-09-16T07:31:15.814Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 19 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/170_test_theme.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-170-test_theme",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-023"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-023-N1B-190",
+        "command": "test_menu_wireup-aa1d8aa36f316ad7.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:39:46.940Z",
+        "finished_utc": "2026-09-16T07:40:57.340Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 41 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/190_test_menu_wireup.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-190-test_menu_wireup",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-023"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-023-N1B-264",
+        "command": "test_find_in_files-7bf52789c196e0d7.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:37:39.398Z",
+        "finished_utc": "2026-09-16T21:40:11.009Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 35 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/264_test_find_in_files_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-264-test_find_in_files",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-023"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-023-N1B-283",
+        "command": "test_tags_panel_argus-d5d34e1ee3ee8c27.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:21:51.930Z",
+        "finished_utc": "2026-09-16T22:22:45.087Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 18 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/283_test_tags_panel_argus_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-283-test_tags_panel_argus",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-023"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-023-N1B-300",
+        "command": "test_tags_panel-bd09ab78977726c9.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:55:59.785Z",
+        "finished_utc": "2026-09-16T22:57:06.688Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 29 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/300_test_tags_panel_pass3-solo.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-300-test_tags_panel",
+          "tag": "pass3-solo"
+        },
+        "covers": [
+          "MT-023"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-023-N1B-057": {
+        "binary": "test_app_host_mount_secondary",
+        "log_sha256": "69e6ba5f4ff6cbd88fdd512f96ac8ee7955efb6484cc477bf5b0218109ba0b8a",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 81,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-023-N1B-110": {
+        "binary": "test_manual_content",
+        "log_sha256": "ae09ea8f635d2cfa7af4528b4bafddbc37b154e574e004090ad50c28c7d6a50c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 2,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-023-N1B-170": {
+        "binary": "test_theme",
+        "log_sha256": "09379b5f5356b38b75cb97ef8fcd82aba175a1d9579f282763432857769c8580",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 0,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-023-N1B-190": {
+        "binary": "test_menu_wireup",
+        "log_sha256": "048f1259fe9d7963e9110c6579e49fb166a9e907ecb7549cd732f17bc0e55175",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 70,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-023-N1B-264": {
+        "binary": "test_find_in_files",
+        "log_sha256": "7807a72b4dfaeedc6f66395b2af8c526d4b68acc88f6a27ff73fc4de1f4b1acb",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 152,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-023-N1B-283": {
+        "binary": "test_tags_panel_argus",
+        "log_sha256": "af62b11aa06542827ff6efcef84b5bbeab792c11322426831d99691a7d4eb0e7",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 53,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-023-N1B-300": {
+        "binary": "test_tags_panel",
+        "log_sha256": "9deab083be984f4edade28f4f65422e63cee7cfa78ef9746e66466ea049c0d8c",
+        "exit_raw": "101",
+        "failing_tests": [
+          "tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip"
+        ],
+        "wall_s": 67,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-FTAGS"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-FTAGS"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_tags_panel=RED@300{tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-FTAGS",
+        "class": "TAG_HUB_MEMBER_MISSING_AT_CPRIME",
+        "severity": "BLOCKING_MT-023",
+        "detail": "test_tags_panel::tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip: after clicking the rust hub the hub title renders but the member row for the seeded first note never appears (assert hub_ids.contains(hub_member_author_id(first_note)) at test_tags_panel.rs:966). Reproduced alone (seq 282 cohort, seq 300 solo). Root cause NOT_INSPECTED at the backend (no 403/500 visible in the native log); consistent with the account-privacy row filtering class but UNVERIFIED."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-FTAGS) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

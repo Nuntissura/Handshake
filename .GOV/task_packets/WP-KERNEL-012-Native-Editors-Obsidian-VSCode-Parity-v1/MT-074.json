@@ -14,7 +14,7 @@
   "title": "E10-MT-074-OtherPillarInteropProofSuite",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-31T23:24:59.5934803Z",
+  "updated_at_utc": "2026-09-16T23:19:51.967Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-066",
@@ -35,12 +35,12 @@
       "MT-042"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_ADVERSARIAL_REVIEWS_NO_BLOCKER_2026-07-26",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260731-195928",
-    "validated_at_utc": "2026-07-31T23:24:59.5934803Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:51.967Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260726-052638",
     "claimed_at_utc": "2026-07-26T05:31:19.6688168Z",
@@ -150,7 +150,9 @@
         "gate_ordering": "Checklist run to a PASS receipt BEFORE this status write."
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
-    }
+    },
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "PROOF MT (no app code changes; proof only). GOAL: author and execute a runtime scenario suite that proves the three 'other-pillar' interop edges of the native editors — Stage (Pillar 17), Calendar (Pillar 2), and Locus (Pillar 6) — actually work end-to-end against a REAL PostgreSQL database and the REAL EventLedger / Flight Recorder (NO mocks, NO SQLite, NO in-memory substitute for the persistence layer). This MT mirrors the MT-046 InterconnectionScenarioProofs pattern exactly: each scenario crosses a surface boundary, drives real state through existing handshake_core HTTP APIs, and is additionally reachable purely via AccessKit ids so an out-of-process swarm agent can drive it without screen-reading. The MT proves these force-multiplier edges instead of merely asserting them; if any backend API or AccessKit id needed by a scenario does not yet exist, the scenario is recorded as a TYPED BLOCKER in the manifest (status='BLOCKED', blocker='<reason>') rather than mocked, stubbed, or silently skipped.\n\nWHY THIS IS A PROOF-ONLY MT: This task creates NO new product/app code under src/frontend/handshake_native/src/**. It exercises surfaces, panes, commands, and AccessKit ids that earlier MTs already built (Stage pane = MT-068, Calendar binding = MT-067, Locus cross-reference = MT-066, EditorActions AccessKit registry = MT-041, KnowledgeGraph AccessKit = MT-042). The only files created are test files plus a manifest under src/frontend/handshake_native/tests/. If a needed pane/command/AccessKit id is missing because an upstream MT did not register it, the correct outcome is a typed blocker, not new app code (a backend rewrite is also forbidden — bind existing handshake_core APIs only).\n\nEXPECTED DIFF SHAPE: Creates src/frontend/handshake_native/tests/test_other_pillar_interop_proofs.rs — a single Rust integration test file (harness = true) containing the four proof scenarios OP-01..OP-04 below, plus a sibling manifest src/frontend/handshake_native/tests/other_pillar_interop_manifest.json with one entry per scenario. Registers the suite under [[test]] in src/frontend/handshake_native/Cargo.toml ( name = 'test_other_pillar_interop_proofs', harness = true ). No other files change.\n\nPERSISTENCE INVARIANT (HARD): Every scenario must run against a real PostgreSQL instance provisioned by the same workspace/PG fixture builder used in MT-044/MT-045/MT-046 (reuse it; do not invent a parallel fixture). The EventLedger / Flight Recorder assertions must read the real ledger via GET /api/flight_recorder (or GET /workspaces/{workspace_id}/events, whichever route exists in src/backend/handshake_core/src/api/mod.rs — verify the route name before authoring; if neither exists the FR assertions become typed blockers). SQLite, mock connections, and stubbed repositories are explicitly forbidden anywhere in this suite.\n\nSWARM/AccessKit INVARIANT (HARD): Each interop edge must be reachable purely via AccessKit author_ids registered by MT-041 (EditorActions) and MT-042 (KnowledgeGraph), plus the pane-specific ids registered by MT-066/067/068. OP-04 specifically proves an out-of-process agent path: it builds the egui widget tree with egui_kittest, looks up each target by author_id only (never by coordinates or label-scraping), simulates the AccessKit Activate/Press/SetValue action, and calls handshake_native::accessibility::flush_pending_updates() before asserting the resulting label/focus/value state.\n\nFR-EVENT INVARIANT (HARD): Each scenario must, after driving its edge, assert that the EXPECTED Flight Recorder / EventLedger event(s) were emitted, by reading GET /api/flight_recorder and filtering for the edge's event kind (e.g. STAGE_ROUTE, STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP — verify the exact emitted kind strings against the upstream MT implementations; if a kind is not emitted, surface a typed blocker, do not weaken the assertion).\n\n=== SCENARIO OP-01 — Stage interop (Pillar 17): route-to-Stage then embed-back round-trip ===\nProves the Stage edge end-to-end. Steps: (1) using the real PG fixture, create a workspace and a rich-text note with a known text range; (2) drive the 'route-to-stage' command via the shared command bus (the same command_registry.rs + event_bus.rs dispatch path MT-031/MT-046 use) so the selected range is routed to the Stage pane (Pillar 17) — reach the command via AccessKit author_id (EditorActions registry, MT-041) NOT by label; (3) assert the Stage pane received the routed selection (AccessKit author_id 'stage.selection.preview' label matches the routed text, after flush_pending_updates()); (4) drive 'embed-back': the Stage pane produces an embed that is inserted back into the originating note as an MT-014-style embed node carrying SHA-256 provenance of the routed payload; (5) save the note via the existing PUT /workspaces/{id}/knowledge/documents/{doc_id}, reload via GET, and assert the block tree contains the embed node with a non-empty sha256 provenance field that matches the SHA-256 of the original routed bytes; (6) assert GET /api/flight_recorder contains a STAGE_ROUTE event followed by a STAGE_EMBED_BACK event for this workspace/doc, in order. Real PG only; no mocks.\n\n=== SCENARIO OP-02 — Calendar interop (Pillar 2): daily-note <-> CalendarEvent binding + ActivitySpan correlation ===\nProves the Calendar edge end-to-end. Steps: (1) create a daily note for a fixed date via the existing knowledge-documents API; (2) drive the daily-note<->CalendarEvent binding (MT-067) so the daily note is bound to a real CalendarEvent row in PG (create the event via the existing calendar API or the binding command, NOT a direct mock); (3) assert the binding persists: reload the daily note and assert it carries the CalendarEvent id, and GET the CalendarEvent and assert it back-references the daily note doc_id; (4) generate an ActivitySpan correlated to that day (edits to documents on that date should correlate to an ActivitySpan); query the correlation and assert it returns the set of edited documents for the bound day (i.e. ActivitySpan correlation returns the edited documents); (5) assert GET /api/flight_recorder contains CALENDAR_EVENT_BOUND and ACTIVITY_SPAN_CORRELATED events for the workspace/day. Reach the binding command via AccessKit id (swarm path). Real PG / real EventLedger only.\n\n=== SCENARIO OP-03 — Locus interop (Pillar 6): locus:// cross-reference resolve + reverse lookup ===\nProves the Locus edge end-to-end. Steps: (1) create a WP/MT-style governed entity addressable by a locus:// URI (reuse the Locus cross-reference layer from MT-066; if Locus addressing requires a seeded governance entity, seed it via the existing API, not a mock); (2) in a note, insert a locus:// reference (e.g. locus://wp/WP-KERNEL-012/mt/MT-066) as a cross-reference node; save the note; (3) resolve the reference: drive the resolve path (via AccessKit id for the swarm path) and assert it resolves to the correct WP/MT target (returns the target's stable id and a resolvable title/anchor); (4) reverse lookup: query the Locus reverse-index for that WP/MT and assert it lists the referencing document(s) — i.e. the note created in step 2 appears in the reverse lookup result; (5) assert GET /api/flight_recorder contains LOCUS_REF_RESOLVED and LOCUS_REVERSE_LOOKUP events for the workspace. Real PG only; the reverse index must be the real persisted index, not an in-memory map built by the test.\n\n=== SCENARIO OP-04 — Swarm path: out-of-process agent drives each interop edge purely via AccessKit ids ===\nProves all three edges (Stage, Calendar, Locus) are addressable by an out-of-process agent with zero screen-reading. Steps: (1) build the full editor widget tree with egui_kittest; (2) for each of OP-01/OP-02/OP-03, look up the trigger ONLY by AccessKit author_id (from the MT-041 EditorActions registry and MT-042 KnowledgeGraph registry, plus pane ids from MT-066/067/068) — never by coordinates or by scraping visible labels; (3) simulate the AccessKit action (Activate / Press / SetValue) on that node; (4) call handshake_native::accessibility::flush_pending_updates(); (5) assert the post-action AccessKit tree exposes the expected result node (e.g. 'stage.selection.preview' updated, the calendar-binding indicator present, the locus-resolved chip present) — all read from the AccessKit tree, proving a no-vision agent can both DRIVE and VERIFY the edge; (6) assert each driven edge emitted its FR event (same kinds as OP-01..OP-03). This is the swarm-parity guarantee (HBR-SWARM): every other-pillar interop edge is operable headless via stable ids.\n\nMANIFEST (src/frontend/handshake_native/tests/other_pillar_interop_manifest.json): one entry per scenario with fields { scenario_id, edge, pillar, description, surfaces_involved: [], backend_apis_called: [], accesskit_ids: [], expected_fr_events: [], proof_fn, status }. 4 entries total (OP-01..OP-04). The test runner updates status to PASS / FAIL / BLOCKED. A BLOCKED entry must carry a typed blocker string naming the exact missing API, AccessKit id, or FR event kind.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Reuse the workspace + real-PostgreSQL fixture builder and DropGuard cleanup from MT-044/MT-045/MT-046. Do not create a second fixture; do not point it at SQLite.\n2. Before authoring each scenario, VERIFY the backend route it needs exists in src/backend/handshake_core/src/api/mod.rs (Stage route+embed-back, Calendar bind/event, Locus resolve/reverse, and GET /api/flight_recorder). For any missing route, write the scenario body to detect the gap and mark the manifest entry BLOCKED with a typed blocker — never mock around it, never rewrite the backend.\n3. Before authoring each scenario, VERIFY the AccessKit author_ids it needs were registered by the upstream MT (MT-066/067/068 pane ids; MT-041 EditorActions; MT-042 KnowledgeGraph). If an id is missing, mark BLOCKED with blocker='accesskit_id_missing:<id>'.\n4. For SHA-256 provenance (OP-01), reuse the MT-014 embed provenance helper (compute sha256 over the exact routed bytes) — assert the stored provenance equals the recomputed digest; do not assert a placeholder.\n5. For FR-event assertions, read GET /api/flight_recorder once after the edge is driven, filter to this workspace, and assert the expected kind(s) appear in order. If the FR query is async, poll up to 5 attempts with 200ms sleep (1 s budget) before failing, mirroring MT-046 CTRL-6.\n6. OP-04 must look up every target by author_id only and call handshake_native::accessibility::flush_pending_updates() before each assertion; document that this is a layout-level (not GPU-render-level) AccessKit proof, mirroring MT-046 CTRL-3.\n7. Every scenario cleans up its PG rows in a DropGuard so the suite is idempotent across reruns.\n8. Register the suite as [[test]] name='test_other_pillar_interop_proofs' harness=true in src/frontend/handshake_native/Cargo.toml.\n9. NO app code under src/frontend/handshake_native/src/** is created or edited. NO backend code under src/backend/** is edited (bind existing APIs only). Gaps become typed blockers.",
@@ -620,5 +622,208 @@
       "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
     ],
     "no_context_instruction": "Read MT-074.json completely, packet.json, MT-041/042/066/067/068 verdicts, test_other_pillar_interop_proofs.rs, other_pillar_interop_manifest.json, pg_proof_support, canonical_argus_driver, and current Stage/Calendar/Locus/Flight Recorder APIs. Reproduce the four finish failures with real PostgreSQL, current backend, isolated Stage binding root, and external artifacts; bind every action to a fresh product-specific terminal predicate; resolve all failed dependencies; rerun all scenarios and guards; inspect fresh artifacts; and hand off READY_FOR_VALIDATION without weakening canonical Argus or replacing persisted proof with screenshots/local assertions."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:51.967Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_other_pillar_interop_proofs=RED@278{other_pillar_op01_stage_route_embed_back_other_pillar_interop,other_pillar_op02_calendar_bind_activity_span_other_pillar_interop,other_pillar_op03_locus_resolve_reverse_other_pillar_interop,other_pillar_op04_swarm_accesskit_other_pillar_interop}). All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-074-N1B-274",
+        "command": "test_locus_interop-9804d3eafe2ddeb4.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:00:12.605Z",
+        "finished_utc": "2026-09-16T22:00:59.907Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 37 passed; 0 failed; 1 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/274_test_locus_interop_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-274-test_locus_interop",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-074"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-074-N1B-278",
+        "command": "test_other_pillar_interop_proofs-3b5f16c91a25efaf.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:06:34.746Z",
+        "finished_utc": "2026-09-16T22:11:25.991Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 27 passed; 4 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/278_test_other_pillar_interop_proofs_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-278-test_other_pillar_interop_proofs",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-074"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-074-N1B-274": {
+        "binary": "test_locus_interop",
+        "log_sha256": "5a4fec224352a7796fb3c8ec7b6304ebb1b2935ef9caa453b790b9d652e9228c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 47,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-074-N1B-278": {
+        "binary": "test_other_pillar_interop_proofs",
+        "log_sha256": "2a75f009b1c09fb40268153aec60528265b4319324a6f4d18fed155877e95afa",
+        "exit_raw": "101",
+        "failing_tests": [
+          "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+          "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+          "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+          "other_pillar_op04_swarm_accesskit_other_pillar_interop"
+        ],
+        "wall_s": 291,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-F403 (FR reads denied 403 by the backend authority layer)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-F403 (FR reads denied 403 by the backend authority layer)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_other_pillar_interop_proofs=RED@278{other_pillar_op01_stage_route_embed_back_other_pillar_interop,other_pillar_op02_calendar_bind_activity_span_other_pillar_interop,other_pillar_op03_locus_resolve_reverse_other_pillar_interop,other_pillar_op04_swarm_accesskit_other_pillar_interop}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-F403",
+        "class": "BACKEND_AUTHORITY_DENIES_NATIVE_FR_READS",
+        "severity": "BLOCKING",
+        "detail": "Flight Recorder / EventLedger reads issued by native proofs (`GET /api/flight_recorder?wsid=`, `GET /events?wsid=`, 'ledger GET', 'GET Flight Recorder') return 403 {error: HSK-403-PROTECTED-RESOURCE} = api/authority.rs constant_denial() from authorize_request (protected-resource grant layer; 2e28ff91 'MT-109 enforce protected resource grants' + MT-141 backend remediation on this branch). The native proof support (tests/backend_proof_support/mod.rs live_flight_recorder_session_token, get_json_with_session_token) presents only x-hsk-session-token and never performs the POST /authority/session local-session exchange, so every native FR read is denied. Present with the fd9060de-built backend too (pass-1 logs 025/026 show the same 403 before the env-invalid failures), i.e. not introduced by C-prime. Owner: backend authority contract (MT-109/MT-141) vs native proof support; needs an Orchestrator decision on which side adapts (credential the native fixture/clients through /authority/session, or grant FR reads to the FR session token)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-F403 (FR reads denied 403 by the backend authority layer)) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

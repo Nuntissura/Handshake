@@ -22,7 +22,7 @@
   "title": "E15-MT-126-Capture-And-Inspect-The-Real-GPU-Worksurface-Screenshot-PT-102-B-On-A-Live-Window",
   "group": "E15-Visual",
   "created_at_utc": "2026-08-12T13:45:00Z",
-  "updated_at_utc": "2026-08-29T02:44:14.9416840Z",
+  "updated_at_utc": "2026-09-16T23:19:55.014Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-126.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,19 +31,19 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V1",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "PASS_V1",
     "claimed_by": "KERNEL_BUILDER-20260829-013635",
     "claimed_at_utc": "2026-08-29T01:37:09.9881316Z",
     "session_mt_batch": [
       "MT-126"
     ],
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-N1B-20260916-113023",
     "ready_for_validation_at_utc": "2026-08-29T02:44:14.9416840Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260829-013635",
     "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
@@ -107,7 +107,19 @@
       "hbr_int": "Flight Recorder NOT_APPLICABLE for the capture itself; internal_diagnostics and Palmistry remain DEFERRED-with-reason while unshipped, per the MT contract."
     },
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "creation_reason": "Created to be the TRUTHFUL NON-PASS OWNER of MT-108 residual item (8), PT-102-B. MT-108 V4 remediation item 6 requires a re-deferred residual to name an owner that REMAINS NON-PASS, and item 7 of the same plan states that a BLOCKED/DEFERRED marker may not close a required pixel row. MT-102 is PASS_V1, so deferring to it would have closed a required pixel row against a passing owner."
+    "creation_reason": "Created to be the TRUTHFUL NON-PASS OWNER of MT-108 residual item (8), PT-102-B. MT-108 V4 remediation item 6 requires a re-deferred residual to name an owner that REMAINS NON-PASS, and item 7 of the same plan states that a BLOCKED/DEFERRED marker may not close a required pixel row. MT-102 is PASS_V1, so deferring to it would have closed a required pixel row against a passing owner.",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:55.014Z",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "completed_at_utc": "2026-09-16T23:19:55.014Z",
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "status_alignment_2026_09_17": {
+      "by": "ORCHESTRATOR (Claude, session 2026-09-16)",
+      "at_utc": "2026-09-16T23:21:33.950Z",
+      "previous_status": "COMPLETED",
+      "new_status": "PASS_V1",
+      "reason": "Align lifecycle.status with validator_verdict per the WP convention (status == validator_verdict for PASS); verdict, completed_by and validation_vN untouched."
+    }
   },
   "scope": {
     "summary": "Capture the real-GPU worksurface screenshot on a live Handshake window and visually inspect it, closing PT-102-B with pixels rather than a typed deferral.",
@@ -154,5 +166,261 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "verdict_label": "PASS V1",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:55.014Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "validation_topology_note": "contract handoff.validation_topology=INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1; this per-MT verdict is written by WP_VALIDATOR under the orchestrator's N1 lane assignment (matrix completed_by_will_be); whole-WP judgment and merge remain INTEGRATION_VALIDATOR authority",
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "PASS at C-prime: PT-126-1 executed by the validator - handshake-native.exe (warm-target bin, sha256 7a3ef499..., HANDSHAKE_NATIVE_TEST=1 => ViewportBuilder::with_active(false), LOCALAPPDATA sandboxed to the lane) launched as an OWNED pid 28156; the exact titled HWND was captured OUT of process with Win32 PrintWindow(PW_RENDERFULLCONTENT) after a 20s settle: 1500x1300 PNG, 336484 bytes, sha256 afa3fdcbcca6ad7529dc55a4fee0dd543589b76c1c5538dd6d13aed0aa3b5b8a, OPENED and described (see argus_evidence). PT-126-2: the quiet bracket compared GetForegroundWindow, GUITHREADINFO active/focus/capture, cursor position and both Z-order neighbours before and after the capture - all unchanged, target never foreground. PT-126-3: test_visual_debugger 238 4/4 (headless DEFERRED marker path green), test_screenshot_deferred_marker 210 green; contract-named test_loom_address 275@C-prime 35/35. AC-126-5 automation statement present in the contract evidence and confirmed by this run (external PrintWindow + Win32 state bracket is automatable; semantic inspection still requires opening the PNG). Scope waiver WAIVE_MT126_SCOPE:Cargo.toml,Cargo.lock recorded by the Operator in the contract (matrix static grep 002 shows the 5-line manifest/lock change). The app was closed with WM_CLOSE (exit 0).",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-126-N1B-210",
+        "command": "test_screenshot_deferred_marker-4fe63b8bab7f50e3.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:59:23.648Z",
+        "finished_utc": "2026-09-16T07:59:43.042Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 7 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/210_test_screenshot_deferred_marker.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-210-test_screenshot_deferred_marker",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-126"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-126-N1B-238",
+        "command": "test_visual_debugger-54ebd16fb3be69f6.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T12:10:02.091Z",
+        "finished_utc": "2026-09-16T12:10:30.541Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 4 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/238_test_visual_debugger.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-238-test_visual_debugger",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-126"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-126-N1B-275",
+        "command": "test_loom_address-84c3936c6f380c2b.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:00:59.964Z",
+        "finished_utc": "2026-09-16T22:03:01.454Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 35 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/275_test_loom_address_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-275-test_loom_address",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-126"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-126-N1B-210": {
+        "binary": "test_screenshot_deferred_marker",
+        "log_sha256": "529322e0dc488ccd68dcd3752f26fbce80e23838874d040a3ca1f2826a5b0196",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 19,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-126-N1B-238": {
+        "binary": "test_visual_debugger",
+        "log_sha256": "812faf9f77521641c00494dffa18874a7c65c251f32807efc61debf7f67626d8",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 28,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-126-N1B-275": {
+        "binary": "test_loom_address",
+        "log_sha256": "7ee2d8c6d871adce93b16828d413756abf7bb12e105680e81e8f0a48f9e5922b",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 121,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [
+      {
+        "artifact": "WP-KERNEL-012/MT-108/wpv-n1/logs/argus/n1b-mt126-live-printwindow/mt126-live-printwindow-n1b.png",
+        "sha256": "afa3fdcbcca6ad7529dc55a4fee0dd543589b76c1c5538dd6d13aed0aa3b5b8a",
+        "receipt": "WP-KERNEL-012/MT-108/wpv-n1/logs/argus/n1b-mt126-live-printwindow/receipt.json",
+        "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/309_mt126_live_printwindow.log",
+        "opened": true,
+        "observation": "Title bar 'Handshake'; FILE/EDIT/VIEW/GO/RUN/HELP/EDITORS/OPERATOR menu; STUDIO/LAB/STAGE/INGEST/CKC/MAIN mode tabs + Light theme toggle; Default Project tab with the workspaces transport-error strip; left rail (load-failed transport error + Retry, Documents/Canvases/Bookmarks (0), Windows list, Stash/Agenda/Mail/Notes); three panes side by side: Code Symbol (CKC) with outline 'fn main' and a 5-line rust buffer, Wiki Page (MAIN) with Properties, Edit/Reading toggle, 'Heading One' / 'Hello world', Backlinks (0) Refresh 'Backlinks not loaded'; Runtime Chat with EndpointMissing badge, Message input + Send, 'System: Chat backend route is not available in this build.'; bottom project-chip rail, Search, Loom; status bar 'Backend: Disconnected (degraded - UI responsive) Undo: local 0 - cross 0 LSP rust: configured (rust-analyzer.exe)'. Text is readable; controls discoverable; the disconnected state is consistent. Two floating degraded-state panels occlude content: 'Propose to Memory' over the Wiki header/toolbar and alias-resolution strip, 'Settings persistence' over the CKC/MAIN tabs and Chat header; the 'Lock' chip overlaps the 'Wiki Page' tab label (CONCERN N1B-P3-FOVERLAY, outside MT-126 scope)."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "PASS",
+        "evidence": "real OS window of the production binary captured out of process; not a test double"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "PASS"
+    },
+    "hbr_review": {
+      "HBR-VIS": "PASS - pixels opened and described",
+      "HBR-QUIET": "PASS - Win32 foreground/active/focus/capture/cursor/Z-order unchanged across the capture; window launched non-activated; no input sent",
+      "HBR-INT-009": "as recorded in the contract (Flight Recorder NOT_APPLICABLE for an out-of-process capture; internal_diagnostics/Palmistry per contract tiers)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-FOVERLAY",
+        "class": "DEGRADED_STATE_PANEL_OCCLUSION",
+        "severity": "CONCERN",
+        "detail": "In the live MT-126 frame the floating 'Propose to Memory' panel overlaps the Wiki Page header/toolbar and the alias-resolution error strip, and the 'Settings persistence' panel overlaps the CKC/MAIN mode tabs and the Runtime Chat header; the 'Lock' chip overlaps the start of the 'Wiki Page' tab label. Observed in a backend-disconnected state; same two overlays the implementer recorded. Outside MT-126 scope; route as GUI usability CONCERN (HBR-VIS text overlap)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [],
+    "residual_uncertainty": [],
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "no_context_instruction": "PASS_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; whole-WP judgment remains Integration Validator authority."
   }
 }

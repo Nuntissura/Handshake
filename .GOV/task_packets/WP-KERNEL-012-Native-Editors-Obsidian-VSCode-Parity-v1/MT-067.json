@@ -14,7 +14,7 @@
   "title": "E10-MT-067-CalendarDailyNoteAndActivityInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-08-01T15:49:32.0716343Z",
+  "updated_at_utc": "2026-09-16T23:19:51.130Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-067.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-019",
@@ -35,12 +35,12 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_TWO_INDEPENDENT_REVIEWS_2026-08-01",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260731-195928",
-    "validated_at_utc": "2026-07-31T23:06:30.6454687Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:51.130Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: CalendarInteropService is NEVER instantiated in the live shell - events_for_range/activity_spans_for_event/open_or_create_daily_note never called live; DailyJournalState constructed with event=None and no host calls set_calendar_unavailable or set_event_with_spans, so the contract-mandated operator-visible typed empty-state is unreachable; chip-click focus-calendar-event drain is an explicit no-op. Daily-note half IS live (LoomDailyJournal pane + DateNavigated routing). Fix: on daily-journal pane bind, issue one events_for_range/activity fetch and apply set_calendar_unavailable on EndpointUnavailable; amend carry note that the service is currently test-only.",
@@ -119,7 +119,9 @@
       "mode": "RUNTIME-PROVEN (backend Calendar activity-span store + daily-note linkage built + proven live)",
       "session_summary": "Calendar interop. Backend blocker RESOLVED: new calendar_activity_spans store (migration 0340, storage/calendar_activity.rs, api/calendar.rs POST+GET /calendar/activity-spans; commit 5993cfe5) + daily_note_doc_id linkage on calendar events (resolves the loom journal for the event start date). Distinct from the swarm-iteration flight_recorder ActivitySpan.",
       "proofs": "LIVE managed PG: mt067_activity_span_create_and_query_round_trip PASS (POST span with edited_doc_ids -> GET returns them) + mt067_calendar_event_populates_daily_note_doc_id PASS. Backend route tests 8/8."
-    }
+    },
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "Goal: build the editors <-> Calendar (Pillar 2) interop edge. This MT melts the daily-note system from MT-019 together with the EXISTING Calendar canonical backend so that (a) selecting a date in the calendar opens-or-creates that date's daily note idempotently, (b) an open daily note resolves and links its CalendarEvent window for that date, and (c) the panel surfaces a read-only ActivitySpan correlation showing which documents were edited during a calendar block. This is pure frontend wiring plus binding to already-shipped handshake_core REST endpoints — NO backend build, NO schema change, NO new SQL. If the ActivitySpan join endpoint is not exposed by the backend, this MT must raise a TYPED BLOCKER (do not stub a fake join, do not query the DB directly), keep the daily-note <-> CalendarEvent binding working, and render an empty-state for the correlation strip.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/calendar_interop.rs (~300-450 lines) — the interop layer. Defines: CalendarInteropService { http: Arc<dyn HttpClient>, workspace_id: WorkspaceId }; the domain types CalendarEvent { id: String, title: String, start_utc: DateTime<Utc>, end_utc: DateTime<Utc>, daily_note_doc_id: Option<DocId> }, ActivitySpan { span_id: String, calendar_event_id: Option<String>, started_utc: DateTime<Utc>, ended_utc: DateTime<Utc>, edited_doc_ids: Vec<DocId> }, and DailyNoteBinding { date: NaiveDate, doc_id: DocId, calendar_event_id: Option<String> }. Methods: events_for_range(from: NaiveDate, to: NaiveDate) -> Result<Vec<CalendarEvent>, InteropError>; activity_spans_for_event(event_id: &str) -> Result<Vec<ActivitySpan>, InteropError> (returns Err(InteropError::EndpointUnavailable) -> the typed blocker path when the activity-span route 404s / is absent); open_or_create_daily_note(date: NaiveDate) -> Result<DailyNoteBinding, InteropError> (MUST delegate to the MT-019 daily-note service rather than re-implement creation — see implementation_notes); resolve_event_for_daily_note(date: NaiveDate) -> Result<Option<CalendarEvent>, InteropError>.\n  - src/frontend/handshake_native/src/loom/daily_journal_panel.rs (~250-400 lines) — the egui panel that hosts the daily note view ported from the React LoomDailyJournalPanel.tsx. Renders: a date header with prev/next day nav (reuse MT-019 date navigation, do NOT build a second calendar widget), the linked CalendarEvent chip (clickable -> emits a command-bus event to focus/open the calendar event window for that date), and a read-only 'Edited during this block' correlation strip listing the ActivitySpan.edited_doc_ids as document chips. The correlation strip is strictly read-only: clicking a doc chip navigates to that document but the panel never writes ActivitySpan data.\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/interop/mod.rs — add `pub mod calendar_interop;` (create the interop module dir + mod.rs under src/frontend/handshake_native/src/ if it does not yet exist; interop is a NEW WP-012 module subdir).\n  - src/frontend/handshake_native/src/loom/mod.rs — add `pub mod daily_journal_panel;` and export DailyJournalPanel into the loom panel registry (create the loom module dir + mod.rs under src/frontend/handshake_native/src/ if it does not yet exist; this new loom panel work reuses the existing graph view in loom_graph.rs as its host module, it does not fork a second loom surface).\n  - Register the DailyJournalPanel as a pane in the WP-011 pane registry (pane_registry.rs), and register its commands (open-daily-note-for-date, link-calendar-event, focus-calendar-event) on the WP-011 command bus (command_registry.rs + event_bus.rs). Register AccessKit author_ids (see implementation_notes) using the WP-011 AccessKit id registry (accessibility/registry.rs). Do NOT fork new shell primitives — reuse pane_registry.rs, command_registry.rs + event_bus.rs, and accessibility/* shipped by WP-011.\n\nStep-by-step implementation notes:\n  1. Date -> daily note (idempotent open-or-create). open_or_create_daily_note(date) MUST call the MT-019 daily-note service entrypoint (the same path MT-019 exposes as openDailyJournal / open_daily_note) so a given date always maps to exactly ONE doc; calling it twice for the same date returns the same DocId without creating a duplicate. Do not re-derive the daily-note path or template here — that ownership belongs to MT-019; this MT only orchestrates the call and stores the returned DailyNoteBinding.\n  2. Date -> CalendarEvent window. When a date is selected in the calendar (the calendar widget itself is MT-030's territory — the React reference is a dumb view backed by React Big Calendar; here the native calendar emits a date-selected signal on the command bus / event_bus.rs), calendar_interop calls events_for_range(date, date), picks the event whose window contains the date (or the all-day event for that date), opens-or-creates the daily note, and writes daily_note_doc_id back into the in-memory CalendarEvent binding so the linkage is bidirectional in the session. Persisting the link back to the backend is OUT OF SCOPE unless the existing events endpoint already accepts a daily_note_doc_id field — if it does not, keep the link session-local and note it.\n  3. Daily note -> CalendarEvent. resolve_event_for_daily_note(date) calls events_for_range(date, date) and returns the matching event so the daily_journal_panel can render the clickable CalendarEvent chip. Clicking the chip emits a focus-calendar-event command on the WP-011 command bus (command_registry.rs + event_bus.rs) targeting MT-030's calendar pane (do not import calendar-pane internals; communicate via the command bus only).\n  4. ActivitySpan correlation (read-only). activity_spans_for_event(event_id) GETs the existing /calendar/activity-spans route filtered to the event. The panel renders ActivitySpan.edited_doc_ids as read-only document chips under an 'Edited during this block' heading. If the route is absent (404 / not registered / feature-not-enabled), the method returns Err(InteropError::EndpointUnavailable) and the panel shows a typed empty-state ('Activity correlation not available — backend endpoint not exposed') instead of failing the whole panel. This is the typed-blocker contract: surface the blocker, keep the rest of the panel alive, never fabricate spans, never hit the DB.\n  5. Backend binding (existing endpoints only). events_for_range -> GET /workspaces/{workspace_id}/calendar/events?from={from}&to={to} (existing). activity_spans_for_event -> GET /workspaces/{workspace_id}/calendar/activity-spans (read-only correlation; typed blocker if absent). All persistence is PostgreSQL/EventLedger via handshake_core — this MT NEVER opens a DB connection, NEVER touches SQLite (there is none in this product), and NEVER writes a new endpoint. Gaps in the backend surface are typed blockers, not backend work.\n  6. egui + AccessKit. The panel is native egui (no web view). Register AccessKit nodes: daily-journal-panel (GenericContainer), daily-journal-date-header (Label/Heading), daily-journal-prev-day (Button), daily-journal-next-day (Button), daily-journal-calendar-event-chip (Button, present only when an event resolves), daily-journal-activity-strip (List), and per item daily-journal-activity-item-{doc_id} (ListItem/Button). Use the WP-011 AccessKit id registry (accessibility/registry.rs) to allocate these stable ids so swarm agents can address them.\n  7. Command bus wiring. Register on the WP-011 command bus (command_registry.rs + event_bus.rs): 'loom.daily-note.open-for-date' (payload: NaiveDate), 'loom.daily-note.focus-calendar-event' (payload: event_id), 'loom.activity.open-document' (payload: DocId). The calendar pane (MT-030) and the daily journal panel communicate only through these bus commands.\n  8. Error model. Define InteropError enum: Http(reqwest-style status), Decode(serde error), EndpointUnavailable (the typed blocker for the missing activity-span join), DailyNoteServiceError (propagated from MT-019), NotFound. EndpointUnavailable MUST be distinguishable from a generic HTTP error so the panel renders the correct empty-state and the validator can prove the typed-blocker path.\n\nDependencies / unblock conditions:\n  - MT-019 (daily notes + date navigation) must be merged: this MT delegates open-or-create to MT-019's daily-note service and reuses its date nav rather than rebuilding either.\n  - MT-030 (calendar pane / date-selected signal) must be merged: this MT consumes the date-selected command and emits focus-calendar-event back to MT-030's pane via the command bus.\n  - MT-037 must be merged (prerequisite interop/shell primitive this edge builds on).\n  - WP-011 shell primitives (pane_registry.rs, command_registry.rs + event_bus.rs command bus, accessibility/* AccessKit id registry) available — reuse, do not fork. (WP-011 is a cross-WP dependency satisfied by the merged kernel shell; it is not a depends_on MT id.)\n  - Existing handshake_core endpoints GET /calendar/events and GET /calendar/activity-spans reachable; if activity-spans is absent, that is the in-scope typed blocker, not a build task.\n\nRisk if missed: daily notes stay disconnected from the time-structured workspace; the Calendar force-multiplier edge (Pillar 2) is unbuilt, so the 'melt-together' invariant between editors and the calendar is broken and MT-073 (downstream) cannot proceed.",
@@ -537,28 +539,28 @@
     "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-067 FAIL V2. CalendarEvent stores only UTC bounds plus all_day, omitting required tzid, original local wall times, was_floating, and date-only all-day boundaries. contains_date uses inclusive UTC dates, violating the current lossless timezone/DST and half-open all-day rules; near-midnight non-UTC, DST, and multi-day events can bind the wrong daily note.",
+    "remediation_plan": [
+      "Implement the current CalendarEvent temporal contract end-to-end in backend wire and frontend domain: UTC instants plus tzid/original local intent, floating provenance, and date-only half-open all-day boundaries.",
+      "Add real PostgreSQL cases for Europe/Brussels near-midnight, DST gap/overlap, multi-day timed, and all-day events; then run canonical Argus navigation/re-observation and update canonical UserManual."
+    ],
+    "no_context_instruction": "Read MT-067.json and SPEC_CURRENT v02.201 calendar sections 2.0.1-2.1.2. Repair temporal semantics without rewriting the spec, prove real data and Argus behavior, then return READY_FOR_VALIDATION_V3."
   },
-  "fail_report": "MT-067 FAIL V2. CalendarEvent stores only UTC bounds plus all_day, omitting required tzid, original local wall times, was_floating, and date-only all-day boundaries. contains_date uses inclusive UTC dates, violating the current lossless timezone/DST and half-open all-day rules; near-midnight non-UTC, DST, and multi-day events can bind the wrong daily note.",
-  "remediation_plan": [
-    "Implement the current CalendarEvent temporal contract end-to-end in backend wire and frontend domain: UTC instants plus tzid/original local intent, floating provenance, and date-only half-open all-day boundaries.",
-    "Add real PostgreSQL cases for Europe/Brussels near-midnight, DST gap/overlap, multi-day timed, and all-day events; then run canonical Argus navigation/re-observation and update canonical UserManual."
-  ],
-  "no_context_instruction": "Read MT-067.json and SPEC_CURRENT v02.201 calendar sections 2.0.1-2.1.2. Repair temporal semantics without rewriting the spec, prove real data and Argus behavior, then return READY_FOR_VALIDATION_V3."
-},
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "verdict": "FAIL_V4",
@@ -635,5 +637,253 @@
       "Return READY_FOR_VALIDATION for an independent validator without self-issuing PASS."
     ],
     "no_context_instruction": "Read MT-067.json completely, then packet.json, current SPEC_CURRENT v02.202 Calendar clauses, tests/test_calendar_interop.rs, and tests/native_gui_support/canonical_argus_driver.rs. Reproduce both finish failures at source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e or a declared successor. Move each finish after authoritative product settlement, bind exact action-specific terminal predicates with recomputable UI/backend evidence, serialize fresh artifacts only after finish, rerun focused and complete live/GPU proofs with external artifacts, directly inspect frames, verify zero residue, and hand off READY_FOR_VALIDATION without relying on prior V3 artifacts."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:51.130Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_calendar_interop=RED@252{open_or_create_daily_note_is_idempotent_against_real_backend_live}). All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-067-N1B-110",
+        "command": "test_manual_content-836725be149f464b.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:16:22.568Z",
+        "finished_utc": "2026-09-16T07:16:24.671Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 41 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/110_test_manual_content.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-110-test_manual_content",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-067"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-067-N1B-153",
+        "command": "test_settings_dialog-901804751a423788.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:25:56.179Z",
+        "finished_utc": "2026-09-16T07:25:59.567Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 10 passed; 0 failed; 1 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/153_test_settings_dialog.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-153-test_settings_dialog",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-067"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-067-N1B-252",
+        "command": "test_calendar_interop-d64d9546ee00d6db.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:00:12.235Z",
+        "finished_utc": "2026-09-16T21:04:21.932Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 35 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/252_test_calendar_interop_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-252-test_calendar_interop",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-067"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-067-N1B-110": {
+        "binary": "test_manual_content",
+        "log_sha256": "ae09ea8f635d2cfa7af4528b4bafddbc37b154e574e004090ad50c28c7d6a50c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 2,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-067-N1B-153": {
+        "binary": "test_settings_dialog",
+        "log_sha256": "67daea0b07d25ed46a8816f27ac17893f56e1264d74fe24f7465c64869e5074d",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 3,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-067-N1B-252": {
+        "binary": "test_calendar_interop",
+        "log_sha256": "614b534db1bf07d12fb0f98a1a447313377f3556352ab7723a2bb469d982377e",
+        "exit_raw": "101",
+        "failing_tests": [
+          "open_or_create_daily_note_is_idempotent_against_real_backend_live"
+        ],
+        "wall_s": 250,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [],
+        "dirt_note": "clean",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-F403 (FR reads denied 403 by the backend authority layer)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-F403 (FR reads denied 403 by the backend authority layer)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_calendar_interop=RED@252{open_or_create_daily_note_is_idempotent_against_real_backend_live}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-F403",
+        "class": "BACKEND_AUTHORITY_DENIES_NATIVE_FR_READS",
+        "severity": "BLOCKING",
+        "detail": "Flight Recorder / EventLedger reads issued by native proofs (`GET /api/flight_recorder?wsid=`, `GET /events?wsid=`, 'ledger GET', 'GET Flight Recorder') return 403 {error: HSK-403-PROTECTED-RESOURCE} = api/authority.rs constant_denial() from authorize_request (protected-resource grant layer; 2e28ff91 'MT-109 enforce protected resource grants' + MT-141 backend remediation on this branch). The native proof support (tests/backend_proof_support/mod.rs live_flight_recorder_session_token, get_json_with_session_token) presents only x-hsk-session-token and never performs the POST /authority/session local-session exchange, so every native FR read is denied. Present with the fd9060de-built backend too (pass-1 logs 025/026 show the same 403 before the env-invalid failures), i.e. not introduced by C-prime. Owner: backend authority contract (MT-109/MT-141) vs native proof support; needs an Orchestrator decision on which side adapts (credential the native fixture/clients through /authority/session, or grant FR reads to the FR session token)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-F403 (FR reads denied 403 by the backend authority layer)) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

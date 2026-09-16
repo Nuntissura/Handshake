@@ -14,7 +14,7 @@
   "title": "E10-MT-066-StageRouteAndCaptureInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-31T23:02:51.0697886Z",
+  "updated_at_utc": "2026-09-16T23:19:50.929Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-014",
@@ -35,10 +35,10 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260731-195928",
-    "validated_at_utc": "2026-07-31T23:02:51.0697886Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:50.929Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: embed-back leg orphaned in the live shell - (1) enabled Embed-Stage-Capture palette row has NO dispatch arm (falls to warn+false silent no-op, contradicting the catalog comment); (2) register_embed_stage_capture_command called only in tests; (3) StagePane::show_round_trip (the surface with the embed-back button) renders only via a dock mount no code ever opens - live bottom panel uses the button-less MT-033 show(); (4) stage_embed_requested drain is just request_repaint. EmbedBackEndpointAbsent can never surface to an operator. Also two forked StagePane instances (live bottom panel vs never-opened dock) - share one Arc<Mutex<StagePane>>. proofs claim bidirectional visually verified but the screenshot is a fixture render of a surface the shell never mounts. Route leg IS live (app.rs:6684 drain) and stays.",
@@ -286,7 +286,9 @@
         "blockers": 0
       },
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
-    }
+    },
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "Goal: implement the bidirectional editors <-> Stage (Pillar 17) interop edge. Today MT-033 only routes a Common Knowledge Component (CKC) reference one way (editors -> Stage). This MT proves a full Stage round-trip: (1) a 'Route to Stage' command that sends a note, a text selection, or a canvas node from any editor pane to a Stage pane via the EXISTING handshake_core Stage route API, and (2) an embed-back path that takes a Stage capture artifact — together with its SHA-256 manifest provenance — and inserts it into a note or canvas as an MT-014 embed NodeView. There is NO backend build in this MT: bind only existing handshake_core endpoints; if the Stage embed-back retrieval endpoint is absent, raise a typed blocker (do not stub, do not add a backend route).\n\nThe expected diff shape is: (a) one new Rust module src/frontend/handshake_native/src/interop/stage_interop.rs (~300-450 lines) defining the route-to-Stage payload builders, the Stage round-trip client wrappers over the existing handshake_core HTTP API, and the embed-back -> NodeView conversion; (b) a new pane module src/frontend/handshake_native/src/stage_pane.rs (~200-350 lines) that hosts the Stage surface inside the egui shell, registers into the WP-011 pane registry (pane_registry.rs), receives routed content, and exposes a 'Capture -> Embed back' action; (c) integration tests proving the payload shape, the FR event emission, the round-trip against a REAL PostgreSQL/EventLedger, and the typed-blocker path.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/stage_interop.rs\n      * StageRouteSource enum: NoteRef { workspace_id, note_id } | Selection { workspace_id, source_pane_id, text, source_ref } | CanvasNode { workspace_id, canvas_id, node_id, node_kind }.\n      * struct StageRoutePayload { workspace_id: String, source: StageRouteSource, target_stage_pane: Option<PaneId>, correlation_id: String } with fn build_from_selection(sel: &SharedSelection) -> Result<StageRoutePayload, StageInteropError> and fn build_from_canvas_node(node: &CanvasNodeRef) -> Result<StageRoutePayload, StageInteropError>. These build the payload deterministically; build_from_selection reads the shared selection state published on the WP-011 shared command/event bus (command_registry.rs + event_bus.rs) (TextRange / BlockRef / NodeRef variants).\n      * fn route_to_stage(client: &HandshakeClient, payload: &StageRoutePayload) -> Result<RouteAck, StageInteropError> that POSTs to the EXISTING endpoint POST /workspaces/{workspace_id}/stage/route and, on success, emits the route_to_stage Flight-Recorder (FR) event defined in MT-036 via the FR event bus (do NOT invent a new event name; reuse MT-036's route_to_stage emitter).\n      * struct StageArtifactRef { artifact_id: String, workspace_id: String, sha256: String, manifest: StageManifest } and fn fetch_stage_artifact(client: &HandshakeClient, workspace_id: &str, artifact_id: &str) -> Result<StageArtifactRef, StageInteropError> that GETs the EXISTING endpoint GET /workspaces/{workspace_id}/stage/artifacts/{id}. If the client returns 404 / 501 / not-implemented OR the route is not registered in the bound handshake_core API surface, return StageInteropError::EmbedBackEndpointAbsent (the typed blocker) — do not fabricate the artifact.\n      * fn embed_artifact_as_nodeview(artifact: &StageArtifactRef) -> Result<EmbedNodeView, StageInteropError> that converts a fetched Stage artifact into an MT-014 embed NodeView (reuse MT-014's EmbedNodeView / embed-block type; do not define a parallel embed type). The NodeView MUST carry the artifact's SHA-256 and a provenance descriptor { source: \"stage_capture\", artifact_id, sha256, manifest_ref } so evidence-grade provenance survives the embed.\n      * StageInteropError enum: BadSelection | EmptyPayload | RouteRejected { status: u16 } | EmbedBackEndpointAbsent | ProvenanceMissing | Transport(String).\n  - src/frontend/handshake_native/src/stage_pane.rs\n      * struct StagePane { pane_id: PaneId, workspace_id: String, ... } implementing the WP-011 pane trait; registers into the WP-011 pane registry (pane_registry.rs) and the AccessKit id registry (accessibility/registry.rs) with stable author_id \"stage-pane\" (Role::GenericContainer) and child action button author_id \"stage-capture-embed-back\" (Role::Button, actions=[Press]).\n      * fn receive_routed_content(&mut self, payload: &StageRoutePayload): renders the routed note/selection/canvas-node inside the Stage surface (port the visual surface from the React Stage components + MediaDownloaderView capture/import reference).\n      * fn capture_and_embed_back(&mut self, client: &HandshakeClient, target: EmbedTarget) -> Result<(), StageInteropError>: calls fetch_stage_artifact then embed_artifact_as_nodeview then inserts the EmbedNodeView into the target note or canvas (target = note pane or canvas pane resolved via the WP-011 pane registry (pane_registry.rs) / shared bus focus owner (event_bus.rs)).\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/lib.rs  — add `pub mod stage_pane;` and `pub mod interop;` (and, inside interop, `pub mod stage_interop;`); if interop/ does not yet exist, create src/frontend/handshake_native/src/interop/mod.rs declaring `pub mod stage_interop;`.\n  - src/frontend/handshake_native/src/pane_registry.rs  — register StagePane in the pane factory.\n  - src/frontend/handshake_native/src/command_registry.rs  — register the 'Route to Stage' command (id \"route-to-stage\", label \"Route to Stage\", default keybind Ctrl+Shift+S or OS-appropriate) whose handler calls stage_interop::route_to_stage on the current shared selection / focused canvas node, and register the 'Embed Stage Capture' command (id \"embed-stage-capture\") on the Stage pane. Do NOT duplicate MT-033's existing CKC route-to-Stage command; this MT EXTENDS it into a proven round-trip (reuse MT-033's command surface and add the embed-back leg).\n\nStep-by-step implementation notes:\n  1. Reuse, do not reinvent: the route-to-Stage one-way path already exists from MT-033 (CKC route-to-Stage). Wire route_to_stage() to the SAME existing POST /workspaces/{workspace_id}/stage/route endpoint MT-033 uses; this MT adds (a) selection + canvas-node payload builders and (b) the embed-back return leg.\n  2. Payload builders read selection state from the WP-011 shared command/event bus (command_registry.rs + event_bus.rs) (depends_on is satisfied transitively through MT-033 which depends on MT-031); build_from_selection maps SharedSelection::TextRange -> Selection source, ::BlockRef -> NoteRef, ::NodeRef -> CanvasNode.\n  3. On a successful POST, emit MT-036's route_to_stage FR event via the existing FR event bus so the round-trip is observable in the Flight-Recorder timeline. Use MT-036's emitter signature exactly; do not add a new event kind.\n  4. The embed-back leg: GET /workspaces/{workspace_id}/stage/artifacts/{id}. Bind via the existing HandshakeClient (backend_client.rs). If the endpoint is missing from the bound handshake_core surface (route absent, 404/501, or client method does not exist), return StageInteropError::EmbedBackEndpointAbsent and surface it to the operator as a typed blocker — this is the HARD no-backend-rewrite rule: gaps are typed blockers, never new backend routes.\n  5. Convert the fetched artifact to an MT-014 embed NodeView (reuse MT-014's embed-block / NodeView type). The NodeView MUST preserve SHA-256 manifest provenance; if the fetched artifact has no sha256 or manifest, return StageInteropError::ProvenanceMissing rather than embedding an unverifiable artifact.\n  6. Insert the EmbedNodeView into the target note (rich-text pane document model) or canvas (canvas pane node graph, canvas_board.rs) resolved through the WP-011 pane registry (pane_registry.rs) and the shared bus focus owner (event_bus.rs).\n  7. AccessKit: register \"stage-pane\" (GenericContainer), \"stage-capture-embed-back\" (Button), and the routed-content region \"stage-routed-content\" (GenericContainer) into the WP-011 AccessKit id registry (accessibility/registry.rs) so swarm agents can drive the round-trip.\n  8. HARD constraints: PostgreSQL/EventLedger only — no SQLite anywhere; no backend rewrite (bind existing handshake_core APIs via backend_client.rs, gaps are typed blockers); egui+AccessKit native; reuse WP-011 shell primitives (pane_registry.rs, command_registry.rs + event_bus.rs, accessibility/registry.rs).\n\nDependencies / unblock conditions:\n  - MT-014 (embed NodeView / embed-block type) must be merged — embed-back reuses its NodeView.\n  - MT-033 (CKC route-to-Stage one-way command) must be merged — this MT extends it.\n  - MT-036 (Flight-Recorder route_to_stage event) must be merged — route_to_stage() emits its event.\n  - Cross-WP: the WP-011 shell primitives (pane_registry.rs, command_registry.rs, event_bus.rs, accessibility/registry.rs, backend_client.rs) must already exist in src/frontend/handshake_native/src/; this MT reuses them and does not recreate them.\n\nRisk if missed: the Stage creative-capture edge stays one-directional (CKC -> Stage only); evidence-grade captures (with SHA-256 manifest provenance) cannot flow back into notes or canvas, breaking the closed-loop creative+evidence workflow that Pillar 17 promises.",
@@ -739,5 +741,415 @@
       "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
     ],
     "no_context_instruction": "Read MT-066.json completely, then packet.json, MT-014.json, MT-033.json, MT-036.json, current SPEC_CURRENT v02.202 Stage/Flight Recorder clauses, tests/test_stage_interop.rs, and the relevant PostgreSQL foreign-key schema. Reproduce the exact Canvas cleanup failure against an isolated binding root, repair cleanup ordering and idempotent recovery in authorized scope, preserve user-owned dirty changes, establish a clean committed proof source without weakening provenance, resolve dependencies, run the exact focused and full live/GPU proofs with external artifacts, directly inspect the new screenshots, query zero residue, and hand off READY_FOR_VALIDATION without relying on prior V3 evidence."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:50.929Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_stage_interop=RED@281{live_route_round_trip_real_surrealdb,mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent,mt066_canvas_board_evidence_does_not_block_product_cleanup,mt066_stage_card_bridge_evidence_does_not_block_product_cleanup}; test_ckc_embed=RED@255{ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend,ac5_atelier_side_panel_loads_from_live_backend}; test_block_collection_view=RED@251{block_collection_views_live_surrealdb_self_seed_full_round_trip}). All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-066-N1B-110",
+        "command": "test_manual_content-836725be149f464b.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:16:22.568Z",
+        "finished_utc": "2026-09-16T07:16:24.671Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 41 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/110_test_manual_content.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-110-test_manual_content",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-066"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-066-N1B-251",
+        "command": "test_block_collection_view-d2abb940e0e35468.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T20:56:30.817Z",
+        "finished_utc": "2026-09-16T21:00:12.177Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 47 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/251_test_block_collection_view_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-251-test_block_collection_view",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-066"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-066-N1B-255",
+        "command": "test_ckc_embed-becd5333881e8919.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:12:23.644Z",
+        "finished_utc": "2026-09-16T21:15:13.587Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 43 passed; 2 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/255_test_ckc_embed_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-255-test_ckc_embed",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-066"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-066-N1B-264",
+        "command": "test_find_in_files-7bf52789c196e0d7.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:37:39.398Z",
+        "finished_utc": "2026-09-16T21:40:11.009Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 35 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/264_test_find_in_files_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-264-test_find_in_files",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-066"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-066-N1B-281",
+        "command": "test_stage_interop-aed60d996a7bcc26.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:13:14.110Z",
+        "finished_utc": "2026-09-16T22:18:41.473Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 32 passed; 4 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/281_test_stage_interop_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-281-test_stage_interop",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-066"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-066-N1B-298",
+        "command": "test_app_host_mount-ad0d5e2c7a61c812.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:46:53.116Z",
+        "finished_utc": "2026-09-16T22:54:58.049Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 60 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/298_test_app_host_mount_pass3-solo.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-298-test_app_host_mount",
+          "tag": "pass3-solo"
+        },
+        "covers": [
+          "MT-066"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-066-N1B-110": {
+        "binary": "test_manual_content",
+        "log_sha256": "ae09ea8f635d2cfa7af4528b4bafddbc37b154e574e004090ad50c28c7d6a50c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 2,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-066-N1B-251": {
+        "binary": "test_block_collection_view",
+        "log_sha256": "6acdd4f5c066adc179c9079452fce1f7749679b4cbfdb9abe4b2f704056d1d48",
+        "exit_raw": "101",
+        "failing_tests": [
+          "block_collection_views_live_surrealdb_self_seed_full_round_trip"
+        ],
+        "wall_s": 221,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [],
+        "dirt_note": "clean",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-066-N1B-255": {
+        "binary": "test_ckc_embed",
+        "log_sha256": "4f49c94b79e73490583dd0e6bef236140140e1c92d5ee466f47a58ef3f16850d",
+        "exit_raw": "101",
+        "failing_tests": [
+          "ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend",
+          "ac5_atelier_side_panel_loads_from_live_backend"
+        ],
+        "wall_s": 170,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [],
+        "dirt_note": "clean",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-066-N1B-264": {
+        "binary": "test_find_in_files",
+        "log_sha256": "7807a72b4dfaeedc6f66395b2af8c526d4b68acc88f6a27ff73fc4de1f4b1acb",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 152,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-066-N1B-281": {
+        "binary": "test_stage_interop",
+        "log_sha256": "628f1433e083e610769dd65dc274fb78101508257e108945048c7216d62d55a8",
+        "exit_raw": "101",
+        "failing_tests": [
+          "live_route_round_trip_real_surrealdb",
+          "mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent",
+          "mt066_canvas_board_evidence_does_not_block_product_cleanup",
+          "mt066_stage_card_bridge_evidence_does_not_block_product_cleanup"
+        ],
+        "wall_s": 327,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-066-N1B-298": {
+        "binary": "test_app_host_mount",
+        "log_sha256": "119321dfc6f4b3cc9d6bbc5f8a5dd727f331894c3e179b344195d531e1d5a6d5",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 485,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-FDIRTY; N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion); N1B-P3-F401 (atelier intake POST 401)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-FDIRTY; N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion); N1B-P3-F401 (atelier intake POST 401)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_stage_interop=RED@281{live_route_round_trip_real_surrealdb,mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent,mt066_canvas_board_evidence_does_not_block_product_cleanup,mt066_stage_card_bridge_evidence_does_not_block_product_cleanup}",
+      "test_ckc_embed=RED@255{ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend,ac5_atelier_side_panel_loads_from_live_backend}",
+      "test_block_collection_view=RED@251{block_collection_views_live_surrealdb_self_seed_full_round_trip}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-FDIRTY",
+        "class": "DIRTY_TREE_GATE_FROM_TRACKED_FIXTURE_WRITE",
+        "severity": "BLOCKING_MT-066",
+        "detail": "test_stage_interop::live_route_round_trip_real_surrealdb (MT-066 canonical proof) refuses to run while transitive runtime source is dirty; at seq 281 the only dirty path was src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt, rewritten by test_e7_swarm_edit_proof (seq 259, TRACKED_FIXTURE_WRITE N1B-F001). Per instruction the file was NOT restored; the MT-066 canonical proof therefore could not run at C-prime in this sweep. Restore + rerun of test_stage_interop needs Operator/Orchestrator authorization."
+      },
+      {
+        "id": "N1B-P3-F403",
+        "class": "BACKEND_AUTHORITY_DENIES_NATIVE_FR_READS",
+        "severity": "BLOCKING",
+        "detail": "Flight Recorder / EventLedger reads issued by native proofs (`GET /api/flight_recorder?wsid=`, `GET /events?wsid=`, 'ledger GET', 'GET Flight Recorder') return 403 {error: HSK-403-PROTECTED-RESOURCE} = api/authority.rs constant_denial() from authorize_request (protected-resource grant layer; 2e28ff91 'MT-109 enforce protected resource grants' + MT-141 backend remediation on this branch). The native proof support (tests/backend_proof_support/mod.rs live_flight_recorder_session_token, get_json_with_session_token) presents only x-hsk-session-token and never performs the POST /authority/session local-session exchange, so every native FR read is denied. Present with the fd9060de-built backend too (pass-1 logs 025/026 show the same 403 before the env-invalid failures), i.e. not introduced by C-prime. Owner: backend authority contract (MT-109/MT-141) vs native proof support; needs an Orchestrator decision on which side adapts (credential the native fixture/clients through /authority/session, or grant FR reads to the FR session token)."
+      },
+      {
+        "id": "N1B-P3-F500",
+        "class": "BACKEND_LEDGER_WSIDS_COERCION_500",
+        "severity": "BLOCKING",
+        "detail": "GET /knowledge/code/symbols (code-nav lookup, also reached by the mounted CodeNavClient) returns 500 {error: quiet_receipt_failed, detail: 'embedded store error: embedded database error: Couldn't coerce value for field `wsids` of `kernel_event_ledger:KE-...`: Expected `array` but found `NONE`'}. Path: api/knowledge_code_nav.rs record_quiet_nav_receipt -> ParallelSwarmStateRecoveryStore::record_quiet_background_work (swarm_orchestration/state_recovery.rs) writes a kernel_event_ledger row without the SCHEMAFULL `wsids` array (storage/surreal/schema.surql:5758 DEFINE FIELD OVERWRITE wsids ... TYPE array<string>). Backend product defect. Reproduced through the fd9060de-built mt249_code_intelligence_fixture as well (seq 306), so it predates C-prime. Owner: backend lane (MT-141/MT-135/MT-109 state-recovery + ledger schema)."
+      },
+      {
+        "id": "N1B-P3-F401",
+        "class": "BACKEND_AUTHORITY_DENIES_ATELIER_INTAKE_POST",
+        "severity": "BLOCKING",
+        "detail": "POST /atelier/intake/batches/{batch_id}/items with the test's proof_headers returns 401 (test_ckc_embed ac2_ac3 / ac5, seq 255): same authority-layer class as N1B-P3-F403 (no local session)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-FDIRTY; N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion); N1B-P3-F401 (atelier intake POST 401)) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

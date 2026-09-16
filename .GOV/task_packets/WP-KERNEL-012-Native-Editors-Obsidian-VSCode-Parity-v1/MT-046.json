@@ -14,7 +14,7 @@
   "title": "E8-MT046-InterconnectionScenarioProofs",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-08-03T07:01:17.058Z",
+  "updated_at_utc": "2026-09-16T23:19:50.257Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-046.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -38,11 +38,11 @@
       "MT-045"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "proof_status": "READY_FOR_VALIDATION_V4: source-bound canonical supervisor runs MT046-RUN-2E381429-V4-01 and MT046-RUN-2E381429-V4-02 both PASS at 2e38142955565c601b0f638850148b950b792751. Each immutable run has the exact 18-scenario set, 17 PASS plus only the authorized typed IC-13 HSK-409-LOOM-AI-NO-MODEL skip, 18 unique sealed attempts, 19 exact workspace cleanups, and canonical Argus terminal proof. Run 2 proves immutable baseline preservation, identical accepted projection, distinct attempts, and zero cross-run attempt overlap.",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260731-195928",
-    "validated_at_utc": "2026-07-31T22:44:10.2012618Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:50.257Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: IC-07 (manifest PASS) fabricates its copy-as-note-reference half - the test constructs the [[code:...]] string itself and writes it to its own MockClipboard; NO production copy-as-note-reference command exists anywhere in src/. Per MT-046's own VERIFY-OR-BLOCKER discipline this should have been a typed blocker, not PASS. The clipboard edge of HBR-INT-012-01 is unproven. IC-06/09 inject triggering events programmatically (sanctioned, minor). Positive: IC-15/16/18 unified-undo substrate proofs genuinely real on ONE bus with real product adapters; IC-17 correctly REQUIRES_PG. Fix: downgrade IC-07 to BLOCKED/PARTIAL, build the copy-as-note-reference command (or typed blocker), drive IC-06/09 from rendered chips via AccessKit at re-run; 9 REQUIRES_PG scenarios join the managed-PG batch.",
@@ -121,7 +121,9 @@
       "needs_managed_resource_proof": "9 REQUIRES_PG scenarios (IC-01/02/03/04/10/11/12/14/17) -> live-PG batch. IC-03/04 currently note-fallback PARTIAL (backend ckc_moodboard/ckc_character absent); now that backend is IN SCOPE, adding those LoomBlockContentType variants (backend Route 5) lets IC-03/04 go beyond PARTIAL.",
       "optional_accuracy": "IC-05/IC-06 AC wording names unregistered AccessKit ids (honest substitutions in tests); pre-set IC-03/04 manifest PARTIAL. mark_status mutates the manifest during cargo test (dirties tree, MT-044 precedent)."
     },
-    "livepg_evidence_2026_07_09": "LIVE-PG (2026-07-09): ~5/9 requires_pg interconnect round-trips PASS live (interconnect_support identity-header fix commit 286aca3c + CKC content-types route5). IC-03/04 ckc_moodboard/character types now exist backend-side. Remaining = scenario-specific seed. 15 substrate proofs already in-process."
+    "livepg_evidence_2026_07_09": "LIVE-PG (2026-07-09): ~5/9 requires_pg interconnect round-trips PASS live (interconnect_support identity-header fix commit 286aca3c + CKC content-types route5). IC-03/04 ckc_moodboard/character types now exist backend-side. Remaining = scenario-specific seed. 15 substrate proofs already in-process.",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "GOAL: Author and execute the Interconnection Scenario Proof suite. This MT proves that the four core 'melt-together' interconnection edges declared in the WP-KERNEL-012 interconnection_contract actually work at runtime — not as assertions in unit isolation but as end-to-end scenarios that cross surface boundaries. These are the hardest proofs in the WP because they require multiple surfaces to be running simultaneously, sharing real state through the existing backend.\n\nEXPECTED DIFF SHAPE: Creates the flat interconnection proof test files under src/frontend/handshake_native/tests/: (a) test_interconnect_manifest.json with one entry per scenario; (b) test_interconnect_ckc_to_note.rs (CKC media -> note embed scenarios); (c) test_interconnect_note_code_crossref.rs (note <-> code cross-reference scenarios); (d) test_interconnect_loom_backlink_search.rs (Loom backlink + search across surfaces); (e) test_interconnect_shared_undo_ledger.rs (shared undo + event-ledger scenarios). Each file tests a complete cross-surface workflow with real PG state, not mocked connections.\n\nINTERCONNECTION EDGE 1 — CKC media -> note embed (test_interconnect_ckc_to_note.rs)\n\nScenario IC-01 — Drag CKC image into note: Simulate the drag-and-drop flow where a CKC media asset (stored as a real PG asset row) is dragged from the CKC/Studio surface into an open rich-text note. Expected result: the note's block document gains an hsLink node of kind 'HS_images' pointing to the asset's PG ID; the note is saved via PUT /workspaces/{id}/knowledge/documents/{doc_id}; loading the note back returns the hsLink node with the correct asset_id. Implementation: (1) create a test asset via POST /workspaces/{id}/assets (or direct DB insert via the storage layer); (2) call the native rich-editor API for InsertEmbed { kind: HsLinkKind::Image, ref_value: asset_id.to_string() }; (3) call save on the native editor, which calls PUT /workspaces/{id}/knowledge/documents/{doc_id}; (4) load the doc back, assert the hsLink node with kind='HS_images' and ref_value==asset_id exists in the block tree. Verify the embed renders by calling GET /workspaces/{id}/assets/{asset_id} and asserting 200.\n\nScenario IC-02 — Drag CKC video into note: Same as IC-01 but with content_type='video/mp4'. Assert hsLink node kind='video' in the saved doc.\n\nScenario IC-03 — Drag CKC moodboard card into canvas: Simulate dragging a CKC moodboard-type Loom block (a block with content_type='ckc_moodboard') onto the Loom canvas board. Expected result: POST /workspaces/{id}/loom/canvas-boards/{board_id}/placements succeeds with the moodboard block_id; GET /workspaces/{id}/loom/canvas-boards/{board_id} returns the placement with block_id == moodboard_block_id. This proves the canvas board accepts CKC-typed blocks as first-class citizens.\n\nScenario IC-04 — CKC character referenced in note: Create a Loom block with content_type='ckc_character'. In the note, insert a [[loom_block:character_block_id]] wikilink. Save the note. Assert: the note's block tree contains the hsLink node referencing the character block. Call GET /workspaces/{id}/loom/blocks/{character_block_id}/backlinks and assert the note's block ID appears as a backlink. This proves that wikilinks to CKC entities create real Loom backlinks.\n\nScenario IC-05 — Route note selection to Stage pane: Select a text range in an open note. Trigger the 'route-to-stage' command (implemented in MT-034). Assert: a Stage pane event is emitted via the command bus with the selected text and source block_id. The Stage pane (CKC surface) receives the event and displays the selection. Verify via AccessKit: the Stage pane widget with author_id='stage.selection.preview' has updated label text matching the selected text.\n\nINTERCONNECTION EDGE 2 — Note <-> code cross-reference (test_interconnect_note_code_crossref.rs)\n\nScenario IC-06 — Open code block from note: In a rich-text note, insert a [[symbol:rust::src/lib.rs::my_function]] hsLink node. Click the link (simulate via AccessKit action Activate on the widget with author_id matching the hsLink node). Assert: the Code editor pane opens to the file 'src/lib.rs' and scrolls to the line range of 'my_function' as returned by GET /workspaces/{id}/code-nav/symbols/{symbol_entity_id}. Requires: a real code-nav symbol exists in PG (create one via the code-nav indexer or direct insert).\n\nScenario IC-07 — Reference code symbol from note: In the Code editor, place the cursor on a function name. Trigger 'Copy as note reference' (MT-033 command). Assert: the clipboard receives a string '[[symbol:rust::path/to/file.rs::function_name]]'. Paste into the note. Assert: the note's block tree gains an hsLink node of kind='symbol' with the correct ref_value. Save and reload. Assert the node persists.\n\nScenario IC-08 — Shared find/replace across code and note: Open the global find/replace surface (MT-029 find-in-files + rich doc find, bridged via the shared command bus from MT-031). Enter a query string that exists in BOTH a code file and a note. Assert: results contain entries from BOTH surfaces (at least one code file hit and one note hit). This proves the shared command bus routes the find request to both editor backends.\n\nScenario IC-09 — Code diagnostics surface note reference: Inject a fake LSP diagnostic with a 'related information' entry pointing to a note's KRD block ID. Assert: the Code editor's gutter diagnostic for that line includes a hyperlink chip referencing the note. Clicking the chip (AccessKit action on the diagnostic chip widget) triggers navigation to the note in the rich editor pane. Verify via AccessKit: after the click, the rich editor pane with author_id='rich_editor.pane.{doc_id}' gains focus.\n\nINTERCONNECTION EDGE 3 — Loom backlink + search across surfaces (test_interconnect_loom_backlink_search.rs)\n\nScenario IC-10 — Backlink appears across surfaces: Create a rich-text note A (KRD-based, Loom block loom_A). In the note, add a wikilink to a code-block document B (another Loom block loom_B). Save note A. Assert: GET /workspaces/{id}/loom/blocks/{loom_B}/backlinks returns an entry whose source_block_id == loom_A. This proves that saving a note with a wikilink registers a real Loom backlink edge in PG, not a local-only reference.\n\nScenario IC-11 — Loom Search v2 surfaces results from both editors: Create one rich-text note and one code-file Loom block, both containing the string 'XSEARCH_PROBE'. Call POST /workspaces/{id}/loom/search-v2 with query='XSEARCH_PROBE'. Assert: hits contain BOTH block IDs. Assert: content_type_facets includes both 'knowledge_rich_document' and 'code_file' (or equivalent content types).\n\nScenario IC-12 — Graph view shows cross-surface edges: After IC-10, call GET /workspaces/{id}/loom/graph with depth=2 and block_id=loom_A. Assert: the graph response contains both loom_A and loom_B as nodes, with an edge connecting them. Render the graph layout in the native knowledge surface (force-directed layout call). Assert no layout panic and that both nodes appear at distinct positions.\n\nScenario IC-13 — AI Loom job proposes cross-surface link: Create a rich-text note whose content describes 'my_function' from a code file. Run the link-suggest AI job (POST /workspaces/{id}/loom/ai-jobs with kind='link_suggest', block_ids=[note_block_id]). Assert: at least one suggestion targets the code file's Loom block. Accept the suggestion (POST /workspaces/{id}/loom/ai-suggestions/{suggestion_id}/accept). Assert: GET /workspaces/{id}/loom/blocks/{note_block_id}/backlinks now includes the code file block. (This scenario requires a real AI model endpoint; if SKIP_AI_TESTS=1, mark #[ignore] with explicit console output.)\n\nScenario IC-14 — Quick-switcher surfaces items from both editors: Call GET /workspaces/{id}/loom/quick-switcher?q=XSEARCH_PROBE. Assert: results contain entries from BOTH the note (content_type='knowledge_rich_document') and the code block (content_type='code_file'). Assert: each result has a block_id, title, content_type, and updated_at.\n\nINTERCONNECTION EDGE 4 — Shared undo + event-ledger across surfaces (test_interconnect_shared_undo_ledger.rs)\n\nScenario IC-15 — Undo crosses rich editor edit: Edit a rich-text note (insert 'EDIT_A'). Trigger global undo (Ctrl+Z via the shared undo stack implemented in MT-035). Assert: the note's content no longer contains 'EDIT_A'. Assert: GET /workspaces/{id}/knowledge/documents/{doc_id} returns the pre-edit version (optimistic concurrency version decremented or document body reverted). This proves the shared undo stack is wired to the backend save pathway.\n\nScenario IC-16 — Undo crosses code editor edit: Edit a code buffer (insert 'CODE_EDIT' at line 1). Trigger global undo. Assert: the buffer no longer contains 'CODE_EDIT' at line 1. Assert: if the code buffer is backed by the PG code-file store, the persisted version is also reverted.\n\nScenario IC-17 — Event-ledger records cross-surface actions: Perform a sequence: (1) insert text in note, (2) save note, (3) insert wikilink to code block, (4) save note again. Call GET /workspaces/{id}/events?source_block_id={note_loom_block_id}&limit=10. Assert: at least 2 KNOWLEDGE_RICH_DOCUMENT_SAVED events appear in the ledger, in order. Assert: the second event's payload contains the wikilink block reference. This proves the event-ledger captures real-time cross-surface authoring history.\n\nScenario IC-18 — Shared undo stack policy: scoped per-pane vs. global: Open two panes simultaneously (rich editor note A and code editor file B). Edit both. Trigger undo once. Assert: the undo reverts the MOST RECENTLY EDITED surface (not both). This proves the shared undo stack respects the per-pane scope policy declared in MT-035. The assertion checks: if the code edit was last, the code buffer reverts; the note is unchanged.\n\nSHARED UNDO BACKEND CONTRACT: The native undo stack (MT-035) must write an undo snapshot before every save. Snapshot format: { surface: 'rich_editor' | 'code_editor', doc_id, version_before, content_before: bytes }. On undo, the system re-saves content_before to the backend. These tests verify this contract without reimplementing it (the contract is implemented in MT-035; these tests call it).\n\nINTERCONNECT MANIFEST (src/frontend/handshake_native/tests/test_interconnect_manifest.json): one entry per scenario: { scenario_id, edge, description, surfaces_involved: [], backend_apis_called: [], proof_fn, status }. Updated by the test runner. 18 entries total (IC-01..IC-18).\n\nFILES TO CREATE:\n  - src/frontend/handshake_native/tests/test_interconnect_manifest.json\n  - src/frontend/handshake_native/tests/test_interconnect_ckc_to_note.rs (IC-01..IC-05)\n  - src/frontend/handshake_native/tests/test_interconnect_note_code_crossref.rs (IC-06..IC-09)\n  - src/frontend/handshake_native/tests/test_interconnect_loom_backlink_search.rs (IC-10..IC-14)\n  - src/frontend/handshake_native/tests/test_interconnect_shared_undo_ledger.rs (IC-15..IC-18)\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Reuse the workspace fixture builder and PG setup from MT-044/MT-045.\n2. For AccessKit-based interaction proofs (IC-05, IC-09): use egui_kittest to build the widget tree and simulate actions by author_id. Assert the resulting egui context has the expected focus or label state. Reuse the AccessKit registration/snapshot helpers in handshake_native::accessibility::* (mod.rs, live.rs, registry.rs, snapshot.rs).\n3. For the command-bus proofs (IC-08): instantiate the shared command bus built on handshake_native::command_registry (commands) and handshake_native::event_bus (cross-surface dispatch) in-process, subscribe both editor surfaces, dispatch a FindQuery command, and collect results from both.\n4. For IC-13 (AI job), gate with SKIP_AI_TESTS=1 env var and mark #[ignore] with explicit console output. Never assert on specific AI content; only assert that the suggestion list is non-empty and the accept endpoint writes a real edge.\n5. IC-15 and IC-16 (undo): the test must call the real shared undo stack push(snapshot) before the edit, then undo() after, and then verify backend state via GET, not by inspecting in-memory state only.\n6. All scenarios must clean up their PG rows in a DropGuard.\n7. The interconnection proof files are flat integration tests under src/frontend/handshake_native/tests/test_interconnect_*.rs; each is automatically picked up by cargo's integration-test harness. No [[test]] stanza is required for flat tests/test_*.rs files.\n8. Each test function that calls an AccessKit surface must call the accessibility flush helper in handshake_native::accessibility (e.g. accessibility::flush_pending_updates() or the snapshot refresh in accessibility::snapshot) after simulating an action, to ensure the AccessKit tree is up-to-date before asserting labels or focus.",
@@ -523,28 +525,28 @@
     "ready_for_validation_v3": true
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-046 FAIL V2. Interconnection proof cannot close while the current shared native gate is red and the required Stage/Calendar/Locus/editor interactions lack a complete canonical Argus inspect/steer/re-observe matrix. A scenario manifest alone does not prove the mounted product surfaces.",
+    "remediation_plan": [
+      "Rerun every non-AI interconnection scenario against real services/current source after MT-045 and the shared native failures are green; preserve exact IDs and receipts.",
+      "Drive each mounted interconnection through canonical Argus with stable author_ids, safe action, fresh observation, and screenshot/tree evidence; keep only the explicitly permitted AI gate skipped."
+    ],
+    "no_context_instruction": "Read MT-046.json, dependencies, packet, and current spec. Close the shared-suite and full canonical Argus matrix before READY_FOR_VALIDATION_V3."
   },
-  "fail_report": "MT-046 FAIL V2. Interconnection proof cannot close while the current shared native gate is red and the required Stage/Calendar/Locus/editor interactions lack a complete canonical Argus inspect/steer/re-observe matrix. A scenario manifest alone does not prove the mounted product surfaces.",
-  "remediation_plan": [
-    "Rerun every non-AI interconnection scenario against real services/current source after MT-045 and the shared native failures are green; preserve exact IDs and receipts.",
-    "Drive each mounted interconnection through canonical Argus with stable author_ids, safe action, fresh observation, and screenshot/tree evidence; keep only the explicitly permitted AI gate skipped."
-  ],
-  "no_context_instruction": "Read MT-046.json, dependencies, packet, and current spec. Close the shared-suite and full canonical Argus matrix before READY_FOR_VALIDATION_V3."
-},
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "verdict": "FAIL_V4",
@@ -610,5 +612,307 @@
       "A second new-RunId invocation also passes with newly created attempt IDs and no scenario-owned database rows, child processes, locks, or repo-local artifacts left behind."
     ],
     "no_context_instruction": "Read MT-046.json completely, its dependency MT verdicts, packet.json, SPEC_CURRENT v02.202 anchors, all four test_interconnect_*.rs files, interconnect_support/mod.rs, and the fresh external attempts written between 2026-07-31T22:10:35Z and 22:37:51Z. Preserve the green product assertions, but do not reuse their mixed run projections. Repair dependency failures, make the canonical run ID/source/backend/manifest bindings mandatory, restore exactly 18 filtered scenario tests, add fail-closed provenance/timeout behavior, run all four binaries under one supervisor and one run ID, complete the mounted canonical-Argus matrix, and prove a second idempotent run. Return READY_FOR_VALIDATION only after every V4 verification requirement is evidenced; do not self-issue PASS."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:50.257Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_interconnect_note_code_crossref=RED@272{interconnect_ic06_open_code_block_from_note}; test_interconnect_loom_backlink_search=RED@271{interconnect_ic11_search_v2_across_surfaces,interconnect_ic14_quick_switcher_both_editors}). test_interconnect_ckc_to_note 292@C-prime (GPU) and test_interconnect_shared_undo_ledger 273@C-prime green. All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-046-N1B-271",
+        "command": "test_interconnect_loom_backlink_search-912e843c92e06ab0.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:49:49.422Z",
+        "finished_utc": "2026-09-16T21:54:10.774Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 22 passed; 2 failed; 1 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/271_test_interconnect_loom_backlink_search_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-271-test_interconnect_loom_backlink_search",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-046"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-046-N1B-272",
+        "command": "test_interconnect_note_code_crossref-1172561115ef77bb.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:54:10.828Z",
+        "finished_utc": "2026-09-16T21:58:31.672Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 21 passed; 1 failed; 4 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/272_test_interconnect_note_code_crossref_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-272-test_interconnect_note_code_crossref",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-046"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-046-N1B-273",
+        "command": "test_interconnect_shared_undo_ledger-4d7d74205700af53.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:58:31.734Z",
+        "finished_utc": "2026-09-16T22:00:12.554Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 21 passed; 0 failed; 3 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/273_test_interconnect_shared_undo_ledger_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-273-test_interconnect_shared_undo_ledger",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-046"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-046-N1B-292",
+        "command": "test_interconnect_ckc_to_note-acd240444e8a3124.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:32:05.137Z",
+        "finished_utc": "2026-09-16T22:46:06.218Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 23 passed; 0 failed; 1 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/292_test_interconnect_ckc_to_note_pass3-gpu-fix.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-292-test_interconnect_ckc_to_note",
+          "tag": "pass3-gpu-fix"
+        },
+        "covers": [
+          "MT-046"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-046-N1B-271": {
+        "binary": "test_interconnect_loom_backlink_search",
+        "log_sha256": "1451e8b1bd339ee098073edfc012e16b5e515611f97cd2328bc163bd43820478",
+        "exit_raw": "101",
+        "failing_tests": [
+          "interconnect_ic11_search_v2_across_surfaces",
+          "interconnect_ic14_quick_switcher_both_editors"
+        ],
+        "wall_s": 261,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-046-N1B-272": {
+        "binary": "test_interconnect_note_code_crossref",
+        "log_sha256": "0e6668cf64ec9c31930eb806cc1f394ba14cd98bbc0732a0b128bfc26d7056b8",
+        "exit_raw": "101",
+        "failing_tests": [
+          "interconnect_ic06_open_code_block_from_note"
+        ],
+        "wall_s": 261,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-046-N1B-273": {
+        "binary": "test_interconnect_shared_undo_ledger",
+        "log_sha256": "a1dd97b64cb0f9d9b71f769937217ab5f2dc57df658a44f66aee87daecf77e5c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 101,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-046-N1B-292": {
+        "binary": "test_interconnect_ckc_to_note",
+        "log_sha256": "a26fa1e881993a6a07c6c37229e2462dfbccb852ec2eec56fdac3f55f2d3c9e7",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 841,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_interconnect_note_code_crossref=RED@272{interconnect_ic06_open_code_block_from_note}",
+      "test_interconnect_loom_backlink_search=RED@271{interconnect_ic11_search_v2_across_surfaces,interconnect_ic14_quick_switcher_both_editors}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-F403",
+        "class": "BACKEND_AUTHORITY_DENIES_NATIVE_FR_READS",
+        "severity": "BLOCKING",
+        "detail": "Flight Recorder / EventLedger reads issued by native proofs (`GET /api/flight_recorder?wsid=`, `GET /events?wsid=`, 'ledger GET', 'GET Flight Recorder') return 403 {error: HSK-403-PROTECTED-RESOURCE} = api/authority.rs constant_denial() from authorize_request (protected-resource grant layer; 2e28ff91 'MT-109 enforce protected resource grants' + MT-141 backend remediation on this branch). The native proof support (tests/backend_proof_support/mod.rs live_flight_recorder_session_token, get_json_with_session_token) presents only x-hsk-session-token and never performs the POST /authority/session local-session exchange, so every native FR read is denied. Present with the fd9060de-built backend too (pass-1 logs 025/026 show the same 403 before the env-invalid failures), i.e. not introduced by C-prime. Owner: backend authority contract (MT-109/MT-141) vs native proof support; needs an Orchestrator decision on which side adapts (credential the native fixture/clients through /authority/session, or grant FR reads to the FR session token)."
+      },
+      {
+        "id": "N1B-P3-F500",
+        "class": "BACKEND_LEDGER_WSIDS_COERCION_500",
+        "severity": "BLOCKING",
+        "detail": "GET /knowledge/code/symbols (code-nav lookup, also reached by the mounted CodeNavClient) returns 500 {error: quiet_receipt_failed, detail: 'embedded store error: embedded database error: Couldn't coerce value for field `wsids` of `kernel_event_ledger:KE-...`: Expected `array` but found `NONE`'}. Path: api/knowledge_code_nav.rs record_quiet_nav_receipt -> ParallelSwarmStateRecoveryStore::record_quiet_background_work (swarm_orchestration/state_recovery.rs) writes a kernel_event_ledger row without the SCHEMAFULL `wsids` array (storage/surreal/schema.surql:5758 DEFINE FIELD OVERWRITE wsids ... TYPE array<string>). Backend product defect. Reproduced through the fd9060de-built mt249_code_intelligence_fixture as well (seq 306), so it predates C-prime. Owner: backend lane (MT-141/MT-135/MT-109 state-recovery + ledger schema)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-F403 (FR reads denied 403 by the backend authority layer); N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion)) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

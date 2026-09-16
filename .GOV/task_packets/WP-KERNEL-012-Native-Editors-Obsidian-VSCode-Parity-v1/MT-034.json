@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-08-02T04:20:01.6247579Z",
+  "updated_at_utc": "2026-09-16T23:19:49.151Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,10 +37,10 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260731-195928",
-    "validated_at_utc": "2026-07-31T21:21:28.6047070Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:49.151Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: note-to-code MIS-ROUTED live - clicked [[code:...]] chip emits WikilinkActivated ref_kind code and app.rs:6305-6312 sends every non-document ref_kind to open_loom_block, so a code chip opens the symbol_entity_id as a Loom block instead of the code editor at the symbol line; correct machinery exists (dispatch_code_ref_open, CMD_OPEN_CODE_SYMBOL, open_code_symbol) but is called only by tests and take_pending_code_symbol has no shell drain. Code-to-note dead-ends: mounted NoteRefsPanel click stages pending_navigation + CMD_OPEN_DOCUMENT which nothing drains - silent no-op. Fix: ref_kind==code arm routing to open_code_symbol + shell drain + live-shell kittest driving chip click to mounted code pane; run gated live resolve/find-notes tests.",
@@ -141,7 +141,9 @@
       "emitted_by": "KERNEL_BUILDER-20260728-221208",
       "emitted_at_utc": "2026-07-30T09:22:34.412Z",
       "blockers": []
-    }
+    },
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "Goal: implement bidirectional code<->note cross-references. A user should be able to: (A) from a note, click a code symbol reference (written as [[code:path/to/file.rs#MyStruct]]) and jump to that symbol in the code editor; (B) from the code editor, invoke 'Find notes referencing this symbol' and get a panel listing rich documents that mention this symbol. Expected diff: (a) a new CodeRef inline node type for the rich-text editor that renders a clickable code-symbol chip; (b) a cross-reference resolution service in src/frontend/handshake_native/src/interop/cross_ref.rs that calls the existing backend code-nav APIs; (c) a NoteRefsPanel widget added to the code pane that shows notes mentioning the currently focused symbol; (d) integration tests with a real PG backend proving both directions work.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/cross_ref.rs  — defines CodeRef { symbol_key: String, file_path: String, line_start: u32, line_end: u32 }, NoteRef { document_id: String, document_title: String, block_id: String, excerpt: String }. Provides async fn resolve_code_ref(symbol_entity_id: &str) -> Result<CodeRef, CrossRefError> (calls GET /code/symbols/{symbol_entity_id}). Provides async fn find_notes_referencing_symbol(symbol_key: &str, workspace_id: &str) -> Result<Vec<NoteRef>, CrossRefError> (calls GET /knowledge/search with a query derived from the symbol_key, or GET /knowledge/documents filtered by block ref_value containing the symbol_key).\n  - src/frontend/handshake_native/src/code_editor/note_refs_panel.rs  — egui widget for the code pane sidebar; takes workspace_id + current_symbol_entity_id; loads NoteRef list via find_notes_referencing_symbol; shows each note as a clickable row that fires bus.dispatch_command(\"open-document\", CommandArgs::DocumentId(doc_id)). AccessKit: panel container author_id=\"note-refs-panel\", role=List; each row author_id=\"note-ref-{doc_id}\", role=ListItem, actions=[Press].\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/interop/mod.rs  — add `pub mod cross_ref;`\n  - src/frontend/handshake_native/src/code_editor/mod.rs  — add `pub mod note_refs_panel;`\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — add handling for CodeRef inline node: a custom node type 'code_ref' with attrs { symbol_key, file_path, symbol_entity_id }. Rendered as a monospace chip with a small code icon. On click: call bus.dispatch_command(\"open-code-symbol\", CommandArgs::SymbolEntityId(symbol_entity_id)). Register 'open-code-symbol' on the shared command bus (command_registry.rs + event_bus.rs, established for MT-031) so the code editor pane handles it by jumping to the symbol.\n  - src/frontend/handshake_native/src/code_editor/editor.rs  — (a) register 'open-code-symbol' command handler: when received, call resolve_code_ref to get file_path + line_start, open the file in the code pane (or switch to existing tab), jump to line. (b) Add NoteRefsPanel to the right sidebar of the code pane; bind to the currently focused/hovered symbol via a watcher that fires when the cursor dwells on a symbol for 800ms (debounce).\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — add a slash-command '/code-ref' that opens a code symbol search dialog: fuzzy search via lookupCodeSymbols (GET /code/symbols/lookup?q=...), display results, on select insert a CodeRef node at cursor.\n\nStep-by-step implementation notes:\n  1. CodeRef node insertion via slash command: when user types '/code-ref' in the rich-text editor, open a floating search widget (egui::Window). Populate from lookupCodeSymbols({ query, workspace_id }) — api.ts line 2158. On selection of a result insert node { type: 'code_ref', attrs: { symbol_key, file_path, symbol_entity_id } } at caret in the document tree.\n  2. CodeRef rendering in rich-text: draw a rounded rectangle chip using egui::Frame with a slightly tinted background. Show the symbol_key (short form: last '::' segment). Entire chip is a Button; click fires bus.dispatch_command(\"open-code-symbol\", SymbolEntityId(symbol_entity_id)).\n  3. open-code-symbol command handler in code editor: call GET /code/symbols/{symbol_entity_id} (api.ts line 2152 getCodeSymbol) to get symbol.definition { source_id, line_start, line_end }. Open the file source_id in the code pane (if not already open). Scroll to line_start.\n  4. find_notes_referencing_symbol: call GET /knowledge/search?q={symbol_key}&workspace_id={ws_id}&surface=rich_docs or, if the backlinks system (MT-032) is live, scan RichDocBacklink records where ref_value contains the symbol_key. The cleanest path is to call getCodeSymbolReferences (api.ts line 2169: GET /code/symbols/{id}/references) to get callers/callees, then cross-reference with known rich-doc block refs. Alternatively, call GET /knowledge/documents (with text search) if the full-text index includes block content. Document which approach is used in a comment.\n  5. NoteRefsPanel shows: document title (truncated to 40 chars), a short excerpt centered on the symbol mention, and a right-arrow icon. Clicking fires OpenDocument.\n  6. Debounce for NoteRefsPanel: in the code pane update() fn, track last_symbol_entity_id and last_dwell_start (Instant). If cursor is on the same symbol for > 800ms and it differs from currently loaded symbol, fire find_notes_referencing_symbol in a background task.\n  7. 'code_ref' node must survive saveRichDocument + loadRichDocument round-trip: the attrs dict must be preserved in JSONContent. Guard: on load, if symbol_entity_id is Some but getCodeSymbol returns 404, render the chip as 'unresolved' (greyed out) without crashing.\n  8. Linking back from CodeSymbolPanel.tsx (React reference): the React CodeSymbolPanel already shows definition + file lens. The native version extends this with a 'Notes mentioning this symbol' section — that is the NoteRefsPanel widget's purpose.\n  9. AccessKit: CodeRef chip in rich-text uses author_id=\"code-ref-chip-{symbol_entity_id}\", role=Button, actions=[Press]. The symbol search dialog uses author_id=\"code-symbol-search\", role=Dialog; the search input author_id=\"code-symbol-search-input\", role=TextField. Reuse the existing AccessKit registration surface (accessibility/registry.rs, accessibility/live.rs).\n  10. Tests: src/frontend/handshake_native/tests/test_code_note_cross_ref.rs — (a) unit: parse [[code:src/main.rs#MyStruct]] extracts file_path='src/main.rs', symbol='MyStruct'; (b) unit: code_ref node round-trips through JSONContent serialization with all attrs; (c) integration (real PG): call getCodeSymbol for a known test symbol (pre-seeded in test PG), assert definition fields non-empty; (d) integration: create a rich doc with a code_ref node, save, reload, assert code_ref node and symbol_entity_id preserved; (e) kittest: click a code_ref chip, assert open-code-symbol command dispatched with correct symbol_entity_id.\n\nDependencies / unblock conditions:\n  - MT-031 (shared command bus + command dispatch, built on command_registry.rs + event_bus.rs) merged.\n  - MT-032 (loom block addressing — needed for cross-ref to live in the block backlink system) merged.\n  - MT-007 (code editor jump-to-line / file-open infrastructure) merged.\n  - MT-012 (rich-text slash commands infrastructure) merged.\n  - WP-011 reuse (cross-WP): the shared command bus modules command_registry.rs and event_bus.rs and the AccessKit registration modules under accessibility/ are delivered by WP-KERNEL-011 and are reused directly; the loom graph surface (loom_graph.rs) is also available from WP-011.\n  - Backend: GET /code/symbols/{id} and GET /code/symbols/lookup must be reachable — confirmed api.ts lines 2152–2158.\n\nRisk if missed: the code<->note cross-reference edge is explicitly listed in the interconnection contract. Without it, code symbols are isolated from the knowledge surface, the parity proof suite cannot validate this edge, and the 'melt-together' claim is unproven for the code+note pair.",
@@ -709,27 +711,27 @@
     }
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
-  },
-  "fail_report": "MT-034 FAIL V2. Code-note cross-reference save/reload and reverse lookup do not have a completed current live-test result from this run, and the mounted navigation flow lacks canonical Argus inspect/steer/re-observe evidence.",
-  "remediation_plan": [
-    "Run the exact real-PostgreSQL symbol/document cross-reference tests with restart readback, missing symbol, stale source, and conflict cases.",
-    "Drive create/open/reveal navigation through canonical Argus with stable targets and fresh observation; update the canonical UserManual diagnostics."
-  ],
-  "no_context_instruction": "Read MT-034.json, packet, and current spec. Re-prove the live cross-reference boundary and canonical Argus interaction before READY_FOR_VALIDATION_V3."
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-034 FAIL V2. Code-note cross-reference save/reload and reverse lookup do not have a completed current live-test result from this run, and the mounted navigation flow lacks canonical Argus inspect/steer/re-observe evidence.",
+    "remediation_plan": [
+      "Run the exact real-PostgreSQL symbol/document cross-reference tests with restart readback, missing symbol, stale source, and conflict cases.",
+      "Drive create/open/reveal navigation through canonical Argus with stable targets and fresh observation; update the canonical UserManual diagnostics."
+    ],
+    "no_context_instruction": "Read MT-034.json, packet, and current spec. Re-prove the live cross-reference boundary and canonical Argus interaction before READY_FOR_VALIDATION_V3."
   },
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",
@@ -837,5 +839,499 @@
     "no_context_instruction": "Read MT-034.json completely, then packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green code<->note implementation and the user's unrelated AGENTS.md, CLAUDE.md, and test_find_in_files.rs changes. Repair the canonical Argus action-completion receipts for slash activation, code-symbol open/reveal, and note-row reveal; eliminate the unexpected 404/error state from success captures without hiding genuine errors; run all 19 focused integration cases in one explicitly configured real-PostgreSQL invocation; rerun the exact WGPU proof under a unique V4 run ID; open every receipt/tree/PNG; require zero indeterminate actions and clean exact symbol/note identity evidence; then return READY_FOR_VALIDATION_V4 without self-issuing PASS.",
     "remediation_required": true,
     "residual_uncertainty": "The persisted cross-reference implementation is strongly proven. Remaining uncertainty is limited to action causality and why the success shell displays an unexpected 404 load failure during the mounted visual flow."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V5",
+    "verdict_label": "FAIL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:49.151Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "FAIL at C-prime ba03f563: the MT's live proof binaries fail against the C-prime backend (test_code_note_cross_ref=RED@256{live_backend::v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs}; test_other_pillar_interop_proofs=RED@278{other_pillar_op01_stage_route_embed_back_other_pillar_interop,other_pillar_op02_calendar_bind_activity_span_other_pillar_interop,other_pillar_op03_locus_resolve_reverse_other_pillar_interop,other_pillar_op04_swarm_accesskit_other_pillar_interop}; test_e7_swarm_edit_proof=RED@259{swarm_edit_live_conflict_merge_search_and_receipts,watchdog_failure_write_is_bounded_under_live_log_contention}). All non-live tests in the same binaries passed. Root causes are backend-side contract/defects (see findings), not native regressions proven by this sweep; status BLOCKED_ON_DEPENDENCY names them.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-034-N1B-110",
+        "command": "test_manual_content-836725be149f464b.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:16:22.568Z",
+        "finished_utc": "2026-09-16T07:16:24.671Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 41 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/110_test_manual_content.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "default",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-110-test_manual_content",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-034"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-034-N1B-187",
+        "command": "test_manual_pane_editors-8c45c80ab5c70995.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:38:01.186Z",
+        "finished_utc": "2026-09-16T07:38:56.153Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 10 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/187_test_manual_pane_editors.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-187-test_manual_pane_editors",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-034"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-034-N1B-256",
+        "command": "test_code_note_cross_ref-b7db2badb4feb2cd.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 0,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:15:13.640Z",
+        "finished_utc": "2026-09-16T21:17:22.583Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 35 passed; 1 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/256_test_code_note_cross_ref_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-256-test_code_note_cross_ref",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-034"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-034-N1B-259",
+        "command": "test_e7_swarm_edit_proof-d5281d11d319dc9d.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:20:17.976Z",
+        "finished_utc": "2026-09-16T21:22:06.371Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored | test result: FAILED. 28 passed; 2 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/259_test_e7_swarm_edit_proof_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-259-test_e7_swarm_edit_proof",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-034"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-034-N1B-264",
+        "command": "test_find_in_files-7bf52789c196e0d7.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:37:39.398Z",
+        "finished_utc": "2026-09-16T21:40:11.009Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 35 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/264_test_find_in_files_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-264-test_find_in_files",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-034"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-034-N1B-274",
+        "command": "test_locus_interop-9804d3eafe2ddeb4.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:00:12.605Z",
+        "finished_utc": "2026-09-16T22:00:59.907Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 37 passed; 0 failed; 1 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/274_test_locus_interop_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-274-test_locus_interop",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-034"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-034-N1B-276",
+        "command": "test_loom_search_v2-4add49d6b6e07d13.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:03:01.509Z",
+        "finished_utc": "2026-09-16T22:04:26.416Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 31 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/276_test_loom_search_v2_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-276-test_loom_search_v2",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-034"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-034-N1B-278",
+        "command": "test_other_pillar_interop_proofs-3b5f16c91a25efaf.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:06:34.746Z",
+        "finished_utc": "2026-09-16T22:11:25.991Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 27 passed; 4 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/278_test_other_pillar_interop_proofs_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-278-test_other_pillar_interop_proofs",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-034"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-034-N1B-110": {
+        "binary": "test_manual_content",
+        "log_sha256": "ae09ea8f635d2cfa7af4528b4bafddbc37b154e574e004090ad50c28c7d6a50c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 2,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-034-N1B-187": {
+        "binary": "test_manual_pane_editors",
+        "log_sha256": "01b1835cda986689e23da4d85b05564e2f9992f4bf09522c6aedffce7e34d908",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 55,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-034-N1B-256": {
+        "binary": "test_code_note_cross_ref",
+        "log_sha256": "7e941f4ad78e572584a375ae687f8c6d68b27f56bed637cae23b7a36465c5392",
+        "exit_raw": "101",
+        "failing_tests": [
+          "live_backend::v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs"
+        ],
+        "wall_s": 129,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [],
+        "dirt_note": "clean",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-034-N1B-259": {
+        "binary": "test_e7_swarm_edit_proof",
+        "log_sha256": "65a409211aa7057dc84824b772d9fce1dbd2d7849ae29a40e7546c47808d2b34",
+        "exit_raw": "101",
+        "failing_tests": [
+          "swarm_edit_live_conflict_merge_search_and_receipts",
+          "watchdog_failure_write_is_bounded_under_live_log_contention"
+        ],
+        "wall_s": 108,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-034-N1B-264": {
+        "binary": "test_find_in_files",
+        "log_sha256": "7807a72b4dfaeedc6f66395b2af8c526d4b68acc88f6a27ff73fc4de1f4b1acb",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 152,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-034-N1B-274": {
+        "binary": "test_locus_interop",
+        "log_sha256": "5a4fec224352a7796fb3c8ec7b6304ebb1b2935ef9caa453b790b9d652e9228c",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 47,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-034-N1B-276": {
+        "binary": "test_loom_search_v2",
+        "log_sha256": "cc9b118b552145cc524d4122ff0cd8b8e52d72cfd3a8b36369fc16500ee5b1f0",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 85,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-034-N1B-278": {
+        "binary": "test_other_pillar_interop_proofs",
+        "log_sha256": "2a75f009b1c09fb40268153aec60528265b4319324a6f4d18fed155877e95afa",
+        "exit_raw": "101",
+        "failing_tests": [
+          "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+          "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+          "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+          "other_pillar_op04_swarm_accesskit_other_pillar_interop"
+        ],
+        "wall_s": 291,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "FAIL_LIVE_PROOF",
+        "evidence": "the live proof reached the real Handshake-managed backend but the backend rejected/failed the required calls: N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion); N1B-P3-F403 (FR reads denied 403 by the backend authority layer)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "BLOCKED_ON_DEPENDENCY: N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion); N1B-P3-F403 (FR reads denied 403 by the backend authority layer)"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [
+      "test_code_note_cross_ref=RED@256{live_backend::v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs}",
+      "test_other_pillar_interop_proofs=RED@278{other_pillar_op01_stage_route_embed_back_other_pillar_interop,other_pillar_op02_calendar_bind_activity_span_other_pillar_interop,other_pillar_op03_locus_resolve_reverse_other_pillar_interop,other_pillar_op04_swarm_accesskit_other_pillar_interop}",
+      "test_e7_swarm_edit_proof=RED@259{swarm_edit_live_conflict_merge_search_and_receipts,watchdog_failure_write_is_bounded_under_live_log_contention}"
+    ],
+    "not_run": [],
+    "findings": [
+      {
+        "id": "N1B-P3-F500",
+        "class": "BACKEND_LEDGER_WSIDS_COERCION_500",
+        "severity": "BLOCKING",
+        "detail": "GET /knowledge/code/symbols (code-nav lookup, also reached by the mounted CodeNavClient) returns 500 {error: quiet_receipt_failed, detail: 'embedded store error: embedded database error: Couldn't coerce value for field `wsids` of `kernel_event_ledger:KE-...`: Expected `array` but found `NONE`'}. Path: api/knowledge_code_nav.rs record_quiet_nav_receipt -> ParallelSwarmStateRecoveryStore::record_quiet_background_work (swarm_orchestration/state_recovery.rs) writes a kernel_event_ledger row without the SCHEMAFULL `wsids` array (storage/surreal/schema.surql:5758 DEFINE FIELD OVERWRITE wsids ... TYPE array<string>). Backend product defect. Reproduced through the fd9060de-built mt249_code_intelligence_fixture as well (seq 306), so it predates C-prime. Owner: backend lane (MT-141/MT-135/MT-109 state-recovery + ledger schema)."
+      },
+      {
+        "id": "N1B-P3-F403",
+        "class": "BACKEND_AUTHORITY_DENIES_NATIVE_FR_READS",
+        "severity": "BLOCKING",
+        "detail": "Flight Recorder / EventLedger reads issued by native proofs (`GET /api/flight_recorder?wsid=`, `GET /events?wsid=`, 'ledger GET', 'GET Flight Recorder') return 403 {error: HSK-403-PROTECTED-RESOURCE} = api/authority.rs constant_denial() from authorize_request (protected-resource grant layer; 2e28ff91 'MT-109 enforce protected resource grants' + MT-141 backend remediation on this branch). The native proof support (tests/backend_proof_support/mod.rs live_flight_recorder_session_token, get_json_with_session_token) presents only x-hsk-session-token and never performs the POST /authority/session local-session exchange, so every native FR read is denied. Present with the fd9060de-built backend too (pass-1 logs 025/026 show the same 403 before the env-invalid failures), i.e. not introduced by C-prime. Owner: backend authority contract (MT-109/MT-141) vs native proof support; needs an Orchestrator decision on which side adapts (credential the native fixture/clients through /authority/session, or grant FR reads to the FR session token)."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "ORCHESTRATOR",
+        "action": "Resolve the backend dependency (N1B-P3-F500 (code-nav 500 kernel_event_ledger.wsids coercion); N1B-P3-F403 (FR reads denied 403 by the backend authority layer)) then rerun the named binaries at the resulting commit; no native code change is required by this verdict unless the Orchestrator rules that the native proof support must adopt the /authority/session exchange."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

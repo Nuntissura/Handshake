@@ -14,7 +14,7 @@
   "title": "E8-MT045-LargeDocPerformanceProof",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-08-02T14:19:47.7848751Z",
+  "updated_at_utc": "2026-09-16T23:19:50.024Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PARTIAL_PENDING_OPERATOR_DECISION",
     "active": false,
     "depends_on": [
       "MT-044",
@@ -33,10 +33,10 @@
       "MT-060"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "PARTIAL_V5",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-20260731-195928",
-    "validated_at_utc": "2026-07-31T22:07:14.4403872Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:50.024Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: the LR-05 cycle-aware transclusion resolver (resolve_transclusion_chain + CycleDetected) is defined INSIDE the test file - no product code contains transclusion cycle detection; contract framed it as a native improvement this MT must prove; a product render of a cyclic transclusion chain has no guard. LK-02 disclosed limitation: graph layout hard-caps at 200 nodes (naive O(n^2)); 1000-node budget architecturally unreachable - keep the Barnes-Hut work item; do not cite LK-02 as 1000-node capability. Positive: budgets asserted with env overrides, honest LC-06 reclassification, real requires_pg bodies. Fix: move the resolver into product code (rich_editor transclusion path) and have LR-05 call the product symbol; 12 REQUIRES_PG perf scenarios join the managed-PG batch.",
@@ -208,7 +208,9 @@
       },
       "integrity_review": "Independent adversarial review recomputed 80 hashes with zero mismatches and reported no P0/P1/P2 findings.",
       "validator_boundary": "Builder remediation only. Historical validation_v4.verdict and lifecycle.validator_verdict remain FAIL_V4 pending independent V4 validation; completed_by remains null."
-    }
+    },
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "next_actor": "KERNEL_BUILDER"
   },
   "scope": {
     "summary": "GOAL: Author and execute the Large-Document and Large-Codebase Performance Proof suite. This MT proves that the native editors handle realistic large-payload scenarios within defined latency and memory budgets — scenarios that the legacy React/Monaco implementation handles but at the cost of webview overhead. The native implementation must meet or exceed the React baseline on these dimensions.\n\nEXPECTED DIFF SHAPE: Creates flat perf-proof test files under src/frontend/handshake_native/tests/ containing: (a) src/frontend/handshake_native/tests/perf_proof/perf_manifest.json recording each scenario's budget, measured value, and PASS/FAIL verdict; (b) src/frontend/handshake_native/tests/test_perf_large_code.rs covering large-codebase code editor scenarios; (c) src/frontend/handshake_native/tests/test_perf_large_rich.rs covering large rich-text document scenarios; (d) src/frontend/handshake_native/tests/test_perf_large_knowledge.rs covering large graph/index scenarios. No mocks for any spec-required runtime behavior.\n\nSCENARIO CATALOG:\n\nCODE EDITOR LARGE-FILE SCENARIOS (test_perf_large_code.rs):\n\nLC-01 — Initial render, 10k-line file: Synthesize a 10 000-line Rust source file (~500 KB). Load it into CodeEditor (ropey rope), trigger syntax highlighting pass (tree-sitter), measure wall time from buffer-load call to first highlighted-range emission. Budget: <= 200 ms. Implementation: use std::time::Instant; the tree-sitter parse must complete, not be deferred. The 10k-line file must be generated in-process (no fixture file on disk required).\n\nLC-02 — Scroll to bottom, 10k-line file: After load, move the viewport to the last line. Measure time from viewport-move call to the correct last line appearing in the egui layout. Budget: <= 16 ms (one egui frame at 60fps). This requires the virtual-line-range renderer introduced in MT-002 to only paint the visible window, not all 10k lines.\n\nLC-03 — Find/replace across 10k-line file: Search for a string that appears 200 times across the 10k-line buffer. Measure time from search-start to all 200 match spans collected. Budget: <= 100 ms. Then apply replace-all. Measure replace time. Budget: <= 100 ms. Assert the final buffer has exactly 200 replacements.\n\nLC-04 — Multi-cursor, 1k cursor positions: Insert text simultaneously at 1 000 cursor positions (programmatic multi-cursor insert via the CodeEditor::apply_multi_edit API). Measure time. Budget: <= 500 ms. Assert all 1 000 positions have the inserted text.\n\nLC-05 — Memory budget, 10k-line file: Load the 10k-line file, trigger a syntax highlight pass, then measure RSS delta (before vs. after load). Use /proc/self/status on Linux or a platform equivalent via the sysinfo crate (already in the workspace or add it). Budget: delta <= 50 MB. On Windows, use GetProcessMemoryInfo via the windows-sys crate.\n\nLC-06 — Large codebase index, 500 files: Create a synthetic 'codebase' of 500 Rust files each with ~200 lines (total ~100k lines) by writing them to a temp dir. Trigger the code-nav indexer (handshake_native::code_editor::code_nav::index_workspace or equivalent). Measure time to completion. Budget: <= 10 s. Assert the resulting symbol count >= 500 (at least one symbol per file).\n\nLC-07 — Minimap at 10k lines: Call the minimap renderer for a 10k-line buffer. Measure glyph-layout time. Budget: <= 50 ms. Assert glyph count == buffer line count (10 000).\n\nLC-08 — LSP diagnostics, 500 items: Inject 500 fake diagnostic items into the gutter/diagnostic overlay. Measure render time for the overlay pass. Budget: <= 16 ms. Assert all 500 badges are recorded in the diagnostic map (not that they are all visually rendered, but that none are dropped).\n\nRICH EDITOR LARGE-DOCUMENT SCENARIOS (test_perf_large_rich.rs):\n\nLR-01 — Load large rich document, 1 000 blocks: Create a KnowledgeRichDocument via POST /workspaces/{id}/knowledge/documents containing 1 000 paragraph nodes (~50k chars total). Load via GET. Measure round-trip + native parse time. Budget: <= 2 s including network. Measure native block-tree build time from parsed JSON. Budget: <= 100 ms.\n\nLR-02 — Scroll through large rich document: After loading 1 000 blocks, drive the virtual scroll from block 0 to block 999 in a simulated render loop (call the layout engine for each viewport position). Measure total time for 100 viewport steps (simulating a fast drag). Budget: <= 1 000 ms total (10 ms per step). Assert no layout panic.\n\nLR-03 — Find in rich document, 500 matches: Insert the string 'FINDME' into every other block (500 occurrences). Trigger find-in-rich-doc. Measure time to collect all 500 spans. Budget: <= 200 ms.\n\nLR-04 — Save large rich document: Save the 1 000-block document via PUT /workspaces/{id}/knowledge/documents/{doc_id}. Measure round-trip time. Budget: <= 3 s. Assert the EventLedger receives a KNOWLEDGE_RICH_DOCUMENT_SAVED receipt (verify via GET /workspaces/{id}/loom/blocks/{doc_block_id} returns updated_at changed).\n\nLR-05 — Transclusion chain, 50 hops: Create 50 documents each transcluding the previous. Load the outermost document and resolve the full transclusion chain via GET /workspaces/{id}/loom/blocks/{block_id}/transclusion called recursively up to depth 50. Measure total resolution time. Budget: <= 5 s. Assert no infinite loop (the resolver must detect cycles; a cyclic chain of 5 must return an 'unresolved' state with reason 'cycle_detected', not panic).\n\nLR-06 — Memory budget, 1 000-block document: Load and parse the 1k-block document. Measure RSS delta. Budget: delta <= 30 MB.\n\nLR-07 — Export projection, 1 000-block HTML: Call GET /workspaces/{id}/knowledge/documents/{doc_id}/projection?format=html on the 1k-block document. Measure server response time. Budget: <= 2 s. Assert returned HTML length > 50 000 chars.\n\nLARGE KNOWLEDGE GRAPH SCENARIOS (test_perf_large_knowledge.rs):\n\nLK-01 — Graph load, 1 000 nodes: Create 1 000 Loom blocks with edges forming a random sparse graph (~2 000 edges total). Call GET /workspaces/{id}/loom/graph with depth=2. Measure response time. Budget: <= 3 s. Assert node count >= 1 000 in response.\n\nLK-02 — Graph render layout, 1 000 nodes: Take the graph payload from LK-01 and run the native graph layout algorithm (force-directed or tree layout in handshake_native::graph::graph_layout). Measure time for one layout pass. Budget: <= 1 000 ms.\n\nLK-03 — Tag hub query, 5 000 blocks tagged: Attach a single tag to 5 000 blocks (batch POST /workspaces/{id}/loom/blocks + edge creation). Query the tag hub for that tag. Measure response time. Budget: <= 2 s. Assert hit count == 5 000.\n\nLK-04 — Search index, 5 000 blocks: After creating 5 000 blocks with distinct content, call POST /workspaces/{id}/loom/search-v2 with a query that matches ~100 of them. Measure response time. Budget: <= 2 s. Assert hits list length between 50 and 200 (fuzzy tolerance).\n\nLK-05 — Folder tree, 200 folders: Create a folder hierarchy with 200 folders and 1 000 child blocks. Call GET /workspaces/{id}/loom/folders. Measure response time. Budget: <= 1 s. Assert folder count == 200.\n\nPERF MANIFEST (src/frontend/handshake_native/tests/perf_proof/perf_manifest.json): Machine-readable record with one entry per scenario: { scenario_id, category, description, budget_ms (or budget_mb), measured_value, unit, status }. Updated by the test runner on each run. After a passing run all entries have status PASS.\n\nFILES TO CREATE:\n  - src/frontend/handshake_native/tests/perf_proof/perf_manifest.json (initial skeleton)\n  - src/frontend/handshake_native/tests/test_perf_large_code.rs (LC-01 through LC-08)\n  - src/frontend/handshake_native/tests/test_perf_large_rich.rs (LR-01 through LR-07)\n  - src/frontend/handshake_native/tests/test_perf_large_knowledge.rs (LK-01 through LK-05)\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Reuse the same test DB setup pattern as MT-044 (workspace fixture builder from storage/tests.rs).\n2. For each timing scenario, bracket the measured operation with std::time::Instant::now() / elapsed(). Assert elapsed <= budget. Print measured value to stdout (--nocapture output).\n3. For memory scenarios, add the 'sysinfo' crate as a dev-dependency if not already present. On Windows use the 'windows' crate GetProcessMemoryInfo. Measure RSS before and after; delta must be below budget.\n4. Synthetic file/block generators must be deterministic (seeded): use a simple counter loop, not random, so failures are reproducible.\n5. For LR-05 (transclusion chain), implement a recursive resolver in the test that calls the backend transclusion endpoint up to depth 50, detecting cycles by tracking visited block IDs in a HashSet.\n6. After each scenario function, write its measured_value and status to perf_manifest.json (same pattern as MT-044 parity_manifest.json).\n7. Register the perf suite under [[test]] in src/frontend/handshake_native/Cargo.toml: name = 'test_perf_large_code' / 'test_perf_large_rich' / 'test_perf_large_knowledge', harness = true.\n8. Accept timing budget overrides via env vars: PERF_BUDGET_LC01_MS, PERF_BUDGET_LR01_MS, etc., so CI can widen budgets on slow machines without code changes.\n9. Every scenario that creates PG rows must clean up (DELETE) after itself in a defer/drop guard, so test runs are idempotent.",
@@ -513,28 +515,28 @@
     }
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-045 FAIL V2. The current perf_manifest.json is red: 7 of 20 scenarios are FAIL (LC-01 405ms > 200ms, LC-02 unmeasured, LC-07 152ms > 50ms, LC-08 39ms > 16ms, and LK-01/LK-03/LK-05 unmeasured). Several rows are debug-profile results, so the claimed all-pass performance gate is not current.",
+    "remediation_plan": [
+      "Run the canonical release-profile performance supervisor against the current dirty candidate and real PostgreSQL with default budgets and no overrides; every scenario must produce a measured value.",
+      "Fix the actual performance/setup failures, preserve immutable run/source provenance, ensure all 20 manifest rows are PASS, and rerun artifact hygiene plus freeze/diagnostic observation."
+    ],
+    "no_context_instruction": "Read MT-045.json and the current performance manifest before editing. Treat the 7 red rows as authoritative current failures, repair them without widening budgets, and return READY_FOR_VALIDATION_V3 with one immutable all-green run."
   },
-  "fail_report": "MT-045 FAIL V2. The current perf_manifest.json is red: 7 of 20 scenarios are FAIL (LC-01 405ms > 200ms, LC-02 unmeasured, LC-07 152ms > 50ms, LC-08 39ms > 16ms, and LK-01/LK-03/LK-05 unmeasured). Several rows are debug-profile results, so the claimed all-pass performance gate is not current.",
-  "remediation_plan": [
-    "Run the canonical release-profile performance supervisor against the current dirty candidate and real PostgreSQL with default budgets and no overrides; every scenario must produce a measured value.",
-    "Fix the actual performance/setup failures, preserve immutable run/source provenance, ensure all 20 manifest rows are PASS, and rerun artifact hygiene plus freeze/diagnostic observation."
-  ],
-  "no_context_instruction": "Read MT-045.json and the current performance manifest before editing. Treat the 7 red rows as authoritative current failures, repair them without widening budgets, and return READY_FOR_VALIDATION_V3 with one immutable all-green run."
-},
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "verdict": "FAIL_V4",
@@ -612,5 +614,255 @@
       "Post-run read-only database/process checks prove scenario workspace cleanup, zero owned child leaks, and preservation of the pre-existing PostgreSQL process; git status proves no repo-local build/runtime outputs were introduced."
     ],
     "no_context_instruction": "Read MT-045.json completely, then packet.json, SPEC_CURRENT v02.202 anchors, run_mt045_perf_proof.ps1, test_perf_large_knowledge.rs, perf_proof_support/mod.rs, pg_proof_support/mod.rs, and the current storage/API implementation for GET /loom/tags/{tag_id}. Start from retained run MT045-RUN-V4-20260731-VAL01 and its LK-03 stdout/stderr hashes. First make failure artifacts durable and diagnostic, then reproduce and optimize the exact live 5,000-tag route without budget overrides or fixture reduction. Run LK-03, LK-04, and LK-05 exactly, then one new complete canonical 20-scenario supervisor run. Return READY_FOR_VALIDATION only after every V4 verification requirement is evidenced; do not self-issue PASS."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PARTIAL_V5",
+    "verdict_label": "PARTIAL V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:50.024Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "PARTIAL/NOT_RUN: test_perf_large_code 135 (16 self-tests passed, 8 perf aborted), test_perf_large_knowledge 136 (17/5), test_perf_large_rich 140 (16/7) - every canonical perf proof aborts on the missing supervisor-provided HSK_MT045_SOURCE_SHA. Not rerun at C-prime (a standalone rerun re-dirties tests/perf_proof/perf_manifest.json, N1B-F002). Requires Operator/Orchestrator authorization of the release supervisor run before any PASS.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-045-N1B-135",
+        "command": "test_perf_large_code-058437f741490f37.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:19:41.984Z",
+        "finished_utc": "2026-09-16T07:19:48.841Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 16 passed; 8 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/135_test_perf_large_code.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-135-test_perf_large_code",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-045"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-045-N1B-136",
+        "command": "test_perf_large_knowledge-b590604d63d37403.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:19:48.883Z",
+        "finished_utc": "2026-09-16T07:20:48.291Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 17 passed; 5 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/136_test_perf_large_knowledge.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-136-test_perf_large_knowledge",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-045"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-045-N1B-140",
+        "command": "test_perf_large_rich-5d8bffb55f4a35be.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "tree_clean": false,
+        "dirty_file_count": 3,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1-20260915-211500",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T07:20:48.331Z",
+        "finished_utc": "2026-09-16T07:22:32.575Z",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 16 passed; 7 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/140_test_perf_large_rich.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "unset",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1-140-test_perf_large_rich",
+          "tag": "default"
+        },
+        "covers": [
+          "MT-045"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-045-N1B-135": {
+        "binary": "test_perf_large_code",
+        "log_sha256": "4b51df84eb08222980ab207efdc598db58e0262eb0d369894a391afd6988adba",
+        "exit_raw": "101",
+        "failing_tests": [],
+        "wall_s": 7,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-045-N1B-136": {
+        "binary": "test_perf_large_knowledge",
+        "log_sha256": "2a755a63e512a5fac83e9ffbb3ae44717082d1d3c879edc43b081cd746299a04",
+        "exit_raw": "101",
+        "failing_tests": [],
+        "wall_s": 59,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      },
+      "PR-WP-KERNEL-012-MT-045-N1B-140": {
+        "binary": "test_perf_large_rich",
+        "log_sha256": "7ba693fa5f9f3be69774e08f31018a5ea4e3416317957434d9ba0a1be82f22f8",
+        "exit_raw": "101",
+        "failing_tests": [],
+        "wall_s": 104,
+        "session": "WP_VALIDATOR-N1-20260915-211500",
+        "dirt_paths_at_run": [
+          "src/backend/handshake_core/src/storage/knowledge.rs",
+          "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs"
+        ],
+        "dirt_note": "MT-135 builder files (Operator-waived), not inputs of this binary",
+        "commit_note": "executed at fd9060de on the 3-file-dirty tree (MT-135 builder files, Operator-waived); binary byte-identical at C-prime (247 rebind: 0 path changes, only test_mcp_snapshot_viewport relinked); evidence transferred to C-prime under the coordinator plan in 015"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "NOT_RUN",
+        "evidence": "canonical perf proofs never reached the runtime path"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "PARTIAL: runnable proofs green; NOT_RUN halves named"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [],
+    "not_run": [
+      "all canonical perf_proof_* tests (8 code / 5 knowledge / 7 rich): supervisor-only (HSK_MT045_SOURCE_SHA from run_mt045_perf_proof.ps1, which is cargo-invoking and builds release; LB-3/LB-4)"
+    ],
+    "findings": [
+      {
+        "id": "N1B-F002",
+        "class": "TRACKED_FIXTURE_WRITE",
+        "severity": "MT_REMEDIATION_REQUIRED",
+        "detail": "test_perf_large_rich rewrote the tracked src/frontend/handshake_native/tests/perf_proof/perf_manifest.json (status RUNNING, measured_profile debug) even on the supervisor-less abort path (seq 140); Operator restored it at ~11:30Z."
+      }
+    ],
+    "concerns": [],
+    "remediation_required": [
+      {
+        "owner": "KERNEL_BUILDER",
+        "action": "perf manifest writes must target the external artifact root, never the tracked tests/perf_proof/perf_manifest.json (CX-984-001)."
+      }
+    ],
+    "residual_uncertainty": [],
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
   }
 }

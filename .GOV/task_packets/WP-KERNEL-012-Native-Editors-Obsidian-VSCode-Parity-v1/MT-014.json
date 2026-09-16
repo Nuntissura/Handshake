@@ -14,7 +14,7 @@
   "title": "E2-MT014-EmbedsNodeViews",
   "group": "E2 Rich-text editor (Obsidian/Notion parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-08-01T05:52:43.153Z",
+  "updated_at_utc": "2026-09-16T23:19:47.108Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-014.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V5",
     "active": false,
     "depends_on": [
       "MT-011",
@@ -34,17 +34,27 @@
     "blocks": [
       "MT-016"
     ],
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "PASS_V5",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-31T20:38:25.4132106Z",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:47.108Z",
     "claimed_by": "KERNEL_BUILDER-20260723-082350",
     "claimed_at_utc": "2026-07-23T15:40:05.803Z",
     "remediation_v3_in_progress": false,
     "ready_for_validation_at_utc": "2026-08-01T05:52:43.153Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260801-020817",
-    "completed_by": null,
-    "ready_for_validation_summary": "MT-014 V4 remediation: mounted real-PostgreSQL seeded image embed canonical Argus click is bound to the exact asset/modal generation and applied full-image dialog state. Real GPU proof exposes truthful Dialog hierarchy and bounds; full configured embed scope passed 11/11 with intrinsic 48x24 aspect, typed missing/corrupt states, async decode, and external artifacts. Independent adversarial review found no remaining defect. Official validator verdict remains FAIL_V4 pending V4 validation; completed_by remains null."
+    "completed_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "ready_for_validation_summary": "MT-014 V4 remediation: mounted real-PostgreSQL seeded image embed canonical Argus click is bound to the exact asset/modal generation and applied full-image dialog state. Real GPU proof exposes truthful Dialog hierarchy and bounds; full configured embed scope passed 11/11 with intrinsic 48x24 aspect, typed missing/corrupt states, async decode, and external artifacts. Independent adversarial review found no remaining defect. Official validator verdict remains FAIL_V4 pending V4 validation; completed_by remains null.",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "completed_at_utc": "2026-09-16T23:19:47.108Z",
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "status_alignment_2026_09_17": {
+      "by": "ORCHESTRATOR (Claude, session 2026-09-16)",
+      "at_utc": "2026-09-16T23:21:33.908Z",
+      "previous_status": "COMPLETED",
+      "new_status": "PASS_V5",
+      "reason": "Align lifecycle.status with validator_verdict per the WP convention (status == validator_verdict for PASS); verdict, completed_by and validation_vN untouched."
+    }
   },
   "scope": {
     "summary": "Implement embed NodeViews for the four CKC media embed kinds (image, slideshow, album, video), porting the React embed asset resolution logic from app/src/lib/editor/embed_assets.ts and the hsLink NodeView rendering. Each embed kind is a BlockNode in the MT-011 DocModel with kind = EmbedNode, attrs = { embed_kind: String, ref_value: String }, and renders as an interactive egui widget inline in the document.\n\nEXPECTED DIFF SHAPE:\n- src/frontend/handshake_native/src/rich_editor/embeds/mod.rs\n- src/frontend/handshake_native/src/rich_editor/embeds/asset_resolver.rs (async fetch of asset metadata + content URL from the real backend; mirrors embed_assets.ts logic)\n- src/frontend/handshake_native/src/rich_editor/embeds/image_view.rs (single image renderer)\n- src/frontend/handshake_native/src/rich_editor/embeds/slideshow_view.rs (ordered sequence of images with prev/next nav)\n- src/frontend/handshake_native/src/rich_editor/embeds/album_view.rs (grid of images, click to enlarge)\n- src/frontend/handshake_native/src/rich_editor/embeds/video_view.rs (video poster + play button; actual decode via OS media layer or a stub play button linking to the content URL)\n- src/frontend/handshake_native/src/rich_editor/embeds/embed_block_renderer.rs (dispatch from EmbedNode attrs to the correct view)\n- Extend src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs to call embed_block_renderer for EmbedNode kind.\n\nASYNC ASSET RESOLUTION (asset_resolver.rs):\n- Mirror the React embed_assets.ts validation pipeline EXACTLY (FAIL-CLOSED):\n  - Reject empty ref_value -> EmbedError::EmptyRef\n  - Reject absolute filesystem paths (drive letters, leading '/', UNC '\\\\') -> EmbedError::AbsolutePathRejected\n  - Reject '..' or path separator chars in asset_id -> EmbedError::TraversalRejected\n  - Reject http/https/file/javascript schemes -> EmbedError::SchemeRejected\n  - For album/slideshow: ref_value is comma-separated asset_id list; validate each entry individually\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id} -> EmbedAssetMetadata\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id}/content -> raw bytes for image display\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id}/thumbnail -> thumbnail bytes\n- Use reqwest (already in workspace) or the existing handshake_native::backend_client REST client (backend_client.rs); do NOT add a new HTTP crate.\n- Resolution is async; use tokio::spawn in the egui event loop's async context or the shell's runtime. Cache resolved assets in a HashMap<String, EmbedResolutionState> keyed by asset_id so repeated renders do not re-fetch.\n\nEMBED STATES (match React EmbedResolution):\n- Resolving: show a spinner (egui::Spinner)\n- Ok(asset, bytes): render the appropriate view\n- Err(EmbedError): show a typed error chip (colored rounded rect with error kind text, never a blank) with author_id = 'embed-error-{asset_id}'\n\nVIEW IMPLEMENTATIONS:\n- image_view.rs: decode image bytes with the 'image' crate (PNG/JPEG/WebP/GIF); upload as egui::TextureHandle via ctx.load_texture(); render at aspect-correct width (max = available content width). Click opens full-size overlay.\n- slideshow_view.rs: render one image at a time with prev/next arrow buttons; store current_index in view state. AccessKit: author_id = 'slideshow-{asset_id}', prev button = 'slideshow-prev-{asset_id}', next = 'slideshow-next-{asset_id}'.\n- album_view.rs: render thumbnails in a wrapping grid (3 per row default). Click on a thumbnail opens a full-size modal (egui::Window). AccessKit: grid container = 'album-{ref_value}', each cell = 'album-cell-{asset_id}'.\n- video_view.rs: render thumbnail with a play button overlay. On play click, open the content URL in the OS default player via open::that() (the 'open' crate) OR render a simple progress-bar placeholder with 'Video: {filename}' text. Mark this as a known limitation in code comments; full in-process video decode is deferred.\n\nSTEP-BY-STEP:\n1. Add to handshake_native Cargo.toml (src/frontend/handshake_native/Cargo.toml): image = { version='0.25', features=['png','jpeg','webp','gif'] }, open = '5' (for video OS open).\n2. Implement EmbedError enum and EmbedResolutionState in asset_resolver.rs. Write async fn resolve_embed(workspace_id, ref_value, embed_kind) -> EmbedResolution.\n3. In embed_block_renderer.rs, match embed_kind to dispatch to the correct view fn. Pass the view state (HashMap per embed node, stored in RichEditorState).\n4. In image_view.rs, cache the decoded TextureHandle in view state keyed by asset_id to avoid re-decoding every frame.\n5. In block_renderer.rs (from MT-012), add a match arm for NodeKind::Embed that calls embed_block_renderer::render_embed(ui, node, embed_states, workspace_id).\n6. Write cargo tests: asset_resolver validates and rejects absolute paths, traversal, empty refs (unit tests, no real HTTP). Integration test with a real backend: resolve a known asset_id and verify EmbedResolutionState::Ok is returned.\n7. Assign AccessKit NodeIds and roles to all interactive embed controls as specified above (reuse the accessibility/ registry + snapshot facilities from WP-011).\n\nDEPENDENCIES: MT-011 (EmbedNode kind in DocModel), MT-012 (block_renderer integration point). No dependency on MT-013 (formatting).",
@@ -446,5 +456,235 @@
       "Rerun the focused test_embeds binary and exact seeded-asset live test to ensure the receipt fix does not regress decoded image, missing/corrupt asset, slideshow, album, video, AccessKit, or cleanup behavior."
     ],
     "no_context_instruction": "Read MT-014.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Do not change the already-green asset pipeline merely to make the proof pass. Repair the canonical Argus completion predicate/receipt binding for the mounted embed click, rerun the exact current-head commands with the external artifact root and real PostgreSQL, inspect the regenerated terminal receipt and visual frame, then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V5",
+    "verdict_label": "PASS V5",
+    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
+    "validated_at_utc": "2026-09-16T23:19:47.108Z",
+    "session": "WP_VALIDATOR-N1B-20260916-113023",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validated_commit_head_check": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "tree_state_at_verdict": {
+      "git_status_porcelain": [
+        " M src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+      ],
+      "clean": false
+    },
+    "evidence_base_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "diff_stat_fd9060de_to_cprime": [
+      ".../handshake_core/src/storage/knowledge.rs        | 531 ++++-----------------",
+      ".../src/storage/surreal/knowledge.rs               | 135 +++++-",
+      ".../tests/test_mcp_snapshot_viewport.rs            |  16 +-",
+      "3 files changed, 236 insertions(+), 446 deletions(-)"
+    ],
+    "evidence_transfer_note": "Rows at fd9060de are validator-executed on binaries that are byte-identical at C-prime (the C-prime diff touches only backend storage/knowledge.rs [trait signatures], storage/surreal/knowledge.rs [+tripwire test module] and tests/test_mcp_snapshot_viewport.rs; handshake-native does not link handshake_core, and the one authorized --no-run rebuild at C-prime relinked only test_mcp_snapshot_viewport). Fixture-gated and live-attach rows were re-executed at C-prime against the C-prime handshake_core.exe (sha256 adcb8360...).",
+    "build_record": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native --no-run --locked --features integration,integration_tests,wgpu_screenshots --target-dir <shared warm target>",
+      "log": "WP-KERNEL-012/MT-108/wpv-n1/logs/246_native_build_no_run_cprime.log",
+      "log_sha256": "ff681f98ddd3630a14fdb5be822d652f49ca547725ecf7f3ca38c0eaf4b6315a",
+      "exit_code": 0,
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "executables": 191,
+      "exe_map": "WP-KERNEL-012/MT-108/wpv-n1/logs/247_native_test_binaries_cprime.json",
+      "prior_build_at_fd9060de": "WP-KERNEL-012/MT-108/wpv-n1/logs/010_native_build_no_run.log"
+    },
+    "backend_binary": {
+      "path": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+      "sha256": "adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173",
+      "mtime_utc": "2026-09-16T20:35:02Z",
+      "built_by": "backend validator at C-prime (REBUILD_HANDSHAKE_CORE receipt, MT-141/wpv-v2/logs/00-lane.txt)",
+      "store": "Handshake-managed embedded SurrealDB (owned per run by backend_proof_support)"
+    },
+    "lane": {
+      "owning_mt": "MT-108",
+      "dir": "WP-KERNEL-012/MT-108/wpv-n1",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "results_ledger": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "session_ledgers": [
+        "016_session_takeover.json",
+        "017_pass2_remaining_plan.json",
+        "018_default_pass2b_console.txt",
+        "019_pass2_summary.json",
+        "248_pass3_console.txt"
+      ]
+    },
+    "method": "Validator-executed prebuilt native test binaries from the shared warm target (VPX-001/003); implementer evidence used as triage only (VPX-002); Argus evidence from the in-process canonical driver / kittest AccessKit trees / GPU screenshot markers, with PNG frames opened by the validator where the contract requires it; static checks re-run by the validator.",
+    "summary": "PASS at C-prime: test_embeds 261@C-prime 27 passed/1 ignored against the C-prime backend, test_embeds_argus 290@C-prime (GPU, 1 passed, CAPTURED marker), test_find_in_files 264@C-prime green.",
+    "acceptance_map": [],
+    "proof_records": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-014-N1B-261",
+        "command": "test_embeds-b59f40d2a0a2051a.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:24:28.504Z",
+        "finished_utc": "2026-09-16T21:25:31.304Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 27 passed; 0 failed; 1 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/261_test_embeds_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-261-test_embeds",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-014"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-014-N1B-264",
+        "command": "test_find_in_files-7bf52789c196e0d7.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T21:37:39.398Z",
+        "finished_utc": "2026-09-16T21:40:11.009Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 35 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/264_test_find_in_files_pass3.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-264-test_find_in_files",
+          "tag": "pass3"
+        },
+        "covers": [
+          "MT-014"
+        ]
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-014-N1B-290",
+        "command": "test_embeds_argus-39d0c2be8887e0a3.exe --nocapture",
+        "cwd": "src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "dirty_file_count": 1,
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-N1B-20260916-113023",
+        "target_dir": "WP-KERNEL-012/MT-109/wpv-v15/target",
+        "started_utc": "2026-09-16T22:31:53.853Z",
+        "finished_utc": "2026-09-16T22:32:01.243Z",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/290_test_embeds_argus_pass3-gpu-fix.log",
+        "features": [
+          "integration",
+          "integration_tests",
+          "wgpu_screenshots"
+        ],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-109/wpv-v15/target",
+          "HANDSHAKE_GPU_SCREENSHOT": "1",
+          "RUST_TEST_THREADS": "1",
+          "HSK_TEST_BACKEND_BIN": "WP-KERNEL-012/MT-109/wpv-v15/target/debug/handshake_core.exe",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "run_id": "n1b-290-test_embeds_argus",
+          "tag": "pass3-gpu-fix"
+        },
+        "covers": [
+          "MT-014"
+        ]
+      }
+    ],
+    "proof_record_annotations": {
+      "PR-WP-KERNEL-012-MT-014-N1B-261": {
+        "binary": "test_embeds",
+        "log_sha256": "dfdb521e9822690588ff41db259d214ad184d1242efba3388912e941b25c66b7",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 63,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-014-N1B-264": {
+        "binary": "test_find_in_files",
+        "log_sha256": "7807a72b4dfaeedc6f66395b2af8c526d4b68acc88f6a27ff73fc4de1f4b1acb",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 152,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      },
+      "PR-WP-KERNEL-012-MT-014-N1B-290": {
+        "binary": "test_embeds_argus",
+        "log_sha256": "dc7fb7433f312156af16d451978d217c46ab6cd7e582c2eaae442bbccb6ca575",
+        "exit_raw": "0",
+        "failing_tests": [],
+        "wall_s": 7,
+        "session": "WP_VALIDATOR-N1B-20260916-113023",
+        "dirt_paths_at_run": [
+          "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt"
+        ],
+        "dirt_note": "tests/fixtures/swarm_edit_proof_log.txt rewritten by test_e7_swarm_edit_proof (finding N1B-F001, not restored per instruction); referenced only by test_e7_swarm_edit_proof.rs, so out of scope / not an input for any other binary",
+        "commit_note": "executed at C-prime on a clean tree"
+      }
+    },
+    "argus_evidence": [],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "static_escape_grep_cprime.txt (43 hits, no new escape hatches vs 000_phaseA at 6f19a524; hits are typed *Unavailable error variants / NotYetWired settings rows outside this MT's runtime paths)"
+      },
+      "sub_rule_2": {
+        "result": "PASS",
+        "evidence": "validator-executed proof reached the Handshake-managed embedded SurrealDB through the owned C-prime handshake_core.exe (backend_proof_support) and/or the in-process production egui/AccessKit surface"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by is a KERNEL_BUILDER actor; completed_by = WP_VALIDATOR-N1B-20260916-113023 (distinct)"
+      },
+      "overall": "PASS"
+    },
+    "clauses_reviewed": [],
+    "not_proven": [],
+    "not_run": [],
+    "findings": [],
+    "concerns": [],
+    "remediation_required": [],
+    "residual_uncertainty": [],
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "no_context_instruction": "PASS_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; whole-WP judgment remains Integration Validator authority."
   }
 }
