@@ -120,9 +120,9 @@ fn mt121_published_bounds_lie_within_the_declared_live_viewport() {
     let mut harness = shell_harness();
     let snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
 
-    let viewport = snapshot
-        .viewport
-        .expect("the MCP capture path always declares the viewport its bounds were laid out against");
+    let viewport = snapshot.viewport.expect(
+        "the MCP capture path always declares the viewport its bounds were laid out against",
+    );
     assert_eq!(
         viewport.source,
         ViewportSource::LiveWindow,
@@ -224,7 +224,9 @@ fn mt121_headless_capture_declares_the_documented_fallback_viewport() {
     let mut app = ok_app();
     let snapshot = app.capture_mcp_snapshot_for_navigation();
 
-    let viewport = snapshot.viewport.expect("a headless capture still declares its viewport");
+    let viewport = snapshot
+        .viewport
+        .expect("a headless capture still declares its viewport");
     assert_eq!(
         viewport.source,
         ViewportSource::DeclaredFallback,

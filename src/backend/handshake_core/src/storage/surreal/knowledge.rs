@@ -6331,9 +6331,7 @@ mod title_anchor_tests {
                 .expect("reclaim deletes only at zero live holders");
             assert!(upsert < count && count < delete, "order: {statement}");
             assert!(statement.contains("deleted_at = NONE"));
-            assert!(statement.contains(
-                "array::join(string::words(string::lowercase(title)), ' ')"
-            ));
+            assert!(statement.contains("array::join(string::words(string::lowercase(title)), ' ')"));
             assert!(statement.contains(&format!("= $anchor_title_key_{slot}")));
         }
         let current = title_anchor_reclaim_statement(TITLE_ANCHOR_SLOT_CURRENT);
@@ -6375,7 +6373,10 @@ mod title_anchor_tests {
         // documents).
         let first = title_anchor_binds(TITLE_ANCHOR_SLOT_CURRENT, &anchor);
         let second = title_anchor_binds(TITLE_ANCHOR_SLOT_CURRENT, &anchor);
-        assert_ne!(first[2].1, second[2].1, "claim_nonce must change per attempt");
+        assert_ne!(
+            first[2].1, second[2].1,
+            "claim_nonce must change per attempt"
+        );
     }
 }
 
