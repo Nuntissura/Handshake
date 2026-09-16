@@ -49,8 +49,12 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-150 re-pin: schema.surql gained loom_edges.event_ledger_event_id / idx_loom_edges_event
 // (previous value 0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6, the MT-109
 // pin, retained as PRE_MT150_GENERATED_SURREALQL_SHA256).
+// MT-141 R9 re-pin: schema.surql moved the composite provenance-ref constraint onto
+// atelier_media_source_provenance_ref.asset_id (previous value
+// 5cc902f3afe7691b07338a6170a16a35535e6ff40a1c119a4ccc65c3464c7779, the MT-150 pin, retained as
+// PRE_MT141_GENERATED_SURREALQL_SHA256).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "5cc902f3afe7691b07338a6170a16a35535e6ff40a1c119a4ccc65c3464c7779";
+    "05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -58,8 +62,11 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // loom_folders sibling_key field/index (I-152-2 sweep finding).
 // MT-150 re-pin: catalog identities gained the loom_edges event_ledger_event_id field/index
 // (previous value 9881bff3f6bd7d02797fb95c88ad51f1ae6f19777f89477e3285cc014c37d014, MT-109).
+// MT-141 re-pin: catalog identities gained the atelier_saved_search_retrieval_projection objects and
+// the changed atelier_media_source_provenance_ref.asset_id definition (previous value
+// 70e5b64ba1141642e37bf7fff598b596f82cc7520cec40829a442fb2cced2754, MT-150).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "70e5b64ba1141642e37bf7fff598b596f82cc7520cec40829a442fb2cced2754";
+    "b90f7345927316be15eb3f7bca0ba033df064d16326d37e3942677ecb84ce99c";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -83,10 +90,21 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // PRE_MT150_SCHEMA_INFO_SHA256); observed by `mt139_current_schema_info_pin_matches_fresh_mem_catalog`
 // and reached identically by the in-place MT-150 upgrade
 // (`mt150_exact_mt109_pin_upgrade_adds_loom_edge_receipt_field_and_restarts_current`).
+// MT-141 R9 re-pin: live STRUCTURE fingerprint with the provenance-ref constraint on
+// atelier_media_source_provenance_ref.asset_id (previous value
+// a4a7ef4c4f92e25186dcb4d0f331d22b150687b4102786d3a9a871028e7e93e7, the MT-150 pin, retained as
+// PRE_MT141_SCHEMA_INFO_SHA256); observed by `mt139_current_schema_info_pin_matches_fresh_mem_catalog`
+// and reached identically by the in-place MT-141 upgrade
+// (`mt141_exact_mt150_pin_upgrade_moves_provenance_ref_constraint_and_restarts_current`).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "a4a7ef4c4f92e25186dcb4d0f331d22b150687b4102786d3a9a871028e7e93e7";
+    "91ed6b88d18917d21bb31bfde164ba0d46c8e8f17e87f36f34ca8ff762f12ff6";
+// MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
+// value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
+// MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
+// (previous value 4d3f739296e5b59bd3962c0fab23180dd5e3363b8fc7ad277dc6ba17da9f1c63, the asset_id-only
+// MT-141 pin; before that 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585";
+    "68a635faefa1c2dcb85feb6eec9cd6ea64ccef38d0398508cde9c4733f8df19b";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -126,6 +144,58 @@ const PRE_MT150_GENERATED_SURREALQL_SHA256: &str =
     "0b9e32329d735477064393a1406825f94aa55db94f6256e3206f02166ae13dc6";
 const PRE_MT150_SCHEMA_INFO_SHA256: &str =
     "f58198becbec2c5d922d98ae742596ba603566d53c6c8c5b90447aaf1c9c0384";
+/// Seventh allowlisted lineage (MT-141 R9): every store bootstrapped at the MT-150 pin, before
+/// the composite "at least one provenance ref" constraint moved from the optional `run_ref`
+/// field (where the engine never evaluates an ASSERT for a NONE value, so an all-NONE row was
+/// accepted) onto the always-evaluated required `asset_id` field of
+/// `atelier_media_source_provenance_ref`. These are the exact MT-150 pins of
+/// [`GENERATED_SURREALQL_SHA256`] and [`EXPECTED_SCHEMA_INFO_SHA256`]; such stores are upgraded
+/// in place by `upgrade_pre_mt141_current`. Every older allowlisted lineage receives the MT-141
+/// statement inside its own upgrade transaction, because the finalize gate pins the current
+/// fingerprint.
+const PRE_MT141_GENERATED_SURREALQL_SHA256: &str =
+    "5cc902f3afe7691b07338a6170a16a35535e6ff40a1c119a4ccc65c3464c7779";
+const PRE_MT141_SCHEMA_INFO_SHA256: &str =
+    "a4a7ef4c4f92e25186dcb4d0f331d22b150687b4102786d3a9a871028e7e93e7";
+/// MT-141 R9 upgrade statement: `DEFINE FIELD OVERWRITE` is idempotent, so re-defining
+/// `asset_id` with the composite constraint is the whole delta. Must stay identical to
+/// `schema.surql` (proven by `mt141_upgrade_statements_match_schema`). No backfill: every row the
+/// product writer produced already carries at least one ref; a pre-existing all-NONE row would
+/// be rejected on its next write, which is the constraint's purpose.
+const MT141_SAVED_SEARCH_PROJECTION_BLOCK: &str = "\
+DEFINE TABLE OVERWRITE atelier_saved_search_retrieval_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE projection_id ON TABLE atelier_saved_search_retrieval_projection TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE saved_search_id ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE content_hash ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE artifact_ref ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE jump_target ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE tags_json ON TABLE atelier_saved_search_retrieval_projection TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE tags_json.* ON TABLE atelier_saved_search_retrieval_projection TYPE any;
+DEFINE FIELD OVERWRITE favorite ON TABLE atelier_saved_search_retrieval_projection TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE rating ON TABLE atelier_saved_search_retrieval_projection TYPE int DEFAULT 0;
+DEFINE FIELD OVERWRITE matched_color_hex ON TABLE atelier_saved_search_retrieval_projection TYPE option<string>;
+DEFINE FIELD OVERWRITE content_tier ON TABLE atelier_saved_search_retrieval_projection TYPE option<string>;
+DEFINE FIELD OVERWRITE view_mode ON TABLE atelier_saved_search_retrieval_projection TYPE 'NSFW' | 'SFW' DEFAULT 'NSFW';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_saved_search_retrieval_projection TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_saved_search_retrieval_projection ON TABLE atelier_saved_search_retrieval_projection FIELDS projection_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_atelier_saved_search_retrieval_projection_1 ON TABLE atelier_saved_search_retrieval_projection FIELDS saved_search_id, asset_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_saved_search_retrieval_projection_search ON TABLE atelier_saved_search_retrieval_projection FIELDS saved_search_id;
+";
+const MT141_PROVENANCE_REF_ASSERT_LINE: &str = "\
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) AND ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $this.run_ref != NONE) REFERENCE ON DELETE CASCADE;
+";
+/// The complete MT-141 lineage delta: the provenance-ref `asset_id` line followed by the
+/// saved-search retrieval projection block.
+fn mt141_upgrade_statements() -> String {
+    format!("{MT141_PROVENANCE_REF_ASSERT_LINE}{MT141_SAVED_SEARCH_PROJECTION_BLOCK}")
+}
+/// The MT-150-era `asset_id` definition, used only to reconstruct the exact MT-150 pin script
+/// in tests (`mt141_pin_schema`, `mt150_pin_schema`).
+#[cfg(test)]
+const PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE: &str = "\
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
+";
 /// MT-150 upgrade statements: the durable EventLedger receipt binding on `loom_edges`, so a
 /// tag/mention edge create or delete carries the same atomic receipt linkage as `loom_blocks`
 /// and `loom_folders`. Applied with the state update in one transaction on top of every
@@ -341,9 +411,9 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 // alias assertion); no REFERENCE field.
 // MT-150 re-pin: loom_edges.event_ledger_event_id (+1 field, +1 REFERENCE field, +1 explicit
 // record::exists assertion) and idx_loom_edges_event (+1 named index); no new table.
-const TABLE_DEFINITION_COUNT: usize = 292;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3192;
-const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 238;
+const TABLE_DEFINITION_COUNT: usize = 293;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3205;
+const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 239;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
     "DEFINE FIELD OVERWRITE capability_grants ON TABLE atelier_transcript_receipt TYPE any DEFAULT [];",
@@ -357,21 +427,21 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 55;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
-const INDEX_DEFINITION_COUNT: usize = 813;
+const INDEX_DEFINITION_COUNT: usize = 816;
 const EVENT_DEFINITION_COUNT: usize = 20;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
 const ACCESS_DEFINITION_COUNT: usize = 1;
 const FUNCTION_DEFINITION_COUNT: usize = 10;
-const SOURCE_TABLE_COUNT: usize = 289;
+const SOURCE_TABLE_COUNT: usize = 290;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 553;
-const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 259;
+const SOURCE_NAMED_INDEX_COUNT: usize = 555;
+const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 260;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 const REFERENCE_FIELD_COUNT: usize = 407;
 const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 406;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 228;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 229;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -1088,6 +1158,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "atelier_reset_operation",
     "atelier_retrieval_policy",
     "atelier_saved_search",
+    "atelier_saved_search_retrieval_projection",
     "atelier_screenshot_artifact_storage",
     "atelier_self_improve_sandbox_run",
     "atelier_sheet_parse_snapshot",
@@ -1400,6 +1471,15 @@ impl SchemaState {
             && self.generated_surql_sha256 == PRE_MT150_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT150_SCHEMA_INFO_SHA256
+    }
+
+    /// Exact MT-150 current lineage (revision 157 with the loom_edges receipt binding, before
+    /// the MT-141 R9 provenance-ref constraint moved onto `asset_id`).
+    fn is_exact_pre_mt141_current(&self) -> bool {
+        self.has_stable_v1_identity()
+            && self.generated_surql_sha256 == PRE_MT141_GENERATED_SURREALQL_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_MT141_SCHEMA_INFO_SHA256
     }
 
     fn is_exact_supported_predecessor(&self) -> bool {
@@ -1782,6 +1862,11 @@ pub async fn bootstrap_schema(
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
                     }
+                    Some(state) if state.is_exact_pre_mt141_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_mt141_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
                     Some(state) if state.is_exact_pre_mt150_current() => {
                         verified_observed =
                             Some(upgrade_pre_mt150_current(&database, &state).await?);
@@ -2044,9 +2129,10 @@ fn resource_authority_upgrade_statements() -> String {
 /// the current fingerprint (which includes both).
 fn post_mt109_upgrade_statements() -> String {
     format!(
-        "{}\n{}",
+        "{}\n{}\n{}",
         resource_authority_upgrade_statements(),
-        MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS
+        MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS,
+        mt141_upgrade_statements()
     )
 }
 
@@ -2935,6 +3021,7 @@ async fn upgrade_pre_mt150_current(
         )
         .await;
     }
+    let mt141_upgrade = mt141_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
@@ -2952,6 +3039,7 @@ IF $current = NONE\n\
     THROW 'HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_STATE_CHANGED';\n\
 }};\n\
 {MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS}\
+{mt141_upgrade}\
 UPDATE ONLY handshake_schema_state:primary SET\n\
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
@@ -3011,6 +3099,104 @@ COMMIT TRANSACTION;\n"
             fail_closed(
                 database,
                 "HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// MT-141 R9: upgrades an exact MT-150 current store in place by re-defining
+/// `atelier_media_source_provenance_ref.asset_id` with the composite provenance-ref constraint
+/// inside one transaction guarded by the exact prior state, then finalizes through the same
+/// fingerprint gate as every other lineage. Every application row is untouched.
+async fn upgrade_pre_mt141_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_mt141_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let mt141_upgrade = mt141_upgrade_statements();
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $schema_revision\n\
+    OR $current.target_revision != $schema_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_STATE_CHANGED';\n\
+}};\n\
+{mt141_upgrade}\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_MT141_GENERATED_SURREALQL_SHA256.to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_MT141_SCHEMA_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_FINAL_STATE_MISMATCH: {state:?}"),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_FINAL_STATE_MISSING".to_owned(),
             )
             .await
         }
@@ -3669,7 +3855,7 @@ mod tests {
         let expected_tables = atelier_expected_catalog()
             .into_keys()
             .collect::<BTreeSet<_>>();
-        assert_eq!(expected_tables.len(), 134);
+        assert_eq!(expected_tables.len(), 135);
         let expected_sequences = ATELIER_REQUIRED_SEQUENCES
             .iter()
             .map(|name| (*name).to_owned())
@@ -3691,7 +3877,9 @@ mod tests {
                 .await?;
         if probe_dependencies {
             assert_eq!(authority_catalog_names("access").len(), 1);
-            assert_eq!(authority_catalog_names("function").len(), 9);
+            // MT-141 (carried debt MT150-V3-F04): schema.surql carries 10 fn::mt109_* functions
+            // since 6e239eee; the pin was never moved from 9.
+            assert_eq!(authority_catalog_names("function").len(), 10);
             let mut saved = database
                 .query("RETURN (INFO FOR DB).functions.mt109_live_session;")
                 .await?;
@@ -4382,10 +4570,12 @@ mod tests {
                         })
                         .collect::<Vec<_>>()
                 );
-                // Response index 151 is the injected THROW immediately before the schema-state
+                // Response index 170 is the injected THROW immediately before the schema-state
                 // UPDATE: three transaction/precondition statements, 144 authority statements,
-                // two Loom backfill statements and the two MT-150 `loom_edges` receipt DDL
-                // statements precede it. The remaining tail statements must be cancelled.
+                // two Loom backfill statements, the two MT-150 `loom_edges` receipt DDL
+                // statements and the 19 MT-141 DDL statements (provenance-ref `asset_id` line plus the
+                // saved-search retrieval projection block) precede it. The remaining tail statements
+                // must be cancelled.
                 let primary_errors = rollback_errors
                     .iter()
                     .filter(|(_, error)| {
@@ -4396,9 +4586,9 @@ mod tests {
                 assert_eq!(
                     primary_errors,
                     vec![
-                        (151, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
-                        (152, "The query was not executed due to a cancelled transaction"),
-                        (153, "Cannot COMMIT: the transaction was aborted due to a prior error"),
+                        (170, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
+                        (171, "The query was not executed due to a cancelled transaction"),
+                        (172, "Cannot COMMIT: the transaction was aborted due to a prior error"),
                     ],
                     "injected rollback did not fail at the exact pre-marker-update statement"
                 );
@@ -5883,6 +6073,204 @@ mod tests {
         current.shutdown().await.expect("close current store");
     }
 
+    /// MT-141 R9: the exact MT-150 pin is the current script with the MT-150-era
+    /// `atelier_media_source_provenance_ref.asset_id` definition restored, proven byte-exact
+    /// against `PRE_MT141_GENERATED_SURREALQL_SHA256`.
+    fn mt141_pin_schema() -> String {
+        assert_eq!(
+            SCHEMA.matches(MT141_PROVENANCE_REF_ASSERT_LINE).count(),
+            1,
+            "MT-141 line drifted: {MT141_PROVENANCE_REF_ASSERT_LINE}"
+        );
+        assert_eq!(SCHEMA.matches(PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE).count(), 0);
+        assert_eq!(SCHEMA.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(), 1);
+        let pinned = SCHEMA
+            .replace(MT141_PROVENANCE_REF_ASSERT_LINE, PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE)
+            .replace(MT141_SAVED_SEARCH_PROJECTION_BLOCK, "");
+        assert_eq!(
+            sha256_hex(pinned.as_bytes()),
+            PRE_MT141_GENERATED_SURREALQL_SHA256,
+            "the pre-MT-141 allowlist must be exactly the current script with the MT-150-era asset_id line"
+        );
+        pinned
+    }
+
+    /// MT-141 R9: the upgrade DDL is byte-identical (whitespace-normalised) to the fresh-script
+    /// `asset_id` definition, it carries the composite constraint, every older lineage's upgrade
+    /// query carries it, and the lineage pins moved.
+    #[test]
+    fn mt141_upgrade_statements_match_schema() {
+        fn statements(source: &str) -> Vec<String> {
+            source
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("--"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .split(';')
+                .map(|statement| statement.split_whitespace().collect::<Vec<_>>().join(" "))
+                .filter(|statement| statement.starts_with("DEFINE "))
+                .collect()
+        }
+        let upgrade = statements(&mt141_upgrade_statements());
+        assert_eq!(upgrade.len(), 1 + 18);
+        let schema = statements(SCHEMA);
+        for statement in &upgrade {
+            assert!(schema.iter().any(|s| s == statement), "MT-141 upgrade DDL drifted from schema.surql: {statement}");
+        }
+        assert!(TABLE_NAMES.contains(&"atelier_saved_search_retrieval_projection"));
+        assert!(upgrade[0].contains("ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset>"));
+        for field in ["source_url_ref", "source_path_ref", "source_note_ref", "contact_sheet_ref", "task_ref", "run_ref"] {
+            assert!(upgrade[0].contains(&format!("$this.{field} != NONE")), "constraint names {field}");
+        }
+        assert_eq!(PRE_MT109_SCHEMA.matches(MT141_PROVENANCE_REF_ASSERT_LINE).count(), 0);
+        assert!(post_mt109_upgrade_statements().contains(&mt141_upgrade_statements()));
+        assert!(mt109_authority_upgrade_query().contains(&mt141_upgrade_statements()));
+        assert_ne!(PRE_MT141_GENERATED_SURREALQL_SHA256, GENERATED_SURREALQL_SHA256);
+        assert_ne!(PRE_MT141_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
+        // The MT-141 predecessor is the MT-150 current pin, so the hops chain.
+        assert_ne!(PRE_MT141_GENERATED_SURREALQL_SHA256, PRE_MT150_GENERATED_SURREALQL_SHA256);
+        let _ = mt141_pin_schema();
+    }
+
+    /// MT-141 R9: a store at the exact MT-150 pin (proven byte-exact against
+    /// `PRE_MT141_GENERATED_SURREALQL_SHA256`) holding a media asset and a valid provenance row is
+    /// upgraded in place: the row survives, the live fingerprint is the current pin, the
+    /// constraint now rejects an all-NONE provenance row while still accepting a one-ref row, and
+    /// the state survives a reopen.
+    #[tokio::test]
+    async fn mt141_exact_mt150_pin_upgrade_moves_provenance_ref_constraint_and_restarts_current() {
+        let mt141_pin_schema = mt141_pin_schema();
+        let directory = tempfile::tempdir().expect("temporary MT-150-pin store");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open MT-150-pin store");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query_bound(
+                            mt141_pin_schema.as_str(),
+                            BootstrapBindings {
+                                schema_version: SCHEMA_VERSION.to_owned(),
+                                schema_revision: SCHEMA_REVISION,
+                                namespace: DEFAULT_NAMESPACE.to_owned(),
+                                database: DEFAULT_DATABASE.to_owned(),
+                                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                                generated_surql_sha256: PRE_MT141_GENERATED_SURREALQL_SHA256
+                                    .to_owned(),
+                            },
+                        )
+                        .await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    let before = read_schema_catalog(&database).await?;
+                    assert_eq!(
+                        before.info_fingerprint_sha256, PRE_MT141_SCHEMA_INFO_SHA256,
+                        "the synthesized MT-150-pin store must carry the exact MT-150 live fingerprint"
+                    );
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET \
+                             info_fingerprint_sha256 = '{PRE_MT141_SCHEMA_INFO_SHA256}', \
+                             apply_state = 'complete', updated_at = time::now(); \
+                             CREATE atelier_media_asset:u'018f0000-0000-7000-8000-000000000141' CONTENT {{ \
+                             asset_id: u'018f0000-0000-7000-8000-000000000141', content_hash: 'mt141-pin', \
+                             mime: 'image/png', byte_len: 1, artifact_ref: 'artifact://mt141/pin' }}; \
+                             CREATE atelier_media_source_provenance_ref:u'018f0000-0000-7000-8000-000000000141' CONTENT {{ \
+                             asset_id: atelier_media_asset:u'018f0000-0000-7000-8000-000000000141', \
+                             source_url_ref: 'https://example.invalid/mt141', updated_by: 'mt141-pin' }};"
+                        ))
+                        .await?
+                        .check()?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("construct exact MT-150-pin store with a media asset and a provenance row");
+        storage.shutdown().await.expect("close MT-150-pin store");
+
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen MT-150-pin store");
+        let upgraded = match bootstrap_schema(&reopened).await {
+            Ok(report) => report,
+            Err(error) => {
+                let reference = fresh_mem_catalog().await;
+                let observed = reopened
+                    .with_admin_operation(|database| {
+                        Box::pin(async move { canonical_catalog(&database).await })
+                    })
+                    .await
+                    .expect("inspect the failed upgrade");
+                report_catalog_drift("MT141_UPGRADE", &reference, &observed);
+                panic!("upgrade exact MT-150-pin store: {error}");
+            }
+        };
+        assert!(upgraded.reused_existing_schema);
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        reopened
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let mut survived = database
+                        .query("RETURN atelier_media_source_provenance_ref:u'018f0000-0000-7000-8000-000000000141'.source_url_ref;")
+                        .await?;
+                    let url: Option<String> = survived.take(0)?;
+                    assert_eq!(url.as_deref(), Some("https://example.invalid/mt141"));
+                    database
+                        .query(
+                            "CREATE atelier_media_asset:u'018f0000-0000-7000-8000-000000000142' CONTENT {                              asset_id: u'018f0000-0000-7000-8000-000000000142', content_hash: 'mt141-pin-2',                              mime: 'image/png', byte_len: 1, artifact_ref: 'artifact://mt141/pin-2' };",
+                        )
+                        .await?
+                        .check()?;
+                    let rejected = match database
+                        .query(
+                            "CREATE atelier_media_source_provenance_ref:u'018f0000-0000-7000-8000-000000000142' CONTENT {                              asset_id: atelier_media_asset:u'018f0000-0000-7000-8000-000000000142', updated_by: 'mt141-pin' };",
+                        )
+                        .await
+                    {
+                        Ok(response) => response.check().map(|_| ()).map_err(|e| e.to_string()),
+                        Err(error) => Err(error.to_string()),
+                    };
+                    let rejection =
+                        rejected.expect_err("an all-NONE provenance row must be rejected after the upgrade");
+                    assert!(
+                        rejection.contains("$this.run_ref != NONE"),
+                        "rejected by the moved constraint: {rejection}"
+                    );
+                    let accepted = match database
+                        .query(
+                            "CREATE atelier_media_source_provenance_ref:u'018f0000-0000-7000-8000-000000000142' CONTENT {                              asset_id: atelier_media_asset:u'018f0000-0000-7000-8000-000000000142',                              task_ref: 'task://mt141', updated_by: 'mt141-pin' };",
+                        )
+                        .await
+                    {
+                        Ok(response) => response.check().map(|_| ()).map_err(|e| e.to_string()),
+                        Err(error) => Err(error.to_string()),
+                    };
+                    assert!(accepted.is_ok(), "a one-ref provenance row is accepted: {accepted:?}");
+                    Ok(())
+                })
+            })
+            .await
+            .expect("inspect upgraded MT-150-pin store");
+        reopened.shutdown().await.expect("close upgraded store");
+
+        let restarted = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded store");
+        let reused = bootstrap_schema(&restarted)
+            .await
+            .expect("bootstrap on the upgraded store");
+        assert_eq!(reused.outcome, SchemaBootstrapOutcome::ReusedExactCurrent);
+        restarted.shutdown().await.expect("close restarted store");
+    }
+
     /// MT-150: the exact MT-109 pin is the current script minus the MT-150 `loom_edges`
     /// receipt block, proven byte-exact against `PRE_MT150_GENERATED_SURREALQL_SHA256`.
     fn mt150_pin_schema() -> String {
@@ -5893,7 +6281,9 @@ mod tests {
             1,
             "MT-150 block drifted: {MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS}"
         );
-        let pinned = SCHEMA.replace(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS, "");
+        // The MT-141 R9 constraint move came after MT-150, so the MT-109 pin is the current
+        // script minus the MT-150 block with the MT-150-era `asset_id` definition restored.
+        let pinned = mt141_pin_schema().replace(MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS, "");
         assert_eq!(
             sha256_hex(pinned.as_bytes()),
             PRE_MT150_GENERATED_SURREALQL_SHA256,

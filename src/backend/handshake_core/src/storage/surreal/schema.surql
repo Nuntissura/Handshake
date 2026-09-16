@@ -2133,7 +2133,7 @@ DEFINE INDEX OVERWRITE pk_atelier_image_import_request ON TABLE atelier_image_im
 DEFINE INDEX OVERWRITE uq_atelier_image_import_request_1 ON TABLE atelier_image_import_request FIELDS idempotency_key UNIQUE;
 
 DEFINE TABLE OVERWRITE atelier_media_source_provenance_ref SCHEMAFULL PERMISSIONS NONE;
-DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) AND ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $this.run_ref != NONE) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source_url_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
 DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
 DEFINE FIELD OVERWRITE source_note_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
@@ -2521,6 +2521,24 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_saved_search TYPE datetim
 DEFINE INDEX OVERWRITE pk_atelier_saved_search ON TABLE atelier_saved_search FIELDS saved_search_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_saved_search_name ON TABLE atelier_saved_search FIELDS name UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_saved_search_updated ON TABLE atelier_saved_search FIELDS updated_at_utc;
+DEFINE TABLE OVERWRITE atelier_saved_search_retrieval_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE projection_id ON TABLE atelier_saved_search_retrieval_projection TYPE uuid ASSERT ($value = record::id($this.id));
+DEFINE FIELD OVERWRITE saved_search_id ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE content_hash ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE artifact_ref ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE jump_target ON TABLE atelier_saved_search_retrieval_projection TYPE string;
+DEFINE FIELD OVERWRITE tags_json ON TABLE atelier_saved_search_retrieval_projection TYPE array DEFAULT [];
+DEFINE FIELD OVERWRITE tags_json.* ON TABLE atelier_saved_search_retrieval_projection TYPE any;
+DEFINE FIELD OVERWRITE favorite ON TABLE atelier_saved_search_retrieval_projection TYPE bool DEFAULT false;
+DEFINE FIELD OVERWRITE rating ON TABLE atelier_saved_search_retrieval_projection TYPE int DEFAULT 0;
+DEFINE FIELD OVERWRITE matched_color_hex ON TABLE atelier_saved_search_retrieval_projection TYPE option<string>;
+DEFINE FIELD OVERWRITE content_tier ON TABLE atelier_saved_search_retrieval_projection TYPE option<string>;
+DEFINE FIELD OVERWRITE view_mode ON TABLE atelier_saved_search_retrieval_projection TYPE 'NSFW' | 'SFW' DEFAULT 'NSFW';
+DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_saved_search_retrieval_projection TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE pk_atelier_saved_search_retrieval_projection ON TABLE atelier_saved_search_retrieval_projection FIELDS projection_id UNIQUE;
+DEFINE INDEX OVERWRITE uq_atelier_saved_search_retrieval_projection_1 ON TABLE atelier_saved_search_retrieval_projection FIELDS saved_search_id, asset_id UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_saved_search_retrieval_projection_search ON TABLE atelier_saved_search_retrieval_projection FIELDS saved_search_id;
 
 -- 0084_atelier_web_portfolio_exports
 DEFINE TABLE OVERWRITE atelier_web_portfolio_export_request SCHEMAFULL PERMISSIONS NONE;
