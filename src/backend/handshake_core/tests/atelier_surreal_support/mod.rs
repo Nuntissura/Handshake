@@ -125,7 +125,15 @@ impl OwnedTempRoot {
 impl Drop for OwnedTempRoot {
     fn drop(&mut self) {
         if let Some(path) = self.path.take() {
-            let _ = fs::remove_dir_all(path);
+            // A harness dropped without `shutdown()` still has the engine releasing its
+            // RocksDB `LOCK` as the storage handles above this field drop; retry briefly so
+            // the store directory does not leak under the lane tmp root (MT-141 / F06).
+            for attempt in 0..20u32 {
+                if fs::remove_dir_all(&path).is_ok() || !path.exists() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(25 * u64::from(attempt + 1)));
+            }
         }
     }
 }

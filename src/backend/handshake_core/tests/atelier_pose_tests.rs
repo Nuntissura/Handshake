@@ -1406,8 +1406,11 @@ async fn atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_p
         )
         .await
         .expect("read rig B activation event payload");
+    // The PostgreSQL original read the LATEST rig B event (`ORDER BY created_at_utc DESC LIMIT 1`);
+    // the ledger lists ascending, so take the last matching event (MT-141 port correction).
     let rig_b_activation_payload = rig_b_events
         .iter()
+        .rev()
         .find(|event| {
             event.payload["event_family"]
                 == serde_json::json!(pose_event_family::POSE_WORKSPACE_RIG_STATE_SET)

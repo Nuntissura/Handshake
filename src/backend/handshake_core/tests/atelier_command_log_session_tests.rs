@@ -19,7 +19,33 @@ use handshake_core::atelier::command_corpus::{
     detect_stale_sessions, DiagnosticsSession, NewCommandLogEntry, SessionStatus,
 };
 use handshake_core::atelier::{AtelierError, AtelierStore};
+use handshake_core::storage::surreal::SurrealStorage;
+use surrealdb::types::{RecordId, SurrealValue};
 use uuid::Uuid;
+
+#[derive(SurrealValue)]
+struct SessionRecordBinding {
+    record: RecordId,
+}
+
+/// Back-date one session's `last_heartbeat_utc` by one hour. The heartbeat API always
+/// stamps `time::now()`; the PostgreSQL original seeded the stale row with
+/// `NOW() - INTERVAL '1 hour'` for the same reason. Test-setup write only (MT-141 R12).
+async fn backdate_heartbeat_one_hour(storage: &SurrealStorage, session_ref: &str) {
+    let record = RecordId::new("atelier_diagnostics_session", session_ref.to_owned());
+    storage
+        .with_data_operation(move |ctx| {
+            Box::pin(async move {
+                ctx.query_values::<surrealdb::types::Value, _>(
+                    "UPDATE $record SET last_heartbeat_utc = time::now() - 1h RETURN AFTER;",
+                    SessionRecordBinding { record },
+                )
+                .await
+            })
+        })
+        .await
+        .expect("seed an old-heartbeat session");
+}
 
 /// Create the shared isolated embedded-store preamble every test runs against.
 async fn connected_store() -> (AtelierStore, atelier_surreal_support::AtelierSurrealHarness) {
@@ -130,7 +156,7 @@ async fn mt145_command_log_append_only_tied_to_session_and_receipt() {
 /// flagging, not deleted.
 #[tokio::test]
 async fn mt144_stale_session_detected_and_evidence_preserved() {
-    let (store, _harness) = connected_store().await;
+    let (store, harness) = connected_store().await;
 
     let run = Uuid::now_v7();
     let stale_ref = format!("session:{run}:stale");
@@ -142,13 +168,14 @@ async fn mt144_stale_session_detected_and_evidence_preserved() {
         .await
         .expect("record fresh heartbeat");
 
-    // A short real delay makes this heartbeat old relative to the focused
-    // timeout while preserving the production heartbeat path.
+    // A session whose last heartbeat is deterministically one hour old: create it
+    // through the production heartbeat path, then back-date the timestamp (the
+    // heartbeat API always stamps NOW()).
     store
         .record_session_heartbeat(&stale_ref)
         .await
         .expect("record stale-session heartbeat");
-    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    backdate_heartbeat_one_hour(&harness.storage, &stale_ref).await;
 
     // Attach evidence to the stale session BEFORE detection runs.
     store
@@ -164,14 +191,14 @@ async fn mt144_stale_session_detected_and_evidence_preserved() {
         .expect("attach evidence to the stale session");
 
     // Pure detection over loaded records flags only the old session at a
-    // focused timeout.
+    // 10-minute timeout.
     let now = chrono::Utc::now();
     let all_sessions = store
         .list_diagnostics_sessions()
         .await
         .expect("list diagnostics sessions");
     let pure_stale: Vec<DiagnosticsSession> =
-        detect_stale_sessions(&all_sessions, now, chrono::Duration::milliseconds(1));
+        detect_stale_sessions(&all_sessions, now, chrono::Duration::minutes(10));
     assert!(
         pure_stale.iter().any(|s| s.session_ref == stale_ref),
         "pure detection must flag the old-heartbeat session"
@@ -181,9 +208,9 @@ async fn mt144_stale_session_detected_and_evidence_preserved() {
         "pure detection must NOT flag the fresh session"
     );
 
-    // Persisted flagging at the same focused timeout: the old session is flipped STALE.
+    // Persisted flagging at the same timeout: the old session is flipped STALE.
     let flagged = store
-        .flag_stale_sessions(chrono::Duration::milliseconds(1))
+        .flag_stale_sessions(chrono::Duration::minutes(10))
         .await
         .expect("flag stale sessions");
     assert!(

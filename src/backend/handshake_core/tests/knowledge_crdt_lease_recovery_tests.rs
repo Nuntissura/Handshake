@@ -1004,5 +1004,14 @@ mod mt_079_recovery_receipt {
             "wrong-scope lease must refuse recovery, got {out:?}"
         );
         assert_eq!(receipt_count(&pool, &checkpoint.checkpoint_id).await, 0);
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        drop(db);
+        drop(pool);
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 }

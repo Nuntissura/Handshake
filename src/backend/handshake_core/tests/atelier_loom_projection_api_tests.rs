@@ -32,6 +32,59 @@ use handshake_core::AppState;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+/// `api::stage::capture_context` reads the native session binding through
+/// `HANDSHAKE_STAGE_BINDING_FILE` (process-wide env); every test in this binary that installs
+/// one holds this lock while it runs.
+static NATIVE_BINDING_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// A live `handshake-native:` session binding for THIS process, written through the product's
+/// own `current_process_native_session_binding`, so `x-hsk-session-token` genuinely
+/// authenticates on the routes guarded by `calling_actor` (MT-141 R15; the intake item and
+/// Loom-link routes require an authenticated session per `api::stage::capture_context`).
+struct NativeSessionBinding {
+    token: String,
+    binding_path: std::path::PathBuf,
+    previous_binding_path: Option<std::ffi::OsString>,
+}
+
+impl NativeSessionBinding {
+    fn install() -> Self {
+        let token = format!("{:064x}", Uuid::new_v4().as_u128());
+        let binding_path = std::env::temp_dir().join(format!(
+            "atelier-loom-projection-session-binding-{}.json",
+            Uuid::new_v4()
+        ));
+        std::fs::write(
+            &binding_path,
+            serde_json::to_vec(
+                &handshake_core::api::stage::current_process_native_session_binding(&token),
+            )
+            .expect("serialize native session binding"),
+        )
+        .expect("write native session binding");
+        let previous_binding_path = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
+        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+        handshake_core::api::stage::authenticate_native_session_token(Some(&token))
+            .expect("current-process native session authenticates");
+        Self {
+            token,
+            binding_path,
+            previous_binding_path,
+        }
+    }
+}
+
+impl Drop for NativeSessionBinding {
+    fn drop(&mut self) {
+        if let Some(previous) = &self.previous_binding_path {
+            std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous);
+        } else {
+            std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
+        }
+        let _ = std::fs::remove_file(&self.binding_path);
+    }
+}
+
 #[derive(Default)]
 struct NoopRecorder;
 
@@ -174,6 +227,8 @@ async fn source_backed_block(storage: &dyn Database, workspace_id: &str, title: 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
+    let _binding_guard = NATIVE_BINDING_ENV_LOCK.lock().await;
+    let binding = NativeSessionBinding::install();
     let harness = AtelierSurrealHarness::create().await;
     let state = app_state(&harness).await;
     let store = harness.atelier.clone();
@@ -219,6 +274,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     });
     let item_response = http
         .post(&item_url)
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "mt140-api-test")
         .json(&item_body)
         .send()
@@ -237,6 +293,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
 
     let replay = http
         .post(&item_url)
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "mt140-api-test-retry")
         .json(&item_body)
         .send()
@@ -263,6 +320,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
         .post(format!(
             "{base}/atelier/intake/batches/{unknown_batch}/items"
         ))
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "mt140-api-test")
         .json(&item_body)
         .send()
@@ -281,7 +339,10 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
         .send()
         .await
         .expect("missing-actor request");
-    assert_eq!(no_actor.status(), reqwest::StatusCode::BAD_REQUEST);
+    // MT-141 R15: the route authenticates the session before reading the body
+    // (`api::stage::capture_context`), so an unauthenticated request is rejected with
+    // 401 `invalid_session`; the proof intent (rejected, never created) is unchanged.
+    assert_eq!(no_actor.status(), reqwest::StatusCode::UNAUTHORIZED);
 
     let block_id = source_backed_block(&storage, &workspace_id, "MT-033 canonical block").await;
     let link_url = format!(
@@ -290,6 +351,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     );
     let linked = http
         .put(&link_url)
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "mt033-api-test")
         .json(&json!({"loom_block_id": block_id}))
         .send()
@@ -321,6 +383,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
 
     let idempotent = http
         .put(&link_url)
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "mt033-api-test-retry")
         .json(&json!({"loom_block_id": block_id}))
         .send()
@@ -344,6 +407,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
         source_backed_block(&storage, &workspace_id, "MT-033 conflicting block").await;
     let conflict = http
         .put(&link_url)
+        .header("x-hsk-session-token", &binding.token)
         .header("x-hsk-actor-id", "mt033-api-test")
         .json(&json!({"loom_block_id": different_block}))
         .send()

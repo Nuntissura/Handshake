@@ -868,6 +868,15 @@ mod mt_069_atomic_promotion {
                 .count(),
             1
         );
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        drop(db);
+        drop(pool);
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 }
 
@@ -995,6 +1004,14 @@ mod mt_078_no_external_relay {
                 format!("knowledge-crdt:{crdt_doc}")
             );
         }
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        drop(db);
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 }
 
@@ -1069,6 +1086,13 @@ mod mt_080_spec_compatibility {
         // The direct authority-write branch is explicitly dispositioned below
         // because the public embedded surface currently exposes no mutation
         // handle for schema-negative writes.
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 
     /// Spec 2.3.13.11: "AI edit proposals, graph mutation proposals, ...
@@ -1134,6 +1158,14 @@ mod mt_080_spec_compatibility {
         // in knowledge_crdt_proposal_tests (MT-068/MT-074); here we pin the
         // Typed implementation guarantee: actor and span evidence are
         // required by the active proposal paths.
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        drop(db);
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 
     /// Spec 2.3.13.11: denial receipts are durable and typed. The embedded
@@ -1212,6 +1244,13 @@ mod mt_080_spec_compatibility {
                 "rejected denial receipt must not persist"
             );
         }
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 
     /// Spec 2.3.13.11: storage-authority MUSTs. Browser/file/memory state is
@@ -1408,5 +1447,14 @@ mod mt_080_spec_compatibility {
                 .any(|r| r.receipt_kind == "graph_promotion_denied"),
             "a durable graph_promotion_denied receipt must exist"
         );
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        drop(db);
+        drop(pool);
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 }

@@ -142,6 +142,26 @@ async fn fresh_asset(store: &AtelierStore) -> Uuid {
     asset.asset_id
 }
 
+/// A media asset whose payload (and therefore `content_hash`) is unique per call.
+/// `fresh_asset` hashes one fixed payload, and `materialize_media_asset` is idempotent on
+/// `uq_atelier_media_asset_1 (content_hash)`, so two `fresh_asset` calls in one test return the
+/// SAME asset; tests that need distinct assets use this helper (MT-141 R10/R11).
+async fn fresh_asset_tagged(store: &AtelierStore, tag: &str) -> Uuid {
+    let payload = format!("core-data-test-media-{tag}-{}", Uuid::now_v7());
+    let artifact = atelier_surreal_support::write_native_media_artifact(payload.as_bytes());
+    let asset = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact.content_hash,
+            mime: "image/png".to_string(),
+            byte_len: artifact.byte_len,
+            source_provenance: Some(format!("core-data-test-{tag}")),
+            artifact_ref: artifact.artifact_ref,
+        })
+        .await
+        .expect("materialize tagged media asset");
+    asset.asset_id
+}
+
 fn artifact_payload_path(artifact: &atelier_surreal_support::NativeMediaArtifact) -> PathBuf {
     artifact.payload_path.clone()
 }
@@ -457,8 +477,8 @@ async fn atelier_filesystem_health_reports_sidecar_visibility_anomaly_from_catal
         return;
     };
     let store = connected_store(&url).await;
-    let parent_id = fresh_asset(&store).await;
-    let sidecar_id = fresh_asset(&store).await;
+    let parent_id = fresh_asset_tagged(&store, "parent").await;
+    let sidecar_id = fresh_asset_tagged(&store, "sidecar").await;
     let relation = store
         .record_media_sidecar_relation(&NewMediaSidecarRelation {
             parent_asset_id: parent_id,
@@ -2546,9 +2566,9 @@ async fn atelier_collections_membership_dedup_order_and_contact_sheet() {
     );
 
     // --- materialize media assets first, then add to the collection in order ---
-    let asset_a = fresh_asset(&store).await;
-    let asset_b = fresh_asset(&store).await;
-    let asset_c = fresh_asset(&store).await;
+    let asset_a = fresh_asset_tagged(&store, "a").await;
+    let asset_b = fresh_asset_tagged(&store, "b").await;
+    let asset_c = fresh_asset_tagged(&store, "c").await;
 
     let inserted = store
         .add_images_to_collection(collection.collection_id, &[asset_a, asset_b, asset_c])
@@ -2661,8 +2681,8 @@ async fn atelier_collection_batch_metadata_applies_tags_to_members_preserving_ph
         vec!["portfolio".to_string(), "moodboard".to_string()],
         "collection tags are trimmed and de-duplicated before batch application"
     );
-    let asset_a = fresh_asset(&store).await;
-    let asset_b = fresh_asset(&store).await;
+    let asset_a = fresh_asset_tagged(&store, "a").await;
+    let asset_b = fresh_asset_tagged(&store, "b").await;
     store
         .add_images_to_collection(collection.collection_id, &[asset_a, asset_b])
         .await
@@ -2777,9 +2797,9 @@ async fn atelier_contact_sheet_svg_artifact_regenerates_from_manifest() {
         })
         .await
         .expect("create collection for svg contact sheet");
-    let asset_a = fresh_asset(&store).await;
-    let asset_b = fresh_asset(&store).await;
-    let asset_c = fresh_asset(&store).await;
+    let asset_a = fresh_asset_tagged(&store, "a").await;
+    let asset_b = fresh_asset_tagged(&store, "b").await;
+    let asset_c = fresh_asset_tagged(&store, "c").await;
     store
         .add_images_to_collection(collection.collection_id, &[asset_a, asset_b, asset_c])
         .await
@@ -5755,8 +5775,8 @@ async fn atelier_search_tags_rules_and_similarity() {
     );
 
     // --- upsert_similarity_projection then find_similar_assets by dHash ---
-    let asset_near = fresh_asset(&store).await;
-    let asset_far = fresh_asset(&store).await;
+    let asset_near = fresh_asset_tagged(&store, "near").await;
+    let asset_far = fresh_asset_tagged(&store, "far").await;
     // Target hash and a near hash differing by a single bit (distance 1).
     // Use a run-unique target so a persistent live DB cannot fill the 50-hit
     // cap with older rows that share the same fixed demo hash.

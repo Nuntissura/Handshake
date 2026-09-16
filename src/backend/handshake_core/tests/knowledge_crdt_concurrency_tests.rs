@@ -478,6 +478,15 @@ mod mt_071_index_run_guard {
         .await
         .expect("claim flow");
         assert!(matches!(third, IndexRunSlotOutcomeV1::Claimed(_)));
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        drop(db);
+        drop(pool);
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 }
 
@@ -616,5 +625,14 @@ mod mt_073_offline_boundary {
             fact_count, 0,
             "offline replay must not create authority facts"
         );
+        // MT-141: close the store on the test runtime; the `Drop` cleanup guard runs the
+        // shutdown on a helper thread and the current-thread runtime that hosts the
+        // embedded engine cannot answer it while `join()` blocks this thread.
+        drop(db);
+        drop(pool);
+        backend
+            .close_and_remove()
+            .await
+            .expect("close and remove the embedded store");
     }
 }
