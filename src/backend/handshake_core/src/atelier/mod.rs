@@ -49,6 +49,7 @@ use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
+use crate::storage::surreal::keyed_lock::KeyedLockRegistry;
 use crate::storage::surreal::{SurrealDataContext, SurrealStorage, SurrealStorageError};
 #[cfg(feature = "runtime-full")]
 use crate::storage::Database;
@@ -763,18 +764,26 @@ struct AggregateCountBindings {
 /// caller to return or ignore. Caller-owned bindings live under `$domain`, so
 /// the two namespaces cannot collide.
 ///
+/// Reserved SurrealQL variable names this fragment binds: `$existing_ledger_event`
+/// and `$ledger_row`. A caller MUST NOT bind or read those names. Every other
+/// `LET` a caller binds BEFORE splicing the fragment survives the splice. (The
+/// fragment previously bound bare `$existing`, which silently shadowed callers'
+/// own `$existing` read after the splice: command_corpus.rs UPSERT_ENTRY /
+/// RECORD_BLOCKED, exports.rs RECORD_EXPORT_RESULT / RECORD_PORTFOLIO_RESULT,
+/// pose.rs WRITE_POSE_RIG, collections.rs ADD_IMAGES; MT-141 R1.)
+///
 /// Idempotency is the PostgreSQL contract, preserved: replaying an event with
 /// the same `idempotency_key` writes no second ledger row and still resolves
 /// to the sequence the first write was given. `ON CONFLICT DO NOTHING` plus a
-/// `UNION ALL` re-read expressed that; the guarded `IF $existing IS NONE` plus
+/// `UNION ALL` re-read expressed that; the guarded `IF $existing_ledger_event IS NONE` plus
 /// the re-read expresses it here. `event_sequence` is deliberately not set by
 /// this fragment - the schema defaults it from the `kernel_event_sequence`
 /// SEQUENCE, which is what keeps ledger ordering monotonic and gap-free.
 macro_rules! atelier_event_sql {
     () => {
-        "LET $existing = (SELECT VALUE id FROM kernel_event_ledger \
+        "LET $existing_ledger_event = (SELECT VALUE id FROM kernel_event_ledger \
            WHERE idempotency_key = $idempotency_key LIMIT 1)[0]; \
-         IF $existing IS NONE { \
+         IF $existing_ledger_event IS NONE { \
            CREATE $ledger_id CONTENT { \
              event_id: $kernel_event_id, \
              event_version: $event_version, \
@@ -827,6 +836,10 @@ const RECORD_EVENT_STATEMENT: &str =
 #[derive(Clone)]
 pub struct AtelierStore {
     store: SurrealStorage,
+    /// MT-141 R8: process-local keyed locks (the MT-142 registry pattern) that serialise
+    /// natural-key allocations the schema cannot make atomic, currently the dense
+    /// story-card / story-beat `seq` per story document.
+    lock_registry: KeyedLockRegistry,
     #[cfg(feature = "runtime-full")]
     flight_recorder: Option<Arc<dyn FlightRecorder>>,
 }
@@ -942,6 +955,7 @@ pub const ATELIER_TABLES: &[&str] = &[
     "atelier_reset_operation",
     "atelier_retrieval_policy",
     "atelier_saved_search",
+    "atelier_saved_search_retrieval_projection",
     "atelier_screenshot_artifact_storage",
     "atelier_self_improve_sandbox_run",
     "atelier_sheet_parse_snapshot",
@@ -977,6 +991,7 @@ impl AtelierStore {
     pub fn new(store: SurrealStorage) -> Self {
         Self {
             store,
+            lock_registry: KeyedLockRegistry::keyed(),
             #[cfg(feature = "runtime-full")]
             flight_recorder: None,
         }
@@ -986,6 +1001,7 @@ impl AtelierStore {
     pub fn with_event_ledger(store: SurrealStorage, _event_ledger: Arc<dyn Database>) -> Self {
         Self {
             store,
+            lock_registry: KeyedLockRegistry::keyed(),
             flight_recorder: None,
         }
     }
@@ -998,6 +1014,7 @@ impl AtelierStore {
     ) -> Self {
         Self {
             store,
+            lock_registry: KeyedLockRegistry::keyed(),
             flight_recorder: Some(flight_recorder),
         }
     }
@@ -1005,6 +1022,11 @@ impl AtelierStore {
     /// The embedded store this domain writes through.
     pub fn store(&self) -> &SurrealStorage {
         &self.store
+    }
+
+    /// Process-local keyed-lock registry shared by every clone of this store (MT-141 R8).
+    pub(crate) fn lock_registry(&self) -> &KeyedLockRegistry {
+        &self.lock_registry
     }
 
     /// Run one scoped data operation against the embedded store.

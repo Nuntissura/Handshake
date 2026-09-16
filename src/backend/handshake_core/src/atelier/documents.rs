@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
+use crate::storage::surreal::keyed_lock::LockKey;
+
 use super::{
     atelier_event_sql, event_ref_for_text, uuid_from_record_link, AtelierError, AtelierResult,
     AtelierStore,
@@ -752,6 +754,17 @@ impl AtelierStore {
         let title = require_non_empty_trimmed("title", &new.title)?;
         let tags = clean_document_tags(&new.tags);
 
+        // MT-141 R8: dense `seq` allocation is read-then-insert across two round trips, so
+        // parallel writers on one story document are serialised on a process-local keyed lock
+        // (MT-142 registry pattern); the unique-index retry below stays as the backstop.
+        let _seq_guard = self
+            .lock_registry()
+            .acquire(LockKey::natural_key(
+                new.story_document_id.to_string(),
+                "atelier_story_card_seq",
+                "card",
+            ))
+            .await;
         let mut last_error: Option<AtelierError> = None;
         for _ in 0..SEQ_RACE_RETRIES {
             let seq = self
@@ -852,6 +865,15 @@ impl AtelierStore {
             }
         }
 
+        // MT-141 R8: same per-document serialisation as `add_story_card`.
+        let _seq_guard = self
+            .lock_registry()
+            .acquire(LockKey::natural_key(
+                new.story_document_id.to_string(),
+                "atelier_story_beat_seq",
+                "beat",
+            ))
+            .await;
         let mut last_error: Option<AtelierError> = None;
         for _ in 0..SEQ_RACE_RETRIES {
             let seq = self
