@@ -3479,5 +3479,1305 @@
       "Default test-thread parallelism was used inside each binary; none of the 39 failures has a timing signature (all are deterministic parse/index/type errors or the deterministic mt144 inversion), but a single-thread rerun was not performed."
     ],
     "lane_state": "lane released (0 cargo/rustc/test processes at 2026-09-15T16:53:17.899Z)"
+  },
+  "remediation_v1": {
+    "schema_note": "Append-only remediation record authored by KERNEL_BUILDER-20260915-134500 for validation_v1 (FAIL_V1 at 6f19a524, groups R1-R16 plus validator relays F06/F09 and the reds surfaced by the builder's own focused runs). Builder proof is triage input only; the validator executes the COMPLETE per-binary suite on the candidate (validation_v1.remediation_required.verdict_rule).",
+    "session": "KERNEL_BUILDER-20260915-134500",
+    "base_sha": "6f19a52425333d32673d7628f72727c869de7e51",
+    "candidate_sha": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "fix_shas": [
+      "f133e32e",
+      "a0d0a726",
+      "d4d69c08",
+      "fa73e153"
+    ],
+    "style_sha": "fd9060de",
+    "worktree": "wtc-native-editors-v1",
+    "branch": "feat/WP-KERNEL-012",
+    "recorded_at_utc": "2026-09-16T01:10:19.765Z",
+    "proof_environment": {
+      "CARGO_TARGET_DIR": "<HANDSHAKE_ARTIFACTS_ROOT>/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared target, released to builder by the orchestrator)",
+      "lane_root": "<HANDSHAKE_ARTIFACTS_ROOT>/WP-KERNEL-012/MT-141/kb-v1/{logs,tmp,runtime,workspace}",
+      "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<lane>/runtime",
+      "HANDSHAKE_WORKSPACE_ROOT": "<lane>/workspace/run-NN-<target> (fresh per run)",
+      "TMP_TEMP_TMPDIR": "<lane>/tmp",
+      "features": "surreal-test-support,test-utils",
+      "cargo_flags": "--locked -j 4 --no-fail-fast",
+      "toolchain": "rust-toolchain.toml 1.97.1 (cargo 1.97.1 c980f4866 2026-06-30, rustc 1.97.1 8bab26f4f)",
+      "single_cargo_lane": true,
+      "driver": "<lane>/run.sh (numbered logs, .exit, .sha256, residue inventory per run); run_focused.sh, run_rerun.sh, run_rerun2.sh, run_rerun3.sh",
+      "embedded_surrealdb_only": true
+    },
+    "files_changed": [
+      "src/backend/handshake_core/src/atelier/command_corpus.rs",
+      "src/backend/handshake_core/src/atelier/documents.rs",
+      "src/backend/handshake_core/src/atelier/downloader.rs",
+      "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+      "src/backend/handshake_core/src/atelier/exports.rs",
+      "src/backend/handshake_core/src/atelier/intake.rs",
+      "src/backend/handshake_core/src/atelier/mod.rs",
+      "src/backend/handshake_core/src/atelier/model_lease.rs",
+      "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+      "src/backend/handshake_core/src/atelier/moodboards.rs",
+      "src/backend/handshake_core/src/atelier/pose.rs",
+      "src/backend/handshake_core/src/atelier/relationships.rs",
+      "src/backend/handshake_core/src/atelier/search.rs",
+      "src/backend/handshake_core/src/atelier/sheet.rs",
+      "src/backend/handshake_core/src/atelier/state_probe.rs",
+      "src/backend/handshake_core/src/knowledge_memory/passage.rs",
+      "src/backend/handshake_core/src/storage/knowledge_crdt.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/test_inspector.rs",
+      "src/backend/handshake_core/tests/atelier_command_log_session_tests.rs",
+      "src/backend/handshake_core/tests/atelier_core_data_tests.rs",
+      "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
+      "src/backend/handshake_core/tests/atelier_pose_tests.rs",
+      "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs",
+      "src/backend/handshake_core/tests/knowledge_crdt_concurrency_tests.rs",
+      "src/backend/handshake_core/tests/knowledge_crdt_lease_recovery_tests.rs",
+      "src/backend/handshake_core/tests/knowledge_crdt_proof_tests.rs"
+    ],
+    "commits": [
+      {
+        "sha": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "subject": "style(MT-141): rustfmt every file touched by the MT-141 remediation"
+      },
+      {
+        "sha": "fa73e15335f6ed7aed0ebeb1e14c47116def52c6",
+        "subject": "fix(MT-141): restore proof intent in the ported backend tests"
+      },
+      {
+        "sha": "d4d69c081ff0fb094d69013bda4287c0c1951993",
+        "subject": "fix(MT-141): enforce the provenance-ref constraint and materialise the saved-search projection"
+      },
+      {
+        "sha": "a0d0a726c0de3c3917c078fc1b72aad2a7b0c739",
+        "subject": "fix(MT-141): SurrealDB 3.2 statement and row-shape port defects across the atelier stores"
+      },
+      {
+        "sha": "f133e32e5364af90deb0bd713b4bef5f80613e96",
+        "subject": "fix(MT-141): stop atelier_event_sql shadowing callers' $existing; serialise story seq allocation"
+      }
+    ],
+    "tree_binding_note": "Runs 10-26 (focused), 40-54 (rerun 1), 70-76 (rerun 2) and 91-98 (rerun 3) bound to intermediate uncommitted trees; the runs that bind to the final committed tree fd9060de (functionally identical to the tree of runs 100-104, the style commit is formatting-only and byte-verified) are 101 (schema suite 34/34), 103 (atelier_pose 11/11) and 104 (atelier_core_data 54/54). The knowledge_crdt (92-94), kernel_smoke (95), command_corpus (96) and fixture_corpus (97) runs bound to the tree before the last two edits (tests/atelier_pose_tests.rs ordering pick; string id columns in the projection table + its writer), which do not touch those binaries' inputs.",
+    "out_of_scope_edit_waiver": [
+      {
+        "id": "WAIVER-1",
+        "status": "GRANTED_BY_OPERATOR",
+        "granted_by": "OPERATOR (session waiver 2026-09-15, relayed by orchestrator)",
+        "recorded_by": "KERNEL_BUILDER-20260915-134500",
+        "scope": [
+          "src/backend/handshake_core/src/atelier/mod.rs"
+        ],
+        "per_file_reason": {
+          "src/backend/handshake_core/src/atelier/mod.rs": "R1 Shape A: atelier_event_sql!() bound bare `$existing`, shadowing callers' `$existing` read after the splice (6 statements); renamed to `$existing_ledger_event` with a reserved-names doc. R8: AtelierStore gained a KeyedLockRegistry (MT-142 pattern) with constructors + accessor for story card/beat seq allocation."
+        },
+        "disclosure_note": "Outside MT-141 scope.allowed_paths (tests/ only); approved as the single-point class fix."
+      },
+      {
+        "id": "WAIVER-2",
+        "status": "GRANTED_BY_OPERATOR",
+        "granted_by": "OPERATOR (session waiver 2026-09-15, relayed by orchestrator)",
+        "recorded_by": "KERNEL_BUILDER-20260915-134500",
+        "scope": [
+          "src/backend/handshake_core/src/atelier/search.rs",
+          "src/backend/handshake_core/src/atelier/relationships.rs",
+          "src/backend/handshake_core/src/atelier/moodboards.rs",
+          "src/backend/handshake_core/src/atelier/exports.rs",
+          "src/backend/handshake_core/src/atelier/intake.rs",
+          "src/backend/handshake_core/src/atelier/documents.rs",
+          "src/backend/handshake_core/src/atelier/state_probe.rs",
+          "src/backend/handshake_core/src/atelier/downloader.rs",
+          "src/backend/handshake_core/src/atelier/sheet.rs",
+          "src/backend/handshake_core/src/atelier/editable_surface_authority.rs",
+          "src/backend/handshake_core/src/atelier/model_lease.rs",
+          "src/backend/handshake_core/src/storage/knowledge_crdt.rs",
+          "src/backend/handshake_core/src/atelier/command_corpus.rs",
+          "src/backend/handshake_core/src/atelier/pose.rs",
+          "src/backend/handshake_core/src/atelier/model_manual_merge.rs",
+          "src/backend/handshake_core/src/knowledge_memory/passage.rs",
+          "src/backend/handshake_core/src/storage/surreal/test_inspector.rs"
+        ],
+        "per_file_reason": {
+          "search.rs": "R4 array::sort::asc arity (replaced by nested array::concat; Rust already sorts/truncates); R3 saved-search ORDER BY projection; R10/unicode: query lower-cased with Unicode folding to match string::lowercase; marker normalisation accepts `=`; saved-search projection restored colour/scope/SFW narrowing (were hard-coded NONE/'NSFW' in the port) and refreshes atelier_saved_search_retrieval_projection",
+          "relationships.rs": "R3 GRAPH_EDGES ORDER BY on unprojected updated_at_utc; edge_id of the graph projection view is a uuid, record::id() removed",
+          "moodboards.rs": "R5 DocumentHeadRow.current_version_id typed RecordId vs schema option<uuid>; RETURN (CREATE ...)[0] raw records replaced by projected columns for snapshot/operation/export writes (row types decode uuids)",
+          "exports.rs": "R6 record::id(NONE) on optional intake-link targets (intake_link_select! and the batch-target lookup read raw links, converted in Rust); R1 site 3/4 covered by the macro rename",
+          "intake.rs": "R7 stray END in WRITE_RESET_STATEMENT; R3 LIST_ORIGINAL_MEDIA ORDER BY projection; asset_ref rebuilt from asset_id (record link serialised as string broke the RecordId consumer)",
+          "documents.rs": "R8 story card/beat seq allocation serialised per story document on the keyed lock",
+          "state_probe.rs / downloader.rs / sheet.rs": "R2 UPSERT ... CONTENT replaced the whole row on re-store and dropped created_at_utc (DEFAULT does not re-apply); converted to UPSERT ... SET at all 9 in-class sites",
+          "editable_surface_authority.rs": "R13 reserved word `value` in SELECT back-ticked",
+          "model_lease.rs": "R14 duration::from::secs -> duration::from_secs (2 sites); ORDER BY projection on the thread lease history",
+          "storage/knowledge_crdt.rs": "R14/F09 duration::from::secs -> duration::from_secs (3 sites); renew_lease targets the lease record by primary key (renewal_count double-applied through the table-scan UPDATE)",
+          "command_corpus.rs": "CORPUS_BLOCKED_CLEARED was never emitted in the Surreal port (anchor now returns {entry, cleared} and appends one cleared event per cleared block); FLAG_STALE returned an array decoded through query_first (wrapped in {rows})",
+          "pose.rs": "R1 site 5 covered by the macro rename; workspace-state UPSERT MERGE deep-merged panel_state (SET); deactivation of the previously active rig now emits its POSE_WORKSPACE_RIG_STATE_SET event (reason deactivated_by_active_rig_switch)",
+          "model_manual_merge.rs": "ORDER BY projection class (drift-guard SELECT)",
+          "knowledge_memory/passage.rs": "ORDER BY projection class (passage list)",
+          "storage/surreal/test_inspector.rs": "R16 RowFilter::IdEquals compared a string key against uuid-keyed record ids; compares <string>record::id(id)"
+        },
+        "disclosure_note": "All outside MT-141 scope.allowed_paths; each is a SurrealDB-3 statement/row-shape port defect that AC-141-4 surfaces and tests/ cannot fix without weakening assertions."
+      },
+      {
+        "id": "WAIVER-3",
+        "status": "GRANTED_BY_OPERATOR",
+        "granted_by": "OPERATOR (session waiver 2026-09-15, relayed by orchestrator)",
+        "recorded_by": "KERNEL_BUILDER-20260915-134500",
+        "scope": [
+          "src/backend/handshake_core/src/storage/surreal/schema.surql",
+          "src/backend/handshake_core/src/storage/surreal/schema.rs"
+        ],
+        "per_file_reason": {
+          "schema.surql": "R9: the composite 'at least one provenance ref' ASSERT lived on the optional run_ref field, which the engine never evaluates for a NONE value (all-NONE rows were accepted); moved onto the always-evaluated required asset_id field. Added the materialised atelier_saved_search_retrieval_projection table (the PostgreSQL view of that name was dropped by the port; atelier_core_data asserts the database projection matches the API projection).",
+          "schema.rs": "Re-pinned GENERATED_SURREALQL_SHA256, DECLARATIVE_SCHEMA_CATALOG_SHA256, EXPECTED_SCHEMA_INFO_SHA256, EXPECTED_ATELIER_CATALOG_SHA256 (previous values recorded inline); seventh lineage PRE_MT141_* with upgrade_pre_mt141_current, MT-141 delta applied by every older lineage upgrade, mt141_* pin/upgrade/round-trip tests; definition counts (tables 293, source fields 3205, wildcard 239, indexes 816, named 555, pk 260, alias 229); mt109 rollback index re-indexed (+19 statements); mt138 fn::mt109_* count 9->10 (carried MT-109-lane debt MT150-V3-F04, fixed here because the pin test sits in the same lineage suite). Loom EXPECTED_CATALOG_SHA256 untouched."
+        },
+        "disclosure_note": "Schema DDL change under the approved third waiver; the projection table is a scope addition surfaced by the failing saved-search test and is recorded here as part of the same waiver."
+      }
+    ],
+    "stated_deviations": [
+      {
+        "where": "command_corpus.rs anchor_command_manual",
+        "deviation": "PostgreSQL recorded CORPUS_BLOCKED_CLEARED inside the anchor transaction; the port appends it in a second event-only transaction after the anchor committed.",
+        "ordering_guarantee": "The anchor transaction (entry update + BLOCKED delete) commits before any cleared event is appended, so a cleared event never exists without its anchor; a crash between the two leaves the block cleared without its event, and the next anchor cannot re-emit it because the row is gone."
+      },
+      {
+        "where": "pose.rs upsert_pose_workspace_rig_state",
+        "deviation": "The deactivation event for the previously active rig is appended after the state transaction committed (one event per statement in write_with_event).",
+        "ordering_guarantee": "Same as above: state first, events second; never an event without the committed switch."
+      },
+      {
+        "where": "search.rs run_saved_search",
+        "deviation": "The PostgreSQL retrieval projection was a view; the port materialises it on every run_saved_search (DELETE by saved_search_id + CREATE per hit, one transaction)."
+      }
+    ],
+    "hypotheses_and_labels": {
+      "renew_lease_double_increment": "renewal_count went 0->2 on one renew through the table-scan UPDATE with a multi-index WHERE; targeting the record by primary key fixes the test. The planner mechanism is UNVERIFIED (not reproduced in isolation).",
+      "knowledge_crdt_drain_stall": "HANDSHAKE_TEST_STORE_CLEANUP_FAILURE on tests that relied on the src/storage/tests.rs Drop guard: the guard shuts the store down on a helper thread while the current-thread test runtime that hosts the SDK engine task is blocked in join(), so `RETURN true` never answers (30 s). Pre-existing harness defect at HEAD, masked until R14 let those binaries run; fixed in tests/ by the explicit close_and_remove the passing tests already used. The src harness itself is unchanged (not in waiver)."
+    },
+    "timing_vs_baseline": {
+      "note": "kb-v1 focused run vs the validator's 6f19a524 baseline (wpv-v1 logs). Binaries green in both ran 0.6-0.7x of baseline; every 'slower' binary is one whose baseline run terminated early on the defect now fixed, so its baseline duration is not like-for-like. The 1688 s corpus run was additionally sampled under D: (SATA HDD) at 0% idle / queue 6.5 with the test process at 2 KB/s and 6.5% CPU (host contention: utorrent, chatgpt, googledrivefs, msmpeng), not a code path; the story-card keyed lock sits only on the core_data path, which got faster.",
+      "rows": [
+        [
+          "atelier_command_corpus_tests",
+          1688.22,
+          315.07,
+          "baseline died 2/7 on the index collision; run under HDD saturation"
+        ],
+        [
+          "atelier_command_log_session_tests",
+          41.08,
+          72.1,
+          "0.6x"
+        ],
+        [
+          "atelier_diagnostics_projections_tests",
+          77.31,
+          106.7,
+          "0.7x"
+        ],
+        [
+          "atelier_diagnostics_typed_surfaces_tests",
+          75.6,
+          106.49,
+          "0.7x"
+        ],
+        [
+          "atelier_downloader_tests",
+          131.06,
+          181.28,
+          "0.7x"
+        ],
+        [
+          "atelier_editable_surface_authority_tests",
+          80.84,
+          108.74,
+          "0.7x"
+        ],
+        [
+          "atelier_image_import_tests",
+          391.85,
+          241.04,
+          "baseline died at the 0-row projection"
+        ],
+        [
+          "atelier_kernel_smoke_tests",
+          221.24,
+          35.07,
+          "baseline died on the duration::from::secs parse"
+        ],
+        [
+          "atelier_loom_projection_api_tests",
+          213.47,
+          37.98,
+          "baseline died at the first 401"
+        ],
+        [
+          "atelier_fixture_corpus_tests",
+          196.79,
+          271.75,
+          "0.7x"
+        ],
+        [
+          "atelier_core_data_tests",
+          902.42,
+          1435.79,
+          "0.6x"
+        ]
+      ]
+    },
+    "groups": {
+      "R1": {
+        "fix": "atelier/mod.rs macro rename `$existing` -> `$existing_ledger_event` (WAIVER-1)",
+        "proof_runs": [
+          "40-atelier_command_corpus_tests",
+          "96-atelier_command_corpus_tests",
+          "104-atelier_core_data_tests",
+          "97-atelier_fixture_corpus_tests"
+        ]
+      },
+      "R2": {
+        "fix": "UPSERT CONTENT -> SET at 9 sites (state_probe.rs x5, downloader.rs x3, sheet.rs) + pose workspace-state",
+        "proof_runs": [
+          "45-atelier_diagnostics_projections_tests",
+          "46-atelier_downloader_tests",
+          "48-atelier_sheet_parser_tests",
+          "103-atelier_pose_tests"
+        ]
+      },
+      "R3": {
+        "fix": "ORDER BY fields projected: relationships.rs, intake.rs, model_lease.rs, model_manual_merge.rs, knowledge_memory/passage.rs, search.rs (crate-wide scan: 323 ORDER BY occurrences, 0 remaining unprojected on SurrealQL statements; DuckDB/mex sites excluded)",
+        "proof_runs": [
+          "104-atelier_core_data_tests",
+          "42-atelier_diagnostics_typed_surfaces_tests",
+          "43-atelier_model_lease_tests",
+          "47-atelier_model_manual_merge_tests",
+          "49-knowledge_memory_api_tests"
+        ]
+      },
+      "R4": {
+        "fix": "search.rs global_search: nested array::concat, no SQL sort (Rust sorts by rank/target_id and truncates)",
+        "proof_runs": [
+          "104-atelier_core_data_tests"
+        ]
+      },
+      "R5": {
+        "fix": "moodboards.rs DocumentHeadRow uuid + projected CREATE returns",
+        "proof_runs": [
+          "104-atelier_core_data_tests",
+          "97-atelier_fixture_corpus_tests"
+        ]
+      },
+      "R6": {
+        "fix": "exports.rs optional intake-link targets read raw, converted in Rust",
+        "proof_runs": [
+          "104-atelier_core_data_tests"
+        ]
+      },
+      "R7": {
+        "fix": "intake.rs stray END removed",
+        "proof_runs": [
+          "104-atelier_core_data_tests",
+          "97-atelier_fixture_corpus_tests"
+        ]
+      },
+      "R8": {
+        "fix": "documents.rs keyed lock per story document (AtelierStore.lock_registry)",
+        "proof_runs": [
+          "104-atelier_core_data_tests"
+        ]
+      },
+      "R9": {
+        "fix": "schema.surql composite provenance-ref ASSERT on asset_id + re-pin + PRE_MT141 lineage (WAIVER-3)",
+        "proof_runs": [
+          "101-lib-schema-tests",
+          "104-atelier_core_data_tests"
+        ]
+      },
+      "R10": {
+        "fix": "tests: fresh_asset_tagged (fresh_asset dedups on content_hash, so two calls returned one asset; similarity/sidecar/collection tests need distinct assets)",
+        "proof_runs": [
+          "104-atelier_core_data_tests"
+        ]
+      },
+      "R11": {
+        "fix": "tests: fresh_asset_tagged for the sidecar relation (product validation was correct)",
+        "proof_runs": [
+          "104-atelier_core_data_tests"
+        ]
+      },
+      "R12": {
+        "fix": "tests: mt144 stale session back-dated 1h via the harness storage + Duration::minutes(10) restored; product FLAG_STALE array decode fixed (command_corpus.rs)",
+        "proof_runs": [
+          "41-atelier_command_log_session_tests"
+        ]
+      },
+      "R13": {
+        "fix": "editable_surface_authority.rs `value` back-ticked",
+        "proof_runs": [
+          "15-atelier_editable_surface_authority_tests"
+        ]
+      },
+      "R14": {
+        "fix": "duration::from_secs at all 5 sites",
+        "proof_runs": [
+          "17-atelier_kernel_smoke_tests",
+          "95-atelier_kernel_smoke_tests",
+          "43-atelier_model_lease_tests",
+          "92-knowledge_crdt_lease_recovery_tests",
+          "93-knowledge_crdt_concurrency_tests",
+          "94-knowledge_crdt_proof_tests"
+        ]
+      },
+      "R15": {
+        "fix": "tests: loom projection test installs a live native session binding (route contract requires x-hsk-session-token per api::stage::capture_context; unauthenticated request asserts 401 instead of 400)",
+        "proof_runs": [
+          "18-atelier_loom_projection_api_tests",
+          "71-atelier_loom_projection_api_tests"
+        ]
+      },
+      "R16": {
+        "fix": "test_inspector.rs IdEquals compares <string>record::id(id)",
+        "proof_runs": [
+          "16-atelier_image_import_tests"
+        ]
+      },
+      "F06": {
+        "fix": "tests/atelier_surreal_support OwnedTempRoot::drop retries remove_dir_all while the engine releases LOCK",
+        "proof_runs": [
+          "(all atelier runs; residue counts in log tails)"
+        ]
+      },
+      "F09": {
+        "fix": "see R14",
+        "proof_runs": [
+          "92-knowledge_crdt_lease_recovery_tests",
+          "93-knowledge_crdt_concurrency_tests",
+          "94-knowledge_crdt_proof_tests"
+        ]
+      },
+      "EXTRA-corpus-cleared-event": {
+        "fix": "command_corpus.rs CORPUS_BLOCKED_CLEARED emission (WAIVER-2 addition)",
+        "proof_runs": [
+          "40-atelier_command_corpus_tests",
+          "96-atelier_command_corpus_tests"
+        ]
+      },
+      "EXTRA-crdt-drain": {
+        "fix": "tests: explicit close_and_remove on 9 knowledge_crdt tests (harness Drop deadlock)",
+        "proof_runs": [
+          "92-knowledge_crdt_lease_recovery_tests",
+          "93-knowledge_crdt_concurrency_tests",
+          "94-knowledge_crdt_proof_tests"
+        ]
+      },
+      "EXTRA-crdt-renew": {
+        "fix": "knowledge_crdt.rs renew_lease by primary key",
+        "proof_runs": [
+          "92-knowledge_crdt_lease_recovery_tests"
+        ]
+      },
+      "EXTRA-saved-search-projection": {
+        "fix": "schema.surql materialised projection table + search.rs refresh + inventories (WAIVER-3 addition)",
+        "proof_runs": [
+          "104-atelier_core_data_tests",
+          "88-lib-schema-tests"
+        ]
+      },
+      "EXTRA-pose-deactivation-event": {
+        "fix": "pose.rs deactivation event for the previously active rig",
+        "proof_runs": [
+          "103-atelier_pose_tests"
+        ]
+      },
+      "PT-141-1": {
+        "fix": "grep scan over tests/: 8 hits, all inside string literals of tripwire/fixture tests (model_registry_tests.rs:240; security_portability_validation_tests.rs:403,415,419,446,543,602; wp009_integration_validator_evidence_pack_tests.rs:240); Cargo.toml grep exit 1; Cargo.lock: no sqlx/postgres/rusqlite/libsqlite3-sys/diesel packages",
+        "proof_runs": [
+          "(static, no cargo)"
+        ]
+      },
+      "proof_commands[0]": {
+        "fix": "knowledge_documents_api_tests mt120 3/3 at the pre-batch-5 tree",
+        "proof_runs": [
+          "26-knowledge_documents_api_tests-mt120"
+        ]
+      }
+    },
+    "proofs": {
+      "01-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/01-lib-check.log",
+        "exit_code": 101,
+        "sha256": "b6fc9451c0fd0b4f14f9e27b65144f97c2007e36c340ef81ef079c836bbc6d40",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "02-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/02-lib-check.log",
+        "exit_code": 0,
+        "sha256": "2398828b6424603349a18be2168bf20caab5eb12007a0ba592b9145ea1f07755",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "03-lib-schema-tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/03-lib-schema-tests.log",
+        "exit_code": 101,
+        "sha256": "d4564632a55e1472d4f3f4f981f39278c28a091eac062f9c7404da9b43b3bc1e",
+        "result_line": "FAILED. 16 passed; 18 failed; 0 ignored; 0 measured; 2035 filtered out; finished in 274.63s",
+        "passed": 16,
+        "failed": 18,
+        "ignored": 0,
+        "failing_tests": [
+          "storage::surreal::schema::tests::bootstrap_is_concurrent_restart_safe_and_receipt_is_live",
+          "storage::surreal::schema::tests::exact_current_bootstrap_rejects_complete_info_tampering",
+          "storage::surreal::schema::tests::bootstrap_resumes_exact_current_schema_applied_state",
+          "storage::surreal::schema::tests::mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back",
+          "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+          "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+          "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+          "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+          "storage::surreal::schema::tests::mt141_upgrade_statements_match_schema",
+          "storage::surreal::schema::tests::mt141_exact_mt150_pin_upgrade_moves_provenance_ref_constraint_and_restarts_current",
+          "storage::surreal::schema::tests::mt150_exact_mt109_pin_upgrade_adds_loom_edge_receipt_field_and_restarts_current",
+          "storage::surreal::schema::tests::mt151_exact_mt142_pin_upgrade_materialises_journal_key_and_restarts_current",
+          "storage::surreal::schema::tests::mt152_exact_mt151_pin_upgrade_backfills_folder_sibling_keys_and_rejects_root_duplicates",
+          "storage::surreal::schema::tests::mt152_exact_mt151_pin_upgrade_adds_fems_write_anchors_and_restarts_current",
+          "storage::surreal::schema::tests::native_json_fields_round_trip_real_domain_serialization_and_reject_wrong_shapes",
+          "storage::surreal::schema::tests::optional_unset_and_reject_self_references_enforce_delete_contracts",
+          "storage::surreal::schema::tests::record_references_reject_orphans_and_preserve_identity_semantics",
+          "storage::surreal::schema::tests::uuid_backed_record_ids_reject_textual_identity_aliases"
+        ]
+      },
+      "04-lib-schema-tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/04-lib-schema-tests.log",
+        "exit_code": 101,
+        "sha256": "ca1af34345c73732a6160160b0fd3e3bc328d54ff51ebd1e978ee96e6a3e1150",
+        "result_line": "FAILED. 31 passed; 3 failed; 0 ignored; 0 measured; 2035 filtered out; finished in 293.38s",
+        "passed": 31,
+        "failed": 3,
+        "ignored": 0,
+        "failing_tests": [
+          "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+          "storage::surreal::schema::tests::mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back",
+          "storage::surreal::schema::tests::mt141_exact_mt150_pin_upgrade_moves_provenance_ref_constraint_and_restarts_current"
+        ]
+      },
+      "05-lib-schema-focused": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/05-lib-schema-focused.log",
+        "exit_code": 101,
+        "sha256": "2009e7abf203e2e43338ea3a9095a39030ab2e5571e0a3dd4a704dd06364bc29",
+        "result_line": "FAILED. 3 passed; 3 failed; 0 ignored; 0 measured; 2063 filtered out; finished in 40.91s",
+        "passed": 3,
+        "failed": 3,
+        "ignored": 0,
+        "failing_tests": [
+          "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+          "storage::surreal::schema::tests::mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back",
+          "storage::surreal::schema::tests::mt141_exact_mt150_pin_upgrade_moves_provenance_ref_constraint_and_restarts_current"
+        ]
+      },
+      "06-lib-schema-focused": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/06-lib-schema-focused.log",
+        "exit_code": 0,
+        "sha256": "4402b2e2742ee47c000df5ef9b9594eebd601c4c364ca5a071ce87565bb37005",
+        "result_line": "ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2063 filtered out; finished in 73.00s",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "07-build-targets": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/07-build-targets.log",
+        "exit_code": 0,
+        "sha256": "6829b2ad27b7aea68fabb12bea98e3e74efe3b52a665baa45734199ab2f0df02",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "10-atelier_command_corpus_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/10-atelier_command_corpus_tests.log",
+        "exit_code": 101,
+        "sha256": "c5f9f8e7dff5bc145ed4697a9d45e15415b9299f936423cf8fe5dad8ef020e72",
+        "result_line": "FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1688.22s",
+        "passed": 6,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "corpus_blocked_record_upsert_idempotency_clear_on_anchor_and_events"
+        ]
+      },
+      "100-lib-schema-pins": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/100-lib-schema-pins.log",
+        "exit_code": 101,
+        "sha256": "4c513f9992e75b746f4e8042870d42f2d0e81414f53f28ccb8f3f56c69026020",
+        "result_line": "FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 2065 filtered out; finished in 7.45s",
+        "passed": 2,
+        "failed": 2,
+        "ignored": 0,
+        "failing_tests": [
+          "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+          "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog"
+        ]
+      },
+      "101-lib-schema-tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/101-lib-schema-tests.log",
+        "exit_code": 0,
+        "sha256": "e2b8f10113eeac3c2115152612bdc6d4f3eb5d042f2246c42e36a9a68d6abd9c",
+        "result_line": "ok. 34 passed; 0 failed; 0 ignored; 0 measured; 2035 filtered out; finished in 241.36s",
+        "passed": 34,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "102-build-rerun4": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/102-build-rerun4.log",
+        "exit_code": 0,
+        "sha256": "0a1f32e55866832e61073fd7abaf5eea0ab1c5b0dc2cc612fe632f845bd356e1",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "103-atelier_pose_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/103-atelier_pose_tests.log",
+        "exit_code": 0,
+        "sha256": "354eaf155a67b07029658fe4a0e7d9eb6e31f0e094f6d5f067b8630c4f95bb16",
+        "result_line": "ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 189.55s",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "104-atelier_core_data_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/104-atelier_core_data_tests.log",
+        "exit_code": 0,
+        "sha256": "6ae54137e93bc77d51b1827871c3673a63d3e519443d5fa0b690a174f6149281",
+        "result_line": "ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 891.41s",
+        "passed": 54,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "11-atelier_command_log_session_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/11-atelier_command_log_session_tests.log",
+        "exit_code": 101,
+        "sha256": "4188f2f7a3bb15f3be924ca6f287fc3769a08941833f9825f0e0c05a57b95273",
+        "result_line": "FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.08s",
+        "passed": 1,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "mt144_stale_session_detected_and_evidence_preserved"
+        ]
+      },
+      "12-atelier_diagnostics_projections_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/12-atelier_diagnostics_projections_tests.log",
+        "exit_code": 0,
+        "sha256": "ebd1862be67cf47075a5d0909b33241ac376b8e9b221248f3d5ca8699c3d3200",
+        "result_line": "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 77.31s",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "13-atelier_diagnostics_typed_surfaces_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/13-atelier_diagnostics_typed_surfaces_tests.log",
+        "exit_code": 101,
+        "sha256": "b9a32473e4436fa2cec56030fffad58225e2974e74259f49bd106a7fbcc251e5",
+        "result_line": "FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 75.60s",
+        "passed": 4,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "mt166_reset_orphan_diagnostics_projection"
+        ]
+      },
+      "14-atelier_downloader_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/14-atelier_downloader_tests.log",
+        "exit_code": 0,
+        "sha256": "2104951353c9399c2adb9f036bab33b0368a312d32b073ac2e55f695a4bceaf4",
+        "result_line": "ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 131.06s",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "15-atelier_editable_surface_authority_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/15-atelier_editable_surface_authority_tests.log",
+        "exit_code": 0,
+        "sha256": "5e3a19cbe3790a5f6e9f0c8e043c9b1bc5e75876d53230af7ad5bffc266baa40",
+        "result_line": "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.84s",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "16-atelier_image_import_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/16-atelier_image_import_tests.log",
+        "exit_code": 0,
+        "sha256": "33f9114b320cf484ca521ad315172f113bfa8f72634a27ec4df2d6faaf628574",
+        "result_line": "ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 391.85s",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "17-atelier_kernel_smoke_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/17-atelier_kernel_smoke_tests.log",
+        "exit_code": 0,
+        "sha256": "643219506ee50f9298ada07e6b32201e62e78199776150b671ea1b5f717f5315",
+        "result_line": "ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 221.24s",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "18-atelier_loom_projection_api_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/18-atelier_loom_projection_api_tests.log",
+        "exit_code": 0,
+        "sha256": "8a52871405db6de35923d22973945174f062146b9c752e5cf3be8660085d7587",
+        "result_line": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 213.47s",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "19-atelier_model_lease_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/19-atelier_model_lease_tests.log",
+        "exit_code": 101,
+        "sha256": "b6ab32d167cd097fe02f805fb9e9272530b286dd4f1e3e0ce2755dd15784007e",
+        "result_line": "FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 90.92s",
+        "passed": 4,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "mt143_expired_holder_is_taken_over_durably_with_ledger_event"
+        ]
+      },
+      "20-atelier_pose_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/20-atelier_pose_tests.log",
+        "exit_code": 101,
+        "sha256": "1b7e7bda564aa996af35f75cce9de3cf028d6c45cc26475df47269773a8d40ae",
+        "result_line": "FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 206.61s",
+        "passed": 10,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel"
+        ]
+      },
+      "21-atelier_fixture_corpus_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/21-atelier_fixture_corpus_tests.log",
+        "exit_code": 101,
+        "sha256": "2c9728294d64c90a4f703e57b50956544fd93232138d3da17223fe720d8e4f5f",
+        "result_line": "FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 196.79s",
+        "passed": 8,
+        "failed": 2,
+        "ignored": 0,
+        "failing_tests": [
+          "mt064_docs_moodboard_relations_fixture_corpus_round_trips",
+          "mt066_reset_orphan_fixture_corpus_round_trips"
+        ]
+      },
+      "22-atelier_core_data_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/22-atelier_core_data_tests.log",
+        "exit_code": 101,
+        "sha256": "aaa4386e571cdcba94dab9af4965d347383cafcd26b73501d99bf45a4fbd4025",
+        "result_line": "FAILED. 46 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 902.42s",
+        "passed": 46,
+        "failed": 8,
+        "ignored": 0,
+        "failing_tests": [
+          "atelier_intake_sheet_collection_links_survive_export",
+          "atelier_character_relationships_crud_endpoint_validation_and_graph_projection",
+          "atelier_lens_search_filters_default_tier1_and_sfw_hard_drop_without_mutation",
+          "atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts",
+          "atelier_moodboard_operations_and_export_hooks_produce_receipts_without_gov_outputs",
+          "atelier_moodboard_schema_layer_model_round_trips_full_structure",
+          "atelier_reset_modes_preserve_original_media_and_adopt_orphan_manifest",
+          "atelier_saved_searches_reproduce_filters_and_retrieval_projection"
+        ]
+      },
+      "23-knowledge_crdt_lease_recovery_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/23-knowledge_crdt_lease_recovery_tests.log",
+        "exit_code": 101,
+        "sha256": "076585e3f123554b6e6ae4d3379a540fd9edba7ffecac6dec869eab0c4abc2c0",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "24-knowledge_crdt_concurrency_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/24-knowledge_crdt_concurrency_tests.log",
+        "exit_code": 101,
+        "sha256": "1865332059cfcda577bfeaf351a84041502319195468a11a645836b715e28f3f",
+        "result_line": "FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 79.24s",
+        "passed": 3,
+        "failed": 2,
+        "ignored": 0,
+        "failing_tests": [
+          "mt_071_index_run_guard::one_active_run_per_source_root_with_typed_rejection",
+          "mt_073_offline_boundary::offline_replay_loses_no_drafts_and_never_mutates_authority"
+        ]
+      },
+      "25-knowledge_crdt_proof_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/25-knowledge_crdt_proof_tests.log",
+        "exit_code": 101,
+        "sha256": "f93b4e1e7a3942d66527c6b7f90a962f638d1d97bd5ab6eeb84d85d662b9e67a",
+        "result_line": "FAILED. 4 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 220.00s",
+        "passed": 4,
+        "failed": 6,
+        "ignored": 0,
+        "failing_tests": [
+          "mt_078_no_external_relay::full_draft_cycle_needs_only_embedded_storage",
+          "mt_080_spec_compatibility::must_denial_receipts_are_durable_and_ledger_paired",
+          "mt_080_spec_compatibility::must_refuse_promotion_citing_nonexistent_span",
+          "mt_080_spec_compatibility::must_authority_changes_flow_through_event_ledger_promotion",
+          "mt_080_spec_compatibility::must_every_edit_class_leaves_typed_receipts",
+          "mt_069_atomic_promotion::promotion_is_atomic_and_converges_after_crash_window"
+        ]
+      },
+      "26-knowledge_documents_api_tests-mt120": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/26-knowledge_documents_api_tests-mt120.log",
+        "exit_code": 0,
+        "sha256": "14bdfe13617ce979e7ea92302661c493a7ad22321a01123ce5ac2ba68ef1ca4b",
+        "result_line": "ok. 3 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 50.04s",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "30-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/30-lib-check.log",
+        "exit_code": 0,
+        "sha256": "545ada900c8915b55201e295744c2fb1e1248dc39e068b7bfb08f20fb6fc82d6",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "31-build-rerun-set": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/31-build-rerun-set.log",
+        "exit_code": 0,
+        "sha256": "f9c76c43e8e6ebb928c522f861be2df146efa79e9cf082ec8f53e6f07433fc48",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "40-atelier_command_corpus_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/40-atelier_command_corpus_tests.log",
+        "exit_code": 0,
+        "sha256": "a2a9ff5186a5dbd79f4df7c55b19ba02eb4c13b25a07d28895845be98591596c",
+        "result_line": "ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 121.17s",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "41-atelier_command_log_session_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/41-atelier_command_log_session_tests.log",
+        "exit_code": 0,
+        "sha256": "0b998fd317603c2c12f1582cbbc36802ffc036436997fb935c97ff5604334c78",
+        "result_line": "ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.02s",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "42-atelier_diagnostics_typed_surfaces_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/42-atelier_diagnostics_typed_surfaces_tests.log",
+        "exit_code": 0,
+        "sha256": "110d08de3261e3918b077c85d6ffa918ae1375930b98903e9131de256efb6021",
+        "result_line": "ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 69.91s",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "43-atelier_model_lease_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/43-atelier_model_lease_tests.log",
+        "exit_code": 0,
+        "sha256": "e081cb953907854d56b388117503b616be06dd3df648ff391026645d6eda5c46",
+        "result_line": "ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 88.46s",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "44-atelier_pose_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/44-atelier_pose_tests.log",
+        "exit_code": 101,
+        "sha256": "18b30ba78c38929905b7f3f9076598d69312f40fc47051fff8d6a640ca6ba465",
+        "result_line": "FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 184.25s",
+        "passed": 10,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel"
+        ]
+      },
+      "45-atelier_diagnostics_projections_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/45-atelier_diagnostics_projections_tests.log",
+        "exit_code": 0,
+        "sha256": "c306807fbe8494c18b4b3a2eb0cd72c4a1f2daf7e7362d4348bcf1b4fd78accf",
+        "result_line": "ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 70.10s",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "46-atelier_downloader_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/46-atelier_downloader_tests.log",
+        "exit_code": 0,
+        "sha256": "098e59e4bef34fa51fb265f80adfdb729456b5643c39d685eff315458b4fcb81",
+        "result_line": "ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 118.79s",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "47-atelier_model_manual_merge_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/47-atelier_model_manual_merge_tests.log",
+        "exit_code": 0,
+        "sha256": "5f986fba58cd91276f719add22d130ea6bbecfd87128da36559b3c56902695ea",
+        "result_line": "ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 87.60s",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "48-atelier_sheet_parser_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/48-atelier_sheet_parser_tests.log",
+        "exit_code": 0,
+        "sha256": "e764a07a1625a27dd5cf78c86d94301e4dfe60a486b7e5cd2146f60e0994ff49",
+        "result_line": "ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 204.40s",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "49-knowledge_memory_api_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/49-knowledge_memory_api_tests.log",
+        "exit_code": 0,
+        "sha256": "cac7f836c0ebfb0d69de28a6ab070e9628ee41d4054dfd2719c7ca83f951c986",
+        "result_line": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.55s",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "50-atelier_fixture_corpus_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/50-atelier_fixture_corpus_tests.log",
+        "exit_code": 0,
+        "sha256": "1badafa89a145a063040327f968c5589cbc9cce89d2eab76f82132132e37e460",
+        "result_line": "ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 170.34s",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "51-atelier_core_data_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/51-atelier_core_data_tests.log",
+        "exit_code": 101,
+        "sha256": "656aae108a669ed0cc4b81d63518cde529c47806de19656ea321afb301f77ecf",
+        "result_line": "FAILED. 48 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 925.98s",
+        "passed": 48,
+        "failed": 6,
+        "ignored": 0,
+        "failing_tests": [
+          "atelier_character_relationships_crud_endpoint_validation_and_graph_projection",
+          "atelier_intake_sheet_collection_links_survive_export",
+          "atelier_lens_search_filters_default_tier1_and_sfw_hard_drop_without_mutation",
+          "atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts",
+          "atelier_moodboard_operations_and_export_hooks_produce_receipts_without_gov_outputs",
+          "atelier_saved_searches_reproduce_filters_and_retrieval_projection"
+        ]
+      },
+      "52-knowledge_crdt_lease_recovery_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/52-knowledge_crdt_lease_recovery_tests.log",
+        "exit_code": 101,
+        "sha256": "0b49d23f268869104ba7bdcf9fdef46fc5da2301524c0d8993cfa85529a977f8",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "53-knowledge_crdt_concurrency_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/53-knowledge_crdt_concurrency_tests.log",
+        "exit_code": 101,
+        "sha256": "d8bbf08cee5f0c1858f2c30c148c010c4f96bca585b8a02d661d981355c49d38",
+        "result_line": "FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.08s",
+        "passed": 3,
+        "failed": 2,
+        "ignored": 0,
+        "failing_tests": [
+          "mt_073_offline_boundary::offline_replay_loses_no_drafts_and_never_mutates_authority",
+          "mt_071_index_run_guard::one_active_run_per_source_root_with_typed_rejection"
+        ]
+      },
+      "54-knowledge_crdt_proof_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/54-knowledge_crdt_proof_tests.log",
+        "exit_code": 101,
+        "sha256": "0af93e3ae5fbef27a08e8e49f0d15e458348413cc29fba677d7bb3e8014fa677",
+        "result_line": "FAILED. 4 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 144.79s",
+        "passed": 4,
+        "failed": 6,
+        "ignored": 0,
+        "failing_tests": [
+          "mt_080_spec_compatibility::must_denial_receipts_are_durable_and_ledger_paired",
+          "mt_080_spec_compatibility::must_every_edit_class_leaves_typed_receipts",
+          "mt_080_spec_compatibility::must_refuse_promotion_citing_nonexistent_span",
+          "mt_078_no_external_relay::full_draft_cycle_needs_only_embedded_storage",
+          "mt_080_spec_compatibility::must_authority_changes_flow_through_event_ledger_promotion",
+          "mt_069_atomic_promotion::promotion_is_atomic_and_converges_after_crash_window"
+        ]
+      },
+      "60-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/60-lib-check.log",
+        "exit_code": 0,
+        "sha256": "c3aff54d2e63bcfc4a94c2564e64f6eb62ca3fa3117472b61ec9f82a7a0e6db6",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "61-build-rerun2": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/61-build-rerun2.log",
+        "exit_code": 0,
+        "sha256": "862e39660b6a30379b7aa8cd872555e2e6d3e014e3743c39829694601888a85e",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "70-atelier_pose_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/70-atelier_pose_tests.log",
+        "exit_code": 101,
+        "sha256": "149dcc59debf38346a785a5aa3a17916b97c988e3583a5b8f7c2c645a3916168",
+        "result_line": "FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 188.34s",
+        "passed": 10,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel"
+        ]
+      },
+      "71-atelier_loom_projection_api_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/71-atelier_loom_projection_api_tests.log",
+        "exit_code": 0,
+        "sha256": "abbbea60207a6d464059d2be8ffc14839728275e675f82953e835794dac2c714",
+        "result_line": "ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.97s",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "72-atelier_fixture_corpus_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/72-atelier_fixture_corpus_tests.log",
+        "exit_code": 0,
+        "sha256": "a676aff6c8e68f5b948fd3aeb6913e16fa9bd8501ae6ce61c64e496a7043c476",
+        "result_line": "ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 167.42s",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "73-atelier_core_data_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/73-atelier_core_data_tests.log",
+        "exit_code": 101,
+        "sha256": "c51d0a56b2b8ebbd26f37e6b92e74335083ce0511f10e7bb7d825638813ed234",
+        "result_line": "FAILED. 52 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 897.14s",
+        "passed": 52,
+        "failed": 2,
+        "ignored": 0,
+        "failing_tests": [
+          "atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_fts",
+          "atelier_saved_searches_reproduce_filters_and_retrieval_projection"
+        ]
+      },
+      "74-knowledge_crdt_lease_recovery_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/74-knowledge_crdt_lease_recovery_tests.log",
+        "exit_code": 101,
+        "sha256": "986fef9d9d83e45c1d6b34d5e5827163a538eeaa82f5f03c6defc2f01109e8af",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": [
+          "mt_079_recovery_receipt::recovery_refuses_released_expired_foreign_or_wrong_scope_lease"
+        ]
+      },
+      "75-knowledge_crdt_concurrency_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/75-knowledge_crdt_concurrency_tests.log",
+        "exit_code": 101,
+        "sha256": "04fc57c1747e82b532aa6741ff0083d3d0791b6eb20cadad06fe6e8410eadbbe",
+        "result_line": "FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 79.26s",
+        "passed": 3,
+        "failed": 2,
+        "ignored": 0,
+        "failing_tests": [
+          "mt_071_index_run_guard::one_active_run_per_source_root_with_typed_rejection",
+          "mt_073_offline_boundary::offline_replay_loses_no_drafts_and_never_mutates_authority"
+        ]
+      },
+      "76-knowledge_crdt_proof_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/76-knowledge_crdt_proof_tests.log",
+        "exit_code": 101,
+        "sha256": "b208163d2360aa4219636b896d24c245e26373777c2c665a619359899681fffc",
+        "result_line": "FAILED. 4 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 145.03s",
+        "passed": 4,
+        "failed": 6,
+        "ignored": 0,
+        "failing_tests": [
+          "mt_078_no_external_relay::full_draft_cycle_needs_only_embedded_storage",
+          "mt_080_spec_compatibility::must_refuse_promotion_citing_nonexistent_span",
+          "mt_080_spec_compatibility::must_denial_receipts_are_durable_and_ledger_paired",
+          "mt_080_spec_compatibility::must_every_edit_class_leaves_typed_receipts",
+          "mt_069_atomic_promotion::promotion_is_atomic_and_converges_after_crash_window",
+          "mt_080_spec_compatibility::must_authority_changes_flow_through_event_ledger_promotion"
+        ]
+      },
+      "80-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/80-lib-check.log",
+        "exit_code": 101,
+        "sha256": "c0daf192030e8a06980d1ade7509d7e1c559c07c84c3a1768385873365e07acc",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "81-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/81-lib-check.log",
+        "exit_code": 101,
+        "sha256": "c6a872e1ec9283b02d77530cd9f75a0ca5dde20ed47b13e35dc63f4d03ef59f1",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "82-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/82-lib-check.log",
+        "exit_code": 101,
+        "sha256": "9ca00fd3fc4565e6a70b01f042696b8b616a3d4d3edeaa099fc3a531cc9198ac",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "83-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/83-lib-check.log",
+        "exit_code": 101,
+        "sha256": "fe944205fed2a24e3cd348c259893e60db00c2217d42a9307fc344b3c9541603",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "84-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/84-lib-check.log",
+        "exit_code": 101,
+        "sha256": "0b998217505de591faf6c5b423c906d9a66d0b05dece16a0d8e7c04717a7dda3",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "85-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/85-lib-check.log",
+        "exit_code": 101,
+        "sha256": "9077b9a8e1b2037797c9c3fb079b7e1efb3e9238cf514e1c34e47d76e5a821a8",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "86-lib-check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/86-lib-check.log",
+        "exit_code": 0,
+        "sha256": "63bbda2a8cac1909d61378758c2fa44a54ff2fb1c9dc2e7cd24946961adcdcce",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "87-lib-schema-tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/87-lib-schema-tests.log",
+        "exit_code": 101,
+        "sha256": "0eff54aba5c8b2484e3dac0cb709c1bb9c571a42640a0950aaf7c0e3e30fe55f",
+        "result_line": "FAILED. 13 passed; 21 failed; 0 ignored; 0 measured; 2035 filtered out; finished in 113.49s",
+        "passed": 13,
+        "failed": 21,
+        "ignored": 0,
+        "failing_tests": [
+          "storage::surreal::schema::tests::bootstrap_rejects_lower_or_divergent_lineage",
+          "storage::surreal::schema::tests::bootstrap_is_concurrent_restart_safe_and_receipt_is_live",
+          "storage::surreal::schema::tests::declarative_schema_catalog_is_complete_and_content_sensitive",
+          "storage::surreal::schema::tests::exact_current_bootstrap_rejects_complete_info_tampering",
+          "storage::surreal::schema::tests::fresh_bootstrap_rejects_and_preserves_preexisting_data",
+          "storage::surreal::schema::tests::bootstrap_resumes_exact_current_schema_applied_state",
+          "storage::surreal::schema::tests::mt109_authority_catalog_pins_are_deterministic",
+          "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin",
+          "storage::surreal::schema::tests::mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back",
+          "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+          "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+          "storage::surreal::schema::tests::mt141_exact_mt150_pin_upgrade_moves_provenance_ref_constraint_and_restarts_current",
+          "storage::surreal::schema::tests::mt150_exact_mt109_pin_upgrade_adds_loom_edge_receipt_field_and_restarts_current",
+          "storage::surreal::schema::tests::mt151_exact_mt142_pin_upgrade_materialises_journal_key_and_restarts_current",
+          "storage::surreal::schema::tests::mt152_exact_mt151_pin_upgrade_adds_fems_write_anchors_and_restarts_current",
+          "storage::surreal::schema::tests::native_json_fields_round_trip_real_domain_serialization_and_reject_wrong_shapes",
+          "storage::surreal::schema::tests::optional_unset_and_reject_self_references_enforce_delete_contracts",
+          "storage::surreal::schema::tests::record_references_reject_orphans_and_preserve_identity_semantics",
+          "storage::surreal::schema::tests::schema_contract_is_wave_scoped_and_identity_safe",
+          "storage::surreal::schema::tests::uuid_backed_record_ids_reject_textual_identity_aliases",
+          "storage::surreal::schema::tests::mt152_exact_mt151_pin_upgrade_backfills_folder_sibling_keys_and_rejects_root_duplicates"
+        ]
+      },
+      "88-lib-schema-tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/88-lib-schema-tests.log",
+        "exit_code": 101,
+        "sha256": "a2e58cd7b2cf9c54a1be00ea1f8db35b2fbb4bcedbb4f7ba0fe0980ffa0f7b7b",
+        "result_line": "FAILED. 33 passed; 1 failed; 0 ignored; 0 measured; 2035 filtered out; finished in 244.21s",
+        "passed": 33,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin"
+        ]
+      },
+      "89-lib-schema-mt138": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/89-lib-schema-mt138.log",
+        "exit_code": 0,
+        "sha256": "1d6d6073855c82273449355f969a674d32b0bc6c45dd2c0a918373a094c1f918",
+        "result_line": "ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2066 filtered out; finished in 28.41s",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "90-build-rerun3": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/90-build-rerun3.log",
+        "exit_code": 0,
+        "sha256": "e9170a2b2cdd45104b1d9044fa8a1e0e618b70e0020a27d41ccda5811f02f67d",
+        "result_line": "",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": []
+      },
+      "91-atelier_pose_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/91-atelier_pose_tests.log",
+        "exit_code": 101,
+        "sha256": "65ec9553b4a533c12bb16c4454904c5a880d35698e9ad3c637c632aab5943668",
+        "result_line": "FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 186.92s",
+        "passed": 10,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "atelier_pose_multi_rig_workspace_state_tracks_tabs_active_order_dirty_panel"
+        ]
+      },
+      "92-knowledge_crdt_lease_recovery_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/92-knowledge_crdt_lease_recovery_tests.log",
+        "exit_code": 0,
+        "sha256": "a2471fec641ed239fed82ee1c4b68c4e0ecc483556cf149656453ee4e0ec22e2",
+        "result_line": "ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.45s",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "93-knowledge_crdt_concurrency_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/93-knowledge_crdt_concurrency_tests.log",
+        "exit_code": 0,
+        "sha256": "b69bdd07f404673f461095281d7784a36745183d9ce1e7210a4f8430b1ae7bf6",
+        "result_line": "ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.92s",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "94-knowledge_crdt_proof_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/94-knowledge_crdt_proof_tests.log",
+        "exit_code": 0,
+        "sha256": "c8a70c3f5b1b80f3aae752ce50ed768b0bad2afcf7e136ebbbf7a761115460d5",
+        "result_line": "ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 116.68s",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "95-atelier_kernel_smoke_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/95-atelier_kernel_smoke_tests.log",
+        "exit_code": 0,
+        "sha256": "b7089c209ed09b4bed3a735a91588280f81677b51d932ab9e5cd845e6659742e",
+        "result_line": "ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.64s",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "96-atelier_command_corpus_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/96-atelier_command_corpus_tests.log",
+        "exit_code": 0,
+        "sha256": "01290fb3c8d666297fae681da5d1808137379371079c3d362ebc647d631858a0",
+        "result_line": "ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 119.12s",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "97-atelier_fixture_corpus_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/97-atelier_fixture_corpus_tests.log",
+        "exit_code": 0,
+        "sha256": "64742879740f76cfb76011df9f772aa31be3c354ba63a504a9a2688f1a0c5ab7",
+        "result_line": "ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 169.15s",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": []
+      },
+      "98-atelier_core_data_tests": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v1/logs/98-atelier_core_data_tests.log",
+        "exit_code": 101,
+        "sha256": "390932081e05d27839b6a1b90fd3d9f3ab91232e3da5f027c855e95b796a0d85",
+        "result_line": "FAILED. 53 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 875.24s",
+        "passed": 53,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "atelier_saved_searches_reproduce_filters_and_retrieval_projection"
+        ]
+      }
+    },
+    "not_run": [
+      "The COMPLETE per-binary suite (393 set-A binaries, app-runtime bundle, inspector bundle, full lib suite): NOT_RUN by the builder per the briefing; validator candidate run.",
+      "atelier_pose_fixture_corpus_tests, atelier_pose_pipeline_integration_tests, atelier_media_annotation_overlay_proof_tests, atelier_manual_rows_parity_tests, atelier_model_manual_merge_tests (rerun once green in run 47 before batch 7), atelier_sheet_parser_tests (run 48), knowledge_memory_api_tests (run 49), atelier_image_import_tests / atelier_editable_surface_authority_tests / atelier_diagnostics_* / atelier_downloader_tests / atelier_loom_projection_api_tests (green in the runs listed under proofs; NOT re-run after later batches unless listed)"
+    ],
+    "not_inspected": [
+      "Per-test wall times inside binaries (only per-binary totals compared).",
+      "The 124 legacy leaked stores under the global handshake-test root (validator carried debt) were not touched."
+    ],
+    "residue": "Every run reported workspace residue; the residue counts are in each numbered log tail (workspace/run-NN-<target> left non-empty by binaries that materialise native artifacts: image_import, pose, fixture_corpus, core_data, diagnostics_typed_surfaces). runtime/ held preserved knowledge_crdt stores from the drain-stall runs (store-* dirs) until those tests were fixed; tmp/ accumulates .tmpXXXX dirs from AtelierSurrealHarness drops (F06: the bounded-retry Drop fix in tests/atelier_surreal_support/mod.rs reduced but did not eliminate them because the engine holds LOCK for longer than the retry window on this HDD)."
   }
 }
