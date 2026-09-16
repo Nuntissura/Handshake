@@ -267,9 +267,11 @@ fn mt121_headless_capture_declares_the_documented_fallback_viewport() {
 /// state (id + anchor position) into the capture context in
 /// `HandshakeApp::refresh_mcp_snapshot`, via `accessibility::popup_projection`. The assertion below is
 /// the INVERSION: the menu must now be visible to the capture pass. It no longer documents the defect
-/// as expected behaviour.
+/// as expected behaviour, and the test was renamed from
+/// `mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass` (MT-135 remediation
+/// R-135-3) so the name matches what it asserts.
 #[test]
-fn mt121_memory_backed_context_menu_remains_invisible_to_the_sized_capture_pass() {
+fn mt135_memory_backed_context_menu_is_visible_to_the_sized_capture_pass() {
     let mut harness = shell_harness();
     harness.get_by_label("Pane header pane-a").click_secondary();
     harness.run();

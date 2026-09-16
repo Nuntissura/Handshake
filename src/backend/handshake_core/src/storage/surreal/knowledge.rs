@@ -6737,3 +6737,129 @@ impl SurrealDatabase {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod knowledge_store_surface {
+    //! WP-KERNEL-012 MT-135 remediation R-135-1 (CX-573D): `KnowledgeStore`
+    //! carries NO default method bodies, and `SurrealDatabase` overrides every
+    //! method. The compiler already enforces the override once the trait is
+    //! abstract; this test is the tripwire that keeps the trait abstract and
+    //! keeps the two surfaces enumerated in lock-step, so a future editor
+    //! cannot re-introduce a `NotImplemented` default that would silently go
+    //! live for any other implementor. It mirrors
+    //! `super::super::database::not_implemented_surface` for the `Database`
+    //! trait.
+
+    use std::collections::BTreeSet;
+
+    const TRAIT_START: &str = "pub trait KnowledgeStore: Send + Sync {";
+    const TRAIT_END: &str = "\n}\n\n// ===========================================================================\n// WP-KERNEL-009 CodeIndexingAndNavigation";
+    const IMPL_START: &str = "impl KnowledgeStore for SurrealDatabase {";
+    const IMPL_END: &str = "\n}\n\n/// One attempt of create-if-title-absent";
+
+    /// Number of methods on the `KnowledgeStore` trait. Pinned so adding or
+    /// removing a method is a deliberate, reviewable edit of this constant in
+    /// the same change that touches both the trait and the Surreal impl.
+    const KNOWLEDGE_STORE_METHODS: usize = 82;
+
+    fn method_name(fragment: &str) -> Option<&str> {
+        let signature = fragment.trim_start();
+        let end = signature.find('(')?;
+        let name = signature[..end].trim();
+        (!name.is_empty()
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_'))
+        .then_some(name)
+    }
+
+    fn method_names(source: &str) -> BTreeSet<&str> {
+        source
+            .lines()
+            .filter_map(|line| {
+                let signature = line.trim_start();
+                signature
+                    .strip_prefix("async fn ")
+                    .or_else(|| signature.strip_prefix("fn "))
+                    .and_then(method_name)
+            })
+            .collect()
+    }
+
+    fn slice<'a>(source: &'a str, start: &str, end: &str, what: &str) -> &'a str {
+        let begin = source
+            .find(start)
+            .unwrap_or_else(|| panic!("{what} start marker must remain discoverable"));
+        let finish = source[begin..]
+            .find(end)
+            .map(|offset| begin + offset + 2)
+            .unwrap_or_else(|| panic!("{what} end marker must remain discoverable"));
+        &source[begin..finish]
+    }
+
+    #[test]
+    fn surreal_database_overrides_every_knowledge_store_method() {
+        // A checkout may be CRLF on disk (git autocrlf); the markers are
+        // written with `\n`, so normalise before slicing.
+        let trait_file = include_str!("../knowledge.rs").replace("\r\n", "\n");
+        let impl_file = include_str!("knowledge.rs").replace("\r\n", "\n");
+        let trait_source = slice(&trait_file, TRAIT_START, TRAIT_END, "KnowledgeStore trait");
+        let impl_source = slice(
+            &impl_file,
+            IMPL_START,
+            IMPL_END,
+            "impl KnowledgeStore for SurrealDatabase",
+        );
+
+        let trait_methods = method_names(trait_source);
+        let implemented = method_names(impl_source);
+        assert_eq!(
+            trait_methods.len(),
+            KNOWLEDGE_STORE_METHODS,
+            "KnowledgeStore method count changed; add the method to `impl KnowledgeStore for \
+             SurrealDatabase` (never as a trait default) and update KNOWLEDGE_STORE_METHODS in \
+             the same change"
+        );
+
+        let missing = trait_methods
+            .difference(&implemented)
+            .copied()
+            .collect::<Vec<_>>();
+        assert!(
+            missing.is_empty(),
+            "SurrealDatabase must override every KnowledgeStore method; missing={missing:?}"
+        );
+        let extra = implemented
+            .difference(&trait_methods)
+            .copied()
+            .collect::<Vec<_>>();
+        assert!(
+            extra.is_empty(),
+            "impl KnowledgeStore for SurrealDatabase declares methods the trait does not; extra={extra:?}"
+        );
+
+        let placeholder = concat!("StorageError::", "NotImplemented(");
+        let defaulted = trait_source
+            .split("async fn ")
+            .skip(1)
+            .filter_map(|fragment| {
+                let name = method_name(fragment)?;
+                fragment.contains(placeholder).then_some(name)
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            defaulted.is_empty(),
+            "KnowledgeStore must not carry NotImplemented default bodies (CX-573D, MT-135 \
+             R-135-1); defaulted={defaulted:?}"
+        );
+
+        let bodies = trait_source
+            .lines()
+            .filter(|line| line.trim_end().ends_with("{") && !line.contains(TRAIT_START))
+            .count();
+        assert_eq!(
+            bodies, 0,
+            "KnowledgeStore must be fully abstract: every method ends in `;`, not a body"
+        );
+    }
+}
