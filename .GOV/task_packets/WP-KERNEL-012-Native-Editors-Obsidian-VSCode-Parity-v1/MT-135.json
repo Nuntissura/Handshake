@@ -25,20 +25,20 @@
   "title": "E11-MT-135-Project-Memory-Backed-Context-Menus-Into-The-MCP-Capture-Pass-So-Models-Can-See-Them",
   "group": "E11",
   "created_at_utc": "2026-08-16T04:40:00Z",
-  "updated_at_utc": "2026-09-16T19:26:52.066Z",
+  "updated_at_utc": "2026-09-16T21:07:53.780Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-135.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "PASS_V2",
     "depends_on": [
       "MT-121"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V1",
-    "completed_by": null,
+    "validator_verdict": "PASS_V2",
+    "completed_by": "WP_VALIDATOR-M135-20260916-193500",
     "claimed_by": "KERNEL_BUILDER-20260815-173127",
     "origin": "Discovered and proven during MT-121 implementation on 2026-08-16; deferred to a new MT in the same WP per Operator directive so the finding is not lost.",
     "ready_for_validation_v4_at_utc": "2026-09-03T00:03:28.778Z",
@@ -110,7 +110,7 @@
     },
     "ready_for_validation_at_utc": "2026-09-03T00:03:28.778Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260902-224325",
-    "next_actor": "KERNEL_BUILDER",
+    "next_actor": "ORCHESTRATOR",
     "validation_v1_transition": {
       "at_utc": "2026-09-15T20:59:10.296Z",
       "by": "WP_VALIDATOR-B1-20260915-200500",
@@ -120,6 +120,31 @@
         "completed_by": null
       },
       "reason": "validation_v1 FAIL_V1 on static grounds per Operator ruling 2026-09-15"
+    },
+    "completed_at_utc": "2026-09-16T21:07:53.780Z",
+    "validation_v2_transition": {
+      "at_utc": "2026-09-16T21:07:53.780Z",
+      "by": "WP_VALIDATOR-M135-20260916-193500",
+      "previous": {
+        "status": "FAIL_V1",
+        "validator_verdict": "FAIL_V1",
+        "completed_by": null,
+        "next_actor": "KERNEL_BUILDER"
+      },
+      "new": {
+        "status": "COMPLETED",
+        "validator_verdict": "PASS_V2",
+        "completed_by": "WP_VALIDATOR-M135-20260916-193500",
+        "next_actor": "ORCHESTRATOR"
+      },
+      "reason": "validation_v2 PASS_V2 at ba03f563 (C-prime): R-135-1/2/3 closed by validator-executed proof + shared-batch citation under LEAN_MODE; Spec-Realism sub-rules 1-3 PASS; READY_FOR_VALIDATION -> COMPLETED transition performed by WP_VALIDATOR per protocol sub-rule 3."
+    },
+    "status_alignment_2026_09_16": {
+      "by": "ORCHESTRATOR (Claude, session 2026-09-16)",
+      "at_utc": "2026-09-16T21:18:20.191Z",
+      "previous_status": "COMPLETED",
+      "new_status": "PASS_V2",
+      "reason": "Align lifecycle.status with validator_verdict per the convention used by every other PASS MT in this WP (status == validator_verdict); verdict, completed_by and validation_v2 untouched."
     }
   },
   "scope": {
@@ -1538,6 +1563,373 @@
     ],
     "final_state": {
       "git_status_porcelain": "clean (verified after ba03f563 and after all runs)",
+      "cargo_rustc_processes_at_exit": 0
+    }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V2",
+    "status": "PASS_V2",
+    "blocking": false,
+    "next_actor": "ORCHESTRATOR",
+    "risk_tier": null,
+    "validated_by": "WP_VALIDATOR-M135-20260916-193500",
+    "validated_at_utc": "2026-09-16T21:07:53.780Z",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "candidate_label": "C-prime",
+    "validates": [
+      "validation_v1",
+      "validation_v1_amendment_1",
+      "remediation_v1"
+    ],
+    "basis": "LEAN_MODE (Operator decision 2026-09-16, binding): this session executed only MT-135's own proof targets plus the tests anchoring R-135-1/R-135-2/R-135-3 in its own lane (../Handshake_Artifacts/WP-KERNEL-012/MT-135/wpv-v2), static-first; the backend set-A knowledge_* binaries are cited from the WP shared proof batch owned by MT-141 at fd9060de (see shared_proof_batch) after this session verified that C-prime differs from fd9060de only by the 3 MT-135 files and changes no handshake_core runtime behaviour. Builder (B2/B3) logs were read for triage only and are not the basis of any GREEN here (VPX-002).",
+    "worktree_state_at_start": {
+      "worktree": "../wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012",
+      "head": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+      "git_status_porcelain": "clean",
+      "cargo_rustc_processes_before_first_cargo": "1 cargo + 1 rustc belonging to another lane (cargo build -p handshake_core --bin handshake_core --features app-runtime; no lock contention observed on kb-b2 target)",
+      "gov_junction": ".GOV -> ../wt-gov-kernel/.GOV (junction confirmed)"
+    },
+    "authority_refs": [
+      "WP_VALIDATOR_PROTOCOL Job 2 (Scope Containment, HARD)",
+      "WP_VALIDATOR_PROTOCOL [VPX-001]/[VPX-002]/[VPX-003]/[VPX-004] validator-executed proof",
+      "WP_VALIDATOR_PROTOCOL Spec-Realism Gate sub-rules 1-3",
+      "CX-573D ZERO_PLACEHOLDER_POLICY",
+      "CX-573F HARD_RUNTIME_PROOF_OVER_SCAFFOLDING",
+      "CX-503I1 proof reuse (shared batch citation) / CX-984-009 shared batch proof",
+      "CX-503J adversarial validation",
+      "CX-984 scoped build artifact isolation"
+    ],
+    "spec_resolution": {
+      "spec_current": ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.206 (indexed-spec-manifest.json, INDEX.json present)",
+      "mt_spec_anchors": "NONE: MT-135 contract carries no spec_anchors field and no HS-*/section anchors; no Master Spec module was resolved for this per-MT review. Whole-WP spec alignment remains Integration Validator authority."
+    },
+    "c_prime_diff_verification": {
+      "range": "fd9060de..ba03f563",
+      "commits": [
+        "676d136a0d068026640caf9f06e0242b6236c383",
+        "ba03f5638e3f6b1903cb2829c1e846958d0dbf42"
+      ],
+      "files": [
+        "src/backend/handshake_core/src/storage/knowledge.rs (+95/-436: 82 default bodies removed, 0 `{` added, doc comment rewritten; only NotImplemented mention left is the doc-comment history line)",
+        "src/backend/handshake_core/src/storage/surreal/knowledge.rs (+135: new #[cfg(test)] mod knowledge_store_surface tripwire; 2 pre-existing rustfmt hunks in title_anchor_tests)",
+        "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs (rename mt121_..._remains_invisible_... -> mt135_..._is_visible_...; doc comment extended; 2 rustfmt reflows)"
+      ],
+      "style_commit_fmt_only": "VERIFIED: whitespace-stripped content of surreal/knowledge.rs identical between 676d136a and ba03f563; test_mcp_snapshot_viewport.rs differs by exactly one inserted `,` (rustfmt trailing comma in a vertical argument list, index 5499 of the stripped stream). rustfmt --check --edition 2021 (rustfmt 1.9.0-stable) clean at HEAD for all three MT-135 files.",
+      "runtime_behaviour_change_in_handshake_core": "NONE: every removed default body belonged to a method overridden by the sole implementor `impl KnowledgeStore for SurrealDatabase` (independently computed: 82 trait methods, 82 impl methods, 0 missing, 0 extra, 0 nested fn); no other `impl KnowledgeStore for`/blanket impl exists under src/; `dyn KnowledgeStore` call sites (api/knowledge_code_nav.rs, api/knowledge_documents.rs, knowledge_code_index/context_bridge.rs, storage/knowledge_retrieval.rs) dispatch to the same impl methods before and after. The added lib module is cfg(test) and is not compiled into integration binaries."
+    },
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "ledger_session": "WP_VALIDATOR-B3-20260916-113023",
+      "ledger_head": "fd9060dee489811f0b22903e97d38bd57be64a08",
+      "ledger_features": "surreal-test-support,test-utils",
+      "rows_cited": [
+        203,
+        204,
+        209,
+        211,
+        212,
+        215,
+        229,
+        232,
+        234,
+        235,
+        236
+      ],
+      "rows_cited_key": "ledger `index` field (the builder cited the same numbers); all 37 set-A knowledge_* targets are present in the ledger (26 ok, 11 non-green)",
+      "rows_cited_detail": {
+        "203": "knowledge_code_nav_api_tests exit=101 fail=[mt106_nav_api_lookup_definition_references_tests_spans_with_receipts, mt106_nav_api_flags_stale_symbols_on_every_route, mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded]",
+        "204": "knowledge_crdt_bridge_api_tests exit=101 fail=[mt_067_yjs_bridge::http_push_pull_round_trip_with_navigation_receipts, mt_075_conflict_ui::conflict_state_endpoint_serves_typed_conflicts_from_receipts]",
+        "209": "knowledge_crdt_proposal_tests exit=-1073740791 (0xC0000409 process abort after 10 tests hung >60s)",
+        "211": "knowledge_document_model_tests exit=101 fail=[crash_recovery_reconstructs_draft_writebox_state_from_embedded_store, crash_recovery_reconstructs_document_from_embedded_store]",
+        "212": "knowledge_documents_api_tests exit=-1073740791 (0xC0000409 process abort)",
+        "215": "knowledge_graph_tests exit=101 fail=[mt_054_edges::edge_conflict_shape_is_typed_and_catalog_backed]",
+        "229": "knowledge_memory_projection_tests exit=101 fail=[passage_evidence_graph_and_citation_resolution]",
+        "232": "knowledge_retrieval_bridges_tests exit=101 fail=[context_pack_decision_emits_bounded_receipt, schema_first_filter_narrows_to_query_scope]",
+        "234": "knowledge_retrieval_pipeline_tests exit=101 fail=15 tests",
+        "235": "knowledge_retrieval_replay_tests exit=101 fail=8 replay_context_bundle_from_trace_* tests",
+        "236": "knowledge_schema_tests exit=101 fail=[mt_049_namespace::namespace_registry_is_seeded_and_boundary_is_sound] (11 passed / 1 failed, 777.95s)"
+      },
+      "applicability_to_ba03f563": "The 11 non-green rows were produced at fd9060de, i.e. WITHOUT the MT-135 remediation. This session compared the ledger failing-test lists against the builder's B3 runs on the remediated (token-identical to 676d136a) tree: 36 of 37 targets have byte-identical exit codes and failing-test lists; the 37th (knowledge_crdt_proposal_tests) is the same 0xC0000409 abort after the same 10 tests hung >60s in both logs, differing only in whether two FAILED lines were flushed before the abort. Combined with the diff verification (no handshake_core runtime change), the 11 are classified PRE_EXISTING_AT_BASE, not MT-135-caused. Classes: 5 src/storage/tests.rs:177 TestStoreCleanupGuard drain-stall teardown panics (204, 211, 232, 234, 235), 4 test-body assertions (203, 215, 229, 236), 2 process aborts (209, 212).",
+      "classification": "PRE_EXISTING_AT_BASE",
+      "green_rows_cited": "ledger index 201,202,205,206,207,208,210,213,214,216,217,218,219,220,221,222,223,224,225,226,227,228,230,231,233,237 (26 knowledge_* targets ok at fd9060de; same applicability argument)"
+    },
+    "proofs": [
+      {
+        "id": "PR-135-V2-01",
+        "kind": "R-135-1_TRIPWIRE_GREEN",
+        "executed_by": "WP_VALIDATOR-M135-20260916-193500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo test -p handshake_core --lib --features duckdb-flight-recorder,test-utils --locked -j 4 -- knowledge_store_surface",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target (Operator-approved warm builder target; build-cache reuse per VPX-001, execution is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target/debug/deps/handshake_core-ee852f04359cdf21.exe",
+        "exe_sha256": "4ec8915d99c75d9350899ff4fe5b4303130b1524e2691c243af16b135ce4e618",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2210 filtered out; finished in 0.00s",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/wpv-v2/logs/01-core-tripwire-knowledge_store_surface.log",
+        "log_sha256": "df641b26f912ba6c0f2855f43c4bb6ab12eabd028d7df23ad0dfd882971a90f0",
+        "start_utc": "2026-09-16T19:34:36Z",
+        "end_utc": "2026-09-16T19:34:37Z",
+        "wall_s": 1.3,
+        "note": "knowledge_store_surface::surreal_database_overrides_every_knowledge_store_method GREEN at ba03f563 (1 passed / 0 failed / 2210 filtered). Warm fingerprint: no recompilation was needed; the lib test binary's include_str! inputs are tracked in dep-info so the binary reflects the on-disk trait/impl files."
+      },
+      {
+        "id": "PR-135-V2-02",
+        "kind": "R-135-1_COMPILE_GATE",
+        "executed_by": "WP_VALIDATOR-M135-20260916-193500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo check -p handshake_core --all-targets --features surreal-test-support,test-utils --locked -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target (Operator-approved warm builder target; build-cache reuse per VPX-001, execution is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": null,
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/wpv-v2/logs/02-core-check-all-targets.log",
+        "log_sha256": "18a878fdc1372a49830b59091981decfe34debd54059d122e1cba4d131ec0c1f",
+        "start_utc": "2026-09-16T19:35:05Z",
+        "end_utc": "2026-09-16T19:35:08Z",
+        "wall_s": 3,
+        "note": "cargo check --all-targets --features surreal-test-support,test-utils: 0 errors (Finished dev profile; fingerprint up-to-date at ba03f563). Covers the cfg(any(test, feature=surreal-test-support)) mt136_* proof modules that reference KnowledgeStore."
+      },
+      {
+        "id": "PR-135-V2-03",
+        "kind": "R-135-3_NATIVE_BUILD",
+        "executed_by": "WP_VALIDATOR-M135-20260916-193500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/frontend/handshake_native",
+        "command": "cargo test -p handshake-native --no-run --locked -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target (Operator-approved warm builder target; build-cache reuse per VPX-001, execution is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": null,
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/wpv-v2/logs/03-native-no-run-build.log",
+        "log_sha256": "e09377ed8fd6ead8d6ee25047d6344668b87148e11886c6f39c2ac1c48716b30",
+        "start_utc": "2026-09-16T19:35:23Z",
+        "end_utc": "2026-09-16T20:03:47Z",
+        "wall_s": 1703.7,
+        "note": "cargo test -p handshake-native --no-run: EXIT=0, 191 test executables, Finished in 28m 23s (handshake-diag-ring + handshake-native + all integration targets recompiled into kb-b2)."
+      },
+      {
+        "id": "PR-135-V2-04",
+        "kind": "R-135-3_PT-135-1_2_3_AC-135-1_3_5",
+        "executed_by": "WP_VALIDATOR-M135-20260916-193500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/frontend/handshake_native",
+        "command": "cargo test -p handshake-native --test test_mcp_snapshot_viewport --locked -j 4 -- --nocapture",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target (Operator-approved warm builder target; build-cache reuse per VPX-001, execution is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target/debug/deps/test_mcp_snapshot_viewport-7278cfc7b82359a0.exe",
+        "exe_sha256": "2c4b95ee67d87206673d26d57574e27b7fbd882843a38dd38536b9fe63c3bc5a",
+        "exit_code": 0,
+        "result_line": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/wpv-v2/logs/04-native-test_mcp_snapshot_viewport.log",
+        "log_sha256": "b5b1b0aebc2bf3a0cdb2c394c9eeaf00a4bec2d3e4bb4e171744f92836b89f29",
+        "start_utc": "2026-09-16T20:04:07Z",
+        "end_utc": "2026-09-16T20:04:08Z",
+        "wall_s": 1.6,
+        "note": "test_mcp_snapshot_viewport --nocapture: 8 passed / 0 failed. Verbatim: `MT-135 AC-135-1 sized capture viewport=(1400.0, 900.0) source=LiveWindow; memory-backed leaf 'ctx-menu.pane.pop_out' live=true published=true (fresh-context popup defect repaired by MT-135)`; `MT-135 PT-135-2 viewport=(1400.0, 900.0) source=LiveWindow published=(x=381.000, y=286.000, w=586.000, h=18.000) rendered=(x=381.000, y=286.000, w=586.000, h=18.000)`; `MT-135 PT-135-3 'ctx-menu.pane.pop_out' published: never_opened=false while_open=true after_escape=false`. Renamed test `mt135_memory_backed_context_menu_is_visible_to_the_sized_capture_pass ... ok`; `mt135_manual_agent_tool_reference_matches_capture_pass_truth ... ok` (manual self-consistency). No test named *remains_invisible* exists (the only remaining occurrence is the historical reference in the doc comment, line 273)."
+      },
+      {
+        "id": "PR-135-V2-05",
+        "kind": "R-135-3_PT-135-4_NATIVE_LIB_SUITE",
+        "executed_by": "WP_VALIDATOR-M135-20260916-193500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/frontend/handshake_native",
+        "command": "cargo test -p handshake-native --lib --locked -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target (Operator-approved warm builder target; build-cache reuse per VPX-001, execution is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target/debug/deps/handshake_native-ceac940acb8d8217.exe",
+        "exe_sha256": "39bbf41a1686fe9a6d766cc9f766f93f8fe35609fcb711bc9871bceaef67a03e",
+        "exit_code": 0,
+        "result_line": "test result: ok. 2102 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.79s",
+        "passed": 2102,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/wpv-v2/logs/05-native-lib-suite.log",
+        "log_sha256": "ff07bed2356cf53b620274ad88cfc11c611db4b9afb76c163fd7cc6c0615ad10",
+        "start_utc": "2026-09-16T20:04:17Z",
+        "end_utc": "2026-09-16T20:04:24Z",
+        "wall_s": 7.5,
+        "note": "cargo test -p handshake-native --lib: 2102 passed / 0 failed / 0 ignored (MT-121 baseline 2069/0; builder saw 2102/0)."
+      },
+      {
+        "id": "PR-135-V2-06",
+        "kind": "CONFIRMING_RUN_SET_A_SMALLEST_DISTINGUISHING",
+        "executed_by": "WP_VALIDATOR-M135-20260916-193500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo test -p handshake_core --test knowledge_schema_tests --features surreal-test-support,test-utils --locked -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target (Operator-approved warm builder target; build-cache reuse per VPX-001, execution is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target/debug/deps/knowledge_schema_tests-a8e43f2187419439.exe",
+        "exe_sha256": "d252543de5ec8fb6e05af9fbdb74d2898ca3d53901fcc7e75a4c4d7c48b8bbb0",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 824.65s",
+        "passed": 11,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "mt_049_namespace::namespace_registry_is_seeded_and_boundary_is_sound"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/wpv-v2/logs/06-core-knowledge_schema_tests.log",
+        "log_sha256": "c2507347f89864a560d1f23fa59cf776efbee0a1f671917c476d03fa380b1ffa",
+        "start_utc": "2026-09-16T20:04:37Z",
+        "end_utc": "2026-09-16T21:06:40Z",
+        "wall_s": 3722.4,
+        "note": "knowledge_schema_tests on the exact tree ba03f563 (mt_049_namespace::namespace_registry_is_seeded_and_boundary_is_sound exercises list_knowledge_schema_registry/audit_knowledge_namespace, two of the 82 methods whose defaults were removed, through the real embedded-SurrealDB impl). Compared against shared-batch ledger index 236 at fd9060de (11 passed / 1 failed, same failing test)."
+      }
+    ],
+    "static_checks": {
+      "trait_at_head": "src/backend/handshake_core/src/storage/knowledge.rs lines 2190-2776: `pub trait KnowledgeStore: Send + Sync` has 82 `async fn` declarations, 0 lines containing `{` after the trait opener, 0 `StorageError::NotImplemented` occurrences; whole-file NotImplemented occurrences: 1 (doc-comment history line 2185).",
+      "impl_at_head": "src/backend/handshake_core/src/storage/surreal/knowledge.rs lines 2731-5508: `impl KnowledgeStore for SurrealDatabase` declares 82 `async fn` (independent computation, not the tripwire), set-equal to the trait; no nested/helper fn inside the impl block.",
+      "other_impls": "grep `KnowledgeStore\\s+for` over src/**: only the SurrealDatabase impl plus the tripwire's own string constants. No test doubles, no blanket impls, no `Database: KnowledgeStore` supertrait.",
+      "tripwire_fail_closed": "slice() panics if TRAIT_START/TRAIT_END/IMPL_START/IMPL_END is not found (markers verified unique in their scope: trait 2190/2779, impl 2731/5510; the later hits 6758/6759 are the tripwire's own constants and come after the real blocks, so first-match slicing is correct). A truncated slice changes the method set or count and fails the `KNOWLEDGE_STORE_METHODS = 82` / missing / extra assertions. A re-added `StorageError::NotImplemented(` default fails the `defaulted` assertion; a re-added multi-line body fails the `bodies == 0` assertion.",
+      "red_provenance_r_135_1": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/logs/01-tripwire-RED.log (builder B2, sha256 44f5ecfda72e686c3555989474a93a8a7a527a31d3965076f1fdefa4a5db7993, START_UTC=2026-09-16T07:21:25Z, EXIT=101): `KnowledgeStore must not carry NotImplemented default bodies (CX-573D, MT-135 R-135-1); defaulted=[...82 unique method names...]`, `test result: FAILED. 0 passed; 1 failed`. PROVENANCE_ONLY (builder-executed); this session could not re-RED without modifying product code. The tripwire bites by construction: the pre-fix trait contained `StorageError::NotImplemented(` in every one of the 82 `async fn` fragments and 82 body-opener lines, each of which independently fails an assertion.",
+      "red_provenance_pt_135_1": "PROVENANCE_ONLY, no RED log exists and none was fabricated: at commit 4f92cc25 (ancestor of 6be71449) tests/test_mcp_snapshot_viewport.rs line 276 asserted `snapshot.find_by_author_id(PANE_POP_OUT_AUTHOR_ID).is_none()` with message `AC-121-4 witness changed: ... invert this assertion and record which MT did it`; commit 6be71449 inverted it to `.is_some()` (line 295) with the AC-135-1 message. The RED text quoted in lifecycle.ready_for_validation_summary is implementer-recorded."
+    },
+    "scope_and_waivers": [
+      {
+        "file": "src/backend/handshake_core/src/storage/knowledge.rs",
+        "in_allowed_paths": false,
+        "covered_by": "remediation_v1.out_of_scope_edit_waiver[0] WAIVER-1 (GRANTED_BY_OPERATOR, session waiver 2026-09-15 relayed by orchestrator)",
+        "disposition": "ALLOWED_BY_WAIVER; R-135-1 anchor file"
+      },
+      {
+        "file": "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+        "in_allowed_paths": false,
+        "covered_by": "remediation_v1.out_of_scope_edit_waiver[0] WAIVER-1",
+        "disposition": "ALLOWED_BY_WAIVER; R-135-1 test anchor beside the impl"
+      },
+      {
+        "file": "src/frontend/handshake_native/tests/test_mcp_snapshot_viewport.rs",
+        "in_allowed_paths": true,
+        "covered_by": "scope.allowed_paths[3] src/frontend/handshake_native/tests/",
+        "disposition": "IN_SCOPE"
+      },
+      {
+        "file": "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "in_allowed_paths": false,
+        "covered_by": "lifecycle.out_of_scope_waiver_status_2026_09_02 (GRANTED_BY_OPERATOR) -- not touched by C-prime; listed for completeness of the 6f19a524..ba03f563 history",
+        "disposition": "ALLOWED_BY_WAIVER (prior commit 6be71449)"
+      }
+    ],
+    "resolved_prior_findings": [
+      {
+        "id": "F-135-V1-1",
+        "class": "SCOPE_SPILL",
+        "resolution": "RESOLVED",
+        "evidence": "R-135-2: WAIVER-1 (remediation_v1.out_of_scope_edit_waiver[0], status GRANTED_BY_OPERATOR) names both backend files edited by C-prime; the MT-135 commits 676d136a/ba03f563 touch exactly 3 files, all either inside scope.allowed_paths or covered by WAIVER-1. This session has no independent evidence of the Operator utterance itself beyond the contract record (the waiver is recorded by the builder as relayed by the orchestrator); accepted as the packet-declared waiver record."
+      },
+      {
+        "id": "F-135-V1-2",
+        "class": "PLACEHOLDER_PATTERN",
+        "resolution": "RESOLVED",
+        "evidence": "R-135-1 option (b): 0 NotImplemented defaults remain in `pub trait KnowledgeStore` (static count at HEAD), the trait is fully abstract (0 bodies), the sole impl covers all 82 (independent set computation), the enumeration tripwire is GREEN in this session's own run (PR-135-V2-01) and RED provenance exists (kb-b2 01-tripwire-RED.log EXIT=101). cargo check --all-targets 0 errors (PR-135-V2-02)."
+      },
+      {
+        "id": "F-135-V1-3",
+        "class": "PROVENANCE",
+        "resolution": "RESOLVED_BY_REMOVAL",
+        "evidence": "The defaults introduced by 6be71449 (and 4ed7b60a) are gone; the trait doc comment now records that history explicitly (storage/knowledge.rs lines 2181-2186). No re-attribution is required because the hunk no longer exists in the product tree."
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "F-135-V2-1",
+        "class": "TRIPWIRE_HEURISTIC_GAP",
+        "severity": "INFO",
+        "blocking": false,
+        "detail": "The tripwire's `bodies` check counts trait lines ending in `{`; a single-line default body such as `-> T { Ok(..) }` that does not mention NotImplemented would not be caught by either the `defaulted` or the `bodies` assertion. rustfmt (which is clean at HEAD) reflows fn bodies onto their own line, and the method-count/set pins still hold, so the gap is narrow; noted for a future hardening (e.g. assert every `async fn` fragment ends with `;` before the next item)."
+      },
+      {
+        "id": "F-135-V2-2",
+        "class": "PROOF_PRINT_LITERAL",
+        "severity": "INFO",
+        "blocking": false,
+        "detail": "The PT-135-1 and PT-135-3 `println!` lines emit literal state strings (`live=true published=true`, `never_opened=false while_open=true after_escape=false`) rather than values computed from the observed snapshots. They are reachable only after the guarding assertions pass, so they are truthful when printed, but a reader should treat the assertions, not the print, as the proof."
+      },
+      {
+        "id": "F-135-V2-3",
+        "class": "CONTRACT_HYGIENE",
+        "severity": "INFO",
+        "blocking": false,
+        "detail": "MT-135.json `hbr_obligations` and `hbr_int_009_tier_obligations` are empty arrays; no per-tier (Flight Recorder / internal_diagnostics / Palmistry) posture is recorded in the contract. MT-135 adds no new observable runtime event (it projects egui popup state into the capture pass), so this reads as contract-authoring omission rather than a product gap; routed to Orchestrator/Integration Validator for WP-level HBR-INT-009 accounting, not blocking this per-MT verdict."
+      },
+      {
+        "id": "F-135-V2-4",
+        "class": "PRE_EXISTING_AT_BASE",
+        "severity": "MAJOR_OUT_OF_SCOPE",
+        "blocking": false,
+        "detail": "11 set-A knowledge_* binaries are non-green at base fd9060de (shared_proof_batch rows 203/204/209/211/212/215/229/232/234/235/236) and equally non-green after C-prime with identical failure signatures. Not caused by MT-135; they belong to their owning MTs / the WP-level Integration Validator verdict. Named here so the PASS_V2 is not read as a green backend set-A."
+      }
+    ],
+    "adversarial_review": {
+      "call_site_behaviour": "No change: defaults were never reached (all overridden); static and dyn dispatch resolve to the SurrealDatabase impl before and after.",
+      "test_doubles": "None exist; cargo check --all-targets (test-utils, surreal-test-support) and the lib test build (duckdb-flight-recorder, test-utils) both compile with the abstract trait, so no hidden implementor relied on defaults.",
+      "tripwire_marker_moves": "Fail closed (see static_checks.tripwire_fail_closed).",
+      "test_rename_doc_truth": "Doc comment (lines 257-274) states AC-121-4/AC-135-1, explains the MT-121 defect history, names the inversion and the rename with the old name for traceability; matches the assertion body (is_some + LiveWindow + precondition live leaf present).",
+      "gui_obligation": "Evidence kind accepted: argus_inspect_or_accesskit_tree + before_after_observation (per validation_v1 and the contract's OR-phrased expected_evidence). The kittest-mounted HandshakeApp frame with the pane context menu opened by click_secondary is compared against the published MCP snapshot (the argus.inspect surface) for author_id ctx-menu.pane.pop_out with zero bounds delta, and the before/after observation is never_opened/while_open/after_escape. The contract does not demand GPU pixels (expected_evidence[1] is `argus_screenshot_or_snapshot_reference`, satisfied by the snapshot reference); NOT_RUN: GPU pixel screenshot.",
+      "user_manual_obligation": "Satisfied at the MT level: manual entry `WHAT ARGUS.INSPECT CAN AND CANNOT SEE (MT-135)` present in src/frontend/handshake_native/src/manual_content_editors.rs (lines ~2337-2349, prior commit 6be71449 under the 2026-09-02 waiver); manual_self_consistency_test = mt135_manual_agent_tool_reference_matches_capture_pass_truth GREEN in PR-135-V2-04; manual_version_bump_required=false per contract."
+    },
+    "spec_realism_gate": {
+      "sub_rule_1_no_deferred_live_escape": {
+        "result": "PASS",
+        "detail": "0 NotImplemented defaults remain in the trait; grep of added lines in fd9060de..ba03f563 and of test_mcp_snapshot_viewport.rs / accessibility/popup_projection.rs for LiveClientUnavailable|LiveSpawnUnavailable|LiveRuntimeUnavailable|TrainerUnavailable|NativeToolchainUnavailable|not yet wired|deferred to follow-on|pending MT-|live store not attached|NotImplemented|todo!|unimplemented! hits only doc-comment/history text and the tripwire's own assertion strings."
+      },
+      "sub_rule_2_managed_resource_touch": {
+        "result": "PASS",
+        "detail": "Native: the MT-135 behaviour is exercised on a mounted HandshakeApp AccessKit tree (kittest harness) through the real capture path HandshakeApp::refresh_mcp_snapshot / accessibility::popup_projection (PR-135-V2-04). Backend: the removed defaults are covered by the real `impl KnowledgeStore for SurrealDatabase` over the embedded SurrealDB store; compile-level enforcement (PR-135-V2-02) plus the enumeration tripwire (PR-135-V2-01) prove the surface, and PR-135-V2-06 (knowledge_schema_tests) exercises two of the affected methods against the embedded store where it ran (see proofs[5]). No Docker, external daemon, mock or fixture-only path is relied on."
+      },
+      "sub_rule_3_no_self_certification": {
+        "result": "PASS",
+        "claimed_by": "KERNEL_BUILDER-20260815-173127",
+        "completed_by": "WP_VALIDATOR-M135-20260916-193500"
+      }
+    },
+    "remediation_required": [],
+    "not_run": [
+      "Backend set-A knowledge_* binaries other than knowledge_schema_tests (36 of 37) -- cited from the MT-141 shared proof batch per LEAN_MODE.",
+      "GPU pixel screenshot of the open context menu (contract accepts AccessKit-tree/snapshot evidence).",
+      "Other handshake_core feature sets, clippy, cargo deny, other native integration binaries (not in this MT's proof targets).",
+      "just phase-check / kb-ready-checklist / repomem helpers (session launched outside the ACP broker; .GOV writes limited to this contract)."
+    ],
+    "not_inspected": [
+      "Root cause of the 11 pre-existing set-A failures at fd9060de (outside MT-135 scope).",
+      "The worktree-local refs/remotes/origin/feat/WP-KERNEL-012 tracking ref state and the remote head (builder disclosed a stale tracking ref at 6d5d705f; no git fetch/ls-remote performed by this session).",
+      "The one-level submenu / menu-internal keyboard-cursor / never-rendered-popup edges listed in lifecycle.ready_for_validation_v4_open_items (no acceptance criterion covers them; unchanged by C-prime)."
+    ],
+    "residual_uncertainty": [
+      "PR-135-V2-01 and PR-135-V2-02 ran against an up-to-date cargo fingerprint in the Operator-approved warm kb-b2 target (no recompilation). The execution and captured results are this session's own; the compiled artifacts were produced by the builder from this same clean worktree at ba03f563, and cargo's fingerprint (which tracks the include_str! inputs of the tripwire) accepted them as current. A cold rebuild was not forced.",
+      "WAIVER-1's Operator grant is known to this session only through the contract record written by the builder (relayed by the orchestrator); no independent signature ledger entry was inspected for it.",
+      "The knowledge_crdt_proposal_tests comparison (row 209) rests on identical abort shape, not identical FAILED-line capture."
+    ],
+    "residue": {
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/wpv-v2",
+      "logs": "00-lane.txt, 01..06 *.log/.exit/.sha256, results.jsonl (one row per run)",
+      "runtime_dirs": 0,
+      "tmp_entries": 1,
+      "workspace_run_dirs_nonempty": [],
+      "tracked_fixture_writes": [],
+      "git_status_porcelain_after_runs": "clean",
       "cargo_rustc_processes_at_exit": 0
     }
   }
