@@ -6082,10 +6082,21 @@ mod tests {
             1,
             "MT-141 line drifted: {MT141_PROVENANCE_REF_ASSERT_LINE}"
         );
-        assert_eq!(SCHEMA.matches(PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE).count(), 0);
-        assert_eq!(SCHEMA.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(), 1);
+        assert_eq!(
+            SCHEMA
+                .matches(PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE)
+                .count(),
+            0
+        );
+        assert_eq!(
+            SCHEMA.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(),
+            1
+        );
         let pinned = SCHEMA
-            .replace(MT141_PROVENANCE_REF_ASSERT_LINE, PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE)
+            .replace(
+                MT141_PROVENANCE_REF_ASSERT_LINE,
+                PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE,
+            )
             .replace(MT141_SAVED_SEARCH_PROJECTION_BLOCK, "");
         assert_eq!(
             sha256_hex(pinned.as_bytes()),
@@ -6115,20 +6126,46 @@ mod tests {
         assert_eq!(upgrade.len(), 1 + 18);
         let schema = statements(SCHEMA);
         for statement in &upgrade {
-            assert!(schema.iter().any(|s| s == statement), "MT-141 upgrade DDL drifted from schema.surql: {statement}");
+            assert!(
+                schema.iter().any(|s| s == statement),
+                "MT-141 upgrade DDL drifted from schema.surql: {statement}"
+            );
         }
         assert!(TABLE_NAMES.contains(&"atelier_saved_search_retrieval_projection"));
-        assert!(upgrade[0].contains("ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset>"));
-        for field in ["source_url_ref", "source_path_ref", "source_note_ref", "contact_sheet_ref", "task_ref", "run_ref"] {
-            assert!(upgrade[0].contains(&format!("$this.{field} != NONE")), "constraint names {field}");
+        assert!(upgrade[0].contains(
+            "ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset>"
+        ));
+        for field in [
+            "source_url_ref",
+            "source_path_ref",
+            "source_note_ref",
+            "contact_sheet_ref",
+            "task_ref",
+            "run_ref",
+        ] {
+            assert!(
+                upgrade[0].contains(&format!("$this.{field} != NONE")),
+                "constraint names {field}"
+            );
         }
-        assert_eq!(PRE_MT109_SCHEMA.matches(MT141_PROVENANCE_REF_ASSERT_LINE).count(), 0);
+        assert_eq!(
+            PRE_MT109_SCHEMA
+                .matches(MT141_PROVENANCE_REF_ASSERT_LINE)
+                .count(),
+            0
+        );
         assert!(post_mt109_upgrade_statements().contains(&mt141_upgrade_statements()));
         assert!(mt109_authority_upgrade_query().contains(&mt141_upgrade_statements()));
-        assert_ne!(PRE_MT141_GENERATED_SURREALQL_SHA256, GENERATED_SURREALQL_SHA256);
+        assert_ne!(
+            PRE_MT141_GENERATED_SURREALQL_SHA256,
+            GENERATED_SURREALQL_SHA256
+        );
         assert_ne!(PRE_MT141_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
         // The MT-141 predecessor is the MT-150 current pin, so the hops chain.
-        assert_ne!(PRE_MT141_GENERATED_SURREALQL_SHA256, PRE_MT150_GENERATED_SURREALQL_SHA256);
+        assert_ne!(
+            PRE_MT141_GENERATED_SURREALQL_SHA256,
+            PRE_MT150_GENERATED_SURREALQL_SHA256
+        );
         let _ = mt141_pin_schema();
     }
 

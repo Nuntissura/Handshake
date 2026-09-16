@@ -15,10 +15,7 @@ use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::documents::CharacterDocumentType;
-use super::{
-    atelier_event_sql, event_ref_for_text, AtelierError, AtelierResult,
-    AtelierStore,
-};
+use super::{atelier_event_sql, event_ref_for_text, AtelierError, AtelierResult, AtelierStore};
 
 pub const MOODBOARD_SCHEMA_ID: &str = "hsk.atelier.moodboard@1";
 const MOODBOARD_SCHEMA_VERSION: i64 = 1;

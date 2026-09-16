@@ -345,10 +345,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     assert_eq!(no_actor.status(), reqwest::StatusCode::UNAUTHORIZED);
 
     let block_id = source_backed_block(&storage, &workspace_id, "MT-033 canonical block").await;
-    let link_url = format!(
-        "{base}/atelier/intake/items/{}/loom-projection",
-        item_id
-    );
+    let link_url = format!("{base}/atelier/intake/items/{}/loom-projection", item_id);
     let linked = http
         .put(&link_url)
         .header("x-hsk-session-token", &binding.token)
@@ -364,10 +361,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     assert_eq!(linked_json["workspace_id"], workspace_id);
 
     let listed = http
-        .get(format!(
-            "{base}/atelier/intake/batches/{}/items",
-            batch_id
-        ))
+        .get(format!("{base}/atelier/intake/batches/{}/items", batch_id))
         .send()
         .await
         .expect("list batch items");

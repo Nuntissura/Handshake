@@ -2137,9 +2137,7 @@ impl AtelierStore {
         new: &NewIntakeItem,
     ) -> AtelierResult<IntakeItem> {
         if self.get_intake_batch_by_id(batch_id).await?.is_none() {
-            return Err(AtelierError::NotFound(format!(
-                "intake batch {batch_id}"
-            )));
+            return Err(AtelierError::NotFound(format!("intake batch {batch_id}")));
         }
         if new.source_path.trim().is_empty() {
             return Err(AtelierError::Validation(

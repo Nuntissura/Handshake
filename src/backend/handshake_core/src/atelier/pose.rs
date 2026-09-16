@@ -1860,7 +1860,8 @@ const WRITE_POSE_WORKSPACE_RIG_STATEMENT: &str = concat!(
 /// MT-141: appends one atelier event and writes nothing else; used to emit the
 /// `POSE_WORKSPACE_RIG_STATE_SET` deactivation event of the previously active rig after an
 /// activation switch committed (the workspace-state statement can carry only one event).
-const POSE_EMIT_EVENT_ONLY_STATEMENT: &str = concat!("RETURN { ", atelier_event_sql!(), " RETURN NONE; };");
+const POSE_EMIT_EVENT_ONLY_STATEMENT: &str =
+    concat!("RETURN { ", atelier_event_sql!(), " RETURN NONE; };");
 
 #[derive(SurrealValue)]
 struct NoDomainBindings {}
@@ -2732,7 +2733,9 @@ impl AtelierStore {
         let state = outcome
             .get_mut("state")
             .map(serde_json::Value::take)
-            .ok_or_else(|| AtelierError::Internal("workspace rig state write returned no row".into()))?;
+            .ok_or_else(|| {
+                AtelierError::Internal("workspace rig state write returned no row".into())
+            })?;
         // Ordering guarantee: the state transaction (switch + upsert) committed first; each
         // deactivation event is appended afterwards for the rig it describes, so an event never
         // exists without the committed switch (deviation from a single transaction, recorded).

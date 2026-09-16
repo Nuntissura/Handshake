@@ -670,7 +670,9 @@ async fn atelier_filesystem_health_detects_missing_generated_thumbnail_artifact_
         .record_media_derivative_generated_with_artifact(&MediaDerivativeGenerated {
             derivative_id: requested.derivative_id,
             artifact_ref: thumbnail_artifact.artifact_ref.clone(),
-            artifact_manifest_ref: thumbnail_artifact.artifact_ref.replace("/payload", "/artifact.json"),
+            artifact_manifest_ref: thumbnail_artifact
+                .artifact_ref
+                .replace("/payload", "/artifact.json"),
             mime: "image/png".to_string(),
             byte_len: thumbnail_artifact.byte_len,
             updated_by: "mt-023-thumbnail-worker".to_string(),
@@ -752,7 +754,9 @@ async fn atelier_filesystem_health_does_not_mark_generated_thumbnail_payload_unt
         .record_media_derivative_generated_with_artifact(&MediaDerivativeGenerated {
             derivative_id: requested.derivative_id,
             artifact_ref: thumbnail_artifact.artifact_ref.clone(),
-            artifact_manifest_ref: thumbnail_artifact.artifact_ref.replace("/payload", "/artifact.json"),
+            artifact_manifest_ref: thumbnail_artifact
+                .artifact_ref
+                .replace("/payload", "/artifact.json"),
             mime: "image/png".to_string(),
             byte_len: thumbnail_artifact.byte_len,
             updated_by: "mt-023-healthy-thumbnail-worker".to_string(),

@@ -132,7 +132,9 @@ impl Drop for OwnedTempRoot {
                 if fs::remove_dir_all(&path).is_ok() || !path.exists() {
                     break;
                 }
-                std::thread::sleep(std::time::Duration::from_millis(25 * u64::from(attempt + 1)));
+                std::thread::sleep(std::time::Duration::from_millis(
+                    25 * u64::from(attempt + 1),
+                ));
             }
         }
     }

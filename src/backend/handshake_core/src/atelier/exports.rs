@@ -34,9 +34,8 @@ use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
 use super::{
-    uuid_from_record_link,
-    atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, AtelierError, AtelierResult,
-    AtelierStore,
+    atelier_event_sql, event_ref_for_text, reject_legacy_runtime_ref, uuid_from_record_link,
+    AtelierError, AtelierResult, AtelierStore,
 };
 
 /// Atelier export event families (MT-199). Defined here, surfaced to MT-005

@@ -600,7 +600,8 @@ const ANCHOR_ENTRY_STATEMENT: &str = concat!(
 /// MT-141 R1 follow-up: the Surreal port never emitted `CORPUS_BLOCKED_CLEARED` (the
 /// PostgreSQL original recorded it inside the anchor transaction). The clear is appended as its
 /// own event after the anchor transaction committed; see `anchor_command_manual`.
-const EMIT_EVENT_ONLY_STATEMENT: &str = concat!("RETURN { ", atelier_event_sql!(), " RETURN NONE; };");
+const EMIT_EVENT_ONLY_STATEMENT: &str =
+    concat!("RETURN { ", atelier_event_sql!(), " RETURN NONE; };");
 
 #[derive(SurrealValue)]
 struct AnchorOutcomeRow {

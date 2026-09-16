@@ -1530,10 +1530,10 @@ impl AtelierStore {
                 && (saved.filters.view_mode != LensViewMode::Sfw
                     || hit.content_tier == Some(LensContentTier::Sfw))
                 && saved
-                .filters
-                .include_tags
-                .iter()
-                .all(|tag| hit.tags.contains(tag))
+                    .filters
+                    .include_tags
+                    .iter()
+                    .all(|tag| hit.tags.contains(tag))
                 && saved
                     .filters
                     .exclude_tags
@@ -1601,7 +1601,11 @@ impl AtelierStore {
                     artifact_ref: hit.artifact_ref.clone(),
                     jump_target: hit.jump_target.clone(),
                     tags_json: serde_json::Value::Array(
-                        hit.tags.iter().cloned().map(serde_json::Value::String).collect(),
+                        hit.tags
+                            .iter()
+                            .cloned()
+                            .map(serde_json::Value::String)
+                            .collect(),
                     ),
                     favorite: hit.favorite,
                     rating: i64::from(hit.rating),
