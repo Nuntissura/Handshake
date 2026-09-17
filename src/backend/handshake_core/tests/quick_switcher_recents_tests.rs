@@ -157,9 +157,15 @@ async fn mt256_quick_switcher_recents_persist_with_eventledger() {
         wiki_recent.event_ledger_event_id
     );
 
+    // The recents writer keys its EventLedger aggregate on
+    // `{workspace_id}:{hit_key}` (unchanged since the PostgreSQL-era writer),
+    // so the typed receipt is listed by that aggregate id.
     let events = backend
         .db
-        .list_kernel_events_for_aggregate("quick_switcher_recent", &ws)
+        .list_kernel_events_for_aggregate(
+            "quick_switcher_recent",
+            &format!("{ws}:user_manual_page:recent-beta"),
+        )
         .await
         .expect("query matching kernel event");
     let event_count = events

@@ -49,6 +49,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::spans::{ActivityKind, ActivitySpan, ModelSessionSpan, SpanId, SpanStatus};
+use crate::storage::surreal::retry::retry_transaction_conflicts;
 use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 const SESSION_SPAN_TABLE: &str = "kernel_model_session_span";
@@ -178,7 +179,7 @@ struct SpanIdBinding {
     span_id: Uuid,
 }
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct EndSessionSpanBindings {
     span_id: Uuid,
     ended_at_utc: DateTime<Utc>,
@@ -186,7 +187,7 @@ struct EndSessionSpanBindings {
     last_event_ledger_seq: Option<i64>,
 }
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct EndActivitySpanBindings {
     span_id: Uuid,
     ended_at_utc: DateTime<Utc>,
@@ -247,6 +248,31 @@ impl SpanRepo {
                 Box::pin(async move { database.query_values(statement, bindings).await })
             })
             .await
+    }
+
+    /// A guarded end-write (`WHERE ... AND ended_at_utc = NONE`). Two writers
+    /// racing on the same row collide at commit; the losing transaction wrote
+    /// nothing, so the bounded MT-142 replay re-runs the guarded UPDATE and
+    /// observes the winner's state: zero matched rows, which the caller's
+    /// typed re-read reports as `Conflict` (MT-141 V2 red 426, mt_197
+    /// concurrent end writes). Replaying (rather than assuming every conflict
+    /// is a lost end-race) keeps an end-write that merely lost to a
+    /// concurrent `attach_event_ledger_seq` on the same row correct.
+    async fn guarded_end_write<R, B>(
+        &self,
+        span_id: SpanId,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Clone + Send + 'static,
+    {
+        retry_transaction_conflicts(&self.storage, format!("span-end-write:{}", span_id.as_uuid()), || {
+            let bindings = bindings.clone();
+            async move { self.query(statement, bindings).await }
+        })
+        .await
     }
 
     /// Append-friendly insert of a fresh session span. Attributes,
@@ -314,7 +340,8 @@ impl SpanRepo {
         last_event_ledger_seq: Option<i64>,
     ) -> Result<(), SpanRepoError> {
         let updated: Vec<surrealdb::types::Value> = self
-            .query(
+            .guarded_end_write(
+                span_id,
                 "UPDATE kernel_model_session_span SET \
                  ended_at_utc = $ended_at_utc, \
                  status = $status, \
@@ -355,7 +382,8 @@ impl SpanRepo {
         status: &SpanStatus,
     ) -> Result<(), SpanRepoError> {
         let updated: Vec<surrealdb::types::Value> = self
-            .query(
+            .guarded_end_write(
+                span_id,
                 "UPDATE kernel_activity_span SET \
                  ended_at_utc = $ended_at_utc, status = $status \
                  WHERE span_id = $span_id AND ended_at_utc = NONE RETURN AFTER;",

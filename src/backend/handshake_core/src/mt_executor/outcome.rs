@@ -83,6 +83,7 @@ use super::job::{
 };
 use super::loop_control::MtLoopControlBudget;
 use super::queue::job_record;
+use crate::storage::surreal::retry::retry_transaction_conflicts;
 use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 const OUTCOME_TABLE: &str = "kernel_mt_outcome";
@@ -556,11 +557,25 @@ impl MtOutcomeRecorder {
             outcome_record: outcome_record(record.outcome_id),
             outcome_row: outcome_row(&record)?.into_value(),
         };
-        let verdict: Option<String> = storage
-            .with_data_operation(move |database| {
-                Box::pin(async move {
-                    database
-                        .query_first(
+        // Result-set index 1: BEGIN(0), the IF/RETURN verdict(1), COMMIT(2).
+        // `query_first` decodes index 0 (the empty BEGIN result), which made
+        // every persist report "unexpected persist verdict: None" (MT-141 V2
+        // red 425 / 307).
+        // Two recorders racing on one job collide at commit; the loser wrote
+        // nothing, so the bounded MT-142 replay re-runs the guarded statement
+        // and reports the typed duplicate/forged verdict instead of the raw
+        // conflict (MT-141 V2 red 307 concurrent ordering).
+        let verdict: Option<String> = retry_transaction_conflicts(
+            storage,
+            format!("mt-outcome-persist:{}:{}", job.job_id, record.iteration_n),
+            || {
+                let bindings = bindings.clone();
+                async move {
+                    storage
+                        .with_data_operation(move |database| {
+                            Box::pin(async move {
+                                database
+                                    .query_values_at::<String, _>(
                             // Guards use count(), which is truthiness-based
                             // (NONE and [] both count as 0), so each check is
                             // independent of whether the subquery yields a
@@ -582,12 +597,18 @@ impl MtOutcomeRecorder {
                                  RETURN 'ok'; \
                              }; \
                              COMMIT TRANSACTION;",
-                            bindings,
-                        )
+                                        bindings,
+                                        1,
+                                    )
+                                    .await
+                                    .map(|rows| rows.into_iter().next())
+                            })
+                        })
                         .await
-                })
-            })
-            .await?;
+                }
+            },
+        )
+        .await?;
 
         match verdict.as_deref() {
             Some("ok") => Ok((record, candidate)),
@@ -1222,7 +1243,7 @@ struct JobRecordBinding {
     job: RecordId,
 }
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct PersistOutcomeBindings {
     job: RecordId,
     session_id: Uuid,

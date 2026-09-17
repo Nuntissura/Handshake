@@ -307,7 +307,7 @@ impl TryFrom<RequestRow> for VisualDiffRequestRecord {
 #[derive(SurrealValue)]
 struct ResultRow {
     result_id: SurrealUuid,
-    request_id: SurrealUuid,
+    request_id: RecordId,
     comparison_mode: String,
     units_compared: i64,
     units_differing: i64,
@@ -334,7 +334,7 @@ impl TryFrom<ResultRow> for VisualDiffResultRecord {
         })?;
         Ok(Self {
             result_id: row.result_id.into(),
-            request_id: row.request_id.into(),
+            request_id: uuid_from_record_link("request_id", &row.request_id)?,
             computation: VisualDiffComputationV1 {
                 comparison_mode,
                 units_compared: u64::try_from(row.units_compared)
@@ -385,7 +385,7 @@ struct RequestBindings {
 struct ResultBindings {
     record_id: RecordId,
     result_id: SurrealUuid,
-    request_id: SurrealUuid,
+    request_id: RecordId,
     comparison_mode: String,
     units_compared: i64,
     units_differing: i64,
@@ -398,6 +398,11 @@ struct ResultBindings {
 #[derive(SurrealValue)]
 struct UuidBinding {
     id: SurrealUuid,
+}
+
+#[derive(SurrealValue)]
+struct RecordBinding {
+    id: RecordId,
 }
 #[derive(SurrealValue)]
 struct SurfaceBinding {
@@ -632,7 +637,12 @@ impl AtelierStore {
                         SurrealUuid::from(result_id),
                     ),
                     result_id: result_id.into(),
-                    request_id: request_id.into(),
+                    // `kernel_visual_diff_result.request_id` is a record link
+                    // (REFERENCE ON DELETE REJECT), bound like `baseline_id`.
+                    request_id: RecordId::new(
+                        "kernel_visual_diff_request",
+                        SurrealUuid::from(request_id),
+                    ),
                     comparison_mode: computation.comparison_mode.as_token().to_owned(),
                     units_compared: i64::try_from(computation.units_compared).map_err(|_| {
                         AtelierError::Validation("units_compared out of range".into())
@@ -675,7 +685,9 @@ impl AtelierStore {
         let rows: Vec<ResultRow> = self.store().with_data_operation(move |ctx| Box::pin(async move {
             ctx.query_values(
                 "SELECT result_id, request_id, comparison_mode, units_compared, units_differing, mismatch_basis_points, threshold_exceeded, outcome, computed_at_utc, created_at_utc FROM kernel_visual_diff_result WHERE request_id = $id ORDER BY created_at_utc DESC, result_id DESC;",
-                UuidBinding { id: request_id.into() },
+                RecordBinding {
+                    id: RecordId::new("kernel_visual_diff_request", SurrealUuid::from(request_id)),
+                },
             ).await
         })).await?;
         rows.into_iter().map(TryInto::try_into).collect()
