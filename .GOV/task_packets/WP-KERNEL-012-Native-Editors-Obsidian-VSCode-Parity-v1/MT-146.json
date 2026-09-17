@@ -31,14 +31,14 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V1",
     "depends_on": [
       "MT-144"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": null,
-    "completed_by": null,
+    "validator_verdict": "PASS_V1",
+    "completed_by": "WP_VALIDATOR-B9-20260917-015345",
     "claimed_by": "KERNEL_BUILDER-20260904-050159",
     "claimed_at_utc": "2026-09-04T05:02:00Z",
     "created_by": "KERNEL_BUILDER-20260903-213930",
@@ -299,5 +299,257 @@
     "red_evidence_ref": "Handshake_Artifacts/handshake-test/wp-kernel-012-kb-0902-proof-logs/orphan3-red.log",
     "red_evidence_product_commit": "a153d2cee6f7851ee4a831978c636df37171c899"
   },
-  "updated_at_utc": "2026-09-05T11:54:50.553Z"
+  "updated_at_utc": "2026-09-17T04:47:12.710Z",
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "validator_layer": "WP_VALIDATOR",
+    "validated_by": "WP_VALIDATOR-B9-20260917-015345",
+    "validated_at_utc": "2026-09-17T04:47:12.541Z",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "candidate_label": "C-prime",
+    "mandatory_reads_ack": {
+      "codex": ".GOV/codex/Handshake_Codex_v1.4.md (read in full: sections 0-10 incl. CX-032, CX-503R/S, CX-573D/E/F, CX-971/972/984)",
+      "protocol": ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (read in full incl. VPX-001..008, Spec-Realism Gate sub-rules 1-3)",
+      "spec": ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.206 (indexed-spec-manifest.json / INDEX.json); no per-MT spec module resolution was required because none of the nine contracts carries spec_anchors; whole-WP spec alignment remains Integration Validator authority",
+      "operator_stance": "Operator governance stance applied: no just recipes, no receipts, no repomem, no ACP, no dossiers, no task-board edits; MT-NNN.json is the only status surface"
+    },
+    "proof_environment": {
+      "host": "Windows 11, D: SATA HDD; toolchain rustc/cargo 1.97.1-x86_64-pc-windows-msvc",
+      "worktree": "../wtc-native-editors-v1 (feat/WP-KERNEL-012) HEAD ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (C-prime), git status clean at lane start",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1 (logs/ tmp/ runtime/ workspace/); owning MT for artifact purposes: MT-142; covered MTs: MT-112, MT-118, MT-120, MT-139, MT-142, MT-145, MT-146, MT-148, MT-149",
+      "cargo_target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+      "db": "embedded SurrealDB (RocksDB) only, one store per test under <lane>/runtime; no PostgreSQL, SQLite or Docker",
+      "concurrency": "cargo phase serialized (pool 1) under the host-wide CARGO_MUTEX.lock; exec phase pool 1; --test-threads=4 for embedded-store suites per contract execution_constraints",
+      "foreign_load": "a KERNEL_BUILDER lane compiled concurrently on MT-135/kb-b2/target during parts of this lane (recorded in 00-lane.txt); its cargo did not touch this target",
+      "tree_state_at_run": "Tree was clean at lane start (02:01:11Z). A concurrent actor (not this session) modified src/backend/handshake_core/src/storage/tests.rs at 02:02:10Z (harness only; snapshot logs/dirty-tree-snapshot-20260917T024243Z.diff sha256 55aca996...). All binaries this session built (cargo steps 02-04, 02:13-02:41Z) embed committed ba03f563 plus that harness change only. From 03:16:56Z the same actor began editing 22 product files under src/ plus schema.surql; that is AFTER every build of this lane, so no executed binary embeds it (exec-only runs read no source). api/memory.rs, storage/fems_memory.rs, storage/surreal/workspaces.rs and flight_recorder/mod.rs were never dirty. Recorded per VPX-001: proofs bind to ba03f563 (+ harness-only dirt)."
+    },
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "ledger_session": "WP_VALIDATOR-B3-20260916-113023",
+      "ledger_head": "fd9060dee489811f0b22903e97d38bd57be64a08",
+      "rows_cited": [
+        "416"
+      ],
+      "covered_mts": [
+        "MT-112",
+        "MT-118",
+        "MT-120",
+        "MT-139",
+        "MT-142",
+        "MT-145",
+        "MT-146",
+        "MT-148",
+        "MT-149"
+      ],
+      "applicability_to_c_prime": "C-prime (fd9060de..ba03f563) changes only src/storage/knowledge.rs (82 NotImplemented default bodies removed from the KnowledgeStore trait), src/storage/surreal/knowledge.rs (a cfg(test) tripwire module) and one native test rename. The tripwire knowledge_store_surface::surreal_database_overrides_every_knowledge_store_method was executed by THIS session at ba03f563 (row 10) and proves every trait method is overridden by the sole implementor, so dispatch through dyn KnowledgeStore is unchanged and set-A rows built at fd9060de remain valid for behaviour that does not depend on the removed defaults.",
+      "note": "Row 416 (lib at fd9060de, pool run) aborted 0xC0000409 with 14 api::memory::tests failures listed (incl. surreal_identity_and_exact_retry_converge, proposal_delete_race..., list_proposals..., commit_outbox...); the whole module was therefore RUN here at C-prime with a filter (row 32) and is fully green."
+    },
+    "residue": {
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1",
+      "runtime_dirs": 0,
+      "tmp_entries": 12,
+      "workspace_run_dirs_nonempty": 0,
+      "tracked_fixture_writes": "NONE by this session's runs (all tree dirt is the concurrent actor's; see proof_environment.tree_state_at_run)",
+      "git_status_porcelain_after_runs": "22 src files + schema.surql + tests/ dirty from 03:16:56Z (foreign edits, post-build) - full list in results.jsonl row 32",
+      "cargo_rustc_processes_at_exit": "0 owned by this session"
+    },
+    "verdict": "PASS_V1",
+    "status": "PASS_V1",
+    "blocking": false,
+    "next_actor": "ORCHESTRATOR",
+    "basis": "Row 32 (api::memory:: at ba03f563, executed by this session, 33 passed / 0 failed, counts quoted verbatim in the proof record) contains all three target tests green: proposal_delete_race_never_leaves_workspace_orphans, list_proposals_is_bounded_deterministic_and_workspace_scoped, commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits (PT-146-2), and the full suite has ZERO failures, so PT-146-3 is satisfied under BOTH readings - the corrected 'every failure attributed' criterion and the original 29-of-29 numeric gate (now 33 of 33) - and the registered flake concurrent_workspace_commits_publish_a_pack_containing_both_items (F-146-D) passed in this run. Static review at C-prime: D-146-2 fix present (fems_memory.rs:2508-2510 SurrealQL status_rank ordered ahead of created_at DESC, proposal_id ASC, before LIMIT); D-146-3 fix present (list_commit_rows no longer withholds an unpublished FR-EVT-MEM-004; commit_event_dispatch_ready at fems_memory.rs:2906 enforces the causal rule at dispatch); the Operator-authorised selector-only test correction is exactly one filter line (trace_id), with the expected count 2 and the assertion message byte-identical to the contract's D-146-3 observed message (api/memory.rs:7489-7492). D-146-1: the MT-146 mechanism (process-global FEMS mutation lock ordering the two snapshots) has since been REPLACED by MT-152 (979230d6) with a database-side fems_workspace_write_anchors write-set key plus the MT-142 bounded retry (workspaces.rs:120-235, read directly); the behaviour AC-146-1 demands (no orphan under a concurrent delete/insert) is what is proven at C-prime and it is proven by the named test, but the fix mechanism validated here is MT-152's, not MT-146's - recorded as a finding, not a failure, because the AC is behaviour-based and the measured cause MT-146 recorded (snapshot isolation with write-write conflict detection only) is the cause MT-152's mechanism addresses. PT-146-4: handshake_core.exe rebuilt at C-prime by this session (step 04, exit 0). AC-146-6: the MT-146 commit 7d4982c6 touched only three of the four allowed_paths.",
+    "proofs": [
+      {
+        "id": "PR-MEM-B9-01",
+        "kind": "api_memory_FULL_IN_CRATE_SUITE_C_PRIME",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "c0603cbdba2a79bc04711dca83821b687a152b60",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "<pre-built exe> api::memory:: --nocapture --test-threads=4  (exec-only; env: HANDSHAKE_ARTIFACTS_ROOT=<artifacts root>, HANDSHAKE_SURREAL_TEST_STORE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/runtime, HANDSHAKE_WORKSPACE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/workspace/run-32-lib-api_memory, TMP/TEMP/TMPDIR=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/tmp, RUST_BACKTRACE=0)",
+        "features": "duckdb-flight-recorder,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/handshake_core-ee852f04359cdf21.exe",
+        "exe_sha256": "3f55b6dceef182431eb391a145887507023930c0061bb65ba18a4c780e5bc81e",
+        "exit_code": 0,
+        "result_line": "test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 2178 filtered out; finished in 1924.83s",
+        "passed": 33,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/32-lib-api_memory.log",
+        "log_sha256": "4ee596bd230f7e9fdfe6cb055394bb0f2932750da49b3bb196be2d0ec345cccd",
+        "wall_s": 1925,
+        "rerun_alone": false,
+        "pool": 1,
+        "skip_count": 0,
+        "not_run_unconfigured_lines": 0,
+        "contention_lines": 15,
+        "residue": {
+          "runtime_dirs_before": 0,
+          "runtime_dirs_after": 0,
+          "tmp_entries": 12,
+          "workspace_entries": 0,
+          "git_status_porcelain": " M src/backend/handshake_core/src/atelier/intake.rs; M src/backend/handshake_core/src/debug_adapter/node_inspector.rs; M src/backend/handshake_core/src/flight_recorder/fr_emitter.rs; M src/backend/handshake_core/src/hbr/registry.rs; M src/backend/handshake_core/src/kernel/visual_diff_baseline.rs; M src/backend/handshake_core/src/knowledge_memory/passage.rs; M src/backend/handshake_core/src/memory/persistence.rs; M src/backend/handshake_core/src/mt_executor/queue.rs; M src/backend/handshake_core/src/mt_executor/scheduler.rs; M src/backend/handshake_core/src/role_mailbox_v1/repo.rs; M src/backend/handshake_core/src/storage/surreal/blocks.rs; M src/backend/handshake_core/src/storage/surreal/documents.rs; M src/backend/handshake_core/src/storage/surreal/event_ledger.rs; M src/backend/handshake_core/src/storage/surreal/loom_store.rs; M src/backend/handshake_core/src/storage/surreal/retry.rs; M src/backend/handshake_core/src/storage/surreal/schema.rs; M src/backend/handshake_core/src/storage/surreal/schema.surql; M src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs; M src/backend/handshake_core/src/test_harness/crdt_workspace.rs; M src/backend/handshake_core/src/user_manual/mod.rs; M src/backend/handshake_core/src/user_manual/registry.rs; M src/backend/handshake_core/src/user_manual/seed.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/"
+        },
+        "note": "33 tests (29 at MT-146 time + 4 MT-109 additions); 33 passed / 0 failed / 0 ignored; exit 0; 1925 s; --test-threads=4 --nocapture; 0 SKIP lines; 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE lines; 15 'running for over 60 seconds' notices (embedded RocksDB stores on a SATA HDD; foreign builder exec pool live). Every test in the module is listed `ok` in the log."
+      },
+      {
+        "id": "PR-MEM-B9-03",
+        "kind": "PRODUCT_BINARY_BUILD_AT_C_PRIME",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo build --manifest-path <wt>/src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 5m 45s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/04-build-bin-freshness.log",
+        "log_sha256": "dd12a4875f7e0b09afca6f0be988e1a1b731f39a702553705f4d7263ed0544c5",
+        "wall_s": 346,
+        "rerun_alone": true,
+        "pool": 1,
+        "skip_count": 0,
+        "mutex": "host-wide CARGO_MUTEX.lock held by this session for the bundled phase (see 00-lane.txt)",
+        "produced": "handshake_core.exe sha256 92ccc2f582a29ef01a8f8c48038a750abe70bcb4666afd7bb186332b0a45dfa4"
+      },
+      {
+        "id": "PR-MEM-B9-02",
+        "kind": "LIB_TEST_BINARY_BUILD_AT_C_PRIME",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo test --manifest-path <wt>/src/backend/handshake_core/Cargo.toml --no-run --lib --features duckdb-flight-recorder,test-utils -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "Finished `test` profile [unoptimized + debuginfo] target(s) in 7m 21s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/02-no-run-lib-duckdb.log",
+        "log_sha256": "e121010857079da1f9b5b7fee39842717b1f2432e7572fab5d199644b9d5ac96",
+        "wall_s": 441,
+        "rerun_alone": true,
+        "pool": 1,
+        "skip_count": 0,
+        "mutex": "host-wide CARGO_MUTEX.lock held by this session for the bundled phase (see 00-lane.txt)"
+      }
+    ],
+    "static_checks": {
+      "d_146_1_at_c_prime": "storage/surreal/workspaces.rs delete_workspace: guarded_mutation with an empty keyed-lock set + UPSERT/DELETE of fems_workspace_write_anchors inside the delete transaction; insert side fails closed on record::exists (fems_memory.rs:2084) and mapped to 404 - MT-152 supersedes the MT-146 lock",
+      "d_146_2_at_c_prime": "fems_memory.rs:2508-2510 status_rank CASE ordered first; ORDER BY precedes LIMIT",
+      "d_146_3_at_c_prime": "fems_memory.rs:2906 commit_event_dispatch_ready; list_commit_rows:3242-3270 returns the true durable pending set",
+      "test_edit_audit": "api/memory.rs:7477-7492: selector on event.trace_id == deterministic_uuid_from_seed('fems-memory-proposal:{proposal_id}'); assert_eq!(pending_outbox, 2, 'crash leaves the commit (FR-EVT-MEM-003) and pack-built (FR-EVT-MEM-004) events durably un-published and non-quarantined') unchanged; #[tokio::test] attribute count in the module is 33 (29 at MT-146 time + 4 added by MT-109)",
+      "deferred_live_tokens": "none",
+      "forbidden_backend_tokens": "none",
+      "ignore_attributes": "none",
+      "cx_211": "no .GOV read",
+      "hbr": "INT: three-tier consideration recorded by the implementer (Tier 1 FR outbox rows exercised; Tier 2/3 DEFERRED per CX-981-005); VIS/MAN NOT_APPLICABLE per contract; QUIET: headless"
+    },
+    "resolved_prior_findings": [
+      {
+        "id": "F-146-A",
+        "status": "RESOLVED",
+        "evidence": "Operator authorisation + selector correction; test green in row 32"
+      },
+      {
+        "id": "F-146-D (OPEN_FLAKE concurrent_workspace_commits_publish_a_pack_containing_both_items)",
+        "status": "NOT_REPRODUCED",
+        "evidence": "ok in row 32 under --test-threads=4 with a foreign exec pool live; one run is not a flake resolution - carried"
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "F-B9-146-1",
+        "severity": "NOTE",
+        "summary": "D-146-1's shipped mechanism at C-prime is MT-152's write-anchor, not MT-146's global lock. The AC is satisfied by behaviour; attribution of the surviving mechanism belongs to MT-152's own validation."
+      },
+      {
+        "id": "F-B9-146-2",
+        "severity": "CARRIED",
+        "summary": "F-146-D remains registered; one green run here does not prove it fixed. F-146-B/F-146-C observations remain valid design notes."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "detail": "no deferred-live escape token"
+      },
+      "sub_rule_2": {
+        "result": "PASS",
+        "detail": "real embedded SurrealDB store: concurrent delete_workspace + create_memory_proposal via tokio::join over real rows; list route ordering over real rows with LIMIT; commit-outbox rows in fems_memory_commit_fr_outbox across a simulated crash and restart (row 32)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "detail": "claimed_by KERNEL_BUILDER-20260904-050159 != completed_by WP_VALIDATOR-B9-20260917-015345"
+      }
+    },
+    "acceptance_criteria_status": {
+      "AC-146-1": {
+        "status": "PROVED",
+        "evidence": "row 32 proposal_delete_race_never_leaves_workspace_orphans ok; measured cause recorded (snapshot isolation, WW-only conflicts); mechanism now MT-152's (F-B9-146-1)"
+      },
+      "AC-146-2": {
+        "status": "PROVED",
+        "evidence": "row 32 list_proposals_is_bounded_deterministic_and_workspace_scoped ok (bounded-limit + scoping assertions included)"
+      },
+      "AC-146-3": {
+        "status": "PROVED",
+        "evidence": "row 32 commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits ok; cause stated in-source"
+      },
+      "AC-146-4": {
+        "status": "PROVED",
+        "evidence": "single authorised selector line changed; count/message byte-identical (static)"
+      },
+      "AC-146-5": {
+        "status": "PROVED",
+        "evidence": "row 32 verbatim: test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 2178 filtered out; finished in 1924.83s - no failure to attribute"
+      },
+      "AC-146-6": {
+        "status": "PROVED",
+        "evidence": "step 04 binary build exit 0; commit 7d4982c6 within allowed_paths"
+      },
+      "PT-146-1": {
+        "status": "NOT_RUN",
+        "evidence": "pre-fix RED at a153d2ce is implementer-time evidence (orphan3-red.log, triage only)"
+      },
+      "PT-146-2": {
+        "status": "PROVED",
+        "evidence": "row 32 (all three ok; run as part of the whole module rather than individually - the module run is a superset)"
+      },
+      "PT-146-3": {
+        "status": "PROVED",
+        "evidence": "row 32 full suite, counts verbatim, zero failures (satisfies both the corrected and the original numeric wording)"
+      },
+      "PT-146-4": {
+        "status": "PROVED",
+        "evidence": "step 04"
+      }
+    },
+    "remediation_required": null,
+    "not_run": [
+      "PT-146-1 pre-fix RED (implementer-time by construction)"
+    ],
+    "not_inspected": [],
+    "residual_uncertainty": [
+      "F-146-D flake: passed once here; not proven absent."
+    ],
+    "transition_reason": "all three defects proven fixed and the full api::memory suite green at C-prime by validator-executed proof"
+  },
+  "validation_v1_transition": {
+    "from_status": "READY_FOR_VALIDATION_V4",
+    "to_status": "PASS_V1",
+    "by": "WP_VALIDATOR-B9-20260917-015345",
+    "at_utc": "2026-09-17T04:47:12.710Z",
+    "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "record": "validation_v1",
+    "reason": "all three defects proven fixed and the full api::memory suite green at C-prime by validator-executed proof"
+  }
 }
