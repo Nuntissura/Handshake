@@ -31,14 +31,14 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V1",
     "depends_on": [
       "MT-144"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
-    "completed_by": null,
+    "validator_verdict": "PASS_V1",
+    "completed_by": "WP_VALIDATOR-B9-20260917-015345",
     "claimed_by": "KERNEL_BUILDER-20260904-050242",
     "claimed_at_utc": "2026-09-04T05:03:00Z",
     "created_by": "KERNEL_BUILDER-20260903-213930",
@@ -367,5 +367,316 @@
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
   },
-  "updated_at_utc": "2026-09-04T16:36:24.635Z"
+  "updated_at_utc": "2026-09-17T04:06:42.330Z",
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "status": "PASS_V1",
+    "blocking": false,
+    "next_actor": "ORCHESTRATOR",
+    "validator_layer": "WP_VALIDATOR",
+    "validated_by": "WP_VALIDATOR-B9-20260917-015345",
+    "validated_at_utc": "2026-09-17T04:06:42.269Z",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "candidate_label": "C-prime",
+    "basis": "Both in-crate suites were executed by this session at ba03f563 on the lib binary it built (features duckdb-flight-recorder,test-utils, --test-threads=4, --nocapture). api::flight_recorder:: (row 31): 40 passed / 0 failed / 0 ignored in 1439 s, exit 0 - the single failure MT-145 attributed as pre-existing (native_editor_same_id_mutated_envelope_conflicts, a conflict assertion first exercised against a live store) is now green after the later MT-109 work on that file. workflows:: (row 30): 67 passed / 6 failed in 670 s; the six reds are exactly the six MT-145 attributed to the NoopTestRecorder harness root cause (workflows.rs:28611 test_recorder returns a no-op recorder that exposes no DuckDB connection), with the same signatures reproduced here ('flight_recorder does not expose DuckDB connection', 'Recovery event not found in Flight Recorder', 'expected memory_write_proposed event'); none is caused by the store-lifetime fix and all are recorded with a named owner per AC-145-3. Static review at C-prime: both setup_state helpers return (AppState, EmbeddedTestBackend) (flight_recorder.rs:2079, workflows.rs:28615); zero `let Some(state)`/`let Some(base_state)` let-else skip sites remain in either module and no `return Ok(())` skip branch exists; the only #[ignore] in flight_recorder.rs is the pre-existing MT-109 guard gated on the ABSENCE of duckdb-flight-recorder (5470); the 56th inline instance (workflows.rs:30435 fems_forget...) keeps the backend bound. AC-145-5: no PostgreSQL/SQLite wiring in either cfg(test) module (grep for use/::/URL/env forms is clean); the seven historical `postgres` tokens inside the passing Locus fixture test are the disclosed out-of-scope naming. AC-145-6/PT-145-4: handshake_core.exe rebuilt at C-prime by this session (step 04, exit 0). PT-145-1 (RED capture before the fix) is an implementer-time artifact by construction; the validator confirms the post-fix state and that the pre-fix defect is real by reading the pre-fix helper shape in scope.defect (store dropped at end of setup_state).",
+    "mandatory_reads_ack": {
+      "codex": ".GOV/codex/Handshake_Codex_v1.4.md (read in full: sections 0-10 incl. CX-032, CX-503R/S, CX-573D/E/F, CX-971/972/984)",
+      "protocol": ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (read in full incl. VPX-001..008, Spec-Realism Gate sub-rules 1-3)",
+      "spec": ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.206 (indexed-spec-manifest.json / INDEX.json); no per-MT spec module resolution was required because none of the nine contracts carries spec_anchors; whole-WP spec alignment remains Integration Validator authority",
+      "operator_stance": "Operator governance stance applied: no just recipes, no receipts, no repomem, no ACP, no dossiers, no task-board edits; MT-NNN.json is the only status surface"
+    },
+    "proof_environment": {
+      "host": "Windows 11, D: SATA HDD; toolchain rustc/cargo 1.97.1-x86_64-pc-windows-msvc",
+      "worktree": "../wtc-native-editors-v1 (feat/WP-KERNEL-012) HEAD ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (C-prime), git status clean at lane start",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1 (logs/ tmp/ runtime/ workspace/); owning MT for artifact purposes: MT-142; covered MTs: MT-112, MT-118, MT-120, MT-139, MT-142, MT-145, MT-146, MT-148, MT-149",
+      "cargo_target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+      "db": "embedded SurrealDB (RocksDB) only, one store per test under <lane>/runtime; no PostgreSQL, SQLite or Docker",
+      "concurrency": "cargo phase serialized (pool 1) under the host-wide CARGO_MUTEX.lock; exec phase pool 1; --test-threads=4 for embedded-store suites per contract execution_constraints",
+      "foreign_load": "a KERNEL_BUILDER lane compiled concurrently on MT-135/kb-b2/target during parts of this lane (recorded in 00-lane.txt); its cargo did not touch this target",
+      "tree_state_at_run": "Tree was clean at lane start (02:01:11Z). A concurrent actor (not this session) modified src/backend/handshake_core/src/storage/tests.rs at 02:02:10Z (harness only; snapshot logs/dirty-tree-snapshot-20260917T024243Z.diff sha256 55aca996...). All binaries this session built (cargo steps 02-04, 02:13-02:41Z) embed committed ba03f563 plus that harness change only. From 03:16:56Z the same actor began editing 22 product files under src/ plus schema.surql (mtimes 03:16:56Z-03:40:34Z); that is AFTER every build of this lane and after plan-A, so no executed binary embeds it (exec-only runs read no source). The MT-145 owned files api/flight_recorder.rs and workflows.rs were never dirty. Recorded per VPX-001: the proofs bind to ba03f563 (+ harness-only dirt), not to the later working-tree state."
+    },
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "ledger_session": "WP_VALIDATOR-B3-20260916-113023",
+      "ledger_head": "fd9060dee489811f0b22903e97d38bd57be64a08",
+      "rows_cited": [
+        "416"
+      ],
+      "covered_mts": [
+        "MT-112",
+        "MT-118",
+        "MT-120",
+        "MT-139",
+        "MT-142",
+        "MT-145",
+        "MT-146",
+        "MT-148",
+        "MT-149"
+      ],
+      "applicability_to_c_prime": "C-prime (fd9060de..ba03f563) changes only src/storage/knowledge.rs (82 NotImplemented default bodies removed from the KnowledgeStore trait), src/storage/surreal/knowledge.rs (a cfg(test) tripwire module) and one native test rename. The tripwire knowledge_store_surface::surreal_database_overrides_every_knowledge_store_method was executed by THIS session at ba03f563 (row 10) and proves every trait method is overridden by the sole implementor, so dispatch through dyn KnowledgeStore is unchanged and set-A rows built at fd9060de remain valid for behaviour that does not depend on the removed defaults.",
+      "note": "Row 416 (lib at fd9060de) aborted 0xC0000409 mid-run with 8 workflows::tests failures listed (dcc_*/debug_bundle_export_* - not the MT-145 set); both MT-145 suites were therefore RUN here with module filters."
+    },
+    "proofs": [
+      {
+        "id": "PR-145-B9-01",
+        "kind": "PT-145-2_AC-145-4_api_flight_recorder_SUITE",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "c0603cbdba2a79bc04711dca83821b687a152b60",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "<pre-built exe> api::flight_recorder:: --nocapture --test-threads=4  (exec-only; env: HANDSHAKE_ARTIFACTS_ROOT=<artifacts root>, HANDSHAKE_SURREAL_TEST_STORE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/runtime, HANDSHAKE_WORKSPACE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/workspace/run-31-lib-api_flight_recorder, TMP/TEMP/TMPDIR=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/tmp, RUST_BACKTRACE=0)",
+        "features": "duckdb-flight-recorder,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/handshake_core-ee852f04359cdf21.exe",
+        "exe_sha256": "3f55b6dceef182431eb391a145887507023930c0061bb65ba18a4c780e5bc81e",
+        "exit_code": 0,
+        "result_line": "test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 2171 filtered out; finished in 1439.04s",
+        "passed": 40,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/31-lib-api_flight_recorder.log",
+        "log_sha256": "5500bf94c1b9b4a95346a7bf5cf7841834a62ed749f71e915b9813fbfe67ee95",
+        "wall_s": 1439,
+        "rerun_alone": false,
+        "pool": 1,
+        "skip_count": 0,
+        "not_run_unconfigured_lines": 0,
+        "contention_lines": 29,
+        "residue": {
+          "runtime_dirs_before": 0,
+          "runtime_dirs_after": 0,
+          "tmp_entries": 12,
+          "workspace_entries": 0,
+          "git_status_porcelain": " M src/backend/handshake_core/src/atelier/intake.rs; M src/backend/handshake_core/src/debug_adapter/node_inspector.rs; M src/backend/handshake_core/src/flight_recorder/fr_emitter.rs; M src/backend/handshake_core/src/hbr/registry.rs; M src/backend/handshake_core/src/kernel/visual_diff_baseline.rs; M src/backend/handshake_core/src/knowledge_memory/passage.rs; M src/backend/handshake_core/src/memory/persistence.rs; M src/backend/handshake_core/src/mt_executor/queue.rs; M src/backend/handshake_core/src/mt_executor/scheduler.rs; M src/backend/handshake_core/src/role_mailbox_v1/repo.rs; M src/backend/handshake_core/src/storage/surreal/blocks.rs; M src/backend/handshake_core/src/storage/surreal/documents.rs; M src/backend/handshake_core/src/storage/surreal/event_ledger.rs; M src/backend/handshake_core/src/storage/surreal/loom_store.rs; M src/backend/handshake_core/src/storage/surreal/retry.rs; M src/backend/handshake_core/src/storage/surreal/schema.rs; M src/backend/handshake_core/src/storage/surreal/schema.surql; M src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs; M src/backend/handshake_core/src/test_harness/crdt_workspace.rs; M src/backend/handshake_core/src/user_manual/mod.rs; M src/backend/handshake_core/src/user_manual/registry.rs; M src/backend/handshake_core/src/user_manual/seed.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/"
+        },
+        "note": "40 tests ran (39 + the MT-109 additions); 29 'running for over 60 seconds' notices (embedded stores on a SATA HDD with a foreign builder compile live part of the time); 0 HANDSHAKE_TEST_STORE_CLEANUP_FAILURE lines"
+      },
+      {
+        "id": "PR-145-B9-02",
+        "kind": "PT-145-3_AC-145-4_workflows_SUITE_6_ATTRIBUTED_REDS",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "c0603cbdba2a79bc04711dca83821b687a152b60",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "<pre-built exe> workflows:: --nocapture --test-threads=4  (exec-only; env: HANDSHAKE_ARTIFACTS_ROOT=<artifacts root>, HANDSHAKE_SURREAL_TEST_STORE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/runtime, HANDSHAKE_WORKSPACE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/workspace/run-30-lib-workflows, TMP/TEMP/TMPDIR=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/tmp, RUST_BACKTRACE=0)",
+        "features": "duckdb-flight-recorder,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/handshake_core-ee852f04359cdf21.exe",
+        "exe_sha256": "3f55b6dceef182431eb391a145887507023930c0061bb65ba18a4c780e5bc81e",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 67 passed; 6 failed; 0 ignored; 0 measured; 2138 filtered out; finished in 670.18s",
+        "passed": 67,
+        "failed": 6,
+        "ignored": 0,
+        "failing_tests": [
+          "workflows::tests::fems_extract_emits_proposal_without_commit_and_without_raw_fr_content",
+          "workflows::tests::governance_workflow_mirror_gate_transition_emits_fr_event",
+          "workflows::tests::test_mark_stalled_workflows",
+          "workflows::tests::test_mark_stalled_workflows_recovers_orphaned_active_session",
+          "workflows::tests::test_recover_session_from_checkpoint",
+          "workflows::tests::validator_gate_runtime_summary_links_check_evidence"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/30-lib-workflows.log",
+        "log_sha256": "7790309ba3898b28196ff940f8fb9f1af53103e277718087392ce696aa0ea91b",
+        "wall_s": 670,
+        "rerun_alone": false,
+        "pool": 1,
+        "skip_count": 0,
+        "not_run_unconfigured_lines": 0,
+        "contention_lines": 26,
+        "residue": {
+          "runtime_dirs_before": 0,
+          "runtime_dirs_after": 0,
+          "tmp_entries": 12,
+          "workspace_entries": 0,
+          "git_status_porcelain": " M src/backend/handshake_core/src/atelier/intake.rs; M src/backend/handshake_core/src/debug_adapter/node_inspector.rs; M src/backend/handshake_core/src/flight_recorder/fr_emitter.rs; M src/backend/handshake_core/src/hbr/registry.rs; M src/backend/handshake_core/src/kernel/visual_diff_baseline.rs; M src/backend/handshake_core/src/knowledge_memory/passage.rs; M src/backend/handshake_core/src/memory/persistence.rs; M src/backend/handshake_core/src/mt_executor/queue.rs; M src/backend/handshake_core/src/mt_executor/scheduler.rs; M src/backend/handshake_core/src/role_mailbox_v1/repo.rs; M src/backend/handshake_core/src/storage/surreal/blocks.rs; M src/backend/handshake_core/src/storage/surreal/documents.rs; M src/backend/handshake_core/src/storage/surreal/event_ledger.rs; M src/backend/handshake_core/src/storage/surreal/loom_store.rs; M src/backend/handshake_core/src/storage/surreal/retry.rs; M src/backend/handshake_core/src/storage/surreal/schema.rs; M src/backend/handshake_core/src/storage/surreal/schema.surql; M src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs; M src/backend/handshake_core/src/test_harness/crdt_workspace.rs; M src/backend/handshake_core/src/user_manual/mod.rs; M src/backend/handshake_core/src/user_manual/registry.rs; M src/backend/handshake_core/src/user_manual/seed.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/"
+        },
+        "attributed_failures": {
+          "root_cause": "NoopTestRecorder at workflows.rs:28611 (harness supplies a no-op recorder; tests assert Flight Recorder contents)",
+          "caused_by_mt_145": false,
+          "proposed_owner": "NEW MT in WP-KERNEL-012: workflows setup_state must supply a DuckDB-backed recorder (as recorded in MT-145 implementation_result_failures)"
+        }
+      },
+      {
+        "id": "PR-145-B9-03",
+        "kind": "PT-145-4_AC-145-6_PRODUCT_BINARY",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo build --manifest-path <wt>/src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 5m 45s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/04-build-bin-freshness.log",
+        "log_sha256": "dd12a4875f7e0b09afca6f0be988e1a1b731f39a702553705f4d7263ed0544c5",
+        "wall_s": 346,
+        "rerun_alone": true,
+        "pool": 1,
+        "skip_count": 0,
+        "mutex": "host-wide CARGO_MUTEX.lock held by this session for the bundled phase (see 00-lane.txt)",
+        "produced": "handshake_core.exe sha256 92ccc2f582a29ef01a8f8c48038a750abe70bcb4666afd7bb186332b0a45dfa4, 266982912 bytes, mtime 2026-09-17T02:41:14Z"
+      },
+      {
+        "id": "PR-145-B9-04",
+        "kind": "LIB_TEST_BINARY_BUILD_AT_C_PRIME",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo test --manifest-path <wt>/src/backend/handshake_core/Cargo.toml --no-run --lib --features duckdb-flight-recorder,test-utils -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "Finished `test` profile [unoptimized + debuginfo] target(s) in 7m 21s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/02-no-run-lib-duckdb.log",
+        "log_sha256": "e121010857079da1f9b5b7fee39842717b1f2432e7572fab5d199644b9d5ac96",
+        "wall_s": 441,
+        "rerun_alone": true,
+        "pool": 1,
+        "skip_count": 0,
+        "mutex": "host-wide CARGO_MUTEX.lock held by this session for the bundled phase (see 00-lane.txt)"
+      },
+      {
+        "id": "PR-145-B9-05",
+        "kind": "AC-145-1_AC-145-2_STATIC",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "grep -n 'fn setup_state' src/api/flight_recorder.rs src/workflows.rs; grep -c 'let Some(state)\\|let Some(base_state)' (both); grep -n 'Option<AppState>' (both); grep -c '#[ignore' (both); grep -nE 'else \\{\\s*return Ok\\(\\(\\)\\)|eprintln!(\"SKIP' (both)",
+        "target_dir": null,
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "setup_state -> Result<(AppState, EmbeddedTestBackend), Box<dyn Error>> in both; let-else skip sites: 0/0; Option<AppState> helpers: 0/0; #[ignore]: 2 lines in flight_recorder.rs (doc line + the pre-existing MT-109 not(duckdb) guard), 0 in workflows.rs; skip branches: none",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": null,
+        "log_sha256": null,
+        "wall_s": 0,
+        "rerun_alone": true,
+        "skip_count": 0
+      }
+    ],
+    "static_checks": {
+      "owned_file_history": "api/flight_recorder.rs and workflows.rs last touched by MT-109 commits (25104a9a/d42886d6/6e239eee...) after the MT-145 change; MT-109 wrapped the flight_recorder tests in run_flight_recorder_test (2168) which itself binds the store; the MT-145 invariant (store outlives every assertion) holds at C-prime",
+      "deferred_live_tokens": "none",
+      "forbidden_backend_tokens": "none (AC-145-5 narrowed form)",
+      "ignore_attributes": "unchanged (1 pre-existing guard)",
+      "cx_211": "no .GOV read",
+      "hbr": "INT/VIS/MAN NOT_APPLICABLE per contract (cfg(test)-only change); QUIET: runs were headless",
+      "contract_wording": "execution_constraints still name ../Handshake_Artifacts/handshake-cargo-target/ (superseded path shape); ignored, lane target used"
+    },
+    "resolved_prior_findings": [
+      {
+        "id": "MT-145 implementation_result_failures[0] native_editor_same_id_mutated_envelope_conflicts",
+        "status": "RESOLVED_AT_C_PRIME",
+        "evidence": "row 31 ok"
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "F-B9-145-1",
+        "severity": "CARRIED",
+        "summary": "Six workflows:: tests remain red on the NoopTestRecorder harness gap; owner still unassigned at C-prime (no MT owns 'workflows setup_state must supply a DuckDB-backed recorder'). Not attributable to MT-145; carried as WP debt for the Orchestrator."
+      },
+      {
+        "id": "F-B9-145-2",
+        "severity": "NOTE",
+        "summary": "The uncommitted CRLF->LF repair MT-145 disclosed is moot at C-prime: MT-148's .gitattributes rule is committed and both .surql files are LF with pinned hashes (see MT-148 PR-148-B9-01)."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "detail": "no deferred-live escape token in either module"
+      },
+      "sub_rule_2": {
+        "result": "PASS",
+        "detail": "every test in rows 30/31 opens a real embedded SurrealDB store (EmbeddedTestBackend) that now outlives the assertions; api::flight_recorder tests append/read real EventLedger rows and DuckDB recorder rows"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "detail": "claimed_by KERNEL_BUILDER-20260904-050242 != completed_by WP_VALIDATOR-B9-20260917-015345"
+      }
+    },
+    "acceptance_criteria_status": {
+      "AC-145-1": {
+        "status": "PROVED",
+        "evidence": "PR-145-B9-05"
+      },
+      "AC-145-2": {
+        "status": "PROVED",
+        "evidence": "PR-145-B9-05 (0 skip sites remain)"
+      },
+      "AC-145-3": {
+        "status": "PROVED",
+        "evidence": "no assertion weakened/ignored; 6 reds recorded with owner (PR-145-B9-02)"
+      },
+      "AC-145-4": {
+        "status": "PROVED",
+        "evidence": "rows 31 (40/0) and 30 (67/6) with per-test attribution"
+      },
+      "AC-145-5": {
+        "status": "PROVED",
+        "evidence": "static scan clean in the narrowed (backend-wiring) form"
+      },
+      "AC-145-6": {
+        "status": "PROVED",
+        "evidence": "PR-145-B9-03"
+      },
+      "PT-145-1": {
+        "status": "NOT_RUN",
+        "evidence": "pre-fix RED capture is implementer-time evidence (triage: red3-flight_recorder.log / red2-workflows.log); the validator cannot reproduce a pre-fix state at C-prime without editing product code; the defect mechanism was verified by reading scope.defect against the current helper"
+      },
+      "PT-145-2": {
+        "status": "PROVED",
+        "evidence": "row 31"
+      },
+      "PT-145-3": {
+        "status": "PROVED",
+        "evidence": "row 30"
+      },
+      "PT-145-4": {
+        "status": "PROVED",
+        "evidence": "PR-145-B9-03"
+      }
+    },
+    "remediation_required": null,
+    "not_run": [
+      "PT-145-1 pre-fix RED capture (implementer-time by construction)"
+    ],
+    "not_inspected": [],
+    "residual_uncertainty": [
+      "Rows 30/31 ran while a foreign builder compile was live on kb-b2 (contention notices only; greens are valid, the six reds are deterministic harness errors, not timing)."
+    ],
+    "residue": {
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1",
+      "runtime_dirs": 0,
+      "tmp_entries": 12,
+      "workspace_run_dirs_nonempty": 0,
+      "tracked_fixture_writes": "NONE by this session's runs (all tree dirt is the concurrent actor's; see proof_environment.tree_state_at_run)",
+      "git_status_porcelain_after_runs": "harness-only dirt at rows 10-23; 22 src files + schema.surql + tests/ dirty from 03:16:56Z (foreign edits) at rows 30-31 - full list in results.jsonl",
+      "cargo_rustc_processes_at_exit": "0 owned by this session"
+    },
+    "transition_reason": "both suites executed by the validator at C-prime; all six residual reds reproduced as the attributed pre-existing harness class"
+  },
+  "validation_v1_transition": {
+    "from_status": "READY_FOR_VALIDATION_V4",
+    "to_status": "PASS_V1",
+    "by": "WP_VALIDATOR-B9-20260917-015345",
+    "at_utc": "2026-09-17T04:06:42.330Z",
+    "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "record": "validation_v1",
+    "reason": "both suites executed by the validator at C-prime; all six residual reds reproduced as the attributed pre-existing harness class"
+  }
 }
