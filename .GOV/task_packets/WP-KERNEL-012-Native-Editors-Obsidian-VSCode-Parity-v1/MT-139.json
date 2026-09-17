@@ -25,18 +25,18 @@
   "title": "B12-MT-139-Decide-And-Execute-The-Surreal-Schema-Provenance-Boundary",
   "group": "B12",
   "created_at_utc": "2026-08-16T04:45:00Z",
-  "updated_at_utc": "2026-08-25T17:32:41Z",
+  "updated_at_utc": "2026-09-17T03:33:08.342Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-139.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": null,
-    "completed_by": null,
+    "validator_verdict": "PASS_V1",
+    "completed_by": "WP_VALIDATOR-B9-20260917-015345",
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-25T09:14:00Z",
     "ready_for_validation_at_utc": "2026-08-25T17:32:41Z",
@@ -209,5 +209,223 @@
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V1",
+    "status": "PASS_V1",
+    "blocking": false,
+    "next_actor": "ORCHESTRATOR",
+    "validator_layer": "WP_VALIDATOR",
+    "validated_by": "WP_VALIDATOR-B9-20260917-015345",
+    "validated_at_utc": "2026-09-17T03:33:08.279Z",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "candidate_label": "C-prime",
+    "basis": "The Operator SEVER decision is recorded in the contract (PT-139-1/AC-139-1: lifecycle.operator_decision_2026_08_18_sever). At C-prime no .sql file exists under src/ (git ls-files and on-disk scan both 0; migrations/ directory absent) - PT-139-3/AC-139-3. The replacement coverage proof executed green by this session at ba03f563 in the lib binary (row 11, storage::surreal::schema:: filter): declarative_schema_catalog_is_complete_and_content_sensitive (catalog hash, generated-surql hash, registry-seed hash and table/field/index/event counts all pinned), mt139_current_schema_info_pin_matches_fresh_mem_catalog (bootstraps a fresh SurrealDB engine and compares INFO output to the pin), predecessor_registry_hash_rejects_changed_nonempty_retired_source, plus schema_contract_is_wave_scoped_and_identity_safe and record_references_reject_orphans_and_preserve_identity_semantics (both listed as pre-existing reds by MT-142 at 67ce701c, now green). The single red in that 34-test row is mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back (an MT-109 migration test, not an MT-139 target) which failed with 'The token has expired' after 1830 s under concurrent builder load (15 contention notices); it is triaged HOST_LOAD_SUSPECT with a solo idle rerun scheduled and does not bear on MT-139's proof targets. The replacement proof is not a coverage-vs-source proof (the source corpus no longer exists by Operator decision) but a content pin plus live-engine parity, which is the strongest self-contained form available post-sever; recorded as a residual note, not a shortfall.",
+    "mandatory_reads_ack": {
+      "codex": ".GOV/codex/Handshake_Codex_v1.4.md (read in full: sections 0-10 incl. CX-032, CX-503R/S, CX-573D/E/F, CX-971/972/984)",
+      "protocol": ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (read in full incl. VPX-001..008, Spec-Realism Gate sub-rules 1-3)",
+      "spec": ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.206 (indexed-spec-manifest.json / INDEX.json); no per-MT spec module resolution was required because none of the nine contracts carries spec_anchors; whole-WP spec alignment remains Integration Validator authority",
+      "operator_stance": "Operator governance stance applied: no just recipes, no receipts, no repomem, no ACP, no dossiers, no task-board edits; MT-NNN.json is the only status surface"
+    },
+    "proof_environment": {
+      "host": "Windows 11, D: SATA HDD; toolchain rustc/cargo 1.97.1-x86_64-pc-windows-msvc",
+      "worktree": "../wtc-native-editors-v1 (feat/WP-KERNEL-012) HEAD ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (C-prime), git status clean at lane start",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1 (logs/ tmp/ runtime/ workspace/); owning MT for artifact purposes: MT-142; covered MTs: MT-112, MT-118, MT-120, MT-139, MT-142, MT-145, MT-146, MT-148, MT-149",
+      "cargo_target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+      "db": "embedded SurrealDB (RocksDB) only, one store per test under <lane>/runtime; no PostgreSQL, SQLite or Docker",
+      "concurrency": "cargo phase serialized (pool 1) under the host-wide CARGO_MUTEX.lock; exec phase pool 1; --test-threads=4 for embedded-store suites per contract execution_constraints",
+      "foreign_load": "a KERNEL_BUILDER lane compiled concurrently on MT-135/kb-b2/target during parts of this lane (recorded in 00-lane.txt); its cargo did not touch this target",
+      "tree_state_at_run": "Tree was clean at lane start (02:01:11Z); a concurrent actor (not this session) modified src/backend/handshake_core/src/storage/tests.rs at 02:02:10Z plus 8 tests/ files and added tests/fixtures/hbr/ (snapshot ../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/dirty-tree-snapshot-20260917T024243Z.diff sha256 55aca9961e763f8c93993fe0b0a86daf14e2b2cbc6e064d91cb9f2f68428a29c). storage/tests.rs is the ungated embedded-test harness, so the lib test binary embeds that uncommitted harness change (a non-panicking Drop guard). No MT-139-owned file (storage/surreal/**) was dirty. Recorded per VPX-001."
+    },
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "ledger_session": "WP_VALIDATOR-B3-20260916-113023",
+      "ledger_head": "fd9060dee489811f0b22903e97d38bd57be64a08",
+      "rows_cited": [
+        "416"
+      ],
+      "covered_mts": [
+        "MT-112",
+        "MT-118",
+        "MT-120",
+        "MT-139",
+        "MT-142",
+        "MT-145",
+        "MT-146",
+        "MT-148",
+        "MT-149"
+      ],
+      "applicability_to_c_prime": "C-prime (fd9060de..ba03f563) changes only src/storage/knowledge.rs (82 NotImplemented default bodies removed from the KnowledgeStore trait), src/storage/surreal/knowledge.rs (a cfg(test) tripwire module) and one native test rename. The tripwire knowledge_store_surface::surreal_database_overrides_every_knowledge_store_method was executed by THIS session at ba03f563 (row 10) and proves every trait method is overridden by the sole implementor, so dispatch through dyn KnowledgeStore is unchanged and set-A rows built at fd9060de remain valid for behaviour that does not depend on the removed defaults.",
+      "note": "Row 416 (lib at fd9060de) aborted 0xC0000409 mid-run; every lib-module proof for this MT was therefore RUN by this session with module filters (row 11)."
+    },
+    "proofs": [
+      {
+        "id": "PR-139-B9-01",
+        "kind": "PT-139-2_COVERAGE_PROOF_GREEN",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "<pre-built exe> storage::surreal::schema:: --nocapture --test-threads=4  (exec-only; env: HANDSHAKE_ARTIFACTS_ROOT=<artifacts root>, HANDSHAKE_SURREAL_TEST_STORE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/runtime, HANDSHAKE_WORKSPACE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/workspace/run-11-lib-storage_surreal_schema, TMP/TEMP/TMPDIR=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/tmp, RUST_BACKTRACE=0)",
+        "features": "duckdb-flight-recorder,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/handshake_core-ee852f04359cdf21.exe",
+        "exe_sha256": "3f55b6dceef182431eb391a145887507023930c0061bb65ba18a4c780e5bc81e",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 33 passed; 1 failed; 0 ignored; 0 measured; 2177 filtered out; finished in 1829.74s",
+        "passed": 33,
+        "failed": 1,
+        "ignored": 0,
+        "failing_tests": [
+          "storage::surreal::schema::tests::mt109_exact_predecessor_migration_preserves_rows_keys_and_rolls_back"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/11-lib-storage_surreal_schema.log",
+        "log_sha256": "f968ce70296369939313d3c315356e40161a4a212d51e64839f854f8e781b46a",
+        "wall_s": 1830,
+        "rerun_alone": false,
+        "pool": 1,
+        "skip_count": 0,
+        "not_run_unconfigured_lines": 0,
+        "contention_lines": 15,
+        "residue": {
+          "runtime_dirs_before": 0,
+          "runtime_dirs_after": 0,
+          "tmp_entries": 6,
+          "workspace_entries": 0,
+          "git_status_porcelain": " M src/backend/handshake_core/src/storage/tests.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/"
+        },
+        "note": "34 tests in storage::surreal::schema:: ; 33 passed / 1 failed; the named MT-139 proof tests all `ok` (log lines 13, 28, 51, 53, 58). Failing test belongs to MT-109 (see basis)."
+      },
+      {
+        "id": "PR-139-B9-02",
+        "kind": "LIB_TEST_BINARY_BUILD_AT_C_PRIME",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo test --manifest-path <wt>/src/backend/handshake_core/Cargo.toml --no-run --lib --features duckdb-flight-recorder,test-utils -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "Finished `test` profile [unoptimized + debuginfo] target(s) in 7m 21s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/02-no-run-lib-duckdb.log",
+        "log_sha256": "e121010857079da1f9b5b7fee39842717b1f2432e7572fab5d199644b9d5ac96",
+        "wall_s": 441,
+        "rerun_alone": true,
+        "pool": 1,
+        "skip_count": 0,
+        "mutex": "host-wide CARGO_MUTEX.lock held by this session for the bundled phase (see 00-lane.txt)"
+      },
+      {
+        "id": "PR-139-B9-03",
+        "kind": "PT-139-3_NO_SQL_UNDER_SRC",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1",
+        "command": "git ls-files 'src/**/*.sql' 'src/*.sql' | wc -l  &&  find src -name '*.sql' | wc -l  &&  ls src/backend/handshake_core/migrations",
+        "target_dir": null,
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "tracked .sql under src/: 0; on-disk .sql under src/: 0; migrations/ directory: absent",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": null,
+        "log_sha256": null,
+        "wall_s": 0,
+        "rerun_alone": true,
+        "skip_count": 0
+      }
+    ],
+    "static_checks": {
+      "deferred_live_tokens": "none in src/storage/surreal/schema.rs / schema.surql",
+      "forbidden_backend_tokens": "none (no sqlx/postgres/rusqlite/sqlite code paths; no include_bytes! of .sql remains in schema.rs)",
+      "ignore_attributes": "none in schema.rs",
+      "cx_211": "no .GOV read",
+      "hbr": "hbr_obligations is empty in the contract; schema provenance work has no GUI/manual surface"
+    },
+    "resolved_prior_findings": [],
+    "independent_findings": [
+      {
+        "id": "F-B9-139-1",
+        "severity": "NOTE",
+        "summary": "Post-sever the coverage proof is self-referential (constants pinned beside the schema) plus fresh-engine INFO parity; it cannot prove equivalence to the retired PostgreSQL corpus because that corpus no longer exists by Operator decision. Not weaker in any way that is still testable."
+      },
+      {
+        "id": "F-B9-139-2",
+        "severity": "NOTE",
+        "summary": "Contract summary text still describes the pre-sever state (59 embedded migration files, source-forward hash chain); stale narrative only."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "detail": "no deferred-live escape token"
+      },
+      "sub_rule_2": {
+        "result": "PASS",
+        "detail": "Handshake-owned resource touched: schema.surql (compiled declarative authority) hashed and parsed; a real SurrealDB engine is bootstrapped from it in mt139_current_schema_info_pin_matches_fresh_mem_catalog and record_references_reject_orphans_and_preserve_identity_semantics (row 11)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "detail": "claimed_by KERNEL_BUILDER-20260818-130753 != completed_by WP_VALIDATOR-B9-20260917-015345"
+      }
+    },
+    "acceptance_criteria_status": {
+      "AC-139-1": {
+        "status": "PROVED",
+        "evidence": "lifecycle.operator_decision_2026_08_18_sever recorded before implementation (implementation claimed 2026-08-25)"
+      },
+      "AC-139-2": {
+        "status": "PROVED",
+        "evidence": "row 11: declarative_schema_catalog_is_complete_and_content_sensitive ok, mt139_current_schema_info_pin_matches_fresh_mem_catalog ok"
+      },
+      "AC-139-3": {
+        "status": "PROVED",
+        "evidence": "PR-139-B9-03 zero .sql under src/; replacement proof green (row 11)"
+      },
+      "PT-139-1": {
+        "status": "PROVED",
+        "evidence": "contract record"
+      },
+      "PT-139-2": {
+        "status": "PROVED",
+        "evidence": "row 11"
+      },
+      "PT-139-3": {
+        "status": "PROVED",
+        "evidence": "PR-139-B9-03"
+      }
+    },
+    "remediation_required": null,
+    "not_run": [],
+    "not_inspected": [],
+    "residual_uncertainty": [
+      "Row 11 single red (MT-109 test) is unresolved until its solo idle rerun; it is outside MT-139's proof targets."
+    ],
+    "residue": {
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1",
+      "runtime_dirs": 0,
+      "tmp_entries": "4 (2 preserved mt109-migration stores from the row-11 red + 2 runner stdio files)",
+      "workspace_run_dirs_nonempty": 0,
+      "tracked_fixture_writes": "NONE by this session's runs (dirty tree pre-dates every run; see proof_environment.tree_state_at_run)",
+      "git_status_porcelain_after_runs": " M src/backend/handshake_core/src/storage/tests.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/",
+      "cargo_rustc_processes_at_exit": "0 owned by this session"
+    },
+    "transition_reason": "all three proof targets proven at C-prime by validator-executed proof"
+  },
+  "validation_v1_transition": {
+    "from_status": "READY_FOR_VALIDATION_V4",
+    "to_status": "PASS_V1",
+    "by": "WP_VALIDATOR-B9-20260917-015345",
+    "at_utc": "2026-09-17T03:33:08.342Z",
+    "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "record": "validation_v1",
+    "reason": "all three proof targets proven at C-prime by validator-executed proof"
   }
 }

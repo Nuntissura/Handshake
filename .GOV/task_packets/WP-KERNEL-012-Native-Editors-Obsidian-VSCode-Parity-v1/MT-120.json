@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-08-13T06:05:00Z",
+  "updated_at_utc": "2026-09-17T03:32:24.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V4",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-109",
@@ -40,7 +40,7 @@
     "blocks": [
       "MT-115"
     ],
-    "validator_verdict": null,
+    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
@@ -218,5 +218,279 @@
   },
   "handoff": {
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "BLOCKED_ON_DEPENDENCY",
+    "status": "BLOCKED_ON_DEPENDENCY",
+    "blocking": true,
+    "next_actor": "ORCHESTRATOR",
+    "validator_layer": "WP_VALIDATOR",
+    "validated_by": "WP_VALIDATOR-B9-20260917-015345",
+    "validated_at_utc": "2026-09-17T03:32:23.922Z",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "candidate_label": "C-prime",
+    "basis": "The backend half of MT-120 is proven at C-prime by this session: the three restored mt120_* auth-boundary tests in knowledge_documents_api_tests (forgery of the reserved handshake-native: principal is 403 HSK-403-DOC-ACTOR-SPOOF with no document mutation and no ledger row; a presented-but-invalid session token is 401 and never downgrades to the header identity; an authenticated save stamps the server-derived principal into the server-written receipt payload without rebinding the per-agent actor_id column) ran green against a real embedded SurrealDB store and real HTTP routes (row 20, 3 passed / 0 failed, exit 0). Static review confirmed validate_document_save_receipt keeps the receipt-ownership comparison as an unconditional conjunct that fails closed on absent/blank minted_by_principal (api/flight_recorder.rs:938-960) and that the reserved-namespace guard sits on the shared doc_context path (api/knowledge_documents.rs:436-470). The native half (PT-120-3 / AC-120-3 / AC-120-4: test_e7_swarm_edit_proof and test_flight_recorder_authz) is RED at C-prime under finding N1B-P3-F403 (api/authority.rs::authorize_request returns 403 to native proof support that presents only x-hsk-session-token); those rows were not re-executed here and are cited from the N1B pass-3 record. The truthful verdict is therefore BLOCKED_ON_DEPENDENCY, not PASS and not FAIL-on-native.",
+    "mandatory_reads_ack": {
+      "codex": ".GOV/codex/Handshake_Codex_v1.4.md (read in full: sections 0-10 incl. CX-032, CX-503R/S, CX-573D/E/F, CX-971/972/984)",
+      "protocol": ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (read in full incl. VPX-001..008, Spec-Realism Gate sub-rules 1-3)",
+      "spec": ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.206 (indexed-spec-manifest.json / INDEX.json); no per-MT spec module resolution was required because none of the nine contracts carries spec_anchors; whole-WP spec alignment remains Integration Validator authority",
+      "operator_stance": "Operator governance stance applied: no just recipes, no receipts, no repomem, no ACP, no dossiers, no task-board edits; MT-NNN.json is the only status surface"
+    },
+    "proof_environment": {
+      "host": "Windows 11, D: SATA HDD; toolchain rustc/cargo 1.97.1-x86_64-pc-windows-msvc",
+      "worktree": "../wtc-native-editors-v1 (feat/WP-KERNEL-012) HEAD ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (C-prime), git status clean at lane start",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1 (logs/ tmp/ runtime/ workspace/); owning MT for artifact purposes: MT-142; covered MTs: MT-112, MT-118, MT-120, MT-139, MT-142, MT-145, MT-146, MT-148, MT-149",
+      "cargo_target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+      "db": "embedded SurrealDB (RocksDB) only, one store per test under <lane>/runtime; no PostgreSQL, SQLite or Docker",
+      "concurrency": "cargo phase serialized (pool 1) under the host-wide CARGO_MUTEX.lock; exec phase pool 1; --test-threads=4 for embedded-store suites per contract execution_constraints",
+      "foreign_load": "a KERNEL_BUILDER lane compiled concurrently on MT-135/kb-b2/target during parts of this lane (recorded in 00-lane.txt); its cargo did not touch this target",
+      "tree_state_at_run": "Tree was clean at lane start (02:01:11Z); a concurrent actor (not this session) modified src/backend/handshake_core/src/storage/tests.rs at 02:02:10Z plus 8 tests/ files and added tests/fixtures/hbr/ (snapshot ../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/dirty-tree-snapshot-20260917T024243Z.diff sha256 55aca9961e763f8c93993fe0b0a86daf14e2b2cbc6e064d91cb9f2f68428a29c). storage/tests.rs is the ungated embedded-test harness (pub mod tests), so every binary this session built embeds that uncommitted harness change (a non-panicking Drop guard). No product path under src/ other than the test harness was dirty. Recorded per VPX-001; the dirt is harness-only and was not caused or restored by this session."
+    },
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "ledger_session": "WP_VALIDATOR-B3-20260916-113023",
+      "ledger_head": "fd9060dee489811f0b22903e97d38bd57be64a08",
+      "rows_cited": [
+        "212",
+        "419",
+        "469"
+      ],
+      "covered_mts": [
+        "MT-112",
+        "MT-118",
+        "MT-120",
+        "MT-139",
+        "MT-142",
+        "MT-145",
+        "MT-146",
+        "MT-148",
+        "MT-149"
+      ],
+      "applicability_to_c_prime": "C-prime (fd9060de..ba03f563) changes only src/storage/knowledge.rs (82 NotImplemented default bodies removed from the KnowledgeStore trait), src/storage/surreal/knowledge.rs (a cfg(test) tripwire module) and one native test rename. The tripwire knowledge_store_surface::surreal_database_overrides_every_knowledge_store_method was executed by THIS session at ba03f563 (row 10) and proves every trait method is overridden by the sole implementor, so dispatch through dyn KnowledgeStore is unchanged and set-A rows built at fd9060de remain valid for behaviour that does not depend on the removed defaults.",
+      "note": "Rows 212/419/469 (knowledge_documents_api_tests, full binary) aborted with 0xC0000409 at fd9060de (class MIXED_DRAIN_PLUS_OTHER, the src/storage/tests.rs:177 Drop-guard double panic = MT-141 V2-F01, builder fixing). They are cited only to show the full-binary state; the MT-120 backend proof is this session's filtered run (row 20) which did not hit the abort."
+    },
+    "proofs": [
+      {
+        "id": "PR-120-B9-01",
+        "kind": "PT-120-1_PT-120-2_AC-120-1_AC-120-2_BACKEND_HALF",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "<pre-built exe> mt120 --nocapture  (exec-only; env: HANDSHAKE_ARTIFACTS_ROOT=<artifacts root>, HANDSHAKE_SURREAL_TEST_STORE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/runtime, HANDSHAKE_WORKSPACE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/workspace/run-20-knowledge_documents_api_tests-mt120, TMP/TEMP/TMPDIR=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/tmp, RUST_BACKTRACE=0)",
+        "features": "surreal-test-support,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_documents_api_tests-1c4641f88043e0e6.exe",
+        "exe_sha256": "15fcc71f3ea316310ce073465def3e688e2bde0887ad1dda50d6b9fe68b458a4",
+        "exit_code": 0,
+        "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 66.61s",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/20-knowledge_documents_api_tests-mt120.log",
+        "log_sha256": "b8b0200527fb2e577b50c1b3562c16379458061277b6ce561291f18831455d79",
+        "wall_s": 69,
+        "rerun_alone": false,
+        "pool": 1,
+        "skip_count": 0,
+        "not_run_unconfigured_lines": 0,
+        "contention_lines": 1,
+        "residue": {
+          "runtime_dirs_before": 0,
+          "runtime_dirs_after": 0,
+          "tmp_entries": 9,
+          "workspace_entries": 0,
+          "git_status_porcelain": " M src/backend/handshake_core/src/storage/tests.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/"
+        },
+        "note": "knowledge_documents_api_tests built by this session at ba03f563 (cargo step 03) and executed with filter `mt120 --nocapture`: mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal ok, mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_identity ok, mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id ok. 0 SKIP lines; 1 'running for over 60 seconds' notice (builder cargo live on kb-b2 at the time); no 0xC0000409 abort."
+      },
+      {
+        "id": "PR-120-B9-02",
+        "kind": "SET_A_BINARY_BUILD_AT_C_PRIME",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo test --manifest-path <wt>/src/backend/handshake_core/Cargo.toml --no-run --features surreal-test-support,test-utils -j 4 --test knowledge_documents_api_tests --test micro_task_job_tests --test mt_scheduler_tests --test role_mailbox_repo_tests",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "Finished `test` profile [unoptimized + debuginfo] target(s) in 14m 20s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/03-no-run-setA-4.log",
+        "log_sha256": "1d8fb13d50b87c20162b8ff6c3700b9ab3cd0cbd5daf550a58ab2eb3640fcaf0",
+        "wall_s": 861,
+        "rerun_alone": true,
+        "pool": 1,
+        "skip_count": 0,
+        "mutex": "host-wide CARGO_MUTEX.lock held by this session for the bundled phase (see 00-lane.txt)"
+      },
+      {
+        "id": "PR-120-B9-03",
+        "kind": "PT-120-3_NATIVE_HALF_CITED_RED",
+        "executed_by": "WP_VALIDATOR N1B pass-3 session (MT-108/wpv-n1) - cited, NOT re-executed per coordinator instruction",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/frontend/handshake_native",
+        "command": "<pre-built native exes> test_e7_swarm_edit_proof / test_flight_recorder_authz (pass 3)",
+        "target_dir": "N1B lane target (see MT-108/wpv-n1/logs/311_pass3_summary.json)",
+        "exe": null,
+        "exe_sha256": null,
+        "rows": [
+          {
+            "index": 259,
+            "target": "test_e7_swarm_edit_proof",
+            "exit_code": 101,
+            "result_lines": [
+              "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 29 filtered out; finished in 55.31s",
+              "test result: FAILED. 28 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 107.03s"
+            ],
+            "failing_tests": [
+              "swarm_edit_live_conflict_merge_search_and_receipts",
+              "watchdog_failure_write_is_bounded_under_live_log_contention"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-108/wpv-n1/logs/259_test_e7_swarm_edit_proof_pass3.log",
+            "log_sha256": "65a409211aa7057dc84824b772d9fce1dbd2d7849ae29a40e7546c47808d2b34",
+            "signature": "FR GET status: reqwest::Error { kind: Status(403, None), url: \"http://127.0.0.1:63627/api/flight_recorder?wsid=...\" }"
+          },
+          {
+            "index": 265,
+            "target": "test_flight_recorder_authz",
+            "exit_code": 101,
+            "result_lines": [
+              "test result: FAILED. 16 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 61.08s"
+            ],
+            "failing_tests": [
+              "mt111_flight_recorder_authorization_boundary_real_surrealdb"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-108/wpv-n1/logs/265_test_flight_recorder_authz_pass3.log",
+            "log_sha256": "6c85db2878b50eb5b2a81e65301131c3caf33d9c88f370b128bf4b4e1b2fd52b",
+            "signature": "left: 403 (expected 401/200 per MT-111 contract)"
+          }
+        ],
+        "summary": "../Handshake_Artifacts/WP-KERNEL-012/MT-108/wpv-n1/logs/311_pass3_summary.json (c_prime ba03f563; blocking_findings[0] = N1B-P3-F403)",
+        "note": "AC-120-4 wording says 12 tests; the binary now carries 17 (16 passed / 1 failed). The single red is the F403 authority-layer class, not the MT-120 receipt-ownership clause."
+      }
+    ],
+    "static_checks": {
+      "owned_files_history": "api/knowledge_documents.rs last touched by c8e41daf (MT-149) and 7f279596 (MT-141) after the MT-120 commit 3e7ec545; api/flight_recorder.rs by MT-109 commits (25104a9a/d42886d6). The MT-120 comparison and guard are intact at C-prime (read directly).",
+      "non_weakening": "validate_document_save_receipt: receipt_owned_by_claimant is an unconditional && conjunct of `authentic`; absent/non-string/blank minted_by_principal -> unclaimable; every other conjunct (event_type, aggregate, actor_kind, run ids, correlation, saved discriminator, workspace_id, content_hash) present.",
+      "deferred_live_tokens": "none in owned files or proof path (grep LiveClientUnavailable|LiveSpawnUnavailable|LiveRuntimeUnavailable|TrainerUnavailable|NativeToolchainUnavailable|not yet wired|deferred to follow-on|pending MT-|live store not attached|todo!|unimplemented!)",
+      "forbidden_backend_tokens": "none in code paths (sqlx|postgres|rusqlite|sqlite as use/::/URL); PT-120-3 contract wording 'against real PostgreSQL' is STALE per CX-503R/CX-503S - proved against the embedded SurrealDB store instead (contract note, not a finding against the implementation)",
+      "ignore_attributes": "no #[ignore] on the mt120 tests; knowledge_documents_api_tests carries 10 eprintln!(\"SKIP ...: embedded store unavailable\") branches in OTHER tests (mt151/152/154/156/157/158/246/255); the three mt120 tests use .expect and cannot skip; --nocapture run shows 0 SKIP lines.",
+      "cx_211": "no .GOV path read in the mt120 tests or the owned product files",
+      "hbr_man": "user_manual/seed.rs:1227-1245 carries the MT-120 save-receipt-ownership entry (optional session contract, 401 no-downgrade, 403 namespace guard, ownership-in-payload vs attribution-in-column); lib user_manual tests green (row 14, 26 passed)."
+    },
+    "resolved_prior_findings": [],
+    "independent_findings": [
+      {
+        "id": "F-B9-120-1",
+        "severity": "BLOCKER_DEPENDENCY",
+        "summary": "Native halves depend on N1B-P3-F403 (backend api/authority.rs::authorize_request 403 to native proof support presenting only x-hsk-session-token). Outside MT-120 allowed_paths (api/authority.rs is MT-109 territory). Resolves when F403 is fixed and rows 259/265 are re-executed green at the fixed commit."
+      },
+      {
+        "id": "F-B9-120-2",
+        "severity": "NOTE",
+        "summary": "AC-120-4 pins test_flight_recorder_authz at '12 tests unchanged'; the binary now has 17 tests. The count drift is not a weakening (tests were added by later MTs) but the AC wording is stale."
+      },
+      {
+        "id": "F-B9-120-3",
+        "severity": "NOTE",
+        "summary": "Disclosed by the implementer and confirmed by reading backend_client.rs: RichDocClient::save_document (find/replace apply path) still saves unauthenticated, so its receipts are unclaimable; deliberate blast-radius limit, not a security hole (fail-closed)."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "detail": "no deferred-live escape token reachable from the MT-120 proof path or owned function bodies"
+      },
+      "sub_rule_2": {
+        "result": "PASS",
+        "detail": "real Handshake-owned resources touched by validator-executed proof: embedded SurrealStorage (workspaces, knowledge_rich_document, kernel_event_ledger receipt rows) through real axum HTTP routes PUT /knowledge/documents/{id}/save and GET /knowledge/documents/{id} (row 20)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "detail": "lifecycle.claimed_by = KERNEL_BUILDER-20260812-113007; completed_by stays null (no PASS issued); validator session differs"
+      }
+    },
+    "acceptance_criteria_status": {
+      "AC-120-1": {
+        "status": "PROVED",
+        "evidence": "row 20 mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id ok; static read of the stamping site knowledge_documents.rs:1395-1415"
+      },
+      "AC-120-2": {
+        "status": "PROVED",
+        "evidence": "row 20 mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal ok (403, no mutation, no ledger row); static non-weakening read of flight_recorder.rs:938-960"
+      },
+      "AC-120-3": {
+        "status": "NOT_PROVED",
+        "evidence": "test_e7_swarm_edit_proof RED at C-prime (N1B row 259, F403)"
+      },
+      "AC-120-4": {
+        "status": "NOT_PROVED",
+        "evidence": "test_flight_recorder_authz RED at C-prime (N1B row 265, 16p/1f, F403)"
+      },
+      "AC-120-5": {
+        "status": "NOT_RUN",
+        "evidence": "end-to-end native save + document_saved ingestion not re-executed by this session (native half; blocked by F403); implementer ledger-query evidence is triage only"
+      },
+      "AC-120-6": {
+        "status": "NOT_PROVED",
+        "evidence": "test_event_emitter::event_emitter_native_editor_round_trip RED at C-prime (N1B row 262, F403 class, per 311_pass3_summary verdict_table)"
+      },
+      "PT-120-1": {
+        "status": "PROVED",
+        "evidence": "row 20 (RED-first reproduction not repeated by the validator; green state proven)"
+      },
+      "PT-120-2": {
+        "status": "PROVED",
+        "evidence": "row 20 forgery/cross-principal denial"
+      },
+      "PT-120-3": {
+        "status": "NOT_PROVED",
+        "evidence": "N1B rows 259/265 RED; contract wording 'real PostgreSQL' stale (CX-503R)"
+      }
+    },
+    "remediation_required": {
+      "owner": "ORCHESTRATOR (route to the F403 builder lane)",
+      "steps": [
+        "Fix N1B-P3-F403: api/authority.rs::authorize_request must accept the native proof-support credential shape (x-hsk-session-token without a /authority/session exchange) or the native proof support must perform the exchange; then re-execute handshake_native test_e7_swarm_edit_proof (expected: 30 passed / 0 failed incl. swarm_edit_live_conflict_merge_search_and_receipts and watchdog_failure_write_is_bounded_under_live_log_contention) and test_flight_recorder_authz (expected: 17 passed incl. mt111_flight_recorder_authorization_boundary_real_surrealdb) at the fixed commit.",
+        "Re-execute test_event_emitter::event_emitter_native_editor_round_trip (AC-120-6) at the fixed commit.",
+        "Backend half needs no remediation; re-cite row 20 if the fixed commit does not touch api/knowledge_documents.rs or api/flight_recorder.rs."
+      ]
+    },
+    "not_run": [
+      "PT-120-3 native binaries (cited from N1B pass 3, not re-executed)",
+      "AC-120-5 live ingestion proof",
+      "full knowledge_documents_api_tests binary (aborts 0xC0000409 at fd9060de under V2-F01; only the mt120 filter was executed)"
+    ],
+    "not_inspected": [
+      "src/frontend/handshake_native/src/backend/knowledge_documents.rs beyond the send_json_with_conflict_mapping credential attachment (native code; F403 blocks its runtime proof)"
+    ],
+    "residual_uncertainty": [
+      "Whether the F403 fix changes the backend document routes; if it does, row 20 must be re-run at the fixed commit."
+    ],
+    "residue": {
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1",
+      "runtime_dirs": 0,
+      "tmp_entries": "4 (2 preserved mt109-migration stores from row 11 + 2 runner stdio files)",
+      "workspace_run_dirs_nonempty": 0,
+      "tracked_fixture_writes": "NONE by this session's runs (the dirty tree pre-dates every run; see proof_environment.tree_state_at_run)",
+      "git_status_porcelain_after_runs": " M src/backend/handshake_core/src/storage/tests.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/",
+      "cargo_rustc_processes_at_exit": "0 owned by this session (foreign KERNEL_BUILDER cargo may be live on kb-b2)"
+    },
+    "transition_reason": "backend half proven green at C-prime; native half RED under N1B-P3-F403 (dependency outside MT-120 scope)"
+  },
+  "validation_v1_transition": {
+    "from_status": "READY_FOR_VALIDATION_V4",
+    "to_status": "BLOCKED_ON_DEPENDENCY",
+    "by": "WP_VALIDATOR-B9-20260917-015345",
+    "at_utc": "2026-09-17T03:32:24.000Z",
+    "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "record": "validation_v1",
+    "reason": "backend half proven green at C-prime; native half RED under N1B-P3-F403 (dependency outside MT-120 scope)"
   }
 }

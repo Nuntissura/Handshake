@@ -31,14 +31,14 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PARTIAL_PENDING_OPERATOR_DECISION",
     "depends_on": [],
     "blocks": [
       "MT-141",
       "MT-142"
     ],
     "active": true,
-    "validator_verdict": null,
+    "validator_verdict": "PARTIAL_PENDING_OPERATOR_DECISION",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260909-212427",
     "created_by": "KERNEL_BUILDER-20260903-213930",
@@ -461,7 +461,7 @@
       "limitation": "Diagnostic only: MT-109 had uncommitted authority-schema changes. Repeat at the clean reviewed candidate; no runtime or MT PASS is established here."
     }
   },
-  "updated_at_utc": "2026-09-10T01:45:58.115Z",
+  "updated_at_utc": "2026-09-17T03:35:52.274Z",
   "owned_files": [
     ".gitattributes",
     "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs"
@@ -470,5 +470,351 @@
     "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features surreal-test-support,test-utils -j 4 --no-fail-fast storage::surreal::event_ledger::tests -- --nocapture",
     "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --keep-going --features surreal-test-support,test-utils",
     "git check-attr text eol -- src/backend/handshake_core/src/storage/surreal/schema.surql"
-  ]
+  ],
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "blocking": true,
+    "next_actor": "ORCHESTRATOR",
+    "validator_layer": "WP_VALIDATOR",
+    "validated_by": "WP_VALIDATOR-B9-20260917-015345",
+    "validated_at_utc": "2026-09-17T03:35:52.212Z",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "candidate_label": "C-prime",
+    "basis": "Everything MT-148 can prove without a fresh worktree is proven at C-prime by this session. PT-148-1/AC-148-1: git check-attr reports text=set eol=lf for both tracked .surql authority files; committed blob bytes and working-tree bytes contain 0 CR; sha256 of schema.surql = 05b36f65... = GENERATED_SURREALQL_SHA256 and of knowledge_schema_registry_seed.surql = 64d0711c... = KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256 (schema.rs:56-72). The Operator's recorded no-worktree strategy (operator_execution_direction_20260914) was executed: `git -c core.autocrlf=true cat-file --filters HEAD:<path>` for all four tracked .surql blobs yields 0 CR bytes each and hashes identical to the pinned constants (05b36f65, 64d0711c, and 46eac57c = PRE_MT109_GENERATED_SURREALQL_SHA256 for schema_pre_mt109.surql), i.e. a fresh Windows checkout with autocrlf=true would materialise the exact bytes the product pins. PT-148-3/AC-148-3 (corrected form): cargo check --all-targets --keep-going --features surreal-test-support,test-utils exit 0, 0 errors, 0 E0599 (step 01). PT-148-4/AC-148-4: fix commit 6d5d705f changed exactly .gitattributes (+3) and tests/atelier_surreal_support/mod.rs (+47/-6). PT-148-2b: atelier_core_data_tests, which calls close_for_reopen()/open_existing() (tests/atelier_core_data_tests.rs:90-91), is green in the shared batch (row 026, 54 passed / 0 failed, 9047 s; cited, not re-run per lean mode). AC-148-6: OwnedTempRoot::adopt is stated in-source as the first working implementation of the close-and-reopen contract (from_path never existed on tempfile 3.x TempDir; Cargo.lock tempfile 3.27.0). proof_commands[0] (storage::surreal::event_ledger::tests) ran RED here (row 12, 2 passed / 3 failed) on the known MT-141 V2-F02 class - append fails 'Found field authority_action/wsids' because the 0018 schema slice used by the test bootstrap lacks the MT-109 fields at schema.surql:5758/5760; the stores OPENED (verify_compiled_manifest passed) before the append failed, so the D-148-1 bootstrap half is still demonstrated, and the same 3 tests were red in shared row 416 at fd9060de, so AC-148-5's 'no test that passed before now fails for a schema reason' is not violated by this MT. PT-148-2 as literally written (one storage-touching test green in a FRESH worktree created after the fix) is NOT_RUN: worktree creation is forbidden for validators without same-turn Operator authorization and the Operator wrote 'no new worktree, i forbid this'. The builder's fresh-worktree claim (wtc-k12-mt148-fresh, 5 passed / 0 failed) is triage only. PT-148-2 is the only open item; per the coordinator's rule the verdict is PARTIAL_PENDING_OPERATOR_DECISION with the Operator asked to either waive PT-148-2 on the strength of the executed no-worktree filter proof, or authorise a one-shot fresh-worktree proof.",
+    "mandatory_reads_ack": {
+      "codex": ".GOV/codex/Handshake_Codex_v1.4.md (read in full: sections 0-10 incl. CX-032, CX-503R/S, CX-573D/E/F, CX-971/972/984)",
+      "protocol": ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (read in full incl. VPX-001..008, Spec-Realism Gate sub-rules 1-3)",
+      "spec": ".GOV/spec/SPEC_CURRENT.md -> master-spec-v02.206 (indexed-spec-manifest.json / INDEX.json); no per-MT spec module resolution was required because none of the nine contracts carries spec_anchors; whole-WP spec alignment remains Integration Validator authority",
+      "operator_stance": "Operator governance stance applied: no just recipes, no receipts, no repomem, no ACP, no dossiers, no task-board edits; MT-NNN.json is the only status surface"
+    },
+    "proof_environment": {
+      "host": "Windows 11, D: SATA HDD; toolchain rustc/cargo 1.97.1-x86_64-pc-windows-msvc",
+      "worktree": "../wtc-native-editors-v1 (feat/WP-KERNEL-012) HEAD ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (C-prime), git status clean at lane start",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1 (logs/ tmp/ runtime/ workspace/); owning MT for artifact purposes: MT-142; covered MTs: MT-112, MT-118, MT-120, MT-139, MT-142, MT-145, MT-146, MT-148, MT-149",
+      "cargo_target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+      "db": "embedded SurrealDB (RocksDB) only, one store per test under <lane>/runtime; no PostgreSQL, SQLite or Docker",
+      "concurrency": "cargo phase serialized (pool 1) under the host-wide CARGO_MUTEX.lock; exec phase pool 1; --test-threads=4 for embedded-store suites per contract execution_constraints",
+      "foreign_load": "a KERNEL_BUILDER lane compiled concurrently on MT-135/kb-b2/target during parts of this lane (recorded in 00-lane.txt); its cargo did not touch this target",
+      "tree_state_at_run": "Tree was clean at lane start (02:01:11Z); a concurrent actor (not this session) modified src/backend/handshake_core/src/storage/tests.rs at 02:02:10Z plus 8 tests/ files and added tests/fixtures/hbr/ (snapshot ../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/dirty-tree-snapshot-20260917T024243Z.diff sha256 55aca9961e763f8c93993fe0b0a86daf14e2b2cbc6e064d91cb9f2f68428a29c). storage/tests.rs is the ungated embedded-test harness, so the lib test binary embeds that uncommitted harness change. Neither MT-148 owned file (.gitattributes, tests/atelier_surreal_support/mod.rs) was dirty. The .surql filter proof reads committed blobs (HEAD:) and is unaffected by working-tree dirt. Recorded per VPX-001."
+    },
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "ledger_session": "WP_VALIDATOR-B3-20260916-113023",
+      "ledger_head": "fd9060dee489811f0b22903e97d38bd57be64a08",
+      "rows_cited": [
+        "026",
+        "416"
+      ],
+      "covered_mts": [
+        "MT-112",
+        "MT-118",
+        "MT-120",
+        "MT-139",
+        "MT-142",
+        "MT-145",
+        "MT-146",
+        "MT-148",
+        "MT-149"
+      ],
+      "applicability_to_c_prime": "C-prime (fd9060de..ba03f563) changes only src/storage/knowledge.rs (82 NotImplemented default bodies removed from the KnowledgeStore trait), src/storage/surreal/knowledge.rs (a cfg(test) tripwire module) and one native test rename. The tripwire knowledge_store_surface::surreal_database_overrides_every_knowledge_store_method was executed by THIS session at ba03f563 (row 10) and proves every trait method is overridden by the sole implementor, so dispatch through dyn KnowledgeStore is unchanged and set-A rows built at fd9060de remain valid for behaviour that does not depend on the removed defaults.",
+      "note": "026 cited for PT-148-2b (the D-148-2 close_for_reopen/open_existing path). 416 shows the same 3 event_ledger reds at fd9060de."
+    },
+    "proofs": [
+      {
+        "id": "PR-148-B9-01",
+        "kind": "PT-148-1_AC-148-1_ATTRIBUTES_AND_BYTES",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1",
+        "command": "git check-attr text eol -- src/backend/handshake_core/src/storage/surreal/schema.surql src/backend/handshake_core/src/storage/surreal/knowledge_schema_registry_seed.surql; for f in $(git ls-files '*.surql'): CR bytes in worktree (tr -cd '\\r' | wc -c), CR bytes in HEAD blob (git cat-file -p HEAD:$f), sha256sum",
+        "target_dir": null,
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "schema.surql: text=set eol=lf, CR_worktree=0, CR_blob=0, sha256=05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd (== GENERATED_SURREALQL_SHA256); knowledge_schema_registry_seed.surql: text=set eol=lf, CR=0/0, sha256=64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75 (== KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256); schema_pre_mt109.surql CR=0/0 sha256=46eac57c... (== PRE_MT109_GENERATED_SURREALQL_SHA256); schema_pre_mt109_authority.surql CR=0/0 sha256=50e1d2dd...; .gitattributes:6 `*.surql text eol=lf`",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": null,
+        "log_sha256": null,
+        "wall_s": 0,
+        "rerun_alone": true,
+        "skip_count": 0
+      },
+      {
+        "id": "PR-148-B9-02",
+        "kind": "OPERATOR_NO_WORKTREE_STRATEGY_CHECKOUT_FILTERS",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1 (core.autocrlf=true on this host)",
+        "command": "for f in $(git ls-files '*.surql'); do git -c core.autocrlf=true cat-file --filters HEAD:$f | { tee >(tr -cd '\\r' | wc -c) | sha256sum; }; done",
+        "target_dir": null,
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "filtered (checkout-side) bytes: knowledge_schema_registry_seed.surql CR=0 sha256=64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75; schema.surql CR=0 sha256=05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd; schema_pre_mt109.surql CR=0 sha256=46eac57c4ac3e39acc9d18ac0a43fc62ec01461e8cf3b70b7e2711de2a59da10; schema_pre_mt109_authority.surql CR=0 sha256=50e1d2dd2a74dce72f6cdeebbbc9c55cf0331a444a1a8f57dd395cda654273f2 - all equal to the source bytes and to the product pins",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": null,
+        "log_sha256": null,
+        "wall_s": 0,
+        "rerun_alone": true,
+        "skip_count": 0,
+        "note": "This is the exact strategy the Operator recorded in operator_execution_direction_20260914.no_worktree_proof_strategy[0..1], executed at the clean reviewed candidate (the preliminary diagnostic was at 2aa0c6d3 with uncommitted MT-109 changes; this run is at ba03f563 with the committed pins)."
+      },
+      {
+        "id": "PR-148-B9-03",
+        "kind": "PT-148-3_AC-148-3_CHECK_ALL_TARGETS_CORRECTED_FORM",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo check --manifest-path <wt>/src/backend/handshake_core/Cargo.toml --all-targets --keep-going --features surreal-test-support,test-utils -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 11m 19s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/01-check-all-targets.log",
+        "log_sha256": "1ead6e1056a3b0a7eb2e429bd61cf7ab403d5fbec224f1e8448e539eac9550d7",
+        "wall_s": 681,
+        "rerun_alone": true,
+        "pool": 1,
+        "skip_count": 0,
+        "mutex": "host-wide CARGO_MUTEX.lock held by this session for the bundled phase (see 00-lane.txt)",
+        "errors": 0,
+        "e0599": 0,
+        "could_not_compile": 0,
+        "note": "--all-features variant not run (secondary/best-effort per AC-148-3; drags in llama-cpp-sys-2 native build)"
+      },
+      {
+        "id": "PR-148-B9-04",
+        "kind": "PT-148-4_AC-148-4_DIFF_SCOPE",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1",
+        "command": "git diff --stat 6d5d705f^..6d5d705f",
+        "target_dir": null,
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": ".gitattributes | 3 ++ ; src/backend/handshake_core/tests/atelier_surreal_support/mod.rs | 53 +++++---- ; 2 files changed, 50 insertions(+), 6 deletions(-)",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": null,
+        "log_sha256": null,
+        "wall_s": 0,
+        "rerun_alone": true,
+        "skip_count": 0
+      },
+      {
+        "id": "PR-148-B9-05",
+        "kind": "PT-148-2b_ATELIER_CORE_DATA_TESTS_close_for_reopen_open_existing",
+        "executed_by": "WP_VALIDATOR-B3-20260916-113023 (shared proof batch owned by MT-141; cited, not re-executed, per Operator lean mode 2026-09-16)",
+        "head_at_run": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "<pre-built exe> (shared batch row 026)",
+        "features": "surreal-test-support,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/atelier_core_data_tests-defa2a65898b6853.exe",
+        "exe_sha256": "931e05a4bfede9f086ee5e1b441231bb598da81360ab49e436e018b6f1edd216",
+        "exit_code": 0,
+        "result_line": "test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9047.68s",
+        "passed": 54,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/026-atelier_core_data_tests.log",
+        "log_sha256": "441dd67b2e9a6d8d3f3cad074be31b56db5ba5fdad9993d2b2defce00364737f",
+        "wall_s": 9051,
+        "rerun_alone": false,
+        "skip_count": null,
+        "note": "54 passed / 0 failed at fd9060de in 9047 s; tests/atelier_core_data_tests.rs:90-91 calls harness.close_for_reopen() then AtelierSurrealHarness::open_existing(data_dir); tests/atelier_surreal_support/mod.rs is unchanged between fd9060de and ba03f563 (not in the C-prime diff)."
+      },
+      {
+        "id": "PR-148-B9-06",
+        "kind": "PROOF_COMMAND_0_event_ledger_tests_RED_V2-F02",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "<pre-built exe> storage::surreal::event_ledger::tests --nocapture --test-threads=4  (exec-only; env: HANDSHAKE_ARTIFACTS_ROOT=<artifacts root>, HANDSHAKE_SURREAL_TEST_STORE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/runtime, HANDSHAKE_WORKSPACE_ROOT=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/workspace/run-12-lib-storage_surreal_event_ledger, TMP/TEMP/TMPDIR=../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/tmp, RUST_BACKTRACE=0)",
+        "features": "duckdb-flight-recorder,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/handshake_core-ee852f04359cdf21.exe",
+        "exe_sha256": "3f55b6dceef182431eb391a145887507023930c0061bb65ba18a4c780e5bc81e",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 2206 filtered out; finished in 0.98s",
+        "passed": 2,
+        "failed": 3,
+        "ignored": 0,
+        "failing_tests": [
+          "storage::surreal::event_ledger::tests::event_ledger_round_trip_survives_shutdown_and_reopen",
+          "storage::surreal::event_ledger::tests::atomic_batch_bulk_insert_preserves_replay_and_rollback_contracts",
+          "storage::surreal::event_ledger::tests::concurrent_exact_replays_converge_and_conflicting_replay_fails_closed"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/12-lib-storage_surreal_event_ledger.log",
+        "log_sha256": "981effec2a83939318458ad07fa2dd7c465bb7ef7e05fbd367f2466529093ee3",
+        "wall_s": 1,
+        "rerun_alone": false,
+        "pool": 1,
+        "skip_count": 0,
+        "not_run_unconfigured_lines": 0,
+        "contention_lines": 0,
+        "residue": {
+          "runtime_dirs_before": 0,
+          "runtime_dirs_after": 0,
+          "tmp_entries": 9,
+          "workspace_entries": 0,
+          "git_status_porcelain": " M src/backend/handshake_core/src/storage/tests.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/"
+        },
+        "classification": "KNOWN V2-F02 (MT-141, builder fixing): stores open (manifest verified) then append fails on the schema-slice field gap; not a line-ending or MT-148 defect; same 3 reds at fd9060de (row 416)"
+      },
+      {
+        "id": "PR-148-B9-07",
+        "kind": "LIB_TEST_BINARY_BUILD_AT_C_PRIME",
+        "executed_by": "WP_VALIDATOR-B9-20260917-015345",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "cwd": "../wtc-native-editors-v1/src/backend/handshake_core",
+        "command": "cargo test --manifest-path <wt>/src/backend/handshake_core/Cargo.toml --no-run --lib --features duckdb-flight-recorder,test-utils -j 4",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared validator target; build-cache reuse per VPX-001; every execution below is this session's own)",
+        "exe": null,
+        "exe_sha256": null,
+        "exit_code": 0,
+        "result_line": "Finished `test` profile [unoptimized + debuginfo] target(s) in 7m 21s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/02-no-run-lib-duckdb.log",
+        "log_sha256": "e121010857079da1f9b5b7fee39842717b1f2432e7572fab5d199644b9d5ac96",
+        "wall_s": 441,
+        "rerun_alone": true,
+        "pool": 1,
+        "skip_count": 0,
+        "mutex": "host-wide CARGO_MUTEX.lock held by this session for the bundled phase (see 00-lane.txt)"
+      }
+    ],
+    "static_checks": {
+      "owned_file_history": ".gitattributes and tests/atelier_surreal_support/mod.rs last touched by fd9060de (MT-141 rustfmt) / fa73e153 / 67c19337 after 6d5d705f; OwnedTempRoot / adopt / release / Drop / open_existing / close_for_reopen present at C-prime (mod.rs:98-208); no from_path or into_path remains",
+      "deferred_live_tokens": "none",
+      "forbidden_backend_tokens": "none",
+      "ignore_attributes": "none",
+      "cx_211": "no .GOV read",
+      "hbr": "INT/VIS/MAN NOT_APPLICABLE per contract (test-helper + git attribute only); no product runtime behaviour changed",
+      "proof_commands_2_check_attr": "executed: text: set / eol: lf (PR-148-B9-01)"
+    },
+    "resolved_prior_findings": [],
+    "independent_findings": [
+      {
+        "id": "F-B9-148-1",
+        "severity": "OPEN_ITEM",
+        "summary": "PT-148-2 literal form (fresh worktree) NOT_RUN by the validator (worktree creation forbidden). The Operator-recorded no-worktree substitute (checkout-filter bytes == pins) is executed and green; the residual gap is only that no store was bootstrapped from a physically fresh checkout by a validator."
+      },
+      {
+        "id": "F-B9-148-2",
+        "severity": "NOTE",
+        "summary": "A contract-level residue: Cargo.toml [[test]] blocks consuming surreal-test-support without required-features make a bare `cargo check --all-targets` fail on 53 targets (contract_defect_20260909); not owned by MT-148; unchanged at C-prime."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "detail": "no deferred-live escape token"
+      },
+      "sub_rule_2": {
+        "result": "PASS",
+        "detail": "Handshake-owned resources touched: the compiled schema.surql / registry seed bytes (hashed against product pins); real embedded stores opened in row 12 (manifest verification passed before the V2-F02 append failure) and in cited row 026 (close-and-reopen through the rewritten helper)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "detail": "claimed_by KERNEL_BUILDER-20260909-212427; completed_by stays null (no PASS issued)"
+      }
+    },
+    "acceptance_criteria_status": {
+      "AC-148-1": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-01"
+      },
+      "AC-148-2": {
+        "status": "NOT_RUN",
+        "evidence": "fresh worktree forbidden; substitute PR-148-B9-02 green (checkout filters materialise pinned bytes); builder fresh-worktree run is triage only"
+      },
+      "AC-148-3": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-03 (corrected criterion per ac_148_3_correction_20260909)"
+      },
+      "AC-148-4": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-04"
+      },
+      "AC-148-5": {
+        "status": "PROVED",
+        "evidence": "hashes match pins after renormalisation (PR-148-B9-01/02); stores bootstrap at C-prime (row 12 opened stores; row 20 opened stores); the event_ledger reds are V2-F02 field-placement, pre-existing at fd9060de, not schema-line-ending failures"
+      },
+      "AC-148-6": {
+        "status": "PROVED",
+        "evidence": "behaviour change stated in-source (OwnedTempRoot doc comment) and in acceptance_evidence_20260909.AC-148-6"
+      },
+      "PT-148-1": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-01"
+      },
+      "PT-148-2": {
+        "status": "NOT_RUN",
+        "evidence": "worktree creation forbidden for validators without same-turn Operator authorization (Operator: 'no new worktree, i forbid this'); substitute strategy PR-148-B9-02 executed green"
+      },
+      "PT-148-2b": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-05 (shared row 026)"
+      },
+      "PT-148-3": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-03"
+      },
+      "PT-148-4": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-04"
+      }
+    },
+    "remediation_required": {
+      "owner": "OPERATOR (via ORCHESTRATOR escalation)",
+      "steps": [
+        "Operator to either (a) waive PT-148-2 on the strength of PR-148-B9-02 (the Operator's own no-worktree strategy, executed green at the clean candidate) - then this verdict may be promoted to PASS without further proof - or (b) authorise a one-shot fresh-worktree proof (one storage-touching lib test, e.g. storage::surreal::event_ledger::tests::atomic_batch_results_follow_caller_order which is green at C-prime, in a worktree created from ba03f563 and deleted through just delete-local-worktree afterwards)."
+      ]
+    },
+    "not_run": [
+      "PT-148-2 literal fresh-worktree test",
+      "cargo check --all-targets --all-features (secondary/best-effort per AC-148-3)",
+      "atelier_core_data_tests not re-executed (shared row 026 cited)"
+    ],
+    "not_inspected": [],
+    "residual_uncertainty": [
+      "No validator has bootstrapped a store from a physically fresh checkout; the byte-level filter proof makes a CRLF regression impossible for the pinned files but does not exercise the OS-level checkout path end to end."
+    ],
+    "residue": {
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1",
+      "runtime_dirs": 0,
+      "tmp_entries": "4 (2 preserved mt109-migration stores from the row-11 red + 2 runner stdio files)",
+      "workspace_run_dirs_nonempty": 0,
+      "tracked_fixture_writes": "NONE by this session's runs (dirty tree pre-dates every run; see proof_environment.tree_state_at_run)",
+      "git_status_porcelain_after_runs": " M src/backend/handshake_core/src/storage/tests.rs; M src/backend/handshake_core/tests/atelier_source_evidence_tests.rs; M src/backend/handshake_core/tests/atelier_state_probe_tests.rs; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json; M src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_003.json; M src/backend/handshake_core/tests/fixtures/kernel_003_validation_argv.json; M src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs; M src/backend/handshake_core/tests/hbr_registry_tests.rs; M src/backend/handshake_core/tests/inspector_ipc_tests.rs; M src/backend/handshake_core/tests/kernel_003_migration_tests.rs; M src/backend/handshake_core/tests/kernel_kb003_security_denial_matrix_tests.rs; M src/backend/handshake_core/tests/knowledge_code_nav_api_tests.rs; M src/backend/handshake_core/tests/knowledge_documents_api_tests.rs; M src/backend/handshake_core/tests/knowledge_graph_tests.rs; M src/backend/handshake_core/tests/knowledge_schema_tests.rs; M src/backend/handshake_core/tests/loom_transclusion_tests.rs; M src/backend/handshake_core/tests/memory_persistence_tests.rs; M src/backend/handshake_core/tests/model_session_scheduler_tests.rs; M src/backend/handshake_core/tests/mt152_fems_stage_guard_tests.rs; M src/backend/handshake_core/tests/pinned_core_tests.rs; M src/backend/handshake_core/tests/role_mailbox_lease_tests.rs; M src/backend/handshake_core/tests/role_mailbox_repo_tests.rs; M src/backend/handshake_core/tests/sandbox_adapter_trait_tests.rs; M src/backend/handshake_core/tests/sandbox_ipc_tests.rs; M src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs; M src/backend/handshake_core/tests/security_portability_validation_tests.rs; M src/backend/handshake_core/tests/surreal_storage_lifecycle_tests.rs; M src/backend/handshake_core/tests/trace_projection_tests.rs; M src/backend/handshake_core/tests/user_manual_content_tests.rs; M src/backend/handshake_core/tests/user_manual_support/mod.rs;?? src/backend/handshake_core/tests/fixtures/hbr/",
+      "cargo_rustc_processes_at_exit": "0 owned by this session"
+    },
+    "transition_reason": "all proof targets proven or substituted except the literal PT-148-2 fresh-worktree run, which the validator is forbidden to perform; Operator decision required"
+  },
+  "validation_v1_transition": {
+    "from_status": "READY_FOR_VALIDATION",
+    "to_status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "by": "WP_VALIDATOR-B9-20260917-015345",
+    "at_utc": "2026-09-17T03:35:52.274Z",
+    "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "record": "validation_v1",
+    "reason": "all proof targets proven or substituted except the literal PT-148-2 fresh-worktree run, which the validator is forbidden to perform; Operator decision required"
+  }
 }
