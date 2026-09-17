@@ -14,7 +14,7 @@
   "title": "E11-MT-079-AppHostMount-EditorPaneFactories",
   "group": "E11 Shell host-mount (app.rs convergence)",
   "created_at_utc": "2026-06-25T00:00:00Z",
-  "updated_at_utc": "2026-09-16T23:19:52.182Z",
+  "updated_at_utc": "2026-09-17T15:09:46.597Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "status": "FAIL_V6",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt079",
       "mode": "VERIFY_AND_PROVE",
@@ -51,10 +51,10 @@
       "MT-070",
       "MT-071"
     ],
-    "validator_verdict": "PARTIAL_V5",
+    "validator_verdict": "FAIL_V6",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:52.182Z",
+    "validated_by": "WP_VALIDATOR-C079-20260917-145500",
+    "validated_at_utc": "2026-09-17T15:09:46.597Z",
     "ready_for_validation_at_utc": "2026-07-24T16:10:00.000Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
     "remediation_v3_in_progress": false,
@@ -832,5 +832,1133 @@
     "residual_uncertainty": [],
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V6."
+  },
+  "validation_v6": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V6",
+    "verdict_label": "FAIL V6",
+    "validated_by": "WP_VALIDATOR-C079-20260917-145500",
+    "validated_at_utc": "2026-09-17T15:09:46.597Z",
+    "session": "WP_VALIDATOR-C079-20260917-145500",
+    "role": "WP_VALIDATOR",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "operator_stance": "2026-09-17: no repo-governance ceremony; the MT JSON is the only status surface; no half runs; lean mode; no .GOV commit by this session",
+    "spec_version": "v02.206",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "validate_at_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "source": {
+      "kind": "clean git-archive export of ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+      "path": "WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563",
+      "git_metadata": "absent (verified: git rev-parse -> fatal: not a git repository)",
+      "spot_checks": "src/frontend/handshake_native/Cargo.toml and src/frontend/palmistry/Cargo.toml present; no root Cargo.toml (per-crate workspaces); all .surql LF with sha256 matching the MT-148 pins (schema 05b36f65..., registry seed 64d0711c...)",
+      "modified_by_this_session": false
+    },
+    "basis": "Executes the validation_v5 NOT_RUN halves for MT-079/MT-098/MT-088 in one shared batch (owning MT-079) per Operator decision 2026-09-17 (no half runs). Validator-executed cargo/test rows only (VPX-001/003); validation_v5 validator rows reused unchanged where their inputs did not change (VPX-004); implementer evidence is triage only (VPX-002).",
+    "shared_proof_batch": {
+      "owning_mt": "MT-079",
+      "covers": [
+        "MT-079",
+        "MT-098",
+        "MT-088"
+      ],
+      "lane": "WP-KERNEL-012/MT-079/wpv-v6",
+      "lane_ledger": "WP-KERNEL-012/MT-079/wpv-v6/00-lane.txt",
+      "results_ledger": "WP-KERNEL-012/MT-079/wpv-v6/results.jsonl"
+    },
+    "target_reuse_note": "CARGO_TARGET_DIR = WP-KERNEL-012/MT-148/wpv-v2/target: compatible-build reuse of the MT-148 validator's cold target built from the same export at the same commit (CX-503I1 / IV-ART-003 / WPV-ART-003); its owner session (WP_VALIDATOR-C148-20260917-133500) had closed (LANE_CLOSE in MT-148/wpv-v2/00-lane.txt). No new target created; no cargo clean. The native crate's .cargo/config.toml build.target-dir was overridden by the CARGO_TARGET_DIR env var.",
+    "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14), cargo 1.97.1, clippy 0.1.97 - the rust-toolchain.toml pin at ba03f563",
+    "summary": "FAIL_V6 at C-prime: the PT-079-F clippy half is RED (68 errors under -D warnings with the pinned 1.97.1 toolchain; 20 sit in MT-079 allowed_paths app.rs/backend_client.rs/code_editor/panel.rs, 0 introduced by MT-079 commits, 48 outside); the PT-079-F cargo build --lib --bins half is GREEN (exit 0, handshake-native.exe produced). validation_v5 rows test_theme 170, test_top_menu_bar 172, test_quick_switcher 199, test_app_host_mount 298 (60/60 at C-prime) are reused unchanged. The 'full suite -j 2 green' clause is NOT_PROVEN at the WP boundary (sweep 21/191 red, none MT-079-owned).",
+    "proofs": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-079-C079-01",
+        "command": "cargo clippy -p handshake-native --all-targets -j 4 -- -D warnings",
+        "cwd": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563/src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "tree_note": "clean git-archive export (no git metadata); export .surql pins verified",
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-C079-20260917-145500",
+        "target_dir": "WP-KERNEL-012/MT-148/wpv-v2/target",
+        "started_utc": "2026-09-17T14:52:31Z",
+        "finished_utc": "2026-09-17T14:55:06Z",
+        "wall_s": 155,
+        "exit_code": 101,
+        "result_line": "error: could not compile `handshake-native` (lib test) due to 68 previous errors",
+        "log_path": "WP-KERNEL-012/MT-079/wpv-v6/logs/01_clippy_native_all_targets_D_warnings.log",
+        "log_sha256": "69d8be2d208c5982d22dee39e7a1760b8e2f6610dc1c9a9ae5eb53f440340dca",
+        "exe": null,
+        "exe_sha256": null,
+        "features": "default",
+        "counts": {
+          "passed": 0,
+          "failed": 68,
+          "ignored": 0
+        },
+        "failing_tests": [],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-148/wpv-v2/target",
+          "HANDSHAKE_ARTIFACTS_ROOT": "<Handshake_Artifacts>",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "WP-KERNEL-012/MT-079/wpv-v6/runtime",
+          "HANDSHAKE_WORKSPACE_ROOT": "WP-KERNEL-012/MT-079/wpv-v6/workspace/run-01-clippy_native_all_targets_D_warnings",
+          "TMP_TEMP_TMPDIR": "WP-KERNEL-012/MT-079/wpv-v6/tmp",
+          "jobs": "-j 4",
+          "toolchain": "1.97.1-x86_64-pc-windows-msvc"
+        },
+        "covers": [
+          "MT-079",
+          "MT-098",
+          "MT-088"
+        ],
+        "notes": "RED: 66 lib + 68 lib-test clippy errors under -D warnings (37x float_literal_f32_fallback rustc future-incompat + 31 clippy lints); --all-targets aborted after lib so test/bin targets unchecked; per-error list logs/01_clippy_errors_attributed.json"
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-079-C079-02",
+        "command": "cargo build -p handshake-native --lib --bins -j 4",
+        "cwd": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563/src/frontend/handshake_native",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "tree_clean": true,
+        "tree_note": "clean git-archive export (no git metadata); export .surql pins verified",
+        "executor_role": "WP_VALIDATOR",
+        "executor_session": "WP_VALIDATOR-C079-20260917-145500",
+        "target_dir": "WP-KERNEL-012/MT-148/wpv-v2/target",
+        "started_utc": "2026-09-17T14:56:42Z",
+        "finished_utc": "2026-09-17T14:59:45Z",
+        "wall_s": 183,
+        "exit_code": 0,
+        "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 3m 03s",
+        "log_path": "WP-KERNEL-012/MT-079/wpv-v6/logs/02_build_native_lib_bins.log",
+        "log_sha256": "7ea330524c533bdba0c5d3ca996f70299e8caeff8d57a6b910b5ee684bd4a75f",
+        "exe": "WP-KERNEL-012/MT-148/wpv-v2/target/debug/handshake-native.exe",
+        "exe_sha256": "4c8b95300ae987b4affa3ffde6fc83310c1a3b49cb4f78596182564bce092385",
+        "features": "default",
+        "counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "failing_tests": [],
+        "env_knobs": {
+          "CARGO_TARGET_DIR": "WP-KERNEL-012/MT-148/wpv-v2/target",
+          "HANDSHAKE_ARTIFACTS_ROOT": "<Handshake_Artifacts>",
+          "HANDSHAKE_TEST_ARTIFACTS_ROOT": "<Handshake_Artifacts>/handshake-test",
+          "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "WP-KERNEL-012/MT-079/wpv-v6/runtime",
+          "HANDSHAKE_WORKSPACE_ROOT": "WP-KERNEL-012/MT-079/wpv-v6/workspace/run-02-build_native_lib_bins",
+          "TMP_TEMP_TMPDIR": "WP-KERNEL-012/MT-079/wpv-v6/tmp",
+          "jobs": "-j 4",
+          "toolchain": "1.97.1-x86_64-pc-windows-msvc"
+        },
+        "covers": [
+          "MT-079",
+          "MT-098",
+          "MT-088"
+        ],
+        "notes": "GREEN: lib+bins compile; 37 rustc warnings (float_literal_f32_fallback, warn-level, non-fatal); bin handshake-native.exe produced"
+      }
+    ],
+    "reused_validation_v5_rows": [
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-079-N1B-170",
+        "binary": "test_theme",
+        "command": "test_theme-8c9e9f46bd2a3158.exe --nocapture",
+        "exit_code": 0,
+        "result_line": "test result: ok. 19 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/170_test_theme.log",
+        "log_sha256": "09379b5f5356b38b75cb97ef8fcd82aba175a1d9579f282763432857769c8580",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "disposition": "REUSED_UNCHANGED (validator-executed row from validation_v5; not re-executed in lean mode; inputs unchanged at C-prime)"
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-079-N1B-172",
+        "binary": "test_top_menu_bar",
+        "command": "test_top_menu_bar-432b4db8dfd1e655.exe --nocapture",
+        "exit_code": 0,
+        "result_line": "test result: ok. 17 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/172_test_top_menu_bar.log",
+        "log_sha256": "c2275e79be33accf1577e54db94958c50ad2d581c7f79aa5faaaa1965cb7be9e",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "disposition": "REUSED_UNCHANGED (validator-executed row from validation_v5; not re-executed in lean mode; inputs unchanged at C-prime)"
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-079-N1B-199",
+        "binary": "test_quick_switcher",
+        "command": "test_quick_switcher-32b9f887d980f80f.exe --nocapture",
+        "exit_code": 0,
+        "result_line": "test result: ok. 15 passed; 0 failed; 1 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/199_test_quick_switcher.log",
+        "log_sha256": "b54f1ede362a44d30f4545305bb372f2a92454bfe74504155d371686ccdc1c3d",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "disposition": "REUSED_UNCHANGED (validator-executed row from validation_v5; not re-executed in lean mode; inputs unchanged at C-prime)"
+      },
+      {
+        "proof_id": "PR-WP-KERNEL-012-MT-079-N1B-298",
+        "binary": "test_app_host_mount",
+        "command": "test_app_host_mount-ad0d5e2c7a61c812.exe --nocapture",
+        "exit_code": 0,
+        "result_line": "test result: ok. 60 passed; 0 failed; 0 ignored",
+        "log_path": "WP-KERNEL-012/MT-108/wpv-n1/logs/298_test_app_host_mount_pass3-solo.log",
+        "log_sha256": "119321dfc6f4b3cc9d6bbc5f8a5dd727f331894c3e179b344195d531e1d5a6d5",
+        "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+        "disposition": "REUSED_UNCHANGED (validator-executed row from validation_v5; not re-executed in lean mode; inputs unchanged at C-prime)"
+      }
+    ],
+    "argus_evidence": [
+      {
+        "note": "No GUI surface changed by the executed halves; validation_v5 Argus rows are reused unchanged. GPU screenshots remain DEFERRED (headless lane), as in validation_v5."
+      }
+    ],
+    "resolved_prior_findings": [
+      {
+        "prior_item": "PT-079-F clippy -D warnings half (validation_v5 not_run, LB-4)",
+        "outcome": "EXECUTED -> RED",
+        "proof_id": "PR-WP-KERNEL-012-MT-079-C079-01",
+        "exit_code": 101,
+        "result_line": "error: could not compile `handshake-native` (lib test) due to 68 previous errors",
+        "detail": "68 unique clippy/rustc errors under -D warnings at ba03f563 with the pinned 1.97.1 toolchain (see clippy_classification); --all-targets aborted after lib, so test/bin targets are unchecked."
+      },
+      {
+        "prior_item": "PT-079-F cargo build --lib --bins half (validation_v5 not_run, LB-4)",
+        "outcome": "EXECUTED -> GREEN",
+        "proof_id": "PR-WP-KERNEL-012-MT-079-C079-02",
+        "exit_code": 0,
+        "result_line": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 3m 03s",
+        "detail": "handshake-native lib + bin (handshake-native.exe, sha256 4c8b95300ae987b4affa3ffde6fc83310c1a3b49cb4f78596182564bce092385) compile at C-prime; 37 rustc warnings (float_literal_f32_fallback, warn level, non-fatal)."
+      },
+      {
+        "prior_item": "AC-079-8 / PT-079-F 'full suite -j 2 green' clause",
+        "outcome": "CITED_SWEEP -> RED (NOT_PROVEN at WP boundary)",
+        "detail": "See full_suite_clause: the validator-executed 191-binary sweep at C-prime (MT-108/wpv-n1) has 21 binaries with red last rows, none owned by this MT. Not re-executed in lean mode; not used as the FAIL basis for this MT; routed to the Integration Validator / owning MTs."
+      }
+    ],
+    "full_suite_clause": {
+      "artifact": "WP-KERNEL-012/MT-108/wpv-n1/logs/results.jsonl",
+      "coverage_matrix": "WP-KERNEL-012/MT-108/wpv-n1/logs/native_mt_coverage_matrix.json",
+      "binaries": 191,
+      "binaries_with_red_last_row": 21,
+      "red_binaries": {
+        "test_block_collection_view": [
+          "block_collection_views_live_surrealdb_self_seed_full_round_trip"
+        ],
+        "installer_build_smoke": [
+          "(TIMEOUT)"
+        ],
+        "test_calendar_interop": [
+          "open_or_create_daily_note_is_idempotent_against_real_backend_live"
+        ],
+        "test_canvas_board_argus": [
+          "mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges"
+        ],
+        "test_code_nav_client": [
+          "live_backend::ac001_lookup_symbols_returns_populated_live_symbol",
+          "live_backend::ac002_get_symbol_returns_populated_live_definition",
+          "live_backend::ac003_get_references_returns_populated_live_caller"
+        ],
+        "test_e7_swarm_edit_proof": [
+          "swarm_edit_live_conflict_merge_search_and_receipts",
+          "watchdog_failure_write_is_bounded_under_live_log_contention"
+        ],
+        "test_fems_interop_proofs": [
+          "11 proof_fems_* tests"
+        ],
+        "test_flight_recorder_authz": [
+          "mt111_flight_recorder_authorization_boundary_real_surrealdb"
+        ],
+        "test_ckc_embed": [
+          "ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend",
+          "ac5_atelier_side_panel_loads_from_live_backend"
+        ],
+        "test_interconnect_loom_backlink_search": [
+          "interconnect_ic11_search_v2_across_surfaces",
+          "interconnect_ic14_quick_switcher_both_editors"
+        ],
+        "test_interconnect_note_code_crossref": [
+          "interconnect_ic06_open_code_block_from_note"
+        ],
+        "test_code_note_cross_ref": [
+          "live_backend::v2_self_seeded_surrealdb_code_ref_round_trip_navigation_and_note_refs"
+        ],
+        "test_completion_hover_accesskit": [
+          "ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc"
+        ],
+        "test_memory_proposal_argus": [
+          "mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve"
+        ],
+        "test_other_pillar_interop_proofs": [
+          "other_pillar_op01..op04"
+        ],
+        "test_perf_large_code": [
+          "8 failed (names not captured in the ledger)"
+        ],
+        "test_perf_large_knowledge": [
+          "5 failed"
+        ],
+        "test_perf_large_rich": [
+          "7 failed"
+        ],
+        "test_event_emitter": [
+          "event_emitter_native_editor_round_trip"
+        ],
+        "test_stage_interop": [
+          "live_route_round_trip_real_surrealdb",
+          "mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent",
+          "mt066_canvas_board_evidence_does_not_block_product_cleanup",
+          "mt066_stage_card_bridge_evidence_does_not_block_product_cleanup"
+        ],
+        "test_tags_panel": [
+          "tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip"
+        ]
+      },
+      "owning_mts_per_matrix": "none of the 21 red binaries maps to MT-079, MT-098 or MT-088 in native_mt_coverage_matrix.json (owners: MT-008/021/023/026/027/033/034/036/045/046/064/065/066/067/068/070/074/108/111/113/116/117/121/122/127/128/130/140/143)",
+      "reading": "validation_v5 (MT-098.not_run) stated that the debug 191-binary sweep stands in for the suite half. Cited as instructed: that sweep is the validator-executed full-suite evidence at C-prime and it is RED (21/191 binaries with red last rows). It therefore does NOT establish the 'full suite -j 2 green' clause of AC-079-8 / AC-098-5 / AC-008-7; the clause is NOT_PROVEN at the WP boundary. Not re-executed in this lane (191 binaries with backend-fixture and GPU dependencies; none of the red binaries is owned by these three MTs). Routed to the Integration Validator / owning MTs as a WP-boundary finding, not as remediation for these MTs."
+    },
+    "independent_findings": [
+      {
+        "id": "C079-F1",
+        "class": "TOOLCHAIN_DRIFT_HYGIENE",
+        "severity": "CONCERN",
+        "detail": "37 of the 68 clippy errors are the rustc future-incompat lint float_literal_f32_fallback, surfaced by the 2026-08-16 toolchain pin to 1.97.1 (cc55b8fd); blamed commits are mostly June-2026 MTs (MT-003/012/014/015/017/021/026/054/055/057/059/060/061/076/098/101/103). Implementer 'clippy clean' claims in these contracts predate the pin. Crate-wide hygiene debt; owner routing via clippy_classification.blame_mts."
+      },
+      {
+        "id": "C079-F2",
+        "class": "WP_BOUNDARY_SUITE_RED",
+        "severity": "CONCERN",
+        "detail": "The validator-executed 191-binary sweep at C-prime is not green (21 red binaries, none owned by MT-079/098/088). The 'full suite -j 2 green' clause in AC-079-8/AC-098-5/AC-008-7 is NOT_PROVEN at the WP boundary; see full_suite_clause."
+      }
+    ],
+    "clippy_classification": {
+      "command": "cargo clippy -p handshake-native --all-targets -j 4 -- -D warnings",
+      "log": "WP-KERNEL-012/MT-079/wpv-v6/logs/01_clippy_native_all_targets_D_warnings.log",
+      "log_sha256": "69d8be2d208c5982d22dee39e7a1760b8e2f6610dc1c9a9ae5eb53f440340dca",
+      "per_error_list": "WP-KERNEL-012/MT-079/wpv-v6/logs/01_clippy_errors_attributed.json",
+      "total_unique": 68,
+      "lib_errors": 66,
+      "lib_test_errors": 68,
+      "introduced_by_this_mt_count": 0,
+      "in_this_mt_allowed_paths_count": 20,
+      "outside_this_mt_count": 48,
+      "introduced_by_this_mt": [],
+      "in_this_mt_allowed_paths": [
+        {
+          "location": "src/frontend/handshake_native/src/code_editor/panel.rs:11127:61",
+          "lint": "float-literal-f32-fallback",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "4d387d909",
+          "blame_subject": "2026-06-24|feat(WP-KERNEL-012 MT-054): editor chrome — bracket match/colorize, indent guides, word wrap",
+          "blame_mts": [
+            "MT-054"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/code_editor/panel.rs:11225:44",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "4d387d909",
+          "blame_subject": "2026-06-24|feat(WP-KERNEL-012 MT-054): editor chrome — bracket match/colorize, indent guides, word wrap",
+          "blame_mts": [
+            "MT-054"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/code_editor/panel.rs:12610:39",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "56a5d4059",
+          "blame_subject": "2026-06-26|feat(WP-KERNEL-012 MT-076): IME composition inline preedit in both editors",
+          "blame_mts": [
+            "MT-076"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:108:5",
+          "lint": "clippy::doc-lazy-continuation",
+          "message": "doc list item without indentation",
+          "blame_commit": "d896bbd99",
+          "blame_subject": "2026-08-05|WP-KERNEL-012 MT-027 V5: terminal canonical Argus receipts + narrowed proof gate",
+          "blame_mts": [
+            "MT-027"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:109:5",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "doc list item without indentation",
+          "blame_commit": "4f92cc25a",
+          "blame_subject": "2026-08-16|feat(WP-KERNEL-012): physically remove PostgreSQL; add SurrealDB Database seam",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:110:5",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "doc list item without indentation",
+          "blame_commit": "d896bbd99",
+          "blame_subject": "2026-08-05|WP-KERNEL-012 MT-027 V5: terminal canonical Argus receipts + narrowed proof gate",
+          "blame_mts": [
+            "MT-027"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:614:21",
+          "lint": "clippy::unnecessary-lazy-evaluations",
+          "message": "unnecessary closure used with `bool::then`",
+          "blame_commit": "5968bb36b",
+          "blame_subject": "2026-08-05|WP-KERNEL-012: snapshot concurrent in-flight MT-029 app.rs/find_in_files state so the MT-027 source-provenance-bound proof can bind a clean HEAD",
+          "blame_mts": [
+            "MT-029",
+            "MT-027"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:617:21",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "unnecessary closure used with `bool::then`",
+          "blame_commit": "5968bb36b",
+          "blame_subject": "2026-08-05|WP-KERNEL-012: snapshot concurrent in-flight MT-029 app.rs/find_in_files state so the MT-027 source-provenance-bound proof can bind a clean HEAD",
+          "blame_mts": [
+            "MT-029",
+            "MT-027"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:11587:77",
+          "lint": "clippy::unnecessary-to-owned",
+          "message": "unnecessary use of `to_string`",
+          "blame_commit": "d896bbd99",
+          "blame_subject": "2026-08-05|WP-KERNEL-012 MT-027 V5: terminal canonical Argus receipts + narrowed proof gate",
+          "blame_mts": [
+            "MT-027"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:29207:36",
+          "lint": "clippy::bind-instead-of-map",
+          "message": "using `Option.and_then(|x| Some(y))`, which is more succinctly expressed as `map(|x| y)`",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:32496:25",
+          "lint": "clippy::filter-next",
+          "message": "called `filter(..).next_back()` on an `DoubleEndedIterator`. This is more succinctly expressed by calling `.rfind(..)` instead",
+          "blame_commit": "892662e0b",
+          "blame_subject": "2026-07-23|wip(WP-KERNEL-012): state-recovery checkpoint — in-flight remediation snapshot at KERNEL_BUILDER takeover (MT-008/067/070 RFV_V3 work + migrations 0342-0353 + canonical Argus driver)",
+          "blame_mts": [
+            "MT-008"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/app.rs:33109:5",
+          "lint": "clippy::too-many-arguments",
+          "message": "this function has too many arguments (8/7)",
+          "blame_commit": "892662e0b",
+          "blame_subject": "2026-07-23|wip(WP-KERNEL-012): state-recovery checkpoint — in-flight remediation snapshot at KERNEL_BUILDER takeover (MT-008/067/070 RFV_V3 work + migrations 0342-0353 + canonical Argus driver)",
+          "blame_mts": [
+            "MT-008"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/backend_client.rs:4264:27",
+          "lint": "clippy::needless-borrow",
+          "message": "this expression creates a reference which is immediately dereferenced by the compiler",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/backend_client.rs:4265:32",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this expression creates a reference which is immediately dereferenced by the compiler",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/backend_client.rs:4266:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this expression creates a reference which is immediately dereferenced by the compiler",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/backend_client.rs:4267:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this expression creates a reference which is immediately dereferenced by the compiler",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/backend_client.rs:4268:29",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this expression creates a reference which is immediately dereferenced by the compiler",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/backend_client.rs:6582:6",
+          "lint": "clippy::result-large-err",
+          "message": "the `Err`-variant returned from this function is very large",
+          "blame_commit": "e9b818149",
+          "blame_subject": "2026-08-27|fix(WP-KERNEL-012): preserve exact mutation causality",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/backend_client.rs:6583:16",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "the `Err`-variant returned from this closure is very large",
+          "blame_commit": "e9b818149",
+          "blame_subject": "2026-08-27|fix(WP-KERNEL-012): preserve exact mutation causality",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/backend_client.rs:8284:5",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this function has too many arguments (8/7)",
+          "blame_commit": "7a0046565",
+          "blame_subject": "2026-06-23|feat(WP-KERNEL-012 MT-027): native BlockCollectionView (table/Kanban/calendar saved-view host)",
+          "blame_mts": [
+            "MT-027"
+          ],
+          "classification": "PRE_EXISTING_IN_THIS_MT_ALLOWED_PATH_INTRODUCED_ELSEWHERE"
+        }
+      ],
+      "outside_this_mt": [
+        {
+          "location": "src/frontend/handshake_native/src/graph/block_collection_view.rs:2552:43",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/canvas_board.rs:3362:34",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "9e338cd4a",
+          "blame_subject": "2026-06-23|feat(WP-KERNEL-012 MT-026): native LoomCanvasBoard (E3 Obsidian-Canvas parity)",
+          "blame_mts": [
+            "MT-026"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/canvas_board.rs:3405:25",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "9e338cd4a",
+          "blame_subject": "2026-06-23|feat(WP-KERNEL-012 MT-026): native LoomCanvasBoard (E3 Obsidian-Canvas parity)",
+          "blame_mts": [
+            "MT-026"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/canvas_board.rs:3407:25",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "9e338cd4a",
+          "blame_subject": "2026-06-23|feat(WP-KERNEL-012 MT-026): native LoomCanvasBoard (E3 Obsidian-Canvas parity)",
+          "blame_mts": [
+            "MT-026"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/canvas_board.rs:3728:29",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "751abfa11",
+          "blame_subject": "2026-06-25|feat(WP-KERNEL-012 MT-061): canvas card resize + section frames + inline text-card edit",
+          "blame_mts": [
+            "MT-061"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/folder_tree.rs:988:29",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "3bf307a8c",
+          "blame_subject": "2026-07-02|chore(WP-KERNEL-012): session-limit recovery checkpoint - fmt sweep + MT-101 rework + managed-PG/artifact-root remediation + MT-103..106 revalidation patches",
+          "blame_mts": [
+            "MT-101",
+            "MT-103"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/graph_view.rs:1489:44",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "f98d1a2a8",
+          "blame_subject": "2026-06-25|feat(WP-KERNEL-012 MT-060): Obsidian graph filter/group/depth/orphan/size controls",
+          "blame_mts": [
+            "MT-060"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/graph_view.rs:1491:13",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "3bf307a8c",
+          "blame_subject": "2026-07-02|chore(WP-KERNEL-012): session-limit recovery checkpoint - fmt sweep + MT-101 rework + managed-PG/artifact-root remediation + MT-103..106 revalidation patches",
+          "blame_mts": [
+            "MT-101",
+            "MT-103"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/graph_view.rs:1587:68",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "e8b7cc434",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-021): local+global Loom graph view (force-directed, egui Painter)",
+          "blame_mts": [
+            "MT-021"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/embeds/embed_block_renderer.rs:838:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "69bee02f5",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-014): embed NodeViews (image/slideshow/album/video)",
+          "blame_mts": [
+            "MT-014"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/embeds/embed_block_renderer.rs:913:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "69bee02f5",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-014): embed NodeViews (image/slideshow/album/video)",
+          "blame_mts": [
+            "MT-014"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/embeds/embed_block_renderer.rs:1010:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "69bee02f5",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-014): embed NodeViews (image/slideshow/album/video)",
+          "blame_mts": [
+            "MT-014"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/embeds/embed_block_renderer.rs:1135:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "69bee02f5",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-014): embed NodeViews (image/slideshow/album/video)",
+          "blame_mts": [
+            "MT-014"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/embeds/embed_block_renderer.rs:1288:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "69bee02f5",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-014): embed NodeViews (image/slideshow/album/video)",
+          "blame_mts": [
+            "MT-014"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/markdown_render.rs:743:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "c09a83640",
+          "blame_subject": "2026-06-25|feat(WP-KERNEL-012 MT-059): wiki-page markdown rendering (shared CommonMark adapter)",
+          "blame_mts": [
+            "MT-059"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/markdown_render.rs:857:31",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "c09a83640",
+          "blame_subject": "2026-06-25|feat(WP-KERNEL-012 MT-059): wiki-page markdown rendering (shared CommonMark adapter)",
+          "blame_mts": [
+            "MT-059"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/properties/fields.rs:212:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "7521a520b",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-017): document properties panel (native rich-text editor)",
+          "blame_mts": [
+            "MT-017"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/properties/fields.rs:235:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "7521a520b",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-017): document properties panel (native rich-text editor)",
+          "blame_mts": [
+            "MT-017"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/properties/tag_editor.rs:61:43",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "7521a520b",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-017): document properties panel (native rich-text editor)",
+          "blame_mts": [
+            "MT-017"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/reading_mode.rs:293:39",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "57400f1a2",
+          "blame_subject": "2026-06-24|feat(WP-KERNEL-012 MT-055): per-document reading mode (Obsidian reading view)",
+          "blame_mts": [
+            "MT-055"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs:423:21",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "8ebb0c9ac",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-012): WYSIWYG rich-text renderer on egui LayoutJob+Galley",
+          "blame_mts": [
+            "MT-012"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs:535:29",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "8ebb0c9ac",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-012): WYSIWYG rich-text renderer on egui LayoutJob+Galley",
+          "blame_mts": [
+            "MT-012"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs:579:21",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "8ebb0c9ac",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-012): WYSIWYG rich-text renderer on egui LayoutJob+Galley",
+          "blame_mts": [
+            "MT-012"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/line_layout.rs:196:21",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "8ebb0c9ac",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-012): WYSIWYG rich-text renderer on egui LayoutJob+Galley",
+          "blame_mts": [
+            "MT-012"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/line_layout.rs:201:21",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "8ebb0c9ac",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-012): WYSIWYG rich-text renderer on egui LayoutJob+Galley",
+          "blame_mts": [
+            "MT-012"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs:4728:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "892662e0b",
+          "blame_subject": "2026-07-23|wip(WP-KERNEL-012): state-recovery checkpoint — in-flight remediation snapshot at KERNEL_BUILDER takeover (MT-008/067/070 RFV_V3 work + migrations 0342-0353 + canonical Argus driver)",
+          "blame_mts": [
+            "MT-008"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs:4770:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "513f2869e",
+          "blame_subject": "2026-06-24|feat(WP-KERNEL-012 MT-057): wikilink alias resolve + create-from-unresolved",
+          "blame_mts": [
+            "MT-057"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/wikilinks/transclusion_view.rs:111:35",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "c9a3aba36",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-015): wikilinks, transclusion, backlinks in the native rich-text editor",
+          "blame_mts": [
+            "MT-015"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/runtime_chat/panel.rs:519:39",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "036251446",
+          "blame_subject": "2026-06-29|feat: MT-098 add runtime chat pane",
+          "blame_mts": [
+            "MT-098"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/runtime_chat/panel.rs:547:55",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "036251446",
+          "blame_subject": "2026-06-29|feat: MT-098 add runtime chat pane",
+          "blame_mts": [
+            "MT-098"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/theme/egui_apply.rs:43:46",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "97d82ab7e",
+          "blame_subject": "2026-06-20|WP-KERNEL-011 MT-003: dark/light theme token system",
+          "blame_mts": [
+            "MT-003"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/theme/egui_apply.rs:46:40",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "97d82ab7e",
+          "blame_subject": "2026-06-20|WP-KERNEL-011 MT-003: dark/light theme token system",
+          "blame_mts": [
+            "MT-003"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/theme/egui_apply.rs:49:38",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "97d82ab7e",
+          "blame_subject": "2026-06-20|WP-KERNEL-011 MT-003: dark/light theme token system",
+          "blame_mts": [
+            "MT-003"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/theme/egui_apply.rs:52:39",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "falling back to `f32` as the trait bound `f32: From<f64>` is not satisfied",
+          "blame_commit": "97d82ab7e",
+          "blame_subject": "2026-06-20|WP-KERNEL-011 MT-003: dark/light theme token system",
+          "blame_mts": [
+            "MT-003"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/code_editor/find_replace.rs:165:9",
+          "lint": "clippy::unnecessary-sort-by",
+          "message": "consider using `sort_by_key`",
+          "blame_commit": "f1e0114a9",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-004): in-file find/replace with regex (FindEngine + find bar)",
+          "blame_mts": [
+            "MT-004"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/code_editor/signature_help.rs:730:17",
+          "lint": "clippy::collapsible-match",
+          "message": "this `if` can be collapsed into the outer `match`",
+          "blame_commit": "9d87bdad4",
+          "blame_subject": "2026-06-24|feat(WP-KERNEL-012 MT-047): signature help (parameter hints)",
+          "blame_mts": [
+            "MT-047"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/diagnostics/survivor_forward.rs:222:5",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "consider using `sort_by_key`",
+          "blame_commit": "097d6887e",
+          "blame_subject": "2026-06-28|feat(WP-KERNEL-012 MT-093): Palmistry durable survivor store + recovery-time FR forward",
+          "blame_mts": [
+            "MT-093"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/graph/wiki_page_panel.rs:647:5",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this function has too many arguments (11/7)",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/mcp/action.rs:248:16",
+          "lint": "clippy::unnecessary-map-or",
+          "message": "this `map_or` can be simplified",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/mcp/action.rs:251:16",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this `map_or` can be simplified",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/mcp/action.rs:254:16",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this `map_or` can be simplified",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/mcp/action.rs:257:16",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this `map_or` can be simplified",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/mcp/action.rs:260:16",
+          "lint": "(continuation of the preceding lint group)",
+          "message": "this `map_or` can be simplified",
+          "blame_commit": "7e6db40bc",
+          "blame_subject": "2026-08-02|fix(wp-012): integrate v4 source-bound remediation",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs:454:5",
+          "lint": "clippy::explicit-counter-loop",
+          "message": "the variable `number` is used as a loop counter",
+          "blame_commit": "8ebb0c9ac",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-012): WYSIWYG rich-text renderer on egui LayoutJob+Galley",
+          "blame_mts": [
+            "MT-012"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs:4862:33",
+          "lint": "clippy::unnecessary-unwrap",
+          "message": "called `expect` on `state.properties` after checking its variant with `is_some`",
+          "blame_commit": "7521a520b",
+          "blame_subject": "2026-06-22|feat(WP-KERNEL-012 MT-017): document properties panel (native rich-text editor)",
+          "blame_mts": [
+            "MT-017"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/settings_editor_section.rs:454:41",
+          "lint": "clippy::redundant-guards",
+          "message": "redundant guard",
+          "blame_commit": "d896bbd99",
+          "blame_subject": "2026-08-05|WP-KERNEL-012 MT-027 V5: terminal canonical Argus receipts + narrowed proof gate",
+          "blame_mts": [
+            "MT-027"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/find_in_files.rs:6923:79",
+          "lint": "clippy::redundant-closure",
+          "message": "redundant closure",
+          "blame_commit": "b4ba94a8a",
+          "blame_subject": "2026-09-03|fix(native): stable egui ids for saved-search rows so Remove terminalizes",
+          "blame_mts": [],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        },
+        {
+          "location": "src/frontend/handshake_native/src/mcp/action.rs:4936:9",
+          "lint": "clippy::assertions-on-constants",
+          "message": "this assertion has a constant value",
+          "blame_commit": "0a1b35aa2",
+          "blame_subject": "2026-08-06|fix(WP-KERNEL-012) MT-113: bound author_id composition so user content cannot silently disable completion tokens",
+          "blame_mts": [
+            "MT-113"
+          ],
+          "classification": "PRE_EXISTING_OUTSIDE_THIS_MT"
+        }
+      ],
+      "lint_histogram": {
+        "float_literal_f32_fallback": 37,
+        "needless_borrow": 5,
+        "unnecessary_map_or": 5,
+        "doc_lazy_continuation": 3,
+        "too_many_arguments": 3,
+        "unnecessary_lazy_evaluations": 2,
+        "unnecessary_sort_by": 2,
+        "result_large_err": 2,
+        "bind_instead_of_map": 1,
+        "unnecessary_to_owned": 1,
+        "assertions_on_constants": 1,
+        "collapsible_match": 1,
+        "explicit_counter_loop": 1,
+        "redundant_guards": 1,
+        "redundant_closure": 1,
+        "filter_next": 1,
+        "unnecessary_unwrap": 1
+      },
+      "toolchain_note": "rustc/clippy 1.97.1 (rust-toolchain.toml at ba03f563 pins 1.97.1; the pin landed in cc55b8fd 2026-08-16, after most blamed commits). float_literal_f32_fallback is a rustc future-incompat lint (rust-lang/rust#154024) elevated to error by -D warnings; the other 31 are clippy lints.",
+      "all_targets_note": "--all-targets aborted after the lib and lib-test targets failed, so the crate's bin and integration-test targets were NOT lint-checked; 68 is a floor, not the full count."
+    },
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "evidence": "own grep WP-KERNEL-012/MT-079/wpv-v6/logs/07_static_escape_grep_three_mts.txt over the three MTs' allowed source/test paths: 4 hits, all doc comments (app.rs:14825, app.rs:23352, editor_pane_factories.rs:41, editor_pane_factories.rs:1784); no escape-hatch variant reachable from a proof path. Consistent with validation_v5 static_escape_grep_cprime.txt"
+      },
+      "sub_rule_2": {
+        "result": "PASS_FOR_REUSED_ROWS; NOT_REACHED_FOR_MT-088_LIVE_HALF",
+        "evidence": "reused validation_v5 validator rows reached the in-process production egui/AccessKit surface and the Handshake-managed embedded SurrealDB via the owned C-prime handshake_core.exe; the halves executed here (clippy/build) touch no managed resource by design; the MT-088 live Palmistry/SurrealDB half never reached a resource (failed at the git provenance gate)"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "evidence": "claimed_by / ready_for_validation_by are KERNEL_BUILDER actors; validated_by = WP_VALIDATOR-C079-20260917-145500 (distinct); completed_by stays null on FAIL"
+      },
+      "overall": "FAIL_V6: executed halves recorded; see resolved_prior_findings"
+    },
+    "remediation_required": [
+      {
+        "id": "MT-079-R6-1",
+        "class": "PRODUCT_HYGIENE_DEFECT",
+        "severity": "BLOCKING",
+        "clause": "clippy `--all-targets -D warnings` clean",
+        "what": "Crate handshake-native is not clippy-clean at ba03f563 under the pinned 1.97.1 toolchain: 68 errors (floor; bins/tests unchecked).",
+        "in_scope_fix": "Fix the 20 sites inside MT-079 allowed_paths: src/app.rs:108:5,109:5,110:5 (doc_lazy_continuation), 614:21,617:21 (unnecessary_lazy_evaluations), 11587:77 (unnecessary_to_owned), 29207:36 (bind_instead_of_map), 32496:25 (filter_next), 33109:5 (too_many_arguments); src/backend_client.rs:4264:27,4265:32,4266:35,4267:35,4268:29 (needless_borrow), 6582:6,6583:16 (result_large_err), 8284:5 (too_many_arguments); src/code_editor/panel.rs:11127:61,11225:44,12610:39 (float_literal_f32_fallback).",
+        "cross_mt": "The remaining 48 sites are outside MT-079 allowed_paths (blamed to MT-003/004/008/012/014/015/017/021/026/027/047/054/055/057/059/060/061/076/093/098/101/103/113 and maintenance commits); the Orchestrator routes them to those owners. The crate-level clause cannot go green until all 68 (plus any bin/test-target errors surfaced once lib passes) are fixed.",
+        "test_anchor": "Rerun exactly, from src/frontend/handshake_native with an external WP/MT/owner CARGO_TARGET_DIR and toolchain 1.97.1: `cargo clippy -p handshake-native --all-targets -j 4 -- -D warnings` -> must exit 0 with zero errors; then `cargo build -p handshake-native --lib --bins -j 4` -> exit 0. Do NOT add crate-level #[allow] or weaken -D warnings; fix the sites (e.g. explicit `_f32` suffixes for the float_literal_f32_fallback sites).",
+        "evidence": "WP-KERNEL-012/MT-079/wpv-v6/logs/01_clippy_native_all_targets_D_warnings.log (per-error, blame-attributed list: WP-KERNEL-012/MT-079/wpv-v6/logs/01_clippy_errors_attributed.json)"
+      }
+    ],
+    "residual_uncertainty": [
+      {
+        "item": "bin/test-target clippy count",
+        "detail": "unknown until the lib target passes; the 68 is a floor"
+      }
+    ],
+    "residue": {
+      "lane_runtime_entries": 0,
+      "lane_workspace_dirs": "run-01..run-06 (empty; created by the runner)",
+      "lane_tmp": "runner scripts only (run-cargo.ps1, append-row.js, extract-clippy.js, write-v6.js)",
+      "target_additions": "handshake-native lib/bin/test artifacts + palmistry.exe under MT-148/wpv-v2/target (retained for compatible reuse)",
+      "processes_leaked": 0,
+      "external_test_artifacts": "none written under handshake-test by this session (the ignored test failed before creating its run dir)"
+    },
+    "host_observations": {
+      "sole_user": "Operator build host; only the Operator's foreign cargo/rustc/link processes observed (2-9 during the 12-minute WAIT window before idx=01; 0 before idx=02..04)",
+      "ram_gb": 128,
+      "free_ram_mb_observed": [
+        115757,
+        115536,
+        116130
+      ],
+      "disk": "D: SATA HDD (disk-bound); ~2.28 TB free at lane open",
+      "cargo_exclusivity": "polled to zero cargo/rustc/link before every cargo command; -j 4; one command at a time; WAIT/CARGO_FREE/PROGRESS lines in WP-KERNEL-012/MT-079/wpv-v6/00-lane.txt",
+      "walls_s": {
+        "clippy": 155,
+        "build_lib_bins": 183,
+        "build_palmistry": 34,
+        "test_no_run": 126,
+        "ignored_test_attempt": 0,
+        "ignored_test_solo_rerun": 0
+      },
+      "target_growth_note": "MT-148/wpv-v2 target reused (30 GB at open); handshake-native, palmistry and test_backend_down_responsive artifacts added; no cargo clean; nothing deleted",
+      "live_tree": "wtc-native-editors-v1 HEAD 767c5c4b, branch feat/WP-KERNEL-012, porcelain 3 lines at open (logs/000_live_tree_porcelain_start.txt); not built from, not written to; git blame/log/cat-file object reads only",
+      "c_drive": "no output written to C:; scripts, logs, tmp, runtime, workspace all under WP-KERNEL-012/MT-079/wpv-v6",
+      "headless": "the ignored test re-execs itself with CREATE_NO_WINDOW; no window created; no focus stolen; no palmistry/handshake_core process leaked (verified 0 after both attempts)"
+    },
+    "completed_by_rule": "completed_by is set only on PASS and must differ from claimed_by; left null (FAIL)",
+    "next_actor": "KERNEL_BUILDER",
+    "no_context_instruction": "FAIL_V6 by WP_VALIDATOR-C079-20260917-145500 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates every item in validation_v6.remediation_required inside this MT's allowed_paths, the Orchestrator routes the cross-MT items to their blamed owners, and the MT returns READY_FOR_VALIDATION_V7 with the exact rerun commands listed there."
+  },
+  "validation_v6_transition": {
+    "from_status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "to_status": "FAIL_V6",
+    "by": "WP_VALIDATOR-C079-20260917-145500",
+    "at_utc": "2026-09-17T15:09:46.597Z",
+    "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "record": "validation_v6",
+    "reason": "FAIL_V6 at C-prime: the PT-079-F clippy half is RED (68 errors under -D warnings with the pinned 1.97.1 toolchain; 20 sit in MT-079 allowed_paths app.rs/backend_client.rs/code_editor/panel.rs, 0 introduced by MT-079 commits, 48 outside); the PT-079-F cargo build --lib --bins half is GREEN (exit 0, handshake-native.exe produced). validation_v5 rows test_theme 170, test_top_menu_bar 172, test_quick_"
   }
 }
