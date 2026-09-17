@@ -42,6 +42,15 @@ struct PassageIdRow {
     created_at: surrealdb::types::Datetime,
 }
 
+/// Row shape of the evidence-ref reverse lookup, which projects only the
+/// passage id (no `created_at` exists on `knowledge_passage_evidence`, and the
+/// GROUP BY projection carries none). MT-141 V2-R2: sharing `PassageIdRow`
+/// here made every citing-passage read fail to deserialize.
+#[derive(SurrealValue)]
+struct PassageRefRow {
+    passage_id: String,
+}
+
 /// List the passage ids of a workspace (newest first), then load each through
 /// the committed passage store so the typed `KnowledgeMemoryPassage` (with its
 /// ranking features / retrieval mode / freshness / compaction policy) is used —
@@ -131,7 +140,7 @@ pub async fn list_passages_citing_claim(
     let bindings = PassageClaimBindings {
         claim: RecordId::new("knowledge_claims", claim_id),
     };
-    let rows: Vec<PassageIdRow> = db
+    let rows: Vec<PassageRefRow> = db
         .storage()
         .with_data_operation(move |database| {
             Box::pin(async move {

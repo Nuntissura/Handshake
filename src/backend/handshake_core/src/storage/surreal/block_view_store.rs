@@ -212,6 +212,36 @@ async fn existing_view(
     .map_err(map_err)
 }
 
+#[derive(SurrealValue)]
+struct EntityLookupBinding {
+    workspace: RecordId,
+    block_id: String,
+}
+
+#[derive(SurrealValue)]
+struct EntityIdRow {
+    entity_id: String,
+}
+
+async fn existing_block_entity_id(
+    db: &SurrealDataContext<'_>,
+    workspace_id: &str,
+    block_id: &str,
+) -> StorageResult<Option<String>> {
+    let row: Option<EntityIdRow> = db
+        .query_first(
+            "SELECT entity_id FROM knowledge_entities WHERE workspace_id = $workspace \
+             AND entity_kind = 'loom_block' AND entity_key = $block_id LIMIT 1;",
+            EntityLookupBinding {
+                workspace: thing(WORKSPACES, workspace_id),
+                block_id: block_id.to_owned(),
+            },
+        )
+        .await
+        .map_err(map_err)?;
+    Ok(row.map(|row| row.entity_id))
+}
+
 async fn prior_create_publication(
     db: &SurrealDataContext<'_>,
     workspace_id: &str,
@@ -307,8 +337,8 @@ const CREATE_TRANSACTION: &str = "BEGIN TRANSACTION; \
     UPSERT $search SET block_id = $block, workspace_id = $workspace, content_type = 'view_def', search_text = $search_text, indexed_at = time::now(); \
     CREATE $bridge_event.record CONTENT { event_id: $bridge_event.event_id, event_version: $bridge_event.event_version, kernel_task_run_id: $bridge_event.kernel_task_run_id, session_run_id: $bridge_event.session_run_id, aggregate_type: $bridge_event.aggregate_type, aggregate_id: $bridge_event.aggregate_id, idempotency_key: $bridge_event.idempotency_key, event_type: $bridge_event.event_type, actor_kind: $bridge_event.actor_kind, actor_id: $bridge_event.actor_id, causation_id: $bridge_event.causation_id, correlation_id: $bridge_event.correlation_id, payload_hash: $bridge_event.payload_hash, source_component: $bridge_event.source_component, payload: $bridge_event.payload, wsids: $bridge_event.wsids, authority_resource_id: $bridge_event.authority_resource_id, authority_session_id: $bridge_event.authority_session_id, authority_capability_id: $bridge_event.authority_capability_id, authority_action: $bridge_event.authority_action, created_at: $bridge_event.created_at }; \
     CREATE $mutation_event.record CONTENT { event_id: $mutation_event.event_id, event_version: $mutation_event.event_version, kernel_task_run_id: $mutation_event.kernel_task_run_id, session_run_id: $mutation_event.session_run_id, aggregate_type: $mutation_event.aggregate_type, aggregate_id: $mutation_event.aggregate_id, idempotency_key: $mutation_event.idempotency_key, event_type: $mutation_event.event_type, actor_kind: $mutation_event.actor_kind, actor_id: $mutation_event.actor_id, causation_id: $mutation_event.causation_id, correlation_id: $mutation_event.correlation_id, payload_hash: $mutation_event.payload_hash, source_component: $mutation_event.source_component, payload: $mutation_event.payload, wsids: $mutation_event.wsids, authority_resource_id: $mutation_event.authority_resource_id, authority_session_id: $mutation_event.authority_session_id, authority_capability_id: $mutation_event.authority_capability_id, authority_action: $mutation_event.authority_action, created_at: $mutation_event.created_at }; \
-    CREATE $entity CONTENT { entity_id: $entity_id, workspace_id: $workspace, entity_kind: 'loom_block', entity_key: record::id($block), display_name: $display_name, detection_provenance: $detection_provenance, lifecycle_state: 'active', updated_at: $content.updated_at }; \
-    CREATE $bridge CONTENT { block_id: $block, workspace_id: $workspace, entity_id: $entity, index_event_id: $bridge_event.record, updated_at: $content.updated_at }; \
+    UPSERT $entity SET entity_id = $entity_id, workspace_id = $workspace, entity_kind = 'loom_block', entity_key = record::id($block), display_name = $display_name, detection_provenance = $detection_provenance, lifecycle_state = 'active', updated_at = $content.updated_at; \
+    UPSERT $bridge SET block_id = $block, workspace_id = $workspace, entity_id = $entity, index_event_id = $bridge_event.record, updated_at = $content.updated_at; \
     CREATE $outbox CONTENT $outbox_content; \
     UPDATE $block SET event_ledger_event_id = $mutation_event.record RETURN AFTER; \
     COMMIT TRANSACTION;";
@@ -476,7 +506,14 @@ pub(crate) async fn create_block_view(
         block_id,
         "create_view_definition",
     )?)?;
-    let entity_id = format!("KEN-{}", Uuid::now_v7().simple());
+    // The knowledge entity's natural identity is (workspace, 'loom_block', block_id)
+    // (`uq_knowledge_entities_identity`): re-bridging the same block id, including a
+    // delete/recreate incarnation, reuses the retained entity and updates it in place
+    // instead of creating a duplicate identity (0292 bridge contract; `bridge_store.rs`
+    // does the same). MT-141 V2 lib red: mt027 reincarnation collided on the index.
+    let entity_id = existing_block_entity_id(db, workspace_id, block_id)
+        .await?
+        .unwrap_or_else(|| format!("KEN-{}", Uuid::now_v7().simple()));
     let (_, bridge_event) =
         event_ledger::prepare_event(bridge_event(&metadata, workspace_id, block_id, &entity_id)?)?;
     let display_name = title

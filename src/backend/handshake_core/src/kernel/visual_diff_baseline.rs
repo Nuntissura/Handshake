@@ -27,7 +27,8 @@ use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid, Va
 use uuid::Uuid;
 
 use crate::atelier::{
-    atelier_event_sql, reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
+    atelier_event_sql, reject_legacy_runtime_ref, uuid_from_record_link, AtelierError,
+    AtelierResult, AtelierStore,
 };
 
 use super::visual_debugging_loop::{
@@ -241,7 +242,7 @@ impl From<BaselineRow> for VisualDiffBaselineRecord {
 struct RequestRow {
     request_id: SurrealUuid,
     surface_id: String,
-    baseline_id: Option<SurrealUuid>,
+    baseline_id: Option<RecordId>,
     previous_screenshot_ref: Option<String>,
     candidate_screenshot_ref: String,
     comparison_mode: String,
@@ -267,7 +268,7 @@ impl TryFrom<RequestRow> for VisualDiffRequestRecord {
             })?;
         let reference = match (row.baseline_id, row.previous_screenshot_ref) {
             (Some(baseline_id), None) => VisualDiffReference::Baseline {
-                baseline_id: baseline_id.into(),
+                baseline_id: uuid_from_record_link("baseline_id", &baseline_id)?,
             },
             (None, Some(previous_screenshot_ref)) => VisualDiffReference::PreviousScreenshot {
                 previous_screenshot_ref,
@@ -368,7 +369,7 @@ struct RequestBindings {
     record_id: RecordId,
     request_id: SurrealUuid,
     surface_id: String,
-    baseline_id: Option<SurrealUuid>,
+    baseline_id: Option<RecordId>,
     previous_screenshot_ref: Option<String>,
     candidate_screenshot_ref: String,
     comparison_mode: String,
@@ -538,7 +539,13 @@ impl AtelierStore {
                     ),
                     request_id: request_id.into(),
                     surface_id: new.surface_id.clone(),
-                    baseline_id: baseline_id.map(Into::into),
+                    // `kernel_visual_diff_request.baseline_id` is a record link
+                    // (`option<record<kernel_visual_diff_baseline>>`, REFERENCE ON
+                    // DELETE REJECT) so the schema keeps referential integrity; the
+                    // writer binds the link, never the bare uuid.
+                    baseline_id: baseline_id.map(|id| {
+                        RecordId::new("kernel_visual_diff_baseline", SurrealUuid::from(id))
+                    }),
                     previous_screenshot_ref,
                     candidate_screenshot_ref: new.candidate_screenshot_ref.clone(),
                     comparison_mode: new.comparison_mode.as_token().to_owned(),

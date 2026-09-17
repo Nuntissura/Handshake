@@ -1396,6 +1396,11 @@ struct EventLedgerWriteRow {
     payload_hash: String,
     source_component: String,
     payload: Value,
+    /// MT-109 authority scope (`array<string>`, SCHEMAFULL, no DEFAULT). The
+    /// swarm receipts are appended without a record-user authority scope, so
+    /// the array is present and empty, mirroring `storage/surreal/event_ledger.rs`;
+    /// omitting it made every quiet-work receipt append fail (N1B-P3-F500).
+    wsids: Vec<String>,
     created_at: DateTime<Utc>,
 }
 
@@ -1781,6 +1786,7 @@ fn event_ledger_write_row(
         payload_hash: event.payload_hash.clone(),
         source_component: event.source_component.clone(),
         payload: event.payload.clone(),
+        wsids: Vec::new(),
         created_at: kernel_event.created_at,
     }
 }

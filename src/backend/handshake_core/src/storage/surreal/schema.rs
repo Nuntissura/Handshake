@@ -53,8 +53,14 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // atelier_media_source_provenance_ref.asset_id (previous value
 // 5cc902f3afe7691b07338a6170a16a35535e6ff40a1c119a4ccc65c3464c7779, the MT-150 pin, retained as
 // PRE_MT141_GENERATED_SURREALQL_SHA256).
+// MT-141 V2-R2 re-pin: schema.surql changed loom_blocks.pin_order (ASSERT dropped), widened the
+// knowledge_quick_switcher_recents kind unions, and gained the two
+// knowledge_crdt_ai_edit_proposals applied-binding fields, and loom_block_view_fr_outbox.block_id
+// lost its cascading REFERENCE (previous value
+// 05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd, the MT-141 R9 pin; the
+// R9 hop was never a released lineage, so the MT-150 pin remains the allowlisted predecessor).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd";
+    "e9a08258c5c0d86bfff6e4dcbdc4b086e0dafd4fa9eaec8735026c37088bcad1";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -65,8 +71,12 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // MT-141 re-pin: catalog identities gained the atelier_saved_search_retrieval_projection objects and
 // the changed atelier_media_source_provenance_ref.asset_id definition (previous value
 // 70e5b64ba1141642e37bf7fff598b596f82cc7520cec40829a442fb2cced2754, MT-150).
+// MT-141 V2-R2 re-pin: catalog identities changed for loom_blocks.pin_order, the
+// knowledge_quick_switcher_recents kind unions, and gained the two ai_edit applied-binding
+// fields (previous value b90f7345927316be15eb3f7bca0ba033df064d16326d37e3942677ecb84ce99c, the
+// MT-141 R9 pin); observed by `declarative_schema_catalog_is_complete_and_content_sensitive`.
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "b90f7345927316be15eb3f7bca0ba033df064d16326d37e3942677ecb84ce99c";
+    "17c59e4a42384d4264f8e2568bddc4c18c2aa588a3447fc89def6ff231d642a7";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -96,8 +106,14 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // PRE_MT141_SCHEMA_INFO_SHA256); observed by `mt139_current_schema_info_pin_matches_fresh_mem_catalog`
 // and reached identically by the in-place MT-141 upgrade
 // (`mt141_exact_mt150_pin_upgrade_moves_provenance_ref_constraint_and_restarts_current`).
+// MT-141 V2-R2 re-pin: live STRUCTURE fingerprint with the pin_order ASSERT dropped, the
+// quick-switcher kind unions widened, the ai_edit applied-binding fields applied and the
+// block-view outbox `block_id` REFERENCE dropped (previous value
+// 91ed6b88d18917d21bb31bfde164ba0d46c8e8f17e87f36f34ca8ff762f12ff6, the MT-141 R9 pin);
+// observed by `mt139_current_schema_info_pin_matches_fresh_mem_catalog` (kb-v2 run 41,
+// MT139_CURRENT_SCHEMA_INFO_SHA256).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "91ed6b88d18917d21bb31bfde164ba0d46c8e8f17e87f36f34ca8ff762f12ff6";
+    "e2a125fd980b463ac63fb857acd919786031d9dc04ce0d88bf9663ae0824944f";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -185,16 +201,73 @@ DEFINE INDEX OVERWRITE idx_atelier_saved_search_retrieval_projection_search ON T
 const MT141_PROVENANCE_REF_ASSERT_LINE: &str = "\
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) AND ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $this.run_ref != NONE) REFERENCE ON DELETE CASCADE;
 ";
-/// The complete MT-141 lineage delta: the provenance-ref `asset_id` line followed by the
-/// saved-search retrieval projection block.
+/// MT-141 V2-R2 (validation_v2 V2-F02) lineage additions, each a `DEFINE FIELD OVERWRITE`
+/// (idempotent, no backfill). Every line must stay identical to `schema.surql` (proven by
+/// `mt141_upgrade_statements_match_schema`).
+///
+/// * `loom_blocks.pin_order` loses the `>= 0` ASSERT the port introduced: the storage contract
+///   (`set_loom_block_pin_order(Option<i32>)`, MT-183) is a signed user-controlled ordinal and
+///   "move to front" is written as a negative ordinal; the Master Spec is silent on the domain,
+///   so the pre-port product behaviour is the authority and the ASSERT was the drift.
+/// * `knowledge_quick_switcher_recents.{source_kind,result_kind}` are widened to the product's
+///   typed `LoomSearchSourceKind` / `LoomSearchResultKind` unions (`storage/loom.rs`); the
+///   schema literal unions were a stale subset and rejected `file` / `wiki_page` recents.
+/// * `knowledge_crdt_ai_edit_proposals.{applied_update_id,applied_update_sha256}` are the
+///   authority-hardening #5 binding columns the writer (`bind_applied_ai_edit_update`) sets and
+///   the reader projects; they were lost in the port. The sha256 ASSERT is the former 0192
+///   CHECK backstop: a bound hash must equal the approved `diff_sha256`.
+const MT141_LOOM_PIN_ORDER_LINE: &str = "\
+DEFINE FIELD OVERWRITE pin_order ON TABLE loom_blocks TYPE option<int>;
+";
+const MT141_QUICK_SWITCHER_SOURCE_KIND_LINE: &str = "\
+DEFINE FIELD OVERWRITE source_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'file' | 'tag_hub' | 'document' | 'symbol' | 'work_packet' | 'micro_task' | 'user_manual_page' | 'wiki_page';
+";
+const MT141_QUICK_SWITCHER_RESULT_KIND_LINE: &str = "\
+DEFINE FIELD OVERWRITE result_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'knowledge_entity' | 'user_manual_page' | 'wiki_page';
+";
+/// MT-027 (migration 0362, lost in the port): unpublished block-view audit intent must survive
+/// block deletion, so the outbox row's `block_id` is a plain record link with no existence
+/// assertion and no cascading reference.
+const MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE: &str = "\
+DEFINE FIELD OVERWRITE block_id ON TABLE loom_block_view_fr_outbox TYPE record<loom_blocks>;
+";
+const MT141_AI_EDIT_APPLIED_BINDING_LINES: &str = "\
+DEFINE FIELD OVERWRITE applied_update_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE applied_update_sha256 ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR ($value = $this.diff_sha256 AND $this.applied_update_id != NONE);
+";
+/// The complete MT-141 lineage delta: the provenance-ref `asset_id` line, the saved-search
+/// retrieval projection block, and the V2-R2 field definitions.
 fn mt141_upgrade_statements() -> String {
-    format!("{MT141_PROVENANCE_REF_ASSERT_LINE}{MT141_SAVED_SEARCH_PROJECTION_BLOCK}")
+    format!(
+        "{MT141_PROVENANCE_REF_ASSERT_LINE}{MT141_SAVED_SEARCH_PROJECTION_BLOCK}\
+{MT141_LOOM_PIN_ORDER_LINE}{MT141_QUICK_SWITCHER_SOURCE_KIND_LINE}\
+{MT141_QUICK_SWITCHER_RESULT_KIND_LINE}{MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE}\
+{MT141_AI_EDIT_APPLIED_BINDING_LINES}"
+    )
 }
 /// The MT-150-era `asset_id` definition, used only to reconstruct the exact MT-150 pin script
 /// in tests (`mt141_pin_schema`, `mt150_pin_schema`).
 #[cfg(test)]
 const PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE: &str = "\
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
+";
+/// The MT-150-era definitions the V2-R2 lines replace, used only to reconstruct the exact
+/// MT-150 pin script in tests (`mt141_pin_schema`).
+#[cfg(test)]
+const PRE_MT141_LOOM_PIN_ORDER_LINE: &str = "\
+DEFINE FIELD OVERWRITE pin_order ON TABLE loom_blocks TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+";
+#[cfg(test)]
+const PRE_MT141_QUICK_SWITCHER_SOURCE_KIND_LINE: &str = "\
+DEFINE FIELD OVERWRITE source_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'symbol' | 'work_packet' | 'micro_task' | 'user_manual_page';
+";
+#[cfg(test)]
+const PRE_MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE: &str = "\
+DEFINE FIELD OVERWRITE block_id ON TABLE loom_block_view_fr_outbox TYPE record<loom_blocks> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+";
+#[cfg(test)]
+const PRE_MT141_QUICK_SWITCHER_RESULT_KIND_LINE: &str = "\
+DEFINE FIELD OVERWRITE result_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'knowledge_entity' | 'user_manual_page';
 ";
 /// MT-150 upgrade statements: the durable EventLedger receipt binding on `loom_edges`, so a
 /// tag/mention edge create or delete carries the same atomic receipt linkage as `loom_blocks`
@@ -412,7 +485,9 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 // MT-150 re-pin: loom_edges.event_ledger_event_id (+1 field, +1 REFERENCE field, +1 explicit
 // record::exists assertion) and idx_loom_edges_event (+1 named index); no new table.
 const TABLE_DEFINITION_COUNT: usize = 293;
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3205;
+// MT-141 V2-R2 re-pin: +2 fields (knowledge_crdt_ai_edit_proposals.applied_update_id /
+// applied_update_sha256); pin_order and the quick-switcher kind unions changed in place.
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3207;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 239;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -439,8 +514,9 @@ const SOURCE_NAMED_INDEX_COUNT: usize = 555;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 260;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
-const REFERENCE_FIELD_COUNT: usize = 407;
-const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 406;
+// MT-141 V2-R2: loom_block_view_fr_outbox.block_id lost its cascading REFERENCE (MT-027 0362).
+const REFERENCE_FIELD_COUNT: usize = 406;
+const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 405;
 const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 229;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
@@ -869,8 +945,12 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH observed).
     // FOURTH pin (MT-152, I-152-2) was the catalog WITH MT-151's `loom_blocks.journal_key` field
     // and `uq_loom_blocks_journal_key` index (previous value 77ab023e..., pinned at e9b81814).
+    // SIXTH pin (MT-141 V2-R2): `loom_blocks.pin_order` lost its `>= 0` ASSERT (previous value
+    // dc04737a586a4b743e727a2ff215a97e09ab7553df2ef33bc4d045f6a59b1676, the MT-109 pin; kb-v2
+    // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
+    // observed).
     const EXPECTED_CATALOG_SHA256: &str =
-        "dc04737a586a4b743e727a2ff215a97e09ab7553df2ef33bc4d045f6a59b1676";
+        "304dda4465a2a46a68feb3f48dba14ac1df8192daa4a8d6ea72cc72609ec3964";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -4570,12 +4650,12 @@ mod tests {
                         })
                         .collect::<Vec<_>>()
                 );
-                // Response index 170 is the injected THROW immediately before the schema-state
+                // Response index 176 is the injected THROW immediately before the schema-state
                 // UPDATE: three transaction/precondition statements, 144 authority statements,
                 // two Loom backfill statements, the two MT-150 `loom_edges` receipt DDL
-                // statements and the 19 MT-141 DDL statements (provenance-ref `asset_id` line plus the
-                // saved-search retrieval projection block) precede it. The remaining tail statements
-                // must be cancelled.
+                // statements and the 25 MT-141 DDL statements (provenance-ref `asset_id` line, the
+                // saved-search retrieval projection block and the six V2-R2 field lines) precede
+                // it. The remaining tail statements must be cancelled.
                 let primary_errors = rollback_errors
                     .iter()
                     .filter(|(_, error)| {
@@ -4586,9 +4666,9 @@ mod tests {
                 assert_eq!(
                     primary_errors,
                     vec![
-                        (170, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
-                        (171, "The query was not executed due to a cancelled transaction"),
-                        (172, "Cannot COMMIT: the transaction was aborted due to a prior error"),
+                        (176, "An error occurred: MT109_INJECTED_AUTHORITY_ROLLBACK"),
+                        (177, "The query was not executed due to a cancelled transaction"),
+                        (178, "Cannot COMMIT: the transaction was aborted due to a prior error"),
                     ],
                     "injected rollback did not fail at the exact pre-marker-update statement"
                 );
@@ -4716,7 +4796,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "dc04737a586a4b743e727a2ff215a97e09ab7553df2ef33bc4d045f6a59b1676"
+            "304dda4465a2a46a68feb3f48dba14ac1df8192daa4a8d6ea72cc72609ec3964"
         );
     }
 
@@ -6092,12 +6172,48 @@ mod tests {
             SCHEMA.matches(MT141_SAVED_SEARCH_PROJECTION_BLOCK).count(),
             1
         );
+        for (current, previous) in [
+            (MT141_LOOM_PIN_ORDER_LINE, PRE_MT141_LOOM_PIN_ORDER_LINE),
+            (
+                MT141_QUICK_SWITCHER_SOURCE_KIND_LINE,
+                PRE_MT141_QUICK_SWITCHER_SOURCE_KIND_LINE,
+            ),
+            (
+                MT141_QUICK_SWITCHER_RESULT_KIND_LINE,
+                PRE_MT141_QUICK_SWITCHER_RESULT_KIND_LINE,
+            ),
+            (
+                MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
+                PRE_MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
+            ),
+        ] {
+            assert_eq!(SCHEMA.matches(current).count(), 1, "MT-141 line drifted: {current}");
+            assert_eq!(SCHEMA.matches(previous).count(), 0);
+        }
+        assert_eq!(
+            SCHEMA.matches(MT141_AI_EDIT_APPLIED_BINDING_LINES).count(),
+            1
+        );
         let pinned = SCHEMA
             .replace(
                 MT141_PROVENANCE_REF_ASSERT_LINE,
                 PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE,
             )
-            .replace(MT141_SAVED_SEARCH_PROJECTION_BLOCK, "");
+            .replace(MT141_SAVED_SEARCH_PROJECTION_BLOCK, "")
+            .replace(MT141_LOOM_PIN_ORDER_LINE, PRE_MT141_LOOM_PIN_ORDER_LINE)
+            .replace(
+                MT141_QUICK_SWITCHER_SOURCE_KIND_LINE,
+                PRE_MT141_QUICK_SWITCHER_SOURCE_KIND_LINE,
+            )
+            .replace(
+                MT141_QUICK_SWITCHER_RESULT_KIND_LINE,
+                PRE_MT141_QUICK_SWITCHER_RESULT_KIND_LINE,
+            )
+            .replace(
+                MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
+                PRE_MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
+            )
+            .replace(MT141_AI_EDIT_APPLIED_BINDING_LINES, "");
         assert_eq!(
             sha256_hex(pinned.as_bytes()),
             PRE_MT141_GENERATED_SURREALQL_SHA256,
@@ -6123,7 +6239,9 @@ mod tests {
                 .collect()
         }
         let upgrade = statements(&mt141_upgrade_statements());
-        assert_eq!(upgrade.len(), 1 + 18);
+        // provenance asset_id + 18 saved-search statements + pin_order + 2 quick-switcher
+        // kinds + the block-view outbox block_id + 2 applied-binding fields (V2-R2).
+        assert_eq!(upgrade.len(), 1 + 18 + 1 + 2 + 1 + 2);
         let schema = statements(SCHEMA);
         for statement in &upgrade {
             assert!(

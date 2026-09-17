@@ -1009,7 +1009,20 @@ mod tests {
         let (ddl, _) = after_start
             .split_once("-- 0019_kernel_session_queue")
             .expect("compiled schema contains EventLedger end marker");
-        let ddl = ddl.to_owned();
+        let mut ddl = ddl.to_owned();
+        // The MT-109 authority-scope fields of `kernel_event_ledger` (`authority_*`,
+        // `wsids`) are defined at the end of the compiled schema, outside the 0018
+        // slice, and the writer always binds them; include every field definition
+        // the compiled schema declares for the table (MT-141 V2-R2).
+        for line in include_str!("schema.surql").lines() {
+            if line.starts_with("DEFINE FIELD OVERWRITE")
+                && line.contains(" ON TABLE kernel_event_ledger TYPE")
+                && !ddl.contains(line)
+            {
+                ddl.push('\n');
+                ddl.push_str(line);
+            }
+        }
         storage
             .with_admin_operation(move |database| {
                 Box::pin(async move {

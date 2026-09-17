@@ -447,7 +447,7 @@ DEFINE FIELD OVERWRITE original_filename ON TABLE loom_blocks TYPE option<string
 DEFINE FIELD OVERWRITE content_hash ON TABLE loom_blocks TYPE option<string>;
 DEFINE FIELD OVERWRITE pinned ON TABLE loom_blocks TYPE bool DEFAULT false;
 DEFINE FIELD OVERWRITE favorite ON TABLE loom_blocks TYPE bool DEFAULT false;
-DEFINE FIELD OVERWRITE pin_order ON TABLE loom_blocks TYPE option<int> ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD OVERWRITE pin_order ON TABLE loom_blocks TYPE option<int>;
 DEFINE FIELD OVERWRITE journal_date ON TABLE loom_blocks TYPE option<string>;
 DEFINE FIELD OVERWRITE last_job_id ON TABLE loom_blocks TYPE option<string>;
 DEFINE FIELD OVERWRITE last_workflow_id ON TABLE loom_blocks TYPE option<string>;
@@ -3821,6 +3821,8 @@ DEFINE FIELD OVERWRITE recorded_event_id ON TABLE knowledge_crdt_ai_edit_proposa
 DEFINE FIELD OVERWRITE decided_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE promotion_requested_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE promotion_accepted_event_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<record<kernel_event_ledger>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE applied_update_id ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+DEFINE FIELD OVERWRITE applied_update_sha256 ON TABLE knowledge_crdt_ai_edit_proposals TYPE option<string> ASSERT $value = NONE OR ($value = $this.diff_sha256 AND $this.applied_update_id != NONE);
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE knowledge_crdt_ai_edit_proposals TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_knowledge_crdt_ai_edit_proposals ON TABLE knowledge_crdt_ai_edit_proposals FIELDS proposal_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_knowledge_crdt_ai_edit_proposals_document ON TABLE knowledge_crdt_ai_edit_proposals FIELDS crdt_document_id, review_state, created_at_utc;
@@ -4646,9 +4648,9 @@ DEFINE INDEX OVERWRITE idx_agent_cloud_assistance_receipts_review ON TABLE knowl
 DEFINE TABLE OVERWRITE knowledge_quick_switcher_recents SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_quick_switcher_recents TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE hit_key ON TABLE knowledge_quick_switcher_recents TYPE string ASSERT $value = string::concat($this.source_kind, ':', $this.ref_id);
-DEFINE FIELD OVERWRITE source_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'symbol' | 'work_packet' | 'micro_task' | 'user_manual_page';
+DEFINE FIELD OVERWRITE source_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'file' | 'tag_hub' | 'document' | 'symbol' | 'work_packet' | 'micro_task' | 'user_manual_page' | 'wiki_page';
 DEFINE FIELD OVERWRITE ref_id ON TABLE knowledge_quick_switcher_recents TYPE string ASSERT string::trim($value) != '';
-DEFINE FIELD OVERWRITE result_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'knowledge_entity' | 'user_manual_page';
+DEFINE FIELD OVERWRITE result_kind ON TABLE knowledge_quick_switcher_recents TYPE 'loom_block' | 'knowledge_entity' | 'user_manual_page' | 'wiki_page';
 DEFINE FIELD OVERWRITE title ON TABLE knowledge_quick_switcher_recents TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE excerpt ON TABLE knowledge_quick_switcher_recents TYPE string DEFAULT '';
 DEFINE FIELD OVERWRITE metadata ON TABLE knowledge_quick_switcher_recents TYPE object FLEXIBLE DEFAULT {};
@@ -5196,7 +5198,7 @@ DEFINE INDEX OVERWRITE preference_change_receipts_history_idx ON TABLE preferenc
 DEFINE TABLE OVERWRITE loom_block_view_fr_outbox SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE event_id ON TABLE loom_block_view_fr_outbox TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_block_view_fr_outbox TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
-DEFINE FIELD OVERWRITE block_id ON TABLE loom_block_view_fr_outbox TYPE record<loom_blocks> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
+DEFINE FIELD OVERWRITE block_id ON TABLE loom_block_view_fr_outbox TYPE record<loom_blocks>;
 DEFINE FIELD OVERWRITE operation ON TABLE loom_block_view_fr_outbox TYPE 'create' | 'update';
 DEFINE FIELD OVERWRITE event ON TABLE loom_block_view_fr_outbox TYPE object FLEXIBLE;
 DEFINE FIELD OVERWRITE event.* ON TABLE loom_block_view_fr_outbox TYPE any;

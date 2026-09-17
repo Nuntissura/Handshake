@@ -886,6 +886,11 @@ struct KernelEventLedgerRow {
     payload_hash: String,
     source_component: String,
     payload: JsonValue,
+    /// MT-109 authority scope of the event (`array<string>`, SCHEMAFULL, no
+    /// DEFAULT): Flight Recorder system events carry no workspace scope, so
+    /// the array is present and empty, exactly as `storage/surreal/event_ledger.rs`
+    /// writes an unscoped append (MT-141 V2-R2 / N1B-P3-F500).
+    wsids: Vec<String>,
     created_at: DateTime<Utc>,
 }
 
@@ -941,6 +946,7 @@ async fn flush_batch(
             payload_hash,
             source_component: FR_EMITTER_SOURCE_COMPONENT.to_string(),
             payload: env.payload.clone(),
+            wsids: Vec::new(),
             created_at: env.queued_at,
         };
         let mut final_error = None;

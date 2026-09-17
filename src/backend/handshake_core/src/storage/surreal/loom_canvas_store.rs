@@ -1541,7 +1541,10 @@ async fn create_stage_canvas_card_attempt(
         h: card.h,
         z_index: i64::from(card.z_index),
         // RichDocument creation has no owner identity, so its same-id Loom
-        // projection retains the legacy HUMAN/anonymous attribution.
+        // projection retains the legacy HUMAN/anonymous attribution. The projection
+        // binds `source_rich_document_id` to the RichDocument it projects: MT-109's
+        // `mt109_loom_source_integrity` event refuses a same-id block without that
+        // link (HSK-MT109-LOOM-SOURCE-REQUIRED; MT-141 V2 red 420 / mt136 proof A).
         actor_id: None,
         actor_kind: "HUMAN".to_owned(),
         edit_event_id: document_metadata.edit_event_id.to_string(),
@@ -1587,6 +1590,7 @@ async fn create_stage_canvas_card_attempt(
                            owner_actor_id: NONE, deleted_at: NONE, created_at: $written_at, updated_at: $written_at \
                          }; \
                          CREATE $block CONTENT { block_id: $document_id, workspace_id: $workspace, \
+                           source_rich_document_id: $document, \
                            content_type: 'note', document_id: NONE, asset_id: NONE, title: $document_title, \
                            original_filename: NONE, content_hash: $content_sha256, pinned: false, favorite: false, \
                            pin_order: NONE, journal_date: NONE, last_job_id: NONE, last_workflow_id: NONE, \
@@ -1898,6 +1902,9 @@ pub(crate) async fn compensate_stage_canvas_card(
 
 /// One attempt: every ownership read and the guarded transaction, re-run
 /// together on an engine commit conflict.
+/// Compensation deletes the projection block BEFORE its RichDocument: the block's
+/// `source_rich_document_id` link is `REFERENCE ON DELETE REJECT`, so the reverse order
+/// is refused by the engine once the stage card carries the MT-109 source link.
 async fn compensate_stage_canvas_card_attempt(
     storage: &SurrealStorage,
     ctx: &WriteContext,
@@ -2278,10 +2285,10 @@ async fn compensate_stage_canvas_card_attempt(
                          IF array::len((DELETE $entity RETURN BEFORE)) != 1 { \
                            THROW 'HSK-CANVAS-STAGE-COMPENSATION-DELETE'; \
                          }; \
-                         IF array::len((DELETE $document RETURN BEFORE)) != 1 { \
+                         IF array::len((DELETE $block RETURN BEFORE)) != 1 { \
                            THROW 'HSK-CANVAS-STAGE-COMPENSATION-DELETE'; \
                          }; \
-                         IF array::len((DELETE $block RETURN BEFORE)) != 1 { \
+                         IF array::len((DELETE $document RETURN BEFORE)) != 1 { \
                            THROW 'HSK-CANVAS-STAGE-COMPENSATION-DELETE'; \
                          }; \
                          COMMIT TRANSACTION;",
