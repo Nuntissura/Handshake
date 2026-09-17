@@ -182,6 +182,22 @@ fn claim_request(
     }
 }
 
+/// The cloud-assistance flow binds the claim to the MT the assistance and
+/// fallback-basis requests name (`MT-221`); `active_cloud_assistance_claim`
+/// requires `mt_id` to match (same predicate as the PostgreSQL-era lookup).
+/// The generic `claim_request` (MT-210) is for the ordinary claim proofs.
+fn cloud_claim_request(
+    workspace_id: &str,
+    scope: ClaimScope,
+    lane: AgentLaneIdentity,
+    suffix: &str,
+) -> WorkClaimRequest {
+    WorkClaimRequest {
+        mt_id: Some("MT-221".to_owned()),
+        ..claim_request(workspace_id, scope, lane, suffix)
+    }
+}
+
 fn checkpoint_request(
     lane: AgentLaneIdentity,
     workspace_id: &str,
@@ -535,7 +551,7 @@ async fn cloud_assistance_output_is_reviewable_attributed_and_non_authoritative(
     let workspace = format!("workspace-cloud-review-{}", Uuid::now_v7());
     let cloud = cloud_lane("review");
     let claim = store
-        .claim_work_surface(claim_request(
+        .claim_work_surface(cloud_claim_request(
             &workspace,
             ClaimScope::Workspace {
                 workspace_id: workspace.clone(),
@@ -594,7 +610,7 @@ async fn cloud_assistance_requires_cloud_owned_workspace_claim_and_valid_output_
     let workspace = format!("workspace-cloud-deny-{}", Uuid::now_v7());
     let cloud = cloud_lane("deny");
     let claim = store
-        .claim_work_surface(claim_request(
+        .claim_work_surface(cloud_claim_request(
             &workspace,
             ClaimScope::Workspace {
                 workspace_id: workspace.clone(),
@@ -653,7 +669,7 @@ async fn cloud_assistance_rejects_loose_or_replayed_fallback_basis() {
     let workspace = format!("workspace-cloud-basis-{}", Uuid::now_v7());
     let cloud = cloud_lane("basis");
     let claim = store
-        .claim_work_surface(claim_request(
+        .claim_work_surface(cloud_claim_request(
             &workspace,
             ClaimScope::Workspace {
                 workspace_id: workspace.clone(),
@@ -936,8 +952,20 @@ async fn swarm_dashboard_projection_totals_remain_authoritative_when_rows_are_li
     assert_eq!(projection.totals.claims, 2);
     assert_eq!(projection.claims.len(), 1);
     assert_eq!(projection.source_watermark.event_count, 1);
-    assert_eq!(projection.warnings.len(), 1);
-    assert_eq!(projection.warnings[0].code, "claims_truncated");
+    // The projection always carries the standing contract warning
+    // (`handoffs_without_workspace_source_ref_excluded`) and reports a limited
+    // section as `dashboard_section_truncated` naming the section and the
+    // returned/total counts (unchanged since 3eead501; the PostgreSQL-era proof
+    // asserted the same shape). The port's `claims_truncated` code never
+    // existed in the product.
+    assert!(
+        projection.warnings.iter().any(|warning| {
+            warning.code == "dashboard_section_truncated"
+                && warning.detail.contains("claims returned 1 of 2")
+        }),
+        "expected a dashboard_section_truncated warning for claims, got {:?}",
+        projection.warnings
+    );
     finish_store(store, backend).await;
 }
 

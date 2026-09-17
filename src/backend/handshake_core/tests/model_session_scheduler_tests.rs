@@ -2169,9 +2169,15 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
         .await
         .expect_err("expected immutability violation");
 
+    // INV-SESS-004 fixes the invariant, not the error class; the embedded
+    // store reports a mid-session memory_policy change as the typed state
+    // conflict `Conflict("model session memory_policy is immutable")`
+    // (session_store.rs map_session_error, pinned by its in-source test), the
+    // same class it uses for the immutable job_id assignment. The
+    // PostgreSQL-era store rendered it as `Validation`.
     assert!(matches!(
         err,
-        StorageError::Validation(msg) if msg.contains("memory_policy")
+        StorageError::Conflict(msg) if msg.contains("memory_policy")
     ));
 
     Ok(())

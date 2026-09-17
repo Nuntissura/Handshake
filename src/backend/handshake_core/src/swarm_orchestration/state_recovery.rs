@@ -48,6 +48,7 @@ use crate::kernel::{
     sandbox::{EnvRedactionV1, Redactor},
     KernelActor, KernelEvent, KernelEventType, NewKernelEvent,
 };
+use crate::storage::surreal::retry::retry_transaction_conflicts;
 use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 use crate::storage::StorageError;
 
@@ -1545,7 +1546,7 @@ struct QuietWorkRow {
 
 /// Bindings for the canonical "receipt row plus its EventLedger receipt in
 /// one transaction" write.
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct CreateRowWithEventBindings {
     event_record: RecordId,
     event_content: surrealdb::types::Value,
@@ -1636,7 +1637,7 @@ struct ClaimActorBindings {
     actor_id: String,
 }
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct ReleaseClaimBindings {
     claim: RecordId,
     actor_id: String,
@@ -1654,7 +1655,7 @@ struct ExpiredRecordBinding {
     completed_at_utc: DateTime<Utc>,
 }
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct ReclaimClaimBinding {
     record: RecordId,
     released_at_utc: DateTime<Utc>,
@@ -1857,6 +1858,64 @@ impl ParallelSwarmStateRecoveryStore {
         Ok(self.query(statement, bindings).await?.into_iter().next())
     }
 
+    /// Runs a `BEGIN TRANSACTION; ...; COMMIT TRANSACTION;` write and replays
+    /// it when the engine reports a commit conflict (MT-142 bounded replay):
+    /// the losing transaction wrote nothing, so the replay observes the
+    /// winner's rows and the statement's own guards (unique index, `IF`
+    /// predicate) decide the typed outcome instead of an opaque
+    /// "Transaction conflict" error (MT-141 V2-R3; set-B red 406
+    /// parallel_swarm_state_recovery_tests concurrent claim/lease races).
+    async fn query_replaying_conflicts<R, B>(
+        &self,
+        replay_key: String,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Clone + Send + 'static,
+    {
+        retry_transaction_conflicts(&self.storage, replay_key, || {
+            let bindings = bindings.clone();
+            async move { self.query(statement, bindings).await }
+        })
+        .await
+    }
+
+    /// Like [`Self::query_replaying_conflicts`] but decodes one explicit
+    /// result set of the transaction. Result-set indexes count every
+    /// statement including `BEGIN` (0), so the guarded `IF ... RETURN` of
+    /// `RELEASE_CLAIM_QUERY` is index 1 and of `RECLAIM_CLAIM_QUERY` (which
+    /// binds `LET $changed` first) index 2; decoding index 0 read the empty
+    /// `BEGIN` result ("Expected bool/object, got
+    /// none", MT-141 V2 set-B red 406).
+    async fn query_first_at_replaying_conflicts<R, B>(
+        &self,
+        replay_key: String,
+        statement: &'static str,
+        bindings: B,
+        index: usize,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Clone + Send + 'static,
+    {
+        let rows: Vec<R> = retry_transaction_conflicts(&self.storage, replay_key, || {
+            let bindings = bindings.clone();
+            async move {
+                self.storage
+                    .with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database.query_values_at(statement, bindings, index).await
+                        })
+                    })
+                    .await
+            }
+        })
+        .await?;
+        Ok(rows.into_iter().next())
+    }
+
     /// Builds the receipt event and the row-plus-event transaction bindings
     /// for a fresh receipt row.
     fn event_and_bindings(
@@ -1958,7 +2017,11 @@ impl ParallelSwarmStateRecoveryStore {
             statement
         };
         match self
-            .query::<surrealdb::types::Value, _>(statement, bindings)
+            .query_replaying_conflicts::<surrealdb::types::Value, _>(
+                format!("psr-claim:{claim_id}"),
+                statement,
+                bindings,
+            )
             .await
         {
             Ok(_) => Ok(WorkClaimOutcome {
@@ -2730,7 +2793,9 @@ impl ParallelSwarmStateRecoveryStore {
         } else {
             statement
         };
-        let _: Vec<surrealdb::types::Value> = self.query(statement, bindings).await?;
+        let _: Vec<surrealdb::types::Value> = self
+            .query_replaying_conflicts(format!("psr-quiet:{receipt_id}"), statement, bindings)
+            .await?;
         Ok(QuietBackgroundWorkRecord {
             receipt_id,
             workspace_id: request.workspace_id,
@@ -2850,7 +2915,8 @@ impl ParallelSwarmStateRecoveryStore {
             statement
         };
         let released: Option<bool> = self
-            .query_first(
+            .query_first_at_replaying_conflicts(
+                format!("psr-release:{claim_id}"),
                 statement,
                 ReleaseClaimBindings {
                     claim: RecordId::new(CLAIMS_TABLE, claim_id.to_string()),
@@ -2859,6 +2925,7 @@ impl ParallelSwarmStateRecoveryStore {
                     event_record: event_record(&event_id),
                     event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
                 },
+                1,
             )
             .await?;
         Ok(released.unwrap_or(false))
@@ -2923,8 +2990,13 @@ impl ParallelSwarmStateRecoveryStore {
             record: RecordId::new(HANDOFFS_TABLE, handoff_id.clone()),
             content: row.into_value(),
         };
-        let _: Vec<surrealdb::types::Value> =
-            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        let _: Vec<surrealdb::types::Value> = self
+            .query_replaying_conflicts(
+                format!("psr-handoff:{handoff_id}"),
+                CREATE_ROW_WITH_EVENT_QUERY,
+                bindings,
+            )
+            .await?;
         Ok(RoleMailboxHandoffRecord {
             handoff_id,
             wp_id: request.wp_id,
@@ -3532,8 +3604,13 @@ impl ParallelSwarmStateRecoveryStore {
             record: RecordId::new(CHECKPOINTS_TABLE, checkpoint_id.clone()),
             content: row.into_value(),
         };
-        let _: Vec<surrealdb::types::Value> =
-            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        let _: Vec<surrealdb::types::Value> = self
+            .query_replaying_conflicts(
+                format!("psr-checkpoint:{checkpoint_id}"),
+                CREATE_ROW_WITH_EVENT_QUERY,
+                bindings,
+            )
+            .await?;
         Ok(RecoveryCheckpointRecord {
             checkpoint_id,
             lane,
@@ -3636,7 +3713,9 @@ impl ParallelSwarmStateRecoveryStore {
         } else {
             statement
         };
-        let _: Vec<surrealdb::types::Value> = self.query(statement, bindings).await?;
+        let _: Vec<surrealdb::types::Value> = self
+            .query_replaying_conflicts(format!("psr-receipt:{receipt_id}"), statement, bindings)
+            .await?;
         let receipt = RecoveryReceiptRecord {
             receipt_id,
             checkpoint_id: checkpoint.checkpoint_id.clone(),
@@ -3871,8 +3950,13 @@ impl ParallelSwarmStateRecoveryStore {
             record: RecordId::new(LEASES_TABLE, lease_id),
             content: row.clone().into_value(),
         };
-        let _: Vec<surrealdb::types::Value> =
-            self.query(CREATE_ROW_WITH_EVENT_QUERY, bindings).await?;
+        let _: Vec<surrealdb::types::Value> = self
+            .query_replaying_conflicts(
+                format!("psr-lease:{}", row.lease_id),
+                CREATE_ROW_WITH_EVENT_QUERY,
+                bindings,
+            )
+            .await?;
         index_lease_from_row(row)
     }
 
@@ -4131,7 +4215,8 @@ impl ParallelSwarmStateRecoveryStore {
                 statement
             };
             let changed: Option<ClaimRow> = self
-                .query_first(
+                .query_first_at_replaying_conflicts(
+                    format!("psr-reclaim:{}", candidate.claim_id),
                     statement,
                     ReclaimClaimBinding {
                         record: RecordId::new(CLAIMS_TABLE, candidate.claim_id.clone()),
@@ -4140,6 +4225,8 @@ impl ParallelSwarmStateRecoveryStore {
                         event_record: event_record(&event_id),
                         event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
                     },
+                    // BEGIN(0), LET $changed(1), IF ... RETURN(2), COMMIT(3).
+                    2,
                 )
                 .await?;
             if let Some(row) = changed {

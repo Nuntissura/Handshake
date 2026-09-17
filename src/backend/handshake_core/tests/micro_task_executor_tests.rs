@@ -147,7 +147,14 @@ impl Drop for WorkspaceEnvGuard {
 }
 
 fn test_guard() -> std::sync::MutexGuard<'static, ()> {
-    TEST_SERIAL_LOCK.lock().expect("test serial mutex poisoned")
+    // The lock only serialises tests that share process-wide env state; a
+    // panic in one test poisons it, and treating the poison as a failure
+    // turned every later test into a cascaded false red (MT-141 V2 red 404:
+    // one failure -> 27). Recover the guard; the state it protects is reset by
+    // each test's own EnvGuard.
+    TEST_SERIAL_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 #[async_trait]
@@ -760,6 +767,11 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
     };
     let trace_id = Uuid::now_v7();
     let repo_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
+    // The Spec Router loads `assets/spec_prompt_packs/<pack>.json` below the
+    // resolved workspace root; this proof binds that root to the repo root
+    // explicitly instead of assuming the runner leaves HANDSHAKE_WORKSPACE_ROOT
+    // unset (lane runners point it at a scratch workspace: "missing_pack").
+    let _workspace_guard = WorkspaceEnvGuard::activate(&repo_root);
     let prompt_rel = PathBuf::from("data")
         .join("spec_router_tests")
         .join(format!("{}.md", Uuid::now_v7()));
@@ -816,7 +828,13 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
     start_workflow_for_job(&state, job).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
-    assert!(matches!(updated_job.state, JobState::Completed));
+    assert!(
+        matches!(updated_job.state, JobState::Completed),
+        "spec router job must complete; state={:?} status_reason={:?} outputs={:?}",
+        updated_job.state,
+        updated_job.status_reason,
+        updated_job.job_outputs
+    );
     assert!(
         updated_job
             .job_outputs

@@ -1406,7 +1406,7 @@ fn tracked_mt_progress_metadata(task: &TrackedMicroTask) -> JsonValue {
                 .map(str::to_owned)
         })
         .unwrap_or_default();
-    serde_json::to_value(TrackedMicroTaskArtifactV1 {
+    let mut artifact = serde_json::to_value(TrackedMicroTaskArtifactV1 {
         schema_id: task.schema_id.clone(),
         schema_version: task.schema_version.clone(),
         record_id: task.record_id.clone(),
@@ -1444,7 +1444,25 @@ fn tracked_mt_progress_metadata(task: &TrackedMicroTask) -> JsonValue {
         depends_on: task.depends_on.clone(),
         metadata: task.metadata.clone(),
     })
-    .unwrap_or_else(|_| task.metadata.clone())
+    .unwrap_or_else(|_| task.metadata.clone());
+    // `TrackedMicroTaskArtifactV1` skips empty vectors on the wire, but the
+    // progress projection always exposes the session occupancy so a consumer
+    // can tell "no bound sessions" from "field missing" (the PostgreSQL-era
+    // projection re-inserted it the same way; the port dropped it, MT-141 V2
+    // set-B red 404 micro_task_executor_tests).
+    if let Some(object) = artifact.as_object_mut() {
+        object.insert(
+            "active_session_ids".to_owned(),
+            JsonValue::Array(
+                task.active_session_ids
+                    .iter()
+                    .cloned()
+                    .map(JsonValue::String)
+                    .collect(),
+            ),
+        );
+    }
+    artifact
 }
 
 fn ensure_record_key(record: &RecordId, table: &'static str, expected: &str) -> StorageResult<()> {
