@@ -22,7 +22,7 @@
   "title": "B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T19:10:56.234Z",
-  "updated_at_utc": "2026-09-17T04:47:12.655Z",
+  "updated_at_utc": "2026-09-17T04:56:14.954Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -594,5 +594,13 @@
     "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
     "record": "validation_v1",
     "reason": "current (rescoped + reconciled) contract fully proven at C-prime by the validator-executed api::memory suite"
+  },
+  "validation_v1_binding_note": {
+    "schema_id": "hsk.mt_validation_note@1",
+    "by": "WP_VALIDATOR-B9-20260917-015345",
+    "at_utc": "2026-09-17T04:56:14.954Z",
+    "record": "validation_v1",
+    "binary_source_binding": "Every binary this session built (cargo steps 02-04, 02:13:50Z-02:41:18Z) was compiled from committed ba03f5638e3f6b1903cb2829c1e846958d0dbf42 plus one uncommitted harness file, src/backend/handshake_core/src/storage/tests.rs, which the builder committed unchanged as c0603cbdba2a79bc04711dca83821b687a152b60 at 03:16:32Z (git diff ba03f563..c0603cbd touches only that file and its sha256 equals the snapshot this lane recorded at 02:42:43Z: 3a3f22d9a71349fb18f3e243eb373d1d55ba19fa085ea815678d0f2502e5b2db). Product code in every executed binary is therefore byte-identical to ba03f563 (C-prime); the embedded test harness equals c0603cbd. The builder's later uncommitted edits to ~53 src/tests files began at 03:16:56Z, after the last build of this lane, and are embedded in NO executed binary; exec-only runs read no source. Rows 30-32 recorded head_at_run=c0603cbd because HEAD moved before they started; rows 10-23 recorded ba03f563.",
+    "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/00-lane.txt (DIRTY_TREE_DETECTED 02:42:43Z, TREE_NOTE, BINDING_NOTE entries)"
   }
 }
