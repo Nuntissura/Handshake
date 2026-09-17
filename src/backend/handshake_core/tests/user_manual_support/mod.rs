@@ -3,6 +3,23 @@
 //! the actual Axum routers. No server, fallback database, or mock store is
 //! involved: every fixture owns an isolated embedded store and the AppState
 //! shares that same handle.
+//!
+//! Environment contract for the binaries built on this module (MT-141 V2-R6):
+//!
+//! * `HANDSHAKE_ARTIFACTS_ROOT` / `HANDSHAKE_SURREAL_TEST_STORE_ROOT` - the
+//!   external artifact root and the owner-scoped store root every embedded
+//!   store is created under (see `handshake_core::storage::tests`).
+//! * `HANDSHAKE_TEST_STAGE_BINDING_ROOT` - REQUIRED by
+//!   `knowledge_code_nav_api_tests::mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded`:
+//!   an absolute directory below the external artifact root where the LC-06
+//!   500-file fixture tree is materialised (`<root>/wp-kernel-012/mt-045/fixtures/`).
+//!   The test fails closed with a named message when it is unset; it never
+//!   writes fixtures into the repo tree.
+//! * `PERF_BUDGET_LC06_MS` - the LC-06 route budget in milliseconds (default
+//!   10000, the spec budget). The budget is a wall-clock bound on a disk-bound
+//!   index of 500 files; on a saturated SATA HDD the run measures 30-40 s, so a
+//!   validator on such a host declares the host budget explicitly instead of
+//!   reading a host-bound miss as a product regression.
 
 use std::sync::Arc;
 

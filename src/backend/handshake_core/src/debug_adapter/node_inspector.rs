@@ -523,19 +523,45 @@ fn value_to_display(value: &Value) -> String {
 
 /// Convert an OS path to a `file://` url the way Node's inspector reports script
 /// urls, so `setBreakpointByUrl` matches the parsed script.
+///
+/// Node builds script urls with `url.pathToFileURL`, which percent-encodes the
+/// WHATWG path set (space, `"`, `#`, `<`, `>`, `?`, backtick, `{`, `}`, `%`,
+/// controls and non-ASCII). A raw path with a space therefore never matches the
+/// parsed script and the breakpoint stays unverified (MT-141 V2-R6 item 087,
+/// observed under an artifact root containing a space).
 fn path_to_file_url(path: &str) -> String {
     let normalized = path.replace('\\', "/");
     if normalized.starts_with("file://") {
         return normalized;
     }
+    let encoded = percent_encode_file_path(&normalized);
     // Windows drive paths get an extra leading slash: file:///C:/...
-    if normalized.chars().nth(1) == Some(':') {
-        format!("file:///{normalized}")
-    } else if let Some(stripped) = normalized.strip_prefix('/') {
+    if encoded.chars().nth(1) == Some(':') {
+        format!("file:///{encoded}")
+    } else if let Some(stripped) = encoded.strip_prefix('/') {
         format!("file:///{stripped}")
     } else {
-        format!("file:///{normalized}")
+        format!("file:///{encoded}")
     }
+}
+
+/// Percent-encode a `/`-separated path the way `url.pathToFileURL` does.
+fn percent_encode_file_path(path: &str) -> String {
+    let mut encoded = String::with_capacity(path.len());
+    for byte in path.bytes() {
+        let keep = byte.is_ascii_alphanumeric()
+            || matches!(
+                byte,
+                b'/' | b':' | b'-' | b'.' | b'_' | b'~' | b'!' | b'$' | b'&' | b'\'' | b'('
+                    | b')' | b'*' | b'+' | b',' | b';' | b'=' | b'@'
+            );
+        if keep {
+            encoded.push(byte as char);
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    encoded
 }
 
 #[async_trait]
@@ -984,6 +1010,22 @@ mod tests {
         assert_eq!(
             path_to_file_url("/home/u/x.js"),
             "file:///home/u/x.js".to_string()
+        );
+    }
+
+    #[test]
+    fn path_to_file_url_percent_encodes_like_node_path_to_file_url() {
+        assert_eq!(
+            path_to_file_url("D:\\Projects\\LLM projects\\x y\\f#1.js"),
+            "file:///D:/Projects/LLM%20projects/x%20y/f%231.js".to_string()
+        );
+        assert_eq!(
+            path_to_file_url("/home/u/x y.js"),
+            "file:///home/u/x%20y.js".to_string()
+        );
+        assert_eq!(
+            path_to_file_url("file:///already/encoded%20path.js"),
+            "file:///already/encoded%20path.js".to_string()
         );
     }
 }

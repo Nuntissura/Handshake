@@ -106,7 +106,9 @@ async fn mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded() {
         .expect("open embedded backend for MT-045 LC-06");
     let workspace_id = backend.create_workspace().await;
     let fixture_root = std::env::var("HANDSHAKE_TEST_STAGE_BINDING_ROOT")
-        .expect("MT-045 fixture root must be external Handshake_Artifacts")
+        .expect(
+            "MT-045 LC-06 requires HANDSHAKE_TEST_STAGE_BINDING_ROOT=<absolute dir below the              external Handshake_Artifacts root> for its 500-file fixture tree (see              tests/user_manual_support/mod.rs); the fixture is never written into the repo",
+        )
         .into();
     let fixture_root: std::path::PathBuf = fixture_root;
     let fixture_root = fixture_root

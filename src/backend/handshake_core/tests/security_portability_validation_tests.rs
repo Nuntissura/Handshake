@@ -24,6 +24,20 @@ fn test_fixture_root() -> std::path::PathBuf {
     std::env::temp_dir().join("handshake-test")
 }
 
+/// The node dependency-policy probes execute `app/scripts/check-dependency-policy.mjs`,
+/// which imports the app's `yaml` package. A worktree without an installed
+/// `app/node_modules` produces `ERR_MODULE_NOT_FOUND`, which is an environment
+/// gap, not a policy verdict: fail closed with the named remedy instead of
+/// reporting the probe's stderr as a validator failure (MT-141 V2-R6).
+fn require_node_probe_dependencies(repo_root: &std::path::Path) {
+    let yaml_package = repo_root.join("app/node_modules/yaml/package.json");
+    assert!(
+        yaml_package.is_file(),
+        "ENVIRONMENT_BLOCKED: the node dependency-policy probes need the app's node          dependencies installed (`pnpm -C app install` from the repo root); missing {}",
+        yaml_package.display()
+    );
+}
+
 fn allowlist() -> RuntimeDependencyAllowlist {
     RuntimeDependencyAllowlist::load_from_repo_root(&repo_root_from_manifest_dir())
         .expect("runtime dependency allowlist loads")
@@ -560,6 +574,7 @@ fn mt_228_229_node_dependency_policy_validator_missing_file_probe_fails_closed()
     let missing = test_fixture_root()
         .join("mt-228-229-missing-source-probe.ts");
 
+    require_node_probe_dependencies(&repo_root);
     let output = Command::new("node")
         .arg(repo_root.join("app/scripts/check-dependency-policy.mjs"))
         .arg("--skip-build")
@@ -607,6 +622,7 @@ fn mt_228_229_node_dependency_policy_validator_file_probe_fails_closed() {
     .expect("write dependency-policy fixture");
     fixture.flush().expect("flush dependency-policy fixture");
 
+    require_node_probe_dependencies(&repo_root);
     let output = Command::new("node")
         .arg(repo_root.join("app/scripts/check-dependency-policy.mjs"))
         .arg("--skip-build")
@@ -654,6 +670,7 @@ fn mt_228_229_node_dependency_policy_validator_file_probe_scans_path_names() {
     )
     .expect("write path-only source tripwire fixture");
 
+    require_node_probe_dependencies(&repo_root);
     let output = Command::new("node")
         .arg(repo_root.join("app/scripts/check-dependency-policy.mjs"))
         .arg("--skip-build")
