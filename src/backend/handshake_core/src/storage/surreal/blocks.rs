@@ -2,6 +2,7 @@ use serde_json::{Map, Value};
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 use uuid::Uuid;
 
+use super::retry::retry_transaction_conflicts;
 use super::{SurrealDataContext, SurrealStorage, SurrealStorageError};
 use crate::storage::{
     Block, BlockUpdate, MutationMetadata, NewBlock, StorageError, StorageResult, WriteContext,
@@ -10,7 +11,7 @@ use crate::storage::{
 const BLOCKS_TABLE: &str = "blocks";
 const DOCUMENTS_TABLE: &str = "documents";
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct BlockContent {
     document_id: RecordId,
     kind: String,
@@ -29,7 +30,7 @@ struct BlockContent {
     updated_at: Datetime,
 }
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct DocumentTraceUpdate {
     last_job_id: Option<String>,
     last_workflow_id: Option<String>,
@@ -426,12 +427,19 @@ impl SurrealStorage {
             .await
             .map_err(StorageError::from)?;
         let block_id = block_id.to_owned();
-        let deleted = self
-            .with_data_operation(move |database| {
-                Box::pin(async move { database.delete_block_record(&block_id).await })
-            })
-            .await
-            .map_err(map_storage_error)?;
+        // MT-141 V2-R3: bounded replay of engine commit conflicts (a losing
+        // delete wrote nothing).
+        let deleted = retry_transaction_conflicts(self, format!("block-delete:{block_id}"), || {
+            let block_id = block_id.clone();
+            async move {
+                self.with_data_operation(move |database| {
+                    Box::pin(async move { database.delete_block_record(&block_id).await })
+                })
+                .await
+            }
+        })
+        .await
+        .map_err(map_storage_error)?;
         if !deleted {
             return Err(StorageError::NotFound("block"));
         }
@@ -472,15 +480,29 @@ impl SurrealStorage {
             .map_err(StorageError::from)?;
         let document_trace = DocumentTraceUpdate::from(document_metadata);
         let document_id = document_id.to_owned();
-        let result = self
-            .with_data_operation(move |database| {
-                Box::pin(async move {
-                    database
-                        .replace_block_records(&document_id, replacements, document_trace)
-                        .await
-                })
-            })
-            .await;
+        // MT-141 V2-R3: a replacement racing the parent document's delete
+        // collides at commit; the losing replacement wrote nothing and re-runs,
+        // observing the committed state (document gone -> typed NotFound).
+        let result = retry_transaction_conflicts(
+            self,
+            format!("blocks-replace:{document_id}"),
+            || {
+                let document_id = document_id.clone();
+                let replacements = replacements.clone();
+                let document_trace = document_trace.clone();
+                async move {
+                    self.with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database
+                                .replace_block_records(&document_id, replacements, document_trace)
+                                .await
+                        })
+                    })
+                    .await
+                }
+            },
+        )
+        .await;
         match result {
             Ok(blocks) => Ok(blocks),
             Err(error) if error.to_string().contains("HSK-SURREAL-DOCUMENT-NOT-FOUND") => {

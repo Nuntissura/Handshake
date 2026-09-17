@@ -303,7 +303,7 @@ impl FairScheduler {
 
         for (_, row) in scored {
             let claimed: Vec<WatermarkRow> = queue
-                .query(
+                .claim_query(
                     PRIORITY_CLAIM_QUERY,
                     ClaimBindings {
                         job_id: row.job_id,

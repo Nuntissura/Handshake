@@ -57,6 +57,7 @@ use super::thread::{
     ClaimMode, LinkedRecordKind, ResponseAuthorityScope, RoleMailboxThread, RoleMailboxThreadId,
 };
 use crate::role_mailbox::RoleId;
+use crate::storage::surreal::retry::{classify_surreal_storage_error, RetryClass};
 use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 const THREAD_TABLE: &str = "role_mailbox_thread";
@@ -689,7 +690,7 @@ impl RoleMailboxRepository {
         thread_id: RoleMailboxThreadId,
         requested: ThreadLifecycleState,
     ) -> Result<RoleMailboxThread, MailboxError> {
-        let updated: Vec<ThreadRow> = self
+        let updated: Vec<ThreadRow> = match self
             .query(
                 TRANSITION_THREAD_QUERY,
                 ThreadTransitionBindings {
@@ -699,7 +700,20 @@ impl RoleMailboxRepository {
                     now: Utc::now(),
                 },
             )
-            .await?;
+            .await
+        {
+            Ok(rows) => rows,
+            // An engine commit conflict means another writer committed the
+            // row first: the guarded update wrote nothing, so it is a lost race
+            // and is resolved by the typed re-read below (MT-141 V2-R5 item 336),
+            // never surfaced as an opaque storage error.
+            Err(error)
+                if classify_surreal_storage_error(&error) == RetryClass::RetryableTransient =>
+            {
+                Vec::new()
+            }
+            Err(error) => return Err(error.into()),
+        };
         if let Some(row) = updated.into_iter().next() {
             return row.try_into();
         }

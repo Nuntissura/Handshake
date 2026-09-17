@@ -26,6 +26,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::job::{EscalationStep, EscalationTier, MicroTaskJob, MicroTaskJobId, MicroTaskJobState};
+use crate::storage::surreal::retry::{classify_surreal_storage_error, RetryClass};
 use crate::storage::surreal::{SurrealStorage, SurrealStorageError};
 
 pub(crate) const JOB_TABLE: &str = "kernel_micro_task_job";
@@ -222,6 +223,30 @@ impl MicroTaskQueue {
             .await
     }
 
+    /// A guarded claim statement: an engine commit conflict means another
+    /// claimer committed the row first, so the claim wrote nothing and is
+    /// reported as the same empty result set a lost `WHERE state = 'queued'`
+    /// race returns (the `SKIP LOCKED` contract; MT-141 V2-R3).
+    pub(crate) async fn claim_query<R, B>(
+        &self,
+        statement: &'static str,
+        bindings: B,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where
+        R: SurrealValue + Send + 'static,
+        B: SurrealValue + Send + 'static,
+    {
+        match self.query(statement, bindings).await {
+            Ok(rows) => Ok(rows),
+            Err(error)
+                if classify_surreal_storage_error(&error) == RetryClass::RetryableTransient =>
+            {
+                Ok(Vec::new())
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     pub async fn enqueue(&self, job: &MicroTaskJob) -> Result<(), QueueError> {
         let content = JobRow {
             job_id: job.job_id.as_uuid(),
@@ -271,7 +296,7 @@ impl MicroTaskQueue {
                 return Ok(None);
             };
             let claimed: Vec<JobRow> = self
-                .query(
+                .claim_query(
                     CLAIM_QUERY,
                     ClaimBindings {
                         job_id,

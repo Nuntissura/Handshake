@@ -500,6 +500,45 @@ pub fn retry_error_to_storage(error: RetryError<StorageError>) -> StorageError {
     }
 }
 
+/// Process-wide jitter source for [`retry_transaction_conflicts`].
+static STORAGE_RETRY_JITTER: std::sync::LazyLock<SystemJitter> =
+    std::sync::LazyLock::new(SystemJitter::new);
+
+/// Bounded MT-142 conflict retry for `SurrealStorage`-level mutations that
+/// have no wrapper-level keyed lock (`SurrealDatabase::guarded_mutation` is the
+/// keyed form). Only engine commit conflicts are replayed, under
+/// [`RetryPolicy::CONTRACT`], observing the store's shutdown cancellation.
+/// `op` must contain every pre-read the decision depends on so a retried
+/// attempt observes the state the winning writer committed; the conflicting
+/// transaction wrote nothing, which is what makes the replay safe. The last
+/// conflict is returned unchanged when the budget is exhausted so callers keep
+/// their existing error mapping (MT-141 V2-R3).
+pub(crate) async fn retry_transaction_conflicts<T, F, Fut>(
+    storage: &super::SurrealStorage,
+    replay_key: impl Into<String>,
+    mut op: F,
+) -> Result<T, SurrealStorageError>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T, SurrealStorageError>>,
+{
+    let context = RetryContext::unbounded().with_cancel(storage.cancellation_token());
+    retry(
+        &RetryPolicy::CONTRACT,
+        &context,
+        Replay::idempotent(replay_key),
+        &TokioClock,
+        &*STORAGE_RETRY_JITTER,
+        classify_surreal_storage_error,
+        |_attempt| op(),
+    )
+    .await
+    .map_err(|error| match error {
+        RetryError::Terminal { error, .. } | RetryError::Exhausted { last: error, .. } => error,
+        RetryError::Cancelled { .. } => SurrealStorageError::Closed,
+    })
+}
+
 /// Runs `op` until it succeeds, a terminal error occurs, a bound is reached
 /// or the context is cancelled.
 ///

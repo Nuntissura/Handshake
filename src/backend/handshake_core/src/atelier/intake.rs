@@ -36,6 +36,7 @@ use super::{
     atelier_event_sql, event_ref_for_text, media::MEDIA_ORIGINAL_RETENTION_CLASS,
     reject_legacy_runtime_ref, AtelierError, AtelierResult, AtelierStore,
 };
+use crate::storage::surreal::keyed_lock::LockKey;
 
 struct IntakeRow(serde_json::Map<String, serde_json::Value>);
 
@@ -2155,6 +2156,21 @@ impl AtelierStore {
             ));
         }
         reject_legacy_runtime_ref("source_path", &new.source_path)?;
+        // MT-141 V2-R3: mass concurrent intake into ONE batch collides at commit
+        // (every item append shares the batch row and the ledger sequence), and
+        // the bounded conflict retry below alone was exhausted under an 8-worker
+        // swarm on a saturated disk. Same-batch writers are serialised on the
+        // process-local keyed lock (MT-142 registry pattern, as MT-141 R8 did for
+        // story-card seq allocation); the retry loop stays as the cross-batch
+        // backstop and correctness stays with the committing transaction.
+        let _batch_guard = self
+            .lock_registry()
+            .acquire(LockKey::natural_key(
+                batch_id.to_string(),
+                "atelier_intake_item",
+                "add",
+            ))
+            .await;
         self.insert_intake_item_inner(batch_id, new)
             .await
             .map(|(item, _)| item)
