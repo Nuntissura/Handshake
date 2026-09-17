@@ -30,7 +30,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "FAIL_V2",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -38,7 +38,7 @@
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260909-212427",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
@@ -764,8 +764,8 @@
       "waived_by": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
       "waived_at_utc": "2026-09-10T01:45:58.115Z"
     },
-    "validated_by": "WP_VALIDATOR-20260915-134500",
-    "validated_at_utc": "2026-09-15T16:53:17.899Z",
+    "validated_by": "WP_VALIDATOR-B3-20260916-113023",
+    "validated_at_utc": "2026-09-17T00:47:33.057Z",
     "next_actor": "KERNEL_BUILDER",
     "validation_history": [
       {
@@ -774,6 +774,13 @@
         "at_utc": "2026-09-15T16:53:17.899Z",
         "commit": "6f19a52425333d32673d7628f72727c869de7e51",
         "record": "validation_v1"
+      },
+      {
+        "verdict": "FAIL_V2",
+        "by": "WP_VALIDATOR-B3-20260916-113023",
+        "at_utc": "2026-09-17T00:47:33.057Z",
+        "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+        "record": "validation_v2"
       }
     ]
   },
@@ -1060,7 +1067,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-15T16:53:17.899Z",
+  "updated_at_utc": "2026-09-17T00:47:33.057Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -4779,5 +4786,3536 @@
       "The 124 legacy leaked stores under the global handshake-test root (validator carried debt) were not touched."
     ],
     "residue": "Every run reported workspace residue; the residue counts are in each numbered log tail (workspace/run-NN-<target> left non-empty by binaries that materialise native artifacts: image_import, pose, fixture_corpus, core_data, diagnostics_typed_surfaces). runtime/ held preserved knowledge_crdt stores from the drain-stall runs (store-* dirs) until those tests were fixed; tmp/ accumulates .tmpXXXX dirs from AtelierSurrealHarness drops (F06: the bounded-retry Drop fix in tests/atelier_surreal_support/mod.rs reduced but did not eliminate them because the engine holds LOCK for longer than the retry window on this HDD)."
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL",
+    "status": "FAIL",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validator_layer": "WP_VALIDATOR (per-MT adversarial review; CX-503J) - takeover session after PC crash of the previous wpv-v2 session",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR-B3-20260916-113023",
+    "validated_at_utc": "2026-09-17T00:47:33.057Z",
+    "validated_commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "basis": "validation_v1.remediation_required.verdict_rule requires the COMPLETE per-binary suite green on the candidate. Executed by this validator on fd9060de: set A 393 binaries (372 by this session, 21 prior-session rows accepted under the Operator lean-mode waiver), set B 14, set C 4, lib 1, proof_commands[0] 1. Result: 321 green / 80 red binaries (72 A, 6 B, 1 C, lib aborted), 12 feature-gated zero-exec listed. Every red reproduced in a solo rerun except crash_recovery_e2e (pool/HDD contention on child spawn). Verdict FAIL_V2. The dominant class is the src/storage/tests.rs:177 Drop-guard drain stall (HARNESS, deterministic, also alone), which remediation_v1 left unfixed; beneath it are genuine product defects (SurrealDB row-shape/schema drift, unretried transaction conflicts, HBR PRIV pillar) and tests/ expectation drift in MT-141's owned tree.",
+    "authority_refs": [
+      "MT-141.json scope.acceptance_criteria AC-141-1..4, proof_targets PT-141-1..3, proof_commands[0..2]",
+      "MT-141.json validation_v1.remediation_required.verdict_rule (COMPLETE per-binary suite green, executed by this validator on a clean tree at the candidate; feature-gated candle targets and carried lib debt LISTED not counted)",
+      "MT-141.json remediation_v1 (candidate fd9060de; WAIVER-1/2/3; tree_binding_note; not_run)",
+      "OPERATOR lean-mode decision 2026-09-16 ~15:02Z relayed by orchestrator (verdict_rule_waiver below)",
+      "WP_VALIDATOR_PROTOCOL [VPX-001..008], Spec-Realism Gate sub-rules 1-3, [WPV-ART-001..005]",
+      "Codex CX-503I1, CX-503J, CX-573E, CX-573F, CX-984, CX-211 (product code MUST NOT read .GOV), CX-503R, CX-503S",
+      "Master Spec v02.206 03-local-first-infrastructure.md:651,655,657"
+    ],
+    "verdict_rule_waiver": {
+      "granted_by": "OPERATOR (lean mode 2026-09-16, relayed by orchestrator)",
+      "scope": "executed-by-this-validator re-execution of already-green rows",
+      "applied_to": "the 21 prior-session set-A rows (seqs 002-015,017-023 by the crashed session; exe_sha256 re-verified by this session's 016-preflight-exe-hash.tsv 414/414 match; log_sha256 + verbatim result line present in each row) and the 2 adopted orphans 026/027 (exit derived from result line); phase A2 re-execution NOT performed",
+      "not_waived": "set A remaining binaries, set B, set C, lib, proof_commands[0], SKIP audit, solo reruns of reds"
+    },
+    "mandatory_reads_ack": [
+      "ACK: read .GOV/codex/Handshake_Codex_v1.4.md (1016 lines, full)",
+      "ACK: read .GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md (403 lines, full)",
+      "ACK: read MT-141.json via node (lifecycle, scope, owned_files, proof_commands, hbr_obligations, validation_v1 incl. remediation_required.verdict_rule/groups/do_not, remediation_v1 incl. groups/proofs/out_of_scope_edit_waiver/tree_binding_note/not_run)",
+      "ACK: SPEC_CURRENT.md -> master-spec-v02.206 INDEX.json; MT-141 cites NO spec anchors (no spec_anchors key, no HS-/section tokens); closest governing basis read: 03-local-first-infrastructure.md lines 651/655/657 (SurrealDB/EventLedger authority only; no SQLite/PostgreSQL fallback) + Codex CX-503R/CX-503S"
+    ],
+    "builder_claims_policy": "remediation_v1 proofs/groups used as triage input only [VPX-002]; every product-site claim re-derived from git show at fd9060de; every runtime claim from this lane's own logs",
+    "source_state": {
+      "head_sha_at_takeover": "fd9060dee489811f0b22903e97d38bd57be64a08",
+      "head_sha_now": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (C-PRIME, MT-135 builder commit landed 19:2xZ; diff fd9060de..ba03f563 = storage/knowledge.rs, storage/surreal/knowledge.rs, native tests/test_mcp_snapshot_viewport.rs; no handshake_core runtime behavior change per orchestrator; all test exes executed were built at fd9060de (414/414 sha match))",
+      "worktree": "wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012",
+      "tree_state_at_takeover": "fd9060de == origin; porcelain: 3 M files owned by the MT-135 builder (Operator-waived), edited 07:06-07:24Z after all exes were built (max exe mtime 06:12:19Z); runtime-scanner analysis in 016-session-takeover.json proves those edits cannot change any test verdict",
+      "tree_state_at_verdict": "HEAD ba03f563 clean (git status --porcelain empty at 19:2xZ check)",
+      "git_actions": "none (no checkout/switch/reset/clean/restore/stash; no branches/worktrees; no product edits; no .GOV edits other than this record)"
+    },
+    "proof_environment": {
+      "execution_model": "pre-built exes from exe-map.tsv executed directly (no cargo except the one orchestrator-authorized C-PRIME bin rebuild); cwd=src/backend/handshake_core; pool 3 (main pass) / 1 (solo reruns); default test threads; --nocapture on 54 SKIP-carrying set-A targets, lib, and abort reruns",
+      "CARGO_TARGET_DIR": "<HANDSHAKE_ARTIFACTS_ROOT>/WP-KERNEL-012/MT-109/wpv-v15/target (warm shared target; exes at fd9060de)",
+      "lane_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/{logs,tmp,runtime,workspace}",
+      "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "<lane>/runtime",
+      "HANDSHAKE_WORKSPACE_ROOT": "<lane>/workspace/run-NNN-<target> (fresh per run)",
+      "TMP_TEMP_TMPDIR": "<lane>/tmp",
+      "RUST_BACKTRACE": "0",
+      "HANDSHAKE_TEST_STAGE_BINDING_ROOT": "UNSET during set A/B (undocumented requirement of knowledge_code_nav_api_tests:108/213); set to <ws>/stage_binding for phase R/R2",
+      "features": {
+        "setA": "surreal-test-support,test-utils",
+        "setB": "app-runtime,surreal-test-support,test-utils",
+        "setC": "inspector,surreal-test-support,test-utils",
+        "lib": "duckdb-flight-recorder,test-utils"
+      },
+      "toolchain": "rust-toolchain.toml 1.97.1 (exes built by the previous session per 00-lane.txt BUILD_* lines; rustfmt 1.9.0-stable used for the fmt-only check)",
+      "concurrent_host_load": "MT-135 builder cargo lanes on MT-135/kb-b2/target and the N1 native validator executing handshake_native exes from the same warm target ran concurrently; HDD (D:) saturated (150-210% disk time) for most of the run",
+      "embedded_surrealdb_only": true,
+      "docker_pg_sqlite": "none"
+    },
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "covers_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/covers.json",
+      "results": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "exe_map": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/exe-map.tsv",
+      "exe_sha_preflight": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/016-preflight-exe-hash.tsv (414/414 MATCH)",
+      "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+      "frozen_at_utc": "2026-09-17T00:47:33.057Z",
+      "rows_total": 466,
+      "rows_prev_session": 21,
+      "rows_this_session": 445,
+      "row_contract": "every row carries target, bundle, features, exe, exe_sha256, exit_code, result_line, result, passed/failed/ignored/filtered/executed, log, log_sha256, wall_s, failing_tests, residue counts, rerun_alone, finished_at_utc; this-session rows add session, phase, args, cwd, slow_test_notices, head",
+      "citation_rule": "other MTs may cite rows by index/target from this file instead of re-running set A/B/C/lib at fd9060de (Operator lean-mode decision); the 21 prior-session rows carry no session field and are valid under verdict_rule_waiver; rows 026/027 carry exit_code_source=derived_from_result_line"
+    },
+    "proof_ledger": {
+      "results_jsonl": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/results.jsonl",
+      "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/00-lane.txt",
+      "takeover_annotation": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/016-session-takeover.json",
+      "binaries_executed_total": 413,
+      "green": 321,
+      "red": 80,
+      "listed_feature_gated_zero_exec": 12,
+      "per_set": {
+        "setA": {
+          "binaries": 393,
+          "green": 309,
+          "red": 72,
+          "listed_zero_exec": 12,
+          "tests_passed": 2414,
+          "tests_failed": 179,
+          "tests_ignored": 19,
+          "aborted_no_result_line": 14,
+          "executed_by": {
+            "prev_session_waived": 21,
+            "this_session": 372
+          }
+        },
+        "setB": {
+          "binaries": 14,
+          "green": 8,
+          "red": 6,
+          "listed_zero_exec": 0,
+          "tests_passed": 115,
+          "tests_failed": 44,
+          "tests_ignored": 5,
+          "aborted_no_result_line": 1,
+          "executed_by": {
+            "this_session": 14
+          }
+        },
+        "setC": {
+          "binaries": 4,
+          "green": 3,
+          "red": 1,
+          "listed_zero_exec": 0,
+          "tests_passed": 22,
+          "tests_failed": 1,
+          "tests_ignored": 0,
+          "aborted_no_result_line": 0,
+          "executed_by": {
+            "this_session": 4
+          }
+        },
+        "lib": {
+          "binaries": 1,
+          "green": 0,
+          "red": 1,
+          "listed_zero_exec": 0,
+          "tests_passed": 0,
+          "tests_failed": 0,
+          "tests_ignored": 0,
+          "aborted_no_result_line": 1,
+          "executed_by": {
+            "this_session": 1
+          }
+        },
+        "proof_cmd_0": {
+          "binaries": 1,
+          "green": 1,
+          "red": 0,
+          "listed_zero_exec": 0,
+          "tests_passed": 3,
+          "tests_failed": 0,
+          "tests_ignored": 0,
+          "aborted_no_result_line": 0,
+          "executed_by": {
+            "this_session": 1
+          }
+        }
+      },
+      "lib": {
+        "index": "416",
+        "exe": "handshake_core-ee852f04359cdf21.exe",
+        "features": "duckdb-flight-recorder,test-utils",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409 after 5505 s)",
+        "tests_declared": 2210,
+        "ok_lines": 2110,
+        "failed_lines": 72,
+        "ignored_lines": 2,
+        "never_reported": 26,
+        "panics_captured": 63,
+        "drain_stall_panics": 43,
+        "failed_test_names": [
+          "api::jobs::tests::create_cloud_model_run_without_consent_blocks_runtime_session",
+          "api::jobs::tests::create_model_run_job_launches_runtime_session_and_preserves_native_binding",
+          "api::jobs::tests::create_job_accepts_fems_job_kind_alias",
+          "api::jobs::tests::create_job_allows_terminal_when_authorized",
+          "api::jobs::tests::create_job_rejects_mismatched_fems_alias_protocol",
+          "api::jobs::tests::create_job_rejects_unknown_job_kind",
+          "api::jobs::tests::create_model_run_job_binds_workflow_before_workflow_start",
+          "api::loom::tests::graph_search_inline_operators_filter_real_rows",
+          "api::loom::tests::graph_traversal_and_metrics_routes_work",
+          "api::loom::tests::import_dedup_emits_fr_evt_loom_006",
+          "api::loom::tests::loom_search_backend_tier",
+          "api::loom::tests::mt027_block_view_publication_survives_outage_restart_races_and_retention",
+          "api::loom::tests::mt258_bookmark_routes_persist_add_remove_and_emit_receipts",
+          "api::loom::tests::mt258_properties_tag_edit_persists_edges_and_metrics",
+          "api::loom::tests::mt264_api_create_and_update_refresh_embedding",
+          "api::loom::tests::mt264_journal_block_indexed_on_create",
+          "api::loom::tests::view_and_search_emit_events",
+          "api::memory::tests::mt109_source_revocation_before_proposal_transaction_leaves_zero_residue",
+          "api::memory::tests::commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits",
+          "api::memory::tests::concurrent_workspace_commits_publish_a_pack_containing_both_items",
+          "api::memory::tests::create_proposal_stores_pending_review_and_receipt",
+          "api::memory::tests::list_proposals_is_bounded_deterministic_and_workspace_scoped",
+          "api::memory::tests::mt109_memory_reconciler_processes_only_explicitly_granted_pending_workspace",
+          "atelier::guard_tests::mt138_readiness_inventory_matches_canonical_surreal_schema",
+          "api::memory::tests::proposal_cannot_mutate_committed_memory",
+          "api::memory::tests::proposal_delete_race_never_leaves_workspace_orphans",
+          "api::workspaces::tests::delete_workspace_route_atomically_cascades_fems_and_retries_not_found",
+          "flight_recorder::duckdb::tests::test_retention_purges_old_events",
+          "api::workspaces::tests::mt258_search_bookmarks_persist_to_surreal_and_event_ledger",
+          "api::workspaces::tests::replace_blocks_accepts_ai_and_persists_traceability",
+          "atelier::guard_tests::mt138_rejects_full_count_schemaless_projection",
+          "api::workspaces::tests::replace_blocks_rejects_ai_when_context_missing",
+          "api::workspaces::tests::verify_atelier_apply_provenance_accepts_matching_job_output",
+          "api::workspaces::tests::verify_atelier_apply_provenance_rejects_patchset_mismatch_as_provenance_mismatch",
+          "api::workspaces::tests::verify_atelier_apply_provenance_rejects_selection_mismatch_as_stale",
+          "atelier::guard_tests::mt138_atelier_readiness_is_idempotent_across_embedded_restart",
+          "sandbox::cloud_hypervisor::adapter::tests::orphan_discovery_script_skips_current_process_owned_roots",
+          "bundles::exporter::tests::list_exportable_includes_workflow_correlation_anchors",
+          "bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage",
+          "api::memory::tests::proposal_retry_is_idempotent_and_payload_drift_conflicts",
+          "bundles::exporter::tests::workflow_node_execution_scope_rejects_invalid_node_uuid",
+          "storage::kb003_storage::tests::validation_run_reconstructs_from_rows",
+          "api::memory::tests::proposal_retry_rejects_corrupt_receipt_but_allows_new_retry_headers",
+          "api::memory::tests::mt109_every_memory_route_uses_persisted_credentials_and_full_denial_matrix",
+          "api::memory::tests::quarantined_proposal_outbox_never_returns_a_false_success_ack",
+          "api::memory::tests::surreal_identity_and_exact_retry_converge",
+          "bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes",
+          "bundles::exporter::tests::workflow_run_scope_rejects_invalid_uuid",
+          "flight_recorder::fr_emitter::tests::mt137_retried_envelope_keeps_one_durable_identity",
+          "storage::surreal::event_ledger::tests::atomic_batch_bulk_insert_preserves_replay_and_rollback_contracts",
+          "storage::surreal::event_ledger::tests::concurrent_exact_replays_converge_and_conflicting_replay_fails_closed",
+          "storage::surreal::event_ledger::tests::event_ledger_round_trip_survives_shutdown_and_reopen",
+          "flight_recorder::fr_emitter::tests::mt137_surreal_append_is_visible_through_consumer_query_after_reopen",
+          "storage::surreal::loom_store::tests::block_search_projection_update_and_view_ordering_use_real_store",
+          "storage::surreal::loom_store::tests::collection_replacement_is_atomic_and_survives_close_reopen",
+          "storage::surreal::loom_store::tests::graph_search_covers_every_declared_source_kind",
+          "storage::retention::tests::test_dry_run_does_not_delete",
+          "storage::retention::tests::test_flight_recorder_event_emitted",
+          "storage::retention::tests::test_prune_respects_pinned_items",
+          "storage::retention::tests::test_min_versions_constraint",
+          "storage::retention::tests::test_prune_respects_window",
+          "api::memory::tests::workspace_memory_cleanup_is_scoped_and_preserves_receipts",
+          "storage::surreal::mt136_kernel_action_submitter_proof::tests::submitter_contract",
+          "storage::tests::database_trait_purity_source_regressions",
+          "workflows::tests::dcc_compact_summary_contract_preserves_stable_ids",
+          "workflows::tests::dcc_mailbox_projection_preserves_wait_reasons",
+          "workflows::tests::dcc_ready_query_projection_is_backend_backed",
+          "workflows::tests::dcc_session_binding_projection_matches_runtime_state",
+          "workflows::tests::dcc_task_board_filters_by_state_family_and_queue_reason",
+          "workflows::tests::debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id",
+          "workflows::tests::debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id",
+          "workflows::tests::debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id"
+        ],
+        "carried_debt_listed_not_counted": [
+          "storage::surreal::loom_store::tests::collection_replacement_is_atomic_and_survives_close_reopen",
+          "storage::surreal::loom_store::tests::block_search_projection_update_and_view_ordering_use_real_store",
+          "storage::surreal::loom_store::tests::graph_search_covers_every_declared_source_kind"
+        ],
+        "carried_debt_now_green": [
+          "storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin"
+        ],
+        "skip_lines": [
+          "SKIP real_cloud_spawn_generate: HANDSHAKE_TEST_CLOUD_PROVIDER not set (env-gated real cloud test; LISTED)"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/416-lib.log"
+      },
+      "proof_commands": [
+        {
+          "cmd_index": 0,
+          "executed_as": "built knowledge_documents_api_tests exe (exe-map setA row, sha verified) with args `mt120 --nocapture` (cargo not invoked; cargo would launch this same exe)",
+          "index": "417",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 65.61s",
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/417-knowledge_documents_api_tests-mt120.log",
+          "verdict": "PASS (3/3 mt120 restoration tests)"
+        },
+        {
+          "cmd_index": 1,
+          "executed_as": "git grep at fd9060de (same regex, tests/ tree)",
+          "exit_code": 0,
+          "result": "9 hits: 8 string-literal tripwire/fixture lines in model_registry_tests.rs:240, security_portability_validation_tests.rs:403/415/419/446/543/602, wp009_integration_validator_evidence_pack_tests.rs:240 + fixtures/atelier_core_data/llm_evidence_pack.json:66 invalid_sqlite_source_id fixture; EXEMPT (a)/(b); 0 dependencies"
+        },
+        {
+          "cmd_index": 2,
+          "executed_as": "git grep -i at fd9060de on Cargo.toml",
+          "exit_code": 1,
+          "result": "0 hits"
+        },
+        {
+          "extra": "Cargo.lock forbidden crate names",
+          "exit_code": 1,
+          "result": "0 hits"
+        }
+      ]
+    },
+    "reds": [
+      {
+        "index": "049",
+        "target": "atelier_source_evidence_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 313.87s",
+        "failing_tests": [
+          "mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_schema",
+          "source_evidence_matrix_records_maturity_and_anchor_verification"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/049-atelier_source_evidence_tests.log",
+        "log_sha256": "787ee352d5cc7b364de28d27520c86c244228fa86f14398a8f1622eef533835b",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_schema @ tests\\atelier_source_evidence_tests.rs:639:5: core-data matrix must cite at least one migration as anchor evidence",
+          "source_evidence_matrix_records_maturity_and_anchor_verification @ tests\\atelier_source_evidence_tests.rs:87:5: MT-018 source row must cite the review metadata migration"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "432",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 105.20s",
+            "failing_tests": [
+              "mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_schema",
+              "source_evidence_matrix_records_maturity_and_anchor_verification"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/432-atelier_source_evidence_tests.log",
+            "log_sha256": "2d23f21769392857ea64407ca245705c7455b89309b579fd4e00381c6860d0b5",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "051",
+        "target": "atelier_state_probe_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 163.78s",
+        "failing_tests": [
+          "state_probe_catalog_records_required_surfaces_before_visual_inspection"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/051-atelier_state_probe_tests.log",
+        "log_sha256": "59cda242a056e54663cfb30d063abe912f8826c574ccae726b892d972b80e82c",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "state_probe_catalog_records_required_surfaces_before_visual_inspection @ tests\\atelier_state_probe_tests.rs:88:9: assertion `left == right` failed"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "433",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.59s",
+            "failing_tests": [
+              "state_probe_catalog_records_required_surfaces_before_visual_inspection"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/433-atelier_state_probe_tests.log",
+            "log_sha256": "5148696f4192700181d2ad58ca55971467f506702070b222302cd7d45bc3a369",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "055",
+        "target": "atelier_visual_diff_baseline_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 174.83s",
+        "failing_tests": [
+          "mt155_visual_diff_request_persists_threshold_and_metadata_for_both_reference_kinds"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/055-atelier_visual_diff_baseline_tests.log",
+        "log_sha256": "9e0f3be0e11717ddef618f6b14182403b4a5010b4f8c74a1e961e98668558380",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt155_visual_diff_request_persists_threshold_and_metadata_for_both_reference_kinds @ tests\\atelier_visual_diff_baseline_tests.rs:171:10: record baseline-bound diff request: Database(Database(Error { code: -32000, message: \"Couldn't coerce value for field `baseline_id` of `kernel_visual_diff_reque"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "435",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.04s",
+            "failing_tests": [
+              "mt155_visual_diff_request_persists_threshold_and_metadata_for_both_reference_kinds"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/435-atelier_visual_diff_baseline_tests.log",
+            "log_sha256": "cefcd9566b596cc1ef3ff2fc3a3a572c859d001ec01a1e8654c1d270dee51546",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "056",
+        "target": "atelier_visual_diff_result_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 264.56s",
+        "failing_tests": [
+          "mt157_pixel_diff_computation_persists_result_fields_and_ledger_event",
+          "mt157_manual_mode_persists_manual_review_required_and_rejects_mode_mismatch",
+          "mt157_structural_dom_computation_persists_within_limit_pass"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/056-atelier_visual_diff_result_tests.log",
+        "log_sha256": "dd83f3e1f5e0d69792bac54a370fc1f358701d113ab7ae8fd41c2062d8d54247",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt157_pixel_diff_computation_persists_result_fields_and_ledger_event @ tests\\atelier_visual_diff_result_tests.rs:97:10: record diff request: Database(Database(Error { code: -32000, message: \"Couldn't coerce value for field `baseline_id` of `kernel_visual_diff_request:u'01a0aaae-1",
+          "mt157_manual_mode_persists_manual_review_required_and_rejects_mode_mismatch @ tests\\atelier_visual_diff_result_tests.rs:97:10: record diff request: Database(Database(Error { code: -32000, message: \"Couldn't coerce value for field `baseline_id` of `kernel_visual_diff_request:u'01a0aaaf-7",
+          "mt157_structural_dom_computation_persists_within_limit_pass @ tests\\atelier_visual_diff_result_tests.rs:97:10: record diff request: Database(Database(Error { code: -32000, message: \"Couldn't coerce value for field `baseline_id` of `kernel_visual_diff_request:u'01a0aab0-1"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "436",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 53.78s",
+            "failing_tests": [
+              "mt157_structural_dom_computation_persists_within_limit_pass",
+              "mt157_manual_mode_persists_manual_review_required_and_rejects_mode_mismatch",
+              "mt157_pixel_diff_computation_persists_result_fields_and_ledger_event"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/436-atelier_visual_diff_result_tests.log",
+            "log_sha256": "27da68383fb09db225c6406c4e98fe8a2c528d369d7d5d6c14bd5823051b73b6",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "053",
+        "target": "atelier_swarm_ingestion_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1048.98s",
+        "failing_tests": [
+          "mass_concurrent_intake_persists_every_item"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/053-atelier_swarm_ingestion_tests.log",
+        "log_sha256": "b9e2a9a9e377db9c9582b090c01306b9fea516910b509cdce34080db89d5915d",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mass_concurrent_intake_persists_every_item @ tests\\atelier_swarm_ingestion_tests.rs:93:22: add intake item under concurrency: Database(Database(Error { code: -32003, message: \"Transaction conflict: Resource busy. This transaction can be retried\", deta"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "434",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 331.38s",
+            "failing_tests": [
+              "mass_concurrent_intake_persists_every_item"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/434-atelier_swarm_ingestion_tests.log",
+            "log_sha256": "7192b3d176c7763e667663f69dab4c6b3f9339142ac048568f94f637eb9783ce",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "087",
+        "target": "debug_adapter_node_session",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s",
+        "failing_tests": [
+          "node_inspector_real_breakpoint_stack_variables_eval_step_continue"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/087-debug_adapter_node_session.log",
+        "log_sha256": "bee29bb5376a81a338771a433376aa85aa85e4219e768a82cfd39f8fdd3a42c7",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "node_inspector_real_breakpoint_stack_variables_eval_step_continue @ tests\\debug_adapter_node_session.rs:74:5: breakpoint must bind to executable code (REAL CDP verified), got [Breakpoint { id: \"1:1:0:file:///D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handsha"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "437",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+            "failing_tests": [
+              "node_inspector_real_breakpoint_stack_variables_eval_step_continue"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/437-debug_adapter_node_session.log",
+            "log_sha256": "8b0bc4b32a3beb3d37a74322c821c420798de54bebcabe02249b68808029ef33",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "103",
+        "target": "hbr_e2e_smoke_test",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "failing_tests": [
+          "hbr_e2e_smoke_test"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/103-hbr_e2e_smoke_test.log",
+        "log_sha256": "f0df1e3d870b6dfab4af61e9b8b018e489c02534be80e04161c2500f1c365182",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "438",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+            "failing_tests": [
+              "hbr_e2e_smoke_test"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/438-hbr_e2e_smoke_test.log",
+            "log_sha256": "f0df1e3d870b6dfab4af61e9b8b018e489c02534be80e04161c2500f1c365182",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "105",
+        "target": "hbr_registry_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "failing_tests": [
+          "hbr_registry_tests_foreground_required_tag_makes_quiet_004_applicable",
+          "hbr_registry_tests_not_applicable_override_returns_non_empty_reason",
+          "hbr_registry_tests_applicability_matches_declared_tags_and_touched_path_globs",
+          "hbr_registry_tests_live_registry_loads_active_rules_and_distribution",
+          "hbr_registry_tests_registry_rejects_tampered_schema"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/105-hbr_registry_tests.log",
+        "log_sha256": "2f5f8efb423577dc04793cf63d83b25c820f6c13c0b9d82ec7903f968d71dd82",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "hbr_registry_tests_foreground_required_tag_makes_quiet_004_applicable @ tests\\hbr_registry_tests.rs:108:59: live HBR registry loads: Json(Error(\"unknown variant `PRIV`, expected one of `INT`, `SWARM`, `VIS`, `QUIET`, `MAN`, `STOP`\", line: 99, column: 22))",
+          "hbr_registry_tests_not_applicable_override_returns_non_empty_reason @ tests\\hbr_registry_tests.rs:87:59: live HBR registry loads: Json(Error(\"unknown variant `PRIV`, expected one of `INT`, `SWARM`, `VIS`, `QUIET`, `MAN`, `STOP`\", line: 99, column: 22))",
+          "hbr_registry_tests_applicability_matches_declared_tags_and_touched_path_globs @ tests\\hbr_registry_tests.rs:55:59: live HBR registry loads: Json(Error(\"unknown variant `PRIV`, expected one of `INT`, `SWARM`, `VIS`, `QUIET`, `MAN`, `STOP`\", line: 99, column: 22))",
+          "hbr_registry_tests_live_registry_loads_active_rules_and_distribution @ tests\\hbr_registry_tests.rs:34:59: live HBR registry loads: Json(Error(\"unknown variant `PRIV`, expected one of `INT`, `SWARM`, `VIS`, `QUIET`, `MAN`, `STOP`\", line: 99, column: 22))"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "439",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+            "failing_tests": [
+              "hbr_registry_tests_live_registry_loads_active_rules_and_distribution",
+              "hbr_registry_tests_applicability_matches_declared_tags_and_touched_path_globs",
+              "hbr_registry_tests_foreground_required_tag_makes_quiet_004_applicable",
+              "hbr_registry_tests_not_applicable_override_returns_non_empty_reason",
+              "hbr_registry_tests_registry_rejects_tampered_schema"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/439-hbr_registry_tests.log",
+            "log_sha256": "c329b7d66a4653f34defe7b8af261c4a603c0272a0fd349b0df2ac486261ab26",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "123",
+        "target": "inspector_ipc_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "failing_tests": [
+          "inspector_ipc_tests_tauri_bridge_file_registers_all_inspector_commands"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/123-inspector_ipc_tests.log",
+        "log_sha256": "d2723a436c5937e30cd07e75c54068b7098825fa7608d158e25c2d9122d6b25c",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "inspector_ipc_tests_tauri_bridge_file_registers_all_inspector_commands @ tests\\inspector_ipc_tests.rs:50:5: assertion failed: cargo_toml.contains(\"\\\"runtime-full\\\"\")"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "440",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+            "failing_tests": [
+              "inspector_ipc_tests_tauri_bridge_file_registers_all_inspector_commands"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/440-inspector_ipc_tests.log",
+            "log_sha256": "158c46d7423e050d57abcc1f41d58d967a6f861e3a0d76f3aa2cb9e240c0fe0d",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "126",
+        "target": "kernel_003_migration_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+        "failing_tests": [
+          "fixtures_snapshot_validation_job_to_process_spec_and_adapter_argv"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/126-kernel_003_migration_tests.log",
+        "log_sha256": "6cf136f968891add19b9f2508662687b64e7fac009986a9035a317a4bd042d9f",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "fixtures_spawn_through_trait_object_matrix_and_promote_without_concrete_adapters @ tests\\kernel_003_migration_tests.rs:164:18: trait object runner selected through registry: SandboxSelection(IsolationTierUnsatisfied { adapter_id: AdapterId(\"wsl2_podman\"), required_tier: Tier3Microvm, av"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "441",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+            "failing_tests": [
+              "fixtures_snapshot_validation_job_to_process_spec_and_adapter_argv",
+              "fixtures_spawn_through_trait_object_matrix_and_promote_without_concrete_adapters"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/441-kernel_003_migration_tests.log",
+            "log_sha256": "6f2158ba52cc39bd42df21db2cfdc2dd42a30a08541029208a9845906103222c",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "140",
+        "target": "kernel_crdt_persistence_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 101.22s",
+        "failing_tests": [
+          "kernel_crdt_update_persistence_rejects_missing_eventledger_ref",
+          "kernel_crdt_updates_persist_and_replay_after_surreal_reopen"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/140-kernel_crdt_persistence_tests.log",
+        "log_sha256": "5e2a67c843764de2b27b1a1d1df64ea99c3199179fea88da67a5186b70d3dbfa",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aab7687073108893c8ded90414cf",
+          "store-01a0aab7687073108893c8cd3cccbfa5"
+        ],
+        "solo_reruns": [
+          {
+            "index": "463",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.79s",
+            "failing_tests": [
+              "kernel_crdt_update_persistence_rejects_missing_eventledger_ref",
+              "kernel_crdt_updates_persist_and_replay_after_surreal_reopen"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/463-kernel_crdt_persistence_tests.log",
+            "log_sha256": "9354835e837f4729183cc9de5c521277c1ff04129ef268b7c7d1c9a3034c9574",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "142",
+        "target": "kernel_crdt_snapshot_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 98.51s",
+        "failing_tests": [
+          "kernel_crdt_snapshot_persistence_rejects_missing_eventledger_ref",
+          "kernel_crdt_snapshot_persists_in_surreal_and_bounds_replay_after_restart"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/142-kernel_crdt_snapshot_tests.log",
+        "log_sha256": "434868954a3843c086cbea59922d0588e82f38b571aaf4db64d3caf1a008c386",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aab77dac7e23a2af51be36ec393c",
+          "store-01a0aab77dac7e23a2af51a59115b785"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "162",
+        "target": "kernel_kb003_security_denial_matrix_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s",
+        "failing_tests": [
+          "container_stub_is_always_blocked_with_typed_missing_dependency"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/162-kernel_kb003_security_denial_matrix_tests.log",
+        "log_sha256": "6cb39f135843c7f0b33c328cb45739fa1d783a73b2489ebaf7099b017b34934d",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "container_stub_is_always_blocked_with_typed_missing_dependency @ tests\\kernel_kb003_security_denial_matrix_tests.rs:339:13: assertion failed: missing_dependency.contains(\"docker\") || missing_dependency.contains(\"podman\")"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "442",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+            "failing_tests": [
+              "container_stub_is_always_blocked_with_typed_missing_dependency"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/442-kernel_kb003_security_denial_matrix_tests.log",
+            "log_sha256": "c9942c64223840d114cfe5532e55aebce26c72d7b7e18d1c7b3512a0309ee2a2",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "150",
+        "target": "kernel_end_to_end_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 357.52s",
+        "failing_tests": [
+          "kernel_proof_records_flight_recorder_diagnostic_mirrors",
+          "adapter_replaceability_proof",
+          "end_to_end_kernel_proof",
+          "kernel_dcc_projection_api_route_returns_backend_validated_surface",
+          "kernel_trace_inspector_api_route_returns_trace_projection",
+          "kernel_trace_inspector",
+          "broker_dispatch_to_adapter_session_messages_ledger_link_toolgate_ledger_bridge_artifact_store_ledger_link"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/150-kernel_end_to_end_tests.log",
+        "log_sha256": "8f476bef2adf39328286ad2990510263790d48f35680d340292ff2ef5607ecdb",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aab8ad9373829068ccb3132e2917",
+          "store-01a0aab8ad9373829068ccf2469e46ed",
+          "store-01a0aab8ad9373829068cce4f69ef7b6",
+          "store-01a0aab8ad9373829068ccd89309cb42",
+          "store-01a0aab8ad9373829068cd0120e8992b",
+          "store-01a0aab8ad9373829068ccaa55155330",
+          "store-01a0aab8ad9373829068ccce270b9834"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "203",
+        "target": "knowledge_code_nav_api_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 175.64s",
+        "failing_tests": [
+          "mt106_nav_api_lookup_definition_references_tests_spans_with_receipts",
+          "mt106_nav_api_flags_stale_symbols_on_every_route",
+          "mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/203-knowledge_code_nav_api_tests.log",
+        "log_sha256": "14dcb076d294dbeaea62cf3f37bcf035d8d0b1fd55470c898a86c402a191af0a",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt106_nav_api_lookup_definition_references_tests_spans_with_receipts @ tests\\knowledge_code_nav_api_tests.rs:281:5: assertion `left == right` failed",
+          "mt106_nav_api_flags_stale_symbols_on_every_route @ tests\\knowledge_code_nav_api_tests.rs:539:5: assertion `left == right` failed",
+          "mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded @ tests\\knowledge_code_nav_api_tests.rs:109:10: MT-045 fixture root must be external Handshake_Artifacts: NotPresent"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "443",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.74s",
+            "failing_tests": [
+              "mt106_nav_api_flags_stale_symbols_on_every_route",
+              "mt106_nav_api_lookup_definition_references_tests_spans_with_receipts",
+              "mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/443-knowledge_code_nav_api_tests.log",
+            "log_sha256": "45e75eaa90b3da16fee00f913d0a3458fc5757fdddb4ac056d1573cd9a35f3c6",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "204",
+        "target": "knowledge_crdt_bridge_api_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 145.30s",
+        "failing_tests": [
+          "mt_067_yjs_bridge::http_push_pull_round_trip_with_navigation_receipts",
+          "mt_075_conflict_ui::conflict_state_endpoint_serves_typed_conflicts_from_receipts"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/204-knowledge_crdt_bridge_api_tests.log",
+        "log_sha256": "a23dcbed2311fbcfd2005d9a9afc616bdf28b2eb53b318e43ab474a1869d14be",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aac4bf4579038414ca7a4c8d9228",
+          "store-01a0aac4bf4579038414ca8e1b510180"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "209",
+        "target": "knowledge_crdt_proposal_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [
+          "hardening_lease_chokepoint::expired_lease_denies_graph_proposal_write",
+          "mt_074_ai_edit_proposals::review_flow_promotes_approved_and_denies_rejected_durably"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/209-knowledge_crdt_proposal_tests.log",
+        "log_sha256": "dc46d22540faf64cf474a227341ae91c24868301a26e87597338db29131b38a0",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "418",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [
+              "mt_068_graph_proposals::proposal_lifecycle_with_event_receipts_on_embedded_store"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/418-knowledge_crdt_proposal_tests.log",
+            "log_sha256": "d816c4faf2eef57a5a7e673c705fd6a1a62e5d738b018709ee58ca2754941fd1",
+            "args": "--nocapture"
+          },
+          {
+            "index": "468",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [
+              "hardening_lease_chokepoint::expired_lease_denies_graph_proposal_write",
+              "mt_074_ai_edit_proposals::model_reviewer_is_rejected_by_embedded_boundary",
+              "hardening_lease_chokepoint::foreign_lease_denies_ai_edit_write",
+              "hardening_lease_chokepoint::wrong_scope_lease_denies_guarded_save",
+              "mt_068_graph_proposals::unevidenced_graph_proposal_is_rejected_by_embedded_boundary",
+              "mt_074_ai_edit_proposals::review_flow_promotes_approved_and_denies_rejected_durably"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/468-knowledge_crdt_proposal_tests.log",
+            "log_sha256": "8dea620c081ceb9e1dab84cd181b9b7adab29e97c0cc149dc521dd388523b52a",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "211",
+        "target": "knowledge_document_model_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 362.42s",
+        "failing_tests": [
+          "crash_recovery_reconstructs_draft_writebox_state_from_embedded_store",
+          "crash_recovery_reconstructs_document_from_embedded_store"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/211-knowledge_document_model_tests.log",
+        "log_sha256": "dd001bfdf6eb6561bcb56eeb1d06ba89a41005243019abc69b7439041bd1a726",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aad0b5e579b38f76d3e449a6850d",
+          "store-01a0aad0b5e579b38f76d3d54c3527bf"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "212",
+        "target": "knowledge_documents_api_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/212-knowledge_documents_api_tests.log",
+        "log_sha256": "fec6f79ce92db0ac975ad8c339d2a1f7d5681c92272e9b491fcbdec973c0acac",
+        "class": "MIXED_DRAIN_PLUS_OTHER",
+        "panic_samples": [
+          "tokio-rt-worker @ tests\\knowledge_documents_api_tests.rs:207:17: intentional MT-032 embedded-store unwind",
+          "mt032_save_rejects_same_workspace_wrong_type_projection_collision @ tests\\knowledge_documents_api_tests.rs:1006:10: seed wrong-type same-id LoomBlock: Database(\"embedded database error: Found knowledge_rich_documents:`KRD-01a0aae0d6e474909529166922e29acd` for field `source_ri"
+        ],
+        "preserved_stores": [
+          "store-01a0aad150e07c21889b7149fa7fed5a"
+        ],
+        "solo_reruns": [
+          {
+            "index": "419",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/419-knowledge_documents_api_tests.log",
+            "log_sha256": "df5e277b0abb38a6d7f501fe4335be8d876170c12f84110e1b9ce1e4a2a44bc9",
+            "args": "--nocapture"
+          },
+          {
+            "index": "469",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/469-knowledge_documents_api_tests.log",
+            "log_sha256": "6a158dc0823a9d9ebc9270d92e09521d9058306a7d0e9f1ed1bb0b50135efd54",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "215",
+        "target": "knowledge_graph_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 842.57s",
+        "failing_tests": [
+          "mt_054_edges::edge_conflict_shape_is_typed_and_catalog_backed"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/215-knowledge_graph_tests.log",
+        "log_sha256": "72d9f38df1f2596e358affc5c96d3b6c3644a7792b35847f33a76ba4e0e63e35",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt_054_edges::edge_conflict_shape_is_typed_and_catalog_backed @ tests\\knowledge_graph_tests.rs:847:9: assertion failed: marker.kind.contains(\"option\")"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "444",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 232.82s",
+            "failing_tests": [
+              "mt_054_edges::edge_conflict_shape_is_typed_and_catalog_backed"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/444-knowledge_graph_tests.log",
+            "log_sha256": "66131646f15a58a093de3c50f33c7ccc19b545cbc2c5a175cbea71f89c64fd97",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "232",
+        "target": "knowledge_retrieval_bridges_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 103.47s",
+        "failing_tests": [
+          "context_pack_decision_emits_bounded_receipt",
+          "schema_first_filter_narrows_to_query_scope"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/232-knowledge_retrieval_bridges_tests.log",
+        "log_sha256": "637db881819ac986621a52bea6a474d054cdd9b6531cbb9e452acdb599298892",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aaf019f275528783d938e33bdcfd",
+          "store-01a0aaf019f275528783d9252bfa451c"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "229",
+        "target": "knowledge_memory_projection_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 272.27s",
+        "failing_tests": [
+          "passage_evidence_graph_and_citation_resolution"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/229-knowledge_memory_projection_tests.log",
+        "log_sha256": "9080bc162219ee8cab7c17439c4ddd83e29bd2fe16e6148a88baeed7b6811709",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "passage_evidence_graph_and_citation_resolution @ tests\\knowledge_memory_projection_tests.rs:537:10: citing passages: Database(\"embedded database error: Failed to deserialize field 'created_at' on type 'PassageIdRow': Expected datetime, got none\")"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "445",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 99.58s",
+            "failing_tests": [
+              "passage_evidence_graph_and_citation_resolution"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/445-knowledge_memory_projection_tests.log",
+            "log_sha256": "ab35232a334b1aa066a3503ea2bd5946afdb941b92c7b875d35d6c8e33b3c623",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "235",
+        "target": "knowledge_retrieval_replay_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 626.95s",
+        "failing_tests": [
+          "replay_context_bundle_from_trace_fails_without_eventledger_receipts",
+          "replay_context_bundle_from_trace_reconstructs_executor_passage_span_anchors",
+          "replay_context_bundle_from_trace_fails_on_wrong_receipt_type_and_workspace_drift",
+          "replay_context_bundle_from_trace_fails_when_selected_candidate_is_missing",
+          "replay_context_bundle_from_trace_fails_on_receipt_aggregate_id_mismatch",
+          "replay_context_bundle_from_trace_fails_when_selected_trace_items_are_missing",
+          "replay_context_bundle_from_trace_reconstructs_executor_graph_edge_span_anchors",
+          "replay_context_bundle_from_trace_reconstructs_plan_evidence_and_receipts"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/235-knowledge_retrieval_replay_tests.log",
+        "log_sha256": "f3a5865cba07c9219fa38adccc6b701de0f5a8df063476596fdcadcc6ce2bb4e",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aaf1f7be74728d0f8e6aa95a5624",
+          "store-01a0aaf1f7be74728d0f8ea8d6d8de3e",
+          "store-01a0aaf1f7be74728d0f8e51e575f3bd",
+          "store-01a0aaf1f7be74728d0f8e7c251f6564",
+          "store-01a0aaf1f7be74728d0f8e987ec7d53f",
+          "store-01a0aaf1f7be74728d0f8e8b541cc6a7",
+          "store-01a0aaf1f7be74728d0f8e47408df2d1",
+          "store-01a0aaf1f7be74728d0f8e38d956dc62"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "236",
+        "target": "knowledge_schema_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 777.95s",
+        "failing_tests": [
+          "mt_049_namespace::namespace_registry_is_seeded_and_boundary_is_sound"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/236-knowledge_schema_tests.log",
+        "log_sha256": "bcc81ad1ce3a04271aaca7c6877f91ff51ada7edd27e52f841e0248240b1c448",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt_049_namespace::namespace_registry_is_seeded_and_boundary_is_sound @ tests\\knowledge_schema_tests.rs:90:13: assertion `left == right` failed"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "446",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 11 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 196.85s",
+            "failing_tests": [
+              "mt_049_namespace::namespace_registry_is_seeded_and_boundary_is_sound"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/446-knowledge_schema_tests.log",
+            "log_sha256": "cd03f752d51a44b454f904eb411254586d6797e92183762f99a831b7750d0c78",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "234",
+        "target": "knowledge_retrieval_pipeline_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 15 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1050.50s",
+        "failing_tests": [
+          "executed_pipeline_falls_back_to_passages_ranks_and_compiles",
+          "semantic_catalog_entry_is_backend_queryable",
+          "dangling_handle_degrades_to_discovery",
+          "known_entity_plans_direct_load_and_records_skip_reason",
+          "fragmented_graph_retrieval_ignores_proposed_and_retired_bridges",
+          "executed_pipeline_graph_path_ranks_and_compiles",
+          "retrieval_scenarios_stale_graph_no_result_and_bad_citation_are_driven",
+          "compiler_persists_bounded_bundle_and_drops_over_budget",
+          "evidence_snippet_carries_span_citation",
+          "indexed_wp_mt_relationship_handles_confirm",
+          "graph_traversal_yields_candidates_with_relationship_ids",
+          "fragmented_graph_schema_scope_blocks_off_topic_bridge_edges",
+          "dangling_wp_mt_relationship_handles_degrade_and_record",
+          "planner_derives_route_from_semantic_catalog_entry",
+          "graph_traversal_allowlist_excludes_other_edge_types"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/234-knowledge_retrieval_pipeline_tests.log",
+        "log_sha256": "bbdb174952247aed9b8d36b1055f36bfeeec6c1b078e80680bd99dfda1029eec",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aaf147717b9286983e4d4e4a2aa2",
+          "store-01a0aaf147707552a026e86bcd4f0f68",
+          "store-01a0aaf147707552a026e83ea3ebdc49",
+          "store-01a0aaf147707552a026e8296a9aea46",
+          "store-01a0aaf147717b9286983e1c545b236d",
+          "store-01a0aaf147717b9286983e831a49768d",
+          "store-01a0aaf147717b9286983e3defe0cd3d",
+          "store-01a0aaf147707552a026e85f70f0dad8",
+          "store-01a0aaf147717b9286983e96c83bb690",
+          "store-01a0aaf147717b9286983e2a9ca4af0c",
+          "store-01a0aaf147717b9286983e65df330217",
+          "store-01a0aaf147707552a026e812ee7f92ef",
+          "store-01a0aaf147707552a026e84c4260fa07",
+          "store-01a0aaf147717b9286983e7da62d81b5",
+          "store-01a0aaf147717b9286983e5d2f32fd2d"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "253",
+        "target": "loom_backlink_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 232.20s",
+        "failing_tests": [
+          "unlinked_mentions_surface_only_unlinked_word_boundary_matches",
+          "linked_backlinks_carry_source_block_and_context_snippet",
+          "backlinks_fail_closed_on_missing_block",
+          "unlinked_mentions_scan_aliases_too"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/253-loom_backlink_tests.log",
+        "log_sha256": "2f0c26caf03788ec6a7f2706a54cbcd39d97eabd49ea3255e57554bde11a0694",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab015c987fa187172412665e5076",
+          "store-01a0ab015c987fa1871723f53c93abbc",
+          "store-01a0ab015c987fa1871723e44d1452a7",
+          "store-01a0ab015c987fa1871724099dfb25ce"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "251",
+        "target": "loom_ai_suggestions_api_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 451.28s",
+        "failing_tests": [
+          "accept_all_non_operator_promotes_nothing_then_operator_promotes_all_of_kind",
+          "reject_leaves_authority_untouched",
+          "rerun_is_idempotent_per_value",
+          "link_suggest_accept_promotes_ai_suggested_edge",
+          "non_operator_confirm_denied_with_receipt",
+          "auto_caption_accept_writes_derived_field_with_provenance",
+          "no_model_declines_with_zero_rows",
+          "auto_tag_pending_then_accept_promotes_to_real_edge"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/251-loom_ai_suggestions_api_tests.log",
+        "log_sha256": "6b3490f254be6bbf98263c12b2af97da7cf75467803054a9159f75f5cf4fd53a",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0aafe12457482ae32e2da1387e668",
+          "store-01a0aafe12457482ae32e2e48612a0c5",
+          "store-01a0aafe12457482ae32e2c2b6064dae",
+          "store-01a0aafe12457482ae32e2b3722e89c8",
+          "store-01a0aafe12457482ae32e2abcb55b894",
+          "store-01a0aafe12457482ae32e2924a35e807",
+          "store-01a0aafe12457482ae32e271425cdb03",
+          "store-01a0aafe12457482ae32e28bfdd05938"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "255",
+        "target": "loom_breadcrumb_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 180.35s",
+        "failing_tests": [
+          "breadcrumbs_for_unfiled_unbridged_block_are_minimal",
+          "breadcrumbs_span_workspace_folder_ancestry_block_and_entity",
+          "breadcrumbs_fail_closed_on_missing_block"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/255-loom_breadcrumb_tests.log",
+        "log_sha256": "096bec52a61d2fb966d2d1065ce52e127f132332e3f2dc6b6b9897fd0d2495e1",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab051c7a7ea0a6c39fc43a8957bd",
+          "store-01a0ab051c7a7ea0a6c39fe4477d48fc",
+          "store-01a0ab051c7a7ea0a6c39fd11504b851"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "256",
+        "target": "loom_canvas_board_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/256-loom_canvas_board_tests.log",
+        "log_sha256": "5c60cf371a4d2f2d4cace666cee5e4523b8f4492c00a5d8ed0e0a0f7b4f266b3",
+        "class": "MIXED_DRAIN_PLUS_OTHER",
+        "panic_samples": [
+          "stage_canvas_compensation_is_atomic_and_idempotent @ tests\\loom_canvas_board_tests.rs:853:10: create Stage Canvas card: Database(\"embedded database error: Error while processing event mt109_loom_source_integrity: An error occurred: HSK-MT109-LOOM-SOURCE-",
+          "stage_canvas_compensation_mismatch_and_typed_state_change_fail_closed @ tests\\loom_canvas_board_tests.rs:197:10: create Stage Canvas card: Database(\"embedded database error: Error while processing event mt109_loom_source_integrity: An error occurred: HSK-MT109-LOOM-SOURCE-"
+        ],
+        "preserved_stores": [
+          "store-01a0ab082f3e79d397ccab30877e41ba"
+        ],
+        "solo_reruns": [
+          {
+            "index": "420",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/420-loom_canvas_board_tests.log",
+            "log_sha256": "87cd1cd2c3f21483a613b29817cb0ad782ded55a2cabb79d62952634eee5025d",
+            "args": "--nocapture"
+          },
+          {
+            "index": "470",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [
+              "stage_canvas_compensation_first_makes_waiting_and_later_logical_writers_fail",
+              "canvas_is_a_loom_block_with_knowledge_bridge",
+              "stage_canvas_compensation_refuses_typed_logical_reference_writer_output",
+              "deleting_canvas_keeps_placed_blocks"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/470-loom_canvas_board_tests.log",
+            "log_sha256": "5973171e1dfa2b78f44db44eb7216e2f8e811bfa47e8c4e2505ba8caa3f6d33a",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "254",
+        "target": "loom_block_collection_views_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 10 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1925.35s",
+        "failing_tests": [
+          "saved_view_creation_persists_normalized_outbox_actor",
+          "view_def_block_round_trips_with_bridge_and_dedicated_column",
+          "view_def_block_persists_definition_only_in_dedicated_field",
+          "resort_persists_into_view_definition",
+          "calendar_buckets_by_journal_date_with_date_filter",
+          "table_sort_by_typed_column_is_correct_across_a_page_boundary",
+          "saved_view_creation_is_idempotent_and_authority_backed",
+          "free_kanban_places_shared_tag_cards_once_each",
+          "kanban_move_via_real_tag_edges_reflects_in_requery_and_embedded_store",
+          "saved_view_create_failure_rolls_back_every_authority_surface"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/254-loom_block_collection_views_tests.log",
+        "log_sha256": "8e57962a2144ca71ef24d2b6b08b5737494005b36c20d7940743ada26734b166",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab04fdc675b1a0772c74adcbf4e4",
+          "store-01a0ab04fdc675b1a0772cba61a59493",
+          "store-01a0ab04fdc675b1a0772cabe89233c7",
+          "store-01a0ab04fdc675b1a0772c8d36cfa68a",
+          "store-01a0ab04fdc675b1a0772c55fdc6da56",
+          "store-01a0ab04fdc675b1a0772c60a97b2e57",
+          "store-01a0ab04fdc675b1a0772cd1323167aa",
+          "store-01a0ab04fdc675b1a0772ce060aeb711",
+          "store-01a0ab04fdc675b1a0772c9735a88d49",
+          "store-01a0ab04fdc675b1a0772cc0dab333ff"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "257",
+        "target": "loom_daily_journal_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 369.19s",
+        "failing_tests": [
+          "journal_date_filters_all_and_sorted_views",
+          "daily_journal_rejects_non_canonical_dates",
+          "daily_journal_open_is_idempotent_and_bridged",
+          "journal_mentions_surface_as_backlinks"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/257-loom_daily_journal_tests.log",
+        "log_sha256": "ead63fb36d4c2e0c7ab5926471c919de5822eacdf3949ecdd38fd2cbfdd63ee9",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab1cdba77eb39b2f11204a14113d",
+          "store-01a0ab1cdba77eb39b2f113f8eecdf76",
+          "store-01a0ab1cdba77eb39b2f1154d22f47a2",
+          "store-01a0ab1cdba77eb39b2f1143270eafe9"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "260",
+        "target": "loom_graph_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 242.23s",
+        "failing_tests": [
+          "local_graph_depth_one_is_immediate_neighborhood",
+          "local_graph_fails_closed_on_missing_start",
+          "global_graph_node_limit_sets_truncated",
+          "global_graph_returns_all_and_suppresses_hubs",
+          "local_graph_is_undirected_with_stale_markers_and_citations"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/260-loom_graph_tests.log",
+        "log_sha256": "527aeaab37a1d44432643115d9cd13823de7c05965c776b55632f13ce2c28e27",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab22db7374528641857a9a6dd1ee",
+          "store-01a0ab22db737452864185612970e11d",
+          "store-01a0ab22db7374528641858ba267dfa0",
+          "store-01a0ab22db737452864185503db98f44",
+          "store-01a0ab22db737452864185409d7ebc3e"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "258",
+        "target": "loom_folder_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 2 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 356.35s",
+        "failing_tests": [
+          "folder_tree_persists_hierarchy_color_and_sort",
+          "folder_move_into_own_subtree_is_rejected",
+          "folder_apis_fail_closed_on_missing_targets",
+          "duplicate_root_folder_names_are_rejected_per_workspace",
+          "folder_membership_and_manual_sort",
+          "folder_name_sort_mode_orders_by_title",
+          "duplicate_child_folder_names_are_rejected_per_parent",
+          "deleting_folder_cascades_subtree_but_not_blocks"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/258-loom_folder_tests.log",
+        "log_sha256": "6ee191a334200a3b06135e7a123608aec66e2086d66ffbefe1f0c610c64594e9",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab227a4471f2add77db3bef09f99",
+          "store-01a0ab227a4471f2add77d6a1dbb4441",
+          "store-01a0ab227a4471f2add77d9391f69c5e",
+          "store-01a0ab227a4471f2add77dab314c5aab",
+          "store-01a0ab227a4471f2add77d8e224bf806",
+          "store-01a0ab227a4471f2add77d5e56753b3d",
+          "store-01a0ab227a4471f2add77d7926be6933",
+          "store-01a0ab227a4471f2add77d4e81bfce48"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "259",
+        "target": "loom_graph_search_filters_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 10 failed; 0 ignored; 0 measured; 0 filtered out; finished in 428.08s",
+        "failing_tests": [
+          "mt186_graph_search_offsets_after_prefetching_each_source",
+          "mt186_graph_search_spans_loom_knowledge_and_usermanual_with_filters",
+          "mt256_graph_search_all_source_limit_does_not_starve_documents",
+          "mt256_graph_search_matches_three_letter_abbreviations",
+          "mt256_graph_search_knowledge_group_limit_does_not_starve_wp_or_mt",
+          "mt256_graph_search_exposes_file_tag_hub_and_document_source_filters",
+          "mt256_graph_search_fuzzy_recall_is_not_capped_to_newest_candidates",
+          "mt256_graph_search_block_group_limit_does_not_starve_file_or_tag_hub",
+          "mt186_block_scoped_filters_do_not_leak_non_block_hits",
+          "mt256_document_fuzzy_search_matches_body_only_terms"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/259-loom_graph_search_filters_tests.log",
+        "log_sha256": "cc0f975dc6a698ac9f37d505a1a27db72ba90c0db04cf093cf9a1fdc92bc2ad2",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab22972d7ad2bc3d079233a4525c",
+          "store-01a0ab22972d7ad2bc3d07dcf7223e35",
+          "store-01a0ab22972d7ad2bc3d07eda00ebd89",
+          "store-01a0ab22972c7fd19415b9dc2eb00e47",
+          "store-01a0ab22972d7ad2bc3d07a042d56025",
+          "store-01a0ab22972c7fd19415b9e327be554a",
+          "store-01a0ab22972d7ad2bc3d07b6cea16fb6",
+          "store-01a0ab22972c7fd19415b9c4152a11fa",
+          "store-01a0ab22972c7fd19415b9f814903836",
+          "store-01a0ab22972d7ad2bc3d07ca27fe5de1"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "263",
+        "target": "loom_navigation_fixtures_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 70.16s",
+        "failing_tests": [
+          "loom_navigation_fixture_exercises_every_path"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/263-loom_navigation_fixtures_tests.log",
+        "log_sha256": "630690bbcb0b6931dd4cb331af3abf669f62fc3b9a4336fdd1012a7295f90f91",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab292f6b7870a8f72e81978a6377"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "261",
+        "target": "loom_knowledge_bridge_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 279.83s",
+        "failing_tests": [
+          "bridge_display_name_falls_back_when_title_absent",
+          "authority_backend_is_surreal_event_ledger",
+          "get_and_list_bridge_read_back_authority_binding",
+          "create_rejects_unbridgeable_block_id",
+          "bridge_is_idempotent_no_duplicate_authority_rows",
+          "bridge_fails_closed_on_missing_block",
+          "bridge_binds_loom_block_to_knowledge_entity_and_event_ledger"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/261-loom_knowledge_bridge_tests.log",
+        "log_sha256": "96feef8cbd84391c5fdf217f90d84ca639712abf115165678108384da1ad1765",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab26a4047853bd227a2807a59b1a",
+          "store-01a0ab26a4047853bd227a3c4f078e77",
+          "store-01a0ab26a4047853bd227a093c1489f9",
+          "store-01a0ab26a4047853bd2279f28af2d129",
+          "store-01a0ab26a4047853bd227a13ed57242b",
+          "store-01a0ab26a4047853bd227a4332e5e796",
+          "store-01a0ab26a4047853bd2279ef72436283"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "265",
+        "target": "loom_retrieval_bias_visibility_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/265-loom_retrieval_bias_visibility_tests.log",
+        "log_sha256": "3bdf76595cfd82599df21c73c428616c04df5dd4fe350203608ceeebb1b337c0",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "422",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/422-loom_retrieval_bias_visibility_tests.log",
+            "log_sha256": "cfa3c09f524cb2edced0118c47133892cb3fc9efbb0b19bfa6a586c44d6ea2a3",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "264",
+        "target": "loom_pins_views_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [
+          "unlinked_view_excludes_linked_blocks",
+          "favorite_flag_survives_search_results"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/264-loom_pins_views_tests.log",
+        "log_sha256": "42244d2e84fc5a21a3aefe0a47cf943587ba3c9e11803c914223b566713427ea",
+        "class": "MIXED_DRAIN_PLUS_OTHER",
+        "panic_samples": [
+          "pins_view_respects_user_pin_order @ tests\\loom_pins_views_tests.rs:223:10: reorder b: Database(\"embedded database error: Found -1 for field `pin_order`, with record `loom_blocks:`01a0ab33-a9a7-7350-a9dc-15058ed5e361``, but field must c"
+        ],
+        "preserved_stores": [
+          "store-01a0ab2a5eaa7060b27c600ab3f06fb8",
+          "store-01a0ab2a5eaa7060b27c5fe13e0ba9ce",
+          "store-01a0ab2a5eaa7060b27c6013a3d5eb26"
+        ],
+        "solo_reruns": [
+          {
+            "index": "421",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [
+              "favorite_flag_survives_search_results"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/421-loom_pins_views_tests.log",
+            "log_sha256": "942dcd581c35484aad3ed753c86c00df3c703f045b5bd2418892a28a2a8681c3",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "268",
+        "target": "loom_transclusion_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 75.09s",
+        "failing_tests": [
+          "mt258_transclusion_unresolved_block_without_source_is_typed_not_blank"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/268-loom_transclusion_tests.log",
+        "log_sha256": "9a0875bdaca9efd21f9fe2d0bd5594af1683f4106bc57b6680302ef9af1e3610",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt258_transclusion_unresolved_block_without_source_is_typed_not_blank @ tests\\loom_transclusion_tests.rs:466:5: assertion `left == right` failed"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "447",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.64s",
+            "failing_tests": [
+              "mt258_transclusion_unresolved_block_without_source_is_typed_not_blank"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/447-loom_transclusion_tests.log",
+            "log_sha256": "eb97bcc64342ca41e3a6d338f328119e585fc3a34ecc2e78d4b85f469c999f7c",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "269",
+        "target": "loom_visual_debug_views_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.17s",
+        "failing_tests": [
+          "mt191_loom_visual_debug_snapshot_exposes_navigation_state_from_real_embedded_store"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/269-loom_visual_debug_views_tests.log",
+        "log_sha256": "3a100883b03756b424e2700d12d72ff1c7aa7f2e4afdd43dd142f8c29a19a064",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab3be08f7881a77982b31f0f6534"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "266",
+        "target": "loom_search_v2_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1118.35s",
+        "failing_tests": [
+          "mt264_graph_blend_facets_and_edges",
+          "mt264_no_model_typed_fallback_no_fabrication",
+          "mt264_fulltext_rank_and_highlight",
+          "mt264_trigram_fuzzy_match",
+          "mt264_reindex_consistency_edit_and_delete",
+          "mt264_semantic_and_hybrid"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/266-loom_search_v2_tests.log",
+        "log_sha256": "88b9378af9ed58707acfcdce67000fab8d61f871d7bf08d7d54840697eb51823",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab2c0eed7bc0ac6995362d23efe2",
+          "store-01a0ab2c0eed7bc0ac69950fe6b6dc58",
+          "store-01a0ab2c0eed7bc0ac69955cfffe6e00",
+          "store-01a0ab2c0eed7bc0ac69954882c7ade2",
+          "store-01a0ab2c0eed7bc0ac699519dddb6554",
+          "store-01a0ab2c0eed7bc0ac699527052a96b4"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "267",
+        "target": "loom_tag_hub_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 294.50s",
+        "failing_tests": [
+          "get_tag_hub_exposes_subtags_tagged_blocks_and_backlinks",
+          "get_tag_hub_deduplicates_members_without_hiding_duplicate_edge_backlinks",
+          "tag_hub_apis_fail_closed_on_non_tag_block",
+          "list_tag_hubs_returns_only_tag_blocks",
+          "get_tag_hub_is_workspace_isolated_and_deterministically_ordered",
+          "list_blocks_for_tag_resolves_nested_membership"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/267-loom_tag_hub_tests.log",
+        "log_sha256": "0ce8f97a082c099999c1b3c48748b9454631b799b01759f6616c94bc26eefa53",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab395561718398cfa8608149d613",
+          "store-01a0ab395561718398cfa87f8ca8809c",
+          "store-01a0ab395561718398cfa885ee8bb5b5",
+          "store-01a0ab395561718398cfa8583afc3b95",
+          "store-01a0ab395561718398cfa8a40f32d1b7",
+          "store-01a0ab395561718398cfa8996d4f173b"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "282",
+        "target": "memory_persistence_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "failing_tests": [
+          "persistence_source_has_no_db_sqlite_or_inspector_mutation_path"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/282-memory_persistence_tests.log",
+        "log_sha256": "fe4e946e36c176b2e683aea32699e32bbd3054520641289320844f58e2ec18e3",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "persistence_source_has_no_db_sqlite_or_inspector_mutation_path @ tests\\memory_persistence_tests.rs:269:9: persistence.rs must not contain forbidden direct path Database"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "448",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+            "failing_tests": [
+              "persistence_source_has_no_db_sqlite_or_inspector_mutation_path"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/448-memory_persistence_tests.log",
+            "log_sha256": "ab75f218a796f6d67bcf06c75c6ae39fc5bc4887a3009dec9bc161e5647d879f",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "270",
+        "target": "loom_wiki_boundary_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 231.07s",
+        "failing_tests": [
+          "markdown_import_creates_authority_never_vault",
+          "wiki_projection_compiles_with_citations_and_staleness",
+          "deleting_projection_leaves_block_authority_byte_identical",
+          "wiki_apis_fail_closed",
+          "overlay_is_own_authority_independent_of_projection"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/270-loom_wiki_boundary_tests.log",
+        "log_sha256": "11c14bf91d928ac4bcaad0060d58a02a7709b37fd460deb589f24c5572785f8f",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab3cfbcf72c18405bf97b24e1a01",
+          "store-01a0ab3cfbcf72c18405bf7f8d2841d8",
+          "store-01a0ab3cfbcf72c18405bf83dd05583f",
+          "store-01a0ab3cfbcf72c18405bfa7c12d4316",
+          "store-01a0ab3cfbcf72c18405bfb92149baba"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "284",
+        "target": "micro_task_job_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [
+          "mt_184_failed_after_max_attempts_is_terminal"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/284-micro_task_job_tests.log",
+        "log_sha256": "2391fd9da0d5e89b248c8531d88304d565b4d2764b344bcd6761c87d926ff2fe",
+        "class": "MIXED_DRAIN_PLUS_OTHER",
+        "panic_samples": [
+          "mt_184_atomic_claim_race_8_jobs_8_workers_no_double_claim @ tests\\micro_task_job_tests.rs:520:59: claim: Storage(Database(Error { code: -32003, message: \"Transaction conflict: Resource busy. This transaction can be retried\", details: Query(Some(NotExecuted))",
+          "mt_184_atomic_claim_race_8_jobs_8_workers_no_double_claim @ tests\\micro_task_job_tests.rs:520:59: claim: Storage(Database(Error { code: -32003, message: \"Transaction conflict: Resource busy. This transaction can be retried\", details: Query(Some(NotExecuted))",
+          "mt_184_atomic_claim_race_8_jobs_8_workers_no_double_claim @ tests\\micro_task_job_tests.rs:520:59: claim: Storage(Database(Error { code: -32003, message: \"Transaction conflict: Resource busy. This transaction can be retried\", details: Query(Some(NotExecuted))",
+          "mt_184_atomic_claim_race_8_jobs_8_workers_no_double_claim @ tests\\micro_task_job_tests.rs:520:59: claim: Storage(Database(Error { code: -32003, message: \"Transaction conflict: Resource busy. This transaction can be retried\", details: Query(Some(NotExecuted))"
+        ],
+        "preserved_stores": [
+          "store-01a0ab3e820f7143a2c05af1632d06a0",
+          "store-01a0ab3e820f7143a2c05ad45ecfafd1",
+          "store-01a0ab3e820e73d0b51dfc2235580749"
+        ],
+        "solo_reruns": [
+          {
+            "index": "423",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/423-micro_task_job_tests.log",
+            "log_sha256": "f7dba8d20d5d0a972f59f6318d8aa8345c2661249b54ec23822ee2fd537176f7",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "301",
+        "target": "mt152_fems_stage_guard_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 40.43s",
+        "failing_tests": [
+          "proposal_insert_then_workspace_delete_cascades_and_reclaims_the_anchor",
+          "workspace_delete_racing_proposal_insert_never_leaves_an_orphan_without_the_static_lock"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/301-mt152_fems_stage_guard_tests.log",
+        "log_sha256": "ae35b2788b5f5ec13f8c85bb0c3fa7a9c00f69bef6009cec5c0b85335f4f0207",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "proposal_insert_then_workspace_delete_cascades_and_reclaims_the_anchor @ tests\\mt152_fems_stage_guard_tests.rs:362:6: insert into a live workspace: Guard(\"HSK-MEM-SOURCE-AUTHORITY\")",
+          "workspace_delete_racing_proposal_insert_never_leaves_an_orphan_without_the_static_lock @ tests\\mt152_fems_stage_guard_tests.rs:294:27: insert must be Ok or the typed NotFound, got mutation guard blocked: HSK-MEM-SOURCE-AUTHORITY"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "449",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.65s",
+            "failing_tests": [
+              "proposal_insert_then_workspace_delete_cascades_and_reclaims_the_anchor",
+              "workspace_delete_racing_proposal_insert_never_leaves_an_orphan_without_the_static_lock"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/449-mt152_fems_stage_guard_tests.log",
+            "log_sha256": "47ca3dc8d86c2b891d36a5de456deb21560bf613ed476f34c740a8c27df85e84",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "303",
+        "target": "mt_cancellation_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 22 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 127.42s",
+        "failing_tests": [
+          "mt_186_cancelled_job_is_terminal_in_queue",
+          "mt_186_cooperative_to_cancelled_transition_with_hook_side_effect",
+          "mt_186_cleanup_hook_runs_even_when_cancellation_interrupts_mid_loop"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/303-mt_cancellation_tests.log",
+        "log_sha256": "e883550a5e6bd6730ed99cf310578a3149ab30a09d079851188ddd06f1e7ac1f",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab4591387f2180f20a5e82cd2ef6",
+          "store-01a0ab4591387f2180f20a68e4f8211e",
+          "store-01a0ab4591387f2180f20a4ed60d54d7"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "304",
+        "target": "mt_executor_integration_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/304-mt_executor_integration_tests.log",
+        "log_sha256": "caa533b000706c7082167bb2a97ff5959840a8e47b242e7975c81108039b0d8c",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "424",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/424-mt_executor_integration_tests.log",
+            "log_sha256": "4327f1a6ce0380f279f55cfd89280bad4ce3e8ec46ae6bd060d96437dcd87043",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "305",
+        "target": "mt_executor_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 12 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 224.50s",
+        "failing_tests": [
+          "mt_184_queue_atomic_claim"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/305-mt_executor_tests.log",
+        "log_sha256": "32f0e7cb0b1b359eb35843a6a20278872fa78ea17078a97b99dc496f94618844",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab4716cc7e22a0262d508348ca9d"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "307",
+        "target": "mt_outcome_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [
+          "mt_188_six_tier_ladder_enforced_at_store_layer"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/307-mt_outcome_tests.log",
+        "log_sha256": "132db9eba9d7d5c5e62f01e3adf0325d804f34ecdf379844099c20a2d6102961",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "425",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/425-mt_outcome_tests.log",
+            "log_sha256": "de1f36c1cbf880320bf09db009db51c9baea16aa526f748e6a31ba41ba88434e",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "306",
+        "target": "mt_loop_control_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 15 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 562.67s",
+        "failing_tests": [
+          "mt_185_latest_for_job_returns_most_recent",
+          "mt_185_concurrent_checkpoints_do_not_double_count_retries",
+          "mt_185_chain_for_job_returns_ascending_order",
+          "mt_185_cross_executor_resume_byte_identical",
+          "mt_185_persisted_checkpoint_survives_repo_handle_churn"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/306-mt_loop_control_tests.log",
+        "log_sha256": "2e3d2afd84d662dc6304714c40d3331eff664464e4e320366de05656738ca225",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab47b1547ba29c02aba72e220782",
+          "store-01a0ab47b1547ba29c02abd207b8dbbd",
+          "store-01a0ab47b1547ba29c02ab999b82606f",
+          "store-01a0ab47b1547ba29c02abc223bfbc0d",
+          "store-01a0ab47b1547ba29c02abb17f7f1293"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "313",
+        "target": "outcome_feedback_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.81s",
+        "failing_tests": [
+          "embedded_outcome_attach_submitter_durable_catalog_event_proof"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/313-outcome_feedback_tests.log",
+        "log_sha256": "3586e9f65c0226719e5c21ba8162547e7886301a882aa669d878485786160c18",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "embedded_outcome_attach_submitter_durable_catalog_event_proof @ tests\\outcome_feedback_tests.rs:272:10: record outcome through embedded submitter: Rejected { code: \"memory_capsule_record_missing\", reason: \"memory capsule action payload has no complete record\" }"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "450",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.49s",
+            "failing_tests": [
+              "embedded_outcome_attach_submitter_durable_catalog_event_proof"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/450-outcome_feedback_tests.log",
+            "log_sha256": "263230ef69248e5a875a856656499413087d7a4ce43d629ee9022d347107b6fa",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "308",
+        "target": "mt_scheduler_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 15 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 417.11s",
+        "failing_tests": [
+          "mt_187_claim_next_priority_no_double_claim_under_8_parallel_workers",
+          "mt_187_fair_scheduling_rotates_across_wps_under_imbalance",
+          "mt_187_claim_next_priority_picks_old_t32b_over_fresh_fleet",
+          "mt_187_claim_next_priority_returns_none_on_empty_queue",
+          "mt_187_starvation_watermark_is_monotonic_across_process_restart"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/308-mt_scheduler_tests.log",
+        "log_sha256": "606cf58484fc806e812591fcfc1b78b455f448310f35e6f4aab5d5e138446927",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0ab4a993979f2807452d84b706810",
+          "store-01a0ab4a993979f28074529d61d44fc8",
+          "store-01a0ab4a993979f2807452bab864b099",
+          "store-01a0ab4a993979f2807452ad16e087fe",
+          "store-01a0ab4a993979f2807452cd0336f530"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "315",
+        "target": "pinned_core_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.14s",
+        "failing_tests": [
+          "pinned_migration_source_scan_is_guarded_for_memory_item_table",
+          "pin_tauri_commands_are_registered_and_legacy_adapter_source_scan_is_explicit"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/315-pinned_core_tests.log",
+        "log_sha256": "c9a57b0f532420753989be5ea4b095ed4ac617c2606277730efeac5d616b7f73",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "pinned_migration_source_scan_is_guarded_for_memory_item_table @ tests\\pinned_core_tests.rs:273:10: MT-159 pinned migration must exist: Os { code: 2, kind: NotFound, message: \"The system cannot find the file specified.\" }",
+          "pin_tauri_commands_are_registered_and_legacy_adapter_source_scan_is_explicit @ tests\\pinned_core_tests.rs:309:5: assertion failed: lib_rs.contains(\"MemoryPinIpcState::from_env_or_unavailable()\")"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "451",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.64s",
+            "failing_tests": [
+              "pinned_migration_source_scan_is_guarded_for_memory_item_table",
+              "pin_tauri_commands_are_registered_and_legacy_adapter_source_scan_is_explicit"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/451-pinned_core_tests.log",
+            "log_sha256": "1adb70033db8ec10877f2929c06e4b6c96d43b7053c6a3a3d0f4d4ef58683ebf",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "312",
+        "target": "observability_span_repo_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [
+          "mt_197_update_unknown_span_returns_not_found",
+          "mt_197_attach_ledger_seq_unknown_span_returns_not_found",
+          "mt_197_cross_link_join_via_model_session_id",
+          "mt_197_event_ledger_seq_accumulates_in_array",
+          "mt_197_activity_span_fk_cascade_on_delete",
+          "mt_197_empty_query_returns_empty_vec_not_error"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/312-observability_span_repo_tests.log",
+        "log_sha256": "86a1c75f79aa3e02c9298a70ec8e57a135d84ee2b7698f13c3ea85974a3b1515",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "426",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [
+              "mt_197_session_span_round_trip",
+              "mt_197_update_unknown_span_returns_not_found",
+              "mt_197_attach_ledger_seq_unknown_span_returns_not_found",
+              "mt_197_empty_query_returns_empty_vec_not_error",
+              "mt_197_event_ledger_seq_accumulates_in_array",
+              "mt_197_activity_span_fk_cascade_on_delete",
+              "mt_197_activity_span_range_query_via_model_session_id",
+              "mt_197_cross_link_join_via_model_session_id"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/426-observability_span_repo_tests.log",
+            "log_sha256": "de58ccd10511f68ed1b295dc7d5081867496895f9e4bea12d99fbfffd89e8b81",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "325",
+        "target": "quick_switcher_recents_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/325-quick_switcher_recents_tests.log",
+        "log_sha256": "9f93f6e4cc6e42e90874a790f47fc123f7438b71aaef4f27e2f5db0178242b6a",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "427",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/427-quick_switcher_recents_tests.log",
+            "log_sha256": "fb7238dc7a50f846816ccae7902235c81aa64c60aa1ed7377172c6fadaaec781",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "339",
+        "target": "sandbox_adapter_trait_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "failing_tests": [
+          "sandbox_adapter_trait_source_has_exact_public_method_shape"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/339-sandbox_adapter_trait_tests.log",
+        "log_sha256": "6591ae775687a33f8748e4d461632de640ae4b2259c88d55dccd2c7ba6400233",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "sandbox_adapter_trait_source_has_exact_public_method_shape @ tests\\sandbox_adapter_trait_tests.rs:191:5: assertion `left == right` failed: SandboxAdapter must expose exactly the core 8 methods plus the §3.5.7 additive methods snapshot/restore/copy_in/copy_out: [\"as"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "454",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+            "failing_tests": [
+              "sandbox_adapter_trait_source_has_exact_public_method_shape"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/454-sandbox_adapter_trait_tests.log",
+            "log_sha256": "68f58d2f838660729a087993df1885e2d4079b290b24292f0821924ada24da8f",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "344",
+        "target": "sandbox_ipc_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "failing_tests": [
+          "sandbox_ipc_tests_payload_shape_matches_frontend_types"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/344-sandbox_ipc_tests.log",
+        "log_sha256": "a3b66d5633ed6b9497294181d2ae602684df1d79d7a16e419af8a54b4ea71dc1",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "sandbox_ipc_tests_payload_shape_matches_frontend_types @ tests\\sandbox_ipc_tests.rs:63:5: assertion `left == right` failed"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "455",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+            "failing_tests": [
+              "sandbox_ipc_tests_payload_shape_matches_frontend_types"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/455-sandbox_ipc_tests.log",
+            "log_sha256": "ca40ae5e4fd0af57780da9f8c008a11ff364eb01200e4a6424198bb2f50edc41",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "346",
+        "target": "sandbox_promotion_binding_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "failing_tests": [
+          "fake_runtime_available_windows_native_jail_evidence_does_not_approve_without_very_strong_runtime_shape"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/346-sandbox_promotion_binding_tests.log",
+        "log_sha256": "04f2a08263369da6c29f70b5a1ca9f02561828bd1158dd7e8ce3efe20ba14ef7",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "fake_runtime_available_windows_native_jail_evidence_does_not_approve_without_very_strong_runtime_shape @ tests\\sandbox_promotion_binding_tests.rs:122:18: expected InsufficientSandboxIsolation rejection, got Rejected { reason: AdapterUnavailable { adapter_id: \"windows_native_jail\", reason: \"windows_native_jail pro"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "456",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+            "failing_tests": [
+              "fake_runtime_available_windows_native_jail_evidence_does_not_approve_without_very_strong_runtime_shape"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/456-sandbox_promotion_binding_tests.log",
+            "log_sha256": "944f42be21278e7e1a8e8c7ece567e0ab5988045693d824d32f63aead95d151a",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "349",
+        "target": "security_portability_validation_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 10 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s",
+        "failing_tests": [
+          "mt_228_229_node_dependency_policy_validator_file_probe_scans_path_names",
+          "mt_228_229_node_dependency_policy_validator_missing_file_probe_fails_closed",
+          "mt_228_229_node_dependency_policy_validator_file_probe_fails_closed"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/349-security_portability_validation_tests.log",
+        "log_sha256": "483bc69957ac64bfd5f81eda8436c42299c532da54b70a75338a4875fd373809",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt_228_229_node_dependency_policy_validator_file_probe_scans_path_names @ tests\\security_portability_validation_tests.rs:672:5: path-only source fixture should report the forbidden pattern; stdout=; stderr=node:internal/modules/package_json_reader:316",
+          "mt_228_229_node_dependency_policy_validator_missing_file_probe_fails_closed @ tests\\security_portability_validation_tests.rs:580:5: missing explicit source fixture must report file_read_errors; stdout=; stderr=node:internal/modules/package_json_reader:316",
+          "mt_228_229_node_dependency_policy_validator_file_probe_fails_closed @ tests\\security_portability_validation_tests.rs:638:9: dependency-policy validator probe must report forbidden-source-tripwire; stdout=; stderr=node:internal/modules/package_json_reader:316"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "457",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 10 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+            "failing_tests": [
+              "mt_228_229_node_dependency_policy_validator_file_probe_scans_path_names",
+              "mt_228_229_node_dependency_policy_validator_missing_file_probe_fails_closed",
+              "mt_228_229_node_dependency_policy_validator_file_probe_fails_closed"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/457-security_portability_validation_tests.log",
+            "log_sha256": "0bad99f3f03677e0e23c11cd1579273c11c94fd39141ec7e8ad6595d9cbb8b6d",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "336",
+        "target": "role_mailbox_repo_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 430.86s",
+        "failing_tests": [
+          "mt_177_concurrent_illegal_transition_one_winner",
+          "mt_177_transactional_rollback_leaves_no_visible_state"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/336-role_mailbox_repo_tests.log",
+        "log_sha256": "be074980064581dcc28a435d2fab3cb36faf38ca065670cfddd64d493e75642b",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt_177_concurrent_illegal_transition_one_winner @ tests\\role_mailbox_repo_tests.rs:268:5: assertion `left == right` failed: seven losers must observe InvalidTransition or Conflict (got invalid=0, other=7)",
+          "mt_177_transactional_rollback_leaves_no_visible_state @ tests\\role_mailbox_repo_tests.rs:452:5: duplicate create must fail atomically"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "453",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 191.87s",
+            "failing_tests": [
+              "mt_177_concurrent_illegal_transition_one_winner",
+              "mt_177_transactional_rollback_leaves_no_visible_state"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/453-role_mailbox_repo_tests.log",
+            "log_sha256": "46f5abf68f83af90f32851e7304c81a8a61c2338648ef1a160a8282b498331fb",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "362",
+        "target": "surreal_block_crud_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 195.93s",
+        "failing_tests": [
+          "replace_racing_parent_delete_never_creates_orphans_or_touches_unrelated_children"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/362-surreal_block_crud_tests.log",
+        "log_sha256": "7fa9f2dd1791d9d51b0ada2c9ebb865e87fdf218208654f3cf14a7a5c5d6b604",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "replace_racing_parent_delete_never_creates_orphans_or_touches_unrelated_children @ tests\\surreal_block_crud_tests.rs:552:21: parent deletion commits: Database(\"embedded database error: Transaction conflict: Resource busy. This transaction can be retried\")"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "458",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 81.24s",
+            "failing_tests": [
+              "replace_racing_parent_delete_never_creates_orphans_or_touches_unrelated_children"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/458-surreal_block_crud_tests.log",
+            "log_sha256": "f8545b3185d94c02f2a0a46aa3620c7eac60c9669e5c55c3e731783cf32a90c3",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "335",
+        "target": "role_mailbox_lease_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 30 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 798.46s",
+        "failing_tests": [
+          "mt_180_surreal_extend_after_expiry_rejects"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/335-role_mailbox_lease_tests.log",
+        "log_sha256": "2d2e520cd151d2c457289e91fb2fbffb6f3653f07f7b39ac3e6665e8e6875b73",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "mt_180_surreal_extend_after_expiry_rejects @ tests\\role_mailbox_lease_tests.rs:558:5: extend after expiry must reject; got Ok(RoleMailboxClaimLeaseV1 { lease_id: 01a0ab69-fd7a-7932-aef4-fc7c7bec8702, thread_id: 01a0ab69-fd69-7ba0-9f76-27bc44eb807"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "452",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 30 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 339.22s",
+            "failing_tests": [
+              "mt_180_surreal_extend_after_expiry_rejects"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/452-role_mailbox_lease_tests.log",
+            "log_sha256": "f3c2b94fcc183616a4a3bd0dc9722e596667f5969ffdc49410811fb17de216c4",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "364",
+        "target": "surreal_storage_lifecycle_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.22s",
+        "failing_tests": [
+          "spawned_child_shutdown_is_bounded_then_close_finishes_after_lease_drains"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/364-surreal_storage_lifecycle_tests.log",
+        "log_sha256": "1f06dc56e95948f4c73b1d241f91358e3e24be2082af876a8ed5ba5e30dfcdb3",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "spawned_child_shutdown_is_bounded_then_close_finishes_after_lease_drains @ tests\\surreal_storage_lifecycle_tests.rs:344:10: reopen drained store: Database(Error { code: -32000, message: \"There was a problem with a transaction: IO error: Failed to create lock file: D:\\\\Projects\\\\LLM p"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "459",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.41s",
+            "failing_tests": [
+              "spawned_child_shutdown_is_bounded_then_close_finishes_after_lease_drains"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/459-surreal_storage_lifecycle_tests.log",
+            "log_sha256": "fd80a956fd8deba51ac2264411a32f91502f2a1d4603fc6711fa0f3c6ce64ff2",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "374",
+        "target": "swarm_invariants_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "failing_tests": [
+          "swarm_invariants_tests_validate_all_four_ac_swarm_harness_invariants"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/374-swarm_invariants_tests.log",
+        "log_sha256": "31b66b2f76825239d85b4d4d0aa125935beb42a4a16754e7517bcbd4ece18efe",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "460",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+            "failing_tests": [
+              "swarm_invariants_tests_validate_all_four_ac_swarm_harness_invariants"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/460-swarm_invariants_tests.log",
+            "log_sha256": "31b66b2f76825239d85b4d4d0aa125935beb42a4a16754e7517bcbd4ece18efe",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "376",
+        "target": "swarm_n8_perf_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "failing_tests": [
+          "swarm_n8_perf_tests_validate_hbr_swarm_evidence_floor"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/376-swarm_n8_perf_tests.log",
+        "log_sha256": "534f844396827ce8156539b31bd73a5301e682909f2e3d90e0d62c1ae9623e07",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "461",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+            "failing_tests": [
+              "swarm_n8_perf_tests_validate_hbr_swarm_evidence_floor"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/461-swarm_n8_perf_tests.log",
+            "log_sha256": "534f844396827ce8156539b31bd73a5301e682909f2e3d90e0d62c1ae9623e07",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "385",
+        "target": "user_manual_freshness_fixture_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/385-user_manual_freshness_fixture_tests.log",
+        "log_sha256": "033230699a41377daa37581cded6f787c7722408f3c337742d2cbdf97741284c",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "430",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/430-user_manual_freshness_fixture_tests.log",
+            "log_sha256": "6798893dbf178271fa519f701dd2a9bf1e2a2bb677c708ba66d1e3dfef57216a",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "386",
+        "target": "user_manual_storage_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [
+          "mt194_migration_0310_creates_user_manual_tables",
+          "mt194_search_is_bounded_and_literal"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/386-user_manual_storage_tests.log",
+        "log_sha256": "40a050107a03c81682cf41c4817ba7f2f06cbd568edf1bf0a211fdc4b6256d2a",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "431",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [
+              "mt194_search_is_bounded_and_literal"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/431-user_manual_storage_tests.log",
+            "log_sha256": "8894765bf5042c9373fe67829c5dab0a52a4f5ab04ea06b2cf42e90b465569fd",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "388",
+        "target": "validation_runner_sandbox_binding_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "failing_tests": [
+          "docker_argv_parity_fixture_matches_validation_process_spec"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/388-validation_runner_sandbox_binding_tests.log",
+        "log_sha256": "536c162dc514854b78c9e439b9279ec06e9c3ef86b55dc17bfcd6c550ac5a6e4",
+        "class": "PRODUCT_OR_TEST_DEFECT",
+        "panic_samples": [
+          "docker_argv_parity_fixture_matches_validation_process_spec @ tests\\validation_runner_sandbox_binding_tests.rs:227:5: assertion `left == right` failed"
+        ],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "462",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+            "failing_tests": [
+              "docker_argv_parity_fixture_matches_validation_process_spec"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/462-validation_runner_sandbox_binding_tests.log",
+            "log_sha256": "3f76ca9eb3a8d3d834bc67a066e617585a3966464eef3a7b3c780ce090997928",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "383",
+        "target": "user_manual_api_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [
+          "mt199_quickstart_fails_when_linked_page_is_missing",
+          "mt201_search_finds_pages_and_tools",
+          "mt201_tools_list_and_read_resolve",
+          "mtdoc_every_registry_surface_exists_on_the_real_router",
+          "mt205_projection_renders_readable_navigable_html",
+          "mt027_notes_manual_seeds_block_collection_workflow_in_embedded_surrealdb",
+          "mt201_resync_permission_gate_fails_closed"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/383-user_manual_api_tests.log",
+        "log_sha256": "c6be7bdfbe96c923b296bbf17aab808a0ddd4a6009c1a7fe194132087ac8800d",
+        "class": "NO_PANIC_CAPTURED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "428",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/428-user_manual_api_tests.log",
+            "log_sha256": "6435a317d2f3e8c090c1a16b6e8a01d0062ba74f0152fd31ac6c79ea84014ad8",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "384",
+        "target": "user_manual_content_tests",
+        "bundle": "setA",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/384-user_manual_content_tests.log",
+        "log_sha256": "d74c40e26bbdcc9a80214993c96802561c260ec7ac0d53b1d879883267890a4a",
+        "class": "MIXED_DRAIN_PLUS_OTHER",
+        "panic_samples": [
+          "mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols @ tests\\user_manual_content_tests.rs:594:9: runtime proof mt223_restart_after_crash_reconstructs_swarm_state_from_embedded_store missing; update MT-224 manual evidence"
+        ],
+        "preserved_stores": [
+          "store-01a0ab7346cf7e82b56af1c14e6ff5ac"
+        ],
+        "solo_reruns": [
+          {
+            "index": "429",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/429-user_manual_content_tests.log",
+            "log_sha256": "806197fd6174c5d9e41ca5a413341e4cb06a58c5132c37c79299d3591163a4ed",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "395",
+        "target": "wp009_integration_validator_evidence_pack_tests",
+        "bundle": "setA",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 160.92s",
+        "failing_tests": [
+          "mt240_integration_validator_evidence_pack_assembles_and_proves_at_runtime"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/395-wp009_integration_validator_evidence_pack_tests.log",
+        "log_sha256": "2f8ee4d2c597e4b890e30bc9960fa8b79afd3760a0342dbd6b39af9bad1259c8",
+        "class": "HARNESS_DRAIN_STALL_ONLY",
+        "panic_samples": [],
+        "preserved_stores": [
+          "store-01a0abb3246a74a0a76687afc324d45d"
+        ],
+        "solo_reruns": []
+      },
+      {
+        "index": "399",
+        "target": "crash_recovery_e2e",
+        "bundle": "setB",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 9 passed; 4 failed; 1 ignored; 0 measured; 0 filtered out; finished in 142.70s",
+        "failing_tests": [
+          "runtime_chaos::mt195_runtime_transient_embedded_unavailable_backs_off_and_resumes_after_return",
+          "runtime_chaos::mt195_runtime_hard_kill_child_leaves_reopened_checkpoint_and_active_process_evidence",
+          "runtime_chaos::mt195_runtime_operator_cancel_persists_failed_report_and_decision_evidence",
+          "runtime_chaos::mt195_runtime_event_gap_persists_failed_report_and_decision_evidence"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/399-crash_recovery_e2e.log",
+        "log_sha256": "23d68291dfc3148e5b4f78afaa34ab19568b759841e3247488e3b21ff99486b1",
+        "class": "SEE_NOTE",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "464",
+            "exit_code": 0,
+            "result_line": "test result: ok. 13 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 45.37s",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/464-crash_recovery_e2e.log",
+            "log_sha256": "f41461a3fc38cf90a4a2065d8468b2a5b01e802309f5e2db699219374b2f28b2",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "404",
+        "target": "micro_task_executor_tests",
+        "bundle": "setB",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 22 passed; 28 failed; 0 ignored; 0 measured; 0 filtered out; finished in 78.15s",
+        "failing_tests": [
+          "locus_written_work_packet_summary_validation_rejects_unregistered_next_action",
+          "locus_register_mts_returns_machine_readable_validation_for_incompatible_profile_extension",
+          "locus_register_mts_rejects_family_illegal_summary_next_action",
+          "locus_task_board_validation_reports_authoritative_row_drift",
+          "locus_sync_task_board_emits_structured_index_and_view",
+          "locus_sync_task_board_validation_reports_authority_scope_drift",
+          "micro_task_executor_emits_model_swap_events_on_model_change",
+          "locus_register_mts_returns_machine_readable_validation_for_unknown_schema_version",
+          "locus_written_micro_task_summary_validation_reports_authority_scope_drift",
+          "locus_register_mts_rejects_unregistered_summary_next_action",
+          "locus_register_mts_returns_machine_readable_validation_for_unknown_profile_extension_schema",
+          "micro_task_executor_completes_single_mt_and_emits_events",
+          "micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_timeout",
+          "locus_register_mts_returns_machine_readable_validation_for_summary_detail_drift",
+          "locus_create_and_close_wp_emit_structured_work_packet_packet_and_summary_with_profile_extension",
+          "micro_task_executor_emits_model_swap_runtime_failure_and_rollback_when_fallback_allows",
+          "locus_schema_registry_rejects_unregistered_allowed_action_ids",
+          "micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion",
+          "micro_task_executor_resumes_from_pause_and_emits_workflow_recovery",
+          "micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps",
+          "micro_task_executor_generates_distillation_candidate_after_escalation_success",
+          "micro_task_executor_rejects_legacy_workflow_run_job_kind_contract",
+          "locus_register_mts_emits_structured_micro_task_packet_and_summary_with_research_profile_extension",
+          "micro_task_executor_persists_locus_lifecycle_and_session_occupancy",
+          "micro_task_executor_spec_router_creates_locus_work_packet_when_routing_metadata_present",
+          "locus_bind_session_normalizes_and_deduplicates_session_ids",
+          "locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait",
+          "locus_written_work_packet_summary_validation_rejects_family_illegal_next_action"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/404-micro_task_executor_tests.log",
+        "log_sha256": "46c6a69262c31ffcd7046b8553d516342ccb1e7a6baface67f7bb712c28edabd",
+        "class": "SEE_NOTE",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": []
+      },
+      {
+        "index": "403",
+        "target": "mex_tests",
+        "bundle": "setB",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 9 passed; 2 failed; 4 ignored; 0 measured; 0 filtered out; finished in 120.39s",
+        "failing_tests": [
+          "calendar_sync_workflow_imports_read_only_source_and_updates_sync_state",
+          "calendar_sync_runtime_denies_wrong_profile_without_unknown_capability"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/403-mex_tests.log",
+        "log_sha256": "c6ff4576c07639982130ff4ac7b70575347baf97a4807de4c6e45b470fe8142e",
+        "class": "SEE_NOTE",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": []
+      },
+      {
+        "index": "402",
+        "target": "mcp_gate_tests",
+        "bundle": "setB",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 16 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 158.68s",
+        "failing_tests": [
+          "mcp_tool_call_allows_when_session_scoped_grants_satisfy_required_caps",
+          "mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs_parent_trust_003",
+          "mcp_tool_call_denies_when_session_scoped_grants_do_not_satisfy_required_caps"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/402-mcp_gate_tests.log",
+        "log_sha256": "22b1422f77a739e8ba72ea1c502129e477e5e73e57648c716dba39bce66b46c6",
+        "class": "SEE_NOTE",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": []
+      },
+      {
+        "index": "406",
+        "target": "parallel_swarm_state_recovery_tests",
+        "bundle": "setB",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/406-parallel_swarm_state_recovery_tests.log",
+        "log_sha256": "ddfd2f080b6f66701d883487a8e0158e0ce8ea6042d2a5f4f2a692c342d0c1e3",
+        "class": "SEE_NOTE",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "466",
+            "exit_code": -1073740791,
+            "result_line": "(abort)",
+            "failing_tests": [],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/466-parallel_swarm_state_recovery_tests.log",
+            "log_sha256": "46cb9641aa851b01c5300e8246b5cba08d482cb21e96ff4d43c5bc8f94ebf4d6",
+            "args": "--nocapture"
+          }
+        ]
+      },
+      {
+        "index": "405",
+        "target": "model_session_scheduler_tests",
+        "bundle": "setB",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 11 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 900.81s",
+        "failing_tests": [
+          "model_run_spawn_announce_back_event_is_emitted_for_parented_completion",
+          "model_run_spawn_request_rejected_when_children_exceeds_limit",
+          "model_session_memory_policy_is_immutable",
+          "session_observability_spans_bind_model_runs_and_tool_calls",
+          "model_run_spawn_request_rejected_when_capability_widens",
+          "model_run_spawn_request_rejected_when_depth_exceeds_max",
+          "model_run_spawn_request_within_contracts_is_accepted"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/405-model_session_scheduler_tests.log",
+        "log_sha256": "309d18b3ccd6f79b9e88db037c5e22b46602d351cebec48a87d916f3c07f7c90",
+        "class": "SEE_NOTE",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "465",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 12 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 340.14s",
+            "failing_tests": [
+              "model_run_spawn_request_rejected_when_depth_exceeds_max",
+              "model_run_spawn_request_rejected_when_capability_widens",
+              "model_run_spawn_announce_back_event_is_emitted_for_parented_completion",
+              "model_run_spawn_request_rejected_when_children_exceeds_limit",
+              "model_session_memory_policy_is_immutable",
+              "model_run_spawn_request_within_contracts_is_accepted"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/465-model_session_scheduler_tests.log",
+            "log_sha256": "8ffafd4a1b2a663029169bb15bf061b07773a27790b5d1af665c9b365a45a9c6",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "415",
+        "target": "trace_projection_tests",
+        "bundle": "setC",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "failing_tests": [
+          "trace_projection_tests_route_returns_projection_and_missing_trace_404"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/415-trace_projection_tests.log",
+        "log_sha256": "4b44ee118cea13fd05312fde821dd3039cc0e83577de088937501845431f69b9",
+        "class": "SEE_NOTE",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": [
+          {
+            "index": "467",
+            "exit_code": 101,
+            "result_line": "test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+            "failing_tests": [
+              "trace_projection_tests_route_returns_projection_and_missing_trace_404"
+            ],
+            "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/467-trace_projection_tests.log",
+            "log_sha256": "d7654a994004e2f7b311c94d75b87bd55e3e85206fbca73e2ae21fbcf35203ca",
+            "args": ""
+          }
+        ]
+      },
+      {
+        "index": "416",
+        "target": "lib",
+        "bundle": "lib",
+        "exit_code": -1073740791,
+        "result_line": "(none: fail-fast abort 0xC0000409)",
+        "failing_tests": [
+          "api::jobs::tests::create_cloud_model_run_without_consent_blocks_runtime_session",
+          "api::jobs::tests::create_model_run_job_launches_runtime_session_and_preserves_native_binding",
+          "api::jobs::tests::create_job_accepts_fems_job_kind_alias",
+          "api::jobs::tests::create_job_allows_terminal_when_authorized",
+          "api::jobs::tests::create_job_rejects_mismatched_fems_alias_protocol",
+          "api::jobs::tests::create_job_rejects_unknown_job_kind",
+          "api::jobs::tests::create_model_run_job_binds_workflow_before_workflow_start",
+          "api::loom::tests::graph_search_inline_operators_filter_real_rows",
+          "api::loom::tests::graph_traversal_and_metrics_routes_work",
+          "api::loom::tests::import_dedup_emits_fr_evt_loom_006",
+          "api::loom::tests::loom_search_backend_tier",
+          "api::loom::tests::mt027_block_view_publication_survives_outage_restart_races_and_retention",
+          "api::loom::tests::mt258_bookmark_routes_persist_add_remove_and_emit_receipts",
+          "api::loom::tests::mt258_properties_tag_edit_persists_edges_and_metrics",
+          "api::loom::tests::mt264_api_create_and_update_refresh_embedding",
+          "api::loom::tests::mt264_journal_block_indexed_on_create",
+          "api::loom::tests::view_and_search_emit_events",
+          "api::memory::tests::mt109_source_revocation_before_proposal_transaction_leaves_zero_residue",
+          "api::memory::tests::commit_outbox_recovers_on_restart_and_preserves_original_evidence_across_later_commits",
+          "api::memory::tests::concurrent_workspace_commits_publish_a_pack_containing_both_items",
+          "api::memory::tests::create_proposal_stores_pending_review_and_receipt",
+          "api::memory::tests::list_proposals_is_bounded_deterministic_and_workspace_scoped",
+          "api::memory::tests::mt109_memory_reconciler_processes_only_explicitly_granted_pending_workspace",
+          "atelier::guard_tests::mt138_readiness_inventory_matches_canonical_surreal_schema",
+          "api::memory::tests::proposal_cannot_mutate_committed_memory",
+          "api::memory::tests::proposal_delete_race_never_leaves_workspace_orphans",
+          "api::workspaces::tests::delete_workspace_route_atomically_cascades_fems_and_retries_not_found",
+          "flight_recorder::duckdb::tests::test_retention_purges_old_events",
+          "api::workspaces::tests::mt258_search_bookmarks_persist_to_surreal_and_event_ledger",
+          "api::workspaces::tests::replace_blocks_accepts_ai_and_persists_traceability",
+          "atelier::guard_tests::mt138_rejects_full_count_schemaless_projection",
+          "api::workspaces::tests::replace_blocks_rejects_ai_when_context_missing",
+          "api::workspaces::tests::verify_atelier_apply_provenance_accepts_matching_job_output",
+          "api::workspaces::tests::verify_atelier_apply_provenance_rejects_patchset_mismatch_as_provenance_mismatch",
+          "api::workspaces::tests::verify_atelier_apply_provenance_rejects_selection_mismatch_as_stale",
+          "atelier::guard_tests::mt138_atelier_readiness_is_idempotent_across_embedded_restart",
+          "sandbox::cloud_hypervisor::adapter::tests::orphan_discovery_script_skips_current_process_owned_roots",
+          "bundles::exporter::tests::list_exportable_includes_workflow_correlation_anchors",
+          "bundles::exporter::tests::workflow_node_execution_scope_exports_single_node_lineage",
+          "api::memory::tests::proposal_retry_is_idempotent_and_payload_drift_conflicts",
+          "bundles::exporter::tests::workflow_node_execution_scope_rejects_invalid_node_uuid",
+          "storage::kb003_storage::tests::validation_run_reconstructs_from_rows",
+          "api::memory::tests::proposal_retry_rejects_corrupt_receipt_but_allows_new_retry_headers",
+          "api::memory::tests::mt109_memory_derivatives_do_not_widen_source_read_authority",
+          "api::memory::tests::mt109_every_memory_route_uses_persisted_credentials_and_full_denial_matrix",
+          "api::memory::tests::quarantined_proposal_outbox_never_returns_a_false_success_ack",
+          "api::memory::tests::surreal_identity_and_exact_retry_converge",
+          "bundles::exporter::tests::workflow_run_scope_exports_only_bound_jobs_and_nodes",
+          "bundles::exporter::tests::workflow_run_scope_rejects_invalid_uuid",
+          "flight_recorder::fr_emitter::tests::mt137_retried_envelope_keeps_one_durable_identity",
+          "storage::surreal::event_ledger::tests::atomic_batch_bulk_insert_preserves_replay_and_rollback_contracts",
+          "storage::surreal::event_ledger::tests::concurrent_exact_replays_converge_and_conflicting_replay_fails_closed",
+          "storage::surreal::event_ledger::tests::event_ledger_round_trip_survives_shutdown_and_reopen",
+          "flight_recorder::fr_emitter::tests::mt137_surreal_append_is_visible_through_consumer_query_after_reopen",
+          "storage::surreal::loom_store::tests::block_search_projection_update_and_view_ordering_use_real_store",
+          "storage::surreal::loom_store::tests::collection_replacement_is_atomic_and_survives_close_reopen",
+          "storage::surreal::loom_store::tests::graph_search_covers_every_declared_source_kind",
+          "storage::retention::tests::test_dry_run_does_not_delete",
+          "storage::retention::tests::test_flight_recorder_event_emitted",
+          "storage::retention::tests::test_prune_respects_pinned_items",
+          "storage::retention::tests::test_min_versions_constraint",
+          "storage::retention::tests::test_prune_respects_window",
+          "api::memory::tests::workspace_memory_cleanup_is_scoped_and_preserves_receipts",
+          "storage::surreal::mt136_kernel_action_submitter_proof::tests::submitter_contract",
+          "storage::tests::database_trait_purity_source_regressions",
+          "workflows::tests::dcc_compact_summary_contract_preserves_stable_ids",
+          "workflows::tests::dcc_mailbox_projection_preserves_wait_reasons",
+          "workflows::tests::dcc_ready_query_projection_is_backend_backed",
+          "workflows::tests::dcc_session_binding_projection_matches_runtime_state",
+          "workflows::tests::dcc_task_board_filters_by_state_family_and_queue_reason",
+          "workflows::tests::debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id",
+          "workflows::tests::debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id",
+          "workflows::tests::debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id"
+        ],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/logs/416-lib.log",
+        "log_sha256": "a41af4ece57725be22b63d6207850482cf70c9eaafae30bb54eb4e19a88620f8",
+        "class": "LIB_ABORT_MIXED",
+        "panic_samples": [],
+        "preserved_stores": [],
+        "solo_reruns": []
+      }
+    ],
+    "listed_not_counted": {
+      "feature_gated_zero_exec_setA": [
+        "002 a3_inspector_smoke (inspector-gated; executed for real in set C)",
+        "065 candle_e2e_smoke (candle-runtime-engine / llama-cpp-runtime-engine gated)",
+        "067 candle_lora_tests (candle-runtime-engine / llama-cpp-runtime-engine gated)",
+        "068 candle_mamba2_tests (candle-runtime-engine / llama-cpp-runtime-engine gated)",
+        "070 candle_rwkv_tests (candle-runtime-engine / llama-cpp-runtime-engine gated)",
+        "071 candle_rwkv_v7_tests (candle-runtime-engine / llama-cpp-runtime-engine gated)",
+        "073 candle_transformer_tests (candle-runtime-engine / llama-cpp-runtime-engine gated)",
+        "121 inf9_subquadratic_full_parity_smoke (candle-runtime-engine / llama-cpp-runtime-engine gated)",
+        "125 inspector_server_tests (inspector-gated; executed for real in set C)",
+        "242 llama_cpp_e2e_smoke (candle-runtime-engine / llama-cpp-runtime-engine gated)",
+        "327 replay_drive_tests (inspector-gated; executed for real in set C)",
+        "382 trace_projection_tests (inspector-gated; executed for real in set C)"
+      ],
+      "carried_lib_debt": [
+        "3 schemaless in-source loom_store tests (red as recorded)",
+        "124 legacy leaked stores under the global handshake-test root: NOT_INSPECTED this session"
+      ],
+      "env_gated_silent_passes": [
+        {
+          "index": "078",
+          "target": "cloud_hypervisor_adapter_tests",
+          "skip_lines": 10
+        },
+        {
+          "index": "384",
+          "target": "user_manual_content_tests",
+          "skip_lines": 1
+        },
+        {
+          "index": "416",
+          "target": "lib",
+          "skip_lines": 1
+        }
+      ]
+    },
+    "skip_audit": {
+      "skip_sites_in_tests_tree": 223,
+      "files": 49,
+      "targets_run_with_nocapture": 56,
+      "targets_emitting_SKIP": [
+        {
+          "index": "078",
+          "target": "cloud_hypervisor_adapter_tests",
+          "skip_lines": 10
+        },
+        {
+          "index": "384",
+          "target": "user_manual_content_tests",
+          "skip_lines": 1
+        },
+        {
+          "index": "416",
+          "target": "lib",
+          "skip_lines": 1
+        }
+      ],
+      "not_audited": [
+        "atelier_core_data_tests (ran before the audit was added; its embedded_backend_marker() helper is dead-code Some -> cannot skip)"
+      ]
+    },
+    "resolved_prior_findings": [
+      {
+        "id": "R1",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "src/atelier/mod.rs:767-786 at fd9060de: atelier_event_sql!() binds `$existing_ledger_event`; 0 bare `LET $existing` in the macro; callers command_corpus.rs:566-620, exports.rs:1561-1604, pose.rs:1768-1880, collections.rs:715-728 keep their own `$existing` (now unshadowed). Runtime: atelier_command_corpus_tests 7/7 (014 prev-session row, waived re-exec), atelier_core_data_tests 54/54 (026), atelier_fixture_corpus_tests 10/10 (028)"
+      },
+      {
+        "id": "R2",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "0 `UPSERT ... CONTENT` left in state_probe.rs/downloader.rs/sheet.rs at fd9060de; remaining crate sites comfy.rs:2087 (registered_at_utc explicit, no created_at field), knowledge_ingestion/kinds.rs:414 (no created_at field), storage/fems_memory.rs:2546 (ItemContent carries created_at, :1876-1882) are not R2-class. Runtime: atelier_diagnostics_projections_tests 4/4 (019), atelier_downloader_tests 7/7 (022) prev-session rows; atelier_state_probe_tests red for a different reason (051, see V2-F05)"
+      },
+      {
+        "id": "R3",
+        "status": "RESOLVED_VERIFIED_AT_NAMED_SITES",
+        "evidence": "relationships.rs GRAPH_EDGES_STATEMENT projects updated_at_utc + edge_id AS relationship_id; intake.rs LIST_ORIGINAL_MEDIA projects created_at_utc/asset_id; model_lease.rs, model_manual_merge.rs, knowledge_memory/passage.rs:66 projected. Crate-wide heuristic sweep (321 SELECT..ORDER BY literals) is too noisy to be a finding (macro-composed projections); runtime is the proof. NEW RED from this class fix: passage.rs PassageIdRow.created_at (V2-F02c)"
+      },
+      {
+        "id": "R4",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "search.rs:1329 nested array::concat; 0 `array::sort::asc` in src at fd9060de; atelier_core_data_tests 54/54 (026)"
+      },
+      {
+        "id": "R5",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "moodboards.rs:1076-1081 DocumentHeadRow.current_version_id: Option<SurrealUuid>; atelier_core_data_tests 54/54 (026), atelier_fixture_corpus_tests 10/10 (028). Same defect class persists elsewhere (V2-F02a visual_diff baseline_id)"
+      },
+      {
+        "id": "R6",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "exports.rs diff: optional links read raw (target_character_id, target_sheet_version_id, target_collection_id) and converted in Rust; atelier_core_data_tests 54/54 (026)"
+      },
+      {
+        "id": "R7",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "intake.rs:1340 `ELSE { NONE } };` (stray END removed); atelier_core_data_tests 54/54, atelier_fixture_corpus_tests 10/10"
+      },
+      {
+        "id": "R8",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "documents.rs:761,:870 .lock_registry() keyed lock per story document; atelier_story_cards_and_beats_parallel_writes_keep_dense_order ok in 026"
+      },
+      {
+        "id": "R9",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "schema.surql diff: composite provenance ASSERT moved onto atelier_media_source_provenance_ref.asset_id (always evaluated); atelier_media_source_provenance_refs_direct_row_constraint_probe ok in 026; lib schema pin tests green in 416 (mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin ok)"
+      },
+      {
+        "id": "R10",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "tests: fresh_asset_tagged helper (distinct content_hash per asset); no assertion weakened (diff reviewed); atelier_search_tags_rules_and_similarity ok in 026"
+      },
+      {
+        "id": "R11",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "tests: fresh_asset_tagged for parent/sidecar; product validation unchanged; atelier_filesystem_health_reports_sidecar_visibility_anomaly_from_catalog_drift ok in 026"
+      },
+      {
+        "id": "R12",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "fa73e153: tests/atelier_command_log_session_tests.rs:34-48 backdate_heartbeat_one_hour (UPDATE last_heartbeat_utc = time::now() - 1h), :195-215 Duration::minutes(10) for pure and persisted detection, evidence-preservation asserts :244-258 intact; matches the pre-4f92cc25 original (NOW() - INTERVAL '1 hour', minutes(10)). Runtime 2/2 (015 prev-session row)"
+      },
+      {
+        "id": "R13",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "editable_surface_authority.rs:154 SELECT `value` back-ticked; atelier_editable_surface_authority_tests 4/4 (023 prev-session row)"
+      },
+      {
+        "id": "R14",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "0 `duration::from::secs` in src at fd9060de; 5 `duration::from_secs` sites (model_lease.rs:291,:356; storage/knowledge_crdt.rs:616,:743,:919); atelier_kernel_smoke_tests 2/2, knowledge_crdt_lease_recovery_tests / knowledge_crdt_concurrency_tests / knowledge_crdt_proof_tests green in this session's set A"
+      },
+      {
+        "id": "R15",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "tests/atelier_loom_projection_api_tests.rs installs NativeSessionBinding (:51,:231) and sends x-hsk-session-token; only assertion change is no_actor 400->401 (:345), justified by api/stage.rs:198-202 (InvalidSession -> 401 before body parse); intent (rejected, never created) preserved. Runtime 1/1 green in this session's set A"
+      },
+      {
+        "id": "R16",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "test_inspector.rs:1170 IdEquals -> WHERE <string>record::id(id) = $filter_value; atelier_image_import_tests green in this session's set A"
+      },
+      {
+        "id": "F06 (validation_v1)",
+        "status": "PARTIALLY_RESOLVED",
+        "evidence": "tests/atelier_surreal_support/mod.rs:125-140 OwnedTempRoot::drop retries remove_dir_all 20x with backoff; leak reduced but not eliminated: 59 leaked stores under <lane>/tmp after the first 3 atelier binaries of this session (see residue)"
+      },
+      {
+        "id": "F09 (validation_v1)",
+        "status": "RESOLVED_VERIFIED",
+        "evidence": "see R14; the three knowledge_crdt binaries are green"
+      },
+      {
+        "id": "fd9060de fmt-only claim",
+        "status": "CONFIRMED_BYTE_VERIFIED",
+        "evidence": "for all 10 files in `git show fd9060de --stat`: rustfmt +1.97.1 --edition 2021 applied to the parent (fd9060de^) version == the fd9060de version byte-for-byte (SHA256 equal), and rustfmt(child)==child (idempotent); raw bytes via git cat-file. Two `--check` exit=1 results were `mod` resolution errors in the scratch dir, not formatting diffs"
+      },
+      {
+        "id": "waiver coverage",
+        "status": "CONFIRMED",
+        "evidence": "git diff --name-only 6f19a524..fd9060de: 28 files; 20 outside scope.allowed_paths (tests/) = WAIVER-1 (atelier/mod.rs) + WAIVER-2 (17 files) + WAIVER-3 (schema.surql, schema.rs); 0 uncovered"
+      },
+      {
+        "id": "MT150-V3-F04 carried lib debt (mt138 fingerprint 9 vs 10)",
+        "status": "RESOLVED_OBSERVED",
+        "evidence": "416 lib: storage::surreal::schema::tests::mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin ... ok"
+      },
+      {
+        "id": "carried lib debt: 3 schemaless loom_store in-source tests",
+        "status": "STILL_RED_LISTED",
+        "evidence": "416 lib: collection_replacement_is_atomic_and_survives_close_reopen / block_search_projection_update_and_view_ordering_use_real_store / graph_search_covers_every_declared_source_kind FAILED ('table assets/loom_edges/kernel_event_ledger does not exist'), as pre-recorded; not counted"
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "V2-F01",
+        "severity": "BLOCKING",
+        "class": "HARNESS_DRAIN_STALL (src/storage/tests.rs:177 Drop guard)",
+        "summary": "The in-src test-store Drop guard (src/storage/tests.rs:177) panics HANDSHAKE_TEST_STORE_CLEANUP_FAILURE 'embedded database shutdown is still draining operations after 30000 ms' for every test that relies on it: 27 set-A binaries fail ONLY for this reason, 5 mixed, set B 402/403/404 (404: one guard panic poisons the serial mutex -> 27 cascaded failures), lib: 43 of 63 captured panics. When it fires during unwinding of another panic the process double-panics -> fail-fast abort 0xC0000409 (14 set-A binaries + 406 + lib) and the harness never prints its failures section. Deterministic: reproduced in every solo rerun (pool 1). remediation_v1.hypotheses_and_labels acknowledged this defect and left the src harness unchanged ('not in waiver'); the tests/ close_and_remove workaround covers only 9 knowledge_crdt tests. Every preserved store path is in the rows (preserved_stores) and in <lane>/runtime (526 entries at verdict).",
+        "fix_owner": "src/storage/tests.rs (src/ - needs waiver or an MT owning src/); alternatively an explicit close_and_remove in every affected test (tests/ - MT-141 scope but ~150 tests)"
+      },
+      {
+        "id": "V2-F02",
+        "severity": "BLOCKING",
+        "class": "PRODUCT_DEFECT SurrealDB row-shape / schema drift (R5-class, outside the remediated sites)",
+        "summary": "(a) kernel/visual_diff_baseline.rs: kernel_visual_diff_request.baseline_id declared option<record<kernel_visual_diff_baseline>> (schema.surql) but a uuid is written -> 055 atelier_visual_diff_baseline_tests (1), 056 atelier_visual_diff_result_tests (3); (b) knowledge_crdt_ai_edit_proposals lacks field applied_update_id -> 418/468 knowledge_crdt_proposal_tests; (c) knowledge_memory/passage.rs PassageIdRow.created_at NONE on read (candidate-introduced by a0d0a726) -> 229/445 knowledge_memory_projection_tests; (d) loom_blocks.pin_order -1 rejected by ASSERT -> 421 loom_pins_views_tests; (e) knowledge_quick_switcher_recents result_kind/source_kind coercion -> 427 quick_switcher_recents_tests; (f) in-source event_ledger tests: fields wsids / authority_action do not exist on kernel_event_ledger in the test schema -> lib storage::surreal::event_ledger (3) + flight_recorder::fr_emitter (2); (g) loom_blocks source_rich_document_id record-vs-string -> 419/469 knowledge_documents_api_tests mt032. All reproduced solo."
+      },
+      {
+        "id": "V2-F03",
+        "severity": "BLOCKING",
+        "class": "PRODUCT_DEFECT unretried SurrealDB transaction conflicts under concurrency",
+        "summary": "Error -32003 \"Transaction conflict: Resource busy. This transaction can be retried\" surfaces as test failure in 053/434 atelier_swarm_ingestion_tests (mass_concurrent_intake_persists_every_item), 284/423 micro_task_job_tests (mt_184 8-worker claim races), 362/458 surreal_block_crud_tests (replace racing parent delete). Reproduced solo -> not host contention; the write paths lack the retry wrapper that storage/surreal/retry.rs provides."
+      },
+      {
+        "id": "V2-F04",
+        "severity": "HIGH",
+        "class": "GOVERNANCE/PRODUCT DRIFT + CX-211 boundary",
+        "summary": "HbrPillar (src/hbr/registry.rs:111-123) has no PRIV variant while the live .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json v1.11.0 carries 9 HBR-PRIV rows -> 103/438 hbr_e2e_smoke_test, 105/439 hbr_registry_tests (5). tests/hbr_registry_tests.rs:11-22 reads the registry from .GOV through the worktree junction at runtime (a tests/ -> .GOV read; CX-211 forbids product runtime reads of .GOV, and the proof is not bound to fd9060de but to the live kernel)."
+      },
+      {
+        "id": "V2-F05",
+        "severity": "HIGH",
+        "class": "TESTS_EXPECTATION_DRIFT in MT-141-owned tree (AC-141-2 proof-intent not preserved / stale assertions)",
+        "summary": "051/433 state_authority expects \"surreal\", product emits \"surrealdb\" (state_probe.rs:325/590, unchanged since 6f19a524); 123/440 inspector_ipc asserts app/src-tauri/Cargo.toml contains \"runtime-full\"; 315/451 pinned_core expects a missing MT-159 migration file and MemoryPinIpcState::from_env_or_unavailable() in app lib.rs; 339/454 SandboxAdapter method count; 344/455 sandbox IPC payload shape; 388/462 + 126/441 docker argv fixtures (+ wsl2_podman Tier1 vs required Tier3); 162/442 missing_dependency message lacks docker/podman; 282/448 persistence.rs forbidden path \"Database\"; 268/447 transclusion typed-not-blank; 215/444 knowledge_graph marker kind; 236/446 namespace registry seed; 203/443 mt106 nav assertions (2); 049/432 source-evidence migration citations (2) - NOTE mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_schema is the superseding proof named for kernel_event_ledger_migration in pt_141_3_disposition_table and is red; 384/429 mt224 manual evidence expects runtime proof mt223_restart_after_crash_reconstructs_swarm_state_from_embedded_store; 428/430/431 UserManual freshness/registry (dangling http_route anchor, seeded manual not fresh); 422 loom retrieval bias reasons; 424 mt_189 completion/claim; 425 mt_188 persist verdict None (2); 426 mt_197 concurrent end writes; 301/449 HSK-MEM-SOURCE-AUTHORITY guard blocks proposal insert; 313/450 memory_capsule_record_missing; 335/452 lease extend after expiry accepted; 336/453 mt_177 transition/rollback (2); 346/456 windows_native_jail AdapterUnavailable; 374/460 + 376/461 swarm harness evidence rejected (update_bytes_ref must reference SurrealDB storage); 405/465 model_session_scheduler (6, job never reaches terminal state); 415/467 trace_projection route 401 (R15-class: route now requires session token); 420 loom_canvas HSK-MT109-LOOM-SOURCE-REQUIRED; 466 parallel_swarm_state_recovery abort. Each has a solo rerun row; product-vs-test attribution per item is NOT_INSPECTED beyond the panic text unless stated."
+      },
+      {
+        "id": "V2-F06",
+        "severity": "MEDIUM",
+        "class": "ENV",
+        "summary": "(a) HANDSHAKE_TEST_STAGE_BINDING_ROOT is an undocumented hard requirement of knowledge_code_nav_api_tests (NotPresent panic at :108 in the main pass); with it set (phase R) mt045_lc06_500_file_code_nav_index exceeds its 10000 ms route budget (37.4 s on this HDD) -> PERF/host-bound; (b) 349/457 security_portability_validation_tests node probes fail with ERR_MODULE_NOT_FOUND yaml from app/scripts/lib/dependency_policy_scans.mjs (app node_modules not installed in this worktree); (c) 087/437 debug_adapter_node_session real CDP breakpoint did not bind (node/CDP host state, UNVERIFIED); (d) 078 cloud_hypervisor_adapter_tests 10 silent skips (Cloud Hypervisor missing in WSL Ubuntu)."
+      },
+      {
+        "id": "V2-F07",
+        "severity": "HIGH",
+        "class": "AC-141-2 / PT-141-3 IMPACT",
+        "summary": "Two superseding proofs cited by the typed disposition are not green at fd9060de: mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_schema (049) and mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded (203: env + perf budget). The mt120 restoration proof itself is green (417)."
+      },
+      {
+        "id": "V2-F08",
+        "severity": "MEDIUM",
+        "class": "HANDSHAKE_TEST_STORE_CLEANUP_FAILURE residue (F06 class)",
+        "summary": "<lane>/runtime grew 24 -> 526 entries: every new entry is a store-* directory preserved by the V2-F01 Drop guard (attribution per binary in residue.runtime_attribution); <lane>/tmp holds 349 leaked AtelierSurrealHarness stores (.tmp*/handshake-surreal/LOCK) despite the fd9060de retry-Drop. Not deleted at verdict time (logs retained; cleanup after the builder has inspected preserved stores)."
+      },
+      {
+        "id": "V2-F09",
+        "severity": "LOW",
+        "class": "SILENT_SKIP_PATTERN",
+        "summary": "223 eprintln!(\"SKIP ...\") + return sites across 49 tests/ files (PostgreSQL-era guards). Audited with --nocapture: only 078 (10) and 384 (1) actually skip, plus lib real_cloud_spawn_generate; a test that skips reports `ok` and asserts nothing. Recommend converting to #[ignore] or hard failure when the resource is absent (tests/ scope)."
+      },
+      {
+        "id": "V2-F10",
+        "severity": "INFO",
+        "class": "CONTENTION_ONLY",
+        "summary": "399 crash_recovery_e2e: 4 mt195 children did not publish readiness within 120 s under pool 3 + HDD saturation; solo rerun 464: 13 passed / 0 failed / 1 ignored (exit 0) with the ba03f563 handshake_core.exe. Not a product defect."
+      },
+      {
+        "id": "V2-F11",
+        "severity": "INFO",
+        "class": "VALIDATOR_PROCESS",
+        "summary": "Driver defects during the run, all logged in 00-lane.txt: STOP-loop bug orphaned 026/027 (adopted; exit derived from result line); stale POOL file let phase R start 418-420 at concurrency 3 (re-run solo in R2 as 468-470). A chat progress claim \"0 reds so far\" at ~14:30Z was stale and retracted (TALLY_CORRECTION 15:06:56Z)."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1_no_deferred_live_escape": "PASS for the candidate diff: 0 hits for LiveClientUnavailable|LiveSpawnUnavailable|LiveRuntimeUnavailable|TrainerUnavailable|NativeToolchainUnavailable|not yet wired|deferred to follow-on|pending MT-|live store not attached in `git diff 6f19a524..fd9060de`; 0 `#[ignore]` added. OBSERVATION (not in the candidate diff, pre-existing): 223 `eprintln!(\"SKIP ...\")` sites across 49 tests/ files (PostgreSQL-era `let Some(..) else { SKIP; return }` residue); the two principal helpers embedded_backend_marker() (atelier_core_data_tests.rs:75) and open_embedded_store() (knowledge_ingestion_support/mod.rs:82) are dead-code `Some(..)` and cannot skip. Audit: 54 SKIP-carrying set-A binaries executed with --nocapture; 2 emitted SKIP lines: 078 cloud_hypervisor_adapter_tests (10 tests report `ok` while skipping on 'Cloud Hypervisor prerequisites missing in WSL distro Ubuntu') and 384 user_manual_content_tests (mt207_spec_seed_anchors: 'spec bundle not present in this checkout'); lib 416 (--nocapture): 1 SKIP real_cloud_spawn_generate (HANDSHAKE_TEST_CLOUD_PROVIDER not set). These are silent-pass real-resource gates, LISTED (V2-F09)",
+      "sub_rule_2_handshake_owned_resource_touch": "PASS for the MT-141 owned file: proof_commands[0] executed by this validator as the built knowledge_documents_api_tests exe with `mt120 --nocapture` (seq 417: ok 3 passed, 0 failed, 25 filtered, exit 0) exercising the real axum router + embedded SurrealDB store and the RESERVED_NATIVE_PRINCIPAL_PREFIX guard (api/knowledge_documents.rs:98/:467). The wider suite exercises real embedded SurrealDB stores per binary (fresh HANDSHAKE_WORKSPACE_ROOT, HANDSHAKE_SURREAL_TEST_STORE_ROOT); no Docker/PG/SQLite. NOTE: the same binary run unfiltered (212, and solo 419) aborts (drain-stall double panic in other tests), so the mt120 proof is valid only as the filtered run",
+      "sub_rule_3_no_self_certification": "PASS: lifecycle.claimed_by = KERNEL_BUILDER-20260909-212427; validated_by = WP_VALIDATOR-B3-20260916-113023 (distinct); completed_by stays null on FAIL"
+    },
+    "adversarial_read": {
+      "range": "6f19a524..fd9060de (5 commits: f133e32e, a0d0a726, d4d69c08, fa73e153, fd9060de)",
+      "shadow_reintroduction_sweeps": {
+        "$existing_after_atelier_event_sql_splice": "macro no longer binds `$existing` (mod.rs:784 binds `$existing_ledger_event`); callers' `$existing` reads after the splice are now correct",
+        "UPSERT_CONTENT_without_created_at": "44 crate hits, 41 in in-source resource_authority_tests.rs (test fixtures); 3 product sites checked not R2-class (see R2)",
+        "duration_from_secs_path": "0 `duration::from::secs`",
+        "unprojected_ORDER_BY": "named sites projected; crate-wide heuristic inconclusive (macro-composed projections) -> runtime is the proof",
+        "SELECT_value_reserved_word": "back-ticked at editable_surface_authority.rs:154; no other bare `SELECT value` found"
+      },
+      "removed_assertions_in_tests": "exactly one: atelier_loom_projection_api_tests.rs no_actor BAD_REQUEST -> UNAUTHORIZED (R15, justified)",
+      "candidate_introduced_regression": "knowledge_memory/passage.rs (a0d0a726) added `created_at` to PassageIdRow + projection; knowledge_memory_projection_tests::passage_evidence_graph_and_citation_resolution now fails 'Failed to deserialize field created_at on type PassageIdRow: Expected datetime, got none' (229); schema.surql:3506 declares created_at DEFAULT time::now() and PASSAGE_INSERT_STATEMENTS (storage/surreal/knowledge.rs:2663) does not set it, so why the row carries NONE is NOT_INSPECTED (product root cause open). Not run by the builder (kb-v1 has no knowledge_memory_projection log) nor by validation_v1 (baseline stopped at 32/393)"
+    },
+    "acceptance_criteria_status": {
+      "AC-141-1": "MET at fd9060de (proof_commands[1]/[2] + Cargo.lock: 0 dependencies; 9 string-literal tripwire/fixture hits, EXEMPT)",
+      "AC-141-2": "NOT_MET: compile half holds (414 exes built at fd9060de, check-all-targets exit 0 per 00-lane.txt); preservation half fails on V2-F05 (retained tests whose assertions no longer match product behavior) and V2-F07 (two cited superseding proofs red)",
+      "AC-141-3": "NOT_RE-JUDGED (validation_v1 MET stands for the reopen sites); NOTE the reopen-class binaries kernel_crdt_persistence_tests/kernel_crdt_snapshot_tests are red only through V2-F01",
+      "AC-141-4": "NOT_MET: 80 of 413 binaries red across sets A/B/C plus the lib suite abort; per-run isolation held (fresh workspace per binary; HANDSHAKE_SURREAL_TEST_STORE_ROOT only accumulates guard-preserved stores)."
+    },
+    "remediation_required": {
+      "verdict_rule": "PASS_V3 requires the COMPLETE per-binary suite green on the next candidate, executed by the validator (lean-mode: previously-green rows of this batch may be cited on exe/log sha match when the candidate does not change their inputs; every red of this record must be re-executed by the validator), zero fail-fast aborts, nonzero executed count per binary except the listed feature-gated targets and the 3 listed lib loom_store debts. Builder proof is triage input only.",
+      "groups": [
+        {
+          "id": "V2-R1",
+          "root": "V2-F01 drain-stall Drop guard",
+          "fix": "Make the src/storage/tests.rs Drop guard shut the store down on the test runtime (or make close_and_remove mandatory and drop the panicking guard); remove the double-panic path so a failing test cannot abort the whole binary. Requires src/ waiver or an owning MT.",
+          "reruns": "all HARNESS_DRAIN_STALL_ONLY / MIXED rows + lib + 402/403/404/406"
+        },
+        {
+          "id": "V2-R2",
+          "root": "V2-F02 row-shape/schema drift",
+          "fix": "Align writers with schema.surql for visual_diff baseline_id (record vs uuid), add applied_update_id to knowledge_crdt_ai_edit_proposals or fix the writer, resolve PassageIdRow.created_at NONE (why DEFAULT did not apply), pin_order -1 sentinel, quick_switcher result_kind/source_kind, kernel_event_ledger test-schema fields wsids/authority_action, loom_blocks.source_rich_document_id type.",
+          "reruns": "055 056 418 229 421 427 419 + lib event_ledger/fr_emitter tests"
+        },
+        {
+          "id": "V2-R3",
+          "root": "V2-F03 txn conflicts",
+          "fix": "Wrap the intake add, micro-task claim, and block replace/delete paths in the existing retry helper (storage/surreal/retry.rs) or serialize via KeyedLockRegistry.",
+          "reruns": "053 284 362"
+        },
+        {
+          "id": "V2-R4",
+          "root": "V2-F04 HBR PRIV",
+          "fix": "Add HbrPillar::Priv (or filter unknown pillars) and stop reading .GOV at test runtime (embed a fixture copy or resolve through an env-declared path).",
+          "reruns": "103 105"
+        },
+        {
+          "id": "V2-R5",
+          "root": "V2-F05 tests/ drift",
+          "fix": "For each item: restore the assertion to current product behavior only where the product is the authority, or fix the product where the test encodes spec; document each decision in the disposition table. No weakening/#[ignore].",
+          "reruns": "listed per item"
+        },
+        {
+          "id": "V2-R6",
+          "root": "V2-F06 env",
+          "fix": "Document HANDSHAKE_TEST_STAGE_BINDING_ROOT in the packet TEST_PLAN; make node-probe tests fail closed with a clear \"pnpm install required\" or gate them; mt045_lc06 budget on HDD.",
+          "reruns": "203 349 087"
+        }
+      ],
+      "do_not": [
+        "Do not weaken, delete, or #[ignore] any failing assertion to reach green (MT-141 scope rule).",
+        "Do not run cargo against the shared warm target while a validator lane is executing from it."
+      ]
+    },
+    "residual_uncertainty": [
+      "Product-vs-test attribution for most V2-F05 items is from panic text only (NOT_INSPECTED at the product site).",
+      "PassageIdRow.created_at NONE root cause NOT_INSPECTED (schema DEFAULT should apply).",
+      "The lib suite aborted before reporting 26 tests; their state is unknown.",
+      "124 legacy leaked stores in the global handshake-test root NOT_INSPECTED.",
+      "The 21 prior-session rows were executed by the crashed session (accepted under the Operator waiver, not re-executed)."
+    ],
+    "residue": {
+      "runtime_entries_at_verdict": 526,
+      "runtime_attribution": [
+        {
+          "index": "059",
+          "target": "atelier_workflow_spec_tests",
+          "new_preserved_stores": 5,
+          "finished_at_utc": "2026-09-16T14:49:52.068Z"
+        },
+        {
+          "index": "101",
+          "target": "gvisor_adapter_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T14:53:32.312Z"
+        },
+        {
+          "index": "141",
+          "target": "kernel_crdt_promotion_bridge_tests",
+          "new_preserved_stores": 4,
+          "finished_at_utc": "2026-09-16T14:56:22.110Z"
+        },
+        {
+          "index": "140",
+          "target": "kernel_crdt_persistence_tests",
+          "new_preserved_stores": 7,
+          "finished_at_utc": "2026-09-16T14:57:24.888Z"
+        },
+        {
+          "index": "189",
+          "target": "kernel_session_spawn_conversation_distillation_tests",
+          "new_preserved_stores": 4,
+          "finished_at_utc": "2026-09-16T15:04:08.934Z"
+        },
+        {
+          "index": "188",
+          "target": "kernel_session_run_ledger_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T15:06:46.891Z"
+        },
+        {
+          "index": "160",
+          "target": "kernel_kb003_promotion_failure_matrix_tests",
+          "new_preserved_stores": 20,
+          "finished_at_utc": "2026-09-16T15:07:09.791Z"
+        },
+        {
+          "index": "204",
+          "target": "knowledge_crdt_bridge_api_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T15:12:44.079Z"
+        },
+        {
+          "index": "207",
+          "target": "knowledge_crdt_model_tests",
+          "new_preserved_stores": 3,
+          "finished_at_utc": "2026-09-16T15:16:03.937Z"
+        },
+        {
+          "index": "209",
+          "target": "knowledge_crdt_proposal_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T15:22:22.598Z"
+        },
+        {
+          "index": "208",
+          "target": "knowledge_crdt_proof_tests",
+          "new_preserved_stores": 5,
+          "finished_at_utc": "2026-09-16T15:23:54.916Z"
+        },
+        {
+          "index": "202",
+          "target": "knowledge_code_index_tests",
+          "new_preserved_stores": 23,
+          "finished_at_utc": "2026-09-16T15:25:49.673Z"
+        },
+        {
+          "index": "213",
+          "target": "knowledge_documents_tests",
+          "new_preserved_stores": 10,
+          "finished_at_utc": "2026-09-16T15:33:59.535Z"
+        },
+        {
+          "index": "220",
+          "target": "knowledge_ingestion_lifecycle_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T15:48:49.586Z"
+        },
+        {
+          "index": "219",
+          "target": "knowledge_ingestion_hardening_tests",
+          "new_preserved_stores": 5,
+          "finished_at_utc": "2026-09-16T15:49:03.566Z"
+        },
+        {
+          "index": "222",
+          "target": "knowledge_ingestion_policy_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T15:53:26.772Z"
+        },
+        {
+          "index": "221",
+          "target": "knowledge_ingestion_pipeline_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T15:54:39.941Z"
+        },
+        {
+          "index": "227",
+          "target": "knowledge_memory_fixtures_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T15:56:46.976Z"
+        },
+        {
+          "index": "232",
+          "target": "knowledge_retrieval_bridges_tests",
+          "new_preserved_stores": 14,
+          "finished_at_utc": "2026-09-16T15:59:24.313Z"
+        },
+        {
+          "index": "229",
+          "target": "knowledge_memory_projection_tests",
+          "new_preserved_stores": 7,
+          "finished_at_utc": "2026-09-16T16:00:24.465Z"
+        },
+        {
+          "index": "235",
+          "target": "knowledge_retrieval_replay_tests",
+          "new_preserved_stores": 4,
+          "finished_at_utc": "2026-09-16T16:10:08.982Z"
+        },
+        {
+          "index": "236",
+          "target": "knowledge_schema_tests",
+          "new_preserved_stores": 7,
+          "finished_at_utc": "2026-09-16T16:13:27.541Z"
+        },
+        {
+          "index": "253",
+          "target": "loom_backlink_tests",
+          "new_preserved_stores": 4,
+          "finished_at_utc": "2026-09-16T16:20:23.431Z"
+        },
+        {
+          "index": "251",
+          "target": "loom_ai_suggestions_api_tests",
+          "new_preserved_stores": 10,
+          "finished_at_utc": "2026-09-16T16:20:31.152Z"
+        },
+        {
+          "index": "255",
+          "target": "loom_breadcrumb_tests",
+          "new_preserved_stores": 3,
+          "finished_at_utc": "2026-09-16T16:23:39.158Z"
+        },
+        {
+          "index": "256",
+          "target": "loom_canvas_board_tests",
+          "new_preserved_stores": 13,
+          "finished_at_utc": "2026-09-16T16:46:26.912Z"
+        },
+        {
+          "index": "254",
+          "target": "loom_block_collection_views_tests",
+          "new_preserved_stores": 4,
+          "finished_at_utc": "2026-09-16T16:52:35.830Z"
+        },
+        {
+          "index": "257",
+          "target": "loom_daily_journal_tests",
+          "new_preserved_stores": 8,
+          "finished_at_utc": "2026-09-16T16:52:43.523Z"
+        },
+        {
+          "index": "252",
+          "target": "loom_atomic_receipt_tests",
+          "new_preserved_stores": 10,
+          "finished_at_utc": "2026-09-16T16:53:00.985Z"
+        },
+        {
+          "index": "260",
+          "target": "loom_graph_tests",
+          "new_preserved_stores": 5,
+          "finished_at_utc": "2026-09-16T16:57:08.796Z"
+        },
+        {
+          "index": "258",
+          "target": "loom_folder_tests",
+          "new_preserved_stores": 7,
+          "finished_at_utc": "2026-09-16T16:58:36.504Z"
+        },
+        {
+          "index": "259",
+          "target": "loom_graph_search_filters_tests",
+          "new_preserved_stores": 4,
+          "finished_at_utc": "2026-09-16T16:59:55.256Z"
+        },
+        {
+          "index": "261",
+          "target": "loom_knowledge_bridge_tests",
+          "new_preserved_stores": 6,
+          "finished_at_utc": "2026-09-16T17:01:55.857Z"
+        },
+        {
+          "index": "265",
+          "target": "loom_retrieval_bias_visibility_tests",
+          "new_preserved_stores": 6,
+          "finished_at_utc": "2026-09-16T17:17:22.719Z"
+        },
+        {
+          "index": "264",
+          "target": "loom_pins_views_tests",
+          "new_preserved_stores": 6,
+          "finished_at_utc": "2026-09-16T17:18:56.440Z"
+        },
+        {
+          "index": "269",
+          "target": "loom_visual_debug_views_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T17:21:33.205Z"
+        },
+        {
+          "index": "266",
+          "target": "loom_search_v2_tests",
+          "new_preserved_stores": 5,
+          "finished_at_utc": "2026-09-16T17:21:45.675Z"
+        },
+        {
+          "index": "270",
+          "target": "loom_wiki_boundary_tests",
+          "new_preserved_stores": 8,
+          "finished_at_utc": "2026-09-16T17:25:30.678Z"
+        },
+        {
+          "index": "277",
+          "target": "memory_capsule_recorder_surreal_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T17:29:40.831Z"
+        },
+        {
+          "index": "301",
+          "target": "mt152_fems_stage_guard_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T17:30:32.178Z"
+        },
+        {
+          "index": "302",
+          "target": "mt152_lock_migration_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T17:31:33.216Z"
+        },
+        {
+          "index": "303",
+          "target": "mt_cancellation_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T17:33:07.941Z"
+        },
+        {
+          "index": "304",
+          "target": "mt_executor_integration_tests",
+          "new_preserved_stores": 5,
+          "finished_at_utc": "2026-09-16T17:35:52.656Z"
+        },
+        {
+          "index": "305",
+          "target": "mt_executor_tests",
+          "new_preserved_stores": 11,
+          "finished_at_utc": "2026-09-16T17:36:25.334Z"
+        },
+        {
+          "index": "307",
+          "target": "mt_outcome_tests",
+          "new_preserved_stores": 5,
+          "finished_at_utc": "2026-09-16T17:41:08.223Z"
+        },
+        {
+          "index": "306",
+          "target": "mt_loop_control_tests",
+          "new_preserved_stores": 9,
+          "finished_at_utc": "2026-09-16T17:42:43.725Z"
+        },
+        {
+          "index": "315",
+          "target": "pinned_core_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T17:44:17.049Z"
+        },
+        {
+          "index": "317",
+          "target": "process_ledger_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T17:45:11.319Z"
+        },
+        {
+          "index": "312",
+          "target": "observability_span_repo_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T17:50:10.914Z"
+        },
+        {
+          "index": "320",
+          "target": "project_wiki_bootstrap_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T17:51:13.827Z"
+        },
+        {
+          "index": "321",
+          "target": "project_wiki_drift_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T17:51:52.967Z"
+        },
+        {
+          "index": "359",
+          "target": "steering_vector_store_tests",
+          "new_preserved_stores": 3,
+          "finished_at_utc": "2026-09-16T18:07:00.000Z"
+        },
+        {
+          "index": "363",
+          "target": "surreal_document_crud_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T18:11:06.873Z"
+        },
+        {
+          "index": "368",
+          "target": "surreal_test_inspector_contract_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T18:17:18.947Z"
+        },
+        {
+          "index": "370",
+          "target": "surreal_workspace_crud_tests",
+          "new_preserved_stores": 13,
+          "finished_at_utc": "2026-09-16T18:20:49.512Z"
+        },
+        {
+          "index": "378",
+          "target": "terminal_event_ledger_tests",
+          "new_preserved_stores": 9,
+          "finished_at_utc": "2026-09-16T18:20:58.811Z"
+        },
+        {
+          "index": "386",
+          "target": "user_manual_storage_tests",
+          "new_preserved_stores": 5,
+          "finished_at_utc": "2026-09-16T19:22:49.184Z"
+        },
+        {
+          "index": "383",
+          "target": "user_manual_api_tests",
+          "new_preserved_stores": 4,
+          "finished_at_utc": "2026-09-16T19:24:08.657Z"
+        },
+        {
+          "index": "395",
+          "target": "wp009_integration_validator_evidence_pack_tests",
+          "new_preserved_stores": 9,
+          "finished_at_utc": "2026-09-16T19:33:23.042Z"
+        },
+        {
+          "index": "400",
+          "target": "distillation_corpus_extractor_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T20:52:17.414Z"
+        },
+        {
+          "index": "399",
+          "target": "crash_recovery_e2e",
+          "new_preserved_stores": 3,
+          "finished_at_utc": "2026-09-16T20:54:36.444Z"
+        },
+        {
+          "index": "398",
+          "target": "ai_ready_data_arch_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T20:55:09.550Z"
+        },
+        {
+          "index": "404",
+          "target": "micro_task_executor_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T20:56:36.702Z"
+        },
+        {
+          "index": "402",
+          "target": "mcp_gate_tests",
+          "new_preserved_stores": 32,
+          "finished_at_utc": "2026-09-16T20:57:10.082Z"
+        },
+        {
+          "index": "416",
+          "target": "lib",
+          "new_preserved_stores": 65,
+          "finished_at_utc": "2026-09-16T22:44:08.341Z"
+        },
+        {
+          "index": "420",
+          "target": "loom_canvas_board_tests",
+          "new_preserved_stores": 48,
+          "finished_at_utc": "2026-09-16T22:52:25.795Z"
+        },
+        {
+          "index": "421",
+          "target": "loom_pins_views_tests",
+          "new_preserved_stores": 7,
+          "finished_at_utc": "2026-09-16T23:05:07.591Z"
+        },
+        {
+          "index": "422",
+          "target": "loom_retrieval_bias_visibility_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T23:08:28.599Z"
+        },
+        {
+          "index": "423",
+          "target": "micro_task_job_tests",
+          "new_preserved_stores": 8,
+          "finished_at_utc": "2026-09-16T23:12:11.393Z"
+        },
+        {
+          "index": "424",
+          "target": "mt_executor_integration_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T23:17:04.317Z"
+        },
+        {
+          "index": "425",
+          "target": "mt_outcome_tests",
+          "new_preserved_stores": 11,
+          "finished_at_utc": "2026-09-16T23:25:50.578Z"
+        },
+        {
+          "index": "426",
+          "target": "observability_span_repo_tests",
+          "new_preserved_stores": 9,
+          "finished_at_utc": "2026-09-16T23:31:26.628Z"
+        },
+        {
+          "index": "427",
+          "target": "quick_switcher_recents_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-16T23:33:17.255Z"
+        },
+        {
+          "index": "428",
+          "target": "user_manual_api_tests",
+          "new_preserved_stores": 13,
+          "finished_at_utc": "2026-09-16T23:39:13.494Z"
+        },
+        {
+          "index": "429",
+          "target": "user_manual_content_tests",
+          "new_preserved_stores": 4,
+          "finished_at_utc": "2026-09-16T23:44:47.738Z"
+        },
+        {
+          "index": "430",
+          "target": "user_manual_freshness_fixture_tests",
+          "new_preserved_stores": 1,
+          "finished_at_utc": "2026-09-16T23:46:58.775Z"
+        },
+        {
+          "index": "431",
+          "target": "user_manual_storage_tests",
+          "new_preserved_stores": 9,
+          "finished_at_utc": "2026-09-16T23:53:29.805Z"
+        },
+        {
+          "index": "463",
+          "target": "kernel_crdt_persistence_tests",
+          "new_preserved_stores": 2,
+          "finished_at_utc": "2026-09-17T00:28:22.384Z"
+        },
+        {
+          "index": "466",
+          "target": "parallel_swarm_state_recovery_tests",
+          "new_preserved_stores": 32,
+          "finished_at_utc": "2026-09-17T00:35:50.742Z"
+        },
+        {
+          "index": "468",
+          "target": "knowledge_crdt_proposal_tests",
+          "new_preserved_stores": 9,
+          "finished_at_utc": "2026-09-17T00:38:51.158Z"
+        },
+        {
+          "index": "469",
+          "target": "knowledge_documents_api_tests",
+          "new_preserved_stores": 10,
+          "finished_at_utc": "2026-09-17T00:44:46.710Z"
+        },
+        {
+          "index": "470",
+          "target": "loom_canvas_board_tests",
+          "new_preserved_stores": 11,
+          "finished_at_utc": "2026-09-17T00:47:01.986Z"
+        }
+      ],
+      "tmp_entries": 394,
+      "tmp_leaked_stores": 349,
+      "workspace": "per-run roots retained; product .handshake/artifacts trees in some (expected)",
+      "cleanup_decision": "nothing deleted; logs retained; runtime store-* dirs are the V2-F01 evidence and are deletable once the builder has inspected them"
+    },
+    "takeover_note": {
+      "previous_session": "crashed with the machine ~07:59Z 2026-09-16 after 21 set-A rows (002-015,017-023); partial logs 016/024/025 retained as crash evidence, not cited",
+      "adopted_orphans": "026 atelier_core_data_tests (54/54, 9051 s) and 027 atelier_event_ledger_tests (11/11, 4753 s): exit derived from result line (driver STOP-loop bug lost the process handle); accepted under verdict_rule_waiver",
+      "c_prime_bin_rebuild": "REBUILD_HANDSHAKE_CORE ba03f563 2026-09-16T20:35:08Z exit=0 (64m11s): warm-target handshake_core.exe 0d5986ba…(06:12:19Z) -> adcb8360fb198486fc23f1f88f66d437d9e89bb20c1330d68627f30773ffb173 (20:35:02Z); log 900-rebuild-handshake_core-ba03f563.log; the only cargo invocation by this validator; used by crash_recovery_e2e (399, 464). diff --stat fd9060de..ba03f563: storage/knowledge.rs 531 ++-, storage/surreal/knowledge.rs 135 ++, native tests/test_mcp_snapshot_viewport.rs 16 +- (3 files, +236/-446)",
+      "validated_commit_binding": "validation_v2 binds fd9060de (all test exes); ba03f563 differs only in the 3 files above"
+    },
+    "lane_state": "lane released at 2026-09-17T00:47:33.057Z; 0 cargo/rustc processes owned by this validator"
+  },
+  "validation_v2_transition": {
+    "from_status": "FAIL_V1",
+    "to_status": "FAIL_V2",
+    "by": "WP_VALIDATOR-B3-20260916-113023",
+    "at_utc": "2026-09-17T00:47:33.057Z",
+    "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
+    "record": "validation_v2",
+    "reason": "COMPLETE per-binary suite not green on the candidate (see validation_v2.basis)"
   }
 }
