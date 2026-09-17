@@ -463,9 +463,13 @@ async fn mt258_transclusion_unresolved_block_without_source_is_typed_not_blank()
 
     let resolved = get_transclusion(&base, &http, &workspace_id, &block_id).await;
     assert_eq!(resolved["resolved"], json!(false));
+    // The resolver treats a block without a legacy `document_id` as a
+    // possible native RichDocument projection (same-id lookup); when no source
+    // RichDocument exists either way the one typed reason is
+    // `source_rich_document_missing` (`api/loom.rs` transclusion read-through).
     assert_eq!(
         resolved["unresolved_reason"].as_str(),
-        Some("loom_block_has_no_source_document")
+        Some("source_rich_document_missing")
     );
     assert!(resolved["content_json"].is_null());
 }

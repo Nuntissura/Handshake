@@ -267,19 +267,28 @@ fn pin_ipc_rejects_empty_reason_before_submitter_or_fr_side_effects() {
     assert_eq!(submitter.submitted_count(), 0);
 }
 
+/// MT-159 pin state lives in the EventLedger (`memory_item` aggregate rows with
+/// the `hsk.memory_pin.payload@1` payload), never in a pin table. The
+/// PostgreSQL migration corpus that used to prove this was retired with the
+/// SurrealDB port (MT-139 SEVER decision); the superseding proof reads the
+/// compiled `schema.surql` and the pin authority module directly.
 #[test]
 fn pinned_migration_source_scan_is_guarded_for_memory_item_table() {
-    let migration = std::fs::read_to_string("migrations/2026_05_18_fems_pinned.sql")
-        .expect("MT-159 pinned migration must exist");
+    let schema = include_str!("../src/storage/surreal/schema.surql");
+    let pinned_core = include_str!("../src/memory/pinned_core.rs");
 
-    assert!(migration.contains("kernel_event_ledger"));
-    assert!(migration.contains("memory_item"));
-    assert!(migration.contains("hsk.memory_pin.payload@1"));
-    assert!(migration.contains("WHERE aggregate_type = 'memory_item'"));
-    assert!(!migration.contains("CREATE TABLE memory_item"));
-    assert!(!migration.contains("ALTER TABLE memory_item"));
-    assert!(!migration.to_ascii_lowercase().contains("sqlite"));
-    assert!(!migration.contains("INTEGER NOT NULL DEFAULT 0"));
+    assert!(schema.contains("DEFINE TABLE OVERWRITE kernel_event_ledger"));
+    assert!(
+        !schema.contains("DEFINE TABLE OVERWRITE memory_item ")
+            && !schema.contains("DEFINE TABLE OVERWRITE memory_item
+")
+            && !schema.contains("DEFINE TABLE OVERWRITE memory_pin"),
+        "pin state must stay ledger-derived: no memory_item/memory_pin table"
+    );
+    assert!(!schema.to_ascii_lowercase().contains("sqlite"));
+    assert!(pinned_core.contains("MEMORY_PIN_AGGREGATE_TYPE: &str = \"memory_item\""));
+    assert!(pinned_core.contains("PIN_MEMORY_PAYLOAD_SCHEMA_ID: &str = \"hsk.memory_pin.payload@1\""));
+    assert!(pinned_core.contains("MEMORY_PIN_MANIFEST_AGGREGATE_TYPE"));
 }
 
 #[test]
@@ -306,7 +315,9 @@ fn pin_tauri_commands_are_registered_and_legacy_adapter_source_scan_is_explicit(
         );
     }
     assert!(lib_rs.contains("pub mod memory_pin"));
-    assert!(lib_rs.contains("MemoryPinIpcState::from_env_or_unavailable()"));
+    // The Tauri shell binds pin IPC state to the embedded SurrealDB authority
+    // (`with_surreal`); the PostgreSQL-era env-or-unavailable constructor is gone.
+    assert!(lib_rs.contains("MemoryPinIpcState::with_surreal("));
     assert!(memory_pin_rs.contains("MemoryPinIpcState"));
     assert!(!memory_pin_rs.contains("InMemory"));
 }

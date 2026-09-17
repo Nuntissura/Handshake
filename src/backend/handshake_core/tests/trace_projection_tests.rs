@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use handshake_core::{
     inspector_read::{
         EventLedgerRow, InspectorReadSnapshot, InspectorServer, InspectorTraceProjection, SessionId,
+        PER_RUN_SECRET_HEADER,
     },
     kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent},
 };
@@ -163,9 +164,14 @@ async fn trace_projection_tests_route_returns_projection_and_missing_trace_404()
         .expect("server starts");
     let base = format!("http://{}", handle.addr());
     let client = reqwest::Client::new();
+    // MT-029 (Master Spec 6.5.5): every inspector read endpoint requires the
+    // per-run secret header; an unauthenticated read is rejected 401 (proven
+    // in `inspector_server_tests`), so supply it on every read here.
+    let secret_hex = handle.per_run_secret().to_hex();
 
     let projection: InspectorTraceProjection = client
         .get(format!("{base}/inspector/v1/trace/{SESSION_ID}"))
+        .header(PER_RUN_SECRET_HEADER, &secret_hex)
         .send()
         .await
         .unwrap()
@@ -178,6 +184,7 @@ async fn trace_projection_tests_route_returns_projection_and_missing_trace_404()
 
     let missing = client
         .get(format!("{base}/inspector/v1/trace/missing-session"))
+        .header(PER_RUN_SECRET_HEADER, &secret_hex)
         .send()
         .await
         .unwrap();

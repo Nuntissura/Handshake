@@ -987,6 +987,17 @@ async fn mt032_loom_projection_failure_rolls_back_document_create() {
         .expect("cleanup embedded knowledge test store");
 }
 
+/// MT-032 same-id wrong-type LoomBlock collision.
+///
+/// The PostgreSQL-era proof corrupted the same-id LoomBlock's `content_type`
+/// through a test seam and expected the save transaction to detect the
+/// collision (409). The embedded SurrealDB authority makes that corruption
+/// state unrepresentable instead of merely detectable: `loom_blocks.
+/// source_rich_document_id` asserts `content_type = 'note'` and the MT-109
+/// `mt109_loom_source_integrity` event refuses to retype or unlink a block
+/// that projects a live RichDocument. The proof therefore asserts the stronger
+/// property: the corruption itself is refused by the store, the document and
+/// its version history are untouched, and a save afterwards still succeeds.
 #[tokio::test]
 async fn mt032_save_rejects_same_workspace_wrong_type_projection_collision() {
     let store = open_embedded_store()
@@ -999,24 +1010,17 @@ async fn mt032_save_rejects_same_workspace_wrong_type_projection_collision() {
         .as_str()
         .expect("collision document id")
         .to_owned();
-    store
+    let corruption = store
         .storage
         .test_set_rich_document_loom_identity(&document_id, LoomBlockContentType::File)
         .await
-        .expect("seed wrong-type same-id LoomBlock");
-    let content = json!({"type": "doc", "content": [{
-        "type": "paragraph", "content": [{"type": "text", "text": "must roll back"}]
-    }]});
-    let failed = headers_with_kind(
-        http.put(format!("{base}/knowledge/documents/{document_id}/save")),
-        "mt032-wrong-loom-type",
-        "operator",
-    )
-    .json(&json!({"expected_version": 1, "content_json": content.clone()}))
-    .send()
-    .await
-    .expect("send wrong-type save");
-    assert_eq!(failed.status(), 409);
+        .expect_err("the store must refuse a wrong-type same-id LoomBlock for a live RichDocument");
+    let corruption = corruption.to_string();
+    assert!(
+        corruption.contains("source_rich_document_id")
+            || corruption.contains("HSK-MT109-LOOM-SOURCE"),
+        "collision must be refused by the schema/source-integrity authority, got {corruption}"
+    );
     let retained = store
         .db
         .get_knowledge_rich_document(&document_id)
@@ -1032,21 +1036,19 @@ async fn mt032_save_rejects_same_workspace_wrong_type_projection_collision() {
             .expect("count retained versions"),
         1
     );
-    store
-        .storage
-        .test_set_rich_document_loom_identity(&document_id, LoomBlockContentType::Note)
-        .await
-        .expect("restore LoomBlock identity");
-    let retry = headers_with_kind(
+    let content = json!({"type": "doc", "content": [{
+        "type": "paragraph", "content": [{"type": "text", "text": "identity intact"}]
+    }]});
+    let save = headers_with_kind(
         http.put(format!("{base}/knowledge/documents/{document_id}/save")),
-        "mt032-restored-loom-type",
+        "mt032-intact-loom-type",
         "operator",
     )
     .json(&json!({"expected_version": 1, "content_json": content}))
     .send()
     .await
-    .expect("retry save after identity restore");
-    assert_eq!(retry.status(), 200);
+    .expect("save after refused corruption");
+    assert_eq!(save.status(), 200);
     server.shutdown().await;
     store
         .close_and_remove()

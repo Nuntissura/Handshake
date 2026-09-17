@@ -671,16 +671,20 @@ impl HygieneActionSubmitter for SurrealKernelActionSubmitter {
 }
 
 fn is_kernel_event_idempotency_conflict(error: &StorageError) -> bool {
-    matches!(
-        error,
-        StorageError::Conflict(
-            "kernel event idempotency key was reused with different event content"
-        )
-    ) || matches!(
-        error,
-        StorageError::Validation(message)
-            if message.starts_with("kernel event idempotency conflict")
-    )
+    const IDEMPOTENCY_CONFLICT: &str =
+        "kernel event idempotency key was reused with different event content";
+    match error {
+        StorageError::Conflict(code) => *code == IDEMPOTENCY_CONFLICT,
+        // MT-149 (c8e41daf) preserves the ledger's diagnostic detail by reporting
+        // the same conflict as `ConflictDetails { code, .. }`; the semantic-replay
+        // check must recognise both shapes or an exact replay is misreported as
+        // an append failure (MT-141 V2 lib red: mt136 submitter_contract).
+        StorageError::ConflictDetails { code, .. } => *code == IDEMPOTENCY_CONFLICT,
+        StorageError::Validation(message) => {
+            message.starts_with("kernel event idempotency conflict")
+        }
+        _ => false,
+    }
 }
 
 fn same_submission_semantics(stored_payload: &Value, submission: &KernelActionSubmission) -> bool {
@@ -860,7 +864,13 @@ fn build_capsule_manifest_event(
     submission: &KernelActionSubmission,
 ) -> Result<Option<NewKernelEvent>, KernelActionRejection> {
     let target = primary_action_target(submission)?;
-    if target.target_kind != MEMORY_CAPSULE_AGGREGATE_TYPE {
+    // Only the capsule RECORD action carries a complete `record` to project into
+    // the manifest. Other capsule-targeted actions (outcome attachment, pin,
+    // hygiene) legitimately target the capsule aggregate without one, so they
+    // append their catalog event alone (MT-141 V2-R5 item 313).
+    if target.target_kind != MEMORY_CAPSULE_AGGREGATE_TYPE
+        || submission.request.action_id != MEMORY_CAPSULE_RECORD_ACTION_ID
+    {
         return Ok(None);
     }
     let record = submission

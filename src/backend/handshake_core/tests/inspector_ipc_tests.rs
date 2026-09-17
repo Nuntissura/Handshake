@@ -47,7 +47,22 @@ fn inspector_ipc_tests_tauri_bridge_file_registers_all_inspector_commands() {
 
     assert!(cargo_toml.contains("handshake_core"));
     assert!(cargo_toml.contains("\"inspector\""));
-    assert!(cargo_toml.contains("\"runtime-full\""));
+    // The Tauri shell enables the full runtime through the `app-runtime` umbrella
+    // feature; prove the umbrella still expands to `runtime-full` in this crate's
+    // own manifest so the intent (full runtime + inspector) is checked end to end.
+    assert!(
+        cargo_toml.contains("\"app-runtime\"") || cargo_toml.contains("\"runtime-full\""),
+        "app/src-tauri must enable the full runtime (app-runtime or runtime-full)"
+    );
+    let core_cargo_toml = read(Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml"));
+    let app_runtime_feature = core_cargo_toml
+        .lines()
+        .find(|line| line.trim_start().starts_with("app-runtime ="))
+        .expect("handshake_core declares the app-runtime umbrella feature");
+    assert!(
+        app_runtime_feature.contains("\"runtime-full\""),
+        "app-runtime must expand to runtime-full: {app_runtime_feature}"
+    );
     assert!(lib_rs.contains("mod inspector;"));
     assert!(lib_rs.contains("Arc<dyn handshake_core::inspector_read::InspectorReadV1>"));
     assert!(inspector_rs.contains("State<'_, Arc<dyn InspectorReadV1>>"));

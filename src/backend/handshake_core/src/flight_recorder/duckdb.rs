@@ -603,8 +603,13 @@ impl DuckDbFlightRecorder {
 
         // DuckDB doesn't support parameterized INTERVAL, so we construct the query directly.
         // retention_days is a u32 from trusted config, not user input.
+        // The pinned DuckDB (1.4) types `CURRENT_TIMESTAMP` as TIMESTAMP WITH TIME ZONE and
+        // only defines `TIMESTAMPTZ - INTERVAL` through the ICU extension, which the bundled
+        // engine does not load; the arithmetic is done on the plain `TIMESTAMP` cast (the
+        // recorder stores UTC wall time) so retention purges instead of failing with a
+        // binder error (MT-141 V2 lib red: test_retention_purges_old_events).
         let query = format!(
-            "DELETE FROM events WHERE timestamp < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
+            "DELETE FROM events WHERE timestamp < (CURRENT_TIMESTAMP::TIMESTAMP - INTERVAL '{}' DAY)",
             self.retention_days
         );
         let affected_events = conn
@@ -612,7 +617,7 @@ impl DuckDbFlightRecorder {
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
         let fr_query = format!(
-            "DELETE FROM fr_events WHERE ts_utc < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
+            "DELETE FROM fr_events WHERE ts_utc < (CURRENT_TIMESTAMP::TIMESTAMP - INTERVAL '{}' DAY)",
             self.retention_days
         );
         let affected_fr_events = conn
@@ -620,7 +625,7 @@ impl DuckDbFlightRecorder {
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
         let terminal_query = format!(
-            "DELETE FROM terminal_output WHERE ts_utc < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
+            "DELETE FROM terminal_output WHERE ts_utc < (CURRENT_TIMESTAMP::TIMESTAMP - INTERVAL '{}' DAY)",
             self.retention_days
         );
         let affected_terminal_output = conn
@@ -628,7 +633,7 @@ impl DuckDbFlightRecorder {
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
         let tool_payload_query = format!(
-            "DELETE FROM tool_payloads WHERE ts_utc < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
+            "DELETE FROM tool_payloads WHERE ts_utc < (CURRENT_TIMESTAMP::TIMESTAMP - INTERVAL '{}' DAY)",
             self.retention_days
         );
         let affected_tool_payloads = conn

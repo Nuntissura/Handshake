@@ -36,6 +36,10 @@ pub enum SurfaceGroup {
     CrdtCollaboration,
     NotesLoom,
     UserManual,
+    /// Atelier storage-authority surfaces (MT-138 readiness gate).
+    Atelier,
+    /// Kernel EventLedger read surfaces (MT-072 preference receipts).
+    KernelEvents,
 }
 
 impl SurfaceGroup {
@@ -49,6 +53,8 @@ impl SurfaceGroup {
             Self::CrdtCollaboration => "crdt_collaboration",
             Self::NotesLoom => "notes_loom",
             Self::UserManual => "user_manual",
+            Self::Atelier => "atelier",
+            Self::KernelEvents => "kernel_events",
         }
     }
 
@@ -62,6 +68,8 @@ impl SurfaceGroup {
             Self::CrdtCollaboration => "crdt-collaboration-surface",
             Self::NotesLoom => "notes-loom-surface",
             Self::UserManual => "usermanual-surface",
+            Self::Atelier => "atelier-storage-authority",
+            Self::KernelEvents => "editor-preferences-surface",
         }
     }
 
@@ -76,7 +84,7 @@ impl SurfaceGroup {
             | Self::Retrieval
             | Self::MemoryClaims
             | Self::CrdtCollaboration => true,
-            Self::NotesLoom | Self::UserManual => false,
+            Self::NotesLoom | Self::UserManual | Self::Atelier | Self::KernelEvents => false,
         }
     }
 }
@@ -1374,6 +1382,38 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "Re-seed the manual corpus from the compiled-in seed (idempotent; receipts per changed page). Write-gated.",
         "x-hsk-actor-kind operator|system|local_model required; cloud_model and unauthenticated are DENIED (403).",
         "JSON resync report (pages changed, version row) + receipt ids."
+    ),
+    // -- atelier storage authority (api/atelier.rs; MT-138 readiness gate) ---
+    // Declared here because the seeded `atelier-storage-authority` page
+    // documents them with `http_route` anchors; an anchor without a registry row
+    // is a dangling anchor in the MT-204 freshness check (MT-141 V2-R5).
+    surface!(
+        "atelier.overview",
+        SurfaceGroup::Atelier,
+        "GET",
+        "/atelier/overview",
+        "Bounded row counts for the curated Atelier tables plus per-family atelier event counts.",
+        "None.",
+        "JSON overview (table counts, event family counts)."
+    ),
+    surface!(
+        "atelier.command_corpus.list",
+        SurfaceGroup::Atelier,
+        "GET",
+        "/atelier/command-corpus",
+        "Durable builtin-command projection descriptors ordered by action_id, capped.",
+        "None.",
+        "JSON array of command corpus descriptors."
+    ),
+    // -- kernel EventLedger reads (api/kernel.rs; MT-072 preference receipts) --
+    surface!(
+        "kernel.events.aggregate.list",
+        SurfaceGroup::KernelEvents,
+        "GET",
+        "/kernel/events/aggregates/:aggregate_type/:aggregate_id",
+        "Durable EventLedger events for one aggregate (e.g. preference_record receipts).",
+        "aggregate_type and aggregate_id path params.",
+        "JSON array of kernel events (event_id, event_type, payload, created_at)."
     ),
 ];
 

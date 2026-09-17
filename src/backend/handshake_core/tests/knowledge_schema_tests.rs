@@ -87,7 +87,15 @@ mod mt_049_namespace {
                 "registered WP-009 table {} violates the knowledge_ prefix boundary",
                 row.table_name
             );
-            assert_eq!(row.wp_id, "WP-KERNEL-009");
+            // The knowledge namespace is owned by WP-KERNEL-009 and extended by
+            // WP-KERNEL-012 (MT-032 loom projection state, MT-142 title anchors);
+            // every row must name one of the two owning packets.
+            assert!(
+                row.wp_id == "WP-KERNEL-009" || row.wp_id == "WP-KERNEL-012",
+                "registered table {} names an unexpected owning packet {}",
+                row.table_name,
+                row.wp_id
+            );
         }
 
         let audit = store

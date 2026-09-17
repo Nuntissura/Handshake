@@ -186,13 +186,19 @@ fn sandbox_adapter_trait_source_has_exact_public_method_shape() {
         .filter(|line| line.starts_with("async fn ") || line.starts_with("fn "))
         .collect::<Vec<_>>();
 
-    // 8 core methods + the Master Spec v02.187 §3.5.7 additive methods:
-    // snapshot/restore (#7) and copy_in/copy_out (#4) = 12.
+    // 8 core methods + the Master Spec v02.187 §3.5.7 additive methods
+    // (snapshot/restore #7, copy_in/copy_out #4) + the three defaulted
+    // lifecycle methods added after v02.187: `cleanup_after_restart` (§5.7
+    // ProcessOwnershipLedger restart reconciliation), `delete_snapshot` (§3.5.7
+    // #7 snapshot lifecycle cleanup) and `warm_agent_transport` (§4.6 warm-agent
+    // streaming over a persistent handle) = 15. The shape stays exact: every
+    // method is named below and nothing adapter-specific may be added.
     assert_eq!(
         declarations.len(),
-        12,
-        "SandboxAdapter must expose exactly the core 8 methods plus the §3.5.7 \
-         additive methods snapshot/restore/copy_in/copy_out: {declarations:?}"
+        15,
+        "SandboxAdapter must expose exactly the core 8 methods, the §3.5.7 \
+         additive methods snapshot/restore/copy_in/copy_out and the defaulted \
+         cleanup_after_restart/delete_snapshot/warm_agent_transport: {declarations:?}"
     );
 
     for method in [
@@ -201,12 +207,15 @@ fn sandbox_adapter_trait_source_has_exact_public_method_shape() {
         "fs_bind",
         "net_policy",
         "kill",
+        "cleanup_after_restart",
         "status",
         "exit_code",
         "snapshot",
         "restore",
+        "delete_snapshot",
         "copy_in",
         "copy_out",
+        "warm_agent_transport",
         "capabilities",
     ] {
         assert!(

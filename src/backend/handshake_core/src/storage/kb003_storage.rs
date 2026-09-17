@@ -497,11 +497,15 @@ mod tests {
     #[test]
     fn validation_run_reconstructs_from_rows() {
         let mut store = InMemoryKb003Storage::new_surreal_primary();
-        let run = fresh_run();
-        let run_id = run.run_id.0.clone();
-        store.insert_sandbox_run(&run).unwrap();
         let policy = SandboxPolicyV1::default_deny("baseline");
         store.insert_sandbox_policy_version(&policy).unwrap();
+        // The replay bag is loaded for the policy the run actually links
+        // (`load_replay_bag` refuses a run/policy mismatch), so the seeded run
+        // must reference the inserted policy version.
+        let mut run = fresh_run();
+        run.policy_version_id = policy.version_id();
+        let run_id = run.run_id.0.clone();
+        store.insert_sandbox_run(&run).unwrap();
         let vr = ValidationRunRowV1 {
             validation_run_id: "VR-1".into(),
             sandbox_run_id: run_id.clone(),

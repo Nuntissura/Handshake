@@ -844,7 +844,14 @@ mod mt_054_edges {
             .iter()
             .find(|field| field.name == "conflict_marker")
             .expect("edge conflict marker field");
-        assert!(marker.kind.contains("option"));
+        // The pinned engine renders `option<object>` as `none | object` in its
+        // STRUCTURE catalog; accept either optional spelling, never a required
+        // object.
+        assert!(
+            marker.kind.contains("option") || marker.kind.contains("none"),
+            "conflict_marker must be optional, got kind {}",
+            marker.kind
+        );
         assert!(marker.kind.contains("object"));
 
         let err = store

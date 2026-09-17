@@ -85,9 +85,12 @@ async fn state_probe_catalog_records_required_surfaces_before_visual_inspection(
             entry.probe_fields["schema"],
             serde_json::json!("hsk.atelier.state_probe.fields@1")
         );
+        // The catalog emits and validates the `surrealdb` authority token
+        // (`atelier/state_probe.rs` writer + `validate_probe_fields`); `surreal`
+        // was the pre-port draft token and never a product value.
         assert_eq!(
             entry.probe_fields["state_authority"],
-            serde_json::json!("surreal")
+            serde_json::json!("surrealdb")
         );
         assert_eq!(
             entry.probe_fields["event_authority"],

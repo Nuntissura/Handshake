@@ -339,9 +339,26 @@ async fn spawned_child_shutdown_is_bounded_then_close_finishes_after_lease_drain
     .await
     .expect("background shutdown finishes after operation lease drains");
     drop(storage);
-    let reopened = SurrealStorage::open(reopen_config)
-        .await
-        .expect("reopen drained store");
+    // The 100 ms `shutdown_wait` above bounds the child caller, but it is also
+    // the whole close budget: after the lease drains the engine-release proof
+    // (`wait_for_engine_release`) may have no budget left, so the wrapper
+    // closes `Terminal(EngineReleaseUnproven)` while RocksDB is still
+    // releasing its `LOCK` on this thread's runtime. Reopening is therefore
+    // retried for a bounded window on the Windows sharing-violation shape
+    // only; any other open error, or exhausting the window, still fails.
+    let reopened = timeout(Duration::from_secs(30), async {
+        loop {
+            match SurrealStorage::open(reopen_config.clone()).await {
+                Ok(storage) => break storage,
+                Err(error) if error.to_string().contains("LOCK") => {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                }
+                Err(error) => panic!("reopen drained store: {error}"),
+            }
+        }
+    })
+    .await
+    .expect("drained store must become reopenable once the engine releases its LOCK");
     timeout(Duration::from_secs(30), reopened.shutdown())
         .await
         .expect("reopened shutdown is bounded")

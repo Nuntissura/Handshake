@@ -4589,6 +4589,12 @@ mod tests {
     async fn collection_replacement_is_atomic_and_survives_close_reopen() {
         let temp = tempfile::tempdir().expect("create temporary data root");
         let (config, store) = open_store(&temp).await;
+        // MT-150: block/collection/edge mutations read and append `kernel_event_ledger`
+        // inside their transaction, so the production schema must exist (as it always
+        // does at runtime). MT-141 V2 carried lib debt: this test opened a schemaless store.
+        super::super::schema::bootstrap_schema(&store)
+            .await
+            .expect("bootstrap production schema");
         let workspace_id = "loom-collection-workspace";
         seed_workspace(&store, workspace_id).await;
         create_test_asset(&store, workspace_id, "asset-a", "hash-a").await;
@@ -4720,6 +4726,12 @@ mod tests {
     async fn block_search_projection_update_and_view_ordering_use_real_store() {
         let temp = tempfile::tempdir().expect("create temporary data root");
         let (_, store) = open_store(&temp).await;
+        // MT-150: block/collection/edge mutations read and append `kernel_event_ledger`
+        // inside their transaction, so the production schema must exist (as it always
+        // does at runtime). MT-141 V2 carried lib debt: this test opened a schemaless store.
+        super::super::schema::bootstrap_schema(&store)
+            .await
+            .expect("bootstrap production schema");
         let workspace_id = "loom-search-workspace";
         seed_workspace(&store, workspace_id).await;
         let base = Utc::now();
@@ -4839,6 +4851,12 @@ mod tests {
     async fn graph_search_covers_every_declared_source_kind() {
         let temp = tempfile::tempdir().expect("create temporary data root");
         let (_, store) = open_store(&temp).await;
+        // MT-150: block/collection/edge mutations read and append `kernel_event_ledger`
+        // inside their transaction, so the production schema must exist (as it always
+        // does at runtime). MT-141 V2 carried lib debt: this test opened a schemaless store.
+        super::super::schema::bootstrap_schema(&store)
+            .await
+            .expect("bootstrap production schema");
         let workspace_id = "loom-cross-source-workspace";
         seed_workspace(&store, workspace_id).await;
         let base = Utc::now();

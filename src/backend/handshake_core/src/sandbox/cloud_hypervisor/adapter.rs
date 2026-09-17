@@ -5332,7 +5332,9 @@ done
         assert!(script.contains("/restore-*"));
         assert!(script.contains("/exec-*"));
         assert!(script.contains("cat \"$d/.hsk-owner-token\""));
-        assert!(script.contains("= 018f6b62-4fa7-7c63-a80c-2f73c781b443"));
+        // The owner token is single-quoted for the WSL shell (`sh_quote_wsl`), so a
+        // token can never be word-split or glob-expanded by the comparison.
+        assert!(script.contains("= '018f6b62-4fa7-7c63-a80c-2f73c781b443'"));
         assert!(
             script.contains("then continue"),
             "current-process owned VM roots must be skipped, not reclaimed"

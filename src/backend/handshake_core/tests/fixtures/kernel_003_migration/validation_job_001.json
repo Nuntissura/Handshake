@@ -64,6 +64,8 @@
     "-d",
     "--name",
     "hsk-k003-migration",
+    "--label",
+    "io.handshake.process-id=hsk-k003-migration",
     "--read-only",
     "--tmpfs",
     "/tmp:rw,noexec,nosuid,nodev,mode=1777",

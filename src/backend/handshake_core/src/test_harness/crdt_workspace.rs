@@ -774,7 +774,7 @@ fn real_update_record(
         // The kernel update record requires update_seq >= 1; our seq starts at 1.
         update_seq: update.update_seq,
         update_bytes: &update_bytes,
-        update_bytes_ref: &format!("postgres://swarm-n8/{}", update.update_id),
+        update_bytes_ref: &format!("surreal://swarm-n8/{}", update.update_id),
         session_id: &update.session_id,
         trace_id: &format!("KTR-SWARM-{}", update.session_id),
         state_vector_before: &format!("sv-{}", update.base_revision),

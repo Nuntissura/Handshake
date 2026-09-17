@@ -259,8 +259,9 @@ fn persistence_source_has_no_db_sqlite_or_inspector_mutation_path() {
         "sqlite",
         "rusqlite",
         "Connection",
-        "Database",
-        "crate::storage",
+        "surrealdb::",
+        "SurrealStorage",
+        "test_mutator",
         "inspector_read",
         "ReplayDrive",
         "reqwest",
@@ -269,6 +270,41 @@ fn persistence_source_has_no_db_sqlite_or_inspector_mutation_path() {
         assert!(
             !source.contains(forbidden),
             "persistence.rs must not contain forbidden direct path {forbidden}"
+        );
+    }
+
+    // The embedded Surreal submitter/store reach the EventLedger ONLY through the
+    // `Database` storage trait (Codex [CX-341] indirection), never through an
+    // engine handle. Allow exactly that import and exactly the ledger methods the
+    // kernel-action path needs: append (single/atomic) and aggregate replay. Any
+    // other `crate::storage` reach-through or any other trait method is a new
+    // direct mutation path and fails this tripwire.
+    let storage_imports: Vec<&str> = source
+        .lines()
+        .filter(|line| line.contains("crate::storage"))
+        .collect();
+    assert_eq!(
+        storage_imports,
+        vec!["use crate::storage::{Database, StorageError};"],
+        "persistence.rs may reach storage only through the Database trait import"
+    );
+    let allowed_db_methods = [
+        "append_kernel_event(",
+        "append_kernel_events_atomic(",
+        "list_kernel_events_for_aggregate(",
+    ];
+    for (index, line) in source.lines().enumerate() {
+        let Some(position) = line.find("db.") else {
+            continue;
+        };
+        let call = &line[position + 3..];
+        assert!(
+            allowed_db_methods
+                .iter()
+                .any(|method| call.starts_with(method)),
+            "persistence.rs:{} uses a Database method outside the ledger allowlist: {}",
+            index + 1,
+            line.trim()
         );
     }
 }

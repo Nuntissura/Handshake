@@ -434,9 +434,11 @@ async fn mt_177_transactional_rollback_leaves_no_visible_state() {
 
     // The former manual-transaction proof covered a storage API that is not
     // exposed by the embedded repository. Its typed successor verifies that a
-    // failed duplicate create does not create a second visible row.
+    // failed write leaves no visible state: the repository creates threads by
+    // primary key (`CREATE`, never `UPSERT`), so a second create of the SAME
+    // thread id is refused by the engine and the original row is untouched.
     let phantom_id = RoleMailboxThreadId::new_v7();
-    let thread = RoleMailboxThread::open(
+    let mut original = RoleMailboxThread::open(
         "rollback-probe",
         LinkedRecordKind::Wp,
         Some("WP-rollback".to_string()),
@@ -445,18 +447,20 @@ async fn mt_177_transactional_rollback_leaves_no_visible_state() {
         TakeoverPolicy::Never,
         ResponseAuthorityScope::LeaseHolder,
     );
-    let mut duplicate = thread.clone();
-    duplicate.thread_id = phantom_id;
-    repo.create_thread(duplicate).await.expect("initial create");
-    let duplicate_result = repo.create_thread(thread).await;
+    original.thread_id = phantom_id;
+    let mut duplicate = original.clone();
+    duplicate.title = "rollback-probe-overwrite-attempt".to_string();
+    repo.create_thread(original).await.expect("initial create");
+    let duplicate_result = repo.create_thread(duplicate).await;
     assert!(
         duplicate_result.is_err(),
         "duplicate create must fail atomically"
     );
     let got = repo.get_thread(phantom_id).await.expect("get");
-    assert!(
-        got.is_some(),
-        "failed duplicate create must leave exactly the original row visible"
+    let got = got.expect("failed duplicate create must leave exactly the original row visible");
+    assert_eq!(
+        got.title, "rollback-probe",
+        "the refused duplicate must not overwrite the original row"
     );
 }
 

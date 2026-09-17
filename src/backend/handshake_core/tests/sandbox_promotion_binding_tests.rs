@@ -5,6 +5,7 @@ use handshake_core::{
         GpuPassthrough, IsolationStrength, IsolationTier, ProcessHandle, SandboxPromotionOutcome,
         SandboxPromotionRejectReason, SandboxValidationEvidence, WindowsNativeJailAdapter,
         SANDBOX_PROMOTION_VALIDATED_EVENT_FAMILY, WINDOWS_NATIVE_JAIL_ADAPTER_ID,
+        WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
     },
 };
 
@@ -106,7 +107,27 @@ fn fake_runtime_available_windows_native_jail_evidence_does_not_approve_without_
         PromotionDecisionKind::Rejected
     );
     assert!(decision.event_row.is_none());
+    // The gate has two fail-closed layers for `windows_native_jail`. Until the
+    // MT-045 runtime backend is approved for the build
+    // (`WINDOWS_NATIVE_JAIL_BACKEND_APPROVED`, the `win-native-integration`
+    // feature on Windows) evidence is refused as `AdapterUnavailable` before
+    // the isolation shape is even inspected; once approved, fake capability
+    // metadata is still refused because the runtime shape is not VeryStrong.
+    // Either way the fake evidence never approves.
     match decision.outcome {
+        SandboxPromotionOutcome::Rejected {
+            reason: SandboxPromotionRejectReason::AdapterUnavailable { adapter_id, reason },
+        } => {
+            assert!(
+                !WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
+                "AdapterUnavailable is only the expected rejection while the backend is unapproved"
+            );
+            assert_eq!(adapter_id, WINDOWS_NATIVE_JAIL_ADAPTER_ID);
+            assert!(
+                reason.contains("approved MT-045 runtime backend"),
+                "rejection must name the missing backend approval: {reason}"
+            );
+        }
         SandboxPromotionOutcome::Rejected {
             reason:
                 SandboxPromotionRejectReason::InsufficientSandboxIsolation {
@@ -115,11 +136,17 @@ fn fake_runtime_available_windows_native_jail_evidence_does_not_approve_without_
                     observed_network,
                 },
         } => {
+            assert!(
+                WINDOWS_NATIVE_JAIL_BACKEND_APPROVED,
+                "the isolation-shape rejection is reachable only once the backend is approved"
+            );
             assert_eq!(required_min, IsolationStrength::VeryStrong);
             assert_eq!(observed_filesystem, IsolationStrength::Strong);
             assert_eq!(observed_network, IsolationStrength::Strong);
         }
-        other => panic!("expected InsufficientSandboxIsolation rejection, got {other:?}"),
+        other => panic!(
+            "expected AdapterUnavailable or InsufficientSandboxIsolation rejection, got {other:?}"
+        ),
     }
 }
 

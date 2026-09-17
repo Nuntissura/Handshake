@@ -2811,7 +2811,7 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                  `mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts`, \
                  `mt223_quiet_receipt_failure_rolls_back_index_run_and_lease`, \
                  `mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer`, and \
-                 `mt223_restart_after_crash_reconstructs_swarm_state_from_surreal` (legacy test name). These \
+                 `mt223_restart_after_close_reopen_reconstructs_swarm_state_from_surrealdb`. These \
                  prove false receipts are not emitted, queue order survives stale reclaim, and \
                  a fresh embedded SurrealDB store can reconstruct state from durable authority alone.",
                 json!({
@@ -2832,7 +2832,7 @@ fn page_state_recovery_guide() -> NewUserManualPage {
                         "mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts",
                         "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease",
                         "mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer",
-                        "mt223_restart_after_crash_reconstructs_swarm_state_from_surreal"
+                        "mt223_restart_after_close_reopen_reconstructs_swarm_state_from_surrealdb"
                     ],
                     "authority": [
                         "embedded SurrealDB",
@@ -3154,6 +3154,12 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "400 bad_request (empty query / bad token)".into(),
             "404 not_found (unknown slug/tool/area)".into(),
             "403 forbidden (resync by cloud_model/unauthenticated)".into(),
+        ],        SurfaceGroup::Atelier => vec![
+            "500 internal_error (embedded SurrealDB unavailable or Atelier readiness gate refused)".into(),
+        ],
+        SurfaceGroup::KernelEvents => vec![
+            "400 bad_request (malformed aggregate params)".into(),
+            "500 internal_error (EventLedger read failed; fail-closed)".into(),
         ],
     }
 }
@@ -3191,6 +3197,11 @@ fn group_recovery_steps(group: SurfaceGroup) -> Vec<String> {
         SurfaceGroup::UserManual => vec![
             "POST /usermanual/resync (gated) re-seeds changed pages idempotently".into(),
             "GET /usermanual/freshness names the exact stale/uncovered/dangling item".into(),
+        ],        SurfaceGroup::Atelier => vec![
+            "Inspect the Surreal schema lineage error first, then the Atelier readiness error; restart the backend after repairing the canonical schema path".into(),
+        ],
+        SurfaceGroup::KernelEvents => vec![
+            "Re-read the aggregate; EventLedger appends are durable and replay after restart".into(),
         ],
     }
 }
@@ -3311,6 +3322,8 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         SurfaceGroup::CrdtCollaboration,
         SurfaceGroup::NotesLoom,
         SurfaceGroup::UserManual,
+        SurfaceGroup::Atelier,
+        SurfaceGroup::KernelEvents,
     ] {
         let tool_ids: Vec<String> = wp009_surface_registry()
             .iter()

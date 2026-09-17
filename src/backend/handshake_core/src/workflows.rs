@@ -28545,8 +28545,7 @@ async fn md_process_item(
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
-    use crate::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
-    use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError};
+    use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent};
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
@@ -28556,60 +28555,19 @@ mod tests {
     use serde_json::json;
     use std::sync::{Arc, Mutex};
 
-    #[derive(Default)]
-    struct NoopTestRecorder;
-
-    #[async_trait::async_trait]
-    impl FlightRecorder for NoopTestRecorder {
-        async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
-            Ok(())
-        }
-
-        async fn enforce_retention(&self) -> Result<u64, RecorderError> {
-            Ok(0)
-        }
-
-        async fn list_events(
-            &self,
-            _filter: EventFilter,
-        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
-            Ok(Vec::new())
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl DiagnosticsStore for NoopTestRecorder {
-        async fn record_diagnostic(
-            &self,
-            _diag: Diagnostic,
-        ) -> Result<(), crate::storage::StorageError> {
-            Ok(())
-        }
-
-        async fn list_problems(
-            &self,
-            _filter: DiagFilter,
-        ) -> Result<Vec<ProblemGroup>, crate::storage::StorageError> {
-            Ok(Vec::new())
-        }
-
-        async fn get_diagnostic(
-            &self,
-            _id: Uuid,
-        ) -> Result<Diagnostic, crate::storage::StorageError> {
-            Err(crate::storage::StorageError::NotFound("diagnostic"))
-        }
-
-        async fn list_diagnostics(
-            &self,
-            _filter: DiagFilter,
-        ) -> Result<Vec<Diagnostic>, crate::storage::StorageError> {
-            Ok(Vec::new())
-        }
-    }
-
-    fn test_recorder() -> Arc<NoopTestRecorder> {
-        Arc::new(NoopTestRecorder)
+    /// The workflow tests run against the real in-memory DuckDB Flight Recorder
+    /// (the same recorder the `api::*` in-crate tests use): it records every
+    /// event with the production filters, and exposes the DuckDB connection the
+    /// legacy role mailbox needs. MT-141 V2: the former no-op recorder answered
+    /// `list_events` with an empty list and exposed no connection, so every
+    /// event assertion (`memory_write_proposed`, recovery events, gate
+    /// transitions) and every mailbox-backed workflow failed regardless of
+    /// behaviour.
+    fn test_recorder() -> Arc<crate::flight_recorder::duckdb::DuckDbFlightRecorder> {
+        Arc::new(
+            crate::flight_recorder::duckdb::DuckDbFlightRecorder::new_in_memory(7)
+                .expect("in-memory DuckDB flight recorder for workflow tests"),
+        )
     }
 
     async fn setup_state(

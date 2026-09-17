@@ -289,6 +289,42 @@ impl EmbeddedTestBackend {
     }
 }
 
+/// The parts of a source file outside `#[cfg(test)] mod ... { ... }` blocks (brace-balanced),
+/// so source-audit tests judge production code even when test modules sit mid-file.
+#[cfg(test)]
+fn production_slices(source: &str) -> String {
+    let mut out = String::with_capacity(source.len());
+    let mut rest = source;
+    while let Some(start) = rest.find("#[cfg(test)]") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start..];
+        let Some(open) = after.find('{') else {
+            break;
+        };
+        let mut depth = 0usize;
+        let mut end = None;
+        for (offset, ch) in after[open..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(open + offset + 1);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        match end {
+            Some(end) => rest = &after[end..],
+            None => return out,
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 fn combine_test_body_and_cleanup(
     body: StorageResult<()>,
     cleanup: StorageResult<()>,
@@ -3698,10 +3734,14 @@ fn database_trait_purity_source_regressions() {
         .split("#[cfg(test)]")
         .next()
         .unwrap_or_default();
-    let loom_api_prod = include_str!("../api/loom.rs")
-        .split("#[cfg(test)]")
-        .next()
-        .unwrap_or_default();
+    // `api/loom.rs` carries small `#[cfg(test)]` modules in the middle of its production
+    // code (MT-149 storage-error mapping tests); the production surface under audit is
+    // everything outside `#[cfg(test)]` modules, not the prefix before the first one.
+    let loom_api_source = include_str!("../api/loom.rs").replace("
+", "
+");
+    let loom_api_prod = production_slices(&loom_api_source);
+    let loom_api_prod = loom_api_prod.as_str();
     let retention_prod = include_str!("retention.rs");
     let surreal_storage = include_str!("surreal/database.rs");
     let database_trait_start = storage_mod

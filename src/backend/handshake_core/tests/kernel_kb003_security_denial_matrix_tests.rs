@@ -336,7 +336,16 @@ fn container_stub_is_always_blocked_with_typed_missing_dependency() {
                 !reason.trim().is_empty(),
                 "blocked reason must be non-empty"
             );
-            assert!(missing_dependency.contains("docker") || missing_dependency.contains("podman"));
+            // The stub is BLOCKED on every host: without a container runtime it
+            // names the missing runtime, and when a Docker/Podman runtime is merely
+            // detected it names the still-missing executor (containers are a
+            // compatibility opt-in, never a default; Codex [CX-503S]). Both are the
+            // typed identifiers the product emits, never free text.
+            assert!(
+                missing_dependency == "docker_or_podman_runtime"
+                    || missing_dependency == "container_sandbox_executor",
+                "unexpected typed missing_dependency {missing_dependency:?}"
+            );
         }
         other => panic!("container stub must be Blocked, got {other:?}"),
     }

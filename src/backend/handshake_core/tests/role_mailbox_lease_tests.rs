@@ -547,10 +547,12 @@ async fn mt_180_surreal_extend_after_expiry_rejects() {
     let thread = sample_open_thread(ClaimMode::Exclusive, TakeoverPolicy::Never);
     let tid = thread.thread_id;
     repo.create_thread(thread).await.expect("create");
-    let l = repo
-        .acquire_lease(tid, sample_lease_request(ExecutorKind::LocalSmallModel))
-        .await
-        .unwrap();
+    // A one-second lease so the real embedded store reaches the expiry
+    // boundary on its own clock (the PostgreSQL-era proof backdated the row
+    // by hand; the embedded proof lets the lease genuinely expire).
+    let mut request = sample_lease_request(ExecutorKind::LocalSmallModel);
+    request.lease_duration_secs = 1;
+    let l = repo.acquire_lease(tid, request).await.unwrap();
     // Let the real embedded store reach the expiry boundary.
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 

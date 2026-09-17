@@ -585,7 +585,7 @@ async fn mt224_parallel_swarm_manual_patch_covers_live_runtime_symbols() {
         "mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts",
         "mt223_quiet_receipt_failure_rolls_back_index_run_and_lease",
         "mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer",
-        "mt223_restart_after_crash_reconstructs_swarm_state_from_embedded_store",
+        "mt223_restart_after_close_reopen_reconstructs_swarm_state_from_surrealdb",
     ];
     let test_source =
         std::fs::read_to_string(crate_root.join("tests/parallel_swarm_state_recovery_tests.rs"))

@@ -233,7 +233,9 @@ async fn seed_active_model_session(
             consent_receipt_id: None,
             capability_grants: capability_grants.iter().map(ToString::to_string).collect(),
             capability_token_ids: None,
-            job_id: Some(Uuid::now_v7()),
+            // `model_sessions.job_id` is a referential link (`record<ai_jobs>`,
+            // ASSERT record::exists); a seeded session has no real job.
+            job_id: None,
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
@@ -2124,7 +2126,9 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             consent_receipt_id: None,
             capability_grants: Vec::new(),
             capability_token_ids: None,
-            job_id: Some(Uuid::now_v7()),
+            // `model_sessions.job_id` is a referential link (`record<ai_jobs>`,
+            // ASSERT record::exists); a seeded session has no real job.
+            job_id: None,
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
@@ -2153,7 +2157,9 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             consent_receipt_id: None,
             capability_grants: Vec::new(),
             capability_token_ids: None,
-            job_id: Some(Uuid::now_v7()),
+            // `model_sessions.job_id` is a referential link (`record<ai_jobs>`,
+            // ASSERT record::exists); a seeded session has no real job.
+            job_id: None,
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,

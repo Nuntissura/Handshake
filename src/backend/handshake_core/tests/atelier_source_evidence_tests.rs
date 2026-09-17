@@ -14,6 +14,7 @@ use handshake_core::atelier::source_evidence::{
 };
 use handshake_core::atelier::AtelierStore;
 use handshake_core::kernel::KernelEventType;
+use handshake_core::storage::surreal::SCHEMA_REVISION;
 use handshake_core::storage::Database;
 use std::{
     collections::HashSet,
@@ -84,12 +85,15 @@ async fn source_evidence_matrix_records_maturity_and_anchor_verification() {
         SourceMaturityStatus::Review,
         "MT-018 should no longer be a missing-anchor source"
     );
+    // The migration corpus was retired with the SurrealDB port (MT-139 SEVER
+    // decision); the compiled `schema.surql` is the schema evidence every
+    // source row cites now.
     assert!(
         mt_018
             .evidence_refs
             .iter()
-            .any(|path| path.ends_with("0043_atelier_media_review_metadata.sql")),
-        "MT-018 source row must cite the review metadata migration"
+            .any(|path| path.ends_with("storage/surreal/schema.surql")),
+        "MT-018 source row must cite the compiled SurrealDB schema"
     );
     assert!(mt_018.gap_reason.is_none());
     assert!(
@@ -610,8 +614,13 @@ async fn mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_sche
         .await
         .expect("re-read core-data source evidence matrix from embedded store");
 
-    // Collect every migration the persisted matrix cites as anchor evidence.
-    let cited_refs = reloaded
+    // Collect every schema source the persisted matrix cites as anchor
+    // evidence. The PostgreSQL migration corpus was retired with the SurrealDB
+    // port (MT-139 SEVER decision): anchors cite the compiled `schema.surql`,
+    // and the proof that the cited schema is the one the embedded store runs is
+    // the live schema revision plus the presence of the anchored tables in the
+    // opened store's catalog (stronger than the former version comparison).
+    let cited_schema_refs: HashSet<String> = reloaded
         .sources
         .iter()
         .flat_map(|source| source.evidence_refs.iter().chain(source.proof_refs.iter()))
@@ -620,58 +629,57 @@ async fn mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_sche
                 .anchors
                 .iter()
                 .flat_map(|anchor| anchor.verified_product_paths.iter()),
-        );
-    let mut cited_migrations: HashSet<(i64, String)> = HashSet::new();
-    for ref_path in cited_refs {
-        let file_name = ref_path.rsplit('/').next().unwrap_or(ref_path);
-        if !file_name.ends_with(".sql") {
-            continue;
-        }
-        let version: i64 = file_name
-            .split('_')
-            .next()
-            .and_then(|prefix| prefix.parse().ok())
-            .unwrap_or_else(|| {
-                panic!("cited migration {file_name} must carry a numeric version prefix")
-            });
-        cited_migrations.insert((version, ref_path.clone()));
-    }
+        )
+        .filter(|ref_path| ref_path.ends_with(".surql"))
+        .cloned()
+        .collect();
     assert!(
-        !cited_migrations.is_empty(),
-        "core-data matrix must cite at least one migration as anchor evidence"
+        !cited_schema_refs.is_empty(),
+        "core-data matrix must cite the compiled SurrealDB schema as anchor evidence"
     );
-
-    // Behavioral upgrade over assert_source_tree_ref_exists: each cited
-    // migration must be included in the live embedded schema, not merely on
-    // disk. The embedded backend exposes its monotonic schema revision rather
-    // than a migration-history table.
+    for ref_path in &cited_schema_refs {
+        assert!(
+            ref_path.ends_with("src/storage/surreal/schema.surql"),
+            "anchor evidence cites {ref_path}, which is not the compiled SurrealDB schema"
+        );
+        assert_source_tree_ref_exists(ref_path);
+    }
     let schema_revision = database
         .migration_version()
         .await
         .expect("read embedded schema revision");
-    for (version, ref_path) in &cited_migrations {
-        assert!(
-            schema_revision >= *version,
-            "anchor evidence cites migration {ref_path}, which must be included in the embedded schema"
-        );
-    }
+    assert_eq!(
+        schema_revision, SCHEMA_REVISION,
+        "the opened store must run the compiled schema revision the anchors cite"
+    );
 
-    // Representative Core/Data anchors: the cited migrations actively shape
-    // the runtime schema the claimed behavior runs on.
-    let anchored_runtime_migrations = [
-        "0043_atelier_media_review_metadata.sql",
-        "0037_atelier_sheet_parser_ast.sql",
-    ];
-    for migration_suffix in anchored_runtime_migrations {
+    // Representative Core/Data anchors: the cited schema actively shapes the
+    // runtime store the claimed behavior runs on, proven by the anchored
+    // tables existing in the live catalog (review metadata -> MT-018, sheet
+    // parser AST snapshot -> MT-008).
+    let inspector = _harness.storage.test_inspector();
+    for (anchor_id, table) in [
+        ("ANCHOR-MT-018-review-metadata", "atelier_media_review_metadata"),
+        ("ANCHOR-MT-008-sheet-parser", "atelier_sheet_parse_snapshot"),
+    ] {
         assert!(
             reloaded.anchors.iter().any(|anchor| {
-                anchor.verification_status == AnchorVerificationStatus::Verified
+                anchor.anchor_id == anchor_id
+                    && anchor.verification_status == AnchorVerificationStatus::Verified
                     && anchor
                         .verified_product_paths
                         .iter()
-                        .any(|path| path.ends_with(migration_suffix))
+                        .any(|path| path.ends_with("src/storage/surreal/schema.surql"))
             }),
-            "a VERIFIED core-data anchor must keep citing {migration_suffix}"
+            "a VERIFIED core-data anchor {anchor_id} must keep citing the compiled schema"
+        );
+        let catalog = inspector
+            .table_catalog(table)
+            .await
+            .unwrap_or_else(|error| panic!("anchored table {table} must exist in the live store: {error}"));
+        assert!(
+            !catalog.fields.is_empty(),
+            "anchored table {table} must carry its schema fields in the live store"
         );
     }
 

@@ -1534,7 +1534,7 @@ mod guard_tests {
             .await
             .expect_err("unexpected atelier table must fail closed");
         assert!(
-            rogue_error.to_string().contains("HANDSHAKE_ATELIER_SCHEMA_PARTIAL: expected=125 present=126 first_missing=none first_unexpected=atelier_rogue"),
+            rogue_error.to_string().contains("HANDSHAKE_ATELIER_SCHEMA_PARTIAL: expected=126 present=127 first_missing=none first_unexpected=atelier_rogue"),
             "unexpected rogue-table rejection: {rogue_error}"
         );
         run_mt138_catalog_mutation(storage, "REMOVE TABLE atelier_rogue; RETURN true;").await;
@@ -1699,7 +1699,8 @@ mod guard_tests {
             .map(|table| (*table).to_owned())
             .collect();
         assert_eq!(declared, canonical);
-        assert_eq!(declared.len(), 125);
+        // 125 curated tables + the MT-141 atelier_saved_search_retrieval_projection.
+        assert_eq!(declared.len(), 126);
     }
 
     #[tokio::test]
@@ -1795,8 +1796,8 @@ mod guard_tests {
                 let concurrent_bootstrap =
                     concurrent_bootstrap.expect("second concurrent Atelier bootstrap");
                 assert_ne!(first_bootstrap.applied, concurrent_bootstrap.applied);
-                assert_eq!(first_bootstrap.table_count, 125);
-                assert_eq!(concurrent_bootstrap.table_count, 125);
+                assert_eq!(first_bootstrap.table_count, 126);
+                assert_eq!(concurrent_bootstrap.table_count, 126);
                 eprintln!(
                     "MT-138 timing: concurrent schema bootstrap {:?}",
                     proof_started.elapsed()

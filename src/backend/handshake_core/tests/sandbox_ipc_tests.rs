@@ -73,7 +73,14 @@ fn sandbox_ipc_tests_payload_shape_matches_frontend_types() {
             "cross_machine_portable": true,
             "isolation_tier": "tier1_container",
             "requires_nested_virt": false,
-            "supports_snapshot": false
+            "supports_snapshot": false,
+            // Additive capability flags shipped with WP-KERNEL-004 (persistent
+            // exec, warm-agent transport, live token streaming). The legacy web
+            // frontend type ignores unknown fields; the native surface consumes
+            // the full backend shape.
+            "supports_persistent_exec": false,
+            "supports_warm_agent": false,
+            "supports_live_token_stream": false
         })
     );
 

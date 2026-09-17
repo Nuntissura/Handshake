@@ -3,6 +3,8 @@
   "-d",
   "--name",
   "hsk-validation-fixture",
+  "--label",
+  "io.handshake.process-id=hsk-validation-fixture",
   "--read-only",
   "--tmpfs",
   "/tmp:rw,noexec,nosuid,nodev,mode=1777",

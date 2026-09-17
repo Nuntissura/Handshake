@@ -33,7 +33,8 @@ use handshake_core::storage::surreal::keyed_lock::race_test_support::with_pause_
 use handshake_core::storage::surreal::keyed_lock::{KeyedLockRegistry, LockMode};
 use handshake_core::storage::surreal::{RowFilter, SurrealDatabase};
 use handshake_core::storage::{
-    Database, NewStageCaptureArtifact, StageArtifactStore, StorageError, WriteContext,
+    Database, LoomBlockContentType, LoomBlockDerived, NewLoomBlock, NewStageCaptureArtifact,
+    StageArtifactStore, StorageError, WriteContext,
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -69,6 +70,39 @@ fn independent_wrappers(store_db: &SurrealDatabase) -> (SurrealDatabase, Surreal
 }
 
 /// A canonical review-gated proposal the way the intake route persists it.
+/// MT-109 source authority: a memory proposal must cite exactly one readable
+/// source in its workspace (`PROPOSAL_INSERT_TRANSACTION` throws
+/// `HSK-MEM-SOURCE-AUTHORITY` otherwise), so every proposal under test gets a
+/// real LoomBlock whose id is the proposal's `document_id`. The workspace
+/// delete cascades the block with everything else; the guard's workspace
+/// check runs first, so a post-delete insert still reports the typed
+/// workspace-not-found outcome.
+async fn seed_source_block(store: &SwarmStore, workspace_id: &str, label: &str) {
+    op_within(
+        "seed proposal source block",
+        PER_OPERATION_TIMEOUT,
+        store.db.create_loom_block(
+            &WriteContext::human(None),
+            NewLoomBlock {
+                block_id: Some(format!("doc-{label}")),
+                workspace_id: workspace_id.to_owned(),
+                content_type: LoomBlockContentType::Note,
+                document_id: None,
+                asset_id: None,
+                title: Some(format!("mt152 source {label}")),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: LoomBlockDerived::default(),
+            },
+        ),
+    )
+    .await
+    .expect("seed the proposal source block");
+}
+
 fn stored_proposal(workspace_id: &str, label: &str) -> (StoredMemoryProposal, NewKernelEvent) {
     let proposal_id = Uuid::now_v7().to_string();
     let request_id = format!("mt152-{label}-{}", Uuid::now_v7());
@@ -242,6 +276,7 @@ async fn workspace_delete_racing_proposal_insert_body(store: SwarmStore) {
             store.create_workspace(),
         )
         .await;
+        seed_source_block(&store, &workspace_id, &format!("race-{iteration}")).await;
         let (proposal, receipt) = stored_proposal(&workspace_id, &format!("race-{iteration}"));
         let barrier = Arc::new(Barrier::new(2));
         let delete_db = if iteration % 2 == 0 { disabled.clone() } else { keyed.clone() };
@@ -352,6 +387,7 @@ async fn proposal_insert_then_workspace_delete_body(store: SwarmStore) {
         store.create_workspace(),
     )
     .await;
+    seed_source_block(&store, &workspace_id, "baseline").await;
     let (proposal, receipt) = stored_proposal(&workspace_id, "baseline");
     let stored = op_within(
         "insert_memory_proposal_with_receipt",

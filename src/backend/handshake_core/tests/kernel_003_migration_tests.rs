@@ -347,7 +347,12 @@ fn strong_capabilities(adapter_id: &str) -> AdapterCapabilities {
         stdio_throughput_class: ThroughputClass::High,
         win32_native_fidelity: false,
         cross_machine_portable: true,
-        isolation_tier: IsolationTier::Tier1Container,
+        // Master Spec §3.5.5 (v02.187+): the fixture jobs default to
+        // `trust_class = untrusted_agent`, which MUST NOT run at Tier 1, so the
+        // recording fake declares the Tier-3 microVM boundary the selection
+        // policy requires. The fake never executes anything; the tier is the
+        // declared capability the registry selection is proven against.
+        isolation_tier: IsolationTier::Tier3Microvm,
         requires_nested_virt: false,
         supports_snapshot: false,
         supports_persistent_exec: false,
