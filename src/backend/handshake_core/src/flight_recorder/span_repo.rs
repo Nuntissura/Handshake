@@ -268,10 +268,14 @@ impl SpanRepo {
         R: SurrealValue + Send + 'static,
         B: SurrealValue + Clone + Send + 'static,
     {
-        retry_transaction_conflicts(&self.storage, format!("span-end-write:{}", span_id.as_uuid()), || {
-            let bindings = bindings.clone();
-            async move { self.query(statement, bindings).await }
-        })
+        retry_transaction_conflicts(
+            &self.storage,
+            format!("span-end-write:{}", span_id.as_uuid()),
+            || {
+                let bindings = bindings.clone();
+                async move { self.query(statement, bindings).await }
+            },
+        )
         .await
     }
 

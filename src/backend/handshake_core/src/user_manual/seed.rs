@@ -3154,7 +3154,8 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "400 bad_request (empty query / bad token)".into(),
             "404 not_found (unknown slug/tool/area)".into(),
             "403 forbidden (resync by cloud_model/unauthenticated)".into(),
-        ],        SurfaceGroup::Atelier => vec![
+        ],
+        SurfaceGroup::Atelier => vec![
             "500 internal_error (embedded SurrealDB unavailable or Atelier readiness gate refused)".into(),
         ],
         SurfaceGroup::KernelEvents => vec![
@@ -3197,7 +3198,8 @@ fn group_recovery_steps(group: SurfaceGroup) -> Vec<String> {
         SurfaceGroup::UserManual => vec![
             "POST /usermanual/resync (gated) re-seeds changed pages idempotently".into(),
             "GET /usermanual/freshness names the exact stale/uncovered/dangling item".into(),
-        ],        SurfaceGroup::Atelier => vec![
+        ],
+        SurfaceGroup::Atelier => vec![
             "Inspect the Surreal schema lineage error first, then the Atelier readiness error; restart the backend after repairing the canonical schema path".into(),
         ],
         SurfaceGroup::KernelEvents => vec![
