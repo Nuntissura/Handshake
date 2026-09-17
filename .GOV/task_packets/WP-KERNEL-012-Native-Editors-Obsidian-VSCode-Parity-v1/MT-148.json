@@ -31,15 +31,15 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "status": "PASS_V2",
     "depends_on": [],
     "blocks": [
       "MT-141",
       "MT-142"
     ],
     "active": true,
-    "validator_verdict": "PARTIAL_PENDING_OPERATOR_DECISION",
-    "completed_by": null,
+    "validator_verdict": "PASS_V2",
+    "completed_by": "WP_VALIDATOR-C148-20260917-133500",
     "claimed_by": "KERNEL_BUILDER-20260909-212427",
     "created_by": "KERNEL_BUILDER-20260903-213930",
     "created_at_utc": "2026-09-04T23:31:02.888Z",
@@ -200,7 +200,8 @@
       "not_a_product_blocker": "Fast-close product work is complete and proven (mt120 3/3; MT-148 fresh-worktree 5/0). This blocks only the governance handoff mechanics.",
       "waived_by": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
       "waived_at_utc": "2026-09-10T01:45:58.115Z"
-    }
+    },
+    "completed_at_utc": "2026-09-17T14:33:33.818Z"
   },
   "scope": {
     "summary": "Repair the two defects that stop a fresh worktree from building and testing: .surql files that arrive with CRLF and break the compiled-manifest hash, and an integration-test helper calling a tempfile API that no longer exists.",
@@ -461,7 +462,7 @@
       "limitation": "Diagnostic only: MT-109 had uncommitted authority-schema changes. Repeat at the clean reviewed candidate; no runtime or MT PASS is established here."
     }
   },
-  "updated_at_utc": "2026-09-17T04:56:14.954Z",
+  "updated_at_utc": "2026-09-17T14:33:33.818Z",
   "owned_files": [
     ".gitattributes",
     "src/backend/handshake_core/tests/atelier_surreal_support/mod.rs"
@@ -824,5 +825,414 @@
     "record": "validation_v1",
     "binary_source_binding": "Every binary this session built (cargo steps 02-04, 02:13:50Z-02:41:18Z) was compiled from committed ba03f5638e3f6b1903cb2829c1e846958d0dbf42 plus one uncommitted harness file, src/backend/handshake_core/src/storage/tests.rs, which the builder committed unchanged as c0603cbdba2a79bc04711dca83821b687a152b60 at 03:16:32Z (git diff ba03f563..c0603cbd touches only that file and its sha256 equals the snapshot this lane recorded at 02:42:43Z: 3a3f22d9a71349fb18f3e243eb373d1d55ba19fa085ea815678d0f2502e5b2db). Product code in every executed binary is therefore byte-identical to ba03f563 (C-prime); the embedded test harness equals c0603cbd. The builder's later uncommitted edits to ~53 src/tests files began at 03:16:56Z, after the last build of this lane, and are embedded in NO executed binary; exec-only runs read no source. Rows 30-32 recorded head_at_run=c0603cbd because HEAD moved before they started; rows 10-23 recorded ba03f563.",
     "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/00-lane.txt (DIRTY_TREE_DETECTED 02:42:43Z, TREE_NOTE, BINDING_NOTE entries)"
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V2",
+    "status": "PASS_V2",
+    "blocking": false,
+    "next_actor": "INTEGRATION_VALIDATOR",
+    "validator_layer": "WP_VALIDATOR",
+    "validated_by": "WP_VALIDATOR-C148-20260917-133500",
+    "validated_at_utc": "2026-09-17T14:33:33.818Z",
+    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "candidate_label": "C-prime",
+    "supersedes": "validation_v1 (PARTIAL_PENDING_OPERATOR_DECISION by WP_VALIDATOR-B9-20260917-015345); all v1 PROVED rows inherited, the single open item PT-148-2 / AC-148-2 closed here",
+    "basis": "PT-148-2 / AC-148-2 is now proven by this session under the Operator decision of 2026-09-17: a clean `git archive` export of ba03f563 (7131 files; no git metadata, no worktree, no branch) was built COLD into a brand-new empty CARGO_TARGET_DIR (0 entries at lane open) with `cargo test --no-run --lib --features surreal-test-support,test-utils --locked -j 4` (exit 0, 19m23s / 1163 s, 0 rustc errors, 113 lib-test warnings), and the resulting lib test binary bootstrapped a real embedded SurrealDB store with full product migrations (storage::surreal::knowledge::wiki_store_tests::embedded_wiki_page_seam_preserves_identity_citations_and_links --exact: ok 1 passed / 0 failed, 24.35 s). Every store open runs bootstrap_schema -> verify_compiled_manifest over the include_str! bytes of schema.surql / knowledge_schema_registry_seed.surql (schema.rs:1798, 2233-2272), which is exactly where D-148-1 failed on a CRLF checkout; the export materialised those files with 0 CR bytes and sha256 equal to the pins (05b36f65 / 64d0711c) while eol-unspecified files (.rs, .toml) came out CRLF under the host's core.autocrlf=true, i.e. the export IS a fresh-Windows-checkout materialisation and the .gitattributes rule is what kept the .surql bytes LF. A negative control (same test with HANDSHAKE_SURREAL_TEST_STORE_ROOT unset) fails closed with `HANDSHAKE_SURREAL_TEST_STORE_ROOT must name an existing owner-scoped directory` (exit 101), proving the green run really goes through the store path. PT-148-2b (D-148-2) is now validator-executed at ba03f563 from the same cold target: model_session_durable_record_tests (calls harness.close_for_reopen() then AtelierSurrealHarness::open_existing(data_dir) twice, tests/model_session_durable_record_tests.rs:74-121) ok 2 passed / 0 failed, 60.83 s, with tmp/ empty afterwards (OwnedTempRoot::drop removed the adopted root; no leak). The v1 option-(b) test storage::surreal::event_ledger::tests::atomic_batch_results_follow_caller_order was also run (ok, 0.00 s) but is recorded as a pure in-memory unit test (order_and_validate on prepared rows, event_ledger.rs:944-969); it opens no store and does NOT by itself satisfy PT-148-2, which is why the wiki-seam test was chosen as the storage-touching proof. AC-148-1/3/4/5/6 and PT-148-1/3/4 remain PROVED per validation_v1 (PR-148-B9-01..04) and were re-checked statically here: `git show --stat 6d5d705f` = exactly .gitattributes (+3) and tests/atelier_surreal_support/mod.rs (+47/-6); mod.rs at C-prime has no from_path/into_path; the export's four .surql files hash to the pins. Compilation of the tests tree is additionally re-demonstrated cold for one integration target (step 05, exit 0, 8m51s).",
+    "operator_decision_2026_09_17": {
+      "recorded_by": "WP_VALIDATOR-C148-20260917-133500",
+      "relayed_by": "ORCHESTRATOR (Integration Validator relay)",
+      "verbatim": "MT-148's PT-148-2 \"fresh worktree\" proof is satisfied by a COLD BUILD from a clean export of the validated commit into a brand-new empty cargo target under the WP/MT artifact folder. No git worktree or branch may be created.",
+      "applied_as": "git archive --format=tar ba03f563 | tar -x into <lane>/workspace/src-ba03f563; CARGO_TARGET_DIR=<lane>/target created empty by this session; no `git worktree add`, `git checkout`, `git switch`, `git stash`, `git reset`, `git clean`, `git restore` or branch creation executed; live tree wtc-native-editors-v1 not built from, not edited"
+    },
+    "mandatory_reads_ack": {
+      "codex": ".GOV/codex/Handshake_Codex_v1.4.md read in full (lines 1-1016: sections 0-10, CX-032/032A-C, CX-107/108, CX-211/212A, CX-503R/S, CX-573D/E/F, CX-971/972, CX-980-984)",
+      "protocol": ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md read in full (lines 1-403 incl. HBR duties, VPX-001..008, WPV-ART-001..005, Spec-Realism Gate sub-rules 1-3)",
+      "operator_stance": "applied: no just recipes, receipts, dossiers, repomem, ACP, task-board edits or gov-check; MT-148.json is the only status surface; nothing committed under .GOV by this session; cargo exclusivity polled with WAIT lines each minute (26 min wait before the cold build; 0 foreign cargo during both of this session's cargo runs); -j 4; one test binary at a time; lean mode (green v1 rows cited, not re-executed)"
+    },
+    "proof_environment": {
+      "host": "Windows 11 Home 10.0.26200; D: SATA HDD (2.1 TB free); 131 GB RAM (105-115 GB free throughout); toolchain rustc/cargo 1.97.1-x86_64-pc-windows-msvc via rust-toolchain.toml; MSVC link.exe + C++ (surrealdb-rocksdb) required; no node/pnpm needed for the handshake_core build",
+      "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563 = `git archive --format=tar ba03f563` from ../wtc-native-editors-v1 (rev-parse ba03f5638e3f6b1903cb2829c1e846958d0dbf42; 7131 files; tracked .GOV entries present in the archive and NOT read by product code)",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2 (target/ logs/ tmp/ runtime/ workspace/ 00-lane.txt results.jsonl); owning MT: MT-148; covered MTs: MT-148 only",
+      "cargo_target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target (0 entries at lane open -> 14160 MB after step 01 -> 30165 MB after step 05)",
+      "env": {
+        "HANDSHAKE_ARTIFACTS_ROOT": "<artifacts root, absolute>",
+        "CARGO_TARGET_DIR": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target",
+        "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/runtime",
+        "HANDSHAKE_WORKSPACE_ROOT": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/run-NN-<target>",
+        "TMP_TEMP_TMPDIR": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/tmp",
+        "RUST_BACKTRACE": "0"
+      },
+      "features": "surreal-test-support,test-utils",
+      "db": "embedded SurrealDB (RocksDB) only, one store per test under <lane>/runtime; no PostgreSQL, SQLite or Docker",
+      "concurrency": "both cargo invocations started only after tasklist showed 0 cargo.exe/rustc.exe/link.exe (double-checked 5 s apart); PROGRESS lines every 5 min recorded FOREIGN_cargo=0 for the whole cold build; test binaries run one at a time",
+      "live_tree": "NOT used: HEAD moved 57bfa2e6 -> 767c5c4b during this lane (builder commit fix(MT-141) at 16:08:03+02:00) and porcelain went 5 -> 2 lines; every git command this session ran against it was read-only (archive, rev-parse, merge-base, status, show, log, branch --list, worktree list)"
+    },
+    "cold_build_record": {
+      "export_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563",
+      "export_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+      "export_file_count": 7131,
+      "export_bytes_check": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/logs/00-export-surql-bytes.txt (4 .surql: CR=0; schema.surql 05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd == GENERATED_SURREALQL_SHA256; knowledge_schema_registry_seed.surql 64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75 == KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256; lib.rs CR=312 and Cargo.toml CR=793 in the export vs 0 in the blobs -> checkout conversion applied)",
+      "target_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target",
+      "target_entries_at_open": 0,
+      "build_command": "cargo test --no-run --lib --features surreal-test-support,test-utils --locked -j 4",
+      "build_cwd": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563/src/backend/handshake_core",
+      "build_log": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/logs/01-cold-build-no-run-lib.log",
+      "build_log_sha256": "1e30622c3911df36d1bc3bf28ac24dcbdd76b4d1794762f71d65714a1b90c544",
+      "build_exit": 0,
+      "build_started_at_utc": "2026-09-17T13:56:05Z",
+      "build_finished_at_utc": "2026-09-17T14:15:29Z",
+      "wall_s": 1163,
+      "cargo_finished_line": "Finished `test` profile [unoptimized + debuginfo] target(s) in 19m 23s",
+      "rustc_errors": 0,
+      "lib_test_warnings": 113,
+      "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target/debug/deps/handshake_core-2505b904d8ccb5f8.exe",
+      "exe_sha256": "70e97a4e98c73963f2188db7ee4545dc4eec0b3bd50e0e121720f5d287580dbc",
+      "target_size_mb_after": 14160,
+      "note": "~/.cargo registry/git sources were already present on the host (no network fetch observed); the TARGET was cold. A second, incremental cargo run (step 05) built one integration target: cargo test --no-run --test model_session_durable_record_tests --features surreal-test-support,test-utils --locked -j 4, exit 0, wall_s 532, log ../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/logs/05-build-no-run-model_session_durable_record_tests.log sha256 95e9ba5bfe25d036941938f39c47467c76cd6da8237782a3ea1f5e23526a39d2; target 30165 MB after"
+    },
+    "proofs": [
+      {
+        "id": "PR-148-C148-01",
+        "kind": "COLD_LIB_TEST_BINARY_BUILD_FROM_CLEAN_EXPORT",
+        "executed_by": "WP_VALIDATOR-C148-20260917-133500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (clean export, no git metadata)",
+        "cwd": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563/src/backend/handshake_core",
+        "command": "cargo test --no-run --lib --features surreal-test-support,test-utils --locked -j 4",
+        "features": "surreal-test-support,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target (NEW, EMPTY at lane open; cold build by this session)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target/debug/deps/handshake_core-2505b904d8ccb5f8.exe",
+        "exe_sha256": "70e97a4e98c73963f2188db7ee4545dc4eec0b3bd50e0e121720f5d287580dbc",
+        "exit_code": 0,
+        "result_line": "Finished `test` profile [unoptimized + debuginfo] target(s) in 19m 23s",
+        "passed": null,
+        "failed": null,
+        "ignored": null,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/logs/01-cold-build-no-run-lib.log",
+        "log_sha256": "1e30622c3911df36d1bc3bf28ac24dcbdd76b4d1794762f71d65714a1b90c544",
+        "wall_s": 1163,
+        "rerun_alone": true,
+        "started_at_utc": "2026-09-17T13:56:05Z",
+        "finished_at_utc": "2026-09-17T14:15:29Z",
+        "residue": {
+          "runtime_entries_before": 0,
+          "runtime_entries_after": 0
+        },
+        "covers": [
+          "PT-148-2",
+          "AC-148-2",
+          "AC-148-3"
+        ]
+      },
+      {
+        "id": "PR-148-C148-02",
+        "kind": "PT-148-2_AC-148-2_STORAGE_TOUCHING_TEST_FROM_COLD_BINARY",
+        "executed_by": "WP_VALIDATOR-C148-20260917-133500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (clean export, no git metadata)",
+        "cwd": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563/src/backend/handshake_core",
+        "command": "<cold-built exe> storage::surreal::knowledge::wiki_store_tests::embedded_wiki_page_seam_preserves_identity_citations_and_links --exact --nocapture",
+        "features": "surreal-test-support,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target (NEW, EMPTY at lane open; cold build by this session)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target/debug/deps/handshake_core-2505b904d8ccb5f8.exe",
+        "exe_sha256": "70e97a4e98c73963f2188db7ee4545dc4eec0b3bd50e0e121720f5d287580dbc",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2069 filtered out; finished in 24.35s",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/logs/02-lib-storage_surreal_knowledge_wiki_seam.log",
+        "log_sha256": "0e41e4272c67ecef58b891c10dda5eb8cf69cf3741c574a96674c8f4736bc642",
+        "wall_s": 24,
+        "rerun_alone": true,
+        "started_at_utc": "2026-09-17T14:16:07Z",
+        "finished_at_utc": "2026-09-17T14:16:31Z",
+        "residue": {
+          "runtime_entries_before": 0,
+          "runtime_entries_after": 0
+        },
+        "covers": [
+          "PT-148-2",
+          "AC-148-2",
+          "AC-148-5"
+        ],
+        "note": "opens a real embedded store via storage::tests::embedded_test_backend (full product migrations -> bootstrap_schema -> verify_compiled_manifest); exercises the exact D-148-1 failure point; store dir removed by the cleanup guard (runtime 0 -> 0)"
+      },
+      {
+        "id": "PR-148-C148-03",
+        "kind": "NEGATIVE_CONTROL_STORE_ROOT_UNSET",
+        "executed_by": "WP_VALIDATOR-C148-20260917-133500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (clean export)",
+        "command": "<cold-built exe> storage::surreal::knowledge::wiki_store_tests::embedded_wiki_page_seam_preserves_identity_citations_and_links --exact with HANDSHAKE_SURREAL_TEST_STORE_ROOT unset",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target/debug/deps/handshake_core-2505b904d8ccb5f8.exe",
+        "exe_sha256": "70e97a4e98c73963f2188db7ee4545dc4eec0b3bd50e0e121720f5d287580dbc",
+        "exit_code": 101,
+        "result_line": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2069 filtered out; finished in 0.00s",
+        "error_line": "Error: Database(\"HANDSHAKE_SURREAL_TEST_STORE_ROOT must name an existing owner-scoped directory\")",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/logs/03-negative-control-no-store-root.log",
+        "log_sha256": "c2bc90c4a21b3a948500f4c09671b3ad720ab016e50daacae43d99f66f95ee34",
+        "wall_s": 0,
+        "expected": "fail-closed",
+        "purpose": "proves PR-148-C148-02's green result goes through the real store path rather than a no-op"
+      },
+      {
+        "id": "PR-148-C148-04",
+        "kind": "V1_OPTION_B_NAMED_TEST_atomic_batch_results_follow_caller_order",
+        "executed_by": "WP_VALIDATOR-C148-20260917-133500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (clean export, no git metadata)",
+        "cwd": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563/src/backend/handshake_core",
+        "command": "<cold-built exe> storage::surreal::event_ledger::tests::atomic_batch_results_follow_caller_order --exact --nocapture",
+        "features": "surreal-test-support,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target (NEW, EMPTY at lane open; cold build by this session)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target/debug/deps/handshake_core-2505b904d8ccb5f8.exe",
+        "exe_sha256": "70e97a4e98c73963f2188db7ee4545dc4eec0b3bd50e0e121720f5d287580dbc",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2069 filtered out; finished in 0.00s",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/logs/04-lib-event_ledger_atomic_batch_results_follow_caller_order.log",
+        "log_sha256": "3c4e11ce02f7710574a77a0afccd991138f05bbb089b2d9c61efeeb6b5485af8",
+        "wall_s": 0,
+        "rerun_alone": true,
+        "started_at_utc": "2026-09-17T14:17:08Z",
+        "finished_at_utc": "2026-09-17T14:17:08Z",
+        "residue": {
+          "runtime_entries_before": 0,
+          "runtime_entries_after": 0
+        },
+        "covers": [],
+        "note": "green but PURE UNIT (no store opened; order_and_validate on prepared rows, event_ledger.rs:944-969); recorded for completeness because validation_v1.remediation_required named it; NOT counted as the storage-touching proof"
+      },
+      {
+        "id": "PR-148-C148-05",
+        "kind": "PT-148-2b_open_existing_close_for_reopen_INTEGRATION_TARGET_FROM_COLD_TARGET",
+        "executed_by": "WP_VALIDATOR-C148-20260917-133500",
+        "head_at_run": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42 (clean export, no git metadata)",
+        "cwd": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/workspace/src-ba03f563/src/backend/handshake_core",
+        "command": "<cold-built exe> --nocapture --test-threads=1",
+        "features": "surreal-test-support,test-utils",
+        "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target (NEW, EMPTY at lane open; cold build by this session)",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/target/debug/deps/model_session_durable_record_tests-1309ed7809d7f51c.exe",
+        "exe_sha256": "b7b4e7f603f73184c5c874e250dcc058732f087a8cf4c3231739a81b2ce5499c",
+        "exit_code": 0,
+        "result_line": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 60.83s",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "failing_tests": [],
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/logs/06-model_session_durable_record_tests.log",
+        "log_sha256": "83a505c2d822930c8b20a4f65b6ad6c29a46031d07a8ecb897e5f35b31ecd9a2",
+        "wall_s": 61,
+        "rerun_alone": true,
+        "started_at_utc": "2026-09-17T14:27:04Z",
+        "finished_at_utc": "2026-09-17T14:28:05Z",
+        "residue": {
+          "runtime_entries_before": 0,
+          "runtime_entries_after": 0
+        },
+        "covers": [
+          "PT-148-2b",
+          "AC-148-6"
+        ],
+        "tests": [
+          "mt142_close_model_session_rejects_invalid_close_requests",
+          "mt142_model_session_survives_restart_with_close_metadata"
+        ],
+        "note": "tests/model_session_durable_record_tests.rs:74-81 and 116-121 call harness.close_for_reopen() then AtelierSurrealHarness::open_existing(data_dir) (the D-148-2 rewrite: OwnedTempRoot::adopt/release/Drop); <lane>/tmp empty after the run, so the adopted root was removed on Drop (no leak); built by this session from the cold target (step 05)"
+      }
+    ],
+    "static_checks": {
+      "diff_scope": "git show --stat 6d5d705f: .gitattributes (+3), src/backend/handshake_core/tests/atelier_surreal_support/mod.rs (+47/-6); 2 files (PT-148-4/AC-148-4 re-verified)",
+      "helper_at_c_prime": "tests/atelier_surreal_support/mod.rs in the export: OwnedTempRoot { adopt, path, release, Drop(remove_dir_all) }, create() adopts tempdir().keep(), open_existing adopts caller path, close_for_reopen releases; no from_path / into_path",
+      "gitattributes_in_export": ".gitattributes:6 `*.surql text eol=lf`",
+      "deferred_live_tokens": "none in owned files",
+      "cx_211": "product src reads nothing under .GOV; one pre-existing STRING literal `.GOV/task_packets/stubs/...contract.json` inside a #[cfg(test)] JSON fixture at src/api/kernel.rs:779 (not MT-148 scope; see independent_findings)",
+      "hbr": "INT/VIS/MAN NOT_APPLICABLE per contract; QUIET: all builds/tests headless, no foreground window; STOP: no capacity stop reason used (26 min cargo wait was exclusivity, not capacity)"
+    },
+    "resolved_prior_findings": [
+      {
+        "v1_item": "PT-148-2 (NOT_RUN: fresh worktree forbidden)",
+        "outcome": "PROVED by PR-148-C148-01/02/03 under operator_decision_2026_09_17 (clean export + cold target = fresh checkout equivalent; no worktree/branch created)"
+      },
+      {
+        "v1_item": "AC-148-2 (NOT_RUN)",
+        "outcome": "PROVED (same records)"
+      },
+      {
+        "v1_item": "F-B9-148-1 (OPEN_ITEM: no validator bootstrapped a store from a physically fresh checkout)",
+        "outcome": "CLOSED: the export is checkout-converted (eol-unspecified files CRLF, .surql LF) and a store bootstrapped from it with manifest verification passing"
+      },
+      {
+        "v1_item": "not_run: atelier_core_data_tests not re-executed (PT-148-2b cited from shared row 026 at fd9060de)",
+        "outcome": "UPGRADED: PT-148-2b now validator-executed at ba03f563 via model_session_durable_record_tests (PR-148-C148-05); atelier_core_data_tests itself still not re-run (lean mode; 9047 s)"
+      },
+      {
+        "v1_item": "not_run: cargo check --all-targets --all-features",
+        "outcome": "still NOT_RUN; secondary/best-effort per AC-148-3 wording and ac_148_3_correction_20260909; AC-148-3 satisfied by PR-148-B9-03 (corrected form) plus this session's cold lib + one integration target compile"
+      },
+      {
+        "v1_item": "PR-148-B9-06 proof_commands[0] event_ledger group RED (3 V2-F02 reds, MT-141 class)",
+        "outcome": "INHERITED, not re-run (lean mode). Not an MT-148 defect: stores opened (manifest verified) before the append failed; same reds at fd9060de; AC-148-5 not violated. Remains MT-141 remediation scope"
+      },
+      {
+        "v1_item": "remediation_required option (b) named test atomic_batch_results_follow_caller_order",
+        "outcome": "RUN (green) but found to be a pure unit test; substituted with a genuinely storage-touching lib test for the PT-148-2 proof (PR-148-C148-02)"
+      }
+    ],
+    "independent_findings": [
+      {
+        "id": "F-C148-1",
+        "severity": "NOTE",
+        "summary": "validation_v1.remediation_required option (b) names storage::surreal::event_ledger::tests::atomic_batch_results_follow_caller_order as a 'storage-touching lib test'; it is not (pure in-memory ordering test). Future remediation text should name a test that calls embedded_test_backend()/SurrealStorage::open."
+      },
+      {
+        "id": "F-C148-2",
+        "severity": "NOTE_POSITIVE",
+        "summary": "`git archive` on this host applies checkout conversion (core.autocrlf=true): .rs/.toml came out CRLF while the .surql files stayed LF via the MT-148 .gitattributes rule, and the crate compiled and ran from that CRLF source. The export is therefore a faithful fresh-Windows-checkout surface, stronger than the v1 cat-file --filters proof."
+      },
+      {
+        "id": "F-C148-3",
+        "severity": "FRESH_CLONE_PREREQ",
+        "summary": "Any embedded test fails closed unless BOTH HANDSHAKE_ARTIFACTS_ROOT (absolute) and HANDSHAKE_SURREAL_TEST_STORE_ROOT are set (storage/tests.rs:47-80); messages are clear. Build itself needs only rust-toolchain.toml (1.97.1 pinned), MSVC link.exe and a C++ toolchain for surrealdb-rocksdb; AWS_LC_SYS_PREBUILT_NASM=1 is injected by the repo-root .cargo/config.toml so NASM is not required; no node/pnpm for handshake_core. Not MT-148 scope; recorded for a no-context clone."
+      },
+      {
+        "id": "F-C148-4",
+        "severity": "PATH_ASSUMPTION",
+        "summary": "Repo-root .cargo/config.toml sets build.target-dir = \"../Handshake_Artifacts/handshake-cargo-target\" (resolved relative to the config file's directory), so a fresh clone with no CARGO_TARGET_DIR creates a sibling artifact root beside wherever the clone lives, and its shape (root/handshake-cargo-target) does not follow the CX-984 WP/MT hierarchy. CARGO_TARGET_DIR env overrides it (verified here: target landed under the lane). Pre-existing; not MT-148 scope."
+      },
+      {
+        "id": "F-C148-5",
+        "severity": "NOTE",
+        "summary": "src/api/kernel.rs:779 (cfg(test) fixture JSON) contains the string literal '.GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.contract.json'. It is data, not a read, but CX-212A(1) forbids product-code string references to /.GOV/; pre-existing, not MT-148 scope; route as CONCERN to Orchestrator."
+      },
+      {
+        "id": "F-C148-6",
+        "severity": "NOTE",
+        "summary": "F-B9-148-2 (Cargo.toml [[test]] blocks consuming surreal-test-support without required-features; bare `cargo check --all-targets` fails 53 targets) is unchanged at C-prime; model_session_durable_record_tests is an auto-discovered target with no [[test]] block at all."
+      },
+      {
+        "id": "F-C148-7",
+        "severity": "TOPOLOGY_RESIDUE",
+        "summary": "`git branch --list tmp/*` in wtc-native-editors-v1 still shows tmp/mt148-freshcheck (the builder's 2026-09-10 fresh-worktree branch; handoff.state_recovery names wtc-k12-mt148-fresh). Also `git worktree list` shows four registered detached-HEAD worktrees at ba03f563 under ../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v2/tmp/hsk-session-worktrees-model-session-scheduler-*/ (product model_session_scheduler tests create git worktrees under TMP and the prior lane's cleanup did not unregister them). None created by this session; none under MT-148/wpv-v2. Operator/Integration Validator cleanup item; do not delete without approval per CX-115/CX-122."
+      }
+    ],
+    "spec_realism_gate": {
+      "sub_rule_1": {
+        "result": "PASS",
+        "detail": "no LiveClientUnavailable/LiveSpawnUnavailable/LiveRuntimeUnavailable/TrainerUnavailable/NativeToolchainUnavailable/'not yet wired'/'deferred to follow-on'/'pending MT-' tokens in the owned files or the executed proof paths"
+      },
+      "sub_rule_2": {
+        "result": "PASS",
+        "detail": "Handshake-owned resources touched at runtime by this session's own execution: real embedded SurrealDB (RocksDB) stores opened under <lane>/runtime with bootstrap_schema/verify_compiled_manifest over the include_str! schema bytes (PR-148-C148-02, fail-closed control PR-148-C148-03) and the rewritten close_for_reopen/open_existing helper path against a real store (PR-148-C148-05); no mocks/fixtures"
+      },
+      "sub_rule_3": {
+        "result": "PASS",
+        "detail": "lifecycle.claimed_by = KERNEL_BUILDER-20260909-212427; completed_by set to WP_VALIDATOR-C148-20260917-133500 (different actor); validator performs the transition"
+      }
+    },
+    "acceptance_criteria_status": {
+      "AC-148-1": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-01 (v1) + export bytes 00-export-surql-bytes.txt"
+      },
+      "AC-148-2": {
+        "status": "PROVED",
+        "evidence": "PR-148-C148-01/02/03 under operator_decision_2026_09_17"
+      },
+      "AC-148-3": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-03 (v1, corrected criterion) + cold lib/test-target compiles PR-148-C148-01 and step 05"
+      },
+      "AC-148-4": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-04 (v1) + static_checks.diff_scope"
+      },
+      "AC-148-5": {
+        "status": "PROVED",
+        "evidence": "export hashes == pins; verify_compiled_manifest passed at runtime in PR-148-C148-02 and -05; v1 classification of the 3 event_ledger reds as V2-F02 (not schema/line-ending) stands"
+      },
+      "AC-148-6": {
+        "status": "PROVED",
+        "evidence": "stated in-source (OwnedTempRoot doc comment) and acceptance_evidence_20260909; Drop lifecycle observed (tmp empty after PR-148-C148-05)"
+      },
+      "PT-148-1": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-01 (v1)"
+      },
+      "PT-148-2": {
+        "status": "PROVED",
+        "evidence": "PR-148-C148-02 from the cold export/target (Operator-decided equivalent of a fresh worktree)"
+      },
+      "PT-148-2b": {
+        "status": "PROVED",
+        "evidence": "PR-148-C148-05 (validator-executed at ba03f563) + PR-148-B9-05 (cited)"
+      },
+      "PT-148-3": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-03 (v1); --all-features variant remains NOT_RUN as secondary/best-effort"
+      },
+      "PT-148-4": {
+        "status": "PROVED",
+        "evidence": "PR-148-B9-04 (v1)"
+      }
+    },
+    "remediation_required": null,
+    "not_run": [
+      "cargo check --all-targets --all-features (secondary/best-effort per AC-148-3)",
+      "atelier_core_data_tests (v1 cited shared row 026; PT-148-2b proven here via model_session_durable_record_tests instead)",
+      "proof_commands[0] storage::surreal::event_ledger::tests group (v1 PR-148-B9-06 RED on the MT-141 V2-F02 class; not re-run under lean mode)"
+    ],
+    "not_inspected": [],
+    "residual_uncertainty": [
+      "The export was produced by `git archive` (attribute/autocrlf conversion in-process) rather than by `git clone`/`git checkout` writing a working tree; the resulting bytes are the same conversion path (convert_to_working_tree) but the OS-level clone tooling itself was not exercised, per the Operator's no-worktree constraint.",
+      "The 3 event_ledger reds (V2-F02) remain open under MT-141; MT-148's D-148-1 half (store opens, manifest verified) is demonstrated independently here."
+    ],
+    "residue": {
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2",
+      "runtime_entries": 0,
+      "tmp_entries": 0,
+      "workspace_run_dirs": [
+        "run-01-cold-build",
+        "run-02-lib-storage_surreal_knowledge_wiki_seam",
+        "run-04-lib-event_ledger_atomic_batch_results_follow_caller_order",
+        "run-05-build",
+        "run-06-model_session_durable_record_tests"
+      ],
+      "workspace_run_dirs_nonempty": 0,
+      "target_size_mb": 30165,
+      "export_size": "7131 files (kept for reproducibility; deletable with the lane after Integration Validator review)",
+      "tracked_fixture_writes": "NONE (no git working tree was built from)",
+      "live_tree_porcelain_start": "5 lines sha256 6e64818d3c3c79b5d966cb85e942046eaa6d9afeb42bc1ea99094d63889d3438 at HEAD 57bfa2e6",
+      "live_tree_porcelain_end": "2 lines sha256 e73cdbf2e70831217a3dcefaed72f13cf68b92bed9ebc3861255b65e38ee2d5a at HEAD 767c5c4b (builder committed fix(MT-141) during the lane; this session made no writes to the live tree)",
+      "cargo_rustc_processes_at_exit": "0 owned by this session",
+      "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/00-lane.txt",
+      "results_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-148/wpv-v2/results.jsonl"
+    },
+    "host_observations": {
+      "free_ram_mb_range": "105430-115045 of 130985 during the cold build",
+      "disk_free_after": "~2.16 TB on D:",
+      "foreign_cargo": "one foreign cargo (builder, PID 25876, `cargo test --no-run --locked ... 48 --test targets`, started 15:03:16 local) was linking at lane open; waited 26 min (WAIT lines 13:29:52Z-13:54:59Z) until 0 cargo/rustc/link; 0 foreign cargo during both of this session's cargo runs (PROGRESS lines)",
+      "crash_risk_signals": "none observed: no OOM, no LNK1102, no C1083 (path length 108 chars for the lane target), RAM never below 105 GB free; machine stayed responsive",
+      "timings": {
+        "cargo_wait_min": 26,
+        "cold_lib_build_s": 1163,
+        "integration_target_build_s": 532,
+        "wiki_seam_test_s": 24,
+        "model_session_tests_s": 61
+      }
+    },
+    "transition_reason": "every AC-148-* and PT-148-* now PROVED; the single v1 open item (PT-148-2/AC-148-2) closed by validator-executed cold-export proof under the Operator decision of 2026-09-17; Spec-Realism Gate sub-rules 1-3 PASS"
+  },
+  "validation_v2_transition": {
+    "from_status": "PARTIAL_PENDING_OPERATOR_DECISION",
+    "to_status": "PASS_V2",
+    "by": "WP_VALIDATOR-C148-20260917-133500",
+    "at_utc": "2026-09-17T14:33:33.818Z",
+    "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
+    "record": "validation_v2",
+    "reason": "every AC-148-* and PT-148-* now PROVED; the single v1 open item (PT-148-2/AC-148-2) closed by validator-executed cold-export proof under the Operator decision of 2026-09-17; Spec-Realism Gate sub-rules 1-3 PASS"
   }
 }
