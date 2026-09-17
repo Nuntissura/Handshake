@@ -1,0 +1,1585 @@
+{
+  "schema": "handshake.build_rules@1",
+  "name": "HANDSHAKE_BUILD_RULES",
+  "version": "1.11.0",
+  "status": "ACTIVE",
+  "owner": "KERNEL_BUILDER",
+  "updated_at": "2026-08-15T00:00:00.000Z",
+  "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
+  "scope": {
+    "trigger_phase": "build_time_and_handoff_time",
+    "applies_to": "every WP that touches Handshake product code or product behavior under /src/, /app/, /tests/, or product runtime",
+    "exempt": [
+      "pure repo-governance-only changes scoped per CX-111 HARD_GOVERNANCE_NO_WP_REQUIRED",
+      "operator-private staging changes per CX-215"
+    ]
+  },
+  "enforcement": {
+    "mechanism": "PACKET_ACCEPTANCE_MATRIX_EXTENSION",
+    "policy": "On packet hydration, applicable HBR-* rules auto-generate PACKET_ACCEPTANCE_MATRIX rows keyed by rule_id. Validators must mark each row PROVED, NOT_APPLICABLE (with reason), or BLOCKED (with cause). PASS closure is illegal while any required HBR row is PENDING, STEER, or BLOCKED, per CX-503B1.",
+    "implementation_status": "ACTIVE",
+    "implementation_owner": "MT-001..MT-008 extended packet hydration tooling to read this registry and emit matching acceptance rows, wired hbr-matrix-check into gov-check, integrated validator-scan evidence verification, added the runtime handoff-gate evaluator, shipped HBR_VIOLATION typed receipts, and wired ProcessOwnershipLedger reclaim."
+  },
+  "non_duplication_principle": "Each HBR-* rule either operationalizes an existing rule (cited via citations array) or introduces a build-time obligation absent from refinement/enrichment/Codex/AGENTS/role-protocol surfaces. Restating existing authority is forbidden; surface drift if a citation goes stale.",
+  "non_authority_surfaces": {
+    "markdown_projection_policy": "ON_DEMAND_ONLY",
+    "note": "No HANDSHAKE_BUILD_RULES.md projection exists by default. Markdown is generated only on explicit operator request, per CX-205L, [GLOBAL-GOVARTIFACTS-001/002/003], and operator feedback feedback_no_default_md_files."
+  },
+  "test_environment_prerequisites": {
+    "note": "Machine-local prerequisites the WP test suites require to run. Master Spec v02.205 supersedes the former PostgreSQL-extension prerequisite model. Integrate SurrealDB capabilities into Handshake-managed setup and CI; a required capability that is absent MUST fail loud at schema-rollout/test time, never silently degrade.",
+    "surrealdb_capabilities": [
+      {
+        "name": "surrealdb_vector_index_and_search",
+        "required_for": "LoomSearchV2 and knowledge semantic/hybrid search over declared embedding dimensions.",
+        "verification": "A real managed SurrealDB namespace/database creates the required vector indexes and passes measured similarity-search behavior; no pgvector extension or PostgreSQL service is installed or contacted."
+      },
+      {
+        "name": "surrealdb_live_queries",
+        "required_for": "Scoped reactive updates formerly expressed through PostgreSQL LISTEN/NOTIFY.",
+        "verification": "Authenticated record-user live-query tests prove delivery, reconnect/resubscribe and cross-account denial."
+      },
+      {
+        "name": "surrealkit_rollouts",
+        "required_for": "Versioned SCHEMAFULL SurrealQL rollout, application activation, completion and rollback.",
+        "verification": "Start/activate/complete/rollback and interrupted-rollout recovery pass against a fresh managed SurrealDB."
+      }
+    ],
+    "expansion_directive": "When a future WP/MT introduces a new test-time prerequisite (database capability, system library, toolchain component), add it here AND wire its ensure-present + fail-loud check into the SurrealKit rollout/test path and Handshake-managed SurrealDB setup — do not leave the requirement implicit. PostgreSQL dependencies or extensions are forbidden."
+  },
+  "citation_kinds": {
+    "codex": "rule ID in .GOV/codex/Handshake_Codex_v1.4.md (CX-*)",
+    "agents": "section anchor in ../handshake_main/AGENTS.md",
+    "role_protocol": "named section in .GOV/roles/<role>/*_PROTOCOL.md",
+    "global": "rule ID in user global ~/.claude/CLAUDE.md ([GLOBAL-*])",
+    "reset_brief": "section anchor in .GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
+    "rgf": "RGF item ID in REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md",
+    "build_rule": "self-reference to another HBR-* rule",
+    "external_reference": "informational only, not Handshake authority (e.g., CKC source pattern)"
+  },
+  "pillars": [
+    {
+      "id": "INT",
+      "name": "Interconnectivity Proof",
+      "intent": "Every WP touching a Handshake primitive must prove the wire to its neighbors at runtime, not just unit-test the primitive in isolation. Handshake's value is the orchestrated whole; lone passing units are insufficient evidence."
+    },
+    {
+      "id": "SWARM",
+      "name": "Parallel Agent + Operator Safety",
+      "intent": "Handshake is built for parallel agent swarms working alongside the operator inside one app. Every WP must prove behavior under concurrent agent + operator load without contention, starvation, silent overwrites, or operator interruption."
+    },
+    {
+      "id": "VIS",
+      "name": "Visual Debug + Operator GUI Drive",
+      "intent": "Tests that pass without ever loading the operator surface are not evidence the operator or models can use the feature. Every observable WP drives the real GUI (or TraceProjection for non-UI work) and inspects the rendered result through Argus, the named headless/non-intrusive visual inspection and GUI steering path."
+    },
+    {
+      "id": "QUIET",
+      "name": "Non-Intrusive Operation",
+      "intent": "Handshake runs alongside the operator working on something else. Automated runs, agent activity, sandbox work, and tests must not pop windows, steal focus, hijack keyboard, move the mouse, or leave orphan terminals."
+    },
+    {
+      "id": "MAN",
+      "name": "In-Product UserManual Connectivity",
+      "intent": "The swarm and the operator both must find wiring without chat history. Every changed Handshake behavior, tool, feature, primitive, workflow, model lane, diagnostic surface, storage/event contract, and operator/model navigation path is mirrored in the in-product internal UserManual; legacy ModelManual identifiers are aliases only; manual drift = build-rule fail."
+    },
+    {
+      "id": "STOP",
+      "name": "Implementer Stop Discipline",
+      "intent": "An implementer stop (claim-end, MT-end, WP-end, session-end, handoff) is a high-leverage failure point. Stops justified by token budget, session capacity, throughput, multi-session reasoning, or future-cost aggregates are the upstream cause of surface-shape implementations that pass tests without satisfying the spec. STOP rules forbid the motivational frame that produces deflection-shaped diffs; they are the upstream partner to INT (interconnectivity proof) and to the Spec-Realism Gate in role protocols."
+    },
+    {
+      "id": "PRIV",
+      "name": "Account-Bound Resource Privacy",
+      "intent": "Every Handshake resource is owned, scoped, and enforced as private by default across local accounts, operators inside the same project, model/agent lanes, shared workspaces, and future network/SaaS/MCP boundaries. A feature is not integrated until its primary and derived resources carry stable account/Principal/AccessSpace linkage and negative cross-scope proof."
+    }
+  ],
+  "rules": [
+    {
+      "id": "HBR-PRIV-001",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
+      "applicability": {
+        "predicate_text": "WP touches any folder, file, database row or namespace, project, asset, artifact, memory, model context, workflow record, log, trace, index entry, thumbnail, cache, derivative, export, remote object, or other product-managed resource",
+        "tags": [
+          "resource",
+          "ownership",
+          "visibility",
+          "privacy"
+        ]
+      },
+      "required_action": "The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
+      "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-132B"
+        }
+      ],
+      "not_applicable_when": [
+        "WP is pure repo-governance and touches no Handshake product resource"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-002",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any resource authorization or discovery boundary",
+      "applicability": {
+        "predicate_text": "WP exposes or consumes resources through SurrealDB, storage, filesystem, resource broker, API, search, model retrieval, tool calls, previews, exports, synchronization, or UI queries",
+        "tags": [
+          "authorization",
+          "default_deny",
+          "rls",
+          "resource_broker"
+        ]
+      },
+      "required_action": "Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
+      "evidence_kind": "cross_boundary_default_deny_negative_suite",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132C"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no product resource boundary"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-003",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
+      "applicability": {
+        "predicate_text": "WP creates or modifies behavior visible to multiple human or model actors, including actors who share the same project or future tenant",
+        "tags": [
+          "shared_project",
+          "shared_workspace",
+          "multi_actor",
+          "same_project_privacy"
+        ]
+      },
+      "required_action": "Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
+      "evidence_kind": "same_project_and_cross_project_isolation_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132D"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-SWARM-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP has no multi-actor or shared-resource behavior"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-004",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
+      "applicability": {
+        "predicate_text": "WP derives new content or metadata from one or more source resources",
+        "tags": [
+          "derivation",
+          "non_widening",
+          "metadata_privacy",
+          "context_isolation"
+        ]
+      },
+      "required_action": "The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
+      "evidence_kind": "mixed_scope_derivation_non_widening_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132E"
+        }
+      ],
+      "not_applicable_when": [
+        "WP creates no derived resource or metadata"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-005",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
+      "applicability": {
+        "predicate_text": "WP modifies EventLedger, Flight Recorder, diagnostics, receipts, traces, resource mutations, or delegated model/tool activity",
+        "tags": [
+          "attribution",
+          "flight_recorder",
+          "event_ledger",
+          "delegation"
+        ]
+      },
+      "required_action": "Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client where applicable. The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
+      "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132F"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-009"
+        }
+      ],
+      "not_applicable_when": [
+        "WP emits no resource-affecting event, log, trace, receipt, or diagnostic"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-006",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
+      "applicability": {
+        "predicate_text": "WP can change or revoke effective authority while a session or derived state exists",
+        "tags": [
+          "revocation",
+          "session_pinning",
+          "context_switch",
+          "cache_invalidation"
+        ]
+      },
+      "required_action": "Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
+      "evidence_kind": "concurrent_revocation_and_context_switch_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132G"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-SWARM-002"
+        }
+      ],
+      "not_applicable_when": [
+        "WP cannot change effective account, resource, session, or delegation authority"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-007",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
+      "applicability": {
+        "predicate_text": "WP crosses a local installation, network, tenant, service, MCP, or remote-resource boundary",
+        "tags": [
+          "saas",
+          "mcp",
+          "network",
+          "sync",
+          "remote_identity"
+        ]
+      },
+      "required_action": "The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
+      "evidence_kind": "remote_delegation_and_sync_scope_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132H"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-132E"
+        }
+      ],
+      "not_applicable_when": [
+        "WP remains entirely local and crosses no remote, import/export, MCP, SaaS, or synchronization boundary"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-008",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
+      "applicability": {
+        "predicate_text": "WP creates or modifies any operator/model-facing surface where current identity, scope, sharing, restriction, denial, or privacy state affects behavior",
+        "tags": [
+          "privacy_ui",
+          "scope_visibility",
+          "access_denied",
+          "argus"
+        ]
+      },
+      "required_action": "Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
+      "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132C"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-132D"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP has no operator/model-facing identity, scope, sharing, denial, or resource visibility state"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-001",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any product behavior",
+      "applicability": {
+        "predicate_text": "WP modifies any externally-observable product behavior in src/, app/, or product runtime surfaces",
+        "tags": [
+          "product_code",
+          "observable_behavior"
+        ]
+      },
+      "required_action": "Wire test proves the behavior emits a typed EventLedger append AND replay of the ledger reconstructs the behavior.",
+      "evidence_kind": "test_run_with_ledger_replay",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.0"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.12"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no externally-observable product behavior",
+        "EventLedger primitive not yet implemented at WP creation time"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-002",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any model invocation path",
+      "applicability": {
+        "predicate_text": "WP creates, modifies, or replaces any code path that calls an LLM or model adapter",
+        "tags": [
+          "model_invocation",
+          "model_adapter"
+        ]
+      },
+      "required_action": "Wire test proves a stored ContextBundle is dispatched through ModelAdapter, tool requests pass through ToolGate, and model outputs land in ArtifactStore. No model invocation may bypass these primitives.",
+      "evidence_kind": "test_run_with_session_trace",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.6"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.12"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-101"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-102"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no model invocation surface"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-003",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP produces any artifact intended for authority state",
+      "applicability": {
+        "predicate_text": "WP creates or modifies any path that mutates durable authoritative state",
+        "tags": [
+          "authority_mutation",
+          "promotion"
+        ]
+      },
+      "required_action": "Wire test proves the artifact reaches authority state ONLY via PromotionGate event; negative test proves direct mutation paths fail closed.",
+      "evidence_kind": "test_run_with_promotion_event_and_negative_guard",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§5"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.12"
+        }
+      ],
+      "not_applicable_when": [
+        "WP produces no authority-state artifact"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-004",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any collaborative state surface",
+      "applicability": {
+        "predicate_text": "WP modifies CRDT-backed editable workspace state, presence, or live document surfaces",
+        "tags": [
+          "crdt",
+          "collaborative_state"
+        ]
+      },
+      "required_action": "Wire test proves CRDT updates persist, replay correctly after reconnect, and promote through ValidationRunner before reaching authority state.",
+      "evidence_kind": "test_run_with_reconnect_and_promotion",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§5"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.2"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no CRDT surface",
+        "CRDT layer not yet implemented at WP creation time"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-005",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any model lane adapter (local / CLI bridge / BYOK API / manual handoff)",
+      "applicability": {
+        "predicate_text": "WP creates, modifies, or replaces a ModelAdapter implementation for any lane",
+        "tags": [
+          "model_adapter",
+          "lane"
+        ]
+      },
+      "required_action": "Wire test proves the lane normalizes into the same SessionRun event stream as every other lane; no lane-specific authority leak; the TraceProjection cannot tell which lane ran beyond a lane label.",
+      "evidence_kind": "test_run_with_cross_lane_trace_comparison",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.11"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no model lane adapter"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-006",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any role/agent decision, blocker, insight, error, or session boundary",
+      "applicability": {
+        "predicate_text": "WP creates or modifies any code path that emits role-level decisions, blockers, errors, insights, or session-open/close events",
+        "tags": [
+          "fems",
+          "memory",
+          "session_lifecycle"
+        ]
+      },
+      "required_action": "Wire test proves a typed FEMS record is written with source link and retrieval policy; freeform prose logs are not sufficient. Repo-governance memory dual-write per feedback_dual_write_repo_memory.",
+      "evidence_kind": "test_run_with_fems_record_and_retrieval_policy",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.8"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-503K"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-503K1"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-503K2"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no decision/blocker/insight/error/session-lifecycle surface",
+        "FEMS product memory not yet implemented (use repo-governance memory dual-write as bridge)"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-007",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any observable behavior",
+      "applicability": {
+        "predicate_text": "WP modifies any behavior an operator or model needs to inspect after the fact",
+        "tags": [
+          "observable_behavior",
+          "trace_projection"
+        ]
+      },
+      "required_action": "Wire test proves the behavior is reconstructable from the Operator Surface TraceProjection using durable state alone (no chat history, no terminal scrollback, no provider memory).",
+      "evidence_kind": "test_run_with_trace_projection_replay",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.6"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§7.0"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no observable behavior",
+        "Operator Surface TraceProjection not yet implemented"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-008",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP creates or modifies any UUID generation site in product code",
+      "applicability": {
+        "predicate_text": "WP introduces, modifies, or replaces any call site that mints a new Uuid in product code under src/, app/, or tests/",
+        "tags": [
+          "uuid",
+          "id_minting",
+          "time_ordered_ids",
+          "data_hygiene"
+        ]
+      },
+      "required_action": "All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
+      "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-007"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "RFC 9562 §5.7 (UUIDv7 time-ordered, monotonic within ms)"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no UUID generation site",
+        "Touched site is a hardcoded fixture literal (e.g., \"00000000-...\"), a `Uuid::nil()`, or a `Uuid::parse_str` parse-only path",
+        "Touched site is inside `.GOV/`, third-party vendored code, or generated code the WP does not own"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-009",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
+      "applicability": {
+        "predicate_text": "WP introduces or modifies any observable runtime behavior (a behavior that emits Flight Recorder / EventLedger / TraceProjection observability, or any in-app runtime behavior whose health/freeze/crash matters)",
+        "tags": [
+          "flight_recorder",
+          "internal_diagnostics",
+          "palmistry",
+          "diagnostic_three_tier",
+          "observable_behavior",
+          "trace_projection"
+        ]
+      },
+      "required_action": "Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
+      "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-007"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-006-VIS"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-981"
+        }
+      ],
+      "not_applicable_when": [
+        "WP introduces no observable runtime behavior",
+        "internal_diagnostics / Palmistry (WP-KERNEL-012) not yet shipped at WP creation time (record the consideration as DEFERRED-with-reason, never silently skipped); the WP-KERNEL-016 retrofit applies this rule retroactively once 015 ships"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-SWARM-001",
+      "pillar": "SWARM",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any shared state surface",
+      "applicability": {
+        "predicate_text": "WP modifies code that holds, writes, or arbitrates state visible to more than one session or actor",
+        "tags": [
+          "shared_state",
+          "concurrency"
+        ]
+      },
+      "required_action": "Test runs at least two concurrent agent sessions plus simulated operator edits against the touched state. Passes only when there is no silent last-writer-wins, no lease starvation, no deadlock, and all conflicts surface as deterministic conflict reports or revision rejections.",
+      "evidence_kind": "concurrent_session_test_run",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§5"
+        },
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.2"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no state visible to more than one session/actor"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-SWARM-002",
+      "pillar": "SWARM",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP introduces or modifies any lease, lock, queue, scheduler, or loop counter",
+      "applicability": {
+        "predicate_text": "WP changes any concurrency primitive: lease, lock, queue, scheduler, backpressure mechanism, cancellation token, loop counter, retry policy",
+        "tags": [
+          "concurrency_primitive",
+          "scheduler"
+        ]
+      },
+      "required_action": "Test proves leases expire correctly, stale sessions are recoverable, backpressure works under load, cancellation is honored within a bounded time, and loop counters prevent runaway.",
+      "evidence_kind": "concurrency_primitive_test_run",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.1"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no concurrency primitive"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-SWARM-003",
+      "pillar": "SWARM",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any operator-facing surface",
+      "applicability": {
+        "predicate_text": "WP modifies any UI panel, control, route, or operator-facing capability",
+        "tags": [
+          "operator_surface",
+          "ui"
+        ]
+      },
+      "required_action": "Test proves the operator can keep editing CRDT-backed surfaces while an agent session is active on adjacent state. Presence and conflict state must be visible in the UI.",
+      "evidence_kind": "parallel_operator_agent_ui_test_run",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.6"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no operator-facing surface",
+        "Operator Surface MVP not yet implemented"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-SWARM-004",
+      "pillar": "SWARM",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP introduces any cross-agent message, handoff, or routing decision",
+      "applicability": {
+        "predicate_text": "WP creates or modifies any inter-actor message, handoff, routing, or notification surface",
+        "tags": [
+          "inter_agent",
+          "routing"
+        ]
+      },
+      "required_action": "Every cross-agent message carries typed routing fields (target_role, target_session, correlation_id, requires_ack, ack_for); narrative-only routing is forbidden. Test proves a receiving agent can act from typed fields without parsing prose.",
+      "evidence_kind": "typed_routing_test_run",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-130"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-218E1"
+        }
+      ],
+      "not_applicable_when": [
+        "WP introduces no inter-agent message or routing surface"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-SWARM-005",
+      "pillar": "SWARM",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Any cargo build, test, lint, benchmark, coverage, or tooling run by any worktree, role session, or sub-agent",
+      "applicability": {
+        "predicate_text": "Always applicable while more than one work packet, role session, or sub-agent can build concurrently, which is the normal Handshake operating mode",
+        "tags": [
+          "build_isolation",
+          "artifact_root",
+          "parallel_agents",
+          "cargo_target_dir"
+        ]
+      },
+      "required_action": "CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory of ../Handshake_Artifacts/handshake-cargo-target/ (shape: <wp-or-owner-slug>[-<purpose>]), never the shared root and never a repo-local or sibling directory. All build/test/tool output MUST resolve under ${HANDSHAKE_ARTIFACTS_ROOT}; every other sibling artifact folder is illegal residue. Before running a product binary for a proof, the role MUST have built that binary from its OWN worktree into its OWN scoped target dir - a prebuilt binary found in a shared target dir is not evidence about the current worktree. Proof runs that need a database MUST use a WP-scoped SurrealDB namespace/database, because divergent SurrealKit rollout sets across worktrees cannot share authority state safely.",
+      "evidence_kind": "scoped_target_dir_and_own_worktree_build_provenance",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-984"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-212E"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-109B"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-08-02",
+        "origin_incident": "Two observed failures with parallel WPs active: (1) a live proof suite starved on the shared cargo file lock and produced a false negative initially misdiagnosed as a product defect; (2) handshake_core embeds its runtime data_dir from env!(CARGO_MANIFEST_DIR) at compile time, so a binary left in the shared target dir by another worktree opened that worktree's DuckDB flight recorder and died replaying its WAL."
+      }
+    },
+    {
+      "id": "HBR-SWARM-006",
+      "pillar": "SWARM",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Completion of any build, test, or tooling run, and completion of any sub-agent",
+      "applicability": {
+        "predicate_text": "Always applicable to any role or sub-agent that produced build/test/tool output",
+        "tags": [
+          "artifact_cleanup",
+          "disk_hygiene",
+          "governance_boundary",
+          "parallel_agents"
+        ]
+      },
+      "required_action": "Clean the owner's OWN scoped artifact subdirectory as soon as its build/test finishes - continuously throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root. The parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after that sub-agent completes. BOUNDARY: ../Handshake_Artifacts/ holds build, test, tool, and product-runtime scratch output ONLY - it MUST NOT contain repo-governance artifacts (anything belonging under /.GOV/) or repo-governance runtime state (anything belonging under gov_runtime/, such as WP_COMMUNICATIONS, session-control ledgers, session registries, dossiers, or receipts), because build residue is deletable at any moment and governance state is not.",
+      "evidence_kind": "per_owner_cleanup_record_and_artifact_root_boundary_scan",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-984"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-212E"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-SWARM-005"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-08-02",
+        "origin_incident": "A sub-agent told to clean only its own scoped subdir removed the SHARED handshake-cargo-target/debug .fingerprint tree (24GB -> 5.8GB), breaking the next build with 'failed to write .fingerprint/... The system cannot find the path specified'. Sub-agent cleanup compliance proved unreliable, so the parent role is named as the backstop."
+      }
+    },
+    {
+      "id": "HBR-VIS-001",
+      "pillar": "VIS",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any UI, automation, capture, diagnostic, or operator-facing control surface",
+      "applicability": {
+        "predicate_text": "WP modifies any code path the operator or a model agent observes through the Operator Surface",
+        "tags": [
+          "ui",
+          "operator_surface",
+          "automation_surface"
+        ]
+      },
+      "required_action": "Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
+      "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
+      "citations": [
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-014]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-023]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-026]"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-503D1"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Visual Verification Rules"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no operator-observable surface",
+        "Operator Surface MVP not yet implemented (use TraceProjection per HBR-VIS-004)"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-VIS-002",
+      "pillar": "VIS",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Any captured frame produced for HBR-VIS-001",
+      "applicability": {
+        "predicate_text": "Triggered alongside every HBR-VIS-001 capture",
+        "tags": [
+          "renderer_error_scan"
+        ]
+      },
+      "required_action": "Every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate.",
+      "evidence_kind": "renderer_console_error_report",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-001"
+        }
+      ],
+      "not_applicable_when": [
+        "HBR-VIS-001 marked NOT_APPLICABLE for the same WP"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-VIS-003",
+      "pillar": "VIS",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any feature visible at multiple viewports or states",
+      "applicability": {
+        "predicate_text": "WP modifies any UI surface that has more than one viewport size or state worth verifying",
+        "tags": [
+          "viewport_matrix",
+          "state_matrix"
+        ]
+      },
+      "required_action": "Capture matrix instead of a single shot: normal viewport, at least one constrained viewport, and at least one edge state (empty, error, loading, multi-item).",
+      "evidence_kind": "capture_matrix",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-001"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md LLM Visibility Audit"
+        }
+      ],
+      "not_applicable_when": [
+        "WP feature has only one meaningful viewport/state",
+        "HBR-VIS-001 marked NOT_APPLICABLE"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-VIS-004",
+      "pillar": "VIS",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches a non-UI behavior",
+      "applicability": {
+        "predicate_text": "WP modifies backend, kernel, sandbox, or runtime behavior with no direct UI surface",
+        "tags": [
+          "non_ui_behavior",
+          "trace_projection"
+        ]
+      },
+      "required_action": "Visual verification = TraceProjection view of the run reconstructed from durable state. The projection must answer: what task / what context / what return / what tool calls / what artifact / what validation / what promotion.",
+      "evidence_kind": "trace_projection_inspection",
+      "citations": [
+        {
+          "kind": "reset_brief",
+          "anchor": "§6.6"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-007"
+        }
+      ],
+      "not_applicable_when": [
+        "WP has a direct UI surface (covered by HBR-VIS-001)",
+        "TraceProjection not yet implemented"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-VIS-005",
+      "pillar": "VIS",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
+      "applicability": {
+        "predicate_text": "During verification, the role discovers a UI/operator/diagnostic surface that Argus cannot see, identify with a stable target, steer safely, or re-observe after steering",
+        "tags": [
+          "verification_gap"
+        ]
+      },
+      "required_action": "Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
+      "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-503D1"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Visual Verification Rules"
+        }
+      ],
+      "not_applicable_when": [
+        "All in-scope GUI surfaces have automation paths"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-QUIET-001",
+      "pillar": "QUIET",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Every automated test or agent run",
+      "applicability": {
+        "predicate_text": "Triggered for every WP that runs automated tests or governed agent activity",
+        "tags": [
+          "automated_run",
+          "headless"
+        ]
+      },
+      "required_action": "Run Handshake in headless or hidden-window mode. The operator's foreground application stays in front. Pass requires zero focus/Z-order change events during the test window.",
+      "evidence_kind": "headless_run_with_focus_audit",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-503D"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-046]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-047]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-048]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-049]"
+        }
+      ],
+      "not_applicable_when": [
+        "WP runs no automated tests or agent activity (rare; document why)"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-QUIET-002",
+      "pillar": "QUIET",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Every automation surface",
+      "applicability": {
+        "predicate_text": "WP introduces or modifies any agent-facing or operator-facing automation surface",
+        "tags": [
+          "automation_surface",
+          "input_discipline"
+        ]
+      },
+      "required_action": "Every automation surface must be reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Any code path requiring those mechanisms fails the gate. Negative test must prove the surface cannot be accidentally driven by global input hijacking.",
+      "evidence_kind": "automation_path_audit",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-503D"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-045]"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Automation Rules"
+        }
+      ],
+      "not_applicable_when": [
+        "WP introduces no automation surface"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-QUIET-003",
+      "pillar": "QUIET",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP launches background process, sandbox runner, scheduled job, or hidden CLI",
+      "applicability": {
+        "predicate_text": "WP introduces or modifies any process lifecycle: spawn, schedule, supervise, reclaim",
+        "tags": [
+          "process_lifecycle",
+          "ownership"
+        ]
+      },
+      "required_action": "Every background launch records ownership metadata (owner_session, owner_wp, owner_role, started_at) and is reclaimed at session close, failure, staleness, or operator cancel. Test proves no blank terminal windows and no orphan processes after a run, failure, or kill.",
+      "evidence_kind": "process_lifecycle_test_run",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-503D"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-212G"
+        }
+      ],
+      "not_applicable_when": [
+        "WP launches no background or hidden processes"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-QUIET-004",
+      "pillar": "QUIET",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP requires foreground interaction that cannot be eliminated",
+      "applicability": {
+        "predicate_text": "WP genuinely needs OS-foreground interaction (e.g., capturing operator gesture, hardware-only input)",
+        "tags": [
+          "foreground_required",
+          "exception"
+        ]
+      },
+      "required_action": "Declare the foreground requirement in the WP before any run. Use a bounded controlled test window or documented manual step. Surface an operator-visible warning before launch. The default is forbidden; exceptions must be justified and time-bounded.",
+      "evidence_kind": "foreground_exception_declaration_and_operator_warning",
+      "citations": [
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-053]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-054]"
+        }
+      ],
+      "not_applicable_when": [
+        "WP has no foreground interaction requirement (the common case)"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-MAN-001",
+      "pillar": "MAN",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
+      "applicability": {
+        "predicate_text": "WP introduces, renames, removes, or changes the contract of any product surface, behavior, primitive, workflow, diagnostic surface, storage/event contract, or navigation path a no-context model or operator must discover",
+        "tags": [
+          "wired_surface_change",
+          "user_manual_update",
+          "internal_user_manual"
+        ]
+      },
+      "required_action": "Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION when applicable. Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
+      "evidence_kind": "user_manual_diff_in_same_commit",
+      "citations": [
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-002]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-011]"
+        },
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Internal Manual Rules"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-982"
+        }
+      ],
+      "not_applicable_when": [
+        "WP wires or changes no Handshake product behavior, feature, primitive, workflow, tool, command, IPC, config, model lane, diagnostic surface, storage/event contract, operator-facing surface, model navigation path, or operator navigation path",
+        "UserManual artifact is not yet implemented at WP creation time; record DEFERRED-with-reason plus integration follow-up instead of silently skipping"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-MAN-002",
+      "pillar": "MAN",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Any change to UserManual content",
+      "applicability": {
+        "predicate_text": "WP modifies the in-product internal UserManual artifact",
+        "tags": [
+          "manual_content",
+          "no_context_test",
+          "internal_user_manual"
+        ]
+      },
+      "required_action": "UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
+      "evidence_kind": "no_context_model_operation_test",
+      "citations": [
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-003]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-004]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-005]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-006]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-007]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-008]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-009]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-010]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-011]"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-982"
+        }
+      ],
+      "not_applicable_when": [
+        "WP does not modify UserManual content"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-MAN-003",
+      "pillar": "MAN",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Any UserManual entry that describes a wired code surface",
+      "applicability": {
+        "predicate_text": "Triggered for every UserManual entry that names a command, IPC channel, schema field, config key, CLI flag, route, backend navigation path, diagnostic surface, storage/event contract, or other code-defined surface",
+        "tags": [
+          "self_consistency",
+          "code_truth",
+          "internal_user_manual"
+        ]
+      },
+      "required_action": "UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
+      "evidence_kind": "manual_self_consistency_test",
+      "citations": [
+        {
+          "kind": "external_reference",
+          "anchor": "CKC build_rules.md Documentation Rules"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-982"
+        }
+      ],
+      "not_applicable_when": [
+        "Entries explicitly tagged as roadmap (not yet wired)"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-MAN-004",
+      "pillar": "MAN",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
+      "applicability": {
+        "predicate_text": "Implementation changes anything future no-context models or the operator need to understand or use inside Handshake, including model orchestration, local/cloud/subagent lanes, backend navigation, diagnostics, storage/event authority, CRDT collaboration, visual/debug surfaces, or recovery workflows",
+        "tags": [
+          "internal_user_manual",
+          "operator_model_usability",
+          "feature_primitive_documentation",
+          "flight_recorder_linkage",
+          "palmistry_linkage",
+          "no_context_operation"
+        ]
+      },
+      "required_action": "Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands when applicable, expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
+      "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-982"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-981"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-009"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-002]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-011]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-012]"
+        }
+      ],
+      "not_applicable_when": [
+        "Change is pure repo-governance work and touches no Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-STOP-001",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer is about to estimate or reason about session capacity, tokens, throughput, or future-work aggregate cost",
+      "applicability": {
+        "predicate_text": "Every implementer role (kernel_builder, coder) at every step of work claim, plan, implementation, proof, and handoff",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline"
+        ]
+      },
+      "required_action": "Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.",
+      "evidence_kind": "absence_of_capacity_reasoning_in_receipts_and_lifecycle",
+      "citations": [
+        {
+          "kind": "role_protocol",
+          "anchor": "Spec-Realism Gate (KERNEL_BUILDER, CODER, VALIDATOR, WP_VALIDATOR, INTEGRATION_VALIDATOR)"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004 driven by deflection patterns whose upstream cause was session-budget reasoning"
+      }
+    },
+    {
+      "id": "HBR-STOP-002",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer generates a stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate",
+      "applicability": {
+        "predicate_text": "Every stop event the implementer considers — claim-end, MT-end, WP-end, session-end, handoff",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline",
+          "override"
+        ]
+      },
+      "required_action": "Any stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate is invalid by definition. Override it and continue.",
+      "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-STOP-001"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004"
+      }
+    },
+    {
+      "id": "HBR-STOP-003",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer considers stopping work on an MT, WP, or session",
+      "applicability": {
+        "predicate_text": "Every stop event the implementer considers — claim-end, MT-end, WP-end, session-end, handoff",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline",
+          "runtime_proof"
+        ]
+      },
+      "required_action": "Stops are only valid if work is complete AND can be proven in actual runtime.",
+      "evidence_kind": "proof_block_with_real_external_resource_touch_per_Spec_Realism_Gate_sub_rule_2",
+      "citations": [
+        {
+          "kind": "role_protocol",
+          "anchor": "Spec-Realism Gate sub-rule 2 (Real external-resource touch)"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004"
+      }
+    },
+    {
+      "id": "HBR-STOP-004",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer encounters a dependency that blocks completion of the current work",
+      "applicability": {
+        "predicate_text": "Every work item where a dependency (toolchain, library, upstream MT, external resource) is missing or incomplete",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline",
+          "dependency_handling"
+        ]
+      },
+      "required_action": "If work cannot be completed because of dependencies, work on the dependencies first, then return to the outstanding work.",
+      "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-STOP-005"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004; closes the BLOCKED_ON_DEPENDENCY exit that was previously treated as a valid stop"
+      }
+    },
+    {
+      "id": "HBR-STOP-005",
+      "pillar": "STOP",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Implementer encounters out-of-scope work needed to unblock the current work",
+      "applicability": {
+        "predicate_text": "Every work item where progressing the in-scope work requires touching code, files, or systems outside the declared scope",
+        "tags": [
+          "implementer_reasoning",
+          "stop_discipline",
+          "scope_handling",
+          "waiver"
+        ]
+      },
+      "required_action": "If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task/WP/MT, self-evaluate why I went out of scope, what I touched, and ask the operator for a waiver — and when asking, the operator must be explicitly told the why and the full list of what I touched.",
+      "evidence_kind": "end_of_task_self_evaluation_with_full_disclosure_waiver_request_to_operator",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-STOP-004"
+        }
+      ],
+      "not_applicable_when": [],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR",
+        "authored_at_utc": "2026-05-20",
+        "origin_incident": "27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004"
+      }
+    }
+  ],
+  "deferred_pillars": [
+    {
+      "id": "UI",
+      "name": "UI Control Discipline",
+      "intent": "Slider/numeric control inspection, layout discipline, accessibility checks, reset affordances.",
+      "deferred_until_condition": "Operator Surface MVP exists with stable UI primitives",
+      "reason": "Premature to bind UI control law to primitives that do not yet exist"
+    },
+    {
+      "id": "SMP",
+      "name": "Sample Corpus Discipline",
+      "intent": "Operator-maintained sample corpus for image, media, identity, prompt-card, or workflow verification.",
+      "deferred_until_condition": "First creative module (Atelier-Lens-CKC Week 5) attaches and corpus shape is known",
+      "reason": "Corpus shape and verification mode depend on the first creative module's data contracts"
+    },
+    {
+      "id": "COST",
+      "name": "Cost & Token Budget Discipline",
+      "intent": "Per-WP token budget visibility, runaway-loop cost gating, model-lane cost attribution.",
+      "deferred_until_condition": "Operator explicitly requests cost gating",
+      "reason": "Operator has de-prioritized cost gating during build-reset; flag retained because parallel swarms x cloud lanes burn money fast (see memory: feedback_token_budget_lenient and project_wp_speed_priority)"
+    }
+  ],
+  "provenance": {
+    "creating_session": "KERNEL_BUILDER-20260516-150828",
+    "creating_role": "KERNEL_BUILDER",
+    "driver": "Operator request 2026-05-16 to create a Handshake-language build-rules authority modeled on CKC build_rules.md",
+    "source_reference": "../CastKit-Codex/CKC_GOV/build_rules.md (CKC source pattern, not copied verbatim)",
+    "rgf_id": "RGF-323",
+    "changeset_id": "GOV-CHANGE-20260516-01",
+    "operator_corrections": [
+      "2026-05-16: build rules must not duplicate refinement/enrichment scope; five pillars only (INT/SWARM/VIS/QUIET/MAN)",
+      "2026-05-16: no default md projection; JSON is authority",
+      "2026-05-17: add HBR-INT-008 UUID v7 default per operator direction; UUID v7 to keep being used throughout the app",
+      "2026-07-26: supersede the original five-pillar-only limit by adding PRIV as a permanent active pillar; account-bound resource identity, visibility, enforcement, attribution, revocation, and remote-delegation continuity are core requirements for every future Handshake build"
+    ]
+  },
+  "version_log": [
+    {
+      "version": "1.0.0",
+      "date": "2026-05-16",
+      "summary": "Initial 5-pillar rule set (INT/SWARM/VIS/QUIET/MAN), 23 active rules, 3 deferred pillars (UI/SMP/COST). JSON authority only; no md projection. Enforcement mechanism = PACKET_ACCEPTANCE_MATRIX_EXTENSION, wiring deferred to follow-up RGF.",
+      "rgf": "RGF-323",
+      "changeset": "GOV-CHANGE-20260516-01"
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-05-17",
+      "summary": "Add HBR-INT-008 (UUID v7 default): new UUID mint sites in product code MUST use time-ordered Uuid::now_v7(); v4 reserved for fixtures and third-party derives. Recorded under INT pillar because time-ordering preserves cross-primitive correlation/replay locality (EventLedger, snapshots, ContextBundle, ArtifactStore). Operator-driven addition during WP-KERNEL-003 close-out; KB003 product code sweeps to v7 in the same lane.",
+      "rgf": null,
+      "changeset": "GOV-CHANGE-20260517-01"
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-05-18",
+      "summary": "Enforcement wiring active per MT-001..MT-008. PACKET_ACCEPTANCE_MATRIX auto-emission, gov-check sub-check, validator-scan integration, handoff-gate evaluator, ProcessOwnershipLedger reclaim, and HBR_VIOLATION typed receipts all online.",
+      "rgf": null,
+      "changeset": "WP-KERNEL-004-MT-009"
+    },
+    {
+      "version": "1.3.0",
+      "at_utc": "2026-05-20T11:30:00Z",
+      "change": "Added STOP pillar + 5 HBR-STOP-* rules (OPERATOR-authored 2026-05-20) forbidding capacity/token/throughput reasoning as stop justification, requiring runtime-proof for valid stops, requiring dependency-first work over BLOCKED exits, and requiring full-disclosure waiver requests for scope expansion. Origin: 27-MT NEEDS_REIMPLEMENTATION reopen on WP-KERNEL-004."
+    },
+    {
+      "version": "1.4.0",
+      "at_utc": "2026-06-18T00:00:00Z",
+      "change": "Added test_environment_prerequisites registry (OPERATOR order 2026-06-18): pgvector >= 0.8.0 is REQUIRED for the test suite (WP-KERNEL-009 MT-264 LoomSearchV2 semantic/hybrid search; migration 0336 fails loud if absent), alongside pg_trgm and pgcrypto. Includes an expansion_directive to grow the list and integrate ensure-present + fail-loud checks into migrations/test paths/PG provisioning where needed, rather than leaving prerequisites implicit."
+    },
+    {
+      "version": "1.5.0",
+      "at_utc": "2026-06-27T00:00:00Z",
+      "change": "Added HBR-INT-009 (OPERATOR directive 2026-06-27): the THREE-TIER DIAGNOSTIC WIRING mandate. Every observable runtime behavior MUST be wired across three tiers with the per-tier outcome (WIRED / NOT_APPLICABLE-with-reason / DEFERRED) recorded as build evidence: (1) Flight Recorder = the kept-as-is backend BUSINESS-EVENT ledger (no schema re-open); (2) INTERNAL_DIAGNOSTICS = the NEW Handshake-native INTERNAL self-diagnostics tool (panic/heartbeat/frame-time/resource + open diagnostic-event API) - the diagnostic role the FR was intended to fill but never did; (3) PALMISTRY = the NEW EXTERNAL out-of-process watcher that survives freezes/crashes. internal_diagnostics + Palmistry record no project/sensitive data and keep standard mechanism names (heartbeat/minidump/watchdog). Motivated by a live 2026-06-26 UI-thread freeze the in-process FR was blind to. internal_diagnostics + Palmistry are built by WP-KERNEL-012; WP-KERNEL-016 retrofits this rule onto all already-shipped work. Cites HBR-INT-001/007 + Codex CX-006-VIS + the planned CX-981 HARD block. Canonical authority; the 6 role protocols project this via their Diagnostics duty bullets."
+    },
+    {
+      "version": "1.6.0",
+      "at_utc": "2026-06-28T18:06:24.222Z",
+      "change": "Added HBR-MAN-004 (OPERATOR directive 2026-06-28): every implementation that changes Handshake product behavior, tools, features, primitives, workflows, model lanes, diagnostics, storage/event contracts, commands/IPCs/config, or operator/model navigation must update the in-product internal UserManual in the same change. UserManual entries must explain no-context usage and connect behavior to Flight Recorder/EventLedger plus HBR-INT-009 Flight Recorder/internal_diagnostics/Palmistry posture. Palmistry/internal_diagnostics absence in the current worktree is DEFERRED-with-reason plus follow-up, never silent skip. Updated MAN-family wording from legacy ModelManual to UserManual with ModelManual retained only as an alias."
+    },
+    {
+      "version": "1.7.0",
+      "at_utc": "2026-06-28T20:14:58.092Z",
+      "change": "Added Argus as the named HBR-VIS visual inspection and GUI steering path (OPERATOR directive 2026-06-28), then updated it after MT-007 introduced the native Rust Argus MCP facade: UI/operator/diagnostic/frontend navigation/layout/style changes must be inspected through headless, non-intrusive Argus evidence before DONE/PASS. HBR-VIS-001 now requires stable author_id targeting plus argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, with list_widgets/click_widget/set_value/screenshot retained only as compatibility aliases. HBR-VIS-005 treats any in-scope surface Argus cannot see, identify, steer, or re-observe as HBR-VIS technical debt and an allowed same-MT/WP scope increase when it blocks proof. Canonical protocol: .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md; Codex anchor: CX-503D1."
+    },
+    {
+      "version": "1.9.0",
+      "at_utc": "2026-08-02T16:35:00.000Z",
+      "change": "Added HBR-SWARM-005 (per-owner scoped CARGO_TARGET_DIR + single artifact root + own-worktree build provenance + WP-scoped proof database) and HBR-SWARM-006 (continuous per-owner artifact cleanup, no cross-owner or shared-root deletion, parent role as cleanup backstop, and the hard boundary that ../Handshake_Artifacts/ holds build/test/tool output only and never /.GOV/ artifacts or gov_runtime/ governance runtime state). Operator directive 2026-08-02. Placed under SWARM because both failures are concurrency failures: parallel builds starving on one cargo file lock, and a compile-time-embedded data_dir making a shared-target-dir binary open another worktree's DuckDB flight recorder. Codex anchor CX-984; mirrored into KERNEL_BUILDER_PROTOCOL and CODER_PROTOCOL."
+    },
+    {
+      "version": "1.8.0",
+      "at_utc": "2026-07-26T04:35:00.000Z",
+      "change": "Added PRIV as the permanent Account-Bound Resource Privacy pillar with HBR-PRIV-001 through HBR-PRIV-008. Every folder, file, PostgreSQL row/namespace, project, asset, artifact, memory, model context, log, trace, index, thumbnail, cache, derivative, export, and remote object must carry stable account/Principal/AccessSpace/ResourceGrant scope; default-deny enforcement and cross-account/same-project-private negative proof are mandatory; derived outputs cannot widen source scope; audit and metadata surfaces cannot leak restricted existence; revocation/context switching is bounded; and future shared-workspace/SaaS/MCP delegation uses the same resource identity and scope model. Operator approval: ilja260720260635."
+    },
+    {
+      "version": "1.10.0",
+      "at_utc": "2026-08-15T00:00:00.000Z",
+      "change": "Aligned current build gates with Master Spec v02.204: SurrealDB is the sole product database; vector search, live queries and SurrealKit rollouts replace PostgreSQL extensions/LISTEN-NOTIFY/sqlx migration proof; privacy boundaries name SurrealDB record-user permissions plus ResourceBroker; proof databases are WP-scoped SurrealDB namespace/database pairs. Historical change entries remain unchanged."
+    },
+    {
+      "version": "1.11.0",
+      "at_utc": "2026-08-15T15:43:08.415Z",
+      "change": "Aligned current build gates with Master Spec v02.205: SurrealDB is the exclusive database authority; EventLedger persistence fully transfers to SurrealDB; PostgreSQL and SQLite provide no connectivity, import, reconciliation, fallback, fixture, cache or proof path. The current authority initializes from a clean SurrealDB genesis. Historical change entries remain unchanged."
+    }
+  ]
+}

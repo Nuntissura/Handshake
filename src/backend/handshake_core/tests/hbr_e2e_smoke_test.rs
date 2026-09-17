@@ -242,14 +242,29 @@ async fn hbr_e2e_smoke_test() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// The repo root whose governance kernel this end-to-end proof drives.
+///
+/// This proof deliberately exercises the repo-governance HBR tooling (registry
+/// loader, matrix hydrator, matrix check, gov-check umbrella, violation
+/// normaliser) together with the product `HandoffGate`, so it needs a real
+/// governance kernel. Product tests must not locate the governance kernel by
+/// walking the source tree ([CX-211]): the operator declares it explicitly
+/// through `HANDSHAKE_TEST_GOV_REPO_ROOT` (a repo root containing the
+/// governance kernel directory), and the proof fails closed when it is unset
+/// instead of silently binding to whatever junction the worktree carries.
 fn repo_root() -> PathBuf {
-    let mut current = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    loop {
-        if current.join(".GOV").exists() {
-            return current;
-        }
-        assert!(current.pop(), "repo root with .GOV not found");
-    }
+    let declared = std::env::var_os("HANDSHAKE_TEST_GOV_REPO_ROOT").unwrap_or_else(|| {
+        panic!(
+            "hbr_e2e_smoke_test drives the repo-governance HBR scripts and therefore requires              HANDSHAKE_TEST_GOV_REPO_ROOT=<repo root containing the governance kernel>              (set it explicitly; product tests do not discover the governance kernel)"
+        )
+    });
+    let root = PathBuf::from(declared);
+    assert!(
+        root.is_absolute() && root.join(".GOV").is_dir(),
+        "HANDSHAKE_TEST_GOV_REPO_ROOT must be an absolute repo root containing the governance          kernel directory, got {}",
+        root.display()
+    );
+    root
 }
 
 fn fixture_packet() -> Value {

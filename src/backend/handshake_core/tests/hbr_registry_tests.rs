@@ -8,21 +8,20 @@ use handshake_core::hbr::applicability::{
 use handshake_core::hbr::registry::{HbrPillar, HbrRegistry};
 use tempfile::NamedTempFile;
 
+/// Fixture copy of `HANDSHAKE_BUILD_RULES.json` v1.11.0 (content-as-data, AC-141-1
+/// exemption b). The product test tree MUST NOT read the live governance kernel at
+/// runtime ([CX-211]): the registry copy under `tests/fixtures/hbr/` binds this proof
+/// to the committed tree instead of to whatever the governance junction currently points at.
+/// When the live registry gains rules, refresh the fixture and the counts below together.
 fn hbr_registry_path() -> PathBuf {
-    let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = crate_root
-        .parent()
-        .and_then(|path| path.parent())
-        .and_then(|path| path.parent())
-        .expect("handshake_core lives under src/backend/handshake_core");
-    let path = repo_root
-        .join(".GOV")
-        .join("roles_shared")
-        .join("records")
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("hbr")
         .join("HANDSHAKE_BUILD_RULES.json");
     assert!(
         path.exists(),
-        "missing live HBR registry at {}",
+        "missing HBR registry fixture at {}",
         path.display()
     );
     path
@@ -31,28 +30,32 @@ fn hbr_registry_path() -> PathBuf {
 #[test]
 fn hbr_registry_tests_live_registry_loads_active_rules_and_distribution() {
     let registry =
-        HbrRegistry::load_from_path(&hbr_registry_path()).expect("live HBR registry loads");
+        HbrRegistry::load_from_path(&hbr_registry_path()).expect("HBR registry fixture loads");
     let active_rules = registry.active_rules().collect::<Vec<_>>();
 
-    assert_eq!(active_rules.len(), 29);
+    // Registry v1.11.0: 41 ACTIVE rules across the seven pillars, including the
+    // PRIV pillar (account-bound resource privacy, Codex [CX-132]).
+    assert_eq!(registry.version, "1.11.0");
+    assert_eq!(active_rules.len(), 41);
 
     let mut distribution: HashMap<HbrPillar, usize> = HashMap::new();
     for rule in active_rules {
         *distribution.entry(rule.pillar).or_default() += 1;
     }
 
-    assert_eq!(distribution.get(&HbrPillar::Int), Some(&8));
-    assert_eq!(distribution.get(&HbrPillar::Swarm), Some(&4));
+    assert_eq!(distribution.get(&HbrPillar::Int), Some(&9));
+    assert_eq!(distribution.get(&HbrPillar::Swarm), Some(&6));
     assert_eq!(distribution.get(&HbrPillar::Vis), Some(&5));
     assert_eq!(distribution.get(&HbrPillar::Quiet), Some(&4));
-    assert_eq!(distribution.get(&HbrPillar::Man), Some(&3));
+    assert_eq!(distribution.get(&HbrPillar::Man), Some(&4));
     assert_eq!(distribution.get(&HbrPillar::Stop), Some(&5));
+    assert_eq!(distribution.get(&HbrPillar::Priv), Some(&8));
 }
 
 #[test]
 fn hbr_registry_tests_applicability_matches_declared_tags_and_touched_path_globs() {
     let registry =
-        HbrRegistry::load_from_path(&hbr_registry_path()).expect("live HBR registry loads");
+        HbrRegistry::load_from_path(&hbr_registry_path()).expect("HBR registry fixture loads");
 
     let observable_rule = registry.rule("HBR-INT-001").expect("HBR-INT-001 exists");
     let declared_tag_context = PacketContext {
@@ -84,7 +87,7 @@ fn hbr_registry_tests_applicability_matches_declared_tags_and_touched_path_globs
 #[test]
 fn hbr_registry_tests_not_applicable_override_returns_non_empty_reason() {
     let registry =
-        HbrRegistry::load_from_path(&hbr_registry_path()).expect("live HBR registry loads");
+        HbrRegistry::load_from_path(&hbr_registry_path()).expect("HBR registry fixture loads");
     let rule = registry.rule("HBR-INT-001").expect("HBR-INT-001 exists");
     let context = PacketContext {
         wp_id: "WP-TEST-HBR".to_string(),
@@ -105,7 +108,7 @@ fn hbr_registry_tests_not_applicable_override_returns_non_empty_reason() {
 #[test]
 fn hbr_registry_tests_foreground_required_tag_makes_quiet_004_applicable() {
     let registry =
-        HbrRegistry::load_from_path(&hbr_registry_path()).expect("live HBR registry loads");
+        HbrRegistry::load_from_path(&hbr_registry_path()).expect("HBR registry fixture loads");
     let rule = registry
         .rule("HBR-QUIET-004")
         .expect("HBR-QUIET-004 exists");
@@ -125,7 +128,7 @@ fn hbr_registry_tests_foreground_required_tag_makes_quiet_004_applicable() {
 #[test]
 fn hbr_registry_tests_registry_rejects_tampered_schema() {
     let mut registry_json =
-        fs::read_to_string(hbr_registry_path()).expect("live registry readable");
+        fs::read_to_string(hbr_registry_path()).expect("registry fixture readable");
     registry_json = registry_json.replace("handshake.build_rules@1", "handshake.build_rules@0");
     let temp = NamedTempFile::new().expect("temp registry file");
     fs::write(temp.path(), registry_json).expect("tampered registry written");

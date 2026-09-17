@@ -121,6 +121,9 @@ pub enum HbrPillar {
     Man,
     #[serde(rename = "STOP")]
     Stop,
+    /// Account-bound resource privacy pillar (registry v1.11.0, Codex [CX-132]).
+    #[serde(rename = "PRIV")]
+    Priv,
 }
 
 #[derive(Debug, Clone, Deserialize)]
