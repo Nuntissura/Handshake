@@ -22,7 +22,7 @@
   "title": "B3-MT-111-Frontend-FlightRecorder-Callers-To-Workspace-Scoped-Authorized-Routes",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T12:42:00.438Z",
-  "updated_at_utc": "2026-09-16T23:19:52.985Z",
+  "updated_at_utc": "2026-09-17T01:59:26.648Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -758,5 +758,32 @@
     "residual_uncertainty": [],
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
+  },
+  "ruling_401_vs_403_2026_09_17": {
+    "schema_id": "hsk.mt_operator_delegated_ruling@1",
+    "ruled_by": "INTEGRATION_VALIDATOR (orchestrating session 2026-09-17, on Operator delegation: \"Resolve it yourself from the Master Spec and the MT-111 contract; spec wins; if the spec is silent, keep the MT-111 contract\")",
+    "ruled_at_utc": "2026-09-17T01:59:26.648Z",
+    "resolves_finding": "N1B-P3-F111 (validation_v1.independent_findings) AUTHZ_STATUS_CONTRACT_DRIFT_401_VS_403",
+    "question": "MT-111 AC-111-2 and AC-111-4 (step 5) pin 401 HSK-401-FR-SESSION for a Flight Recorder request without a session token; the C-prime backend returns 403 HSK-403-PROTECTED-RESOURCE. Which is the contract?",
+    "spec_basis": [
+      "Master Spec v02.206 §2.3.13.12.3 Authorization law (7): \"Denials MUST use constant-shape responses where practical so counts, identifiers, names, paths, thumbnails, timing, search facets, error variants, logs, or diagnostics do not reveal that a restricted resource exists.\" (02-system-architecture.md)",
+      "Master Spec v02.206 §2.3.13.12.3 (2)+(6): every request authorizes Principal+session+action+exact resource; deny-by-default on every executable backend boundary. §2.3.13.12.4: Flight Recorder tables are protected resources and cannot become side-channel bypasses.",
+      "Codex [CX-132C] HARD_DENY_BY_DEFAULT_ACROSS_ALL_BOUNDARIES: missing/invalid/stale session context MUST deny (satisfied by both codes; does not choose the number).",
+      "The spec does NOT pin the numeric HTTP status for a missing credential; it pins the SHAPE (constant, non-distinguishing). A distinct 401 variant ahead of the protected-resource layer would be a second denial shape."
+    ],
+    "product_basis": [
+      "src/backend/handshake_core/src/api/flight_recorder.rs::authorize_flight_recorder_request (line ~370) routes EVERY recorder request through api/authority.rs::authorize_request, which returns constant_denial() = 403 {error: HSK-403-PROTECTED-RESOURCE} for missing token, malformed token, missing channel binding, broker denial, and capability denial alike. unauthenticated_recorder() (401 HSK-401-FR-SESSION, flight_recorder.rs:96) is no longer reachable on that path.",
+      "The backend in-crate tests already pin the constant denial for the no-credential case: flight_recorder.rs ~4276 asserts \"POST runtime_chat_event without binding\" -> StatusCode::FORBIDDEN + HSK-403-PROTECTED-RESOURCE \"must use the constant protected-resource denial\"; ~4970 asserts unscoped/blank-scope reads -> 403 HSK-403-PROTECTED-RESOURCE.",
+      "History: 2e28ff91 feat: MT-109 enforce protected resource grants; ecc2444c fix(MT-109): enforce record-user resource authority. MT-111 AC-111-2 was authored 2026-08-05 against the pre-authority-layer recorder middleware."
+    ],
+    "ruling": "SPEC WINS -> 403 HSK-403-PROTECTED-RESOURCE (constant-shape denial) is the contract for a Flight Recorder request that carries no/invalid session token, on both the ingest and the scoped-read side. This is NOT the spec-silent branch: §2.3.13.12.3(7) governs the denial shape, and the product authority layer plus its own pinned tests implement it. The 401 HSK-401-FR-SESSION wording in MT-111 AC-111-2 / AC-111-4 step 5 and in the flight_recorder.rs module doc-comment (line 10) is stale drift from before the protected-resource layer.",
+    "required_changes": [
+      "MT-111 contract: AC-111-2 and AC-111-4 step 5 are read as \"receives the constant protected-resource denial 403 HSK-403-PROTECTED-RESOURCE and is surfaced to the operator as a typed error rather than a silent drop\". The fail-closed intent and the typed-error surfacing requirement are unchanged; only the status/code literal is corrected. (Amendment recorded here; scope.acceptance_criteria text is preserved as authored.)",
+      "src/frontend/handshake_native/tests/test_flight_recorder_authz.rs steps 1 and 5 (lines ~103-120, ~187-200): expect 403 + HSK-403-PROTECTED-RESOURCE. Routed into the F403 native-unblock builder round together with N1B-P3-F403 (native proof support must obtain a real credential via the /authority/session exchange; it must NOT weaken the authority layer).",
+      "src/backend/handshake_core/src/api/flight_recorder.rs: correct the stale module doc (line 10) and remove or re-wire the now-dead unauthenticated_recorder() so the code carries one denial contract. Backend side, same builder round.",
+      "No middleware reorder. Do NOT introduce a 401 ahead of authorize_request."
+    ],
+    "operator_override": "The Operator may override this ruling; if overridden to 401, the backend in-crate 403 pins at flight_recorder.rs ~4276/~4970 and the constant-shape clause §2.3.13.12.3(7) must be reconciled first.",
+    "status_effect": "lifecycle.status stays BLOCKED_ON_DEPENDENCY (N1B-P3-F403 unresolved). F111 is RESOLVED_BY_RULING pending the code changes above."
   }
 }
