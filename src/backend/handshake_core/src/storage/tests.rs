@@ -30,7 +30,7 @@ use chrono::{Duration, NaiveDate, TimeZone, Utc};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::{Arc, Mutex as StdMutex, OnceLock};
 use std::time::Instant;
 use surrealdb::types::SurrealValue;
 use uuid::Uuid;
@@ -143,46 +143,130 @@ impl TestStoreCleanupGuard {
     }
 }
 
+/// Best-effort teardown for a backend that was dropped instead of closed
+/// through [`EmbeddedTestBackend::close_and_remove`].
+///
+/// This guard MUST NOT panic. A `Drop` that panics while another panic is
+/// unwinding is a double panic, which on Windows is a fail-fast abort
+/// (`0xC0000409`) that kills the whole test binary before libtest can print
+/// the failures section: the original failure loses its evidence and every
+/// test after it never runs (MT-141 validation_v2 V2-F01). A cleanup failure
+/// is therefore reported on stderr with the searchable marker
+/// `HANDSHAKE_TEST_STORE_CLEANUP_FAILURE` and the store directory is preserved
+/// as evidence; it never becomes a test verdict on its own.
+///
+/// The shutdown itself runs on a helper thread so a synchronous `Drop` can
+/// block on it. That is only sound because the store engine task lives on
+/// the harness-owned engine runtime (see [`test_engine_runtime`]) rather than
+/// on the test runtime: the dropping thread is usually the thread that drives
+/// a `current_thread` test runtime, and blocking it while the engine task
+/// needed that same thread was the drain stall that made every Drop-reliant
+/// test time out after `shutdown_wait`.
 impl Drop for TestStoreCleanupGuard {
     fn drop(&mut self) {
         let Some(storage) = self.take_storage() else {
             return;
         };
         let data_dir = self.data_dir.clone();
-        let cleanup = std::thread::Builder::new()
-            .name("handshake-test-store-cleanup".to_owned())
-            .spawn(move || {
-                let runtime = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .map_err(|error| {
-                        StorageError::Database(format!(
-                            "could not build embedded-test cleanup runtime: {error}"
-                        ))
-                    })?;
-                runtime.block_on(shutdown_and_remove_test_store(storage, data_dir))
-            });
-        let result = match cleanup {
-            Ok(thread) => match thread.join() {
-                Ok(result) => result,
-                Err(_) => Err(StorageError::Database(
-                    "embedded-test cleanup thread panicked".to_owned(),
-                )),
-            },
-            Err(error) => Err(StorageError::Database(format!(
-                "could not start embedded-test cleanup thread: {error}"
-            ))),
-        };
+        let result = blocking_shutdown_and_remove_test_store(storage, data_dir.clone());
         if let Err(error) = result {
-            panic!("HANDSHAKE_TEST_STORE_CLEANUP_FAILURE {error}");
+            eprintln!(
+                "HANDSHAKE_TEST_STORE_CLEANUP_FAILURE {error} (store preserved at {}; unwinding={})",
+                data_dir.display(),
+                std::thread::panicking()
+            );
         }
+    }
+}
+
+/// Shuts a test store down and removes its directory from synchronous code.
+///
+/// Runs [`shutdown_and_remove_test_store`] to completion on a dedicated helper
+/// thread with its own `current_thread` runtime and joins it, so it may be
+/// called from `Drop` and from inside any test runtime. Never panics: a
+/// helper-thread panic is converted into an error.
+pub(crate) fn blocking_shutdown_and_remove_test_store(
+    storage: SurrealStorage,
+    data_dir: PathBuf,
+) -> StorageResult<()> {
+    let cleanup = std::thread::Builder::new()
+        .name("handshake-test-store-cleanup".to_owned())
+        .spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|error| {
+                    StorageError::Database(format!(
+                        "could not build embedded-test cleanup runtime: {error}"
+                    ))
+                })?;
+            runtime.block_on(shutdown_and_remove_test_store(storage, data_dir))
+        });
+    match cleanup {
+        Ok(thread) => match thread.join() {
+            Ok(result) => result,
+            Err(_) => Err(StorageError::Database(
+                "embedded-test cleanup thread panicked".to_owned(),
+            )),
+        },
+        Err(error) => Err(StorageError::Database(format!(
+            "could not start embedded-test cleanup thread: {error}"
+        ))),
+    }
+}
+
+/// The runtime that hosts every embedded test store engine task.
+///
+/// `SurrealStorage::open` calls `Surreal::new::<RocksDb>`, and the pinned SDK
+/// spawns the embedded engine router task with `tokio::spawn` onto whichever
+/// runtime is current at that moment (`surrealdb-3.2.0/src/engine/local/
+/// native.rs:43`). Every later query is a message to that task, including the
+/// `RETURN true` flush barrier that `SurrealStorage::shutdown` sends before
+/// dropping the sole client. If the task is hosted by the test runtime
+/// (`#[tokio::test]` is `current_thread` by default) then any shutdown that
+/// blocks the test thread (the `Drop` guard above, or a helper thread joined
+/// from the test body) can never be answered: the only thread able to poll
+/// the router is the one waiting for it. That deadlock surfaced as
+/// `embedded database shutdown is still draining operations after 30000 ms`
+/// on every Drop-reliant test (MT-141 validation_v2 V2-F01).
+///
+/// Opening the store from this harness-owned multi-thread runtime pins the
+/// engine task to worker threads no test ever blocks, so shutdown completes
+/// from a synchronous `Drop`, from a `current_thread` test runtime, and
+/// during unwinding alike. Data operations are unaffected: they already
+/// crossed a channel to the router task. The runtime lives for the whole test
+/// process; it is intentionally never dropped.
+pub(crate) fn test_engine_runtime() -> &'static tokio::runtime::Runtime {
+    static ENGINE_RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+    ENGINE_RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .thread_name("handshake-test-store-engine")
+            .enable_all()
+            .build()
+            .expect("build the embedded-test store engine runtime")
+    })
+}
+
+/// Opens a store whose engine task is hosted by [`test_engine_runtime`].
+pub(crate) async fn open_test_storage_on_engine_runtime(
+    config: SurrealStorageConfig,
+) -> StorageResult<SurrealStorage> {
+    match test_engine_runtime()
+        .spawn(SurrealStorage::open(config))
+        .await
+    {
+        Ok(opened) => opened.map_err(|error| StorageError::Database(error.to_string())),
+        Err(join_error) => Err(StorageError::Database(format!(
+            "embedded-test store open task failed on the engine runtime: {join_error}"
+        ))),
     }
 }
 
 impl EmbeddedTestBackend {
     pub(crate) async fn reopen_storage(&self) -> StorageResult<SurrealStorage> {
         self.storage.shutdown().await?;
-        let reopened = SurrealStorage::open(self.storage.config().clone()).await?;
+        let reopened = open_test_storage_on_engine_runtime(self.storage.config().clone()).await?;
         let mut owner = match self.cleanup.storage.lock() {
             Ok(owner) => owner,
             Err(poisoned) => poisoned.into_inner(),
@@ -299,7 +383,7 @@ async fn open_embedded_test_backend(
     })?;
     let config = SurrealStorageConfig::for_data_dir(&data_dir)
         .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
-    let storage = SurrealStorage::open(config)
+    let storage = open_test_storage_on_engine_runtime(config)
         .await
         .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
     let database = SurrealDatabase::new(storage.clone());
