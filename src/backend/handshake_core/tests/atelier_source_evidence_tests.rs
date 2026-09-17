@@ -659,7 +659,10 @@ async fn mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_sche
     // parser AST snapshot -> MT-008).
     let inspector = _harness.storage.test_inspector();
     for (anchor_id, table) in [
-        ("ANCHOR-MT-018-review-metadata", "atelier_media_review_metadata"),
+        (
+            "ANCHOR-MT-018-review-metadata",
+            "atelier_media_review_metadata",
+        ),
         ("ANCHOR-MT-008-sheet-parser", "atelier_sheet_parse_snapshot"),
     ] {
         assert!(
@@ -676,7 +679,9 @@ async fn mt002_core_data_verified_anchor_migrations_are_applied_in_embedded_sche
         let catalog = inspector
             .table_catalog(table)
             .await
-            .unwrap_or_else(|error| panic!("anchored table {table} must exist in the live store: {error}"));
+            .unwrap_or_else(|error| {
+                panic!("anchored table {table} must exist in the live store: {error}")
+            });
         assert!(
             !catalog.fields.is_empty(),
             "anchored table {table} must carry its schema fields in the live store"

@@ -241,9 +241,9 @@ async fn rows_referencing_workspace(
     )
     .await
     .expect("project workspace references")
-        .into_iter()
-        .filter(|row| row.values[field].to_string().contains(workspace_id))
-        .count()
+    .into_iter()
+    .filter(|row| row.values[field].to_string().contains(workspace_id))
+    .count()
 }
 
 fn is_workspace_not_found(error: &StorageError) -> bool {
@@ -255,8 +255,7 @@ fn is_workspace_not_found(error: &StorageError) -> bool {
 /// converges, and the insert either committed first (and was cascaded) or
 /// failed closed with the typed NotFound.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn workspace_delete_racing_proposal_insert_never_leaves_an_orphan_without_the_static_lock(
-) {
+async fn workspace_delete_racing_proposal_insert_never_leaves_an_orphan_without_the_static_lock() {
     whole_test(
         "workspace_delete_racing_proposal_insert_never_leaves_an_orphan_without_the_static_lock",
         workspace_delete_racing_proposal_insert_body(open_store_measured().await),
@@ -279,8 +278,16 @@ async fn workspace_delete_racing_proposal_insert_body(store: SwarmStore) {
         seed_source_block(&store, &workspace_id, &format!("race-{iteration}")).await;
         let (proposal, receipt) = stored_proposal(&workspace_id, &format!("race-{iteration}"));
         let barrier = Arc::new(Barrier::new(2));
-        let delete_db = if iteration % 2 == 0 { disabled.clone() } else { keyed.clone() };
-        let insert_db = if iteration % 2 == 0 { keyed.clone() } else { disabled.clone() };
+        let delete_db = if iteration % 2 == 0 {
+            disabled.clone()
+        } else {
+            keyed.clone()
+        };
+        let insert_db = if iteration % 2 == 0 {
+            keyed.clone()
+        } else {
+            disabled.clone()
+        };
 
         let delete_task = {
             let barrier = Arc::clone(&barrier);
@@ -363,9 +370,13 @@ async fn workspace_delete_racing_proposal_insert_body(store: SwarmStore) {
         "MT152_D146_1_RACE inserted_first={inserted_first} failed_closed={failed_closed} iterations={RACE_ITERATIONS}"
     );
     assert_eq!(inserted_first + failed_closed, RACE_ITERATIONS);
-    op_within("close_and_remove", PER_OPERATION_TIMEOUT, store.close_and_remove())
-        .await
-        .expect("close and remove the guard-proof store");
+    op_within(
+        "close_and_remove",
+        PER_OPERATION_TIMEOUT,
+        store.close_and_remove(),
+    )
+    .await
+    .expect("close and remove the guard-proof store");
 }
 
 /// A proposal inserted into a live workspace is visible, and a later delete of
@@ -445,9 +456,13 @@ async fn proposal_insert_then_workspace_delete_body(store: SwarmStore) {
     .await
     .expect_err("insert into a deleted workspace must fail closed");
     assert!(is_workspace_not_found(&after), "got {after}");
-    op_within("close_and_remove", PER_OPERATION_TIMEOUT, store.close_and_remove())
-        .await
-        .expect("close and remove the guard-proof store");
+    op_within(
+        "close_and_remove",
+        PER_OPERATION_TIMEOUT,
+        store.close_and_remove(),
+    )
+    .await
+    .expect("close and remove the guard-proof store");
 }
 
 fn stage_receipt(event_type: KernelEventType, idempotency_key: &str) -> NewKernelEvent {
@@ -466,7 +481,11 @@ fn stage_receipt(event_type: KernelEventType, idempotency_key: &str) -> NewKerne
     .expect("valid stage proof event")
 }
 
-fn stage_input(workspace_id: &str, idempotency_key: &str, request: &str) -> NewStageCaptureArtifact {
+fn stage_input(
+    workspace_id: &str,
+    idempotency_key: &str,
+    request: &str,
+) -> NewStageCaptureArtifact {
     NewStageCaptureArtifact {
         workspace_id: workspace_id.to_owned(),
         content_kind: "canvas_node".to_owned(),
@@ -550,8 +569,14 @@ async fn stage_inserts_with_one_idempotency_key_body(store: SwarmStore) {
             }))
         });
         let [left, right] = racers;
-        let left = left.await.expect("stage racer").expect("stage insert converges");
-        let right = right.await.expect("stage racer").expect("stage insert converges");
+        let left = left
+            .await
+            .expect("stage racer")
+            .expect("stage insert converges");
+        let right = right
+            .await
+            .expect("stage racer")
+            .expect("stage insert converges");
         assert_eq!(
             left.artifact.artifact_id, right.artifact.artifact_id,
             "iteration {iteration}: both racers must resolve to the one stored artifact"
@@ -572,14 +597,15 @@ async fn stage_inserts_with_one_idempotency_key_body(store: SwarmStore) {
         assert_eq!(stored.idempotency_key, key);
 
         // The same key with a different request is the typed conflict, from either wrapper.
-        let conflict = op_within(
-            "insert_stage_artifact (hash mismatch)",
-            PER_OPERATION_TIMEOUT,
-            StageArtifactStore::with_database(disabled.clone())
-                .insert_stage_artifact(stage_input(&workspace_id, &key, "a different request")),
-        )
-        .await
-        .expect_err("request-hash mismatch must be rejected");
+        let conflict =
+            op_within(
+                "insert_stage_artifact (hash mismatch)",
+                PER_OPERATION_TIMEOUT,
+                StageArtifactStore::with_database(disabled.clone())
+                    .insert_stage_artifact(stage_input(&workspace_id, &key, "a different request")),
+            )
+            .await
+            .expect_err("request-hash mismatch must be rejected");
         assert!(
             matches!(
                 conflict,
@@ -600,21 +626,27 @@ async fn stage_inserts_with_one_idempotency_key_body(store: SwarmStore) {
         PER_OPERATION_TIMEOUT,
         inspector.project(
             &table,
-            &[table.field("idempotency_key").expect("idempotency_key field")],
+            &[table
+                .field("idempotency_key")
+                .expect("idempotency_key field")],
             RowFilter::All,
         ),
     )
     .await
     .expect("project artifacts")
-        .into_iter()
-        .map(|row| artifact_count_value(&row.values["idempotency_key"]))
-        .collect();
+    .into_iter()
+    .map(|row| artifact_count_value(&row.values["idempotency_key"]))
+    .collect();
     assert_eq!(
         keys.len(),
         RACE_ITERATIONS,
         "one artifact per idempotency key: {keys:?}"
     );
-    op_within("close_and_remove", PER_OPERATION_TIMEOUT, store.close_and_remove())
-        .await
-        .expect("close and remove the guard-proof store");
+    op_within(
+        "close_and_remove",
+        PER_OPERATION_TIMEOUT,
+        store.close_and_remove(),
+    )
+    .await
+    .expect("close and remove the guard-proof store");
 }

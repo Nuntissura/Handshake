@@ -8,8 +8,8 @@ use sha2::{Digest, Sha256};
 
 use handshake_core::{
     inspector_read::{
-        EventLedgerRow, InspectorReadSnapshot, InspectorServer, InspectorTraceProjection, SessionId,
-        PER_RUN_SECRET_HEADER,
+        EventLedgerRow, InspectorReadSnapshot, InspectorServer, InspectorTraceProjection,
+        SessionId, PER_RUN_SECRET_HEADER,
     },
     kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent},
 };

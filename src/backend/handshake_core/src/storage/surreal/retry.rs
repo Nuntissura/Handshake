@@ -467,7 +467,8 @@ impl<E: fmt::Display> fmt::Display for RetryError<E> {
 
 impl<E: std::error::Error + 'static> std::error::Error for RetryError<E> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.error().map(|error| error as &(dyn std::error::Error + 'static))
+        self.error()
+            .map(|error| error as &(dyn std::error::Error + 'static))
     }
 }
 
@@ -683,7 +684,11 @@ where
 /// * with no caller deadline, `maximum_elapsed` remains the wall-clock bound,
 ///   so an unbounded caller can never run `maximum_attempts` slow attempts
 ///   back to back.
-fn effective_deadline(policy: &RetryPolicy, ctx: &RetryContext, started: Instant) -> Option<Instant> {
+fn effective_deadline(
+    policy: &RetryPolicy,
+    ctx: &RetryContext,
+    started: Instant,
+) -> Option<Instant> {
     ctx.deadline
         .or_else(|| started.checked_add(policy.maximum_elapsed))
 }
@@ -763,10 +768,7 @@ pub fn classify_surreal_error(error: &surrealdb::Error) -> RetryClass {
 }
 
 fn is_typed_transaction_conflict(error: &surrealdb::Error) -> bool {
-    matches!(
-        error.query_details(),
-        Some(QueryError::TransactionConflict)
-    )
+    matches!(error.query_details(), Some(QueryError::TransactionConflict))
 }
 
 fn carries_conflict_message(error: &surrealdb::Error) -> bool {
@@ -1160,8 +1162,14 @@ mod tests {
         .await;
         assert!(matches!(result, Ok(9)));
         assert_eq!(seen.len(), 4);
-        assert_eq!(seen.iter().map(|a| a.number).collect::<Vec<_>>(), vec![1, 2, 3, 4]);
-        assert_eq!(seen.iter().map(|a| a.retries).collect::<Vec<_>>(), vec![0, 1, 2, 3]);
+        assert_eq!(
+            seen.iter().map(|a| a.number).collect::<Vec<_>>(),
+            vec![1, 2, 3, 4]
+        );
+        assert_eq!(
+            seen.iter().map(|a| a.retries).collect::<Vec<_>>(),
+            vec![0, 1, 2, 3]
+        );
         assert_eq!(clock.recorded_sleeps(), ms_list(&[5, 10, 20]));
     }
 
@@ -1200,7 +1208,10 @@ mod tests {
             elapsed: ms(3),
             error: StorageError::Conflict("terminal-marker"),
         });
-        assert!(matches!(terminal, StorageError::Conflict("terminal-marker")));
+        assert!(matches!(
+            terminal,
+            StorageError::Conflict("terminal-marker")
+        ));
 
         let cancelled = retry_error_to_storage(RetryError::Cancelled {
             attempts: 2,
@@ -1423,7 +1434,9 @@ mod tests {
         )
         .await;
         match result {
-            Err(RetryError::Exhausted { bound, attempts, .. }) => {
+            Err(RetryError::Exhausted {
+                bound, attempts, ..
+            }) => {
                 assert_eq!(bound, ExhaustionBound::MaxElapsed);
                 assert!(
                     (1..=RetryPolicy::CONTRACT.maximum_attempts).contains(&attempts),
@@ -1481,7 +1494,11 @@ mod tests {
             "{result:?}"
         );
         assert_eq!(starts, vec![Duration::ZERO]);
-        assert_eq!(clock.elapsed(), ms(100), "the loop stops exactly at the deadline");
+        assert_eq!(
+            clock.elapsed(),
+            ms(100),
+            "the loop stops exactly at the deadline"
+        );
     }
 
     /// Regression guard for the review's open MAJOR: an attempt may legitimately
@@ -1550,7 +1567,10 @@ mod tests {
             }
             other => panic!("expected NoRetryWindow, got {other:?}"),
         }
-        assert!(clock.recorded_sleeps().is_empty(), "no replay was scheduled");
+        assert!(
+            clock.recorded_sleeps().is_empty(),
+            "no replay was scheduled"
+        );
 
         // A budget that admits replays reports genuine exhaustion instead.
         let clock = VirtualClock::new();
@@ -1633,7 +1653,10 @@ mod tests {
             scripted(vec![Ok(1)], &mut seen),
         )
         .await;
-        assert!(matches!(result, Err(RetryError::Cancelled { attempts: 0, .. })));
+        assert!(matches!(
+            result,
+            Err(RetryError::Cancelled { attempts: 0, .. })
+        ));
         assert!(seen.is_empty());
     }
 
@@ -1657,7 +1680,10 @@ mod tests {
             },
         )
         .await;
-        assert!(matches!(result, Err(RetryError::Cancelled { attempts: 1, .. })));
+        assert!(matches!(
+            result,
+            Err(RetryError::Cancelled { attempts: 1, .. })
+        ));
         assert_eq!(clock.sleeps_started(), 1);
     }
 
@@ -1777,7 +1803,10 @@ mod tests {
             "anything".to_string(),
             Some(QueryError::TransactionConflict),
         );
-        assert_eq!(classify_surreal_error(&error), RetryClass::RetryableTransient);
+        assert_eq!(
+            classify_surreal_error(&error),
+            RetryClass::RetryableTransient
+        );
     }
 
     #[test]
@@ -1787,22 +1816,35 @@ mod tests {
             RetryClass::RetryableTransient
         );
         let commit_row = surrealdb::Error::query(
-            "Cannot COMMIT: Transaction conflict: Resource busy. This transaction can be retried".to_string(),
+            "Cannot COMMIT: Transaction conflict: Resource busy. This transaction can be retried"
+                .to_string(),
             Some(QueryError::NotExecuted),
         );
-        assert_eq!(classify_surreal_error(&commit_row), RetryClass::RetryableTransient);
+        assert_eq!(
+            classify_surreal_error(&commit_row),
+            RetryClass::RetryableTransient
+        );
         let client_side = surrealdb::Error::internal(
             "Transaction conflict: Operation failed. Try again.: insufficient history. This transaction can be retried".to_string(),
         );
-        assert_eq!(classify_surreal_error(&client_side), RetryClass::RetryableTransient);
+        assert_eq!(
+            classify_surreal_error(&client_side),
+            RetryClass::RetryableTransient
+        );
     }
 
     #[test]
     fn classify_surreal_error_accepts_unwrapped_rocksdb_status_only() {
         let busy = surrealdb::Error::internal("Resource busy: ".to_string());
-        assert_eq!(classify_surreal_error(&busy), RetryClass::RetryableTransient);
+        assert_eq!(
+            classify_surreal_error(&busy),
+            RetryClass::RetryableTransient
+        );
         let try_again = surrealdb::Error::internal("Operation failed. Try again.".to_string());
-        assert_eq!(classify_surreal_error(&try_again), RetryClass::RetryableTransient);
+        assert_eq!(
+            classify_surreal_error(&try_again),
+            RetryClass::RetryableTransient
+        );
         let wrapped = surrealdb::Error::internal(
             "IO error: Failed to create lock file: store/LOCK (Resource busy)".to_string(),
         );
@@ -1813,7 +1855,10 @@ mod tests {
     fn classify_surreal_error_inspects_the_cause_chain() {
         let outer = surrealdb::Error::internal("router relay".to_string())
             .with_cause(conflict_not_executed());
-        assert_eq!(classify_surreal_error(&outer), RetryClass::RetryableTransient);
+        assert_eq!(
+            classify_surreal_error(&outer),
+            RetryClass::RetryableTransient
+        );
     }
 
     #[test]
@@ -1838,7 +1883,11 @@ mod tests {
             surrealdb::Error::internal("Failed to send command".to_string()),
         ];
         for error in cases {
-            assert_eq!(classify_surreal_error(&error), RetryClass::Terminal, "{error:?}");
+            assert_eq!(
+                classify_surreal_error(&error),
+                RetryClass::Terminal,
+                "{error:?}"
+            );
         }
     }
 
@@ -1850,14 +1899,20 @@ mod tests {
             RetryClass::RetryableTransient
         );
         let commit = SurrealStorageError::TransactionCommit(conflict_not_executed());
-        assert_eq!(classify_surreal_storage_error(&commit), RetryClass::RetryableTransient);
+        assert_eq!(
+            classify_surreal_storage_error(&commit),
+            RetryClass::RetryableTransient
+        );
         assert_eq!(
             classify_surreal_storage_error(&SurrealStorageError::Closed),
             RetryClass::Terminal
         );
 
         let rendered = StorageError::from(transient);
-        assert_eq!(classify_storage_error(&rendered), RetryClass::RetryableTransient);
+        assert_eq!(
+            classify_storage_error(&rendered),
+            RetryClass::RetryableTransient
+        );
         assert_eq!(
             classify_storage_error(&StorageError::Conflict("stale")),
             RetryClass::Terminal
@@ -1931,7 +1986,10 @@ mod tests {
             );
         }
         assert!(TRANSACTION_CONFLICT_MARKER.starts_with("Transaction conflict:"));
-        assert_eq!(TRANSACTION_RETRYABLE_MARKER, "This transaction can be retried");
+        assert_eq!(
+            TRANSACTION_RETRYABLE_MARKER,
+            "This transaction can be retried"
+        );
     }
 
     #[test]
@@ -1942,9 +2000,18 @@ mod tests {
             ),
             Some("uq_knowledge_entities_identity".to_string())
         );
-        assert_eq!(is_unique_index_violation("Database index `` already contains"), None);
-        assert_eq!(is_unique_index_violation("Database index `x` is missing"), None);
-        assert_eq!(is_unique_index_violation("Transaction conflict: Resource busy"), None);
+        assert_eq!(
+            is_unique_index_violation("Database index `` already contains"),
+            None
+        );
+        assert_eq!(
+            is_unique_index_violation("Database index `x` is missing"),
+            None
+        );
+        assert_eq!(
+            is_unique_index_violation("Transaction conflict: Resource busy"),
+            None
+        );
     }
 
     /// MT-151 I-151-6: the retry budget's zero-remaining branch. When the
@@ -1992,7 +2059,10 @@ mod tests {
 
         match outcome {
             Err(SurrealStorageError::StatementBudgetExhausted { budget_ms }) => {
-                assert_eq!(budget_ms, 1_500, "budget_ms is the configured statement timeout");
+                assert_eq!(
+                    budget_ms, 1_500,
+                    "budget_ms is the configured statement timeout"
+                );
             }
             other => panic!("expected StatementBudgetExhausted, got {other:?}"),
         }

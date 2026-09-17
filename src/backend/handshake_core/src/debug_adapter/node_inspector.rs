@@ -552,8 +552,23 @@ fn percent_encode_file_path(path: &str) -> String {
         let keep = byte.is_ascii_alphanumeric()
             || matches!(
                 byte,
-                b'/' | b':' | b'-' | b'.' | b'_' | b'~' | b'!' | b'$' | b'&' | b'\'' | b'('
-                    | b')' | b'*' | b'+' | b',' | b';' | b'=' | b'@'
+                b'/' | b':'
+                    | b'-'
+                    | b'.'
+                    | b'_'
+                    | b'~'
+                    | b'!'
+                    | b'$'
+                    | b'&'
+                    | b'\''
+                    | b'('
+                    | b')'
+                    | b'*'
+                    | b'+'
+                    | b','
+                    | b';'
+                    | b'='
+                    | b'@'
             );
         if keep {
             encoded.push(byte as char);

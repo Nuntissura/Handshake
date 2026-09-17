@@ -483,10 +483,8 @@ impl SurrealStorage {
         // MT-141 V2-R3: a replacement racing the parent document's delete
         // collides at commit; the losing replacement wrote nothing and re-runs,
         // observing the committed state (document gone -> typed NotFound).
-        let result = retry_transaction_conflicts(
-            self,
-            format!("blocks-replace:{document_id}"),
-            || {
+        let result =
+            retry_transaction_conflicts(self, format!("blocks-replace:{document_id}"), || {
                 let document_id = document_id.clone();
                 let replacements = replacements.clone();
                 let document_trace = document_trace.clone();
@@ -500,9 +498,8 @@ impl SurrealStorage {
                     })
                     .await
                 }
-            },
-        )
-        .await;
+            })
+            .await;
         match result {
             Ok(blocks) => Ok(blocks),
             Err(error) if error.to_string().contains("HSK-SURREAL-DOCUMENT-NOT-FOUND") => {

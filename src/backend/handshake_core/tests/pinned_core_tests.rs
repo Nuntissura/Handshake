@@ -280,14 +280,18 @@ fn pinned_migration_source_scan_is_guarded_for_memory_item_table() {
     assert!(schema.contains("DEFINE TABLE OVERWRITE kernel_event_ledger"));
     assert!(
         !schema.contains("DEFINE TABLE OVERWRITE memory_item ")
-            && !schema.contains("DEFINE TABLE OVERWRITE memory_item
-")
+            && !schema.contains(
+                "DEFINE TABLE OVERWRITE memory_item
+"
+            )
             && !schema.contains("DEFINE TABLE OVERWRITE memory_pin"),
         "pin state must stay ledger-derived: no memory_item/memory_pin table"
     );
     assert!(!schema.to_ascii_lowercase().contains("sqlite"));
     assert!(pinned_core.contains("MEMORY_PIN_AGGREGATE_TYPE: &str = \"memory_item\""));
-    assert!(pinned_core.contains("PIN_MEMORY_PAYLOAD_SCHEMA_ID: &str = \"hsk.memory_pin.payload@1\""));
+    assert!(
+        pinned_core.contains("PIN_MEMORY_PAYLOAD_SCHEMA_ID: &str = \"hsk.memory_pin.payload@1\"")
+    );
     assert!(pinned_core.contains("MEMORY_PIN_MANIFEST_AGGREGATE_TYPE"));
 }
 

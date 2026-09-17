@@ -3737,9 +3737,11 @@ fn database_trait_purity_source_regressions() {
     // `api/loom.rs` carries small `#[cfg(test)]` modules in the middle of its production
     // code (MT-149 storage-error mapping tests); the production surface under audit is
     // everything outside `#[cfg(test)]` modules, not the prefix before the first one.
-    let loom_api_source = include_str!("../api/loom.rs").replace("
+    let loom_api_source = include_str!("../api/loom.rs").replace(
+        "
 ", "
-");
+",
+    );
     let loom_api_prod = production_slices(&loom_api_source);
     let loom_api_prod = loom_api_prod.as_str();
     let retention_prod = include_str!("retention.rs");

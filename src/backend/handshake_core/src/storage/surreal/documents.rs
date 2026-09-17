@@ -181,17 +181,18 @@ impl SurrealStorage {
         let doc_id = doc_id.to_owned();
         // MT-141 V2-R3: a delete racing a block replacement on the same document
         // collides at commit; the losing delete wrote nothing and re-runs.
-        let deleted = retry_transaction_conflicts(self, format!("document-delete:{doc_id}"), || {
-            let doc_id = doc_id.clone();
-            async move {
-                self.with_data_operation(move |database| {
-                    Box::pin(async move { database.delete_document_record(&doc_id).await })
-                })
-                .await
-            }
-        })
-        .await
-        .map_err(map_storage_error)?;
+        let deleted =
+            retry_transaction_conflicts(self, format!("document-delete:{doc_id}"), || {
+                let doc_id = doc_id.clone();
+                async move {
+                    self.with_data_operation(move |database| {
+                        Box::pin(async move { database.delete_document_record(&doc_id).await })
+                    })
+                    .await
+                }
+            })
+            .await
+            .map_err(map_storage_error)?;
         if !deleted {
             return Err(StorageError::NotFound("document"));
         }

@@ -595,7 +595,9 @@ impl SharedCrdtWorkspace {
             *field_attempts.entry(update.field_id.as_str()).or_default() += 1;
         }
         for conflict in &state.conflicts {
-            *field_attempts.entry(conflict.field_id.as_str()).or_default() += 1;
+            *field_attempts
+                .entry(conflict.field_id.as_str())
+                .or_default() += 1;
         }
         for rejection in &state.rejections {
             *field_attempts

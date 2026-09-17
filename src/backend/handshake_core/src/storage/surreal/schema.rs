@@ -6187,7 +6187,11 @@ mod tests {
                 PRE_MT141_BLOCK_VIEW_OUTBOX_BLOCK_LINE,
             ),
         ] {
-            assert_eq!(SCHEMA.matches(current).count(), 1, "MT-141 line drifted: {current}");
+            assert_eq!(
+                SCHEMA.matches(current).count(),
+                1,
+                "MT-141 line drifted: {current}"
+            );
             assert_eq!(SCHEMA.matches(previous).count(), 0);
         }
         assert_eq!(

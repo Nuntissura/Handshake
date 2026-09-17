@@ -12,13 +12,13 @@ use handshake_core::{
     },
     memory::{
         CapsuleAuditEntry, CapsuleAuditLog, CapsuleRecord, CapsuleRecorder, DegradationTier,
-        KernelActionRejection, KernelActionSubmission, KernelActionSubmitter,
-        MEMORY_CAPSULE_RECORD_ACTION_ID, MEMORY_CAPSULE_RECORD_INPUT_SCHEMA_ID,
-        MEMORY_CAPSULE_RECORD_PAYLOAD_SCHEMA_ID, MemoryCapsule, RecorderError, RetrievalPolicy,
-        TaskType, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
+        KernelActionRejection, KernelActionSubmission, KernelActionSubmitter, MemoryCapsule,
+        RecorderError, RetrievalPolicy, TaskType, MEMORY_CAPSULE_RECORD_ACTION_ID,
+        MEMORY_CAPSULE_RECORD_INPUT_SCHEMA_ID, MEMORY_CAPSULE_RECORD_PAYLOAD_SCHEMA_ID,
+        WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
     },
 };
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use uuid::Uuid;
 
 #[derive(Default)]

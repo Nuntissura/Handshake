@@ -571,8 +571,7 @@ fn mt_228_229_source_tripwires_are_wired_into_dependency_policy_check_path() {
 #[test]
 fn mt_228_229_node_dependency_policy_validator_missing_file_probe_fails_closed() {
     let repo_root = repo_root_from_manifest_dir();
-    let missing = test_fixture_root()
-        .join("mt-228-229-missing-source-probe.ts");
+    let missing = test_fixture_root().join("mt-228-229-missing-source-probe.ts");
 
     require_node_probe_dependencies(&repo_root);
     let output = Command::new("node")
