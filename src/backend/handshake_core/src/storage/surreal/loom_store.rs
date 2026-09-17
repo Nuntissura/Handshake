@@ -2371,11 +2371,7 @@ pub(crate) async fn search_loom_blocks(
         if fuzzy_query.is_none() && !matcher(&searchable) && !matcher(&block.block_id) {
             continue;
         }
-        let score = (if block.pinned { 5.0 } else { 0.0 })
-            + (if block.favorite { 3.0 } else { 0.0 })
-            + block.derived.tag_count.clamp(0, 10) as f64 * 1.5
-            + block.derived.backlink_count.clamp(0, 10) as f64
-            + fuzzy_score.unwrap_or(1.0);
+        let score = loom_retrieval_bias_score(&block) + fuzzy_score.unwrap_or(1.0);
         results.push(LoomBlockSearchResult { block, score });
     }
     results.sort_by(|left, right| {
@@ -2390,6 +2386,98 @@ pub(crate) async fn search_loom_blocks(
         .skip(offset as usize)
         .take(limit as usize)
         .collect())
+}
+
+/// MT-189 Loom retrieval-bias visibility: every LoomBlock graph-search hit
+/// carries the typed `hsk.loom_retrieval_bias@1` metadata (schema id, the
+/// bias-inclusive score and the per-signal reasons) so the frontend and the
+/// visual-debug snapshot (`visual_debug_store::search_summary`) can explain why
+/// a hit outranks a newer plain block. The PostgreSQL-era writer emitted this
+/// block; the SurrealDB port dropped it (MT-141 V2 red 422, restored here with
+/// the same weights `search_loom_blocks` ranks by).
+const LOOM_RETRIEVAL_BIAS_SCHEMA_ID: &str = "hsk.loom_retrieval_bias@1";
+const LOOM_RETRIEVAL_BIAS_PINNED_WEIGHT: f64 = 5.0;
+const LOOM_RETRIEVAL_BIAS_FAVORITE_WEIGHT: f64 = 3.0;
+const LOOM_RETRIEVAL_BIAS_TAG_WEIGHT: f64 = 1.5;
+const LOOM_RETRIEVAL_BIAS_BACKLINK_WEIGHT: f64 = 1.0;
+const LOOM_RETRIEVAL_BIAS_COUNT_CAP: i64 = 10;
+
+fn loom_retrieval_bias_count(value: i64) -> i64 {
+    value.clamp(0, LOOM_RETRIEVAL_BIAS_COUNT_CAP)
+}
+
+fn loom_retrieval_bias_score(block: &LoomBlock) -> f64 {
+    let mut score = 0.0;
+    if block.pinned {
+        score += LOOM_RETRIEVAL_BIAS_PINNED_WEIGHT;
+    }
+    if block.favorite {
+        score += LOOM_RETRIEVAL_BIAS_FAVORITE_WEIGHT;
+    }
+    score +=
+        loom_retrieval_bias_count(block.derived.tag_count) as f64 * LOOM_RETRIEVAL_BIAS_TAG_WEIGHT;
+    score += loom_retrieval_bias_count(block.derived.backlink_count) as f64
+        * LOOM_RETRIEVAL_BIAS_BACKLINK_WEIGHT;
+    score
+}
+
+fn loom_retrieval_bias_reasons(block: &LoomBlock) -> Vec<JsonValue> {
+    let mut reasons = Vec::new();
+    if block.pinned {
+        reasons.push(json!({
+            "code": "pinned",
+            "label": "Pinned Loom block",
+            "weight": LOOM_RETRIEVAL_BIAS_PINNED_WEIGHT,
+            "evidence_ref": "loom_blocks.pinned",
+        }));
+    }
+    if block.favorite {
+        reasons.push(json!({
+            "code": "favorite",
+            "label": "Favorite Loom block",
+            "weight": LOOM_RETRIEVAL_BIAS_FAVORITE_WEIGHT,
+            "evidence_ref": "loom_blocks.favorite",
+        }));
+    }
+    let raw_tag_count = block.derived.tag_count.max(0);
+    let score_tag_count = loom_retrieval_bias_count(raw_tag_count);
+    if raw_tag_count > 0 {
+        reasons.push(json!({
+            "code": "tagged",
+            "label": "Tagged Loom block",
+            "weight": score_tag_count as f64 * LOOM_RETRIEVAL_BIAS_TAG_WEIGHT,
+            "evidence_ref": "loom_blocks.tag_count",
+            "count": raw_tag_count,
+            "score_count": score_tag_count,
+            "score_count_cap": LOOM_RETRIEVAL_BIAS_COUNT_CAP,
+        }));
+    }
+    let raw_backlink_count = block.derived.backlink_count.max(0);
+    let score_backlink_count = loom_retrieval_bias_count(raw_backlink_count);
+    if raw_backlink_count > 0 {
+        reasons.push(json!({
+            "code": "backlinked",
+            "label": "Backlinked Loom block",
+            "weight": score_backlink_count as f64 * LOOM_RETRIEVAL_BIAS_BACKLINK_WEIGHT,
+            "evidence_ref": "loom_blocks.backlink_count",
+            "count": raw_backlink_count,
+            "score_count": score_backlink_count,
+            "score_count_cap": LOOM_RETRIEVAL_BIAS_COUNT_CAP,
+        }));
+    }
+    reasons
+}
+
+fn loom_retrieval_bias_metadata(block: &LoomBlock, score: f64) -> JsonValue {
+    json!({
+        "authority_table": "loom_blocks",
+        "content_type": block.content_type.as_str(),
+        "backlink_count": block.derived.backlink_count,
+        "tag_count": block.derived.tag_count,
+        "retrieval_bias_schema_id": LOOM_RETRIEVAL_BIAS_SCHEMA_ID,
+        "retrieval_bias_score": score,
+        "retrieval_bias_reasons": loom_retrieval_bias_reasons(block),
+    })
 }
 
 pub(crate) async fn search_loom_graph(
@@ -2443,12 +2531,7 @@ pub(crate) async fn search_loom_graph(
                     .as_deref()
                     .map(loom_search_excerpt)
                     .unwrap_or_default(),
-                metadata: json!({
-                    "authority_table": "loom_blocks",
-                    "content_type": block.content_type.as_str(),
-                    "backlink_count": block.derived.backlink_count,
-                    "tag_count": block.derived.tag_count,
-                }),
+                metadata: loom_retrieval_bias_metadata(&block, row.score),
                 block: Some(block),
                 score: row.score,
             });

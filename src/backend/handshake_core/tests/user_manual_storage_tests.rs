@@ -73,29 +73,35 @@ async fn manual_receipt_exists(db: &SurrealDatabase, event_id: &str) -> bool {
 
 async fn remove_route_anchor_via_typed_store(db: &SurrealDatabase, route: &str) -> bool {
     // MT-141 disposition: the public typed store has no child-anchor delete
-    // operation. Re-seed one canonical page through its typed API with this
-    // route anchor removed; freshness still proves uncovered-surface detection
-    // and the subsequent seed proves healing.
+    // operation. Re-seed every canonical page that carries this route anchor
+    // through its typed API with the anchor removed (the PostgreSQL-era fixture
+    // deleted the anchor rows across all pages; a surface counts as covered
+    // while ANY page anchors it, so removing it from one page of two proves
+    // nothing); freshness still proves uncovered-surface detection and the
+    // subsequent seed proves healing.
     let mut corpus = seed_corpus();
-    let page = corpus
-        .pages
-        .iter_mut()
-        .find(|page| {
-            page.anchors
-                .iter()
-                .any(|anchor| anchor.anchor_kind == "http_route" && anchor.anchor_value == route)
-        })
-        .expect("route anchor exists in seed corpus");
-    let before = page.anchors.len();
-    page.anchors
-        .retain(|anchor| !(anchor.anchor_kind == "http_route" && anchor.anchor_value == route));
-    assert_eq!(page.anchors.len(), before - 1);
     let store = UserManualStore::new(db);
-    let (_, changed) = store
-        .upsert_page(page, USER_MANUAL_VERSION, "current")
-        .await
-        .expect("remove route anchor through typed store");
-    changed
+    let mut removed_from_pages = 0usize;
+    let mut changed_any = false;
+    for page in corpus.pages.iter_mut() {
+        let before = page.anchors.len();
+        page.anchors
+            .retain(|anchor| !(anchor.anchor_kind == "http_route" && anchor.anchor_value == route));
+        if page.anchors.len() == before {
+            continue;
+        }
+        removed_from_pages += 1;
+        let (_, changed) = store
+            .upsert_page(page, USER_MANUAL_VERSION, "current")
+            .await
+            .expect("remove route anchor through typed store");
+        changed_any |= changed;
+    }
+    assert!(
+        removed_from_pages > 0,
+        "route anchor {route} exists in the seed corpus"
+    );
+    changed_any
 }
 
 // ---------------------------------------------------------------------------

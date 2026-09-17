@@ -101,6 +101,13 @@ async fn index_fixture(backend: &ManualTestBackend) -> String {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn mt045_lc06_500_file_code_nav_index_is_embedded_surrealdb_bounded() {
+    // Capture the route's per-stage timings (`code_nav_index_stage_completed`,
+    // `knowledge_code_index_batch_stage_completed`) in the test output so a
+    // budget miss names the slow stage instead of only the total (MT-141 V2-R6).
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter("handshake_core::code_nav_index=info")
+        .with_test_writer()
+        .try_init();
     let backend = manual_test_backend()
         .await
         .expect("open embedded backend for MT-045 LC-06");
