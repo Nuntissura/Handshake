@@ -90,7 +90,7 @@ Bring every MT of WP-KERNEL-012 to a validator-proven PASS. One MT (or one share
 
 ## 9. Sub-agent rules
 
-- Fresh pair per MT/batch (`general-purpose`, background, model opus). Session ids: `KERNEL_BUILDER-<UTC yyyymmdd-hhmmss>`, `WP_VALIDATOR-<tag>-<UTC>`. Release the previous pair before spawning the next.
+- Fresh pair per MT/batch (`general-purpose`, background). **Model choice (Operator, 2026-09-18, token economy):** builders `opus` (product fixes need it); validators `sonnet` (mechanical run/parse/cite work with explicit checklists) — escalate a validator to `opus` only for a contested adversarial ruling. No reasoning-effort knob is exposed to the orchestrator. Ask agents for a ≤20-line structured final report (the MT-json carries the detail). Tick 20 min while a lane is building/linking, 8 min while it executes or a builder is in a red-fix loop. Session ids: `KERNEL_BUILDER-<UTC yyyymmdd-hhmmss>`, `WP_VALIDATOR-<tag>-<UTC>`. Release the previous pair before spawning the next.
 - Direct agent↔agent messaging does not resolve — **you are the relay**: verify a builder's candidate (HEAD == SHA, tree clean, `ls-remote` == SHA, 0 cargo procs, contract appended & parses) → snapshot → spawn the validator; on FAIL forward `remediation_required` to a fresh builder; on PASS release both, snapshot, move on.
 - Agents may end their turn while a background command runs and are resumed on completion; a driver that isn't a tracked child does NOT resume them. Your tick must detect a lane whose driver finished with no agent activity and `SendMessage` it.
 - Verify agent claims against the ledger yourself (count `exit_code!=0 || failed>0`; compare verdict JSON to lane logs) before relaying counts — done every time this session, always matched.
