@@ -460,6 +460,29 @@ fn no_unnamed_interactive_nodes_with_menu_open() {
     );
 }
 
+#[test]
+fn no_unnamed_interactive_nodes_with_prompt_open() {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+        BlockNode::paragraph(""),
+    ]))));
+    let mut menu = SlashMenuState::open(vec![0, 0], 0);
+    menu.prompt = Some(SlashPrompt::new(SlashPromptKind::Embed(EmbedKind::Image)));
+    state.lock().unwrap().slash_menu = Some(menu);
+    let output = ctx.run(egui::RawInput::default(), |ctx| {
+        handshake_native::app::HandshakeApp::install_fonts(ctx);
+        egui::CentralPanel::default().show(ctx, |ui| {
+            RichEditorWidget::new(Arc::clone(&state)).show(ui);
+        });
+    });
+    let update = output.platform_output.accesskit_update.expect("AccessKit prompt frame");
+    let inspected = handshake_native::accessibility::assert_no_unnamed_interactive(&update);
+    assert!(inspected > 0, "the open prompt must expose interactive nodes");
+    assert!(update.nodes.iter().any(|(_, node)| node.author_id() == Some("slash-prompt-surface")),
+        "the prompt surface must be present in the inspected frame");
+}
+
 // ── AC-9: embed prompt modal opens + a confirmed asset id inserts an embed atom ────────────
 
 #[test]
