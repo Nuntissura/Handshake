@@ -14,7 +14,7 @@
   "title": "E4-MT029-FindInFiles",
   "group": "E4 Search",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-16T23:19:48.750Z",
+  "updated_at_utc": "2026-09-19T22:42:01.940357Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-029.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -744,5 +744,106 @@
     "residual_uncertainty": [],
     "next_actor": "INTEGRATION_VALIDATOR",
     "no_context_instruction": "PASS_V5 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; whole-WP judgment remains Integration Validator authority."
+  },
+  "remediation_v3": {
+    "status": "IMPLEMENTED_PENDING_SHARED_VALIDATION",
+    "session": "native_batch_kb",
+    "recorded_at_utc": "2026-09-19T22:42:01.940357Z",
+    "protocol_reads": {
+      "codex": "FULL live Handshake_Codex_v1.4.md",
+      "kernel_builder": "FULL live KERNEL_BUILDER_PROTOCOL.md",
+      "handoff": "FULL session4"
+    },
+    "base_sha": "c6c974c323672c099522bc9ed73063db35579ab4",
+    "candidate_sha": "c095fd9a18a5ba71f7f88027acb198000d852e16",
+    "SESSION_MT_BATCH": [
+      "MT-004",
+      "MT-008",
+      "MT-012",
+      "MT-014",
+      "MT-015",
+      "MT-017",
+      "MT-021",
+      "MT-026",
+      "MT-027",
+      "MT-029",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-045",
+      "MT-047",
+      "MT-054",
+      "MT-055",
+      "MT-057",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-074",
+      "MT-076",
+      "MT-079",
+      "MT-088",
+      "MT-093",
+      "MT-094",
+      "MT-098",
+      "MT-101",
+      "MT-103",
+      "MT-106",
+      "MT-108",
+      "MT-113",
+      "MT-131",
+      "MT-141"
+    ],
+    "batch_owner": "MT-079",
+    "files_changed": [
+      "src/frontend/handshake_native/src/app.rs"
+    ],
+    "source_sha256": {
+      "src/frontend/handshake_native/src/app.rs": "84c3d7088f94d521fa85c4129c26eabd4d810ece284e2fa173142bbf2b41aa1a"
+    },
+    "implementation_groups": [
+      "strict native clippy source repairs; no crate-wide allow or warning-gate weakening",
+      "authoritative Palmistry env, scoped target, explicit source SHA plus observed SHA256 export provenance; Git only when unset",
+      "MT131 real SlashPrompt frame AccessKit interactive-name gate",
+      "MT045 external mutable performance manifest; committed baseline remains input",
+      "MT141 product tests use committed inputs; only external repo-governance CLI assertions retired"
+    ],
+    "proofs": [
+      {
+        "name": "native clippy all targets -D warnings",
+        "status": "INTERRUPTED_PENDING_EXTERNAL_CARGO",
+        "command": "cargo +1.97.1 clippy -p handshake-native --all-targets --locked --offline -j 4 -- -D warnings",
+        "log": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-012\\MT-079\\kb-v7\\logs\\01-native-clippy.log",
+        "log_sha256": "bb149081bd0f846cffa4b13c354b88d6441d8b9996bbfae97f03a339183fcc74",
+        "exit_code": -1,
+        "observed": "Dependency checks only; no native product verdict. Owned process tree stopped after another project Cargo overlapped. External processes untouched."
+      },
+      {
+        "name": "rustfmt parse of changed Rust files",
+        "status": "COMPLETED",
+        "scope": "Per-file rustfmt 1.97.1 edition2021 skip_children; separate style commits; not runtime validation"
+      }
+    ],
+    "not_run": [
+      "final shared backend/native suites",
+      "focused SlashPrompt runtime anchor",
+      "export provenance and clean-environment runtime anchors",
+      "independent WP_VALIDATOR verdict"
+    ],
+    "artifact_lane": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-012\\MT-079\\kb-v7",
+    "target_reuse": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-012\\MT-135\\kb-b2\\target",
+    "build_reuse": "Existing builder target reused; no fourth target. Interrupted cached dependency work retained. Broad suites deferred until source stable.",
+    "push": "origin/feat/WP-KERNEL-012 contains candidate",
+    "lifecycle_unchanged": true,
+    "limitations": [
+      "No runtime PASS is claimed. External Cargo prevents further compiler proof in this lane.",
+      "Legacy WP-KERNEL-011 theme/single-binary test adaptations attributed to shared MT079 repair, not unrelated WP012 MT003/MT137.",
+      "MT108 gitless matrix validation requires HANDSHAKE_PROOF_SOURCE_MANIFEST with exact observed source SHA256 map.",
+      "Installed Cargo registry inputs were read from existing C cache during offline run; all configured target/temp/runtime outputs used D. Cache-home policy must be checked before resumed build."
+    ]
   }
 }

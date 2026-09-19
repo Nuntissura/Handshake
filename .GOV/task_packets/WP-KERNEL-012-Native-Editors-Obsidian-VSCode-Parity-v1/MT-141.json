@@ -1067,7 +1067,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-19T22:19:32.012980+00:00",
+  "updated_at_utc": "2026-09-19T22:42:01.940357Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -14978,5 +14978,164 @@
     },
     "user_manual": "NOT_APPLICABLE: test isolation only; no product behavior/API/manual change.",
     "lifecycle_unchanged": "FAIL_V3 retained; builder does not certify PASS."
+  },
+  "remediation_v4": {
+    "status": "IMPLEMENTED_PENDING_SHARED_VALIDATION",
+    "session": "native_batch_kb",
+    "recorded_at_utc": "2026-09-19T22:42:01.940357Z",
+    "protocol_reads": {
+      "codex": "FULL live Handshake_Codex_v1.4.md",
+      "kernel_builder": "FULL live KERNEL_BUILDER_PROTOCOL.md",
+      "handoff": "FULL session4"
+    },
+    "base_sha": "c6c974c323672c099522bc9ed73063db35579ab4",
+    "candidate_sha": "c095fd9a18a5ba71f7f88027acb198000d852e16",
+    "SESSION_MT_BATCH": [
+      "MT-004",
+      "MT-008",
+      "MT-012",
+      "MT-014",
+      "MT-015",
+      "MT-017",
+      "MT-021",
+      "MT-026",
+      "MT-027",
+      "MT-029",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-045",
+      "MT-047",
+      "MT-054",
+      "MT-055",
+      "MT-057",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-074",
+      "MT-076",
+      "MT-079",
+      "MT-088",
+      "MT-093",
+      "MT-094",
+      "MT-098",
+      "MT-101",
+      "MT-103",
+      "MT-106",
+      "MT-108",
+      "MT-113",
+      "MT-131",
+      "MT-141"
+    ],
+    "batch_owner": "MT-079",
+    "files_changed": [
+      "src/backend/handshake_core/tests/a3_inspector_smoke.rs",
+      "src/backend/handshake_core/tests/automation_first_audit_runtime_tests.rs",
+      "src/backend/handshake_core/tests/automation_first_audit_tests.rs",
+      "src/backend/handshake_core/tests/fixtures/automation_first_ipc_inventory.json",
+      "src/backend/handshake_core/tests/fixtures/fr_event_registry.json",
+      "src/backend/handshake_core/tests/fixtures/hbr/hbr-violation.schema.json",
+      "src/backend/handshake_core/tests/fixtures/hbr/hbr-vis-gap.schema.json",
+      "src/backend/handshake_core/tests/fr_event_registry_tests.rs",
+      "src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs",
+      "src/backend/handshake_core/tests/hbr_violation_tests.rs",
+      "src/backend/handshake_core/tests/hbr_vis_gap_tests.rs",
+      "src/backend/handshake_core/tests/kernel_003_sandbox_consumer_migration_tests.rs",
+      "src/backend/handshake_core/tests/kernel_mechanical_contract_generation_tests.rs",
+      "src/backend/handshake_core/tests/model_adapter_sandbox_binding_tests.rs",
+      "src/backend/handshake_core/tests/sandbox_ipc_tests.rs",
+      "src/backend/handshake_core/tests/swarm_invariants_tests.rs",
+      "src/backend/handshake_core/tests/swarm_n8_perf_tests.rs",
+      "src/backend/handshake_core/tests/validation_runner_sandbox_binding_tests.rs"
+    ],
+    "source_sha256": {
+      "src/backend/handshake_core/tests/a3_inspector_smoke.rs": "49614d73a7834913d45fc8b381e524daa624d0d82e88db11c2321dfafa9ebc24",
+      "src/backend/handshake_core/tests/automation_first_audit_runtime_tests.rs": "e8c64001d31dda9e30576fe3b05bcc38a527e891ea8752d1d85df26e81ca43d7",
+      "src/backend/handshake_core/tests/automation_first_audit_tests.rs": "RETIRED",
+      "src/backend/handshake_core/tests/fixtures/automation_first_ipc_inventory.json": "dacddf0f20d63b4ba528dfc1e2943a9b5fddb48eacac887bfe0c17088a42ed07",
+      "src/backend/handshake_core/tests/fixtures/fr_event_registry.json": "4602e96efe70c5d269a71aa043e07d2bb812cdf313ba9b58d01ffd06b302beaa",
+      "src/backend/handshake_core/tests/fixtures/hbr/hbr-violation.schema.json": "fb51aed77e9bb0bd8a87617d3d34519b82f530695ea0d073aafe36f00527191d",
+      "src/backend/handshake_core/tests/fixtures/hbr/hbr-vis-gap.schema.json": "fb3e5eed5397e7d0506986c6faa4d6696ca10a655cb9d5fedd35f4fac1ee2e13",
+      "src/backend/handshake_core/tests/fr_event_registry_tests.rs": "cdebf8579a46c850ee96872aa5e2ee9bbb09a807775bcb0d3bed1e405514fc9f",
+      "src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs": "35efea8b1b08ed27566d2efe989f729145eaf25713ac2dc44ce9f6615da10255",
+      "src/backend/handshake_core/tests/hbr_violation_tests.rs": "4b5ed0ba1b3cb7ef88a0bf883c9db7d2cc33f9728961d5ef6c8ae4cee999bb19",
+      "src/backend/handshake_core/tests/hbr_vis_gap_tests.rs": "e1259ace45da47c319bc2cd41856cd005ede14bc84401dfebcb17c3f6305473b",
+      "src/backend/handshake_core/tests/kernel_003_sandbox_consumer_migration_tests.rs": "5db7b78a44b512867323243835589befe9dda950f3ecead09de0176b68a65b8f",
+      "src/backend/handshake_core/tests/kernel_mechanical_contract_generation_tests.rs": "cd31088191a5aa78b190a20654b43639db993ff632ef39ea5038d4fb1bf1e000",
+      "src/backend/handshake_core/tests/model_adapter_sandbox_binding_tests.rs": "efb7c9865718cc42a67bffa9bc4a03c0f12014a88fd529a70390fec270825274",
+      "src/backend/handshake_core/tests/sandbox_ipc_tests.rs": "3d3851ed9afd44d3a85f601179bc5bb24f84b5193c35f29962957b0c8ced513d",
+      "src/backend/handshake_core/tests/swarm_invariants_tests.rs": "ac79bedee6cd3f9a439ca38743df2d97988b4a58403fcfc7adff6449769f6341",
+      "src/backend/handshake_core/tests/swarm_n8_perf_tests.rs": "c9d53e60d0f2b87c4de062f5e39c11ce872ad8c01a83f7460b66eb7975a0a2ca",
+      "src/backend/handshake_core/tests/validation_runner_sandbox_binding_tests.rs": "7af09fc02acabffd674f22eb677317c1d0361ddc1e3a53f4f3f009948efcd662"
+    },
+    "implementation_groups": [
+      "strict native clippy source repairs; no crate-wide allow or warning-gate weakening",
+      "authoritative Palmistry env, scoped target, explicit source SHA plus observed SHA256 export provenance; Git only when unset",
+      "MT131 real SlashPrompt frame AccessKit interactive-name gate",
+      "MT045 external mutable performance manifest; committed baseline remains input",
+      "MT141 product tests use committed inputs; only external repo-governance CLI assertions retired"
+    ],
+    "proofs": [
+      {
+        "name": "native clippy all targets -D warnings",
+        "status": "INTERRUPTED_PENDING_EXTERNAL_CARGO",
+        "command": "cargo +1.97.1 clippy -p handshake-native --all-targets --locked --offline -j 4 -- -D warnings",
+        "log": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-012\\MT-079\\kb-v7\\logs\\01-native-clippy.log",
+        "log_sha256": "bb149081bd0f846cffa4b13c354b88d6441d8b9996bbfae97f03a339183fcc74",
+        "exit_code": -1,
+        "observed": "Dependency checks only; no native product verdict. Owned process tree stopped after another project Cargo overlapped. External processes untouched."
+      },
+      {
+        "name": "rustfmt parse of changed Rust files",
+        "status": "COMPLETED",
+        "scope": "Per-file rustfmt 1.97.1 edition2021 skip_children; separate style commits; not runtime validation"
+      }
+    ],
+    "not_run": [
+      "final shared backend/native suites",
+      "focused SlashPrompt runtime anchor",
+      "export provenance and clean-environment runtime anchors",
+      "independent WP_VALIDATOR verdict"
+    ],
+    "artifact_lane": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-012\\MT-079\\kb-v7",
+    "target_reuse": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-012\\MT-135\\kb-b2\\target",
+    "build_reuse": "Existing builder target reused; no fourth target. Interrupted cached dependency work retained. Broad suites deferred until source stable.",
+    "push": "origin/feat/WP-KERNEL-012 contains candidate",
+    "lifecycle_unchanged": true,
+    "limitations": [
+      "No runtime PASS is claimed. External Cargo prevents further compiler proof in this lane.",
+      "Legacy WP-KERNEL-011 theme/single-binary test adaptations attributed to shared MT079 repair, not unrelated WP012 MT003/MT137.",
+      "MT108 gitless matrix validation requires HANDSHAKE_PROOF_SOURCE_MANIFEST with exact observed source SHA256 map.",
+      "Installed Cargo registry inputs were read from existing C cache during offline run; all configured target/temp/runtime outputs used D. Cache-home policy must be checked before resumed build."
+    ],
+    "retired_external_governance_assertions": {
+      "authority": "Operator removes live repo-governance runtime coupling; MT141 AC1412 permits retirement of tests for removed behavior; parent explicitly approved enumerated puregov assertions.",
+      "assertions": [
+        "automation_first_audit_tests_default_certifying_mode_requires_runtime_evidence",
+        "automation_first_audit_tests_static_source_scan_is_explicitly_non_certifying",
+        "automation_first_audit_tests_synthetic_foreground_api_violation_fails_loudly",
+        "automation_first_audit_tests_report_is_on_demand_markdown_projection",
+        "automation_first_audit_rejects_wrong_schema_runtime_probe_evidence",
+        "hbr_violation_tests::node_normalizer_round_trips_rust_canonical_jsonl",
+        "hbr_vis_gap_tests::node_normalizer_round_trips_rust_canonical_jsonl",
+        "mt054_migration_log_records_kernel_003_sandbox_consumer_audit",
+        "hbr_e2e_smoke_test external registry-loader, matrix-hydrate, matrix-check exit-code, gov-check umbrella, JS-normalizer assertions only",
+        "automation_first_audit_runtime external CLI report acceptance assertions only",
+        "mechanical_generation_receipts external .GOV script existence and root justfile recipe existence assertions only"
+      ],
+      "retained_proofs": [
+        "HandoffGate PENDING rejection/event",
+        "HbrViolation/VisGap typed canonical wire/schema assertions",
+        "real embedded SurrealProcessLedger start/stop replay",
+        "real FocusAudit and OS keyboard probes",
+        "source-bound IPC inventory + test-registry dispatch component checks"
+      ],
+      "proof_limit": "IPC test registry is mocked dispatch, not production Tauri IPC execution; source SHA256 inventory is static drift proof only."
+    }
   }
 }
