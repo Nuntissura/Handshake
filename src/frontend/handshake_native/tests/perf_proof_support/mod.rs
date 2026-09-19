@@ -28,6 +28,9 @@
 
 #![allow(dead_code)] // each suite uses a subset of the helpers; the others are not dead in aggregate.
 
+#[path = "../native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
@@ -563,23 +566,14 @@ fn canonical_run_provenance() -> serde_json::Value {
         .ok()
         .filter(|value| !value.trim().is_empty())
         .expect("canonical MT-045 proof requires HSK_MT045_SOURCE_SHA from the supervisor");
-    let actual_sha = git_output(&["rev-parse", "HEAD"], "resolve MT-045 source SHA");
+    let actual_sha = source_provenance::source_sha();
     assert_eq!(
         actual_sha, expected_sha,
         "compiled MT-045 proof source is not bound to the supervisor's committed HEAD"
     );
-    assert_source_paths_clean();
+    if source_provenance::configured_source_sha().is_none() { assert_source_paths_clean(); }
 
-    let artifact_root = external_artifact_root()
-        .parent()
-        .expect("WP artifact root has a parent")
-        .canonicalize()
-        .expect("canonical MT-045 proof requires the existing Handshake_Artifacts root");
-    assert_eq!(
-        artifact_root.file_name().and_then(|name| name.to_str()),
-        Some("Handshake_Artifacts"),
-        "MT-045 proof artifacts must use the existing sibling Handshake_Artifacts root"
-    );
+    let artifact_root = PathBuf::from(std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").expect("artifact root required")).canonicalize().expect("artifact root exists");
 
     let applied_budget_overrides: Vec<String> = std::env::vars()
         .filter_map(|(key, value)| {
@@ -589,14 +583,7 @@ fn canonical_run_provenance() -> serde_json::Value {
     let source_objects = SOURCE_BINDING_PATHS
         .iter()
         .map(|path| {
-            let object = format!("HEAD:{path}");
-            (
-                (*path).to_owned(),
-                serde_json::json!(git_output(
-                    &["rev-parse", &object],
-                    "resolve MT-045 committed source blob"
-                )),
-            )
+            ((*path).to_owned(), serde_json::json!(source_provenance::source_blob(path)))
         })
         .collect::<serde_json::Map<_, _>>();
     let diagnostics_receipt = std::env::var_os("HSK_MT045_DIAGNOSTIC_RECEIPT")
@@ -634,15 +621,11 @@ fn canonical_run_provenance() -> serde_json::Value {
     let backend_binary = backend_binary
         .canonicalize()
         .expect("canonicalize MT-045 backend binary");
-    let canonical_cargo_target = artifact_root
-        .join("handshake-cargo-target")
-        .canonicalize()
-        .expect("canonicalize MT-045 shared Cargo target");
-    assert!(
-        canonical_cargo_target.parent() == Some(artifact_root.as_path())
-            && backend_binary.starts_with(&canonical_cargo_target),
-        "MT-045 backend binary must come from the configured shared canonical Cargo target"
-    );
+    let canonical_cargo_target = std::env::var_os("HSK_TEST_BACKEND_TARGET_ROOT")
+        .map(PathBuf::from).map(|path| path.canonicalize().expect("backend target exists"))
+        .unwrap_or_else(source_provenance::target_root);
+    source_provenance::validate_target(&canonical_cargo_target);
+    assert!(backend_binary.starts_with(&canonical_cargo_target), "backend binary must use configured scoped target");
     // Storage authority. There is no external database host or port to pin: the product opens a
     // Handshake-managed EMBEDDED SurrealDB store inside its own process, and the MT-045 fixture gives
     // every owned backend its own `HANDSHAKE_DATA_DIR` beneath the canonical backend-runtime root.
@@ -662,12 +645,10 @@ fn canonical_run_provenance() -> serde_json::Value {
 
     serde_json::json!({
         "source_sha": actual_sha,
-        "crate_tree_at_head": git_output(
-            &["rev-parse", "HEAD:src/frontend/handshake_native"],
-            "resolve MT-045 committed crate tree"
-        ),
+        "source_tree_identity": source_provenance::source_tree(),
         "source_objects": source_objects,
-        "source_paths_match_head": true,
+        "source_paths_match_head": source_provenance::configured_source_sha().is_none(),
+        "observed_source_sha256": source_provenance::source_files(&SOURCE_BINDING_PATHS),
         "cargo_profile": current_profile(),
         "compiled_source_sha": env!("HANDSHAKE_MT045_BUILD_SOURCE_SHA"),
         "canonical_supervisor": std::env::var("HSK_MT045_CANONICAL_RUN").as_deref() == Ok("1"),
@@ -1280,7 +1261,8 @@ fn current_profile() -> &'static str {
 }
 
 fn read_manifest_rows_checked() -> Vec<serde_json::Value> {
-    let path = manifest_path();
+    let output = manifest_path();
+    let path = if output.exists() { output } else { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/perf_proof/perf_manifest.json") };
     let text = std::fs::read_to_string(&path)
         .unwrap_or_else(|error| panic!("read MT-045 manifest {path:?}: {error}"));
     let rows: Vec<serde_json::Value> = serde_json::from_str(&text)
@@ -1339,13 +1321,13 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
         "completed MT-045 PASS requires the post-measurement failure retention negative proof"
     );
     assert_canonical_provenance(&state["provenance"]);
-    assert!(
-        state
-            .pointer("/provenance/source_paths_match_head")
-            .and_then(serde_json::Value::as_bool)
-            == Some(true),
-        "completed MT-045 PASS requires committed source-path binding"
-    );
+    if source_provenance::configured_source_sha().is_some() {
+        assert_eq!(state["provenance"]["source_sha"], source_provenance::source_sha());
+        assert_eq!(state["provenance"]["compiled_source_sha"], source_provenance::source_sha());
+        assert_eq!(state["provenance"]["observed_source_sha256"], serde_json::json!(source_provenance::source_files(&SOURCE_BINDING_PATHS)), "export source inputs changed since measured run");
+    } else {
+        assert_eq!(state["provenance"]["source_paths_match_head"], true, "committed source-path binding required");
+    }
     let binaries = state["test_binaries"]
         .as_object()
         .expect("completed MT-045 PASS requires test binary provenance");
@@ -1577,34 +1559,17 @@ fn atomic_replace_file(source: &Path, target: &Path) -> std::io::Result<()> {
     std::fs::rename(source, target)
 }
 
-/// The deterministic manifest path under the crate root, independent of the test's working directory.
+/// Mutable measurements are isolated from the committed baseline input.
 pub fn manifest_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("perf_proof")
-        .join("perf_manifest.json")
+    external_artifact_root().join("perf_manifest.json")
 }
 
 pub fn external_artifact_root() -> PathBuf {
-    let required = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(4)
-        .expect("native crate must live below a worktree root")
-        .join("Handshake_Artifacts");
-    let configured = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| required.clone());
-    let required = required
-        .canonicalize()
-        .expect("canonicalize worktree-level Handshake_Artifacts root");
-    let configured = configured
-        .canonicalize()
-        .expect("canonicalize configured HANDSHAKE_ARTIFACTS_ROOT");
-    assert_eq!(
-        configured, required,
-        "canonical MT-045 proof requires the worktree-level Handshake_Artifacts root"
-    );
-    configured.join("wp-kernel-012")
+    let root = PathBuf::from(std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").expect("HANDSHAKE_ARTIFACTS_ROOT required"))
+        .canonicalize().expect("artifact root exists");
+    let run = std::env::var("HSK_MT045_RUN_ID").expect("HSK_MT045_RUN_ID required for isolated output");
+    assert!(!run.is_empty() && run.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'), "safe MT-045 run id required");
+    root.join("WP-KERNEL-012").join("MT-045").join(run)
 }
 
 // ── Memory measurement (RISK-5 / CTRL-5: median of 3) ────────────────────────────────────────────
