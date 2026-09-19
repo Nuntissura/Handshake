@@ -1014,13 +1014,6 @@ if (-not (Test-Path -LiteralPath $artifactRootPath -PathType Container)) {
     throw "The existing sibling Handshake_Artifacts root is required; this supervisor will not create it: $artifactRootPath"
 }
 $artifactRoot = (Resolve-Path -LiteralPath $artifactRootPath).Path
-$requiredArtifactRoot = (Resolve-Path -LiteralPath $requiredArtifactRootPath).Path
-if (-not $artifactRoot.Equals($requiredArtifactRoot, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "HANDSHAKE_ARTIFACTS_ROOT must resolve to the worktree-level canonical root $requiredArtifactRoot, got $artifactRoot"
-}
-if ((Split-Path $artifactRoot -Leaf) -cne "Handshake_Artifacts") {
-    throw "Resolved artifact root is not the canonical Handshake_Artifacts directory: $artifactRoot"
-}
 function Get-Mt045CompactRuntimeComponent {
     param(
         [Parameter(Mandatory)][ValidateSet("cargo", "r", "s")][string]$Prefix,
@@ -1037,19 +1030,25 @@ function Get-Mt045CompactRuntimeComponent {
     return "$Prefix-$($hash.Substring(0, 16))"
 }
 
-$targetOwnerKey = $null
-$targetRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "handshake-cargo-target"))
-$requiredTargetRoot = [IO.Path]::GetFullPath((Join-Path $requiredArtifactRoot "handshake-cargo-target"))
-if (-not $targetRoot.Equals($requiredTargetRoot, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Resolved Cargo target is not the configured canonical target $requiredTargetRoot, got $targetRoot"
+$configuredTarget = [Environment]::GetEnvironmentVariable("CARGO_TARGET_DIR")
+if ([string]::IsNullOrWhiteSpace($configuredTarget)) {
+    throw "CARGO_TARGET_DIR must select an existing reusable WP/MT/owner/target"
 }
-$supervisorRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012\mt-045\supervisor"))
-$runRoot = [IO.Path]::GetFullPath((Join-Path $supervisorRoot $RunId))
+if (-not (Test-Path -LiteralPath $configuredTarget -PathType Container)) { throw "Configured reusable Cargo target must already exist" }
+$targetRoot = (Resolve-Path -LiteralPath $configuredTarget -ErrorAction Stop).Path
+$targetRelative = [IO.Path]::GetRelativePath($artifactRoot, $targetRoot).Replace("\", "/")
+if ($targetRelative -cnotmatch '^WP-[^/]+/MT-[^/]+/[^/]+/target$') {
+    throw "Configured target must be scoped below HANDSHAKE_ARTIFACTS_ROOT: $targetRoot"
+}
+$targetOwnerKey = $targetRelative.Split('/')[2]
+$scopedRunRoot = Join-Path $artifactRoot "WP-KERNEL-012\MT-045\$RunId"
+$supervisorRoot = Join-Path $scopedRunRoot "supervisor"
+$runRoot = [IO.Path]::GetFullPath($supervisorRoot)
 $artifactPrefix = $artifactRoot.TrimEnd("\") + "\"
 if (-not $runRoot.StartsWith($artifactPrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Resolved run path escaped the existing Handshake_Artifacts root: $runRoot"
 }
-if (Test-Path -LiteralPath $runRoot) {
+if (Test-Path -LiteralPath $scopedRunRoot) {
     throw "Supervisor run id already exists: $RunId"
 }
 
@@ -1070,6 +1069,7 @@ $sourcePaths = @(
     "src/frontend/handshake_native/diag_ring",
     "src/frontend/handshake_native/src",
     "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/native_gui_support/source_provenance.rs",
     "src/frontend/handshake_native/tests/backend_proof_support/mod.rs",
     "src/frontend/handshake_native/tests/test_heartbeat.rs",
     "src/frontend/handshake_native/tests/test_diagnostics_panel.rs",
@@ -1079,14 +1079,14 @@ $sourcePaths = @(
     "src/frontend/handshake_native/tests/run_mt045_perf_proof.ps1"
 )
 $manifestRepoPath = "src/frontend/handshake_native/tests/perf_proof/perf_manifest.json"
-$manifestPath = Join-Path $repoRoot $manifestRepoPath
-$measurementRoot = Join-Path $artifactRoot "wp-kernel-012\mt-045\measurements"
+$manifestPath = Join-Path $scopedRunRoot "perf_manifest.json"
+$measurementRoot = Join-Path $scopedRunRoot "mt-045\measurements"
 $supervisorCurrentPath = Join-Path $measurementRoot "supervisor-current.json"
 $currentRunPath = Join-Path $measurementRoot "current-run.json"
 $latestRunPath = Join-Path $measurementRoot "latest-run-summary.json"
-$failureDiagnosticsRoot = Join-Path $artifactRoot "wp-kernel-012\mt-045\failure-diagnostics\$RunId"
+$failureDiagnosticsRoot = Join-Path $scopedRunRoot "failure-diagnostics"
 $backendRuntimeRunKey = Get-Mt045CompactRuntimeComponent -Prefix "r" -Value $RunId
-$backendRuntimeRunRoot = Join-Path $artifactRoot "wp-kernel-012\backend-runtime\$backendRuntimeRunKey"
+$backendRuntimeRunRoot = Join-Path $scopedRunRoot "backend-runtime\$backendRuntimeRunKey"
 
 function Get-Mt045RuntimeScenarioRoot {
     param([Parameter(Mandatory)][string]$ScenarioName)
@@ -1099,6 +1099,13 @@ $expectedScenarioIds = @(
 )
 [void][IO.Directory]::CreateDirectory($runRoot)
 [void][IO.Directory]::CreateDirectory($measurementRoot)
+$env:CARGO_TARGET_DIR = $targetRoot
+$env:HSK_TEST_BACKEND_TARGET_ROOT = $targetRoot
+$runTemp = Join-Path $runRoot "tmp"
+[void][IO.Directory]::CreateDirectory($runTemp)
+$env:TEMP = $runTemp
+$env:TMP = $runTemp
+$env:TMPDIR = $runTemp
 $sourceSha = $null
 $headManifestJson = $null
 $preflightStartedAt = [DateTimeOffset]::UtcNow
@@ -1121,9 +1128,6 @@ try {
         }
         if (-not [string]::IsNullOrWhiteSpace($env:SKIP_PERF_TESTS)) {
             throw "Canonical MT-045 proof forbids SKIP_PERF_TESTS"
-        }
-        if (-not [string]::IsNullOrWhiteSpace($env:CARGO_TARGET_DIR)) {
-            throw "Canonical MT-045 proof forbids inherited CARGO_TARGET_DIR; the supervisor owns --target-dir"
         }
     }
 }
@@ -1413,7 +1417,7 @@ function Get-PostReapRuntimeBinding {
         if (-not $runtimeRunItem.PSIsContainer) {
             throw "post-reap backend runtime run root is not a directory: $backendRuntimeRunRoot"
         }
-        Assert-NoReparsePath -Path $backendRuntimeRunRoot -Boundary (Join-Path $artifactRoot "wp-kernel-012")
+        Assert-NoReparsePath -Path $backendRuntimeRunRoot -Boundary $scopedRunRoot
         $scenarioRoot = Get-Mt045RuntimeScenarioRoot -ScenarioName ([string]$ExpectedCommand.test_name)
         $scenarioItem = Get-Item -LiteralPath $scenarioRoot -Force -ErrorAction Stop
         if (-not $scenarioItem.PSIsContainer) {
@@ -1559,7 +1563,7 @@ function Get-FailureDiagnosticBindings {
             if (-not $failureRootItem.PSIsContainer) {
                 throw "failure diagnostics root exists but is not a directory: $failureDiagnosticsRoot"
             }
-            Assert-NoReparsePath -Path $failureDiagnosticsRoot -Boundary (Join-Path $artifactRoot "wp-kernel-012")
+            Assert-NoReparsePath -Path $failureDiagnosticsRoot -Boundary $scopedRunRoot
             foreach ($receiptFile in @(Get-ChildItem -LiteralPath $failureDiagnosticsRoot -Recurse -File -Filter "failure-diagnostics.json" -ErrorAction Stop | Sort-Object FullName)) {
                 $rustReceiptCount += 1
                 try {
@@ -1780,7 +1784,7 @@ function Get-FailureDiagnosticBindings {
 
 if ($DiagnosticsSelfTest) {
     [void][IO.Directory]::CreateDirectory($targetRoot)
-    $selfTestRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012\mt-045\diagnostics-self-test\$RunId"))
+    $selfTestRoot = [IO.Path]::GetFullPath((Join-Path $scopedRunRoot "diagnostics-self-test"))
     $selfTestWorkspaceId = $null
     $retainedFailureProofComplete = $false
     $realFailureProbeStarted = $false
@@ -2476,7 +2480,7 @@ Start-Sleep -Milliseconds $ParentSleepMilliseconds
                 "hash-object", "--path=$manifestRepoPath", "--", $manifestRepoPath
             )
             if ($restoredManifestGitObject -cne $initialManifestGitObject) {
-                throw "diagnostics self-test did not restore the committed manifest object: expected=$initialManifestGitObject actual=$restoredManifestGitObject"
+                throw "diagnostics self-test altered the read-only committed baseline: expected=$initialManifestGitObject actual=$restoredManifestGitObject"
             }
         }
         catch {

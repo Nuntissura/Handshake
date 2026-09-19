@@ -472,7 +472,7 @@ fn expected_proof_ids(scenario_id: &str) -> HashSet<&'static str> {
     }
 }
 
-const SOURCE_BINDING_PATHS: [&str; 23] = [
+const SOURCE_BINDING_PATHS: [&str; 24] = [
     ".cargo/config.toml",
     "rust-toolchain.toml",
     "src/backend/handshake_core/build.rs",
@@ -489,6 +489,7 @@ const SOURCE_BINDING_PATHS: [&str; 23] = [
     "src/frontend/handshake_native/diag_ring",
     "src/frontend/handshake_native/src",
     "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/native_gui_support/source_provenance.rs",
     "src/frontend/handshake_native/tests/backend_proof_support/mod.rs",
     "src/frontend/handshake_native/tests/test_heartbeat.rs",
     "src/frontend/handshake_native/tests/test_diagnostics_panel.rs",
@@ -886,11 +887,37 @@ fn begin_scenario_run(
             provenance.pointer("/source_sha"),
             "every MT-045 scenario must run from one exact source SHA"
         );
-        assert_eq!(
-            state.pointer("/provenance/crate_tree_at_head"),
-            provenance.pointer("/crate_tree_at_head"),
-            "every MT-045 scenario must run from one exact committed crate tree"
-        );
+        let previous = &state["provenance"];
+        for value in [previous, &provenance] {
+            assert!(
+                value["source_tree_identity"]
+                    .as_str()
+                    .is_some_and(|identity| !identity.is_empty()),
+                "source tree identity is required"
+            );
+            for key in ["source_objects", "observed_source_sha256"] {
+                let objects = value[key]
+                    .as_object()
+                    .filter(|objects| !objects.is_empty())
+                    .expect("nonempty typed source manifest required");
+                assert!(
+                    objects
+                        .values()
+                        .all(|hash| hash.as_str().is_some_and(|hash| !hash.is_empty())),
+                    "source manifest hashes must be nonempty strings"
+                );
+            }
+        }
+        for key in [
+            "source_tree_identity",
+            "source_objects",
+            "observed_source_sha256",
+        ] {
+            assert_eq!(
+                previous[key], provenance[key],
+                "every MT-045 scenario must use identical source binding: {key}"
+            );
+        }
     }
     let test_binary = current_test_binary_provenance(scenario_id);
     let executable_name = test_binary["filename"]

@@ -148,7 +148,23 @@ pub fn source_files(paths: &[&str]) -> BTreeMap<String, String> {
 
 pub fn source_blob(path: &str) -> String {
     if configured_source_sha().is_some() {
-        format!("sha256:{}", sha256_file(&repo_root().join(path)))
+        let input = repo_root()
+            .join(path)
+            .canonicalize()
+            .expect("source input exists");
+        assert!(
+            input.starts_with(repo_root()),
+            "source input escapes product root"
+        );
+        if input.is_dir() {
+            let files = source_files(&[path]);
+            format!(
+                "sha256-manifest:{:x}",
+                Sha256::digest(serde_json::to_vec(&files).expect("directory source manifest"))
+            )
+        } else {
+            format!("sha256:{}", sha256_file(&input))
+        }
     } else {
         git(&repo_root(), &["rev-parse", &format!("HEAD:{path}")])
     }
