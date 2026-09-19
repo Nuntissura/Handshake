@@ -24,6 +24,9 @@
 //! [`assert_no_local_artifact_dir`] fails the run if a repo-local `test_output/` or `tests/screenshots/`
 //! dir exists. NO artifact is ever written under `src/`.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
@@ -211,6 +214,7 @@ fn sha256_json(value: &serde_json::Value) -> String {
 
 #[cfg(feature = "wgpu_screenshots")]
 fn current_head_sha() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
     let output = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(
@@ -233,6 +237,7 @@ fn current_head_sha() -> String {
 /// hashes form one deterministic identity material stream.
 #[cfg(feature = "wgpu_screenshots")]
 fn current_worktree_candidate_identity() -> (String, serde_json::Value) {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate(); }
     use sha2::Digest as _;
     use std::io::Write as _;
 

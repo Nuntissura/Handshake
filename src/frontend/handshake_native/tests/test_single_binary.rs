@@ -25,6 +25,9 @@
 //     artifacts root (CX-212E), so the binary is NOT at ./target/release-native/. The test resolves
 //     the real location from CARGO_TARGET_DIR or the known crate-relative artifacts path.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::path::{Path, PathBuf};
 
 /// "System DLL" = a Windows apiset (api-ms-win-* / ext-ms-*), a CRT redistributable
@@ -52,17 +55,7 @@ fn is_system_dll(name: &str) -> bool {
 /// Resolve the cargo target directory honoring CARGO_TARGET_DIR, then the crate-local
 /// .cargo/config.toml override (the external artifacts root), then the default ./target.
 fn target_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("CARGO_TARGET_DIR") {
-        return PathBuf::from(dir);
-    }
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // .cargo/config.toml: target-dir = "../../../../Handshake_Artifacts/handshake-cargo-target/handshake-native"
-    let external =
-        manifest.join("../../../../Handshake_Artifacts/handshake-cargo-target/handshake-native");
-    if external.exists() {
-        return external;
-    }
-    manifest.join("target")
+    source_provenance::target_root()
 }
 
 fn fonts_dir() -> PathBuf {

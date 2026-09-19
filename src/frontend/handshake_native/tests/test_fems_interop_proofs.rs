@@ -42,6 +42,9 @@
 //!
 //! The four named `proof_fems_0*` functions below are the live managed-resource proof surface.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -122,6 +125,7 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
 }
 
 fn current_source_sha() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -169,6 +173,7 @@ fn current_source_sha() -> String {
 }
 
 fn current_proof_source_blob() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_blob("src/frontend/handshake_native/tests/test_fems_interop_proofs.rs"); }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)

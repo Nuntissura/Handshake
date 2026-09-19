@@ -25,6 +25,9 @@
 //! - AC-007: `product_api_only_and_shared_backend_client` — SurrealDB authority and one shared HTTP client;
 //!   `assert_no_local_artifact_dir` guards artifact hygiene (CX-212E).
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
@@ -857,6 +860,7 @@ const MT066_RELEVANT_SOURCE_PATHS: &[&str] = &[
 ];
 
 fn current_source_sha() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -884,6 +888,7 @@ fn current_source_sha() -> String {
 }
 
 fn current_runtime_source_tree() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_tree(); }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -920,6 +925,7 @@ fn current_runtime_source_tree() -> String {
 }
 
 fn current_proof_source_blob() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_blob("src/frontend/handshake_native/tests/test_stage_interop.rs"); }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -951,6 +957,7 @@ fn current_proof_source_blobs() -> serde_json::Map<String, serde_json::Value> {
     MT066_RELEVANT_SOURCE_PATHS
         .iter()
         .map(|path| {
+            if source_provenance::configured_source_sha().is_some() { return ((*path).to_owned(), serde_json::Value::String(source_provenance::source_blob(path))); }
             let spec = format!("HEAD:{path}");
             let output = std::process::Command::new("git")
                 .args(["rev-parse", &spec])

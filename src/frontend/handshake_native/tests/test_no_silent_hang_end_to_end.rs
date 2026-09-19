@@ -3,6 +3,9 @@
 //! Ignored by default because it launches the real `palmistry` binary and a real helper child. The
 //! governed lane builds Palmistry and runs this test explicitly with `-- --include-ignored`.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -33,30 +36,7 @@ fn unique_session_id(label: &str) -> String {
 }
 
 fn find_palmistry_binary() -> Option<PathBuf> {
-    if let Some(raw) = std::env::var_os(ENV_PALMISTRY_EXE) {
-        let p = PathBuf::from(raw);
-        if p.is_file() {
-            return Some(p);
-        }
-    }
-    let bin = if cfg!(windows) {
-        "palmistry.exe"
-    } else {
-        "palmistry"
-    };
-    // MT-094 remediation: discovery previously listed `palmistry-target/{debug,release}` first — a
-    // layout that never existed (builds land in the shared `handshake-cargo-target`). Point at the
-    // REAL layout.
-    for base in [
-        "../../../../Handshake_Artifacts/handshake-cargo-target/debug",
-        "../../../../Handshake_Artifacts/handshake-cargo-target/release",
-    ] {
-        let p = Path::new(base).join(bin);
-        if p.is_file() {
-            return Some(p);
-        }
-    }
-    None
+    source_provenance::binary(ENV_PALMISTRY_EXE, "palmistry")
 }
 
 fn wait_until<F>(deadline: Duration, mut predicate: F) -> bool

@@ -33,6 +33,9 @@
 //!   `loom.activity.*` command ids are present in the palette catalog exactly once each.
 //! - PT-5: covered by `daily_journal_panel_accesskit_nodes_present` (the AccessKit tree snapshot).
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -118,6 +121,7 @@ fn sha256_file(path: &Path) -> String {
 }
 
 fn mt067_candidate_source_identity() -> (String, serde_json::Value) {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate(); }
     const CANDIDATE_PATHS: [&str; 2] = [
         "src/frontend/handshake_native/src/graph/daily_journal_panel.rs",
         "src/frontend/handshake_native/tests/test_calendar_interop.rs",

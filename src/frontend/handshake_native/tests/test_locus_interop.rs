@@ -30,6 +30,9 @@
 //! - AC-009: diff/dependency gate — frontend resolution is GET-only and backend routes read SurrealDB.
 //! - AC-010: `cargo test -p handshake-native test_locus_interop` passes with no panics (this file).
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
@@ -133,6 +136,7 @@ fn product_repo_root() -> &'static Path {
 }
 
 fn current_source_sha() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
     let clean = std::process::Command::new("git")
         .args(["diff", "--quiet", "HEAD", "--"])
         .args(MT068_RELEVANT_SOURCE_PATHS)
@@ -156,6 +160,7 @@ fn current_source_sha() -> String {
 }
 
 fn current_runtime_source_tree() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_tree(); }
     let status = std::process::Command::new("git")
         .args(["status", "--porcelain=v1", "--untracked-files=all"])
         .current_dir(product_repo_root())
@@ -191,6 +196,7 @@ fn current_proof_source_blobs() -> serde_json::Map<String, serde_json::Value> {
     MT068_RELEVANT_SOURCE_PATHS
         .iter()
         .map(|path| {
+            if source_provenance::configured_source_sha().is_some() { return ((*path).to_owned(), serde_json::Value::String(source_provenance::source_blob(path))); }
             let spec = format!("HEAD:{path}");
             let output = std::process::Command::new("git")
                 .args(["rev-parse", &spec])

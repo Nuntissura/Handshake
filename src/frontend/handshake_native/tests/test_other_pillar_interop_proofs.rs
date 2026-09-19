@@ -6,6 +6,9 @@
 //! operator-facing triggers through AccessKit action requests. No repository doubles, stub servers, or
 //! substitute persistence paths are permitted in this suite.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -426,6 +429,7 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
 }
 
 fn current_source_sha() -> String {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
     let output = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -450,6 +454,7 @@ fn current_proof_source_blobs() -> serde_json::Value {
     let blobs = MT074_PROOF_PATHS
         .iter()
         .map(|path| {
+            if source_provenance::configured_source_sha().is_some() { return ((*path).to_owned(), serde_json::Value::String(format!("sha256:{}", source_provenance::sha256_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join(path))))); }
             let output = std::process::Command::new("git")
                 .args(["hash-object", path])
                 .current_dir(env!("CARGO_MANIFEST_DIR"))

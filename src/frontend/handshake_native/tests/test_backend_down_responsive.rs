@@ -33,6 +33,9 @@
 //! - AC-008-6 (`recovery_fires_recovered_event`): recovery works — the surface re-connects and
 //!   `BackendRecovered` fires (no permanent stuck-disconnected state).
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
@@ -104,29 +107,7 @@ impl Drop for EnvGuard {
 }
 
 fn find_palmistry_binary() -> PathBuf {
-    let executable = if cfg!(windows) {
-        "palmistry.exe"
-    } else {
-        "palmistry"
-    };
-    let required = Path::new("../../../../Handshake_Artifacts/handshake-cargo-target")
-        .join("debug")
-        .join(executable);
-    let required = std::fs::canonicalize(&required).unwrap_or_else(|error| {
-        panic!(
-            "integrated MT-088 proof requires the canonical Palmistry binary at {}: {error}",
-            required.display()
-        )
-    });
-    if let Some(raw) = std::env::var_os(ENV_PALMISTRY_EXE) {
-        let supplied = std::fs::canonicalize(PathBuf::from(raw))
-            .unwrap_or_else(|error| panic!("canonicalize {ENV_PALMISTRY_EXE}: {error}"));
-        assert_eq!(
-            supplied, required,
-            "{ENV_PALMISTRY_EXE} cannot redirect MT-088 away from the reserved canonical target"
-        );
-    }
-    required
+    source_provenance::binary(ENV_PALMISTRY_EXE, "palmistry").expect("Palmistry binary in scoped Cargo target")
 }
 
 fn file_sha256(path: &Path) -> String {
@@ -152,25 +133,16 @@ fn json_sha256(value: &serde_json::Value) -> String {
 }
 
 fn repo_root() -> PathBuf {
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .expect("resolve product repo root for MT-088 provenance");
-    assert!(
-        output.status.success(),
-        "git rev-parse --show-toplevel failed"
-    );
-    PathBuf::from(
-        String::from_utf8(output.stdout)
-            .expect("repo root is UTF-8")
-            .trim(),
-    )
+    source_provenance::repo_root()
 }
 
 fn current_binary_provenance(
     binary: &Path,
     tracked_source_pathspecs: &[&str],
 ) -> serde_json::Value {
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::export_binary_provenance(binary, tracked_source_pathspecs);
+    }
     let binary = std::fs::canonicalize(binary)
         .unwrap_or_else(|error| panic!("canonicalize binary {}: {error}", binary.display()));
     let metadata = std::fs::metadata(&binary)
@@ -1126,18 +1098,13 @@ const MT088_INTEGRATED_PROOF_PATHS: &[&str] = &[
 ];
 
 fn current_head_sha() -> String {
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .expect("read current MT-088 source commit");
-    assert!(output.status.success(), "git rev-parse HEAD failed");
-    String::from_utf8(output.stdout)
-        .expect("source SHA is UTF-8")
-        .trim()
-        .to_owned()
+    source_provenance::source_sha()
 }
 
 fn repo_relative_tracked_path(path: &str) -> String {
+    if source_provenance::configured_source_sha().is_some() {
+        return Path::new(env!("CARGO_MANIFEST_DIR")).join(path).canonicalize().expect("proof input exists").strip_prefix(repo_root()).expect("proof input inside product root").to_string_lossy().replace('\\', "/");
+    }
     let output = std::process::Command::new("git")
         .args(["ls-files", "--full-name", "--", path])
         .output()
@@ -1157,6 +1124,10 @@ fn repo_relative_tracked_path(path: &str) -> String {
 }
 
 fn current_integrated_source_provenance() -> (String, serde_json::Value) {
+    if source_provenance::configured_source_sha().is_some() {
+        for path in MT088_INTEGRATED_PROOF_PATHS { repo_relative_tracked_path(path); }
+        return source_provenance::export_candidate();
+    }
     let head_sha = current_head_sha();
     let root = std::fs::canonicalize(repo_root()).expect("canonicalize product repo root");
     let mut files = serde_json::Map::new();
@@ -1289,8 +1260,7 @@ fn running_test_binary_provenance() -> serde_json::Value {
         std::env::current_exe().expect("resolve running MT-088 test executable"),
     )
     .expect("canonicalize running MT-088 test executable");
-    let target = std::fs::canonicalize("../../../../Handshake_Artifacts/handshake-cargo-target")
-        .expect("canonicalize reserved Cargo target for running MT-088 test executable");
+    let target = source_provenance::target_root();
     assert!(
         executable.starts_with(&target),
         "running MT-088 test executable {} must come from reserved target {}",

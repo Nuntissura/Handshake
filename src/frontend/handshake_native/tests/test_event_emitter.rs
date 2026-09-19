@@ -22,6 +22,9 @@
 //! [`assert_no_local_artifact_dir`] fails the run if a repo-local `test_output/` or `tests/screenshots/`
 //! dir exists. NO artifact is ever written under `src/`.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -365,6 +368,7 @@ fn json_sha256(value: &serde_json::Value) -> String {
 }
 
 fn mt036_candidate_identity() -> serde_json::Value {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate().1; }
     use sha2::Digest as _;
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()

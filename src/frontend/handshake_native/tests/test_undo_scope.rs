@@ -39,6 +39,9 @@
 //!   `undo-count-{pane_id}` with the correct count in a kittest AccessKit dump, and the live pane header
 //!   reads the same shared `InteractionBus` depth in the mounted shell.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -989,6 +992,7 @@ fn mt035_sha256_json(value: &serde_json::Value) -> String {
 
 #[cfg(feature = "wgpu_screenshots")]
 fn mt035_source_candidate_identity() -> (String, serde_json::Value) {
+    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate(); }
     use sha2::Digest as _;
 
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))

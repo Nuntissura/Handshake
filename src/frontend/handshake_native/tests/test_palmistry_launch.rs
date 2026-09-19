@@ -22,6 +22,9 @@
 //!   discoverable it HARD-FAILS (build `-p palmistry` or set `HANDSHAKE_PALMISTRY_EXE`) — it NEVER
 //!   silently skips, so a passing live result is durable proof the real cross-process handshake ran.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -214,32 +217,7 @@ fn missing_palmistry_degrades_to_none_without_blocking() {
 /// (what the build pipeline / coder sets), then the conventional external build output dirs Palmistry's
 /// own `.cargo/config` targets. `None` => the live proof soft-skips (build `-p palmistry` to enable it).
 fn find_palmistry_binary() -> Option<PathBuf> {
-    if let Some(raw) = std::env::var_os(ENV_PALMISTRY_EXE) {
-        let p = PathBuf::from(raw);
-        if p.is_file() {
-            return Some(p);
-        }
-    }
-    let bin = if cfg!(windows) {
-        "palmistry.exe"
-    } else {
-        "palmistry"
-    };
-    // MT-094 remediation: the discovery fallbacks previously pointed at
-    // `Handshake_Artifacts/palmistry-target/{debug,release}`, a layout that NEVER existed — real
-    // builds land in the shared `Handshake_Artifacts/handshake-cargo-target/{debug,release}` (the
-    // repo-root + palmistry `.cargo/config.toml` target dir). Point at the REAL layout so the live
-    // proof finds a built binary without HANDSHAKE_PALMISTRY_EXE.
-    for base in [
-        "../../../../Handshake_Artifacts/handshake-cargo-target/debug",
-        "../../../../Handshake_Artifacts/handshake-cargo-target/release",
-    ] {
-        let p = Path::new(base).join(bin);
-        if p.is_file() {
-            return Some(p);
-        }
-    }
-    None
+    source_provenance::binary(ENV_PALMISTRY_EXE, "palmistry")
 }
 
 fn unique_session_id() -> String {

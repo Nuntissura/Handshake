@@ -1,5 +1,8 @@
 //! WP-KERNEL-012 MT-098: Runtime Chat pane beside the native editor work surface.
 
+#[path = "native_gui_support/source_provenance.rs"]
+mod source_provenance;
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -954,15 +957,7 @@ fn live_default_tree_contains_runtime_chat_beside_editors_and_screenshot() {
                 .expect("serialize fresh-default AccessKit author-id inventory")
         )
     );
-    let head_output = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
-        .output()
-        .expect("run git for fresh-default screenshot provenance");
-    assert!(
-        head_output.status.success(),
-        "git rev-parse HEAD must succeed for fresh-default screenshot provenance"
-    );
+    let source_head_sha = source_provenance::source_sha();
     let provenance_path = Path::new(&proof_frame_path)
         .parent()
         .expect("unique proof frame has a parent directory")
@@ -971,9 +966,7 @@ fn live_default_tree_contains_runtime_chat_beside_editors_and_screenshot() {
         &provenance_path,
         serde_json::to_vec_pretty(&serde_json::json!({
             "schema_id": "hsk.mt098-fresh-default-proof@1",
-            "head_sha": String::from_utf8(head_output.stdout)
-                .expect("HEAD is UTF-8")
-                .trim(),
+            "head_sha": source_head_sha,
             "source_sha256": {
                 "src/runtime_chat/panel.rs": sha256_file(
                     &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/runtime_chat/panel.rs")
@@ -1118,22 +1111,7 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     std::fs::create_dir_all(&artifact_dir)
         .expect("create external MT-098 canonical-Argus artifact dir");
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = crate_root
-        .ancestors()
-        .nth(3)
-        .expect("handshake_native manifest is nested below the repository root");
-    let head_output = std::process::Command::new("git")
-        .args(["-C", &repo_root.to_string_lossy(), "rev-parse", "HEAD"])
-        .output()
-        .expect("read current repository HEAD for source-bound proof");
-    assert!(
-        head_output.status.success(),
-        "git rev-parse HEAD must succeed for source-bound proof"
-    );
-    let source_head_sha = String::from_utf8(head_output.stdout)
-        .expect("HEAD SHA is UTF-8")
-        .trim()
-        .to_owned();
+    let source_head_sha = source_provenance::source_sha();
     let source_files = serde_json::json!({
         "src/runtime_chat/panel.rs": sha256_file(&crate_root.join("src/runtime_chat/panel.rs")),
         "src/runtime_chat/mod.rs": sha256_file(&crate_root.join("src/runtime_chat/mod.rs")),
