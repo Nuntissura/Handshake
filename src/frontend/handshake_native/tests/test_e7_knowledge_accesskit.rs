@@ -2506,11 +2506,14 @@ fn ac10_live_surrealdb_populated_graph_accesskit_round_trip() {
     let tag_graph = live.get_json(&format!("/workspaces/{workspace_id}/loom/graph/global"));
     let tag_edges = tag_graph["edges"].as_array().expect("raw graph tag edges");
     let tag_edge_count = |target: &str| {
-        tag_edges.iter().filter(|row| {
-            row["edge"]["source_block_id"].as_str() == Some(alpha_id.as_str())
-                && row["edge"]["target_block_id"].as_str() == Some(target)
-                && row["edge"]["edge_type"].as_str() == Some("tag")
-        }).count()
+        tag_edges
+            .iter()
+            .filter(|row| {
+                row["edge"]["source_block_id"].as_str() == Some(alpha_id.as_str())
+                    && row["edge"]["target_block_id"].as_str() == Some(target)
+                    && row["edge"]["edge_type"].as_str() == Some("tag")
+            })
+            .count()
     };
     assert_eq!(
         tag_edge_count(&done_tag),

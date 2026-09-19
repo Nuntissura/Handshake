@@ -197,7 +197,9 @@ fn graph_has_edge(
         .expect("global graph returns edge rows")
         .iter()
         .any(|row| {
-            row.pointer("/edge/edge_id").and_then(|value| value.as_str()) == Some(edge_id)
+            row.pointer("/edge/edge_id")
+                .and_then(|value| value.as_str())
+                == Some(edge_id)
                 && row
                     .pointer("/edge/source_block_id")
                     .and_then(|value| value.as_str())
@@ -628,7 +630,8 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
         .expect("global graph returns edge rows")
         .iter()
         .any(|row| {
-            row.pointer("/edge/edge_id").and_then(|value| value.as_str())
+            row.pointer("/edge/edge_id")
+                .and_then(|value| value.as_str())
                 == Some(created_edge_id.as_str())
         });
     assert!(created_edge_absent_after_remove);
@@ -722,13 +725,8 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
         .map(|placement| placement.placement_id.clone())
         .expect("authoritative Canvas contains exact placement");
     let placement_author = canvas_card_author_id(&placement_id);
-    let placement_present_after_create = canvas_has_placement(
-        &live,
-        &workspace_id,
-        &canvas_id,
-        &placement_id,
-        &alpha,
-    );
+    let placement_present_after_create =
+        canvas_has_placement(&live, &workspace_id, &canvas_id, &placement_id, &alpha);
     assert!(placement_present_after_create);
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
@@ -752,13 +750,8 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
     argus.assert_latest_terminal_predicate(&mut harness, "exact-placement-removed", |tree| {
         !json_has_author_id(tree, &placement_author)
     });
-    let placement_absent_after_remove = !canvas_has_placement(
-        &live,
-        &workspace_id,
-        &canvas_id,
-        &placement_id,
-        &alpha,
-    );
+    let placement_absent_after_remove =
+        !canvas_has_placement(&live, &workspace_id, &canvas_id, &placement_id, &alpha);
     assert!(placement_absent_after_remove);
     record_latest(&argus, &mut actions);
     artifacts.extend(capture_with_tree(

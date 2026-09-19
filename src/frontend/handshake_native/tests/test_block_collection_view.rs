@@ -1699,7 +1699,9 @@ fn live_create_view(
     assert_eq!(delivery.workspace_id, workspace_id);
     assert_eq!(delivery.generation, 1);
     assert!(delivery.expected_bound_view_id.is_none());
-    let view_id = delivery.result.expect("managed-SurrealDB create must succeed");
+    let view_id = delivery
+        .result
+        .expect("managed-SurrealDB create must succeed");
     assert!(!view_id.is_empty(), "created view id must be non-empty");
     view_id
 }
@@ -1734,7 +1736,9 @@ fn live_dispatch(
     assert_eq!(delivery.generation, 1);
     assert_eq!(delivery.expected_bound_view_id.as_deref(), Some(view_id));
     assert_eq!(
-        delivery.result.expect("managed-SurrealDB mutation must succeed"),
+        delivery
+            .result
+            .expect("managed-SurrealDB mutation must succeed"),
         view_id
     );
 }
