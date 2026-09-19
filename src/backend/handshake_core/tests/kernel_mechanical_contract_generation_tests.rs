@@ -97,7 +97,6 @@ fn mechanical_generation_receipts_describe_workdir_and_script_refs() {
     for receipt in &generation.durable_command_receipts {
         assert_eq!(receipt.workdir_ref, "repo-root://");
         assert_eq!(receipt.script_resolution, "resolve-script-ref-from-workdir");
-
     }
 
     let stub_receipt = generation
@@ -110,7 +109,6 @@ fn mechanical_generation_receipts_describe_workdir_and_script_refs() {
         repo_root.join(&stub_receipt.script_ref),
         repo_root.join(".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs")
     );
-
 }
 
 #[test]

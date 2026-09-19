@@ -100,7 +100,10 @@ async fn run_n8_once() -> Result<SwarmN8EvidenceRow, Box<dyn Error>> {
         .iter()
         .all(|session| session.steps_completed == MUTATIONS_PER_SESSION));
     assert!(
-        report.sessions.iter().all(|session| session.errors.is_empty()),
+        report
+            .sessions
+            .iter()
+            .all(|session| session.errors.is_empty()),
         "no session should hit an unknown catalog action: {:?}",
         report
             .sessions
@@ -272,7 +275,11 @@ fn artifact_root() -> PathBuf {
 }
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).ancestors().nth(3).expect("backend crate inside product root").to_path_buf()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("backend crate inside product root")
+        .to_path_buf()
 }
 
 fn epoch_millis() -> u128 {

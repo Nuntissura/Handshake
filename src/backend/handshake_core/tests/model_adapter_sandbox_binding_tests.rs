@@ -393,5 +393,9 @@ impl ModelFixture {
 }
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).ancestors().nth(3).expect("backend crate inside product root").to_path_buf()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("backend crate inside product root")
+        .to_path_buf()
 }
