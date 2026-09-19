@@ -393,11 +393,5 @@ impl ModelFixture {
 }
 
 fn repo_root() -> PathBuf {
-    let mut current = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    loop {
-        if current.join(".GOV").exists() {
-            return current;
-        }
-        assert!(current.pop(), "repo root with .GOV not found");
-    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).ancestors().nth(3).expect("backend crate inside product root").to_path_buf()
 }
