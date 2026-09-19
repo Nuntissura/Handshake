@@ -730,11 +730,11 @@ impl LoomWikiPagePanel {
         }
         let detail = self.terminal_detail(WikiActionDetail {
             action: "edit",
-            action_generation: action_generation,
+            action_generation,
             edit_mode_generation: self.edit_mode_generation,
             draft_identity: &draft_identity,
             draft_sha256: &draft_sha256,
-            source: source,
+            source,
             outcome: "applied",
             write_count: 0,
             overlay: None,
@@ -778,11 +778,11 @@ impl LoomWikiPagePanel {
         }
         let detail = self.terminal_detail(WikiActionDetail {
             action: "cancel",
-            action_generation: action_generation,
+            action_generation,
             edit_mode_generation: edit_generation,
             draft_identity: &draft_identity,
             draft_sha256: &draft_sha256,
-            source: source,
+            source,
             outcome: "applied",
             write_count: 0,
             overlay: None,
@@ -887,7 +887,7 @@ impl LoomWikiPagePanel {
         self.apply_save_error(message.clone());
         let detail = self.terminal_detail(WikiActionDetail {
             action: "save",
-            action_generation: action_generation,
+            action_generation,
             edit_mode_generation: pending.edit_mode_generation,
             draft_identity: &pending.draft_identity,
             draft_sha256: &pending.draft_sha256,
@@ -968,7 +968,7 @@ impl LoomWikiPagePanel {
         self.apply_reload_after_save_error(message.clone());
         let detail = self.terminal_detail(WikiActionDetail {
             action: "save",
-            action_generation: action_generation,
+            action_generation,
             edit_mode_generation: pending.edit_mode_generation,
             draft_identity: &pending.draft_identity,
             draft_sha256: &pending.draft_sha256,
@@ -1019,7 +1019,7 @@ impl LoomWikiPagePanel {
             self.apply_reload_after_save_error(conflict);
             let detail = self.terminal_detail(WikiActionDetail {
                 action: "save",
-                action_generation: action_generation,
+                action_generation,
                 edit_mode_generation: pending.edit_mode_generation,
                 draft_identity: &pending.draft_identity,
                 draft_sha256: &pending.draft_sha256,
@@ -1045,7 +1045,7 @@ impl LoomWikiPagePanel {
 
         let detail = self.terminal_detail(WikiActionDetail {
             action: "save",
-            action_generation: action_generation,
+            action_generation,
             edit_mode_generation: pending.edit_mode_generation,
             draft_identity: &pending.draft_identity,
             draft_sha256: &pending.draft_sha256,
