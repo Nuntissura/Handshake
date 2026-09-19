@@ -760,22 +760,28 @@ async fn micro_task_executor_persists_locus_lifecycle_and_session_occupancy(
 async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_metadata_present(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _test_guard = test_guard();
+    let workspace = tempdir()?;
+    let workspace_root = workspace.path();
+    let source_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
+    for asset in [
+        "assets/spec_prompt_packs/spec_router_pack@1.json",
+        "assets/capability_registry.json",
+    ] {
+        let destination = workspace_root.join(asset);
+        std::fs::create_dir_all(destination.parent().ok_or("asset parent missing")?)?;
+        std::fs::copy(source_root.join(asset), destination)?;
+    }
+    let _workspace_guard = WorkspaceEnvGuard::activate(workspace_root);
     let llm_client: Arc<dyn LlmClient> =
         Arc::new(QueuedLlmClient::new(vec!["# Spec Artifact".to_string()]));
     let Some(state) = setup_state(llm_client).await? else {
         return Ok(());
     };
     let trace_id = Uuid::now_v7();
-    let repo_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
-    // The Spec Router loads `assets/spec_prompt_packs/<pack>.json` below the
-    // resolved workspace root; this proof binds that root to the repo root
-    // explicitly instead of assuming the runner leaves HANDSHAKE_WORKSPACE_ROOT
-    // unset (lane runners point it at a scratch workspace: "missing_pack").
-    let _workspace_guard = WorkspaceEnvGuard::activate(&repo_root);
     let prompt_rel = PathBuf::from("data")
         .join("spec_router_tests")
         .join(format!("{}.md", Uuid::now_v7()));
-    let prompt_abs = repo_root.join(&prompt_rel);
+    let prompt_abs = workspace_root.join(&prompt_rel);
     std::fs::create_dir_all(prompt_abs.parent().ok_or("prompt parent missing")?)?;
     std::fs::write(&prompt_abs, "route this prompt into a work packet")?;
 
@@ -808,7 +814,7 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
                 "project_id": Value::Null,
                 "workflow_context": {
                     "version_control": "Git",
-                    "repo_root": repo_root.to_string_lossy().to_string(),
+                    "repo_root": workspace_root.to_string_lossy().to_string(),
                 },
                 "wp_id": routed_wp_id,
                 "title": "Routed Packet",
