@@ -740,7 +740,7 @@ fn render_code_block(ui: &mut egui::Ui, lang: Option<&str>, code: &str, palette:
     let pad = CODE_PADDING_PTS as i8;
     egui::Frame::new()
         .fill(palette.surface)
-        .stroke(egui::Stroke::new(1.0, palette.border))
+        .stroke(egui::Stroke::new(1.0_f32, palette.border))
         .inner_margin(egui::Margin::same(pad))
         .corner_radius(6.0)
         .show(ui, |ui| {
@@ -854,7 +854,7 @@ fn paint_table_row(
         painter.rect_stroke(
             cell_rect,
             0.0,
-            egui::Stroke::new(1.0, palette.border),
+            egui::Stroke::new(1.0_f32, palette.border),
             egui::StrokeKind::Inside,
         );
         // Bounds-checked cell access: a ragged row with fewer cells than `cols` paints an empty cell.

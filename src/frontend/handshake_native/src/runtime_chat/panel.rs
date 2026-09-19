@@ -516,7 +516,7 @@ impl RuntimeChatPanel {
         let endpoint_state = self.endpoint_state_label();
         let region = egui::Frame::new()
             .fill(palette.surface)
-            .stroke(egui::Stroke::new(1.0, palette.border))
+            .stroke(egui::Stroke::new(1.0_f32, palette.border))
             .inner_margin(egui::Margin::same(10))
             .show(ui, |ui| {
                 ui.set_min_height(ui.available_height());
@@ -544,7 +544,7 @@ impl RuntimeChatPanel {
                         let draft_ready = !self.draft.trim().is_empty();
                         let input = egui::Frame::new()
                             .fill(palette.bg)
-                            .stroke(egui::Stroke::new(1.0, palette.border))
+                            .stroke(egui::Stroke::new(1.0_f32, palette.border))
                             .inner_margin(egui::Margin::symmetric(6, 3))
                             .show(ui, |ui| {
                                 ui.add_sized(

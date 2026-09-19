@@ -58,7 +58,7 @@ pub fn tag_editor(ui: &mut egui::Ui, state: &mut PropertiesState, palette: &HsPa
         for tag in &state.tags {
             let chip = egui::Frame::new()
                 .fill(palette.accent_soft)
-                .stroke(egui::Stroke::new(1.0, palette.border))
+                .stroke(egui::Stroke::new(1.0_f32, palette.border))
                 .inner_margin(egui::Margin::symmetric(6, 2))
                 .corner_radius(8.0)
                 .show(ui, |ui| {

@@ -985,7 +985,7 @@ fn render_folder(
             ui.painter().rect_stroke(
                 sw_rect,
                 2.0,
-                Stroke::new(1.0, palette.border),
+                Stroke::new(1.0_f32, palette.border),
                 egui::StrokeKind::Inside,
             );
         }

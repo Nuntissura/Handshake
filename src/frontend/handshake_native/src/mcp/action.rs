@@ -245,19 +245,19 @@ impl ClickCompletionToken {
         self.schema == CLICK_COMPLETION_SCHEMA
             && valid_click_token_field(&self.effect, MAX_CLICK_COMPLETION_EFFECT_BYTES)
             && valid_click_token_field(&self.context, MAX_CLICK_COMPLETION_CONTEXT_BYTES)
-            && self.observer_author_id.as_deref().map_or(true, |value| {
+            && self.observer_author_id.as_deref().is_none_or(|value| {
                 valid_click_token_field(value, MAX_CLICK_COMPLETION_AUTHOR_BYTES)
             })
-            && self.pending_target.as_deref().map_or(true, |value| {
+            && self.pending_target.as_deref().is_none_or(|value| {
                 valid_click_token_field(value, MAX_CLICK_COMPLETION_AUTHOR_BYTES)
             })
-            && self.semantic_value.as_deref().map_or(true, |value| {
+            && self.semantic_value.as_deref().is_none_or(|value| {
                 valid_click_token_field(value, MAX_CLICK_COMPLETION_SEMANTIC_BYTES)
             })
-            && self.terminal_error.as_deref().map_or(true, |value| {
+            && self.terminal_error.as_deref().is_none_or(|value| {
                 valid_click_token_field(value, MAX_CLICK_COMPLETION_ERROR_BYTES)
             })
-            && self.terminal_detail.as_deref().map_or(true, |value| {
+            && self.terminal_detail.as_deref().is_none_or(|value| {
                 valid_click_token_field(value, MAX_CLICK_COMPLETION_DETAIL_BYTES)
             })
     }
@@ -4933,10 +4933,10 @@ mod tests {
     /// because nothing composes one that long any more).
     #[test]
     fn mt113_author_budget_is_the_stricter_of_the_two_so_siblings_cannot_diverge() {
-        assert!(
+        const { assert!(
             MAX_CLICK_COMPLETION_AUTHOR_BYTES <= MAX_CLICK_COMPLETION_CONTEXT_BYTES,
             "the author budget must remain the stricter of the two"
-        );
+        ); }
         let at_budget = "a".repeat(MAX_CLICK_COMPLETION_AUTHOR_BYTES);
         assert!(
             serialize_observer_click_state(

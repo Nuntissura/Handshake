@@ -4725,7 +4725,7 @@ impl RichEditorWidget {
             painter.rect_stroke(
                 badge_rect,
                 4.0,
-                egui::Stroke::new(1.0, palette.border),
+                egui::Stroke::new(1.0_f32, palette.border),
                 egui::StrokeKind::Inside,
             );
             painter.text(
@@ -4767,7 +4767,7 @@ impl RichEditorWidget {
             painter.rect_stroke(
                 btn_rect,
                 4.0,
-                egui::Stroke::new(1.0, palette.border),
+                egui::Stroke::new(1.0_f32, palette.border),
                 egui::StrokeKind::Inside,
             );
             painter.text(
@@ -4855,11 +4855,10 @@ impl RichEditorWidget {
             .id_salt(("properties-header", &doc_key))
             .default_open(false) // AC-1: collapsed by default.
             .show(ui, |ui| {
-                if state.properties.is_some() {
+                if let Some(props) = &mut state.properties {
                     // Borrow the panel pieces. The clipboard sink wraps the egui context (production
                     // surface); a headless test injects a mock via a direct `PropertiesPanel` call.
                     let clipboard = EguiClipboard::new(ui.ctx().clone());
-                    let props = state.properties.as_mut().expect("checked is_some");
                     PropertiesPanel::new(props, &mut state.properties_runtime, &clipboard, palette)
                         .show(ui);
                 } else {

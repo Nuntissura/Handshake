@@ -835,7 +835,7 @@ fn render_resolved_image(
         .unwrap_or_else(|| asset_id.to_owned());
     let frame = egui::Frame::new()
         .fill(palette.surface)
-        .stroke(egui::Stroke::new(1.0, palette.border))
+        .stroke(egui::Stroke::new(1.0_f32, palette.border))
         .inner_margin(8.0)
         .corner_radius(6.0);
     let resp = frame
@@ -910,7 +910,7 @@ fn render_video(
 
     let frame = egui::Frame::new()
         .fill(palette.surface)
-        .stroke(egui::Stroke::new(1.0, palette.border))
+        .stroke(egui::Stroke::new(1.0_f32, palette.border))
         .inner_margin(8.0)
         .corner_radius(6.0);
     let container = frame.show(ui, |ui| {
@@ -1007,7 +1007,7 @@ fn render_slideshow(
 
     let frame = egui::Frame::new()
         .fill(palette.surface)
-        .stroke(egui::Stroke::new(1.0, palette.border))
+        .stroke(egui::Stroke::new(1.0_f32, palette.border))
         .inner_margin(8.0)
         .corner_radius(6.0);
     let mut prev_clicked = false;
@@ -1132,7 +1132,7 @@ fn render_album(
 
     let frame = egui::Frame::new()
         .fill(palette.surface)
-        .stroke(egui::Stroke::new(1.0, palette.border))
+        .stroke(egui::Stroke::new(1.0_f32, palette.border))
         .inner_margin(8.0)
         .corner_radius(6.0);
     let mut clicked_index = None;
@@ -1285,7 +1285,7 @@ fn render_error_chip(
     let author = format!("embed-error-{}", error_chip_token(ref_value));
     let frame = egui::Frame::new()
         .fill(palette.error_bg)
-        .stroke(egui::Stroke::new(1.0, palette.error_text))
+        .stroke(egui::Stroke::new(1.0_f32, palette.error_text))
         .inner_margin(6.0)
         .corner_radius(6.0);
     let resp = frame

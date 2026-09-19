@@ -108,7 +108,7 @@ pub fn render_transclusion(
 
     let frame = egui::Frame::new()
         .fill(palette.surface)
-        .stroke(egui::Stroke::new(1.0, palette.border))
+        .stroke(egui::Stroke::new(1.0_f32, palette.border))
         .inner_margin(8.0)
         .corner_radius(6.0);
 

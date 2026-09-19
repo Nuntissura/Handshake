@@ -219,7 +219,7 @@ pub fn read_survivor_records(dir: &Path) -> Vec<PalmistrySurvivorView> {
         }
     }
     // Newest-first so the panel shows the most recent freeze/crash at the top.
-    views.sort_by(|a, b| b.captured_at_unix_ms.cmp(&a.captured_at_unix_ms));
+    views.sort_by_key(|view| std::cmp::Reverse(view.captured_at_unix_ms));
     views
 }
 

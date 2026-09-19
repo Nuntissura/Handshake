@@ -1486,9 +1486,9 @@ impl LoomGraphView {
         // Edges first (so nodes render on top — MT implementation_notes). MT-060: an edge with a HIDDEN
         // endpoint is skipped entirely (the orphan filter removed that node); an edge with a DIMMED
         // endpoint draws at reduced alpha (the node it connects to is a search non-match).
-        let edge_stroke_full = Stroke::new(1.5, palette.text_subtle.gamma_multiply(0.6));
+        let edge_stroke_full = Stroke::new(1.5_f32, palette.text_subtle.gamma_multiply(0.6));
         let edge_stroke_dim = Stroke::new(
-            1.5,
+            1.5_f32,
             palette.text_subtle.gamma_multiply(0.6).gamma_multiply(0.35),
         );
         let pos_by_id: HashMap<&str, Pos2> = self
@@ -1584,7 +1584,7 @@ impl LoomGraphView {
             let r = world_r * self.zoom;
             painter.circle_filled(screen, r, color);
             if self.selected.as_deref() == Some(node.block_id.as_str()) {
-                painter.circle_stroke(screen, r + 2.0, Stroke::new(2.0, palette.accent));
+                painter.circle_stroke(screen, r + 2.0, Stroke::new(2.0_f32, palette.accent));
             }
             // Title label beneath the node (dimmed too when the node is a search non-match).
             let label_color = if dimmed {

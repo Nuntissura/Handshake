@@ -2549,7 +2549,7 @@ impl KanbanSubView<'_> {
                     ui.painter().rect_stroke(
                         rect,
                         4.0,
-                        egui::Stroke::new(1.0, card_border),
+                        egui::Stroke::new(1.0_f32, card_border),
                         egui::StrokeKind::Inside,
                     );
                     ui.painter().text(

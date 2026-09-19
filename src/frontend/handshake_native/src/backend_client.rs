@@ -4261,11 +4261,11 @@ fn created_semantic_edge_from_response(
             .ok_or_else(|| AppError::Parse(format!("semantic-edge receipt missing {field}")))
     };
     let created = CreatedSemanticEdge {
-        edge_id: required(&value, "edge_id")?,
-        workspace_id: required(&value, "workspace_id")?,
-        source_block_id: required(&value, "source_block_id")?,
-        target_block_id: required(&value, "target_block_id")?,
-        edge_type: required(&value, "edge_type")?,
+        edge_id: required(value, "edge_id")?,
+        workspace_id: required(value, "workspace_id")?,
+        source_block_id: required(value, "source_block_id")?,
+        target_block_id: required(value, "target_block_id")?,
+        edge_type: required(value, "edge_type")?,
     };
     let workspace = spec
         .url
@@ -6128,7 +6128,7 @@ impl SidebarMutationReceipt {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SidebarMutationFailure {
     pub message: String,
-    pub receipt: SidebarMutationReceipt,
+    pub receipt: Box<SidebarMutationReceipt>,
 }
 
 /// The terminal result of one sidebar mutation. Both arms carry the authoritative receipt.
@@ -6546,7 +6546,7 @@ async fn sidebar_pin_mutation_receipt(
         Err(error) => {
             let message = AppError::Http(error.to_string()).to_string();
             receipt.failure = Some(message.clone());
-            return Err(SidebarMutationFailure { message, receipt });
+            return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
         }
     };
     let status = response.status();
@@ -6559,7 +6559,7 @@ async fn sidebar_pin_mutation_receipt(
         ))
         .to_string();
         receipt.failure = Some(message.clone());
-        return Err(SidebarMutationFailure { message, receipt });
+        return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
     }
     let value: serde_json::Value = match serde_json::from_str(&text) {
         Ok(value) => value,
@@ -6570,7 +6570,7 @@ async fn sidebar_pin_mutation_receipt(
             ))
             .to_string();
             receipt.failure = Some(message.clone());
-            return Err(SidebarMutationFailure { message, receipt });
+            return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
         }
     };
     parse_pin_mutation_receipt(&value, receipt)
@@ -6582,7 +6582,7 @@ fn parse_pin_mutation_receipt(
 ) -> SidebarActionResult {
     let fail = |mut receipt: SidebarMutationReceipt, message: String| {
         receipt.failure = Some(message.clone());
-        Err(SidebarMutationFailure { message, receipt })
+        Err(SidebarMutationFailure { message, receipt: Box::new(receipt) })
     };
     let block = match value.get("block").and_then(serde_json::Value::as_object) {
         Some(block) => block,
@@ -6717,7 +6717,7 @@ async fn sidebar_mutation_receipt(
         Err(error) => {
             let message = AppError::Http(error.to_string()).to_string();
             receipt.failure = Some(message.clone());
-            return Err(SidebarMutationFailure { message, receipt });
+            return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
         }
     };
     let status = response.status();
@@ -6727,7 +6727,7 @@ async fn sidebar_mutation_receipt(
         let message =
             AppError::Http(format!("{operation} non-success status {status}: {text}")).to_string();
         receipt.failure = Some(message.clone());
-        return Err(SidebarMutationFailure { message, receipt });
+        return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
     }
     let block: serde_json::Value = match serde_json::from_str(&text) {
         Ok(value) => value,
@@ -6736,7 +6736,7 @@ async fn sidebar_mutation_receipt(
                 AppError::Parse(format!("{operation} response is not a LoomBlock: {error}"))
                     .to_string();
             receipt.failure = Some(message.clone());
-            return Err(SidebarMutationFailure { message, receipt });
+            return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
         }
     };
     receipt.mutation_revision = block
@@ -6761,7 +6761,7 @@ async fn sidebar_mutation_receipt(
         ))
         .to_string();
         receipt.failure = Some(message.clone());
-        return Err(SidebarMutationFailure { message, receipt });
+        return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
     }
     let applied = match operation {
         SidebarMutationReceipt::OPERATION_REMOVE_PIN => {
@@ -6780,7 +6780,7 @@ async fn sidebar_mutation_receipt(
         ))
         .to_string();
         receipt.failure = Some(message.clone());
-        return Err(SidebarMutationFailure { message, receipt });
+        return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
     }
     receipt.outcome = SidebarMutationReceipt::OUTCOME_PERSISTED.to_owned();
     correlate_block_event_ledger(client, ledger_url, ledger_operation, &mut receipt).await;
@@ -8000,6 +8000,13 @@ pub type BlockViewOpCell = Arc<Mutex<Option<BlockViewOpDelivery>>>;
 /// REST client for the VERIFIED MT-262 block-collection-view surface. Drives the definition read, the
 /// query (POST!), the sort/kind/date persist, the Kanban card-move tag mutation, and view creation off
 /// the UI thread.
+/// Generation-bound destination for a view creation result.
+pub struct BlockViewOperationSink {
+    pub generation: Arc<AtomicU64>,
+    pub expected_generation: u64,
+    pub cell: BlockViewOpCell,
+}
+
 #[derive(Clone)]
 pub struct BlockViewClient {
     client: reqwest::Client,
@@ -8287,10 +8294,9 @@ impl BlockViewClient {
         block_id: &str,
         title: &str,
         definition: &BlockViewDefinition,
-        generation: Arc<AtomicU64>,
-        expected_generation: u64,
-        cell: BlockViewOpCell,
+        delivery: BlockViewOperationSink,
     ) {
+        let BlockViewOperationSink { generation, expected_generation, cell } = delivery;
         let spec = self.create_view_request(workspace_id, block_id, title, definition);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();

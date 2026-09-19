@@ -40,16 +40,16 @@ fn set_widget_colors(visuals: &mut Visuals, palette: &HsPalette) {
     let w = &mut visuals.widgets;
 
     w.noninteractive.bg_fill = palette.bg;
-    w.noninteractive.fg_stroke = Stroke::new(1.0, palette.text);
+    w.noninteractive.fg_stroke = Stroke::new(1.0_f32, palette.text);
 
     w.inactive.bg_fill = palette.surface;
-    w.inactive.fg_stroke = Stroke::new(1.0, palette.text);
+    w.inactive.fg_stroke = Stroke::new(1.0_f32, palette.text);
 
     w.active.bg_fill = palette.accent;
-    w.active.fg_stroke = Stroke::new(1.0, palette.surface);
+    w.active.fg_stroke = Stroke::new(1.0_f32, palette.surface);
 
     w.hovered.bg_fill = palette.accent_soft;
-    w.hovered.fg_stroke = Stroke::new(1.5, palette.accent);
+    w.hovered.fg_stroke = Stroke::new(1.5_f32, palette.accent);
 }
 
 /// Equality probe used by the theme tests: does `ctx`'s installed visuals' `panel_fill`

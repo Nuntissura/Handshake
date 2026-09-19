@@ -6920,7 +6920,7 @@ mod tests {
         let unique_label_bounds =
             |what: &str, matches_value: &dyn Fn(&str) -> bool| -> UiNodeBounds {
                 let mut found = snapshot.iter_nodes().filter(|node| {
-                    node.role == "Label" && node.value.as_deref().is_some_and(|v| matches_value(v))
+                    node.role == "Label" && node.value.as_deref().is_some_and(matches_value)
                 });
                 let node = found.next().unwrap_or_else(|| {
                     panic!("the result row must publish a Label node for the {what}")

@@ -209,7 +209,7 @@ pub fn date_field(ui: &mut egui::Ui, iso: &str, palette: &HsPalette) {
 pub fn version_badge(ui: &mut egui::Ui, doc_version: u64, palette: &HsPalette) {
     egui::Frame::new()
         .fill(palette.surface)
-        .stroke(egui::Stroke::new(1.0, palette.border_strong))
+        .stroke(egui::Stroke::new(1.0_f32, palette.border_strong))
         .inner_margin(egui::Margin::symmetric(6, 2))
         .corner_radius(4.0)
         .show(ui, |ui| {
@@ -232,7 +232,7 @@ pub fn authority_badge(ui: &mut egui::Ui, authority_label: &str, palette: &HsPal
     };
     egui::Frame::new()
         .fill(fill)
-        .stroke(egui::Stroke::new(1.0, palette.border))
+        .stroke(egui::Stroke::new(1.0_f32, palette.border))
         .inner_margin(egui::Margin::symmetric(6, 2))
         .corner_radius(4.0)
         .show(ui, |ui| {

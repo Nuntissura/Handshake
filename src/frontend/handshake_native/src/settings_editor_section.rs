@@ -451,7 +451,7 @@ impl EditorPreferenceProvenance {
     /// The operator-facing chip text for `preference_id`.
     pub fn chip_text(&self, preference_id: &str) -> String {
         match self.get(preference_id) {
-            Some((source, revision)) if source == "default" => {
+            Some(("default", revision)) => {
                 format!("default · rev {revision}")
             }
             Some((source, revision)) => format!("custom ({source}) · rev {revision}"),

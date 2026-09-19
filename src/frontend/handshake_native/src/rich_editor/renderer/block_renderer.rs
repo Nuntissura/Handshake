@@ -420,7 +420,7 @@ fn paint_code_block(
     painter.rect_stroke(
         box_rect,
         6.0,
-        Stroke::new(1.0, palette.border),
+        Stroke::new(1.0_f32, palette.border),
         egui::StrokeKind::Inside,
     );
 
@@ -450,8 +450,7 @@ fn paint_list(
 ) -> BlockPaint {
     let ordered = matches!(block.kind, NodeKind::OrderedList);
     let mut y = top_left.y;
-    let mut number = 1usize;
-    for item in block.children.iter().filter_map(Child::as_block) {
+    for (number, item) in (1usize..).zip(block.children.iter().filter_map(Child::as_block)) {
         let prefix = if ordered {
             format!("{number}.")
         } else {
@@ -485,7 +484,6 @@ fn paint_list(
         let origin = egui::pos2(top_left.x + LIST_INDENT_PTS, y);
         painter.galley(origin, galley, palette.text);
         y += h;
-        number += 1;
     }
     let height = (y - top_left.y).max(base_font_size);
     BlockPaint {
@@ -532,7 +530,7 @@ fn paint_table(
             painter.rect_stroke(
                 cell_rect,
                 0.0,
-                Stroke::new(1.0, palette.border),
+                Stroke::new(1.0_f32, palette.border),
                 egui::StrokeKind::Inside,
             );
             // CLIP cell content to its rect so long text cannot overflow into the
@@ -576,7 +574,7 @@ fn paint_horizontal_rule(
             egui::pos2(top_left.x, y),
             egui::pos2(top_left.x + content_width, y),
         ],
-        Stroke::new(1.0, palette.border),
+        Stroke::new(1.0_f32, palette.border),
     );
     BlockPaint {
         height: base_font_size + BLOCK_GAP_PTS,

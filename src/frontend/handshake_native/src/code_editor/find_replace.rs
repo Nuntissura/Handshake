@@ -162,7 +162,7 @@ impl FindEngine {
         // ascending, but never assume — a defensive sort keeps the reverse-order invariant true even if
         // a caller passes an unsorted list.
         let mut ordered: Vec<&Match> = matches.iter().collect();
-        ordered.sort_by(|a, b| b.byte_range.start.cmp(&a.byte_range.start));
+        ordered.sort_by_key(|item| std::cmp::Reverse(item.byte_range.start));
         let mut applied = 0usize;
         let mut last_start = usize::MAX;
         for m in ordered {

@@ -11124,7 +11124,7 @@ impl CodeEditorPanel {
                 } else {
                     guide_color
                 };
-                painter.vline(x, y0..=y1, egui::Stroke::new(1.0, color));
+                painter.vline(x, y0..=y1, egui::Stroke::new(1.0_f32, color));
             }
         };
         // MT-035 wave-7: the indent-guide pass is gated by the `editor_prefs.indent_guides` toggle the shell
@@ -11222,7 +11222,7 @@ impl CodeEditorPanel {
             set.primary().head
         };
         if let Some((open_byte, close_byte)) = self.matching_bracket_pair(&buffer, cursor_byte) {
-            let stroke = egui::Stroke::new(1.0, active_guide_color);
+            let stroke = egui::Stroke::new(1.0_f32, active_guide_color);
             for b in [open_byte, close_byte] {
                 if let Some((x, y)) =
                     self.decoration_xy(&buffer, b, geometry, glyph_width, painted_lines, wrap_rows)
@@ -12607,7 +12607,7 @@ impl CodeEditorPanel {
                         egui::pos2(x, underline_y),
                         egui::pos2(x + run_w, underline_y),
                     ],
-                    egui::Stroke::new(1.0, caret_color),
+                    egui::Stroke::new(1.0_f32, caret_color),
                 );
                 // The composition caret sits at the END of the preedit run (egui 0.33 Preedit carries no
                 // cursor range — the field-correct position).

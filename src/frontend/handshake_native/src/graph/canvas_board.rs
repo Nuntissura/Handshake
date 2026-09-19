@@ -3359,7 +3359,7 @@ impl LoomCanvasBoard {
     /// Draw every visual edge as a dashed line between card centres (RISK-5 / MC-5: a short edge is a
     /// single solid line).
     fn draw_visual_edges(&self, painter: &egui::Painter, origin: Vec2, palette: &HsPalette) {
-        let stroke = Stroke::new(2.0, palette.text_subtle.gamma_multiply(0.7));
+        let stroke = Stroke::new(2.0_f32, palette.text_subtle.gamma_multiply(0.7));
         for edge in &self.visual_edges {
             let from = self
                 .placements
@@ -3402,9 +3402,9 @@ impl LoomCanvasBoard {
 
         let selected = self.selected.contains(&placement_id);
         let border = if selected {
-            Stroke::new(2.0, palette.accent)
+            Stroke::new(2.0_f32, palette.accent)
         } else {
-            Stroke::new(1.0, palette.border_strong)
+            Stroke::new(1.0_f32, palette.border_strong)
         };
         // White card fill from the theme surface (no hardcoded hex — theme invariant).
         painter.rect_filled(screen_rect, 4.0, palette.surface);
@@ -3725,7 +3725,7 @@ impl LoomCanvasBoard {
             painter.rect_stroke(
                 screen_rect,
                 6.0,
-                Stroke::new(1.5, frame.color),
+                Stroke::new(1.5_f32, frame.color),
                 egui::StrokeKind::Inside,
             );
             // Title at the frame's top-left, inside the reserved title band.

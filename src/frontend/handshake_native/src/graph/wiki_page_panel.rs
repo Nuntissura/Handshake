@@ -418,6 +418,19 @@ struct WikiSourceSnapshot {
     content_sha256: String,
 }
 
+struct WikiActionDetail<'a> {
+    action: &'a str,
+    action_generation: u64,
+    edit_mode_generation: u64,
+    draft_identity: &'a str,
+    draft_sha256: &'a str,
+    source: &'a WikiSourceSnapshot,
+    outcome: &'a str,
+    write_count: u64,
+    overlay: Option<&'a WikiOverlay>,
+    extra: serde_json::Value,
+}
+
 impl WikiSourceSnapshot {
     fn from_page(page: &WikiProjection) -> Self {
         Self {
@@ -644,19 +657,8 @@ impl LoomWikiPagePanel {
         .to_string()
     }
 
-    fn terminal_detail(
-        &self,
-        action: &str,
-        action_generation: u64,
-        edit_mode_generation: u64,
-        draft_identity: &str,
-        draft_sha256: &str,
-        source: &WikiSourceSnapshot,
-        outcome: &str,
-        write_count: u64,
-        overlay: Option<&WikiOverlay>,
-        extra: serde_json::Value,
-    ) -> String {
+    fn terminal_detail(&self, detail: WikiActionDetail<'_>) -> String {
+        let WikiActionDetail { action, action_generation, edit_mode_generation, draft_identity, draft_sha256, source, outcome, write_count, overlay, extra } = detail;
         serde_json::json!({
             "action": action,
             "action_generation": action_generation,
@@ -715,18 +717,18 @@ impl LoomWikiPagePanel {
         if self.action_observer.begin(target, semantic).is_none() || !self.begin_edit() {
             return false;
         }
-        let detail = self.terminal_detail(
-            "edit",
-            action_generation,
-            self.edit_mode_generation,
-            &draft_identity,
-            &draft_sha256,
-            source,
-            "applied",
-            0,
-            None,
-            serde_json::json!({"draft_initialized": true, "edit_open": true}),
-        );
+        let detail = self.terminal_detail(WikiActionDetail {
+            action: "edit",
+            action_generation: action_generation,
+            edit_mode_generation: self.edit_mode_generation,
+            draft_identity: &draft_identity,
+            draft_sha256: &draft_sha256,
+            source: source,
+            outcome: "applied",
+            write_count: 0,
+            overlay: None,
+            extra: serde_json::json!({"draft_initialized": true, "edit_open": true}),
+        });
         self.action_observer.applied(action_generation, detail)
     }
 
@@ -763,22 +765,22 @@ impl LoomWikiPagePanel {
         if self.action_observer.begin(target, semantic).is_none() || !self.cancel_edit() {
             return false;
         }
-        let detail = self.terminal_detail(
-            "cancel",
-            action_generation,
-            edit_generation,
-            &draft_identity,
-            &draft_sha256,
-            source,
-            "applied",
-            0,
-            None,
-            serde_json::json!({
+        let detail = self.terminal_detail(WikiActionDetail {
+            action: "cancel",
+            action_generation: action_generation,
+            edit_mode_generation: edit_generation,
+            draft_identity: &draft_identity,
+            draft_sha256: &draft_sha256,
+            source: source,
+            outcome: "applied",
+            write_count: 0,
+            overlay: None,
+            extra: serde_json::json!({
                 "draft_discarded": true,
                 "edit_closed": true,
                 "original_source_authoritative": true,
             }),
-        );
+        });
         self.action_observer.applied(action_generation, detail)
     }
 
@@ -872,22 +874,22 @@ impl LoomWikiPagePanel {
         };
         let message = bounded_terminal_error(&message.into());
         self.apply_save_error(message.clone());
-        let detail = self.terminal_detail(
-            "save",
-            action_generation,
-            pending.edit_mode_generation,
-            &pending.draft_identity,
-            &pending.draft_sha256,
-            &pending.source,
-            "failed",
-            0,
-            None,
-            serde_json::json!({
+        let detail = self.terminal_detail(WikiActionDetail {
+            action: "save",
+            action_generation: action_generation,
+            edit_mode_generation: pending.edit_mode_generation,
+            draft_identity: &pending.draft_identity,
+            draft_sha256: &pending.draft_sha256,
+            source: &pending.source,
+            outcome: "failed",
+            write_count: 0,
+            overlay: None,
+            extra: serde_json::json!({
                 "draft_retained": true,
                 "edit_open": true,
                 "error_kind": "wiki_save_transport",
             }),
-        );
+        });
         self.pending_save = None;
         self.action_observer.failed(
             action_generation,
@@ -953,22 +955,22 @@ impl LoomWikiPagePanel {
         };
         let message = bounded_terminal_error(&message.into());
         self.apply_reload_after_save_error(message.clone());
-        let detail = self.terminal_detail(
-            "save",
-            action_generation,
-            pending.edit_mode_generation,
-            &pending.draft_identity,
-            &pending.draft_sha256,
-            &pending.source,
-            "failed",
-            u64::from(pending.persisted_overlay.is_some()),
-            pending.persisted_overlay.as_ref(),
-            serde_json::json!({
+        let detail = self.terminal_detail(WikiActionDetail {
+            action: "save",
+            action_generation: action_generation,
+            edit_mode_generation: pending.edit_mode_generation,
+            draft_identity: &pending.draft_identity,
+            draft_sha256: &pending.draft_sha256,
+            source: &pending.source,
+            outcome: "failed",
+            write_count: u64::from(pending.persisted_overlay.is_some()),
+            overlay: pending.persisted_overlay.as_ref(),
+            extra: serde_json::json!({
                 "draft_retained": true,
                 "edit_open": true,
                 "error_kind": "wiki_save_readback",
             }),
-        );
+        });
         self.action_observer.failed(
             action_generation,
             format!("wiki_save_readback: {message}"),
@@ -1004,17 +1006,17 @@ impl LoomWikiPagePanel {
                 "persisted overlay receipt was absent or changed in canonical readback"
             };
             self.apply_reload_after_save_error(conflict);
-            let detail = self.terminal_detail(
-                "save",
-                action_generation,
-                pending.edit_mode_generation,
-                &pending.draft_identity,
-                &pending.draft_sha256,
-                &pending.source,
-                "conflict",
-                1,
-                Some(persisted),
-                serde_json::json!({
+            let detail = self.terminal_detail(WikiActionDetail {
+            action: "save",
+            action_generation: action_generation,
+            edit_mode_generation: pending.edit_mode_generation,
+            draft_identity: &pending.draft_identity,
+            draft_sha256: &pending.draft_sha256,
+            source: &pending.source,
+            outcome: "conflict",
+            write_count: 1,
+            overlay: Some(persisted),
+            extra: serde_json::json!({
                     "draft_retained": true,
                     "edit_open": true,
                     "error_kind": "wiki_save_conflict",
@@ -1022,7 +1024,7 @@ impl LoomWikiPagePanel {
                     "readback_source_projection_revision": readback_source.projection_revision,
                     "readback_source_staleness_hash": readback_source.staleness_hash,
                 }),
-            );
+        });
             return self.action_observer.failed(
                 action_generation,
                 format!("wiki_save_conflict: {conflict}"),
@@ -1030,22 +1032,22 @@ impl LoomWikiPagePanel {
             );
         }
 
-        let detail = self.terminal_detail(
-            "save",
-            action_generation,
-            pending.edit_mode_generation,
-            &pending.draft_identity,
-            &pending.draft_sha256,
-            &pending.source,
-            "applied",
-            1,
-            Some(persisted),
-            serde_json::json!({
+        let detail = self.terminal_detail(WikiActionDetail {
+            action: "save",
+            action_generation: action_generation,
+            edit_mode_generation: pending.edit_mode_generation,
+            draft_identity: &pending.draft_identity,
+            draft_sha256: &pending.draft_sha256,
+            source: &pending.source,
+            outcome: "applied",
+            write_count: 1,
+            overlay: Some(persisted),
+            extra: serde_json::json!({
                 "draft_discarded": true,
                 "edit_closed": true,
                 "persisted_and_read_back": true,
             }),
-        );
+        });
         self.set_page(page);
         self.finish_save_success();
         self.pending_save = None;

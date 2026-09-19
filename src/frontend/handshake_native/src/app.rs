@@ -105,7 +105,8 @@ const MT042_GRAPH_OPEN_CONTEXT: &str = "wp-kernel-012-mt-042-v4";
 /// target, so it is declared with the flexible observer form: the ActionChannel only accepts
 ///   * `Applied` when the Remove control is GONE, and
 ///   * `Failed` when the exact Remove control is still mounted (the rollback preserved the pin),
-/// and the app only publishes `Applied` after the AUTHORITATIVE post-mutation pin refresh has been
+///
+/// The app only publishes `Applied` after the AUTHORITATIVE post-mutation pin refresh has been
 /// received from SurrealDB and no longer contains the block. Target disappearance alone can never
 /// terminalize the receipt.
 pub const MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID: &str =
@@ -612,10 +613,10 @@ impl Mt029FindResultOpenCompletion {
                     self.generation,
                     self.state,
                     (self.state == crate::mcp::action::ClickCompletionState::Pending)
-                        .then(|| self.target.as_deref())
+                        .then_some(self.target.as_deref())
                         .flatten(),
                     (self.state == crate::mcp::action::ClickCompletionState::Pending)
-                        .then(|| self.semantic.as_deref())
+                        .then_some(self.semantic.as_deref())
                         .flatten(),
                 )
             }
@@ -11584,7 +11585,7 @@ impl HandshakeApp {
         })
         .unwrap_or_default();
         for (pane_id, count) in live_counts {
-            let undo_count_author_id = crate::interop::undo_count_author_id(&pane_id.to_string());
+            let undo_count_author_id = crate::interop::undo_count_author_id(&pane_id);
             mt033_set_snapshot_node_value(
                 &mut snapshot.root,
                 &undo_count_author_id,
@@ -28484,7 +28485,7 @@ impl HandshakeApp {
                         if section == SectionKind::Pins
                             && self
                                 .mt024_sidebar_pin_removal_completion
-                                .record_backend_receipt(&block_id, failure.receipt.clone())
+                                .record_backend_receipt(&block_id, (*failure.receipt).clone())
                         {
                             // MT-024 V4: a terminal TYPED failure with the original pin preserved by
                             // the rollback above. The flexible observer form requires the exact
@@ -29208,7 +29209,7 @@ impl HandshakeApp {
                         .folder_tree
                         .lock()
                         .ok()
-                        .and_then(|mut tree| {
+                        .map(|mut tree| {
                             let accepted = tree.find_folder_mut(&folder_id).is_some_and(|node| {
                                 node.bind_open_request(action_generation, sequence)
                             });
@@ -29216,7 +29217,7 @@ impl HandshakeApp {
                                 tree.selected_folder_id = Some(folder_id.clone());
                                 tree.refresh_child_error_banner();
                             }
-                            Some(accepted)
+                            accepted
                         })
                         .unwrap_or(false);
                     if accepted {
@@ -29760,14 +29761,12 @@ impl HandshakeApp {
                             view.status = "Creating view…".to_owned();
                         }
                         self.block_collection_client(rt).create_view(
-                            workspace,
-                            &block_id,
-                            &title,
-                            &definition,
-                            Arc::clone(&sec.collection_load_generation),
-                            op_generation,
-                            Arc::clone(&sec.collection_op_cell),
-                        );
+workspace,
+&block_id,
+&title,
+&definition,
+crate::backend_client::BlockViewOperationSink { generation: Arc::clone(&sec.collection_load_generation), expected_generation: op_generation, cell: Arc::clone(&sec.collection_op_cell) },
+);
                     } else if !view_block_id.is_empty() {
                         // `bind_block_collection_view` clears every stale delivery/pending cell before
                         // issuing exactly one bounded definition fetch and one bounded results query.
@@ -29827,14 +29826,12 @@ impl HandshakeApp {
                                 *cell = None;
                             }
                             client.create_view(
-                                workspace,
-                                &block_id,
-                                &title,
-                                &def,
-                                Arc::clone(&sec.collection_load_generation),
-                                op_generation,
-                                Arc::clone(&sec.collection_op_cell),
-                            );
+workspace,
+&block_id,
+&title,
+&def,
+crate::backend_client::BlockViewOperationSink { generation: Arc::clone(&sec.collection_load_generation), expected_generation: op_generation, cell: Arc::clone(&sec.collection_op_cell) },
+);
                         }
                         continue;
                     }
@@ -29862,14 +29859,12 @@ impl HandshakeApp {
                                 *cell = None;
                             }
                             client.create_view(
-                                workspace,
-                                &block_id,
-                                &title,
-                                &def,
-                                Arc::clone(&sec.collection_load_generation),
-                                op_generation,
-                                Arc::clone(&sec.collection_op_cell),
-                            );
+workspace,
+&block_id,
+&title,
+&def,
+crate::backend_client::BlockViewOperationSink { generation: Arc::clone(&sec.collection_load_generation), expected_generation: op_generation, cell: Arc::clone(&sec.collection_op_cell) },
+);
                         }
                         other => {
                             let spec = match other {
@@ -32495,8 +32490,7 @@ impl HandshakeApp {
             .unwrap_or_default();
         let delivered = deliveries
             .into_iter()
-            .filter(|delivery| self.canvas_expected_request.as_ref() == Some(&delivery.request))
-            .next_back();
+            .rfind(|delivery| self.canvas_expected_request.as_ref() == Some(&delivery.request));
         if let Some(crate::backend_client::CanvasBoardDelivery { request, result }) = delivered {
             let mut resolve_after_board = None;
             let request_key = (
@@ -33109,15 +33103,14 @@ impl HandshakeApp {
     fn start_code_ref_navigation(
         &mut self,
         symbol_entity_id: &str,
-        origin_pane: Option<PaneId>,
-        origin_content_id: String,
+        navigation_scope: CodeNavigationScope,
         source_panel: Arc<CodeEditorPanel>,
         explicit_byte_offset: Option<usize>,
         preserve_origin: bool,
         origin_rich_view: Option<(String, Option<String>)>,
     ) {
-        let navigation_scope =
-            CodeNavigationScope::new(origin_pane.clone(), origin_content_id.clone());
+        let origin_pane = navigation_scope.origin_pane.clone();
+        let origin_content_id = navigation_scope.origin_content_id.clone();
         // A code-ref navigation has two async stages (resolve, then optional disk load). Invalidate
         // stage-two work in THIS pane/source lane synchronously at NEW intent dispatch. Independent
         // pane A work remains current while pane B supersedes B-old.
@@ -33198,8 +33191,7 @@ impl HandshakeApp {
                 let (origin_content_id, source_panel) = self.active_code_panel_and_content_id();
                 self.start_code_ref_navigation(
                     symbol_entity_id,
-                    origin_pane,
-                    origin_content_id,
+                    CodeNavigationScope::new(origin_pane, origin_content_id),
                     source_panel,
                     None,
                     false,
@@ -39425,8 +39417,7 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
                 let (origin_content_id, source_panel) = self.active_code_panel_and_content_id();
                 self.start_code_ref_navigation(
                     symbol_entity_id,
-                    origin_pane,
-                    origin_content_id,
+                    CodeNavigationScope::new(origin_pane, origin_content_id),
                     source_panel,
                     None,
                     true,
@@ -39452,8 +39443,7 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
                 let (origin_content_id, source_panel) = self.active_code_panel_and_content_id();
                 self.start_code_ref_navigation(
                     symbol_entity_id,
-                    origin_pane,
-                    origin_content_id,
+                    CodeNavigationScope::new(origin_pane, origin_content_id),
                     source_panel,
                     Some(byte_offset),
                     true,
@@ -39560,8 +39550,7 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
                 let (origin_content_id, source_panel) = self.active_code_panel_and_content_id();
                 self.start_code_ref_navigation(
                     symbol_entity_id,
-                    origin_pane,
-                    origin_content_id,
+                    CodeNavigationScope::new(origin_pane, origin_content_id),
                     source_panel,
                     None,
                     false,

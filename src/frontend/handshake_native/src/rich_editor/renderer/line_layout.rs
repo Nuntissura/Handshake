@@ -193,12 +193,12 @@ pub fn text_format_for_run(
     let underline_stroke = if underline || is_link {
         // Links are underlined too (the React link affordance); a 1px line in the run
         // color reads as the standard underline.
-        Stroke::new(1.0, color)
+        Stroke::new(1.0_f32, color)
     } else {
         Stroke::NONE
     };
     let strike_stroke = if strike {
-        Stroke::new(1.0, color)
+        Stroke::new(1.0_f32, color)
     } else {
         Stroke::NONE
     };

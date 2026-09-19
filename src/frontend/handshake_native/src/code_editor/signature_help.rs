@@ -725,11 +725,9 @@ impl DepthScanner {
                     self.angle += 1;
                 }
             }
-            '>' => {
-                // Close a generic only if one is open (so `->` / `=>` / a comparison does not underflow).
-                if self.angle > 0 {
-                    self.angle -= 1;
-                }
+            '>' if self.angle > 0 => {
+                // Close only an open generic; arrows and comparisons cannot underflow.
+                self.angle -= 1;
             }
             _ => {}
         }

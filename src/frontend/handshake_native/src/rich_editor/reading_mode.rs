@@ -290,7 +290,7 @@ fn segment_button(
     let resp = ui.add(
         egui::Button::new(egui::RichText::new(mode.label()).color(text_color))
             .fill(fill)
-            .stroke(egui::Stroke::new(1.0, palette.border)),
+            .stroke(egui::Stroke::new(1.0_f32, palette.border)),
     );
     // egui already derives Role::Button + Action::Click + Action::Focus for a Button response; we
     // ADD the stable author_id (REUSE the WP-011 emit_interactive_node helper so the live node keeps
