@@ -14,7 +14,7 @@
   "title": "E8-MT045-LargeDocPerformanceProof",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-19T22:42:01.940357Z",
+  "updated_at_utc": "2026-09-19T23:00:06.842347Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -965,5 +965,102 @@
       "MT108 gitless matrix validation requires HANDSHAKE_PROOF_SOURCE_MANIFEST with exact observed source SHA256 map.",
       "Installed Cargo registry inputs were read from existing C cache during offline run; all configured target/temp/runtime outputs used D. Cache-home policy must be checked before resumed build."
     ]
+  },
+  "remediation_v2": {
+    "status": "IMPLEMENTED_PENDING_SHARED_VALIDATION",
+    "session": "native_batch_kb_wpv_static_followup",
+    "recorded_at_utc": "2026-09-19T23:00:06.842347Z",
+    "candidate_sha": "9f2c19298659c1c88be3da7e9a56002f6425592c",
+    "base_sha": "c095fd9a18a5ba71f7f88027acb198000d852e16",
+    "commits": {
+      "operation_sinks": "f798b37f",
+      "perf_provenance_supervisor": "ce1fadd4",
+      "wiki_fields": "b687bc20",
+      "separate_style": "9f2c1929"
+    },
+    "SESSION_MT_BATCH": [
+      "MT-025",
+      "MT-027",
+      "MT-042",
+      "MT-045",
+      "MT-079",
+      "MT-088"
+    ],
+    "batch_owner": "MT-079",
+    "files_changed": [
+      "src/frontend/handshake_native/tests/native_gui_support/source_provenance.rs",
+      "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
+      "src/frontend/handshake_native/tests/run_mt045_perf_proof.ps1"
+    ],
+    "source_sha256": {
+      "src/frontend/handshake_native/tests/native_gui_support/source_provenance.rs": "72ea00fd0a8641e6d71f10f07b7659c890a3b16a892f7e6f7fc143f758275fb1",
+      "src/frontend/handshake_native/tests/perf_proof_support/mod.rs": "17d475b304c1e97e09af2e70ecf93d133d2b652d27ac8b4bd13fc6d838c6fe4a",
+      "src/frontend/handshake_native/tests/run_mt045_perf_proof.ps1": "2e5fab2fa99e23674c2ba517499a1d6d17c0ab5dccd3e11347ec3f2d7e87c452"
+    },
+    "independent_static_findings": [
+      {
+        "id": "native-wpv-operation-sink",
+        "finding": "Three integration proof targets retained removed positional create_view arguments.",
+        "repair": "Pass typed BlockViewOperationSink while preserving generation and result cells.",
+        "mts": [
+          "MT-027",
+          "MT-042"
+        ]
+      },
+      {
+        "id": "native-wpv-perf-supervisor-paths",
+        "finding": "Canonical PS supervisor still selected forbidden legacy target and wrote tracked manifest/old measurement root.",
+        "repair": "Require existing configured WP/MT/owner target; use same scoped MT045 RunId manifest/measurement paths as Rust, scoped runtime/temp/diagnostics, read-only committed baseline.",
+        "mts": [
+          "MT-045"
+        ]
+      },
+      {
+        "id": "native-wpv-source-binding",
+        "finding": "Export source_blob attempted to open directories as files; scenario equality compared two absent crate_tree_at_head values.",
+        "repair": "Deterministic sorted SHA256 directory manifest with sha256-manifest type tag; require nonempty typed source_tree_identity/source_objects/observed_source_sha256 then compare all across scenarios. Shared helper now in both source inventories.",
+        "mts": [
+          "MT-045",
+          "MT-088"
+        ]
+      },
+      {
+        "id": "native-wpv-wiki-clippy",
+        "finding": "WikiActionDetail constructors retained redundant field initializers after lint repair.",
+        "repair": "Use equivalent shorthand fields without changing behavior or lint gates.",
+        "mts": [
+          "MT-025"
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "name": "rustfmt 1.97.1 per-file parsing and formatting",
+        "status": "COMPLETED",
+        "scope": "Six assigned Rust files; skip_children=true; unrelated formatting in separate style commit."
+      },
+      {
+        "name": "PowerShell AST parser",
+        "status": "COMPLETED",
+        "observed_errors": 0,
+        "scope": "run_mt045_perf_proof.ps1; script not executed"
+      },
+      {
+        "name": "scoped git diff --check",
+        "status": "COMPLETED",
+        "scope": "Seven assigned files only"
+      }
+    ],
+    "not_run": [
+      "Cargo and runtime tests: auth builder exclusively owns Cargo",
+      "independent committed-candidate WP_VALIDATOR recheck",
+      "final shared backend/native runtime suites"
+    ],
+    "push": "origin/feat/WP-KERNEL-012 contains candidate",
+    "concurrency": "Only seven assigned files staged and committed. Auth dirty source files preserved; staging index empty after commits. Git lane released.",
+    "artifact_lane": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-079/kb-v7",
+    "target_reuse": "No builds in this follow-up; canonical supervisor now consumes existing CARGO_TARGET_DIR, never creates a fourth target.",
+    "lifecycle_unchanged": true,
+    "verdict_unchanged": true
   }
 }
