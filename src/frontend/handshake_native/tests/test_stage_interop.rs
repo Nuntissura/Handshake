@@ -860,7 +860,9 @@ const MT066_RELEVANT_SOURCE_PATHS: &[&str] = &[
 ];
 
 fn current_source_sha() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_sha();
+    }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -888,7 +890,9 @@ fn current_source_sha() -> String {
 }
 
 fn current_runtime_source_tree() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_tree(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_tree();
+    }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -925,7 +929,11 @@ fn current_runtime_source_tree() -> String {
 }
 
 fn current_proof_source_blob() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_blob("src/frontend/handshake_native/tests/test_stage_interop.rs"); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_blob(
+            "src/frontend/handshake_native/tests/test_stage_interop.rs",
+        );
+    }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -957,7 +965,12 @@ fn current_proof_source_blobs() -> serde_json::Map<String, serde_json::Value> {
     MT066_RELEVANT_SOURCE_PATHS
         .iter()
         .map(|path| {
-            if source_provenance::configured_source_sha().is_some() { return ((*path).to_owned(), serde_json::Value::String(source_provenance::source_blob(path))); }
+            if source_provenance::configured_source_sha().is_some() {
+                return (
+                    (*path).to_owned(),
+                    serde_json::Value::String(source_provenance::source_blob(path)),
+                );
+            }
             let spec = format!("HEAD:{path}");
             let output = std::process::Command::new("git")
                 .args(["rev-parse", &spec])
@@ -2391,8 +2404,7 @@ fn mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent() {
         .expect("one canonical Stage card exists");
     assert_eq!(canonical_parallel.placement_id, parallel_a.placement_id);
     assert_eq!(
-        canonical_parallel.placed_block_id,
-        parallel_board.placements[0].placed_block_id,
+        canonical_parallel.placed_block_id, parallel_board.placements[0].placed_block_id,
         "the sole placement resolves through the product block/document/provenance read path"
     );
 

@@ -648,7 +648,11 @@ impl EditorSettingsSection {
                 EDITOR_INSERT_SPACES_AUTHOR_ID,
                 "Insert spaces instead of tabs",
             );
-            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_INSERT_SPACES);
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_INSERT_SPACES,
+            );
             if cb.changed() {
                 prefs.insert_spaces = insert;
                 changed = true;
@@ -708,7 +712,11 @@ impl EditorSettingsSection {
                         .range(20u32..=400u32),
                 );
                 set_author_id_and_label(ui, dv.id, EDITOR_WRAP_COLUMN_AUTHOR_ID, "Wrap column");
-                provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_WORD_WRAP_COLUMN);
+                provenance_chip(
+                    ui,
+                    view,
+                    crate::preference_client::PREF_EDITOR_WORD_WRAP_COLUMN,
+                );
                 if dv.changed() {
                     prefs.word_wrap = WordWrapMode::BoundedColumn(c.min(u16::MAX as u32) as u16);
                     changed = true;
@@ -740,7 +748,11 @@ impl EditorSettingsSection {
                 EDITOR_RENDER_WHITESPACE_AUTHOR_ID,
                 "Render whitespace mode",
             );
-            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_RENDER_WHITESPACE);
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_RENDER_WHITESPACE,
+            );
             add_native_set_value_action(ui, combo.response.id);
             if let Some(value) = crate::mcp::accesskit_string_set_value(ui, combo.response.id) {
                 if let Some(mode) = parse_whitespace_mode(&value) {
@@ -761,7 +773,11 @@ impl EditorSettingsSection {
             let mut minimap = prefs.minimap_enabled;
             let cb = ui.checkbox(&mut minimap, "Minimap");
             set_author_id_and_label(ui, cb.id, EDITOR_MINIMAP_AUTHOR_ID, "Show minimap");
-            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_MINIMAP_ENABLED);
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_MINIMAP_ENABLED,
+            );
             if cb.changed() {
                 prefs.minimap_enabled = minimap;
                 changed = true;
@@ -776,7 +792,11 @@ impl EditorSettingsSection {
                 EDITOR_STICKY_SCROLL_AUTHOR_ID,
                 "Show sticky scroll header band",
             );
-            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_STICKY_SCROLL);
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_STICKY_SCROLL,
+            );
             if cb.changed() {
                 prefs.sticky_scroll = sticky;
                 changed = true;
@@ -829,7 +849,11 @@ impl EditorSettingsSection {
                 EDITOR_BRACKET_MATCHING_AUTHOR_ID,
                 "Highlight the matching bracket at the caret",
             );
-            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_BRACKET_MATCHING);
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_BRACKET_MATCHING,
+            );
             if cb.changed() {
                 prefs.bracket_matching = bracket_matching;
                 changed = true;
@@ -844,7 +868,11 @@ impl EditorSettingsSection {
                 EDITOR_INDENT_GUIDES_AUTHOR_ID,
                 "Show vertical indent-guide lines",
             );
-            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_INDENT_GUIDES);
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_INDENT_GUIDES,
+            );
             if cb.changed() {
                 prefs.indent_guides = indent_guides;
                 changed = true;
@@ -859,7 +887,11 @@ impl EditorSettingsSection {
                 EDITOR_READING_MODE_DEFAULT_AUTHOR_ID,
                 "Open rich documents in Reading (read-only) view by default",
             );
-            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_READING_MODE_DEFAULT);
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_READING_MODE_DEFAULT,
+            );
             if cb.changed() {
                 prefs.reading_mode_default = reading_mode_default;
                 changed = true;
@@ -983,7 +1015,11 @@ impl EditorSettingsSection {
                 SYNTAX_PALETTE_MODE_AUTHOR_ID,
                 "Syntax palette mode",
             );
-            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_SYNTAX_PALETTE_MODE);
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_SYNTAX_PALETTE_MODE,
+            );
             add_native_set_value_action(ui, combo.response.id);
             if let Some(value) = crate::mcp::accesskit_string_set_value(ui, combo.response.id) {
                 if let Some(mode) = parse_palette_mode(&value) {

@@ -47,7 +47,8 @@ fn fixture_violation() -> HbrViolation {
 }
 
 fn hbr_schema() -> Value {
-    serde_json::from_str(include_str!("fixtures/hbr/hbr-violation.schema.json")).expect("product wire schema fixture")
+    serde_json::from_str(include_str!("fixtures/hbr/hbr-violation.schema.json"))
+        .expect("product wire schema fixture")
 }
 
 fn validate_against_schema(instance: &Value) {

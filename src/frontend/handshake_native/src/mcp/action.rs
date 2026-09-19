@@ -4933,10 +4933,12 @@ mod tests {
     /// because nothing composes one that long any more).
     #[test]
     fn mt113_author_budget_is_the_stricter_of_the_two_so_siblings_cannot_diverge() {
-        const { assert!(
-            MAX_CLICK_COMPLETION_AUTHOR_BYTES <= MAX_CLICK_COMPLETION_CONTEXT_BYTES,
-            "the author budget must remain the stricter of the two"
-        ); }
+        const {
+            assert!(
+                MAX_CLICK_COMPLETION_AUTHOR_BYTES <= MAX_CLICK_COMPLETION_CONTEXT_BYTES,
+                "the author budget must remain the stricter of the two"
+            );
+        }
         let at_budget = "a".repeat(MAX_CLICK_COMPLETION_AUTHOR_BYTES);
         assert!(
             serialize_observer_click_state(

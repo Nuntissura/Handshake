@@ -121,7 +121,9 @@ fn sha256_file(path: &Path) -> String {
 }
 
 fn mt067_candidate_source_identity() -> (String, serde_json::Value) {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::export_candidate();
+    }
     const CANDIDATE_PATHS: [&str; 2] = [
         "src/frontend/handshake_native/src/graph/daily_journal_panel.rs",
         "src/frontend/handshake_native/tests/test_calendar_interop.rs",
@@ -432,8 +434,7 @@ impl LiveWorkspaceGuard<'_> {
             .unwrap_or_else(|| {
                 panic!("MT-067 native FR row lacks payload.client_event_id and event_id: {row}")
             });
-        uuid::Uuid::parse_str(client_event_id)
-            .expect("MT-067 native FR client_event_id is a UUID");
+        uuid::Uuid::parse_str(client_event_id).expect("MT-067 native FR client_event_id is a UUID");
         if !self
             .native_fr_client_event_ids
             .iter()
@@ -1667,27 +1668,42 @@ fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
     // Capture the date-A receipts before navigation. The same multi-day event/span is emitted again for
     // date B, so the final proof excludes these exact causal rows rather than accepting the first match.
     let first_date_label = date.format("%Y-%m-%d").to_string();
-    let initial_bound_fr =
-        wait_for_calendar_fr(&live, &workspace_id, &session_token, "calendar_event_bound", |row| {
+    let initial_bound_fr = wait_for_calendar_fr(
+        &live,
+        &workspace_id,
+        &session_token,
+        "calendar_event_bound",
+        |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["date"].as_str()
                     == Some(first_date_label.as_str())
-        });
-    let initial_first_span_fr =
-        wait_for_calendar_fr(&live, &workspace_id, &session_token, "activity_span_correlated", |row| {
+        },
+    );
+    let initial_first_span_fr = wait_for_calendar_fr(
+        &live,
+        &workspace_id,
+        &session_token,
+        "activity_span_correlated",
+        |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["activity_span_id"].as_str()
                     == Some(first_span_id.as_str())
-        });
-    let initial_second_span_fr =
-        wait_for_calendar_fr(&live, &workspace_id, &session_token, "activity_span_correlated", |row| {
+        },
+    );
+    let initial_second_span_fr = wait_for_calendar_fr(
+        &live,
+        &workspace_id,
+        &session_token,
+        "activity_span_correlated",
+        |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["activity_span_id"].as_str()
                     == Some(second_span_id.as_str())
-        });
+        },
+    );
     cleanup.track_native_fr(&initial_bound_fr);
     cleanup.track_native_fr(&initial_first_span_fr);
     cleanup.track_native_fr(&initial_second_span_fr);
@@ -1812,29 +1828,44 @@ fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
     // Bind the next-day click to the exact backend effects before finishing its canonical action.
     // These are the new date-B rows; the date-A event ids are explicitly excluded so a stale multi-day
     // projection cannot satisfy the terminal predicate by coincidence.
-    let calendar_event_fr =
-        wait_for_calendar_fr(&live, &workspace_id, &session_token, "calendar_event_bound", |row| {
+    let calendar_event_fr = wait_for_calendar_fr(
+        &live,
+        &workspace_id,
+        &session_token,
+        "calendar_event_bound",
+        |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["date"].as_str()
                     == Some(second_date_label.as_str())
-        });
-    let first_span_activity_fr =
-        wait_for_calendar_fr(&live, &workspace_id, &session_token, "activity_span_correlated", |row| {
+        },
+    );
+    let first_span_activity_fr = wait_for_calendar_fr(
+        &live,
+        &workspace_id,
+        &session_token,
+        "activity_span_correlated",
+        |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["activity_span_id"].as_str()
                     == Some(first_span_id.as_str())
                 && row["event_id"].as_str() != Some(initial_first_span_fr_id.as_str())
-        });
-    let activity_fr =
-        wait_for_calendar_fr(&live, &workspace_id, &session_token, "activity_span_correlated", |row| {
+        },
+    );
+    let activity_fr = wait_for_calendar_fr(
+        &live,
+        &workspace_id,
+        &session_token,
+        "activity_span_correlated",
+        |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["activity_span_id"].as_str()
                     == Some(span_id.as_str())
                 && row["event_id"].as_str() != Some(initial_second_span_fr_id.as_str())
-        });
+        },
+    );
     cleanup.track_native_fr(&calendar_event_fr);
     cleanup.track_native_fr(&first_span_activity_fr);
     cleanup.track_native_fr(&activity_fr);
@@ -3394,10 +3425,12 @@ fn product_api_only_no_backend_edit() {
         .expect("MT-067 teardown cleans post-cascade bridge receipts");
     assert!(native_fr_cleanup < workspace_delete && workspace_delete < bridge_ledger_cleanup);
     assert!(
-        this_test_src.contains("the fixture-owned SurrealDB root is the final containment boundary")
+        this_test_src
+            .contains("the fixture-owned SurrealDB root is the final containment boundary")
             && this_test_src.contains("get_json_response")
             && this_test_src.contains("get_json_with_session_token")
-            && this_test_src.contains("MT-067 workspace cleanup left scoped Flight Recorder residue"),
+            && this_test_src
+                .contains("MT-067 workspace cleanup left scoped Flight Recorder residue"),
         "MT-067 cleanup must remain product-scoped, credentialed, and containment-backed"
     );
     println!("AC-5 OK: typed calendar APIs, shared client, and live backend routes reused without an alternate-store client");
@@ -3454,7 +3487,11 @@ fn daily_journal_panel_accesskit_nodes_present() {
     let chip_binds_event_id = chip_json
         .get("calendar_event_id")
         .and_then(serde_json::Value::as_str)
-        .or_else(|| chip_json.get("semantic_value").and_then(serde_json::Value::as_str))
+        .or_else(|| {
+            chip_json
+                .get("semantic_value")
+                .and_then(serde_json::Value::as_str)
+        })
         .is_some_and(|found| {
             found == "E-1"
                 || serde_json::from_str::<serde_json::Value>(found)

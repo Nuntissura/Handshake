@@ -29761,12 +29761,16 @@ impl HandshakeApp {
                             view.status = "Creating view…".to_owned();
                         }
                         self.block_collection_client(rt).create_view(
-workspace,
-&block_id,
-&title,
-&definition,
-crate::backend_client::BlockViewOperationSink { generation: Arc::clone(&sec.collection_load_generation), expected_generation: op_generation, cell: Arc::clone(&sec.collection_op_cell) },
-);
+                            workspace,
+                            &block_id,
+                            &title,
+                            &definition,
+                            crate::backend_client::BlockViewOperationSink {
+                                generation: Arc::clone(&sec.collection_load_generation),
+                                expected_generation: op_generation,
+                                cell: Arc::clone(&sec.collection_op_cell),
+                            },
+                        );
                     } else if !view_block_id.is_empty() {
                         // `bind_block_collection_view` clears every stale delivery/pending cell before
                         // issuing exactly one bounded definition fetch and one bounded results query.
@@ -29826,12 +29830,16 @@ crate::backend_client::BlockViewOperationSink { generation: Arc::clone(&sec.coll
                                 *cell = None;
                             }
                             client.create_view(
-workspace,
-&block_id,
-&title,
-&def,
-crate::backend_client::BlockViewOperationSink { generation: Arc::clone(&sec.collection_load_generation), expected_generation: op_generation, cell: Arc::clone(&sec.collection_op_cell) },
-);
+                                workspace,
+                                &block_id,
+                                &title,
+                                &def,
+                                crate::backend_client::BlockViewOperationSink {
+                                    generation: Arc::clone(&sec.collection_load_generation),
+                                    expected_generation: op_generation,
+                                    cell: Arc::clone(&sec.collection_op_cell),
+                                },
+                            );
                         }
                         continue;
                     }
@@ -29859,12 +29867,16 @@ crate::backend_client::BlockViewOperationSink { generation: Arc::clone(&sec.coll
                                 *cell = None;
                             }
                             client.create_view(
-workspace,
-&block_id,
-&title,
-&def,
-crate::backend_client::BlockViewOperationSink { generation: Arc::clone(&sec.collection_load_generation), expected_generation: op_generation, cell: Arc::clone(&sec.collection_op_cell) },
-);
+                                workspace,
+                                &block_id,
+                                &title,
+                                &def,
+                                crate::backend_client::BlockViewOperationSink {
+                                    generation: Arc::clone(&sec.collection_load_generation),
+                                    expected_generation: op_generation,
+                                    cell: Arc::clone(&sec.collection_op_cell),
+                                },
+                            );
                         }
                         other => {
                             let spec = match other {

@@ -29,28 +29,58 @@ const RUNTIME_PROBE_EVIDENCE_SCHEMA: &str = "hsk.automation_first_runtime_probe_
 /// Frozen source input, independently checked against product command sources.
 fn discover_ipc_command_inventory() -> Vec<(String, bool)> {
     use sha2::{Digest, Sha256};
-    let fixture: Value = serde_json::from_str(include_str!("fixtures/automation_first_ipc_inventory.json")).expect("IPC inventory input");
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(3).expect("product root").join("app/src-tauri/src");
+    let fixture: Value =
+        serde_json::from_str(include_str!("fixtures/automation_first_ipc_inventory.json"))
+            .expect("IPC inventory input");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("product root")
+        .join("app/src-tauri/src");
     fn source_paths(root: &Path, dir: &Path, paths: &mut std::collections::BTreeSet<String>) {
         for entry in std::fs::read_dir(dir).expect("product source directory") {
             let path = entry.expect("product source entry").path();
-            if path.is_dir() { source_paths(root, &path, paths); }
-            else if path.extension().is_some_and(|ext| ext == "rs") {
-                paths.insert(path.strip_prefix(root).expect("source under root").to_string_lossy().replace('\\', "/"));
+            if path.is_dir() {
+                source_paths(root, &path, paths);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                paths.insert(
+                    path.strip_prefix(root)
+                        .expect("source under root")
+                        .to_string_lossy()
+                        .replace('\\', "/"),
+                );
             }
         }
     }
     let mut observed = std::collections::BTreeSet::new();
     source_paths(&root, &root, &mut observed);
     let hashes = fixture["source_sha256"].as_object().expect("source hashes");
-    assert_eq!(observed, hashes.keys().cloned().collect(), "product source inventory changed; review IPC fixture");
+    assert_eq!(
+        observed,
+        hashes.keys().cloned().collect(),
+        "product source inventory changed; review IPC fixture"
+    );
     for (relative, expected) in hashes {
-        let source = std::fs::read_to_string(root.join(relative)).expect("required product command source").replace("\r\n", "\n");
-        assert_eq!(format!("{:x}", Sha256::digest(source.as_bytes())), expected.as_str().expect("source SHA256"), "product IPC source changed: {relative}; refresh reviewed command inventory");
+        let source = std::fs::read_to_string(root.join(relative))
+            .expect("required product command source")
+            .replace("\r\n", "\n");
+        assert_eq!(
+            format!("{:x}", Sha256::digest(source.as_bytes())),
+            expected.as_str().expect("source SHA256"),
+            "product IPC source changed: {relative}; refresh reviewed command inventory"
+        );
     }
-    fixture["commands"].as_array().expect("commands").iter().map(|row| {
-        (row[0].as_str().expect("command reference").to_owned(), row[1].as_bool().expect("registered command flag"))
-    }).collect()
+    fixture["commands"]
+        .as_array()
+        .expect("commands")
+        .iter()
+        .map(|row| {
+            (
+                row[0].as_str().expect("command reference").to_owned(),
+                row[1].as_bool().expect("registered command flag"),
+            )
+        })
+        .collect()
 }
 
 /// Side-effect sink the in-process IPC handlers write to when dispatched. A
@@ -476,8 +506,6 @@ fn automation_first_audit_runtime_three_probes_cover_full_ipc_inventory_with_mea
         serde_json::to_vec_pretty(&evidence).expect("serialize evidence"),
     )
     .expect("write runtime-probe evidence");
-
-
 }
 
 /// Independent assertion that the runtime probes are real measurements and not

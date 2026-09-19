@@ -1,4 +1,7 @@
-use std::{error::Error, sync::{Arc, Mutex}};
+use std::{
+    error::Error,
+    sync::{Arc, Mutex},
+};
 
 use async_trait::async_trait;
 use serde_json::Value;

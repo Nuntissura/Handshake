@@ -287,10 +287,21 @@ fn validate_matrix(matrix: &Matrix) -> std::io::Result<()> {
 
 fn validate_current_source(expected_sha: &str) -> std::io::Result<()> {
     if let Some(sha) = source_provenance::configured_source_sha() {
-        if sha != expected_sha { return Err(std::io::Error::other("export source commit differs from matrix source")); }
-        let path = std::env::var_os("HANDSHAKE_PROOF_SOURCE_MANIFEST").ok_or_else(|| std::io::Error::other("export matrix proof requires HANDSHAKE_PROOF_SOURCE_MANIFEST"))?;
-        let expected: std::collections::BTreeMap<String, String> = serde_json::from_slice(&std::fs::read(path)?)?;
-        if source_provenance::source_files(&["."]) != expected { return Err(std::io::Error::other("export source manifest differs from matrix proof input")); }
+        if sha != expected_sha {
+            return Err(std::io::Error::other(
+                "export source commit differs from matrix source",
+            ));
+        }
+        let path = std::env::var_os("HANDSHAKE_PROOF_SOURCE_MANIFEST").ok_or_else(|| {
+            std::io::Error::other("export matrix proof requires HANDSHAKE_PROOF_SOURCE_MANIFEST")
+        })?;
+        let expected: std::collections::BTreeMap<String, String> =
+            serde_json::from_slice(&std::fs::read(path)?)?;
+        if source_provenance::source_files(&["."]) != expected {
+            return Err(std::io::Error::other(
+                "export source manifest differs from matrix proof input",
+            ));
+        }
         return Ok(());
     }
     let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));

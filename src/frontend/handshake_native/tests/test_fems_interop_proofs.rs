@@ -125,7 +125,9 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
 }
 
 fn current_source_sha() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_sha();
+    }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -173,7 +175,11 @@ fn current_source_sha() -> String {
 }
 
 fn current_proof_source_blob() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_blob("src/frontend/handshake_native/tests/test_fems_interop_proofs.rs"); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_blob(
+            "src/frontend/handshake_native/tests/test_fems_interop_proofs.rs",
+        );
+    }
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
@@ -294,7 +300,6 @@ impl Drop for ScopedLocalAppData {
         }
     }
 }
-
 
 struct LiveBackend {
     base: String,
@@ -634,9 +639,7 @@ impl LiveBackend {
         let proposals = self.get_json(&format!(
             "/workspaces/{workspace_id}/memory/proposals?limit=200"
         ));
-        let committed = self.get_json(&format!(
-            "/workspaces/{workspace_id}/memory/items/count"
-        ));
+        let committed = self.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"));
         (
             proposals
                 .as_array()
@@ -674,9 +677,11 @@ impl LiveBackend {
         });
         let workspaces = self.get_json("/workspaces");
         assert!(
-            workspaces.as_array().into_iter().flatten().any(|workspace| {
-                workspace["id"] == workspace_id && workspace["name"] == name
-            }),
+            workspaces
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|workspace| { workspace["id"] == workspace_id && workspace["name"] == name }),
             "the created workspace must be immediately visible through the product list projection"
         );
         println!(
@@ -1277,9 +1282,11 @@ impl WorkspaceCleanup<'_> {
         assert_eq!(status, 204, "delete owned MT-065 workspace");
         let workspaces = self.live.get_json("/workspaces");
         assert!(
-            workspaces.as_array().into_iter().flatten().all(|workspace| {
-                workspace["id"] != self.workspace_id
-            }),
+            workspaces
+                .as_array()
+                .into_iter()
+                .flatten()
+                .all(|workspace| { workspace["id"] != self.workspace_id }),
             "workspace teardown removes the owned workspace from the product projection"
         );
         for proposal_id in &self.proposal_ids {
@@ -1293,7 +1300,10 @@ impl WorkspaceCleanup<'_> {
             );
         }
         for path in [
-            format!("/workspaces/{}/memory/proposals?limit=200", self.workspace_id),
+            format!(
+                "/workspaces/{}/memory/proposals?limit=200",
+                self.workspace_id
+            ),
             format!("/workspaces/{}/memory/pack", self.workspace_id),
             format!("/workspaces/{}/memory/items/count", self.workspace_id),
         ] {
@@ -1769,8 +1779,8 @@ fn drive_propose_command_via_accesskit(
     cancel_guard: Option<(&LiveBackend, &str)>,
 ) -> String {
     let mut dispatch_order = Vec::new();
-    let open_dialog =
-        |harness: &mut Harness<'_, HandshakeApp>, dispatch_order: &mut Vec<String>| {
+    let open_dialog = |harness: &mut Harness<'_, HandshakeApp>,
+                       dispatch_order: &mut Vec<String>| {
         dispatch_order.extend(
             [
                 "menu-go",
@@ -3195,10 +3205,12 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         "/kernel/events/aggregates/fems_memory_proposal/{rejected_id}"
     ));
     assert!(
-        rejected_events.as_array().is_some_and(|events| events.iter().all(|event| {
-            event["idempotency_key"] != format!("fems-memory-commit:{rejected_id}")
-                && event["event_type"] != "ARTIFACT_STORED"
-        })),
+        rejected_events
+            .as_array()
+            .is_some_and(|events| events.iter().all(|event| {
+                event["idempotency_key"] != format!("fems-memory-commit:{rejected_id}")
+                    && event["event_type"] != "ARTIFACT_STORED"
+            })),
         "rejection creates no product-visible commit EventLedger receipt: {rejected_events}"
     );
     let rejected_commit_status = live.rt.block_on(async {

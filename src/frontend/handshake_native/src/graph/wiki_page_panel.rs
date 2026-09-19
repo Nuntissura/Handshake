@@ -658,7 +658,18 @@ impl LoomWikiPagePanel {
     }
 
     fn terminal_detail(&self, detail: WikiActionDetail<'_>) -> String {
-        let WikiActionDetail { action, action_generation, edit_mode_generation, draft_identity, draft_sha256, source, outcome, write_count, overlay, extra } = detail;
+        let WikiActionDetail {
+            action,
+            action_generation,
+            edit_mode_generation,
+            draft_identity,
+            draft_sha256,
+            source,
+            outcome,
+            write_count,
+            overlay,
+            extra,
+        } = detail;
         serde_json::json!({
             "action": action,
             "action_generation": action_generation,
@@ -1007,16 +1018,16 @@ impl LoomWikiPagePanel {
             };
             self.apply_reload_after_save_error(conflict);
             let detail = self.terminal_detail(WikiActionDetail {
-            action: "save",
-            action_generation: action_generation,
-            edit_mode_generation: pending.edit_mode_generation,
-            draft_identity: &pending.draft_identity,
-            draft_sha256: &pending.draft_sha256,
-            source: &pending.source,
-            outcome: "conflict",
-            write_count: 1,
-            overlay: Some(persisted),
-            extra: serde_json::json!({
+                action: "save",
+                action_generation: action_generation,
+                edit_mode_generation: pending.edit_mode_generation,
+                draft_identity: &pending.draft_identity,
+                draft_sha256: &pending.draft_sha256,
+                source: &pending.source,
+                outcome: "conflict",
+                write_count: 1,
+                overlay: Some(persisted),
+                extra: serde_json::json!({
                     "draft_retained": true,
                     "edit_open": true,
                     "error_kind": "wiki_save_conflict",
@@ -1024,7 +1035,7 @@ impl LoomWikiPagePanel {
                     "readback_source_projection_revision": readback_source.projection_revision,
                     "readback_source_staleness_hash": readback_source.staleness_hash,
                 }),
-        });
+            });
             return self.action_observer.failed(
                 action_generation,
                 format!("wiki_save_conflict: {conflict}"),

@@ -30,12 +30,12 @@ mod source_provenance;
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-#[cfg(feature = "wgpu_screenshots")]
-#[path = "native_gui_support/canonical_argus_driver.rs"]
-mod canonical_argus_driver;
 #[cfg(feature = "integration")]
 #[path = "backend_proof_support/mod.rs"]
 mod backend_proof_support;
+#[cfg(feature = "wgpu_screenshots")]
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 #[cfg(feature = "wgpu_screenshots")]
@@ -214,7 +214,9 @@ fn sha256_json(value: &serde_json::Value) -> String {
 
 #[cfg(feature = "wgpu_screenshots")]
 fn current_head_sha() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_sha();
+    }
     let output = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(
@@ -237,7 +239,9 @@ fn current_head_sha() -> String {
 /// hashes form one deterministic identity material stream.
 #[cfg(feature = "wgpu_screenshots")]
 fn current_worktree_candidate_identity() -> (String, serde_json::Value) {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::export_candidate();
+    }
     use sha2::Digest as _;
     use std::io::Write as _;
 
@@ -2374,18 +2378,17 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
         .expect("created batch_id")
         .to_owned();
     let (item_id, corpus_entry_id) = rt.block_on(async {
-        let item_response = proof_headers(http.post(format!(
-            "{base}/atelier/intake/batches/{batch_id}/items"
-        )))
-        .json(&serde_json::json!({
-            "source_path": format!("source://mt033/{suffix}.png"),
-            "file_name": format!("mt033-{suffix}.png"),
-            "byte_len": 33,
-            "content_hash": suffix
-        }))
-        .send()
-        .await
-        .expect("POST owned-backend Atelier item");
+        let item_response =
+            proof_headers(http.post(format!("{base}/atelier/intake/batches/{batch_id}/items")))
+                .json(&serde_json::json!({
+                    "source_path": format!("source://mt033/{suffix}.png"),
+                    "file_name": format!("mt033-{suffix}.png"),
+                    "byte_len": 33,
+                    "content_hash": suffix
+                }))
+                .send()
+                .await
+                .expect("POST owned-backend Atelier item");
         assert_eq!(item_response.status(), reqwest::StatusCode::CREATED);
         let item: serde_json::Value = item_response.json().await.expect("created item JSON");
         let item_id = item["item_id"]

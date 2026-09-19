@@ -6204,8 +6204,16 @@ fn chip_row_corner_radius(
     /// The pill radius the single-rect chip has always used.
     const CHIP_CORNER_RADIUS: u8 = 4;
     egui::CornerRadius {
-        nw: if span.first_row { CHIP_CORNER_RADIUS } else { 0 },
-        sw: if span.first_row { CHIP_CORNER_RADIUS } else { 0 },
+        nw: if span.first_row {
+            CHIP_CORNER_RADIUS
+        } else {
+            0
+        },
+        sw: if span.first_row {
+            CHIP_CORNER_RADIUS
+        } else {
+            0
+        },
         ne: if span.last_row { CHIP_CORNER_RADIUS } else { 0 },
         se: if span.last_row { CHIP_CORNER_RADIUS } else { 0 },
     }
@@ -6300,7 +6308,8 @@ fn wikilink_chip_specs(
                     // MT-116: the SAME resolved style size `layout_block_with_base` used for this
                     // block's galley above, so the pill measured from that galley and the label painted
                     // into it share one metric (headings included, via HEADING_SCALE).
-                    font_size: super::line_layout::block_style_with_base(block, base_font_size).size,
+                    font_size: super::line_layout::block_style_with_base(block, base_font_size)
+                        .size,
                 });
                 char_cursor = end;
             }
@@ -6430,10 +6439,18 @@ mod mt116_chip_metric_tests {
         let mut sizes = Vec::new();
         let _ = ctx.run(Default::default(), |ctx| {
             let painter = ctx.layer_painter(egui::LayerId::background());
-            sizes = wikilink_chip_specs(&block, &palette, 2000.0, false, base_font_size, &painter, &index)
-                .iter()
-                .map(|s| s.font_size)
-                .collect();
+            sizes = wikilink_chip_specs(
+                &block,
+                &palette,
+                2000.0,
+                false,
+                base_font_size,
+                &painter,
+                &index,
+            )
+            .iter()
+            .map(|s| s.font_size)
+            .collect();
         });
         sizes
     }

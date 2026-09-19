@@ -571,9 +571,15 @@ fn canonical_run_provenance() -> serde_json::Value {
         actual_sha, expected_sha,
         "compiled MT-045 proof source is not bound to the supervisor's committed HEAD"
     );
-    if source_provenance::configured_source_sha().is_none() { assert_source_paths_clean(); }
+    if source_provenance::configured_source_sha().is_none() {
+        assert_source_paths_clean();
+    }
 
-    let artifact_root = PathBuf::from(std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").expect("artifact root required")).canonicalize().expect("artifact root exists");
+    let artifact_root = PathBuf::from(
+        std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").expect("artifact root required"),
+    )
+    .canonicalize()
+    .expect("artifact root exists");
 
     let applied_budget_overrides: Vec<String> = std::env::vars()
         .filter_map(|(key, value)| {
@@ -583,7 +589,10 @@ fn canonical_run_provenance() -> serde_json::Value {
     let source_objects = SOURCE_BINDING_PATHS
         .iter()
         .map(|path| {
-            ((*path).to_owned(), serde_json::json!(source_provenance::source_blob(path)))
+            (
+                (*path).to_owned(),
+                serde_json::json!(source_provenance::source_blob(path)),
+            )
         })
         .collect::<serde_json::Map<_, _>>();
     let diagnostics_receipt = std::env::var_os("HSK_MT045_DIAGNOSTIC_RECEIPT")
@@ -622,10 +631,14 @@ fn canonical_run_provenance() -> serde_json::Value {
         .canonicalize()
         .expect("canonicalize MT-045 backend binary");
     let canonical_cargo_target = std::env::var_os("HSK_TEST_BACKEND_TARGET_ROOT")
-        .map(PathBuf::from).map(|path| path.canonicalize().expect("backend target exists"))
+        .map(PathBuf::from)
+        .map(|path| path.canonicalize().expect("backend target exists"))
         .unwrap_or_else(source_provenance::target_root);
     source_provenance::validate_target(&canonical_cargo_target);
-    assert!(backend_binary.starts_with(&canonical_cargo_target), "backend binary must use configured scoped target");
+    assert!(
+        backend_binary.starts_with(&canonical_cargo_target),
+        "backend binary must use configured scoped target"
+    );
     // Storage authority. There is no external database host or port to pin: the product opens a
     // Handshake-managed EMBEDDED SurrealDB store inside its own process, and the MT-045 fixture gives
     // every owned backend its own `HANDSHAKE_DATA_DIR` beneath the canonical backend-runtime root.
@@ -1262,7 +1275,11 @@ fn current_profile() -> &'static str {
 
 fn read_manifest_rows_checked() -> Vec<serde_json::Value> {
     let output = manifest_path();
-    let path = if output.exists() { output } else { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/perf_proof/perf_manifest.json") };
+    let path = if output.exists() {
+        output
+    } else {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/perf_proof/perf_manifest.json")
+    };
     let text = std::fs::read_to_string(&path)
         .unwrap_or_else(|error| panic!("read MT-045 manifest {path:?}: {error}"));
     let rows: Vec<serde_json::Value> = serde_json::from_str(&text)
@@ -1322,11 +1339,24 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
     );
     assert_canonical_provenance(&state["provenance"]);
     if source_provenance::configured_source_sha().is_some() {
-        assert_eq!(state["provenance"]["source_sha"], source_provenance::source_sha());
-        assert_eq!(state["provenance"]["compiled_source_sha"], source_provenance::source_sha());
-        assert_eq!(state["provenance"]["observed_source_sha256"], serde_json::json!(source_provenance::source_files(&SOURCE_BINDING_PATHS)), "export source inputs changed since measured run");
+        assert_eq!(
+            state["provenance"]["source_sha"],
+            source_provenance::source_sha()
+        );
+        assert_eq!(
+            state["provenance"]["compiled_source_sha"],
+            source_provenance::source_sha()
+        );
+        assert_eq!(
+            state["provenance"]["observed_source_sha256"],
+            serde_json::json!(source_provenance::source_files(&SOURCE_BINDING_PATHS)),
+            "export source inputs changed since measured run"
+        );
     } else {
-        assert_eq!(state["provenance"]["source_paths_match_head"], true, "committed source-path binding required");
+        assert_eq!(
+            state["provenance"]["source_paths_match_head"], true,
+            "committed source-path binding required"
+        );
     }
     let binaries = state["test_binaries"]
         .as_object()
@@ -1565,10 +1595,20 @@ pub fn manifest_path() -> PathBuf {
 }
 
 pub fn external_artifact_root() -> PathBuf {
-    let root = PathBuf::from(std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").expect("HANDSHAKE_ARTIFACTS_ROOT required"))
-        .canonicalize().expect("artifact root exists");
-    let run = std::env::var("HSK_MT045_RUN_ID").expect("HSK_MT045_RUN_ID required for isolated output");
-    assert!(!run.is_empty() && run.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'), "safe MT-045 run id required");
+    let root = PathBuf::from(
+        std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT").expect("HANDSHAKE_ARTIFACTS_ROOT required"),
+    )
+    .canonicalize()
+    .expect("artifact root exists");
+    let run =
+        std::env::var("HSK_MT045_RUN_ID").expect("HSK_MT045_RUN_ID required for isolated output");
+    assert!(
+        !run.is_empty()
+            && run
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'),
+        "safe MT-045 run id required"
+    );
     root.join("WP-KERNEL-012").join("MT-045").join(run)
 }
 

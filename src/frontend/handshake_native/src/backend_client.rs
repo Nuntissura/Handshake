@@ -6546,7 +6546,10 @@ async fn sidebar_pin_mutation_receipt(
         Err(error) => {
             let message = AppError::Http(error.to_string()).to_string();
             receipt.failure = Some(message.clone());
-            return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
+            return Err(SidebarMutationFailure {
+                message,
+                receipt: Box::new(receipt),
+            });
         }
     };
     let status = response.status();
@@ -6559,7 +6562,10 @@ async fn sidebar_pin_mutation_receipt(
         ))
         .to_string();
         receipt.failure = Some(message.clone());
-        return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
+        return Err(SidebarMutationFailure {
+            message,
+            receipt: Box::new(receipt),
+        });
     }
     let value: serde_json::Value = match serde_json::from_str(&text) {
         Ok(value) => value,
@@ -6570,7 +6576,10 @@ async fn sidebar_pin_mutation_receipt(
             ))
             .to_string();
             receipt.failure = Some(message.clone());
-            return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
+            return Err(SidebarMutationFailure {
+                message,
+                receipt: Box::new(receipt),
+            });
         }
     };
     parse_pin_mutation_receipt(&value, receipt)
@@ -6582,7 +6591,10 @@ fn parse_pin_mutation_receipt(
 ) -> SidebarActionResult {
     let fail = |mut receipt: SidebarMutationReceipt, message: String| {
         receipt.failure = Some(message.clone());
-        Err(SidebarMutationFailure { message, receipt: Box::new(receipt) })
+        Err(SidebarMutationFailure {
+            message,
+            receipt: Box::new(receipt),
+        })
     };
     let block = match value.get("block").and_then(serde_json::Value::as_object) {
         Some(block) => block,
@@ -6717,7 +6729,10 @@ async fn sidebar_mutation_receipt(
         Err(error) => {
             let message = AppError::Http(error.to_string()).to_string();
             receipt.failure = Some(message.clone());
-            return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
+            return Err(SidebarMutationFailure {
+                message,
+                receipt: Box::new(receipt),
+            });
         }
     };
     let status = response.status();
@@ -6727,7 +6742,10 @@ async fn sidebar_mutation_receipt(
         let message =
             AppError::Http(format!("{operation} non-success status {status}: {text}")).to_string();
         receipt.failure = Some(message.clone());
-        return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
+        return Err(SidebarMutationFailure {
+            message,
+            receipt: Box::new(receipt),
+        });
     }
     let block: serde_json::Value = match serde_json::from_str(&text) {
         Ok(value) => value,
@@ -6736,7 +6754,10 @@ async fn sidebar_mutation_receipt(
                 AppError::Parse(format!("{operation} response is not a LoomBlock: {error}"))
                     .to_string();
             receipt.failure = Some(message.clone());
-            return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
+            return Err(SidebarMutationFailure {
+                message,
+                receipt: Box::new(receipt),
+            });
         }
     };
     receipt.mutation_revision = block
@@ -6761,7 +6782,10 @@ async fn sidebar_mutation_receipt(
         ))
         .to_string();
         receipt.failure = Some(message.clone());
-        return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
+        return Err(SidebarMutationFailure {
+            message,
+            receipt: Box::new(receipt),
+        });
     }
     let applied = match operation {
         SidebarMutationReceipt::OPERATION_REMOVE_PIN => {
@@ -6780,7 +6804,10 @@ async fn sidebar_mutation_receipt(
         ))
         .to_string();
         receipt.failure = Some(message.clone());
-        return Err(SidebarMutationFailure { message, receipt: Box::new(receipt) });
+        return Err(SidebarMutationFailure {
+            message,
+            receipt: Box::new(receipt),
+        });
     }
     receipt.outcome = SidebarMutationReceipt::OUTCOME_PERSISTED.to_owned();
     correlate_block_event_ledger(client, ledger_url, ledger_operation, &mut receipt).await;
@@ -8296,7 +8323,11 @@ impl BlockViewClient {
         definition: &BlockViewDefinition,
         delivery: BlockViewOperationSink,
     ) {
-        let BlockViewOperationSink { generation, expected_generation, cell } = delivery;
+        let BlockViewOperationSink {
+            generation,
+            expected_generation,
+            cell,
+        } = delivery;
         let spec = self.create_view_request(workspace_id, block_id, title, definition);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();

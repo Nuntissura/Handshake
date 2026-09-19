@@ -476,11 +476,22 @@ fn no_unnamed_interactive_nodes_with_prompt_open() {
             RichEditorWidget::new(Arc::clone(&state)).show(ui);
         });
     });
-    let update = output.platform_output.accesskit_update.expect("AccessKit prompt frame");
+    let update = output
+        .platform_output
+        .accesskit_update
+        .expect("AccessKit prompt frame");
     let inspected = handshake_native::accessibility::assert_no_unnamed_interactive(&update);
-    assert!(inspected > 0, "the open prompt must expose interactive nodes");
-    assert!(update.nodes.iter().any(|(_, node)| node.author_id() == Some("slash-prompt-surface")),
-        "the prompt surface must be present in the inspected frame");
+    assert!(
+        inspected > 0,
+        "the open prompt must expose interactive nodes"
+    );
+    assert!(
+        update
+            .nodes
+            .iter()
+            .any(|(_, node)| node.author_id() == Some("slash-prompt-surface")),
+        "the prompt surface must be present in the inspected frame"
+    );
 }
 
 // ── AC-9: embed prompt modal opens + a confirmed asset id inserts an embed atom ────────────

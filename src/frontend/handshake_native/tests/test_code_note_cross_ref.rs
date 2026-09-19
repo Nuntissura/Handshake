@@ -279,7 +279,9 @@ fn sha256_file(path: &Path) -> String {
 
 #[cfg(feature = "wgpu_screenshots")]
 fn current_source_candidate_identity() -> (String, serde_json::Value) {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::export_candidate();
+    }
     use sha2::Digest as _;
 
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -713,10 +715,9 @@ fn spawn_argus_code_symbol_server(
                 request_text.contains("POST /workspaces/default-project/loom/search-v2 ");
             let is_flight_recorder =
                 request_text.contains("GET /api/flight_recorder?wsid=default-project ");
-            let is_native_editor_event =
-                request_text.contains(
-                    "POST /api/workspaces/default-project/flight_recorder/native_editor_event ",
-                );
+            let is_native_editor_event = request_text.contains(
+                "POST /api/workspaces/default-project/flight_recorder/native_editor_event ",
+            );
             let is_document_draft =
                 request_text.contains("GET /knowledge/documents/DOC-ARGUS-34/draft ");
             let is_document_backlinks =

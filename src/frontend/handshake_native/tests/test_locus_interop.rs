@@ -136,7 +136,9 @@ fn product_repo_root() -> &'static Path {
 }
 
 fn current_source_sha() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_sha();
+    }
     let clean = std::process::Command::new("git")
         .args(["diff", "--quiet", "HEAD", "--"])
         .args(MT068_RELEVANT_SOURCE_PATHS)
@@ -160,7 +162,9 @@ fn current_source_sha() -> String {
 }
 
 fn current_runtime_source_tree() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_tree(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_tree();
+    }
     let status = std::process::Command::new("git")
         .args(["status", "--porcelain=v1", "--untracked-files=all"])
         .current_dir(product_repo_root())
@@ -196,7 +200,12 @@ fn current_proof_source_blobs() -> serde_json::Map<String, serde_json::Value> {
     MT068_RELEVANT_SOURCE_PATHS
         .iter()
         .map(|path| {
-            if source_provenance::configured_source_sha().is_some() { return ((*path).to_owned(), serde_json::Value::String(source_provenance::source_blob(path))); }
+            if source_provenance::configured_source_sha().is_some() {
+                return (
+                    (*path).to_owned(),
+                    serde_json::Value::String(source_provenance::source_blob(path)),
+                );
+            }
             let spec = format!("HEAD:{path}");
             let output = std::process::Command::new("git")
                 .args(["rev-parse", &spec])

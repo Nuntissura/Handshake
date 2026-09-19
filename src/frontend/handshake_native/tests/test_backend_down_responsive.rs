@@ -50,10 +50,10 @@ use sha2::{Digest, Sha256};
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
-#[path = "native_gui_support/canonical_argus_driver.rs"]
-mod canonical_argus_driver;
 #[path = "backend_proof_support/mod.rs"]
 mod backend_proof_support;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 
 use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagRingReader, DiagRingWriter, DiagSeverity};
@@ -107,7 +107,8 @@ impl Drop for EnvGuard {
 }
 
 fn find_palmistry_binary() -> PathBuf {
-    source_provenance::binary(ENV_PALMISTRY_EXE, "palmistry").expect("Palmistry binary in scoped Cargo target")
+    source_provenance::binary(ENV_PALMISTRY_EXE, "palmistry")
+        .expect("Palmistry binary in scoped Cargo target")
 }
 
 fn file_sha256(path: &Path) -> String {
@@ -1103,7 +1104,14 @@ fn current_head_sha() -> String {
 
 fn repo_relative_tracked_path(path: &str) -> String {
     if source_provenance::configured_source_sha().is_some() {
-        return Path::new(env!("CARGO_MANIFEST_DIR")).join(path).canonicalize().expect("proof input exists").strip_prefix(repo_root()).expect("proof input inside product root").to_string_lossy().replace('\\', "/");
+        return Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join(path)
+            .canonicalize()
+            .expect("proof input exists")
+            .strip_prefix(repo_root())
+            .expect("proof input inside product root")
+            .to_string_lossy()
+            .replace('\\', "/");
     }
     let output = std::process::Command::new("git")
         .args(["ls-files", "--full-name", "--", path])
@@ -1125,7 +1133,9 @@ fn repo_relative_tracked_path(path: &str) -> String {
 
 fn current_integrated_source_provenance() -> (String, serde_json::Value) {
     if source_provenance::configured_source_sha().is_some() {
-        for path in MT088_INTEGRATED_PROOF_PATHS { repo_relative_tracked_path(path); }
+        for path in MT088_INTEGRATED_PROOF_PATHS {
+            repo_relative_tracked_path(path);
+        }
         return source_provenance::export_candidate();
     }
     let head_sha = current_head_sha();

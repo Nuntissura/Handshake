@@ -47,11 +47,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use egui_kittest::kittest::NodeT;
-#[path = "native_gui_support/canonical_argus_driver.rs"]
-mod canonical_argus_driver;
 #[cfg(feature = "integration")]
 #[path = "backend_proof_support/mod.rs"]
 mod backend_proof_support;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use canonical_argus_driver::{ArgusObservation, CanonicalArgusDriver};
@@ -992,7 +992,9 @@ fn mt035_sha256_json(value: &serde_json::Value) -> String {
 
 #[cfg(feature = "wgpu_screenshots")]
 fn mt035_source_candidate_identity() -> (String, serde_json::Value) {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::export_candidate();
+    }
     use sha2::Digest as _;
 
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -2260,9 +2262,8 @@ fn fresh_scope_is_empty_and_session_scoped() {
 #[test]
 fn undo_scope_does_not_implement_serialize() {
     let source_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/undo_stack.rs");
-    let src = std::fs::read_to_string(&source_path).unwrap_or_else(|error| {
-        panic!("read {}: {error}", source_path.display())
-    });
+    let src = std::fs::read_to_string(&source_path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", source_path.display()));
     // Scan only CODE lines (skip `//`/`///` doc comments — the module DOCUMENTS the no-Serialize policy
     // in prose, which must be allowed; what is forbidden is an actual derive / impl / serde import).
     let code: String = src

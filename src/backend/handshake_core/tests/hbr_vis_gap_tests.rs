@@ -10,7 +10,8 @@ use handshake_core::hbr::vis_gap::{
 const EXPECTED_CANONICAL: &str = "{\"emitted_at_utc\":\"2026-05-18T00:00:00Z\",\"evidence_pointer\":\"artifact://visual/diagnostics-canvas.png\",\"gap_class\":\"opaque_canvas\",\"hbr_id\":\"HBR-VIS-005\",\"proposed_followup_wp\":\"WP-KERNEL-004-VIS-GAP-FOLLOWUP-v1\",\"receipt_kind\":\"HBR_VIS_GAP\",\"receipt_uuid\":\"018f6d3a-1f00-7a2b-8c3d-123456789abc\",\"schema_version\":1,\"surface_name\":\"Diagnostics canvas controls\",\"surface_path\":\"app://diagnostics/canvas-controls\",\"wp_id\":\"WP-KERNEL-004-TEST\"}\n";
 
 fn hbr_vis_gap_schema() -> Value {
-    serde_json::from_str(include_str!("fixtures/hbr/hbr-vis-gap.schema.json")).expect("product wire schema fixture")
+    serde_json::from_str(include_str!("fixtures/hbr/hbr-vis-gap.schema.json"))
+        .expect("product wire schema fixture")
 }
 
 fn validate_against_schema(instance: &Value) {

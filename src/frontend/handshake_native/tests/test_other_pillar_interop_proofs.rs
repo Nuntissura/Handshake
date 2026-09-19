@@ -50,10 +50,10 @@ use handshake_native::tab_bar::TabState;
 
 // Shared managed-SurrealDB product fixture. It attaches to a healthy root-managed backend or starts an
 // already-built product executable, creates an isolated workspace, and never invokes Cargo.
-#[path = "native_gui_support/canonical_argus_driver.rs"]
-mod canonical_argus_driver;
 #[path = "backend_proof_support/mod.rs"]
 mod backend_proof_support;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 use canonical_argus_driver::{json_has_author_id, ArgusObservation, CanonicalArgusDriver};
 
 mod stage_binding_proof {
@@ -429,7 +429,9 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
 }
 
 fn current_source_sha() -> String {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::source_sha(); }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::source_sha();
+    }
     let output = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -454,7 +456,17 @@ fn current_proof_source_blobs() -> serde_json::Value {
     let blobs = MT074_PROOF_PATHS
         .iter()
         .map(|path| {
-            if source_provenance::configured_source_sha().is_some() { return ((*path).to_owned(), serde_json::Value::String(format!("sha256:{}", source_provenance::sha256_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join(path))))); }
+            if source_provenance::configured_source_sha().is_some() {
+                return (
+                    (*path).to_owned(),
+                    serde_json::Value::String(format!(
+                        "sha256:{}",
+                        source_provenance::sha256_file(
+                            &Path::new(env!("CARGO_MANIFEST_DIR")).join(path)
+                        )
+                    )),
+                );
+            }
             let output = std::process::Command::new("git")
                 .args(["hash-object", path])
                 .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -858,7 +870,11 @@ fn upsert_calendar_fixture(
     assert_eq!(output["provider_events_upserted"].as_u64(), Some(1));
 }
 
-fn create_locus_work_packet(backend: &backend_proof_support::LiveBackend, wp_id: &str, title: &str) {
+fn create_locus_work_packet(
+    backend: &backend_proof_support::LiveBackend,
+    wp_id: &str,
+    title: &str,
+) {
     let output = run_product_job(
         backend,
         "locus_operation",
@@ -1002,9 +1018,9 @@ impl<'a> Mt074FixtureCleanup<'a> {
                 "MT-074 cleanup: SurrealDB soft-delete must expose the cancelled task-board status"
             );
             let (read_status, read_row) = self.backend.get_json_response(&format!(
-                    "/workspaces/{}/locus/work-packets/{wp_id}",
-                    self.backend.workspace_id
-                ));
+                "/workspaces/{}/locus/work-packets/{wp_id}",
+                self.backend.workspace_id
+            ));
             assert_eq!(read_status, 200);
             assert_eq!(
                 read_row["status"].as_str(),
@@ -1658,14 +1674,7 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
     let source_id = format!("CAL-SRC-OP04-{suffix}");
     let event_id = format!("CAL-EVT-OP04-{suffix}");
     let span_id = format!("CAS-OP04-{suffix}");
-    upsert_calendar_fixture(
-        &be,
-        &ws,
-        &source_id,
-        &event_id,
-        "MT-074 OP-04 event",
-        today,
-    );
+    upsert_calendar_fixture(&be, &ws, &source_id, &event_id, "MT-074 OP-04 event", today);
     fixtures.calendar_source(source_id.clone());
     fixtures.calendar_event(event_id.clone());
     let journal = CalendarInteropService::with_base_url(
@@ -1937,8 +1946,7 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
                 .and_then(|pane| app.tab_bar_states().get(pane))
                 .and_then(|bar| bar.tabs.get(bar.active_index))
                 .is_some_and(|tab| {
-                    tab.content_id.as_deref()
-                        == Some(op04_locus_content_id_for_predicate.as_str())
+                    tab.content_id.as_deref() == Some(op04_locus_content_id_for_predicate.as_str())
                         && tab.pane_type.label() == "Kernel DCC"
                 });
             routed
@@ -2295,7 +2303,10 @@ fn other_pillar_runtime_readiness_manifest() {
             entry["proof_fn"].as_str(),
             "{id} runtime verdict must be written by the scenario's own proof fn"
         );
-        assert_eq!(runtime_verdict["declared_status_is_bound_to_this_artifact"], true);
+        assert_eq!(
+            runtime_verdict["declared_status_is_bound_to_this_artifact"],
+            true
+        );
         assert!(
             runtime_verdict["pass_condition"]
                 .as_str()
@@ -2784,13 +2795,7 @@ fn other_pillar_no_local_store_no_fake_db() {
     let sql_orm = concat!("die", "sel");
     let fake_db = concat!("mo", "ck");
     let inmem_db_token = concat!("in_", "memory", "_db");
-    let forbidden = [
-        local_db,
-        local_db_driver,
-        sql_orm,
-        fake_db,
-        inmem_db_token,
-    ];
+    let forbidden = [local_db, local_db_driver, sql_orm, fake_db, inmem_db_token];
     let lowered = suite_src.to_ascii_lowercase();
     for token in forbidden {
         assert!(

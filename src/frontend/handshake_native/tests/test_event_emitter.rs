@@ -29,10 +29,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
-#[path = "native_gui_support/canonical_argus_driver.rs"]
-mod canonical_argus_driver;
 #[path = "backend_proof_support/mod.rs"]
 mod backend_proof_support;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
@@ -368,7 +368,9 @@ fn json_sha256(value: &serde_json::Value) -> String {
 }
 
 fn mt036_candidate_identity() -> serde_json::Value {
-    if source_provenance::configured_source_sha().is_some() { return source_provenance::export_candidate().1; }
+    if source_provenance::configured_source_sha().is_some() {
+        return source_provenance::export_candidate().1;
+    }
     use sha2::Digest as _;
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()

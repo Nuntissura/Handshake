@@ -23,9 +23,9 @@ use std::{
 use handshake_core::{
     inspector_read::{
         expected_write_box_v1_signature, EventLedgerRow, InspectorReadSnapshot, InspectorReadV1,
-        InspectorServer, ModelLoadedRow, PerRunSecret, ProcessRow, ReplayDriveResponse,
-        SessionId, SessionStateRead, SessionSummary, WorkspaceId, WorkspaceStateRead,
-        PER_RUN_SECRET_HEADER, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
+        InspectorServer, ModelLoadedRow, PerRunSecret, ProcessRow, ReplayDriveResponse, SessionId,
+        SessionStateRead, SessionSummary, WorkspaceId, WorkspaceStateRead, PER_RUN_SECRET_HEADER,
+        WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
     },
     kernel::{
         action_envelope::AuthorityEffect,
@@ -728,8 +728,11 @@ fn artifact_root() -> PathBuf {
 }
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).ancestors().nth(3)
-        .expect("backend crate inside product root").to_path_buf()
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("backend crate inside product root")
+        .to_path_buf()
 }
 
 fn epoch_millis() -> u128 {
