@@ -30,7 +30,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "FAIL_V3",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -38,7 +38,7 @@
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V3",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260909-212427",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
@@ -1067,7 +1067,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-17T18:28:45.558Z",
+  "updated_at_utc": "2026-09-19T21:54:32.636Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -12532,5 +12532,2218 @@
       "The 47-target set-A no-run build took ~65 min; batch-2 (14 targets + lib recompile) ~35 min; lib test binary ~10 min; set-B app-runtime bundle (full lib recompile) ~40 min.",
       "One preserved store (HANDSHAKE_TEST_STORE_CLEANUP_FAILURE, engine still draining after 30 s) in row 181 from api::jobs::tests create_cloud_model_run_without_consent_blocks_runtime_session; the test itself passed (R1 never-panic guard working as designed)."
     ]
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL",
+    "verdict_label": "FAIL_V3",
+    "status": "FAIL_V3",
+    "blocking": true,
+    "next_actor": "KERNEL_BUILDER",
+    "validator_layer": "WP_VALIDATOR",
+    "risk_tier": "HIGH",
+    "validated_by": "WP_VALIDATOR-B3-20260919-resume",
+    "validated_at_utc": "2026-09-19T21:54:32.636Z",
+    "validated_commit": "c0766697664a416304dd08c8620cb400724c9104",
+    "basis": "Source-backed artifact-isolation failure plus incomplete candidate proof; no complete-suite PASS claimed. Existing historical evidence preserved. Parent authorized publishing this decisive verdict while the active lib execution drains; candidate edits/builds remain fenced until it exits.",
+    "authority_refs": [
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141.json",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+      ".GOV/operator/messages_history/HANDOFF_WP-KERNEL-012_IV-orchestrator_2026-09-17_session4.md"
+    ],
+    "mandatory_reads_ack": [
+      "Read entire designated operator handoff, live Codex v1.4, and live WP_VALIDATOR_PROTOCOL; truncated output gaps re-read in bounded chunks.",
+      "Verified worktree .GOV junction target is ../wt-gov-kernel/.GOV; did not use handshake_main mirrors.",
+      "Read MT141 scope/proof_commands/validation_v2/remediation_v2 selectively via node; MT045 scope timing override; resolved SPEC_CURRENT v02.206 INDEX/manifest and local-first storage authority.",
+      "Operator no-ceremony, model substitution, HDD/cargo, no-C-output and lean-mode instructions take precedence."
+    ],
+    "builder_claims_policy": "Builder logs are triage only; none used as passing validator proof.",
+    "source_state": {
+      "worktree": "../wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012",
+      "head": "c0766697664a416304dd08c8620cb400724c9104",
+      "git_porcelain": [],
+      "product_edits": [],
+      "governance_edits": [
+        ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141.json"
+      ]
+    },
+    "proof_environment": {
+      "target_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target",
+      "target_reuse_note": "Reused v3 validator-built executable at the same candidate. lib executable SHA matched original row172 before launch; no cargo or rebuild invoked. Other two targets untouched.",
+      "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3",
+      "logs": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs",
+      "tmp": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/tmp",
+      "runtime": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/runtime",
+      "workspace": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/workspace",
+      "handshake_test_artifacts_root": "../Handshake_Artifacts/handshake-test",
+      "pool": 1,
+      "rust_test_threads": 1,
+      "new_targets": 0,
+      "cargo_invocations": 0
+    },
+    "shared_proof_batch": {
+      "owning_mt": "MT-141",
+      "covers": [
+        "MT-141"
+      ],
+      "status": "INCOMPLETE_NOT_SUPERSEDING_V2",
+      "results": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/results.jsonl",
+      "affected_map": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/01-affected-map.tsv",
+      "unchanged_citation_plan": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/list-A-unchanged-cited.tsv",
+      "note": "The existing WP-wide wpv-v2 batch remains the shared batch under operator lean mode. v3 is not complete and does not supersede it; other MTs receive no new verdict here."
+    },
+    "proof_ledger": {
+      "original_rows": 217,
+      "original_valid_nonzero_greens": 71,
+      "original_real_reds": 1,
+      "original_invalid_crlf_rows": 145,
+      "invalid_zero_test_rows": 121,
+      "invalid_option_exit101_rows": 24,
+      "hash_exit_audit": "All217 original rows independently matched log bytes, .sha256 sidecars and .exit values.",
+      "valid_nonzero_green_records": [
+        {
+          "index": "100",
+          "target": "atelier_source_evidence_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/atelier_source_evidence_tests-77d04db917ec6b87.exe",
+          "exe_sha256": "a07e2efc327bb50a730d36bb1a4d4f22ed9bf90ef14737ed7ae82cc4f5ec541e",
+          "exit_code": 0,
+          "result_line": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 105.22s",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/100-atelier_source_evidence_tests.log",
+          "log_sha256": "554a1fa641ed44bdbd541d8cd1dd8f48cb59d1b3dd4a1183574c54403e189aca",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "101",
+          "target": "atelier_state_probe_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/atelier_state_probe_tests-4d18e087da65e9ab.exe",
+          "exe_sha256": "2d02a9d857889a9e5e9216466498833c022c73d6a1c4810fe069312fdd4f357a",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 53.63s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/101-atelier_state_probe_tests.log",
+          "log_sha256": "48a015941224bcac1c5c2105ce2c2c8311ec91513c69a5fb289fa23b58954972",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "102",
+          "target": "atelier_visual_diff_baseline_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/atelier_visual_diff_baseline_tests-a6a299f05ac7563d.exe",
+          "exe_sha256": "85bb36f1d4e4a6ae74864044c9160ab5b93c04d5aa81c74e28c36dd6f9ea1218",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.44s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/102-atelier_visual_diff_baseline_tests.log",
+          "log_sha256": "085ff3e95e0b0ed46da6f2085373b8a4806e298da44b823cecd878efeb7f557a",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "103",
+          "target": "atelier_visual_diff_result_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/atelier_visual_diff_result_tests-bdb3c059efbf277e.exe",
+          "exe_sha256": "b7e8f15919f1e2b7603014c4cd649176efd518cfc133aa7c4afb89d2e51d7f79",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 53.26s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/103-atelier_visual_diff_result_tests.log",
+          "log_sha256": "79260ae8bc6d71d14cc3beb2ac6e7828159645426a51997546a43aeade3641c1",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "104",
+          "target": "atelier_swarm_ingestion_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/atelier_swarm_ingestion_tests-8cf4fe71ec345045.exe",
+          "exe_sha256": "8deecaf527d31ae18dd8cdca8936490db66d05b83515a9224a85d892ad3434aa",
+          "exit_code": 0,
+          "result_line": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 315.74s",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/104-atelier_swarm_ingestion_tests.log",
+          "log_sha256": "c15e4502d23463fa88b17fa2aab232464b6735140b37ab9627f350a7728385dd",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "105",
+          "target": "debug_adapter_node_session",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/debug_adapter_node_session-01f348575858a506.exe",
+          "exe_sha256": "8d18eb454b43f41481f017ba57db01f65c536deb39dfb5c233ca96ce42729730",
+          "exit_code": 0,
+          "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/105-debug_adapter_node_session.log",
+          "log_sha256": "48ef47191eb0329218aab9c53217a74fef425102f68289bb3632571cb7b7fae3",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "106",
+          "target": "hbr_e2e_smoke_test",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/hbr_e2e_smoke_test-6fd05cbe2d2e8f95.exe",
+          "exe_sha256": "50f5be8446df0694f49d6d21cfcf3841357d95bf6d5d6f921c8f9e08f38ee1ce",
+          "exit_code": 0,
+          "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.56s",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/106-hbr_e2e_smoke_test.log",
+          "log_sha256": "97fca8e46e83dc7bcca0d6b1aa31ed77cb32b12abb667499f88525fc4bcd5319",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "107",
+          "target": "hbr_registry_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/hbr_registry_tests-2e22153d39e392ae.exe",
+          "exe_sha256": "b03dd9b7b252e8d246122914b69cc02af1c42afe7e6ab3b395ebcf5b0fa47b96",
+          "exit_code": 0,
+          "result_line": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/107-hbr_registry_tests.log",
+          "log_sha256": "1c0a52a5862991758ad734798244d8088502420cc97be87cf292dd17c0b835b3",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "108",
+          "target": "inspector_ipc_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/inspector_ipc_tests-b7a60033ef288304.exe",
+          "exe_sha256": "de5a57358ce7387618ba22c5def35161dbd28ccd8c9fd1b4ace4031b86aa3ea5",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/108-inspector_ipc_tests.log",
+          "log_sha256": "e3c256e4f5d7fe5d09c7c959350750cfa176832002a6c0534b655eecb444e937",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "109",
+          "target": "kernel_003_migration_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/kernel_003_migration_tests-9d46eb6b287ebbce.exe",
+          "exe_sha256": "baa5a30855815612a8169b2f612206792bcbfac392515a57079d5dc63f217692",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/109-kernel_003_migration_tests.log",
+          "log_sha256": "a65470a30351648eda73cb5474efdba00cf0c70509a289dfa267f5f227ff908d",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "110",
+          "target": "kernel_crdt_persistence_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/kernel_crdt_persistence_tests-c6fb43a2de18b88e.exe",
+          "exe_sha256": "7f6ebf67e80115c5f38885d7643dc18aea704cdce243f2cdc673fd2dfa8fab51",
+          "exit_code": 0,
+          "result_line": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.44s",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/110-kernel_crdt_persistence_tests.log",
+          "log_sha256": "cf7886324840825808c1715cc358cb701c3cb19b72cbbe3209c7c8b0c90adf45",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "111",
+          "target": "kernel_crdt_snapshot_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/kernel_crdt_snapshot_tests-9a65b6af2d00888d.exe",
+          "exe_sha256": "8363005c0da52e2247c93548d0c793915d7b573face7bec7b3ae012a7cd749dc",
+          "exit_code": 0,
+          "result_line": "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.13s",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/111-kernel_crdt_snapshot_tests.log",
+          "log_sha256": "a4ed0e76b0850002a2c84f0cba82f8b1d6bf988bcebd66a9ecc1ca5d427b0b5b",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "112",
+          "target": "kernel_kb003_security_denial_matrix_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/kernel_kb003_security_denial_matrix_tests-5afcac2e11f7efa4.exe",
+          "exe_sha256": "e1acbd9a766c8e461db9fce37dabdc51f438b5608bb8c4ff7c9cdce6b1d1258a",
+          "exit_code": 0,
+          "result_line": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/112-kernel_kb003_security_denial_matrix_tests.log",
+          "log_sha256": "87987f61df3a88293d80622bf4c65448b9ce70fb3b48120375e9b0e25be0234e",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "113",
+          "target": "kernel_end_to_end_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/kernel_end_to_end_tests-8105b5df141fba88.exe",
+          "exe_sha256": "13334d042c3afa053ebd95c0ae76f6c828c48e0576d74068b6a2fe9efb4dbcd9",
+          "exit_code": 0,
+          "result_line": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 131.56s",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/113-kernel_end_to_end_tests.log",
+          "log_sha256": "57148a8d8ffa473e37010e6288c8259f85ac23a4f8bd763fe44359fcbb3fac53",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "115",
+          "target": "knowledge_crdt_bridge_api_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_crdt_bridge_api_tests-d742f3f6805281ca.exe",
+          "exe_sha256": "ea9d252cc287b3c5a48b8c9666038de09f3aa8fbeebc076f5ad7811dfc748ea7",
+          "exit_code": 0,
+          "result_line": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.36s",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/115-knowledge_crdt_bridge_api_tests.log",
+          "log_sha256": "e757e9652d95192952f16dcc96a1825cbb651522b0659b75cabf547783aea91c",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "116",
+          "target": "knowledge_crdt_proposal_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_crdt_proposal_tests-f12935d2e29ee3b2.exe",
+          "exe_sha256": "a39a7bf99c25b09fdcb278ba54d147a581f599d7f8338bb70e89ee77b73c6561",
+          "exit_code": 0,
+          "result_line": "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 166.94s",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/116-knowledge_crdt_proposal_tests.log",
+          "log_sha256": "701c64fb65e7ee07bd1bb92c968471294f5c5e66090a013b37b6301dfcfd0514",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "117",
+          "target": "knowledge_document_model_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_document_model_tests-aecc7c589e9b3da0.exe",
+          "exe_sha256": "1f76db99041711dbac32e07429dd48405190a10e04bd3bf3c4d857dd53710cfc",
+          "exit_code": 0,
+          "result_line": "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 113.48s",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/117-knowledge_document_model_tests.log",
+          "log_sha256": "02ff913d96ab9018ccd420122b782ecace666db874c903b9ff07715ef1c313aa",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "118",
+          "target": "knowledge_documents_api_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_documents_api_tests-1c4641f88043e0e6.exe",
+          "exe_sha256": "fafab5105edf5baca11db87bc7d2bb748682168e817d0218686744479faa230a",
+          "exit_code": 0,
+          "result_line": "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 460.34s",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/118-knowledge_documents_api_tests.log",
+          "log_sha256": "285548c4d732696250b537d5a702d25ac982d666b4cf2771645a261f44d121c3",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "119",
+          "target": "knowledge_graph_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_graph_tests-9c370f389c268e18.exe",
+          "exe_sha256": "a887460a80c16058f6852a5ddcc21d48ab30a6e60fc2a9b424f132d078ab4c4d",
+          "exit_code": 0,
+          "result_line": "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 232.87s",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/119-knowledge_graph_tests.log",
+          "log_sha256": "70f012fbba1d79b4bb1d25303df103cdf74f82f5f713453424ceaa2036f91f2a",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "120",
+          "target": "knowledge_retrieval_bridges_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_retrieval_bridges_tests-c76d9edd45735160.exe",
+          "exe_sha256": "6d31c61cf718726639c5183603927fa0c20612d98eba1b09a4300b2885551e00",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.79s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/120-knowledge_retrieval_bridges_tests.log",
+          "log_sha256": "37d24f5916da9540652b77abf81a7f5e568cc35210a267a9db671d21421a0e22",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "121",
+          "target": "knowledge_memory_projection_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_memory_projection_tests-4af62bb0cbdd5dac.exe",
+          "exe_sha256": "7c8bedd582fc1e47ab08dcd6a55dda5951173ea5d28c9757c1017eed0c3af08d",
+          "exit_code": 0,
+          "result_line": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 96.37s",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/121-knowledge_memory_projection_tests.log",
+          "log_sha256": "5daad0b0d0182dada02f46bf11801367a140718c899f573aecb4ee5c58e8facf",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "122",
+          "target": "knowledge_retrieval_replay_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_retrieval_replay_tests-c1c925e8ded84101.exe",
+          "exe_sha256": "7ef76752efa3d5d6b389bf88eb86d7f5b60f8a35e92af9fb96425c9917b030c3",
+          "exit_code": 0,
+          "result_line": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 132.26s",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/122-knowledge_retrieval_replay_tests.log",
+          "log_sha256": "26318c2c165d63f6559cc27eeca0e836074f0b18043303bc30cccfdf1c6e67bd",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "123",
+          "target": "knowledge_schema_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_schema_tests-a8e43f2187419439.exe",
+          "exe_sha256": "8608129764e04ed5893c417fe7f436a16c3c69ee5a0e5aa756bfb98dbd4120cb",
+          "exit_code": 0,
+          "result_line": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 196.99s",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/123-knowledge_schema_tests.log",
+          "log_sha256": "a52f3dae677349d76adcb83524577687909d0db7e6286ac5b74810bdf68e112e",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "124",
+          "target": "knowledge_retrieval_pipeline_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_retrieval_pipeline_tests-a37ca40f0ad07134.exe",
+          "exe_sha256": "66d9542a3718055c7eb1387436084b384784eab07f7210f4876fc2d204fe4019",
+          "exit_code": 0,
+          "result_line": "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 250.25s",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/124-knowledge_retrieval_pipeline_tests.log",
+          "log_sha256": "1490f1e8b589f680c68615fe825d781ada584921a7c556aafa6f25340e854279",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "125",
+          "target": "loom_backlink_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_backlink_tests-1a96f5388f0bebed.exe",
+          "exe_sha256": "831c627fae7dcebe60e7866c30bb5ee03e1a99773bed065fc7e495017fd17147",
+          "exit_code": 0,
+          "result_line": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.17s",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/125-loom_backlink_tests.log",
+          "log_sha256": "babe7a3100b9c944eae51d0b580542413a958571dfbab5e1b0f868a2c6c19eca",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "126",
+          "target": "loom_ai_suggestions_api_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_ai_suggestions_api_tests-058eca79508808c8.exe",
+          "exe_sha256": "39b63a8c1019e67f5dc2961346691ff6cc325c0d147e41391c35b9715a79124f",
+          "exit_code": 0,
+          "result_line": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 128.56s",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/126-loom_ai_suggestions_api_tests.log",
+          "log_sha256": "712eaf07aca8432c7539a5631bcaeecdf1939e4c8a0d10756a5f4e29da5552b3",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "127",
+          "target": "loom_breadcrumb_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_breadcrumb_tests-d3d1e1fef5b88176.exe",
+          "exe_sha256": "93b5229c8c7c583105ff956b29147a49775e9521597f8ba99cbaf333d63976c0",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.15s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/127-loom_breadcrumb_tests.log",
+          "log_sha256": "f5270c691cda307bcb144b62435554cce8cbc8c269e0351fe08aa217218e4a0c",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "128",
+          "target": "loom_canvas_board_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_canvas_board_tests-0845bb846b582880.exe",
+          "exe_sha256": "285d96c2bb1c59061d2e9465f123b17ce57cee45cc01f9755cd9c30d7a4f81eb",
+          "exit_code": 0,
+          "result_line": "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 215.48s",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/128-loom_canvas_board_tests.log",
+          "log_sha256": "acff87a672bc552ff5a102e9f4dd1d3974d28de12a6c45c5a404474df709ff55",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "129",
+          "target": "loom_block_collection_views_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_block_collection_views_tests-553cef2a98d60884.exe",
+          "exe_sha256": "92eff29547161f29bde7a9386436aaff9e691e68a1f408ac101d3d48e8dfca5e",
+          "exit_code": 0,
+          "result_line": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 192.00s",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/129-loom_block_collection_views_tests.log",
+          "log_sha256": "6b62941dbfaff27feb7323b36a033749a87f0ede2491f013e0064fb3c85b04d8",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "130",
+          "target": "loom_daily_journal_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_daily_journal_tests-8bfe20e3a9eb0db5.exe",
+          "exe_sha256": "4e3d38639698c1e2a5cff36102f3c743dc5956c2ee405671d4101c18293c3009",
+          "exit_code": 0,
+          "result_line": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.82s",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/130-loom_daily_journal_tests.log",
+          "log_sha256": "2e856c63f0d7ea45ed8672568958a5026e31ca47a5278069134f24393fafd433",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "131",
+          "target": "loom_graph_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_graph_tests-aa92085b68cf735c.exe",
+          "exe_sha256": "51b2def996f6d60294fafe0712dd542cd1010fe337eb6d30481b6bef9f22c70e",
+          "exit_code": 0,
+          "result_line": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 81.76s",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/131-loom_graph_tests.log",
+          "log_sha256": "2af0490937f91af79214068b31a53974847cc5466a71c38ada8f41832e7e1465",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "132",
+          "target": "loom_folder_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_folder_tests-0ddb81fd9cebadfb.exe",
+          "exe_sha256": "54c856e23e9526337254e281287a5ef527b0746945ef0b40d1e8ec655756df1b",
+          "exit_code": 0,
+          "result_line": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 127.62s",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/132-loom_folder_tests.log",
+          "log_sha256": "9491e45a677951568e7860b367edf5ec3b037a6d1912e1106981e2291daf538d",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "133",
+          "target": "loom_graph_search_filters_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_graph_search_filters_tests-aaf632152c789272.exe",
+          "exe_sha256": "631e207a38d18c802544361346e1427b47c26fe7663b1142d072ad8f0efad6ba",
+          "exit_code": 0,
+          "result_line": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 162.57s",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/133-loom_graph_search_filters_tests.log",
+          "log_sha256": "33dc310c193572a8ea7870eb9ddfe1e269bcec5ce3e7c9f679914d792b36ee2f",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "134",
+          "target": "loom_navigation_fixtures_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_navigation_fixtures_tests-90188f2a1d604bac.exe",
+          "exe_sha256": "7f291f9f7fd00b2f99550505595d7679b7f3798ec67096461703ca1afd4df669",
+          "exit_code": 0,
+          "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.33s",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/134-loom_navigation_fixtures_tests.log",
+          "log_sha256": "fac00fb9271714e08b53e085473d80bcee470718eae4f9e0e96ee5aa499685ca",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "135",
+          "target": "loom_knowledge_bridge_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_knowledge_bridge_tests-1c7ff7601c5d97c7.exe",
+          "exe_sha256": "da33ab67b1aeb65fe74ab50a1ed65983f7ee65d1b2f2de57270d6af824a4824a",
+          "exit_code": 0,
+          "result_line": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 112.01s",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/135-loom_knowledge_bridge_tests.log",
+          "log_sha256": "fb5a90bb96d83bc93e1452343901fd510ce38270cbaa59a41bfc981d12812c5a",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "136",
+          "target": "loom_retrieval_bias_visibility_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_retrieval_bias_visibility_tests-7fa085b88bf1446f.exe",
+          "exe_sha256": "7d8b881b5fd69a915c4069424514885aec3370fbb2a0ac17684a4838ffcadd03",
+          "exit_code": 0,
+          "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.45s",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/136-loom_retrieval_bias_visibility_tests.log",
+          "log_sha256": "8e122f86ae9ac58203221d7301b13d94ceaf5bdee55d4564a8819b5e1888e1dc",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "137",
+          "target": "loom_pins_views_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_pins_views_tests-2f9ed177b7b262db.exe",
+          "exe_sha256": "b9be73be7dbbba243445273eefc92e63e3f17638c91d3c0aa864052f5580d028",
+          "exit_code": 0,
+          "result_line": "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 113.18s",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/137-loom_pins_views_tests.log",
+          "log_sha256": "eeff511707ca081a37ce602b961651ca1e30bd85bb6236449c9b9be7ec9c595d",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "138",
+          "target": "loom_transclusion_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_transclusion_tests-f7a89e1468036c1b.exe",
+          "exe_sha256": "9a6d63da4264310087726b9801cdeee244a00c4223c1ea4b01a5a2a8dcd25249",
+          "exit_code": 0,
+          "result_line": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.79s",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/138-loom_transclusion_tests.log",
+          "log_sha256": "65dad1fcdb49f3ca66f1e498c542625290eb5896716675311768d0d8525d1e9d",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "139",
+          "target": "loom_visual_debug_views_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_visual_debug_views_tests-bc8344eb9039a2a7.exe",
+          "exe_sha256": "921804db4aa1ad4f6cf9f6260d9e52ea6cd79055457a4cb934802d4167b94688",
+          "exit_code": 0,
+          "result_line": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.39s",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/139-loom_visual_debug_views_tests.log",
+          "log_sha256": "9b794b2005c9eded74ad5c91b9e3a816be70356b3d783daecea8c1c1a198bae1",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "140",
+          "target": "loom_search_v2_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_search_v2_tests-e060093e3fd0683c.exe",
+          "exe_sha256": "f6df5b780331725a24ef583b8d0791fac9084983b490a9debca3fdc48ebc21c2",
+          "exit_code": 0,
+          "result_line": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 95.50s",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/140-loom_search_v2_tests.log",
+          "log_sha256": "0aed7451cff1d5a48030d51e7ff9c133d52bdcfd6b83ab9f229b4861ea00cc5f",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "141",
+          "target": "loom_tag_hub_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_tag_hub_tests-82580f5f17f70f82.exe",
+          "exe_sha256": "a2c4d068f7569f1724b61159481362aa35502f4f8eb1c0596d112d9a9ed7622e",
+          "exit_code": 0,
+          "result_line": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 95.89s",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/141-loom_tag_hub_tests.log",
+          "log_sha256": "ee36ff5a506f606bf25b6452a36319f5a91f8bcbfba77d10a5f8c15a98fed10f",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "142",
+          "target": "memory_persistence_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/memory_persistence_tests-39b58e4aa1b0cc1f.exe",
+          "exe_sha256": "66d5832a5463fb69dc815ddb725f072bab6ca0014b2c4f66cdf78f58346abecc",
+          "exit_code": 0,
+          "result_line": "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/142-memory_persistence_tests.log",
+          "log_sha256": "17c2a0fcead357470765416a05730c9d97317a5d63a3f340916984476c282a40",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "143",
+          "target": "loom_wiki_boundary_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/loom_wiki_boundary_tests-173b2dc9d90bb0a2.exe",
+          "exe_sha256": "b84076ae1d7e4fa282a9303bc63ae0ffcc4be5eb202a64616de28e546e3070ce",
+          "exit_code": 0,
+          "result_line": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 79.63s",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/143-loom_wiki_boundary_tests.log",
+          "log_sha256": "a36d4c18c4d35f274ec1ced6046de24f945eab34399c8c1b853422f95d5e8275",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "144",
+          "target": "micro_task_job_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/micro_task_job_tests-80463a5adb05b403.exe",
+          "exe_sha256": "54ef00e32b9ab26671feeafa04c53db6616e35f52b6425aa930f6b86bb713a24",
+          "exit_code": 0,
+          "result_line": "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 128.90s",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/144-micro_task_job_tests.log",
+          "log_sha256": "bcc1e645017ed061e4f9142b44c2f413ad0945193d518cee0f680c672173e8d4",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "145",
+          "target": "mt152_fems_stage_guard_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/mt152_fems_stage_guard_tests-241b87647ecc6dd7.exe",
+          "exe_sha256": "fda24e28007b33fc8363fe465dc09652ffb08d3a040ee1f4027c408899f16d18",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.32s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/145-mt152_fems_stage_guard_tests.log",
+          "log_sha256": "8ea0abf05e29bcb3ec179465833c52ae31ece1ed05661f2b00c7f82ddf39736e",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "146",
+          "target": "mt_cancellation_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/mt_cancellation_tests-b59e43cf0a4f9d31.exe",
+          "exe_sha256": "e9a8db34c182e0651910eca0dab4527f175c7214006d846b9b0e76aaf20ac6ba",
+          "exit_code": 0,
+          "result_line": "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.06s",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/146-mt_cancellation_tests.log",
+          "log_sha256": "11d24c0ad8669f7581da4239c658614007090d47bd57f0c43226d828a07e5bd6",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "147",
+          "target": "mt_executor_integration_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/mt_executor_integration_tests-775ebb223ca49f72.exe",
+          "exe_sha256": "e7359339dd4dc2cf210f784eecbf2c802e4712c616584ccd0da4efa6531d2004",
+          "exit_code": 0,
+          "result_line": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.28s",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/147-mt_executor_integration_tests.log",
+          "log_sha256": "b6846daf4b0de9969c108afea8b862cd657b80bfab2199eee9914f4515fd957d",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "148",
+          "target": "mt_executor_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/mt_executor_tests-4837c1c75674ed97.exe",
+          "exe_sha256": "5d0f802faee619b352433aa6778c10c0596f93580759ae459e57ed3bb7ce4400",
+          "exit_code": 0,
+          "result_line": "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.89s",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/148-mt_executor_tests.log",
+          "log_sha256": "6c1c8a6153ab850f05b0b013ef9b55550f8a97f1acf4d02972cff7b9cb751ffc",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "149",
+          "target": "mt_outcome_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/mt_outcome_tests-38d3d70f6881c342.exe",
+          "exe_sha256": "07ec2d21f369c425c4bac424347cb7d6671be9c249601e052567b824da4a2337",
+          "exit_code": 0,
+          "result_line": "test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 179.46s",
+          "passed": 38,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/149-mt_outcome_tests.log",
+          "log_sha256": "802f8fa6d45f1cdf4e1d327ec99df68e5058e0a1b7e73806798a52d9e2f043a4",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "150",
+          "target": "mt_loop_control_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/mt_loop_control_tests-95f953c8b1c838e4.exe",
+          "exe_sha256": "53c5d3b0f7188b14bfe86fd258de0c51558b223079a543e19a32d9ea72bb0ccf",
+          "exit_code": 0,
+          "result_line": "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.25s",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/150-mt_loop_control_tests.log",
+          "log_sha256": "274c1a5f0890a122495d27e184087ae9f58730570817004d0e849df492cf7ce4",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "151",
+          "target": "outcome_feedback_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/outcome_feedback_tests-499e20e3db6e2e19.exe",
+          "exe_sha256": "99b9e1770b4084420ff2a363528e13ec338f366a7e14347592803d8a2d7ab1f8",
+          "exit_code": 0,
+          "result_line": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.28s",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/151-outcome_feedback_tests.log",
+          "log_sha256": "fb92388fe498071f3948612e9bcc4009216c3f2472597b045fee8e72f21d3044",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "152",
+          "target": "mt_scheduler_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/mt_scheduler_tests-2fd61b2e2c91acd5.exe",
+          "exe_sha256": "a6f7f69e44f069200f36c23b06b707c4da0d4e6a91632b58177b88b6e7fe4db4",
+          "exit_code": 0,
+          "result_line": "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.79s",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/152-mt_scheduler_tests.log",
+          "log_sha256": "0bebb66ff7f85c655196958615041a7015eb186b54877f1629d5feb54bbf124a",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "153",
+          "target": "pinned_core_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/pinned_core_tests-dcd5a2cce0015eb4.exe",
+          "exe_sha256": "2b2e2c46b04852f8426f8f422749cb0cebbaa641c6b564f2dfc40322c1ca54d2",
+          "exit_code": 0,
+          "result_line": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.60s",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/153-pinned_core_tests.log",
+          "log_sha256": "372fa175f28354fc8d9606f9c6dff8cc86a03821d76daa5c53d3919abeeb0179",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "154",
+          "target": "observability_span_repo_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/observability_span_repo_tests-0b0bc7e1f9e0e466.exe",
+          "exe_sha256": "29a3e9841e76fe71d49aaacb0cb02e875fa250d32c49a3407a2b9e7828d3dd0e",
+          "exit_code": 0,
+          "result_line": "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 145.25s",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/154-observability_span_repo_tests.log",
+          "log_sha256": "7e7bc388123d57ef42ec01fa2ca091ae498a08f77d05fa8310e66d78698ce85d",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "155",
+          "target": "quick_switcher_recents_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/quick_switcher_recents_tests-7151385b09fdb454.exe",
+          "exe_sha256": "33c2d9878c854cc4bc8b7318f4ad5a390fc8a6767e0f5f507ea28419bc39a8e0",
+          "exit_code": 0,
+          "result_line": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.68s",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/155-quick_switcher_recents_tests.log",
+          "log_sha256": "9e7e80055267a23e3a35d8b8dcecce5aef4db4013f25fddc6ea2f2098881269d",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "156",
+          "target": "sandbox_adapter_trait_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/sandbox_adapter_trait_tests-4b3017f3df7dd76d.exe",
+          "exe_sha256": "ced4b797330ec39381e1d9d4fb5c8203e88f662b4aaa6786e0f91af574513ac3",
+          "exit_code": 0,
+          "result_line": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/156-sandbox_adapter_trait_tests.log",
+          "log_sha256": "068a57a376c96228801c8ff740823a05d6f6884065219da5b39620bd0de91586",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "157",
+          "target": "sandbox_ipc_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/sandbox_ipc_tests-45103aea182bcd8e.exe",
+          "exe_sha256": "4c224286a8ba5b5b13ee7cacc9b80ee53bc2fe1a1434b95ed76dab87505a4229",
+          "exit_code": 0,
+          "result_line": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/157-sandbox_ipc_tests.log",
+          "log_sha256": "a27d6e36e585166734eb9fdc6c4f1b265cb20932db005fc5463390cff0a8c0ac",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "158",
+          "target": "sandbox_promotion_binding_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/sandbox_promotion_binding_tests-f9a744443f7dcb2b.exe",
+          "exe_sha256": "b489fa4f6af23b3adff9fb73dc10c793e79060d5d6192f6c754b25d02eee47bc",
+          "exit_code": 0,
+          "result_line": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/158-sandbox_promotion_binding_tests.log",
+          "log_sha256": "193425bfa3d6c55a91da6da39d87d9e34c0dfe958e8294a781ab6ab787febdf2",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "159",
+          "target": "security_portability_validation_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/security_portability_validation_tests-dbaa0d00eb1fffdf.exe",
+          "exe_sha256": "f570c387198f3d92b6c940f531b81cb3377f88fb5ef4d0bc4d81e5fb2e0f5fa6",
+          "exit_code": 0,
+          "result_line": "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/159-security_portability_validation_tests.log",
+          "log_sha256": "84dbcd5d9546f3bfc570a1d26a8413a7247fe8bea7d4ea1b7e64c0de44bd510c",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "160",
+          "target": "role_mailbox_repo_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/role_mailbox_repo_tests-e9e2b827d984f29d.exe",
+          "exe_sha256": "6da7edc2f4168a7722233e39e87a9811829da4079fadd3cb272a1ddd6c2d6c90",
+          "exit_code": 0,
+          "result_line": "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 181.13s",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/160-role_mailbox_repo_tests.log",
+          "log_sha256": "27abeb877a1ba9dc8cc4b061eb7b9c4ae6ef455ba885b06b179bb75467dd568f",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "161",
+          "target": "surreal_block_crud_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/surreal_block_crud_tests-bb8e9d19860033bb.exe",
+          "exe_sha256": "927341e99eb375422f2f22daeb4b904be46610e2fa7977eaea8d77770caaba0e",
+          "exit_code": 0,
+          "result_line": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.56s",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/161-surreal_block_crud_tests.log",
+          "log_sha256": "51bdecfce2533920e1489236b25d6aedb3a91f3970461025917687a7ce7a0a68",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "162",
+          "target": "role_mailbox_lease_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/role_mailbox_lease_tests-1aa9306535901b47.exe",
+          "exe_sha256": "e67b3229ca1aa96ffe86bc210f1e1f7507634f0898a7e17e478959a6ac07e916",
+          "exit_code": 0,
+          "result_line": "test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 329.87s",
+          "passed": 31,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/162-role_mailbox_lease_tests.log",
+          "log_sha256": "96306e2b41bcd5b08291f1c960611dcd3f6b28faa4ef60299a70029fe358fb41",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "163",
+          "target": "surreal_storage_lifecycle_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/surreal_storage_lifecycle_tests-a52bb2481c6bce68.exe",
+          "exe_sha256": "20411b4a6fc9b1567fa3e6f23b2afcb8b1fa56299a7e9b09b76e6400515dc1d1",
+          "exit_code": 0,
+          "result_line": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.63s",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/163-surreal_storage_lifecycle_tests.log",
+          "log_sha256": "ce2dcbc5127c92bd73867faa93ec01e3dd8d895ff2c71c99ce8b765dc9710f05",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "164",
+          "target": "swarm_invariants_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/swarm_invariants_tests-befcb0a0645c71c8.exe",
+          "exe_sha256": "5696d0e9ddb933381a75b9c698b55c91a728bec2c1e40b02b22caf376a094979",
+          "exit_code": 0,
+          "result_line": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/164-swarm_invariants_tests.log",
+          "log_sha256": "1b68d33855a9eabf3d2f604c82cd225cb4baeb6086c105603604d9d2740e787c",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "165",
+          "target": "swarm_n8_perf_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/swarm_n8_perf_tests-ab856054ce1bd092.exe",
+          "exe_sha256": "0e3afda6f95c860cb4fc2309c7ec3b2b8304e27688b6d2fee8663764feedc93f",
+          "exit_code": 0,
+          "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/165-swarm_n8_perf_tests.log",
+          "log_sha256": "4e141f7cf23190fabe943809a00db0b747be186c6624c1d291599bbf24157748",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "166",
+          "target": "user_manual_freshness_fixture_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/user_manual_freshness_fixture_tests-7ac13a5aa95c5eb3.exe",
+          "exe_sha256": "f4a105bc72a8f08a4619f195d38601e08e86afc8c88e551e1b079176a4f36d3d",
+          "exit_code": 0,
+          "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.28s",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/166-user_manual_freshness_fixture_tests.log",
+          "log_sha256": "dd1b2435d2d7dcf29b1cb37af7cd15a41991bc7a6d70c4be5ca320e7ebf9227c",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "167",
+          "target": "user_manual_storage_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/user_manual_storage_tests-2fc31de350db7ad3.exe",
+          "exe_sha256": "ae0021f4ca2250a0d493ab7234ba6167de86673013184fb314a96faac6d7bbd8",
+          "exit_code": 0,
+          "result_line": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 153.99s",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/167-user_manual_storage_tests.log",
+          "log_sha256": "b4981c04d5fa96817c4c14374cee9db28db9662d9ac9c645672cd331d1545fc4",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "168",
+          "target": "validation_runner_sandbox_binding_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/validation_runner_sandbox_binding_tests-c6c51a4a64891bf7.exe",
+          "exe_sha256": "1614d283430e104d2ea4d04cae761194225ac75af1ca22923e060c1f9121b3c9",
+          "exit_code": 0,
+          "result_line": "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/168-validation_runner_sandbox_binding_tests.log",
+          "log_sha256": "0d6b6d08516cd9e18ffae4b17fdb47960f357b72232a6ffaf07da72007da3fd6",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "169",
+          "target": "user_manual_api_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/user_manual_api_tests-77149e60caf2624f.exe",
+          "exe_sha256": "55e243f541ab8c11627a0220bbd40aca989a1068c6262093ab186519cddf2c11",
+          "exit_code": 0,
+          "result_line": "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 222.18s",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/169-user_manual_api_tests.log",
+          "log_sha256": "3ac250b5cf6c88227052ab146c90b463969b82fe1c2edbfed4276584b34e9c50",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "170",
+          "target": "user_manual_content_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/user_manual_content_tests-8a17d5212c11b8fb.exe",
+          "exe_sha256": "8781d838adb89e14f55c7fbc3549f42c8e3dab1deaba81506056bcd07a331165",
+          "exit_code": 0,
+          "result_line": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 170.24s",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/170-user_manual_content_tests.log",
+          "log_sha256": "f21ceb12214ecd033edf4c41b22e2a57781d5f11c59d8d7771f480189413e1e8",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "--nocapture",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        },
+        {
+          "index": "171",
+          "target": "wp009_integration_validator_evidence_pack_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/wp009_integration_validator_evidence_pack_tests-4389fab508c73ca3.exe",
+          "exe_sha256": "80de08e3aab40d6dc11d13f48832bce9afc47e4303a08d78f63dac41b1b8a963",
+          "exit_code": 0,
+          "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.44s",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/171-wp009_integration_validator_evidence_pack_tests.log",
+          "log_sha256": "6ce8e6cce4628ebb80eef2a47a7f630ab6f50728c2f72673a380b7f4c3116b93",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        }
+      ],
+      "real_red_records": [
+        {
+          "index": "114",
+          "target": "knowledge_code_nav_api_tests",
+          "bundle": "setA",
+          "features": "surreal-test-support,test-utils",
+          "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/knowledge_code_nav_api_tests-83c4592ed1d9522f.exe",
+          "exe_sha256": "f84a16876cddff08990b3ac08d847057a581c5a9a9870f0d4f58b7898e6a91f7",
+          "exit_code": 101,
+          "result_line": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.03s",
+          "passed": 2,
+          "failed": 1,
+          "ignored": 0,
+          "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/114-knowledge_code_nav_api_tests.log",
+          "log_sha256": "221f0ec48bdeca9b4665341ba8547b0d078837c4eb76c7514ffb3add86875426",
+          "session": "WP_VALIDATOR-B3-20260917-182941",
+          "args": "",
+          "head": "c0766697664a416304dd08c8620cb400724c9104"
+        }
+      ],
+      "invalid_rows": [
+        {
+          "index": "172",
+          "target": "lib",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "173",
+          "target": "ai_ready_data_arch_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "174",
+          "target": "crash_recovery_e2e",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "175",
+          "target": "distillation_corpus_extractor_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "176",
+          "target": "mcp_e2e_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "177",
+          "target": "mcp_gate_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "178",
+          "target": "mex_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "179",
+          "target": "micro_task_executor_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "180",
+          "target": "model_session_scheduler_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "181",
+          "target": "parallel_swarm_state_recovery_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "182",
+          "target": "role_mailbox_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "183",
+          "target": "role_registry_append_only_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "184",
+          "target": "runtime_chat_events_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "185",
+          "target": "terminal_guards_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "186",
+          "target": "terminal_session_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "187",
+          "target": "a3_inspector_smoke",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "188",
+          "target": "inspector_server_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "189",
+          "target": "replay_drive_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "190",
+          "target": "trace_projection_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "191",
+          "target": "cloud_local_parity_smoke",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "192",
+          "target": "cloud_openai_byok_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "193",
+          "target": "distillation_peft_pipeline_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "194",
+          "target": "fems_integration_e2e_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "195",
+          "target": "hbr_vis_gap_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "196",
+          "target": "kernel_action_envelope_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "197",
+          "target": "kernel_crdt_identity_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "198",
+          "target": "kernel_crdt_validity_guard_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "199",
+          "target": "kernel_dcc_mvp_runtime_surface_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "200",
+          "target": "kernel_direct_edit_guard_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "201",
+          "target": "kernel_direct_edit_regression_harness_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "202",
+          "target": "kernel_event_ledger_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "203",
+          "target": "kernel_local_model_microtask_loop_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "204",
+          "target": "kernel_locus_mt_validation_work_graph_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "205",
+          "target": "kernel_locus_work_tracking_reset_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "206",
+          "target": "kernel_markdown_mirror_sync_drift_guard_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "207",
+          "target": "kernel_role_mailbox_claim_lease_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "208",
+          "target": "kernel_role_mailbox_handoff_bundle_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "209",
+          "target": "kernel_role_mailbox_loop_control_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "210",
+          "target": "kernel_tail_contract_json_roundtrip_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "211",
+          "target": "kernel_visual_debugging_loop_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "212",
+          "target": "llama_cpp_e2e_smoke",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "213",
+          "target": "llama_cpp_perf_stats_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "214",
+          "target": "llama_cpp_speculative_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "215",
+          "target": "llm_client_local_routing_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "216",
+          "target": "memory_builder_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "217",
+          "target": "memory_capsule_e2e_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "218",
+          "target": "memory_capsule_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "219",
+          "target": "memory_injection_into_local_router_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "220",
+          "target": "memory_ipc_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "221",
+          "target": "model_manual_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "222",
+          "target": "observability_fr_integration_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "223",
+          "target": "replay_eval_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "224",
+          "target": "role_mailbox_families_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "225",
+          "target": "role_mailbox_router_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "226",
+          "target": "self_improve_e2e_iteration_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "227",
+          "target": "cloud_anthropic_byok_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "228",
+          "target": "distillation_content_review_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "229",
+          "target": "flight_recorder_span_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "230",
+          "target": "fr_event_registry_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "231",
+          "target": "hbr_handoff_gate_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "232",
+          "target": "hbr_violation_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "233",
+          "target": "kernel_action_catalog_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "234",
+          "target": "kernel_collaboration_memory_handoff_context_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "235",
+          "target": "kernel_crdt_conflict_presence_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "236",
+          "target": "kernel_crdt_context_slice_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "237",
+          "target": "kernel_flight_recorder_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "238",
+          "target": "kernel_pre_use_acceptance_run_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "239",
+          "target": "kernel_role_mailbox_contract_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "240",
+          "target": "kernel_role_mailbox_triage_queue_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "241",
+          "target": "mt137_restart_recovery_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "242",
+          "target": "debug_adapter_breakpoint_persistence",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "243",
+          "target": "kernel_crdt_promotion_bridge_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "244",
+          "target": "knowledge_parallel_write_conflict_fixture_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "245",
+          "target": "idempotency_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "246",
+          "target": "knowledge_memory_api_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "247",
+          "target": "knowledge_retrieval_debug_api_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "248",
+          "target": "hygiene_manager_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "249",
+          "target": "knowledge_migration_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "250",
+          "target": "atelier_pose_pipeline_integration_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "251",
+          "target": "calendar_storage_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "252",
+          "target": "knowledge_ingestion_api_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "253",
+          "target": "knowledge_ingestion_fixture_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "254",
+          "target": "knowledge_delete_title_race_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "255",
+          "target": "role_mailbox_v1_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "256",
+          "target": "atelier_loom_projection_api_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "257",
+          "target": "mt152_lock_migration_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "258",
+          "target": "atelier_comfy_intake_routing_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "259",
+          "target": "hbr_build_rules_read_evidence_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "260",
+          "target": "knowledge_memory_bridge_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "261",
+          "target": "knowledge_tiptap_roundtrip_fixture_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "262",
+          "target": "surreal_swarm_semantics_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "263",
+          "target": "surreal_document_crud_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "264",
+          "target": "atelier_visual_steer_feedback_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "265",
+          "target": "atelier_command_log_session_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "266",
+          "target": "surreal_swarm_lifecycle_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "267",
+          "target": "surreal_swarm_load_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "268",
+          "target": "mt151_early_lock_release_race_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "269",
+          "target": "knowledge_memory_conflict_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "270",
+          "target": "atelier_replay_contract_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "271",
+          "target": "knowledge_crdt_model_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "272",
+          "target": "knowledge_memory_facts_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "273",
+          "target": "knowledge_crdt_concurrency_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "274",
+          "target": "knowledge_memory_ontology_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "275",
+          "target": "kernel_session_run_ledger_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "276",
+          "target": "knowledge_crdt_lease_recovery_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "277",
+          "target": "storage_conformance",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "278",
+          "target": "mt152_anchor_reclamation_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "279",
+          "target": "knowledge_idempotency_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "280",
+          "target": "swarm_review_probe_1",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "281",
+          "target": "knowledge_fail_closed_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "282",
+          "target": "session_checkpoint_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "283",
+          "target": "knowledge_memory_fixtures_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "284",
+          "target": "knowledge_ingestion_lifecycle_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "285",
+          "target": "role_mailbox_exporter_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "286",
+          "target": "role_mailbox_handoff_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "287",
+          "target": "atelier_model_manual_merge_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "288",
+          "target": "terminal_event_ledger_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "289",
+          "target": "loom_media_tiers_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "290",
+          "target": "knowledge_ingestion_policy_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "291",
+          "target": "atelier_manual_rows_parity_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "292",
+          "target": "role_mailbox_backpressure_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "293",
+          "target": "knowledge_claims_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "294",
+          "target": "project_wiki_drift_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "295",
+          "target": "project_wiki_bootstrap_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "296",
+          "target": "project_wiki_fanout_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "297",
+          "target": "atelier_diagnostics_typed_surfaces_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "298",
+          "target": "memory_capsule_recorder_surreal_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "299",
+          "target": "knowledge_ingestion_pipeline_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "300",
+          "target": "knowledge_documents_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "301",
+          "target": "atelier_dcc_flight_recorder_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "302",
+          "target": "knowledge_crdt_proof_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "303",
+          "target": "workspace_settings_state_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "304",
+          "target": "workbench_layout_state_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "305",
+          "target": "knowledge_ingestion_hardening_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "306",
+          "target": "atelier_media_artifact_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "307",
+          "target": "atelier_stealth_window_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "308",
+          "target": "knowledge_code_index_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "309",
+          "target": "atelier_comfy_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "310",
+          "target": "loom_atomic_receipt_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "311",
+          "target": "atelier_intake_folder_scan_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "312",
+          "target": "atelier_image_import_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "313",
+          "target": "atelier_fixture_corpus_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "314",
+          "target": "wp_kernel_012_native_editor_routes_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        },
+        {
+          "index": "315",
+          "target": "atelier_event_ledger_tests",
+          "reason": "CR argv filter selected zero tests"
+        },
+        {
+          "index": "316",
+          "target": "atelier_core_data_tests",
+          "reason": "CR in --nocapture caused option parse failure"
+        }
+      ],
+      "running_proof": {
+        "index": "317",
+        "target": "lib",
+        "state": "RUNNING_NOT_ACCEPTANCE_EVIDENCE",
+        "pid": 77716,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/logs/317-lib-resume.log",
+        "argv": [
+          "--nocapture"
+        ],
+        "replaces_invalid_row": "172",
+        "execution_owner": "WP_VALIDATOR-B3-20260919-resume"
+      },
+      "driver": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/resume_crlf.py",
+      "stop_control": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/STOP-RESUME"
+    },
+    "independent_findings": [
+      {
+        "id": "V3-F01",
+        "severity": "BLOCKING",
+        "class": "TEST_ARTIFACT_WORKTREE_ESCAPE",
+        "summary": "The required set-B spec-router proof explicitly overrides the lane HANDSHAKE_WORKSPACE_ROOT with the product repository root, writes data/spec_router_tests/<uuid>.md there, and never removes it. The workflow subsequently writes PromptPayload and other artifacts using that same workspace root. This violates the Operator handoff section5 external-artifact and fresh-workspace rules; running the unsafe test is not authorized as proof.",
+        "source_refs": [
+          "src/backend/handshake_core/tests/micro_task_executor_tests.rs:765-883",
+          "src/backend/handshake_core/src/workflows.rs:20332-20336",
+          "src/backend/handshake_core/src/workflows.rs:20533-20548"
+        ],
+        "source_sha256": "a720e9c281361867c6b0ba21ea28d8e3796b537421a5d0c142588cfcac947bc2",
+        "introduction_note": "The prompt write predates this candidate; c0766697 adds the explicit WorkspaceEnvGuard repository-root override. Finding concerns current behavior, not attribution of all lines to this change.",
+        "runtime_reproduction": "NOT_RUN: direct source inspection proves disallowed destination before launch. No worktree output was deliberately created to demonstrate this.",
+        "governing_rules": [
+          "Operator handoff section5",
+          "CX-984-001",
+          "CX-984-008"
+        ]
+      },
+      {
+        "id": "V3-F02",
+        "severity": "BLOCKING_PROOF_GAP",
+        "class": "INVALID_PRIOR_EXECUTION_ARGUMENTS",
+        "summary": "Original rows172-316 contain CRLF-derived carriage returns in argv. 121 zero-test exit0 rows and24 invalid-option exit101 rows are not product passes or product failures. Corrected resumption uses explicit trimmed argv and validates executable hashes. Current lib317 is still running; remaining144 executions are deferred until V3-F01 remediation.",
+        "product_change_required": false
+      },
+      {
+        "id": "V3-F03",
+        "severity": "OPEN_PROOF",
+        "class": "LC06_DEFAULT_BUDGET",
+        "summary": "Original row114 fails default10000ms at35956.0504ms with500 indexed/ingested and0 failed files. MT045 contract explicitly permits PERF_BUDGET_*_MS slow-host overrides. Such proof must preserve the default failure and measured value and cannot claim the default10s budget or MT045 PASS. No override rerun yet."
+      }
+    ],
+    "adversarial_read": {
+      "V2_F02": "Inspected schema.surql diff and typed request/result RecordId bindings; PassageRefRow matches reverse-lookup projection; negative pin-order test requires -1; applied-update hash tied to diff hash. Existing nonzero greens support these repaired paths; full-lib schema proof pending.",
+      "V2_F03": "Inspected retry_transaction_conflicts, classify_surreal_error/classify_surreal_storage_error, decode_query_values and release/reclaim statements. Only conflict forms retry, bounded policy with cancellation; complete statements replay; decoder checks every statement error before chosen index. Release/reclaim indexes1/2 align BEGIN/IF and BEGIN/LET/IF. Old ledger broad-transient concern not established.",
+      "V2_F04": "hbr_registry_tests now uses committed fixture; hbr_e2e_smoke_test still reads live .GOV and runs live governance scripts through HANDSHAKE_TEST_GOV_REPO_ROOT. Env indirection was allowed by V2-R4; do not claim zero .GOV runtime reads. Operator native-batch section3.3c already schedules this class sweep.",
+      "V2_F05": "Read per-item builder decisions and representative test/product diffs. No blanket proof-intent closure: V3-F01 invalidates required spec-router proof; remaining affected executions incomplete.",
+      "set_B": "Verified active_session_ids is explicitly reinserted after progress serialization; state-recovery transaction indices and error propagation align. Full setB execution not obtained."
+    },
+    "spec_realism_gate": {
+      "sub_rule_1": "NOT_FULLY_CLOSED: no deferred-live placeholders observed in inspected changed harness/state paths; suite-wide silent-SKIP audit incomplete after invalid CRLF runs.",
+      "sub_rule_2": "PARTIAL:71 prior valid nonzero executions include real embedded SurrealDB/axum boundaries. Required setB spec-router boundary cannot be launched under allowed artifact isolation; current lib not counted before completion.",
+      "sub_rule_3": "PASS: claimed_by KERNEL_BUILDER-20260909-212427 differs from validator WP_VALIDATOR-B3-20260919-resume; completed_by remains null on FAIL."
+    },
+    "acceptance_criteria_status": {
+      "AC-141-1": "MET for fresh scans:8 pattern hits inspected as literal detection fixtures, no forbidden Cargo.toml dependency. Product database authority remains SurrealDB.",
+      "AC-141-2": "NOT_PROVEN: required spec-router test has V3-F01 artifact escape; revised full candidate proof not complete.",
+      "AC-141-3": "NOT_REJUDGED: prior reopen evidence preserved, no broader claim from filename or fixture.",
+      "AC-141-4": "NOT_MET:145 original candidate executions invalid, active lib incomplete, actual default LC06 budget red; zero-failure nonzero complete suite not obtained."
+    },
+    "remediation_required": {
+      "groups": [
+        {
+          "id": "V3-R1",
+          "finding": "V3-F01",
+          "owner": "KERNEL_BUILDER",
+          "files": [
+            "src/backend/handshake_core/tests/micro_task_executor_tests.rs"
+          ],
+          "fix": "Use an isolated external test workspace under runner TMP/workspace. Stage the committed spec-prompt-pack inputs required by Spec Router into that workspace; keep prompt input, workflow_context.repo_root, emitted artifacts and cleanup beneath that owned external root. Do not bind HANDSHAKE_WORKSPACE_ROOT to the product checkout. Preserve the real workflow/job and all current assertions; no skip or weakening.",
+          "validation": "Validator executes the exact spec-router test then the affected setB binary with fresh external workspace; verify output paths, git porcelain, and residue. Reuse unchanged compatible proofs/executables. Builder commits and pushes candidate; no .GOV commit by builder."
+        }
+      ],
+      "proof_work_remaining": "After isolation remediation, resume only missing/invalid affected rows using corrected argv, plus changed-target proof and LC06 allowed override proof. Preserve71 valid prior greens and inspect194 unchanged-input citations before any complete shared-batch claim.",
+      "do_not": [
+        "Do not mutate candidate or launch cargo while lib317 owns the lane.",
+        "Do not delete evidence, reset/restore the worktree, weaken assertions, add ignores, or create targets."
+      ]
+    },
+    "not_run": [
+      "Corrected setB14/setC4/affectedA126 executions (144 rows) are pending; paused after active lib due source-backed artifact-isolation blocker.",
+      "LC06 solo host-budget override."
+    ],
+    "not_inspected": [
+      "194 planned unchanged v2 citation records have not been independently reconciled for final reuse in this resumed session.",
+      "Whole-WP conformance and other MT verdicts are outside this per-MT decision."
+    ],
+    "residue": {
+      "policy": "All pre-existing stores/output retained; no cleanup/delete.",
+      "tracked_fixture_writes": [],
+      "note": "Unsafe spec-router proof was not launched; pre-verdict git porcelain empty."
+    },
+    "lane_state": {
+      "state": "DRAINING_ACTIVE_LIB_THEN_STOP",
+      "active_pid": 77716,
+      "cargo_processes": 0,
+      "stop_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/STOP-RESUME",
+      "builder_may_start": false
+    },
+    "transition_reason": "Decisive inspected source artifact-escape prevents legal completion; candidate suite evidence also incomplete due CRLF argument defect."
+  },
+  "validation_v3_transition": {
+    "from_status": "FAIL_V2",
+    "to_status": "FAIL_V3",
+    "by": "WP_VALIDATOR-B3-20260919-resume",
+    "at_utc": "2026-09-19T21:54:32.636Z",
+    "commit": "c0766697664a416304dd08c8620cb400724c9104",
+    "record": "validation_v3",
+    "reason": "V3-F01 source-backed artifact isolation failure; remaining proof explicitly not complete."
   }
 }
