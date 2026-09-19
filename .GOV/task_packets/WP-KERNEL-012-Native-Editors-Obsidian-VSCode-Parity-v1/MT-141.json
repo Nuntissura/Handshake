@@ -1067,7 +1067,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-19T21:54:32.636Z",
+  "updated_at_utc": "2026-09-19T21:58:46.615Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -14745,5 +14745,110 @@
     "commit": "c0766697664a416304dd08c8620cb400724c9104",
     "record": "validation_v3",
     "reason": "V3-F01 source-backed artifact isolation failure; remaining proof explicitly not complete."
+  },
+  "validation_v3_supplement": {
+    "schema_id": "hsk.mt_validation_supplement@1",
+    "recorded_by": "WP_VALIDATOR-B3-20260919-resume",
+    "recorded_at_utc": "2026-09-19T21:58:46.615Z",
+    "verdict_unchanged": "FAIL_V3",
+    "supersedes_live_state_only": "validation_v3.proof_ledger.running_proof and validation_v3.lane_state captured historical running state; this supplemental current state supersedes those snapshots.",
+    "proof_interruption": {
+      "index": "317",
+      "target": "lib",
+      "bundle": "lib",
+      "features": "duckdb-flight-recorder,test-utils",
+      "exe": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-v15/target/debug/deps/handshake_core-ee852f04359cdf21.exe",
+      "exe_sha256": "badca7a17be0936ba1f89f544d551498577e3067da44461f66c3a3f23b8e91b3",
+      "exit_code": null,
+      "exit_code_source": "NOT_OBSERVED_OWNED_DRIVER_STOPPED_BEFORE_CHILD",
+      "result_line": "",
+      "passed": null,
+      "failed": null,
+      "ignored": null,
+      "log": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\WP-KERNEL-012\\MT-141\\wpv-v3\\logs\\317-lib-resume.log",
+      "log_sha256": "017f9bedd08064ce79e94fc232ebdd668c30eb5bf87e8e3d91c6646a40a057bb",
+      "wall_s": null,
+      "failing_tests": [],
+      "residue": {
+        "runtime_stores_after": 5,
+        "tmp_after": 51
+      },
+      "git_porcelain": [],
+      "session": "WP_VALIDATOR-B3-20260919-resume",
+      "rerun_alone": true,
+      "pool": 1,
+      "started_at_utc": "2026-09-19T21:47:15.012339+00:00",
+      "args": "--nocapture",
+      "argv": [
+        "--nocapture"
+      ],
+      "finished_at_utc": "2026-09-19T21:58:46.615Z",
+      "head": "c0766697664a416304dd08c8620cb400724c9104",
+      "covers": [
+        "MT-141"
+      ],
+      "status": "INTERRUPTED_BY_ORCHESTRATOR_AFTER_SOURCE_BLOCKER",
+      "acceptance_evidence": false,
+      "completed_test_lines_observed": 123,
+      "termination": {
+        "driver_pid": 85528,
+        "test_pid": 77716,
+        "ownership": "Both launched by this validator in current session; exact parent-child chain verified immediately before stop.",
+        "order": [
+          "driver85528",
+          "test77716"
+        ],
+        "authority": "Parent Integration Validator relayed Operator speed-development steering; source-backed FAIL already decisive; stop owned resumed lib and driver, no further tests."
+      }
+    },
+    "lane_state": {
+      "state": "STOPPED_AFTER_SOURCE_BLOCKER",
+      "owned_processes": [],
+      "cargo_processes": 0,
+      "stop_file": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/wpv-v3/STOP-RESUME",
+      "builder_may_start": true,
+      "verification": "Get-CimInstance after exact own-PID stop returned no driver/test/cargo/rustc/link/artifact executables; git status --porcelain empty."
+    },
+    "remediation_input_trace": {
+      "required_committed_inputs": [
+        "assets/spec_prompt_packs/spec_router_pack@1.json",
+        "assets/capability_registry.json"
+      ],
+      "evidence": [
+        "src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs:99-145 reads one workspace-relative JSON, no transitive include",
+        "src/backend/handshake_core/src/workflows.rs:20378-20386 reads workspace/assets/capability_registry.json"
+      ],
+      "note": "Stage both committed inputs into external test workspace, use it for prompt/workflow context/artifact writes; builder verifies any additional execution inputs while preserving assertions."
+    },
+    "shared_proof_reconciliation": {
+      "parent_verified_at_utc": "2026-09-19T21:58:46.615Z",
+      "planned_v2_citations": 194,
+      "positive_nonzero": 184,
+      "zero_test_feature_gated": 10,
+      "zero_test_targets": [
+        "a3_inspector_smoke",
+        "candle_e2e_smoke",
+        "candle_lora_tests",
+        "candle_mamba2_tests",
+        "candle_rwkv_tests",
+        "candle_rwkv_v7_tests",
+        "candle_transformer_tests",
+        "inf9_subquadratic_full_parity_smoke",
+        "inspector_server_tests",
+        "replay_drive_tests"
+      ],
+      "parent_audit": "All194 log bytes SHA, .log.sha256, .log.exit and verbatim result line matched. No missing/red. Parent inspected evidence; this is not an executable-byte rehash or full candidate PASS.",
+      "candidate_old_rows": {
+        "valid_nonzero_greens": 71,
+        "real_lc06_red": 1,
+        "crlf_invalid": 145
+      },
+      "resumed_rows": {
+        "interrupted": 1,
+        "accepted_as_pass_or_fail": 0
+      },
+      "complete_batch": false
+    },
+    "proof_remaining": "145 corrected executions remain incomplete, including interrupted lib; source isolation remediation first. LC06 host override proof and affected-source reuse mapping still required. No more tests launched in this validator session."
   }
 }
