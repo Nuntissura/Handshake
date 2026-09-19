@@ -1681,9 +1681,11 @@ fn live_create_view(
         &block_id,
         title,
         definition,
-        Arc::clone(&generation),
-        1,
-        Arc::clone(&cell),
+        handshake_native::backend_client::BlockViewOperationSink {
+            generation: Arc::clone(&generation),
+            expected_generation: 1,
+            cell: Arc::clone(&cell),
+        },
     );
     let delivery = (0..200)
         .find_map(|_| {

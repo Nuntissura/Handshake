@@ -1929,9 +1929,11 @@ fn create_live_block_view(
         &block_id,
         title,
         definition,
-        generation,
-        1,
-        Arc::clone(&cell),
+        handshake_native::backend_client::BlockViewOperationSink {
+            generation,
+            expected_generation: 1,
+            cell: Arc::clone(&cell),
+        },
     );
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
