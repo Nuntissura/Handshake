@@ -1067,7 +1067,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-19T21:58:46.615Z",
+  "updated_at_utc": "2026-09-19T22:19:32.012980+00:00",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -14850,5 +14850,133 @@
       "complete_batch": false
     },
     "proof_remaining": "145 corrected executions remain incomplete, including interrupted lib; source isolation remediation first. LC06 host override proof and affected-source reuse mapping still required. No more tests launched in this validator session."
+  },
+  "remediation_v3": {
+    "schema_note": "Append-only implementer remediation; independent validator verdict remains authoritative.",
+    "session": "KERNEL_BUILDER-20260919-MT141-v3",
+    "base_sha": "c0766697664a416304dd08c8620cb400724c9104",
+    "candidate_sha": "c6c974c323672c099522bc9ed73063db35579ab4",
+    "fix_shas": [
+      "c6c974c323672c099522bc9ed73063db35579ab4"
+    ],
+    "style_sha": null,
+    "recorded_at_utc": "2026-09-19T22:19:32.012980+00:00",
+    "worktree": "wtc-native-editors-v1",
+    "branch": "feat/WP-KERNEL-012",
+    "push": {
+      "remote": "origin",
+      "branch": "feat/WP-KERNEL-012",
+      "sha": "c6c974c323672c099522bc9ed73063db35579ab4",
+      "verified": "git ls-remote"
+    },
+    "tree_state_at_record": "CLEAN",
+    "protocol_reads": {
+      "codex": "FULL live .GOV/codex/Handshake_Codex_v1.4.md (1016 lines)",
+      "kernel_builder": "FULL live .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md (690 lines)",
+      "handoff": "FULL session4; Operator no repomem/no just/MT JSON only overrides ceremony"
+    },
+    "files_changed": [
+      "src/backend/handshake_core/tests/micro_task_executor_tests.rs"
+    ],
+    "groups": [
+      {
+        "id": "V3-R1",
+        "finding": "V3-F01",
+        "disposition": "IMPLEMENTED_FOCUSED_PROOF_GREEN_PENDING_VALIDATOR",
+        "change": "Create temporary external workspace before state setup; copy exact committed assets/spec_prompt_packs/spec_router_pack@1.json and assets/capability_registry.json; bind workspace env, prompt, and workflow_context.repo_root to external workspace. All existing Spec Router completion/artifact/Locus stub/child job assertions preserved."
+      }
+    ],
+    "decisions": [
+      {
+        "id": "V3-D1",
+        "decision": "Use existing tempdir and WorkspaceEnvGuard pattern; source_root is read-only for two committed inputs; no product runtime behavior changed.",
+        "spec": "SPEC_CURRENT v02.206 -> INDEX + manifest -> 11-shared-dev-platform-and-oss-foundations.md section11.1.5 requires real GOV_STANDARD Task Board/Work Packet entries; existing real workflow assertions preserved."
+      },
+      {
+        "id": "V3-D2",
+        "decision": "Operator explicitly approved Batch fixes, then shared validation; known code fixes precede final shared backend/native proof on stable tree. Execution coordination only: no scope/acceptance/status relaxation. Whole affected binary and fullsharedsuite NOT_RUN here; final validator owns them."
+      },
+      {
+        "id": "V3-D3",
+        "decision": "Per-file rustfmt --edition2021 produced no diff after fix commit; no style commit needed."
+      }
+    ],
+    "proof_environment": {
+      "lane_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v3/",
+      "CARGO_TARGET_DIR": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target",
+      "HANDSHAKE_SURREAL_TEST_STORE_ROOT": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v3/runtime",
+      "TMP_TEMP_TMPDIR": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v3/tmp",
+      "HANDSHAKE_WORKSPACE_ROOT": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v3/workspace/run-02-spec-router",
+      "HANDSHAKE_TEST_ARTIFACTS_ROOT": "../Handshake_Artifacts/handshake-test",
+      "RUST_TEST_THREADS": "1",
+      "RUST_BACKTRACE": "0",
+      "pool": 1,
+      "embedded_surrealdb_only": true,
+      "installed_toolchain": "1.97.1; existing installed executables/dependencies only; no installs or toolchain updates",
+      "target_reuse_note": {
+        "owning_mt": "MT-141",
+        "covers": [
+          "MT-141"
+        ],
+        "target_owner": "MT-135/kb-b2",
+        "reason": "Operator approved exclusive sequential reuse of compatible warm builder target; no fourth target created."
+      }
+    },
+    "proofs": [
+      {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --no-run --locked --features app-runtime,surreal-test-support,test-utils -j 2 --test micro_task_executor_tests",
+        "status": "INTERRUPTED_AFTER_REQUIRED_TARGET",
+        "exit_code": -1,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v3/logs/01-build.log",
+        "log_sha256": "dbf3daf0e0697b482ec4f2e87783dd627bc9ebd55e9170c28fc40306ce148dc7",
+        "reason": "Required test successfully linked at2026-09-19T22:16:27.2936892Z; test rustc exited, artifact length217103872, SHA matches runtime row. Cargo then built unrelated implicit helper binaries. Parent approved stop only own cargo83168/current child86488; verified host cargo/rustc/link zero before exact test. Aggregate Cargo is not claimed green.",
+        "required_test_source_sha256": "85839fe2a2267e5ac66c72f1f8eef2dab02eff7540a09490a7776346b3f0a9ba"
+      },
+      {
+        "index": "02",
+        "target": "micro_task_executor_tests",
+        "features": "app-runtime,surreal-test-support,test-utils",
+        "exe": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target/debug/deps/micro_task_executor_tests-fee6528360356ba2.exe",
+        "exe_sha256": "db5ef985439797a340474dba7f474735a95e3ede40206b123d2f58ea747954f4",
+        "exit_code": 0,
+        "result_line": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 21.47s",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v3/logs/02-spec-router.log",
+        "log_sha256": "38f652e99129bc9b74e2b32dea0d32e0a9e5d1fb620c2f7765ef4679e55d1593",
+        "wall_s": 22.467649221420288,
+        "args": [
+          "micro_task_executor_spec_router_creates_locus_work_packet_when_routing_metadata_present",
+          "--exact",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "head": "c6c974c323672c099522bc9ed73063db35579ab4",
+        "session": "KERNEL_BUILDER-20260919-MT141-v3",
+        "covers": [
+          "MT-141"
+        ],
+        "rerun_alone": true,
+        "git_porcelain": [],
+        "residue": {
+          "runtime": 0,
+          "tmp": 0
+        },
+        "started_at_utc": "2026-09-19T22:18:16.483568+00:00",
+        "finished_at_utc": "2026-09-19T22:18:39.017561+00:00"
+      }
+    ],
+    "proof_index": "../Handshake_Artifacts/WP-KERNEL-012/MT-141/kb-v3/results.jsonl",
+    "not_run": [
+      "Whole micro_task_executor_tests binary (49 other tests): deferred to final shared validation by Operator batching decision.",
+      "Full backend/native suite; LC06 override proof; corrected CRLF rows; independent validator verdict."
+    ],
+    "residue": {
+      "runtime": 0,
+      "tmp": 0
+    },
+    "user_manual": "NOT_APPLICABLE: test isolation only; no product behavior/API/manual change.",
+    "lifecycle_unchanged": "FAIL_V3 retained; builder does not certify PASS."
   }
 }
