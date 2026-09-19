@@ -1,66 +1,15 @@
 //! MT-020 — Automation-first audit RUNTIME probe harness.
 //!
-//! The companion `automation_first_audit_tests.rs` exercises the *static*
-//! `automation-first-audit.mjs` scanner (regex over `#[tauri::command]`). The
-//! Integration Validator's HIGH finding on MT-020 was that the static audit
-//! "never actually calls each Tauri command via IPC nor pairs the call with a
-//! live focus-audit / keyboard-injection probe as the MT-020 contract demands"
-//! — it hardcoded `keyboard_injection_invocation_count: 0` and derived the
-//! focus-steal count from regex hits.
-//!
-//! This harness closes that gap with REAL, measured runtime probes. For the
-//! audited IPC command inventory it performs the three contract probes and
-//! asserts the QUIET invariant from MEASURED results (never a hardcoded 0):
-//!
-//!   Probe 1 — IPC mock call:
-//!       Dispatch the command through an in-process IPC handler registry keyed
-//!       by command_ref (`IpcHandlerRegistry`). The dispatch LOOKS UP the real
-//!       handler closure for this ref and RUNS it with NO OS-level input; the
-//!       handler's observable side effect (recording its own ref into the
-//!       `IpcDispatchSink`) confirms the looked-up body actually executed for
-//!       THIS command — an unregistered ref does not dispatch, so the check is
-//!       falsifiable rather than a self-incrementing counter. The OS
-//!       keyboard-injection counters are measured straddling the dispatch and
-//!       must stay at zero (a pure IPC call never round-trips through SendInput).
-//!
-//!   Probe 2 — IPC under a LIVE focus-audit:
-//!       Wrap the same IPC dispatch in a real `FocusAuditHandle` (the MT-015
-//!       `wineventhook` SYSTEM_FOREGROUND hook on Windows) and assert
-//!       `assert_no_handshake_foreground` holds — zero handshake-owned
-//!       foreground transitions were observed for the duration of the call.
-//!       The measured count is `report.handshake_owned_events.len()`, not a
-//!       regex hit count.
-//!
-//!   Probe 3 — raw OS SendInput keyboard-injection:
-//!       Run the real `SendInput` + low-level-keyboard-hook probe (MT-016) and
-//!       assert the injected keystrokes fired ZERO command invocations and
-//!       mutated ZERO state. On the Windows desktop lane this is a genuine OS
-//!       injection (gated by `HANDSHAKE_RUN_KEYBOARD_INJECT_LIVE=1`); the
-//!       MT-058 `handshake-foreground-inject-probe` binary is the heavier
-//!       AppContainer-jailed variant and is resolved here when present.
-//!
-//! The harness then writes a measured-evidence JSON
-//! (`hsk.automation_first_runtime_probe_evidence@1`) and re-runs
-//! `automation-first-audit.mjs --runtime-probe-evidence <file>` to prove the
-//! audit report's `keyboard_injection_invocation_count` /
-//! `runtime_focus_steal_event_count` are now backed by real observations
-//! instead of a static 0.
-//!
-//! Honest-degradation note: `FocusAuditHandle` and the live `SendInput` probe
-//! are Windows-only and the latter is env-gated. When a measurement cannot be
-//! performed on the current host the harness records `measured = false` for
-//! that probe in the evidence (so the audit cannot masquerade an un-measured
-//! host as measured) but STILL asserts the deterministic, platform-independent
-//! invariants (the synchronous `FocusAuditReport` / `assert_keyboard_injection_*`
-//! logic over a real event ledger). It never fakes a measurement.
+//! Product FocusAudit and OS keyboard probes retain measured runtime invariants.
+//! IPC dispatch uses a test registry, not the production Tauri invocation boundary.
+//! The committed command inventory is independently bound to product source hashes;
+//! it proves inventory drift detection, not execution of production Tauri handlers.
 
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
-    process::{Command, Output, Stdio},
     sync::{Arc, Mutex},
-    thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use handshake_core::operator_foreground::{
@@ -77,81 +26,31 @@ use handshake_core::operator_foreground::{
 use serde_json::{json, Value};
 
 const RUNTIME_PROBE_EVIDENCE_SCHEMA: &str = "hsk.automation_first_runtime_probe_evidence@1";
-const AUDIT_SCRIPT_TIMEOUT: Duration = Duration::from_secs(20);
-
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(Path::parent)
-        .and_then(Path::parent)
-        .expect("handshake_core lives under src/backend/handshake_core")
-        .to_path_buf()
-}
-
-fn audit_script(repo_root: &Path) -> PathBuf {
-    repo_root
-        .join(".GOV")
-        .join("roles_shared")
-        .join("scripts")
-        .join("automation-first-audit.mjs")
-}
-
-fn run_audit(args: &[&str]) -> Output {
-    let root = repo_root();
-    let mut command = Command::new("node");
-    command.arg(audit_script(&root));
-    command.args(["--repo-root", root.to_str().expect("repo root utf8")]);
-    command.args(args);
-    command.stdout(Stdio::piped()).stderr(Stdio::piped());
-
-    let mut child = command.spawn().expect("spawn automation-first audit");
-    let deadline = Instant::now() + AUDIT_SCRIPT_TIMEOUT;
-    loop {
-        match child.try_wait().expect("poll automation-first audit") {
-            Some(_) => {
-                return child
-                    .wait_with_output()
-                    .expect("collect automation-first audit")
+/// Frozen source input, independently checked against product command sources.
+fn discover_ipc_command_inventory() -> Vec<(String, bool)> {
+    use sha2::{Digest, Sha256};
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/automation_first_ipc_inventory.json")).expect("IPC inventory input");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(3).expect("product root").join("app/src-tauri/src");
+    fn source_paths(root: &Path, dir: &Path, paths: &mut std::collections::BTreeSet<String>) {
+        for entry in std::fs::read_dir(dir).expect("product source directory") {
+            let path = entry.expect("product source entry").path();
+            if path.is_dir() { source_paths(root, &path, paths); }
+            else if path.extension().is_some_and(|ext| ext == "rs") {
+                paths.insert(path.strip_prefix(root).expect("source under root").to_string_lossy().replace('\\', "/"));
             }
-            None if Instant::now() >= deadline => {
-                let _ = child.kill();
-                let output = child
-                    .wait_with_output()
-                    .expect("collect timed-out automation-first audit");
-                panic!(
-                    "automation-first audit timed out after {}s\nstdout={}\nstderr={}",
-                    AUDIT_SCRIPT_TIMEOUT.as_secs(),
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                );
-            }
-            None => thread::sleep(Duration::from_millis(25)),
         }
     }
-}
-
-/// The real IPC command inventory, sourced from the same auto-discovery the
-/// static audit uses. Returns `(handler_ref, ipc_callable)` pairs so the
-/// runtime harness provably covers the WHOLE inventory rather than a
-/// hand-picked subset (MT-020 red-team control #1).
-fn discover_ipc_command_inventory() -> Vec<(String, bool)> {
-    let output = run_audit(&["--json", "--static-source-scan-ok"]);
-    let report: Value =
-        serde_json::from_slice(&output.stdout).expect("automation-first audit emits json");
-    report["commands"]
-        .as_array()
-        .expect("audit commands array")
-        .iter()
-        .map(|command| {
-            (
-                command["command"]
-                    .as_str()
-                    .expect("command handler_ref")
-                    .to_string(),
-                command["ipc_callable"].as_bool().unwrap_or(false),
-            )
-        })
-        .collect()
+    let mut observed = std::collections::BTreeSet::new();
+    source_paths(&root, &root, &mut observed);
+    let hashes = fixture["source_sha256"].as_object().expect("source hashes");
+    assert_eq!(observed, hashes.keys().cloned().collect(), "product source inventory changed; review IPC fixture");
+    for (relative, expected) in hashes {
+        let source = std::fs::read_to_string(root.join(relative)).expect("required product command source").replace("\r\n", "\n");
+        assert_eq!(format!("{:x}", Sha256::digest(source.as_bytes())), expected.as_str().expect("source SHA256"), "product IPC source changed: {relative}; refresh reviewed command inventory");
+    }
+    fixture["commands"].as_array().expect("commands").iter().map(|row| {
+        (row[0].as_str().expect("command reference").to_owned(), row[1].as_bool().expect("registered command flag"))
+    }).collect()
 }
 
 /// Side-effect sink the in-process IPC handlers write to when dispatched. A
@@ -555,7 +454,7 @@ fn automation_first_audit_runtime_three_probes_cover_full_ipc_inventory_with_mea
         );
     }
 
-    // ---- Emit measured evidence and re-run the audit against it ----
+    // Preserve the measured product probe evidence.
     let evidence = json!({
         "schema_id": RUNTIME_PROBE_EVIDENCE_SCHEMA,
         "platform": if cfg!(windows) { "windows" } else { "non-windows" },
@@ -578,54 +477,7 @@ fn automation_first_audit_runtime_three_probes_cover_full_ipc_inventory_with_mea
     )
     .expect("write runtime-probe evidence");
 
-    let output = run_audit(&[
-        "--json",
-        "--runtime-probe-evidence",
-        evidence_path.to_str().expect("evidence path utf8"),
-        "--require-runtime-probe",
-    ]);
-    let report: Value = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
-        panic!(
-            "audit stdout is json: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-    });
 
-    // The audit must acknowledge the measured evidence rather than static zeros.
-    let runtime_probe = &report["runtime_probe"];
-    assert_eq!(runtime_probe["evidence_present"], true);
-    assert_eq!(runtime_probe["schema_id"], RUNTIME_PROBE_EVIDENCE_SCHEMA);
-    assert!(
-        runtime_probe["measured_command_count"]
-            .as_u64()
-            .unwrap_or_default()
-            >= 20,
-        "audit must mark the full inventory as runtime-probe measured"
-    );
-
-    // Every command in the report carries a measured runtime focus-event count
-    // and a measured keyboard-injection invocation count of 0 — sourced from
-    // the probe evidence, not hardcoded.
-    let mut checked = 0usize;
-    for command in report["commands"].as_array().expect("commands array") {
-        if command["evidence_source"] == "runtime_probe_measured" {
-            assert_eq!(
-                command["keyboard_injection_invocation_count"], 0,
-                "{}: measured keyboard-injection count must be 0",
-                command["command"]
-            );
-            assert_eq!(
-                command["runtime_focus_steal_event_count"], 0,
-                "{}: measured focus-steal event count must be 0",
-                command["command"]
-            );
-            checked += 1;
-        }
-    }
-    assert!(
-        checked >= 20,
-        "expected the full measured inventory in the audit report, got {checked}"
-    );
 }
 
 /// Independent assertion that the runtime probes are real measurements and not
@@ -731,35 +583,5 @@ fn probe1_ipc_mock_call_dispatches_by_ref_and_rejects_unregistered() {
         miss_sink.invocation_count(),
         0,
         "an unresolved dispatch must not advance the invocation tracker"
-    );
-}
-
-/// The audit script must reject a malformed / wrong-schema runtime-probe
-/// evidence file rather than silently treating it as measured. Guards against
-/// a future caller pointing the audit at a stale or hand-edited evidence blob.
-#[test]
-fn automation_first_audit_rejects_wrong_schema_runtime_probe_evidence() {
-    let temp = tempfile::tempdir().expect("temp dir");
-    let bad = temp.path().join("bad-evidence.json");
-    let mut commands = BTreeMap::new();
-    commands.insert("x::y".to_string(), json!({}));
-    std::fs::write(
-        &bad,
-        serde_json::to_vec(&json!({
-            "schema_id": "wrong.schema@9",
-            "commands": commands,
-        }))
-        .unwrap(),
-    )
-    .unwrap();
-
-    let output = run_audit(&["--json", "--runtime-probe-evidence", bad.to_str().unwrap()]);
-    assert!(
-        !output.status.success(),
-        "audit must reject wrong-schema runtime-probe evidence"
-    );
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("wrong schema_id"),
-        "audit should explain the schema mismatch"
     );
 }

@@ -2,7 +2,7 @@
 //!
 //! Verifies:
 //!  - Every Rust [`FrEventId`] variant appears in the JSON manifest at
-//!    `.GOV/roles_shared/records/FR_EVENT_REGISTRY.json` (CI-fail on drift).
+//!    `fixtures/fr_event_registry.json` (CI-fail on drift).
 //!  - The JSON manifest schema header matches the Rust constant.
 //!  - Round-trip enum<->string is total over [`FrEventId::all`].
 //!  - Unknown ids return a typed [`UnknownEventId`] error (no panic, no
@@ -20,20 +20,9 @@ use handshake_core::flight_recorder::fr_event_registry::{
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-/// Resolve the on-disk JSON manifest path relative to the crate root.
-/// `CARGO_MANIFEST_DIR` is set by cargo to the directory containing
-/// `Cargo.toml` for the package under test, which is
-/// `src/backend/handshake_core`. The .GOV junction at repo root
-/// surfaces the governance file.
+/// Product wire inventory fixture, independent of repository governance state.
 fn manifest_path() -> PathBuf {
-    let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // crate_dir = .../src/backend/handshake_core
-    let repo_root = crate_dir
-        .parent() // .../src/backend
-        .and_then(|p| p.parent()) // .../src
-        .and_then(|p| p.parent()) // .../
-        .expect("repo root above src/backend/handshake_core");
-    repo_root.join(".GOV/roles_shared/records/FR_EVENT_REGISTRY.json")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fr_event_registry.json")
 }
 
 fn load_disk_manifest() -> FrEventRegistry {

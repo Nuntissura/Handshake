@@ -1,0 +1,449 @@
+{
+  "schema": "handshake.fr_event_registry@1",
+  "version": "1.0.0",
+  "events": [
+    {
+      "id": "FR-EVT-MAILBOX-BACKPRESSURE",
+      "kind": "emission",
+      "subsystem": "role_mailbox",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "role_id", "kind": "string" },
+        { "name": "queue_depth", "kind": "u64" },
+        { "name": "policy", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MAILBOX-ROUTING-DENIED",
+      "kind": "emission",
+      "subsystem": "role_mailbox",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "role_id", "kind": "string" },
+        { "name": "reason", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MAILBOX-LEASE-ACQUIRED",
+      "kind": "emission",
+      "subsystem": "role_mailbox",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "thread_id", "kind": "uuid" },
+        { "name": "lease_id", "kind": "uuid" },
+        { "name": "role_id", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MAILBOX-LEASE-EXPIRED",
+      "kind": "emission",
+      "subsystem": "role_mailbox",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "thread_id", "kind": "uuid" },
+        { "name": "lease_id", "kind": "uuid" },
+        { "name": "role_id", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MAILBOX-LEASE-TAKEOVER",
+      "kind": "emission",
+      "subsystem": "role_mailbox",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "thread_id", "kind": "uuid" },
+        { "name": "lease_id", "kind": "uuid" },
+        { "name": "role_id", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MT-CANCEL-REQUESTED",
+      "kind": "emission",
+      "subsystem": "mt_executor",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "mt_id", "kind": "string" },
+        { "name": "reason", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MT-CANCEL-FORCED",
+      "kind": "emission",
+      "subsystem": "mt_executor",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "mt_id", "kind": "string" },
+        { "name": "reason", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MT-CANCEL-CLEANUP-FAILED",
+      "kind": "emission",
+      "subsystem": "mt_executor",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "mt_id", "kind": "string" },
+        { "name": "reason", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MT-STARVED",
+      "kind": "emission",
+      "subsystem": "mt_executor",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "mt_id", "kind": "string" },
+        { "name": "wait_ms", "kind": "i64" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MT-EXEC-ERROR",
+      "kind": "emission",
+      "subsystem": "mt_executor",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "mt_id", "kind": "string" },
+        { "name": "error", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-MT-015",
+      "kind": "emission",
+      "subsystem": "mt_executor",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "wp_id", "kind": "string" },
+        { "name": "mt_id", "kind": "string" },
+        { "name": "candidate_ref", "kind": "object" }
+      ]
+    },
+    {
+      "id": "FR-EVT-DISTILL-PII-DETECT",
+      "kind": "emission",
+      "subsystem": "distillation",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "turn_id", "kind": "string" },
+        { "name": "pii_kinds", "kind": "string_array" },
+        { "name": "severity", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-CHECKPOINT-OVERFLOW",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "session_id", "kind": "uuid" },
+        { "name": "checkpoint_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-CHECKPOINT-SHUTDOWN-FORCED",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "session_id", "kind": "uuid" },
+        { "name": "checkpoint_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-REPLAY-STARTED",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "session_id", "kind": "uuid" },
+        { "name": "from_seq", "kind": "i64" },
+        { "name": "to_seq", "kind": "i64" }
+      ]
+    },
+    {
+      "id": "FR-EVT-REPLAY-PROGRESS",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "session_id", "kind": "uuid" },
+        { "name": "from_seq", "kind": "i64" },
+        { "name": "to_seq", "kind": "i64" }
+      ]
+    },
+    {
+      "id": "FR-EVT-REPLAY-COMPLETED",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "session_id", "kind": "uuid" },
+        { "name": "from_seq", "kind": "i64" },
+        { "name": "to_seq", "kind": "i64" }
+      ]
+    },
+    {
+      "id": "FR-EVT-REPLAY-FAILED",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "session_id", "kind": "uuid" },
+        { "name": "from_seq", "kind": "i64" },
+        { "name": "to_seq", "kind": "i64" }
+      ]
+    },
+    {
+      "id": "FR-EVT-RESTART-RESUME-STARTED",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "report_id", "kind": "uuid" },
+        { "name": "session_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-RESTART-RESUME-SESSION-RESUMED",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "report_id", "kind": "uuid" },
+        { "name": "session_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-RESTART-RESUME-SESSION-RECOVERY-FAILED",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "report_id", "kind": "uuid" },
+        { "name": "session_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-RESTART-RESUME-DB-UNAVAILABLE",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "report_id", "kind": "uuid" },
+        { "name": "session_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-RESTART-RESUME-COMPLETED",
+      "kind": "emission",
+      "subsystem": "session_checkpoint",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "report_id", "kind": "uuid" },
+        { "name": "session_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-SPAN-STARTED",
+      "kind": "span_lifecycle",
+      "subsystem": "flight_recorder",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "span_id", "kind": "uuid" },
+        { "name": "parent_span_id", "kind": "uuid?" },
+        { "name": "model_session_id", "kind": "uuid?" },
+        { "name": "session_id", "kind": "uuid?" },
+        { "name": "activity_kind", "kind": "string?" },
+        { "name": "attributes", "kind": "object" }
+      ]
+    },
+    {
+      "id": "FR-EVT-SPAN-ENDED",
+      "kind": "span_lifecycle",
+      "subsystem": "flight_recorder",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "span_id", "kind": "uuid" },
+        { "name": "parent_span_id", "kind": "uuid?" },
+        { "name": "duration_ms", "kind": "i64" },
+        { "name": "is_session_span", "kind": "bool" }
+      ]
+    },
+    {
+      "id": "FR-EVT-SPAN-FAILED",
+      "kind": "span_lifecycle",
+      "subsystem": "flight_recorder",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "span_id", "kind": "uuid" },
+        { "name": "parent_span_id", "kind": "uuid?" },
+        { "name": "duration_ms", "kind": "i64" },
+        { "name": "failure_reason", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-SPAN-LIFECYCLE-CHECKPOINT",
+      "kind": "span_lifecycle",
+      "subsystem": "flight_recorder",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "span_id", "kind": "uuid" },
+        { "name": "checkpoint_seq", "kind": "i64" },
+        { "name": "event_ledger_seq", "kind": "i64" }
+      ]
+    },
+    {
+      "id": "FR-EVT-SPAN-LIFECYCLE-ATTACH-ACTIVITY",
+      "kind": "span_lifecycle",
+      "subsystem": "flight_recorder",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "span_id", "kind": "uuid" },
+        { "name": "parent_span_id", "kind": "uuid" },
+        { "name": "attached_at_utc", "kind": "rfc3339" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-START",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "model_session_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-TOKEN",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "model_session_id", "kind": "uuid" },
+        { "name": "token_index", "kind": "i64" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-END",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "model_session_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-LORA-MOUNT",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "lora_id", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-LORA-UNMOUNT",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "lora_id", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-LORA-SWAP",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "lora_id", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-KV-EVICT",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_session_id", "kind": "uuid" },
+        { "name": "prefix_hash", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-KV-SET-QUANTIZATION",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_session_id", "kind": "uuid" },
+        { "name": "prefix_hash", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-KV-PREFIX-COMMIT",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_session_id", "kind": "uuid" },
+        { "name": "prefix_hash", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-KV-PREFIX-RESTORE",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_session_id", "kind": "uuid" },
+        { "name": "prefix_hash", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-CANCEL",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "model_session_id", "kind": "uuid" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-CAPS-LOOKUP",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "capability_id", "kind": "string" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-SPEC-ACCEPT",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "draft_tokens", "kind": "i64" },
+        { "name": "accepted_tokens", "kind": "i64" }
+      ]
+    },
+    {
+      "id": "FR-EVT-LLM-INFER-SPEC-REJECT",
+      "kind": "emission",
+      "subsystem": "model_runtime",
+      "added_in_wp": "WP-KERNEL-004",
+      "schema_fields": [
+        { "name": "model_id", "kind": "string" },
+        { "name": "draft_tokens", "kind": "i64" },
+        { "name": "accepted_tokens", "kind": "i64" }
+      ]
+    }
+  ]
+}

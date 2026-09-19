@@ -1,8 +1,3 @@
-use std::fs;
-use std::io::Write;
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
-
 use chrono::{TimeZone, Utc};
 use jsonschema::{Draft, JSONSchema};
 use serde_json::{json, Value};
@@ -14,20 +9,8 @@ use handshake_core::hbr::vis_gap::{
 
 const EXPECTED_CANONICAL: &str = "{\"emitted_at_utc\":\"2026-05-18T00:00:00Z\",\"evidence_pointer\":\"artifact://visual/diagnostics-canvas.png\",\"gap_class\":\"opaque_canvas\",\"hbr_id\":\"HBR-VIS-005\",\"proposed_followup_wp\":\"WP-KERNEL-004-VIS-GAP-FOLLOWUP-v1\",\"receipt_kind\":\"HBR_VIS_GAP\",\"receipt_uuid\":\"018f6d3a-1f00-7a2b-8c3d-123456789abc\",\"schema_version\":1,\"surface_name\":\"Diagnostics canvas controls\",\"surface_path\":\"app://diagnostics/canvas-controls\",\"wp_id\":\"WP-KERNEL-004-TEST\"}\n";
 
-fn repo_root() -> PathBuf {
-    let mut current = std::env::current_dir().expect("current dir");
-    loop {
-        if current.join(".GOV").exists() {
-            return current;
-        }
-        assert!(current.pop(), "repo root with .GOV not found");
-    }
-}
-
 fn hbr_vis_gap_schema() -> Value {
-    let schema_path = repo_root().join(".GOV/roles_shared/schemas/hbr-vis-gap.schema.json");
-    serde_json::from_str(&fs::read_to_string(schema_path).expect("read hbr vis gap schema"))
-        .expect("parse hbr vis gap schema")
+    serde_json::from_str(include_str!("fixtures/hbr/hbr-vis-gap.schema.json")).expect("product wire schema fixture")
 }
 
 fn validate_against_schema(instance: &Value) {
@@ -102,39 +85,5 @@ fn vis_gap_emit_mutates_packet_open_blockers() {
     assert_eq!(
         packet["open_blockers"][0]["required_action"],
         "Open a follow-up WP for the missing automation hook before PASS closure."
-    );
-}
-
-#[test]
-fn node_normalizer_round_trips_rust_canonical_jsonl() {
-    let script_path = repo_root().join(".GOV/roles_shared/scripts/hbr-vis-gap-emit.mjs");
-    let canonical = fixture_gap()
-        .to_canonical_jsonl()
-        .expect("canonical vis gap jsonl");
-    let mut child = Command::new("node")
-        .arg(script_path)
-        .arg("--normalize-stdin")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("spawn node hbr vis gap normalizer");
-
-    child
-        .stdin
-        .as_mut()
-        .expect("stdin")
-        .write_all(canonical.as_bytes())
-        .expect("write canonical jsonl");
-
-    let output = child.wait_with_output().expect("node output");
-    assert!(
-        output.status.success(),
-        "node normalizer failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        String::from_utf8(output.stdout).expect("stdout utf8"),
-        canonical
     );
 }

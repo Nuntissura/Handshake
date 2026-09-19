@@ -1,8 +1,3 @@
-use std::fs;
-use std::io::Write;
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
-
 use chrono::{TimeZone, Utc};
 use jsonschema::{Draft, JSONSchema};
 use serde_json::Value;
@@ -51,20 +46,8 @@ fn fixture_violation() -> HbrViolation {
     }
 }
 
-fn repo_root() -> PathBuf {
-    let mut current = std::env::current_dir().expect("current dir");
-    loop {
-        if current.join(".GOV").exists() {
-            return current;
-        }
-        assert!(current.pop(), "repo root with .GOV not found");
-    }
-}
-
 fn hbr_schema() -> Value {
-    let schema_path = repo_root().join(".GOV/roles_shared/schemas/hbr-violation.schema.json");
-    serde_json::from_str(&fs::read_to_string(schema_path).expect("read hbr violation schema"))
-        .expect("parse hbr violation schema")
+    serde_json::from_str(include_str!("fixtures/hbr/hbr-violation.schema.json")).expect("product wire schema fixture")
 }
 
 fn validate_against_schema(instance: &Value) {
@@ -138,39 +121,5 @@ fn builder_mints_v7_receipt_uuid() {
     assert_eq!(violation.receipt_uuid.get_version_num(), 7);
     validate_against_schema(
         &serde_json::from_str(violation.to_canonical_jsonl().expect("jsonl").trim()).expect("json"),
-    );
-}
-
-#[test]
-fn node_normalizer_round_trips_rust_canonical_jsonl() {
-    let script_path = repo_root().join(".GOV/roles_shared/scripts/hbr-violation-emit.mjs");
-    let canonical = fixture_violation()
-        .to_canonical_jsonl()
-        .expect("canonical violation jsonl");
-    let mut child = Command::new("node")
-        .arg(script_path)
-        .arg("--normalize-stdin")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("spawn node hbr violation normalizer");
-
-    child
-        .stdin
-        .as_mut()
-        .expect("stdin")
-        .write_all(canonical.as_bytes())
-        .expect("write canonical jsonl");
-
-    let output = child.wait_with_output().expect("node output");
-    assert!(
-        output.status.success(),
-        "node normalizer failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert_eq!(
-        String::from_utf8(output.stdout).expect("stdout utf8"),
-        canonical
     );
 }

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/gov/schemas/hbr-violation.schema.json",
+  "title": "HBR Violation Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "emitted_at_utc",
+    "evaluation_point",
+    "evidence_pointer",
+    "hbr_id",
+    "mt_id",
+    "notes",
+    "receipt_kind",
+    "receipt_uuid",
+    "role",
+    "schema_version",
+    "source_session",
+    "violation_class",
+    "wp_id"
+  ],
+  "properties": {
+    "emitted_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evaluation_point": {
+      "enum": [
+        "build",
+        "handoff"
+      ]
+    },
+    "evidence_pointer": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "hbr_id": {
+      "type": "string",
+      "pattern": "^HBR-[A-Z]+-[0-9]{3}$"
+    },
+    "mt_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^MT-[0-9]{3}$"
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "receipt_kind": {
+      "const": "HBR_VIOLATION"
+    },
+    "receipt_uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "role": {
+      "enum": [
+        "ORCHESTRATOR",
+        "KERNEL_BUILDER",
+        "CODER",
+        "WP_VALIDATOR",
+        "INTEGRATION_VALIDATOR",
+        "VALIDATOR",
+        "CLASSIC_ORCHESTRATOR"
+      ]
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "source_session": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "violation_class": {
+      "enum": [
+        "MISSING_EVIDENCE",
+        "EVIDENCE_KIND_MISMATCH",
+        "EVIDENCE_PROOF_FAILED",
+        "APPLICABILITY_MISCONFIG",
+        "DOWNGRADE_ATTEMPT",
+        "MATRIX_SCHEMA_VIOLATION"
+      ]
+    },
+    "wp_id": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
