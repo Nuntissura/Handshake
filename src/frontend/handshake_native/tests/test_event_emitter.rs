@@ -2720,12 +2720,16 @@ fn event_emitter_native_editor_round_trip() {
     argus.finish_require_no_indeterminate();
 
     runtime.block_on(async {
-        let cleanup = reqwest::Client::builder()
-            .connect_timeout(std::time::Duration::from_secs(3))
-            .timeout(std::time::Duration::from_secs(8))
-            .build()
-            .expect("build bounded MT-036 cleanup client")
-            .delete(format!("{base}/workspaces/{workspace}"))
+        let cleanup = managed_backend
+            .authenticated(
+                reqwest::Client::builder()
+                    .connect_timeout(std::time::Duration::from_secs(3))
+                    .timeout(std::time::Duration::from_secs(8))
+                    .build()
+                    .expect("build bounded MT-036 cleanup client")
+                    .delete(format!("{base}/workspaces/{workspace}"))
+                    .timeout(std::time::Duration::from_secs(8)),
+            )
             .header("x-hsk-actor-id", &actor)
             .header("x-hsk-actor-kind", "human")
             .send()
