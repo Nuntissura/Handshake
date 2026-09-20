@@ -1,0 +1,148 @@
+{
+  "schema": "handshake.codex_revision_map@1",
+  "status": "ARCHIVAL_REFERENCE_NOT_AUTHORITY",
+  "revision": "v1.5-approved-second-trim",
+  "scope": "Approved Codex cuts and minimal kernel builder protocol relocation/reference repair",
+  "removed_rules": [
+    {
+      "id": "CX-000",
+      "previous_text": "[CX-000] NAME: Handshake Codex."
+    },
+    {
+      "id": "CX-002",
+      "previous_text": "[CX-002] PURPOSE: Shared repo authority, used with the build-rules registry and the assigned role protocol."
+    },
+    {
+      "id": "CX-100",
+      "previous_text": "[CX-100] Preserve Raw / Derived / Display separation: canonical changes belong in Raw; recompute derived data and display projections rather than treating them as authority."
+    },
+    {
+      "id": "CX-101",
+      "previous_text": "[CX-101] Route model calls through Handshake's shared model client/adapters; feature modules must not embed provider-specific invocation paths."
+    },
+    {
+      "id": "CX-103",
+      "previous_text": "[CX-103] Route database and filesystem operations through the canonical storage/resource boundaries with authenticated identity and resource authorization."
+    },
+    {
+      "id": "CX-104",
+      "previous_text": "[CX-104] Use shared production logging and observability rather than ad hoc output; diagnostic access must preserve the protected resource's visibility."
+    },
+    {
+      "id": "CX-132",
+      "previous_text": "[CX-132] Preserve account-bound resource ownership, default-deny access, same-project privacy, non-widening derivatives, actor attribution, revocation and immutable session context across local and remote boundaries. HBR-PRIV and the Master Spec own the detailed obligations."
+    },
+    {
+      "id": "CX-032",
+      "previous_text": "[CX-032] Verify claims against current authority, source, runtime or external evidence before acting. Memory, chat summaries and plausible reconstruction are not facts; label unavailable verification UNVERIFIED or NOT_INSPECTED. Explicitly requested brainstorming remains non-authoritative."
+    },
+    {
+      "id": "CX-032C",
+      "previous_text": "[CX-032C] On correction, stop defending, inspect the relevant evidence and correct the affected claim before further mutation. Explanation-only requests permit read-only fact gathering, not unrequested repairs."
+    },
+    {
+      "id": "CX-972",
+      "previous_text": "[CX-972] Deliver the requested outcome first. Do supporting work only when it directly enables that outcome or records its result; do not substitute paperwork, adjacent improvements or proxy evidence for completion."
+    },
+    {
+      "id": "CX-971",
+      "previous_text": "[CX-971] The Operator owns scope and stopping. Preserve every requested requirement, obey explicit stops immediately, and do not use token/session capacity as a reason to drop or defer work. Work evidenced dependencies within authorization; report an exact external blocker when no permitted action can resolve it."
+    },
+    {
+      "id": "CX-653A",
+      "previous_text": "[CX-653A] Consolidation must preserve original intent, constraints, unresolved work and status unless the Operator explicitly retires or replaces them."
+    },
+    {
+      "id": "CX-PROOF-004",
+      "previous_text": "[CX-PROOF-004] Record failures, missing proof and dependencies honestly. Do not weaken acceptance, fabricate signatures, invent evidence, or call a blocker removed until the requested outcome is independently verified at its canonical boundary."
+    },
+    {
+      "id": "CX-503I1",
+      "previous_text": "[CX-503I1] Use focused proof while iterating and the required broad proof at the declared batch/final boundary. Reuse proof only while its relevant source, configuration, dependencies, resource state and asserted behavior remain unchanged; bind evidence to exact inputs and commit/tree."
+    },
+    {
+      "id": "CX-573F",
+      "previous_text": "[CX-573F] Prove claimed behavior at the executable runtime or named real Handshake-managed resource boundary. Compilation, declarations, generated schemas, mocks and fixture-only tests cannot substitute for required runtime, persistence, privacy, replay or GUI proof."
+    },
+    {
+      "id": "CX-PROOF-001",
+      "previous_text": "[CX-PROOF-001] Inspect the actual artifact against its reference before judging it. For GUI work, follow HBR's Argus inspection and steering requirements; green tests or an unopened screenshot are not visual verification."
+    },
+    {
+      "id": "CX-PROOF-003",
+      "previous_text": "[CX-PROOF-003] Delegate only within assigned authority and disjoint ownership. The parent remains responsible for reviewing delegated changes, proof and cleanup; sub-agents gain no additional role, worktree, merge or process authority."
+    },
+    {
+      "id": "CX-984-004",
+      "previous_text": "[CX-984-004] Proof binaries must come from the owner's own worktree and scoped build; an unrelated shared-target binary proves nothing about the current source."
+    },
+    {
+      "id": "CX-984-005",
+      "previous_text": "[CX-984-005] Database proof uses an isolated WP-scoped SurrealDB namespace/database, never shared divergent authority state."
+    },
+    {
+      "id": "CX-984-007",
+      "previous_text": "[CX-984-007] Build residue must not contain governance artifacts or governance runtime state; preserve those in their separate `.GOV/` and external governance-runtime locations."
+    },
+    {
+      "id": "CX-105C",
+      "previous_text": "[CX-105C] Master Spec edits retain copy-first versioned bundles: preserve the previous bundle and update the new bundle's uniform version, manifest, resolver, hashes, changelog and SPEC_CURRENT together."
+    },
+    {
+      "id": "CX-106",
+      "previous_text": "[CX-106] New top-level directories require explicit Operator approval."
+    }
+  ],
+  "relocated_rules": {
+    "CX-503I1": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md#cargo-test-batch-cadence",
+    "CX-105C": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md#spec-resolver-discipline"
+  },
+  "dispositions": {
+    "global_duplicates": [
+      "CX-032",
+      "CX-032C",
+      "CX-972",
+      "CX-971",
+      "CX-653A",
+      "CX-PROOF-004"
+    ],
+    "product_authority": "CX-100/101/103/104/132 folded into CX-020; Master Spec and HBR remain authoritative",
+    "retired": "CX-000/002 redundant metadata; CX-106 separate directory approval retired; approved scope authorizes necessary structure",
+    "proof_authority": "CX-573F/PROOF-001/PROOF-003 covered by HBR and assigned role protocol",
+    "artifact_authority": "CX-984-004/005 covered by HBR-SWARM-005; CX-984-007 covered by HBR-SWARM-006",
+    "revised": "CX-108 narrowed; CX-107/118 permit CX-984-006 cleanup; CX-105 delegates publishing procedure"
+  },
+  "subsequent_retirements": [
+    {
+      "scope": "Operator-requested removal of porn-production and legal-stance sections from active Codex",
+      "retired_ids": [
+        "CX-123",
+        "CX-123A",
+        "CX-123B",
+        "CX-123C",
+        "CX-123D",
+        "CX-123E",
+        "CX-123F",
+        "CX-123G",
+        "CX-123H",
+        "CX-123I",
+        "CX-123J",
+        "CX-123K",
+        "CX-123L",
+        "CX-123M",
+        "CX-123N",
+        "CX-980",
+        "CX-980-001",
+        "CX-980-002",
+        "CX-980-003",
+        "CX-980-004",
+        "CX-980-005",
+        "CX-980-007",
+        "CX-980-008"
+      ],
+      "reason": "Operator states global rules already cover this scope and plans a future use-case-specific role protocol; shared validator/kernel builder Codex does not need it.",
+      "supersedes": "Earlier instruction to preserve these sections in the active Codex; archived original remains unchanged.",
+      "source_path": ".GOV/codex/archive/Handshake_Codex_v1.4-before-compact-rewrite.md"
+    }
+  ]
+}

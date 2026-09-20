@@ -3,13 +3,9 @@
 /**
  * kb-ready-checklist-coverage-check.mjs [F-002]
  *
- * Consumer-side gate for the KB_READY_CHECKLIST_RECEIPT producer
- * (`.GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs`).
- *
- * Without an automated consumer, the Spec-Realism Gate self-check is purely
- * "social discipline": Kernel Builder can transition an MT to
- * READY_FOR_VALIDATION without emitting (or after emitting a BLOCKED) receipt
- * and nothing in the governance bundle flags it. This check closes that loop:
+ * Optional historical receipt audit, invoked explicitly when the assignment
+ * requires checklist coverage. This is not a universal readiness prerequisite
+ * and is not registered in gov-check; packet-specific requirements still apply.
  *
  *   For every MT contract under `.GOV/task_packets/<WP_ID>/MT-NNN.json`
  *   whose `lifecycle.status` is READY_FOR_VALIDATION, there MUST exist a
@@ -46,8 +42,7 @@
  *   --help, -h                   Print usage.
  *
  * Wiring:
- *   - Registered as a gov-check sub-step in
- *     .GOV/roles_shared/checks/gov-check.mjs (phase WORK_PACKET).
+ *   - Standalone opt-in audit; not a gov-check sub-step.
  *   - Wraps registerFailCaptureHook per [CX-205N].
  *   - Uses runtime-paths.mjs + wp-communications-lib.mjs helpers per the
  *     project's path-resolution contract.

@@ -100,6 +100,8 @@ Bring every MT of WP-KERNEL-012 to a validator-proven PASS. One MT (or one share
 - Require every green to carry its own log + exit + verbatim `test result:` line; `NOT_INSPECTED`/`UNVERIFIED` labels; never weaken/`#[ignore]` assertions; builder logs are triage input for validators, never proof.
 - The pre-crash coordinator pattern worked: builder on its own target, two validators exec-only on the warm target, three lanes concurrent. Keep it.
 - Give agents absolute paths; tell them the other lanes' targets so they never touch them; tell them to check `git status --porcelain` after every run and report any tracked-file dirt (`TRACKED_FIXTURE_WRITE`) instead of restoring it.
+- wp validator sub agents must read codex.md and wp validator porotocol file and follow it's rules and instructions
+- kernel buillder sub agents must read codex.md and kernel builder porotocol file and follow it's rules and instructions
 
 ## 10. Monitoring
 

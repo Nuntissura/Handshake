@@ -547,6 +547,73 @@
       "authority": "Operator handoff session4 section3.2: resolve stale fixture versus product policy on correct side; Master Spec2.3.13.12 requires real account/session authority.",
       "bounded_change": "Permit explicit real account setup/header/context wiring in test_event_emitter; inspected diff retains event operations, three-emission expectations, assertions and negative cases. Formatting and unused-variable lint changes have no acceptance effect.",
       "runtime": "PENDING: no GREEN claimed."
+    },
+    "canvas_transport_runtime_20260920": {
+      "unchanged_inputs": 493,
+      "recorded_at_utc": "2026-09-20T04:44:16.1706745Z",
+      "owner": "MT-109",
+      "runtime": {
+        "exe_sha256": "e1ad0ee0160441434eb59ea97b253fb8f681fca7df3d24a6dbd9f61799aa0375",
+        "passed": 1,
+        "failed": 0,
+        "selector": "backend_client::tests::canvas_response_json_rejects_body_completed_after_logout",
+        "ignored": 0,
+        "observed": "Canonical authenticated client response obtained before session invalidation; delayed body released after invalidation; actual shared Canvas JSON guard rejects inactive session."
+      },
+      "covered_mts": [
+        "MT-109",
+        "MT-120"
+      ],
+      "independent_review": "WP_VALIDATOR f403_kb_prepare cleared production credential propagation, exact-origin/no-redirect transport, post-body guard and bounded deterministic test; parent ran compile/runtime.",
+      "changed_inputs": 0,
+      "proof_limit": "Only focused transport regression and strict clippy. Native event_emitter mounted roundtrip remains pending backend independent Loom/Canvas producer authority and workspace cascade. No full MT acceptance.",
+      "source_sha256": "c9078d1b1a09d43f647ef4bd3092c9fecad414efc24ff9f311f40b2e087a25a4",
+      "source_file": "src/frontend/handshake_native/src/backend_client.rs",
+      "checks": [
+        {
+          "run": "native-clippy-08",
+          "inputs": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-clippy-08-inputs.json",
+          "exit_code": 101,
+          "log_sha256": "1b72ade7712a4e306be4df020c88ca8889b4f6a705b91fa416c88ef87b8aa612",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-clippy-08.log"
+        },
+        {
+          "run": "native-clippy-09",
+          "inputs": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-clippy-09-inputs.json",
+          "exit_code": 0,
+          "log_sha256": "f6a4c5a93480862f4f2a92d18004f114e3ca97409ac6a6bd0c6cd5a8f736dd25",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-clippy-09.log"
+        },
+        {
+          "run": "native-canvas-logout-10",
+          "inputs": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-canvas-logout-10-inputs.json",
+          "exit_code": 0,
+          "log_sha256": "a84ad94de52cd666d264964859c6dbd0875e640022f32cd6e4a978d9cefd98e1",
+          "log": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-canvas-logout-10.log"
+        }
+      ],
+      "lifecycle_unchanged": true,
+      "verdict_unchanged": true
+    },
+    "native_checkpoints_20260920": {
+      "files": [
+        "src/frontend/handshake_native/src/backend_client.rs",
+        "src/frontend/handshake_native/tests/test_event_emitter.rs"
+      ],
+      "verdict_unchanged": true,
+      "cleanup_check": {
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-emitter-clippy-11.log",
+        "log_sha256": "97908b27fcc222dc0d53d12c8c47a2007aac8e565ec87b7e8ccbc7cd13842f3c",
+        "command": "cargo +1.97.1 clippy -p handshake-native --test test_event_emitter --features integration,integration_tests --locked --offline -j4 -- -D warnings",
+        "exit_code": 0
+      },
+      "lifecycle_unchanged": true,
+      "full_emitter_runtime": "PENDING_BACKEND",
+      "commits": [
+        "0570f83a",
+        "1f57e9eccfda475d88068a89b4caccb5b79e6831"
+      ],
+      "meaning": "Final workspace DELETE uses existing real account context with session/channel credentials and request-level8s timeout; event operations and status assertions unchanged."
     }
   }
 }

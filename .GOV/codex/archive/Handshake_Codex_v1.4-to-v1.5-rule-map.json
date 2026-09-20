@@ -1,0 +1,2851 @@
+{
+  "schema": "handshake.codex_revision_map@1",
+  "status": "ARCHIVAL_REFERENCE_NOT_AUTHORITY",
+  "created_at": "2026-09-19T22:48:08.9652625Z",
+  "source_path": ".GOV/codex/archive/Handshake_Codex_v1.4-before-compact-rewrite.md",
+  "source_sha256": "E9739F0C05BDCDA0770F676D4B41DAC57FBA43FA2502F5C6A3768EFFF44A8119",
+  "active_path": ".GOV/codex/Handshake_Codex_v1.4.md",
+  "active_version": "v1.5",
+  "scope": "Codex-only rewrite; build rules, protocols, launchers, root instructions and Master Spec not edited.",
+  "operator_direction": [
+    "Archive the original Codex in a subfolder for reversion.",
+    "Aggressively trim the active Codex in conjunction with build rules and assigned role protocol.",
+    "Retire repomem and blanket documentation-check obligations.",
+    "Preserve porn production and legal stance untouched."
+  ],
+  "protected_blocks": [
+    "CX-123 through CX-123N",
+    "CX-980 section"
+  ],
+  "restoration": "After explicit Operator instruction, copy source_path bytes over active_path; verify SHA256 equals source_sha256. Archive must remain unchanged.",
+  "old_rule_count": 471,
+  "active_rule_count": 90,
+  "rules": [
+    {
+      "source_id": "CX-000",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-000",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-001",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-001",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-002",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-002",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-003-VIS",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-003-VIS",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-004-VIS",
+      "disposition": "FOLDED",
+      "target_id": "CX-003-VIS",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-005-VIS",
+      "disposition": "FOLDED",
+      "target_id": "CX-003-VIS",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-006-VIS",
+      "disposition": "FOLDED",
+      "target_id": "CX-003-VIS",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-007-VIS",
+      "disposition": "FOLDED",
+      "target_id": "CX-003-VIS",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-008-VIS",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-008-VIS",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-009-VIS",
+      "disposition": "FOLDED",
+      "target_id": "CX-008-VIS",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-010",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-010",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-011",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-011",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-012",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-012",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-013",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-020",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-020",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-021",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-021",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-022",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-030",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-031",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-032",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-032",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-032A",
+      "disposition": "FOLDED",
+      "target_id": "CX-032",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-032B",
+      "disposition": "FOLDED",
+      "target_id": "CX-032",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-032C",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-032C",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-100",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-100",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-101",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-101",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-102",
+      "disposition": "FOLDED",
+      "target_id": "CX-101",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-103",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-103",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-104",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-104",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-105",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-105",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-105A",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-105B",
+      "disposition": "FOLDED",
+      "target_id": "CX-105C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-105C",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-105C",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-105D",
+      "disposition": "FOLDED",
+      "target_id": "CX-105C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-105E",
+      "disposition": "FOLDED",
+      "target_id": "CX-105C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-105F",
+      "disposition": "FOLDED",
+      "target_id": "CX-105C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-106",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-106",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-107",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-107",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-108",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-108",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-109",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-109",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-109A",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-109A",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-109B",
+      "disposition": "FOLDED",
+      "target_id": "CX-109",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-109C",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-109D",
+      "disposition": "FOLDED",
+      "target_id": "CX-212C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-110",
+      "disposition": "FOLDED",
+      "target_id": "CX-AUTH-003",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-111",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-111",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-112",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-112",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-113",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-113",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-113A",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-113A",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-114",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-114",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-115",
+      "disposition": "FOLDED",
+      "target_id": "CX-118",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-116",
+      "disposition": "FOLDED",
+      "target_id": "CX-113",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-117",
+      "disposition": "FOLDED",
+      "target_id": "CX-113",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-118",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-118",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-119",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-119",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-121",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-120",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-122",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-122",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-123",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123A",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123A",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123B",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123B",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123C",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123C",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123D",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123D",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123E",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123E",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123F",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123F",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123G",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123G",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123H",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123H",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123I",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123I",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123J",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123J",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123K",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123K",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123L",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123L",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123M",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123M",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-123N",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-123N",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-130",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-130A",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-131",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-131",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-132",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-132",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-132A",
+      "disposition": "FOLDED",
+      "target_id": "CX-132",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-132B",
+      "disposition": "FOLDED",
+      "target_id": "CX-132",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-132C",
+      "disposition": "FOLDED",
+      "target_id": "CX-132",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-132D",
+      "disposition": "FOLDED",
+      "target_id": "CX-132",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-132E",
+      "disposition": "FOLDED",
+      "target_id": "CX-132",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-132F",
+      "disposition": "FOLDED",
+      "target_id": "CX-132",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-132G",
+      "disposition": "FOLDED",
+      "target_id": "CX-132",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-132H",
+      "disposition": "FOLDED",
+      "target_id": "CX-132",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-CACHE-001",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-598",
+      "disposition": "FOLDED",
+      "target_id": "CX-503B1",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-598A",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-598B",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-599",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-200",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-201",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-202",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-203",
+      "disposition": "FOLDED",
+      "target_id": "CX-012",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-204",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205A",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205B",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205C",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205D",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205E",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205G",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205H",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-205I",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-205J",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-205K",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205L",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-205L1",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-205M",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-205N",
+      "disposition": "RETIRED",
+      "target_id": "CX-AUTH-002",
+      "reason": "Automatic repo-memory obligations retired by Operator; no replacement memory ritual."
+    },
+    {
+      "source_id": "CX-205O",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-205F",
+      "disposition": "FOLDED",
+      "target_id": "CX-984-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-206",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-207",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-207A",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-207B",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-208",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-208A",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-208B",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-208C",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-209",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-209A",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-209B",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-209C",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-209D",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-209E",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-209F",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-213",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-214",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-215",
+      "disposition": "FOLDED",
+      "target_id": "CX-012",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-216",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-216A",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-217",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-218",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218A",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218B",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218C",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218C1",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218C2",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218C3",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218D",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218E",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218E1",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218E2",
+      "disposition": "FOLDED",
+      "target_id": "CX-AUTH-003",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-218F",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218G",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218H",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218H-ACP",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218I",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218J",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218J1",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218K",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218L",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-218M",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-219",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-210",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-211",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-211",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-212",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-212A",
+      "disposition": "FOLDED",
+      "target_id": "CX-211",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-212B",
+      "disposition": "FOLDED",
+      "target_id": "CX-212C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-212C",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-212C",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-212F",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-212F",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-212D",
+      "disposition": "FOLDED",
+      "target_id": "CX-113",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-212E",
+      "disposition": "FOLDED",
+      "target_id": "CX-984-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-212G",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-220",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-221",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-222",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-223",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-224",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-225",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-226",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-227",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-230",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-231",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-232",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-233",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-234",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-235",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-240",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-300",
+      "disposition": "FOLDED",
+      "target_id": "CX-100",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-301",
+      "disposition": "FOLDED",
+      "target_id": "CX-100",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-302",
+      "disposition": "FOLDED",
+      "target_id": "CX-100",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-310",
+      "disposition": "FOLDED",
+      "target_id": "CX-100",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-311",
+      "disposition": "FOLDED",
+      "target_id": "CX-100",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-312",
+      "disposition": "FOLDED",
+      "target_id": "CX-100",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-320",
+      "disposition": "FOLDED",
+      "target_id": "CX-101",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-321",
+      "disposition": "FOLDED",
+      "target_id": "CX-101",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-322",
+      "disposition": "FOLDED",
+      "target_id": "CX-101",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-330",
+      "disposition": "FOLDED",
+      "target_id": "CX-104",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-331",
+      "disposition": "FOLDED",
+      "target_id": "CX-104",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-332",
+      "disposition": "FOLDED",
+      "target_id": "CX-104",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-333",
+      "disposition": "FOLDED",
+      "target_id": "CX-104",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-334",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-335",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-340",
+      "disposition": "FOLDED",
+      "target_id": "CX-103",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-341",
+      "disposition": "FOLDED",
+      "target_id": "CX-103",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-342",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-343",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-400",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-401",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-402",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-403",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-405",
+      "disposition": "FOLDED",
+      "target_id": "CX-105",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-406",
+      "disposition": "FOLDED",
+      "target_id": "CX-105",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-407",
+      "disposition": "FOLDED",
+      "target_id": "CX-105C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-407A",
+      "disposition": "FOLDED",
+      "target_id": "CX-105C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-407B",
+      "disposition": "FOLDED",
+      "target_id": "CX-105C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-407C",
+      "disposition": "FOLDED",
+      "target_id": "CX-105C",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-410",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-411",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-411A",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-411B",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-412",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-413",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-420",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-421",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-422",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-430",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-500",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-501",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-502",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-503",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-503A",
+      "disposition": "FOLDED",
+      "target_id": "CX-AUTH-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-503B",
+      "disposition": "FOLDED",
+      "target_id": "CX-503B1",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-503B1",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-503B1",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-503C",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-503D",
+      "disposition": "FOLDED",
+      "target_id": "CX-131",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-503D1",
+      "disposition": "FOLDED",
+      "target_id": "CX-131",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-503G",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-003",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-503H",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-503E",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-503F",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-503I",
+      "disposition": "FOLDED",
+      "target_id": "CX-503I1",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-503I1",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-503I1",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-503J",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-503K",
+      "disposition": "RETIRED",
+      "target_id": "CX-AUTH-002",
+      "reason": "Automatic repo-memory obligations retired by Operator; no replacement memory ritual."
+    },
+    {
+      "source_id": "CX-503K1",
+      "disposition": "RETIRED",
+      "target_id": "CX-AUTH-002",
+      "reason": "Automatic repo-memory obligations retired by Operator; no replacement memory ritual."
+    },
+    {
+      "source_id": "CX-503K2",
+      "disposition": "RETIRED",
+      "target_id": "CX-AUTH-002",
+      "reason": "Automatic repo-memory obligations retired by Operator; no replacement memory ritual."
+    },
+    {
+      "source_id": "CX-503K3",
+      "disposition": "RETIRED",
+      "target_id": "CX-AUTH-002",
+      "reason": "Automatic repo-memory obligations retired by Operator; no replacement memory ritual."
+    },
+    {
+      "source_id": "CX-503L",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-503M",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-503N",
+      "disposition": "FOLDED",
+      "target_id": "CX-503R",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-503P",
+      "disposition": "FOLDED",
+      "target_id": "CX-AUTH-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-503Q",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-503R",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-503R",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-503S",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-503S",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-504",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-505",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-654",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-510",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-511",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-512",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-513",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-520",
+      "disposition": "FOLDED",
+      "target_id": "CX-032",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-521",
+      "disposition": "FOLDED",
+      "target_id": "CX-032",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-530",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-531",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-532",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-533",
+      "disposition": "FOLDED",
+      "target_id": "CX-032",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-540",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-541",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-542",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-543",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-550",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-551",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-552",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-553",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-554",
+      "disposition": "FOLDED",
+      "target_id": "CX-971",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-560",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-561",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-570",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-571",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-572",
+      "disposition": "FOLDED",
+      "target_id": "CX-573F",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-573",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-573A",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-573B",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-573C",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-573D",
+      "disposition": "FOLDED",
+      "target_id": "CX-573F",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-573E",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-573F",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-573F",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-574",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-575",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-576",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-577",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-577A",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-578",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-579",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-580",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-580C",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-580D",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-580E",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-580A",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-580B",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-581",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-582",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-583",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-584",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-585",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-585F",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-585A",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-585B",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-585C",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-004",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-585D",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-585E",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-585G",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-585H",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-586",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-587",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-619",
+      "disposition": "FOLDED",
+      "target_id": "CX-111",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-620",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-620",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-621",
+      "disposition": "FOLDED",
+      "target_id": "CX-620",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-622",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-624",
+      "disposition": "FOLDED",
+      "target_id": "CX-620",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-625",
+      "disposition": "REMOVED_ROLE_PROCEDURE_DUPLICATION",
+      "target_id": "CX-010",
+      "reason": "Remove this Codex procedure; assigned role protocol and approved contract determine current execution. This row does not assert every legacy detail is retained elsewhere."
+    },
+    {
+      "source_id": "CX-623",
+      "disposition": "FOLDED",
+      "target_id": "CX-503I1",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-627",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-628",
+      "disposition": "FOLDED",
+      "target_id": "CX-573F",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-629",
+      "disposition": "FOLDED",
+      "target_id": "CX-573F",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-630",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-631",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-632",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-633",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-640",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-641",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-642",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-643",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-644",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-645",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-646",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-647",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-648",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-649",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-649A",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-650",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-651",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-652",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-653",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-653A",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-653A",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-653B",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-655",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-655A",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-655B",
+      "disposition": "FOLDED",
+      "target_id": "CX-503B1",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-655C",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-655D",
+      "disposition": "FOLDED",
+      "target_id": "CX-503B1",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-656",
+      "disposition": "FOLDED",
+      "target_id": "CX-PROOF-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-657",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-658",
+      "disposition": "FOLDED",
+      "target_id": "CX-503I1",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-700",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-701",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-702",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-710",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-720",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-721",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-730",
+      "disposition": "RETIRED",
+      "target_id": null,
+      "reason": "Automatic bootloader integration retired from shared repo authority."
+    },
+    {
+      "source_id": "CX-800",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-003",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-801",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-003",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-810",
+      "disposition": "FOLDED",
+      "target_id": "CX-008-VIS",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-811",
+      "disposition": "FOLDED",
+      "target_id": "CX-011",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-812",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-900",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-901",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-902",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-903",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-904",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-905",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-906",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-907",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-908",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-909",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-910",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-911",
+      "disposition": "FOLDED",
+      "target_id": "CX-914",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-912",
+      "disposition": "RETIRED_AS_UNIVERSAL_PREREQUISITE",
+      "target_id": "CX-AUTH-003",
+      "reason": "Old harness mechanics and blanket startup/documentation obligations are no longer shared Codex prerequisites; specific task mechanisms remain subject to active authority."
+    },
+    {
+      "source_id": "CX-950",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-951",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-960",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-961",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-962",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-963",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-964",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-965",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-966",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-967",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-968",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-969",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-970",
+      "disposition": "ARCHIVED_HISTORY",
+      "target_id": null,
+      "reason": "Version and incident history removed from active authority."
+    },
+    {
+      "source_id": "CX-913",
+      "disposition": "FOLDED",
+      "target_id": "CX-MAINT-001",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-914",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-914",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-971",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-971",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-971-001",
+      "disposition": "FOLDED",
+      "target_id": "CX-971",
+      "reason": "Scope and stopping consolidated; global Operator instructions remain independently applicable."
+    },
+    {
+      "source_id": "CX-971-002",
+      "disposition": "FOLDED",
+      "target_id": "CX-971",
+      "reason": "Scope and stopping consolidated; global Operator instructions remain independently applicable."
+    },
+    {
+      "source_id": "CX-971-003",
+      "disposition": "FOLDED",
+      "target_id": "CX-971",
+      "reason": "Scope and stopping consolidated; global Operator instructions remain independently applicable."
+    },
+    {
+      "source_id": "CX-971-004",
+      "disposition": "FOLDED",
+      "target_id": "CX-971",
+      "reason": "Scope and stopping consolidated; global Operator instructions remain independently applicable."
+    },
+    {
+      "source_id": "CX-971-005",
+      "disposition": "FOLDED",
+      "target_id": "CX-971",
+      "reason": "Scope and stopping consolidated; global Operator instructions remain independently applicable."
+    },
+    {
+      "source_id": "CX-972",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-972",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-972-001",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-002",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-003",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-004",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-005",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-006",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-007",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-008",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-009",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-010",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-011",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-012",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-013",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-014",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-015",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-016",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-017",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-018",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-019",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-020",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-021",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-022",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-023",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-024",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-025",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-026",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-027",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-028",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-029",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-030",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-031",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-032",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-033",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-034",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-035",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-036",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-037",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-972-038",
+      "disposition": "FOLDED",
+      "target_id": "CX-972",
+      "reason": "Deliverable-first discipline consolidated; global closure rules remain independently applicable."
+    },
+    {
+      "source_id": "CX-980",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-980",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-980-001",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-980-001",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-980-002",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-980-002",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-980-003",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-980-003",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-980-004",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-980-004",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-980-005",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-980-005",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-980-007",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-980-007",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-980-008",
+      "disposition": "PRESERVED_VERBATIM",
+      "target_id": "CX-980-008",
+      "reason": "Operator required porn-production and legal-stance blocks untouched."
+    },
+    {
+      "source_id": "CX-981",
+      "disposition": "FOLDED",
+      "target_id": "CX-131",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-981-001",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-981-002",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-981-003",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-981-004",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-981-005",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-982",
+      "disposition": "FOLDED",
+      "target_id": "CX-131",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-982-001",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-982-002",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-982-003",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-982-004",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-982-005",
+      "disposition": "HBR_OWNS_DETAIL",
+      "target_id": "CX-131",
+      "reason": "Three-tier diagnostics and UserManual requirements remain in HBR-INT-009 and HBR-MAN; remove duplicated Codex detail."
+    },
+    {
+      "source_id": "CX-984",
+      "disposition": "RETIRED_FROM_SHARED_CODEX",
+      "target_id": null,
+      "reason": "Directory guidance, implementation advice, prose rituals, catalogs, navigation upkeep or duplicated general guidance removed under the approved aggressive trim; consult original archive for the former clause."
+    },
+    {
+      "source_id": "CX-984-001",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-001",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-002",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-002",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-003",
+      "disposition": "FOLDED",
+      "target_id": "CX-984-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-984-004",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-004",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-005",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-005",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-006",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-006",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-007",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-007",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-008",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-008",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-009",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-009",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-010",
+      "disposition": "RETAINED_OR_REVISED",
+      "target_id": "CX-984-010",
+      "reason": "Same rule identity retained in compact shared authority; compare archived and active text for exact changes."
+    },
+    {
+      "source_id": "CX-984-011",
+      "disposition": "FOLDED",
+      "target_id": "CX-984-002",
+      "reason": "Core obligation consolidated at target; verbose procedures, examples and duplication retired from Codex. Product detail remains governed by HBR and Master Spec where applicable."
+    },
+    {
+      "source_id": "CX-983",
+      "disposition": "ARCHIVED_REFERENCE_ONLY",
+      "target_id": null,
+      "reason": "Machine-local proof-input registry removed from shared repo law; original paths retained only in the original archive, not asserted current."
+    },
+    {
+      "source_id": "CX-983-001",
+      "disposition": "ARCHIVED_REFERENCE_ONLY",
+      "target_id": null,
+      "reason": "Machine-local proof-input registry removed from shared repo law; original paths retained only in the original archive, not asserted current."
+    },
+    {
+      "source_id": "CX-983-002",
+      "disposition": "ARCHIVED_REFERENCE_ONLY",
+      "target_id": null,
+      "reason": "Machine-local proof-input registry removed from shared repo law; original paths retained only in the original archive, not asserted current."
+    },
+    {
+      "source_id": "CX-983-003",
+      "disposition": "ARCHIVED_REFERENCE_ONLY",
+      "target_id": null,
+      "reason": "Machine-local proof-input registry removed from shared repo law; original paths retained only in the original archive, not asserted current."
+    },
+    {
+      "source_id": "CX-983-004",
+      "disposition": "ARCHIVED_REFERENCE_ONLY",
+      "target_id": null,
+      "reason": "Machine-local proof-input registry removed from shared repo law; original paths retained only in the original archive, not asserted current."
+    },
+    {
+      "source_id": "CX-983-005",
+      "disposition": "ARCHIVED_REFERENCE_ONLY",
+      "target_id": null,
+      "reason": "Machine-local proof-input registry removed from shared repo law; original paths retained only in the original archive, not asserted current."
+    },
+    {
+      "source_id": "CX-983-006",
+      "disposition": "ARCHIVED_REFERENCE_ONLY",
+      "target_id": null,
+      "reason": "Machine-local proof-input registry removed from shared repo law; original paths retained only in the original archive, not asserted current."
+    }
+  ]
+}

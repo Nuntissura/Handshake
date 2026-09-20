@@ -1,0 +1,114 @@
+{
+  "schema": "handshake.protocol_revision_map@1",
+  "status": "ARCHIVAL_REFERENCE_NOT_AUTHORITY",
+  "source_path": ".GOV/roles/kernel_builder/archive/KERNEL_BUILDER_PROTOCOL-before-compact-rewrite.md",
+  "source_sha256": "7222DFDF952C175055150EBDEF31C51571AA8ECD1A57284C702E6541D75862D7",
+  "active_path": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+  "operator_scope": "Slim protocol and retire ceremony; preserve parallel-agent steering unchanged.",
+  "preserved_verbatim": "Sub-Agent Steering [KB-STEER-001]",
+  "dispositions": [
+    {
+      "source": "Source Authority / Core Contract & Template Links",
+      "target": "KB-AUTH-001..004, KB-PREP-002",
+      "action": "Folded references; startup output demoted to context"
+    },
+    {
+      "source": "Spec Resolver Discipline",
+      "target": "CX-105C, KB-SPEC-001",
+      "action": "Preserved publishing safeguards; removed historical migration prose"
+    },
+    {
+      "source": "Build Reset / Product Code / Native Runtime Stances / Governance Minimization",
+      "target": "KB-AUTH-003/004, KB-MRPI-001, Codex CX-503R/503S/914",
+      "action": "Folded; shared rules remain in Codex"
+    },
+    {
+      "source": "Closure-Unit and Scope/Session Discipline",
+      "target": "Global instructions",
+      "action": "Removed duplicate global guidance"
+    },
+    {
+      "source": "Activation Mode / WP and Microtask Detail Standard",
+      "target": "KB-PREP-001..005",
+      "action": "Concrete readiness conditions replace universal signatures/ledgers/projection checks; explicit packet approvals preserved"
+    },
+    {
+      "source": "Product Implementation Mode",
+      "target": "KB-IMPL-001..005, KB-STATE-001",
+      "action": "One work loop and canonical restart state"
+    },
+    {
+      "source": "HBR Gate Obligations",
+      "target": "KB-IMPL-002, HBR registry",
+      "action": "Cite applicable obligations instead of duplicating pillars"
+    },
+    {
+      "source": "KB-ART-001..005 / Worktree Discipline",
+      "target": "KB-ART-001..005, Codex CX-984",
+      "action": "Folded path/cleanup details into current Codex; retain role worktree restrictions"
+    },
+    {
+      "source": "CX-503I1, KB-CAD-VPX-001",
+      "target": "Same IDs, KB-CAD-001",
+      "action": "Focused-to-batch cadence and independent validator proof preserved"
+    },
+    {
+      "source": "KB-CARGO-SHARED-001, KB-CARGO-IO-001",
+      "target": "Same IDs",
+      "action": "Removed host anecdotes; retained measured scheduling/cache isolation and explicit process authority"
+    },
+    {
+      "source": "KB-STEER-001",
+      "target": "Same entire section",
+      "action": "Preserved byte-for-byte"
+    },
+    {
+      "source": "PASS-Ready Hardening / Spec-Realism Gate / Ready-for-Validation Self-Review",
+      "target": "KB-PROOF-001..006",
+      "action": "Runtime/resource proof preserved; universal checklist receipt retired; cross-platform proof tied to affected behavior/acceptance"
+    },
+    {
+      "source": "Risk-Triggered Adversarial Review",
+      "target": "KB-PROOF-005, KB-LANES-001",
+      "action": "Keep triggered review; no automatic out-of-scope MT creation or no-review receipt"
+    },
+    {
+      "source": "Validation Handoff Topology / Validation Boundary / handoff forms",
+      "target": "KB-HANDOFF-001..004",
+      "action": "One referenced handoff; independent validator owns acceptance; post-validation cleanup moved to closeout"
+    },
+    {
+      "source": "Conversation Memory / Startup",
+      "target": "KB-START-001..003",
+      "action": "Repomem, memory startup and acknowledgment ceremony retired; minimal read-only entrypoints"
+    },
+    {
+      "source": "Incident stories and checklist helper internals",
+      "target": "Archived original",
+      "action": "Historical reference only"
+    }
+  ],
+  "subsequent_revisions": [
+    {
+      "scope": "Operator-approved mandatory monitoring tick for agents, builds and tests",
+      "supersedes": "Initial compaction preserved Sub-Agent Steering unchanged; this later instruction replaces notification-only assumptions and the never-wait busywork rule.",
+      "rule_ids": [
+        "KB-STEER-001",
+        "KB-STEER-002",
+        "KB-STEER-003",
+        "KB-STEER-004",
+        "KB-STEER-005",
+        "KB-STEER-006",
+        "KB-STEER-007"
+      ],
+      "changes": [
+        "Mandatory recurring progress checks independent of tool/build/test completion",
+        "Asynchronous launches, retained handles and bounded waits",
+        "Actual agent/process/log/result evidence and response to monitoring gaps",
+        "Act only within process ownership and approval authority",
+        "Permit monitored waiting without manufacturing work"
+      ],
+      "preserved": "Disjoint ownership, resume contracts, shared-change notifications, resource-aware concurrency and parent review/cleanup responsibility."
+    }
+  ]
+}

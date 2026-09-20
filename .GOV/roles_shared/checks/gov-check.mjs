@@ -79,7 +79,6 @@ const allCheckSteps = [
   ["validator-report-structure-check", "../../roles/validator/checks/validator-report-structure-check.mjs", "VALIDATION"],
   ["packet-truth-bundle-check", "./packet-truth-bundle-check.mjs", "WORK_PACKET"],
   ["mt-packet-scope-alignment-check", "./mt-packet-scope-alignment-check.mjs", "WORK_PACKET"],
-  ["kb-ready-checklist-coverage-check", "./kb-ready-checklist-coverage-check.mjs", "WORK_PACKET"],
   ["hbr-matrix-check", "./hbr-matrix-check.mjs", "WORK_PACKET", ["--all-packets"]],
   // [IV-20260603] HBR product-surface smoke checks removed from gov-check. They are
   // model-operated product tools (frontend/backend/visual/GUI/swarm inspection), not

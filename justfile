@@ -345,23 +345,10 @@ orchestrator-startup:
 	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
 
 kernel-builder-startup:
-	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md"
-	@just role-startup-brief KERNEL_BUILDER
-	@just backup-status
-	@just role-startup-topology-check --audit-permanent
-	@just hard-gate-wt-001
-	@just memory-refresh
-	@just memory-recall RESUME --role KERNEL_BUILDER
-	@echo ''
-	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
-	@echo 'Run: just repomem open "<what this kernel-build session is about>" --role KERNEL_BUILDER [--wp WP-ID]'
-	@echo 'This is MANDATORY before kernel-build planning, packet mutation, product-code edits, or task-board/build-order updates.'
-	@echo ''
-	@echo 'BUILD_RESET_MODE: focus on Handshake Kernel V1 product work; keep repo governance repair to safety/restartability blockers.'
-	@echo 'PRODUCT_AUTHORITY: Kernel Builder may touch product code in a declared product worktree, but it does not validate or merge.'
-	@echo 'WP_DETAIL_STANDARD: massive WPs are allowed only when their packets and MTs are no-context implementable.'
-	@echo 'RESET_BRIEF: .GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md'
-	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
+	@foreach ($required in @("{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md", "{{GOV_ROOT}}/roles_shared/records/HANDSHAKE_BUILD_RULES.json", "{{GOV_ROOT}}/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md", "{{GOV_ROOT}}/spec/SPEC_CURRENT.md")) { if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing authority file: $required" }; Write-Output "READ: $required" }
+	@git rev-parse --show-toplevel
+	@git branch --show-current
+	@Write-Output 'Verify the assigned WP/MT and product worktree before edits. Startup output is context, not authority or proof of readiness. Follow Codex and the Kernel Builder protocol.'
 
 kb-ready-checklist wp-id mt-id *FLAGS="":
 	node "{{GOV_ROOT}}/roles/kernel_builder/scripts/kb-ready-checklist.mjs" {{wp-id}} {{mt-id}} {{FLAGS}}

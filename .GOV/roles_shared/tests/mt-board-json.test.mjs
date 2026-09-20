@@ -5,10 +5,12 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { communicationPathsForWp } from "../scripts/lib/wp-communications-lib.mjs";
-import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import os from "node:os";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const fixtureGov = fs.mkdtempSync(path.join(os.tmpdir(), "mt-board-gov-"));
+process.env.HANDSHAKE_GOV_ROOT = fixtureGov;
+test.after(() => fs.rmSync(fixtureGov, { recursive: true, force: true }));
 const scriptPath = path.join(repoRoot, ".GOV", "roles_shared", "scripts", "wp", "mt-board.mjs");
 
 function runMtBoard(args) {
@@ -26,7 +28,7 @@ function writeContract(absPath, value) {
 
 test("mt-board claims and completes JSON microtask contracts", () => {
   const wpId = "WP-TEST-MT-BOARD-JSON-v1";
-  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const packetDir = path.join(fixtureGov, "task_packets", wpId);
   writeContract(path.join(packetDir, "packet.json"), {
     schema_id: "hsk.work_packet_contract@1",
     wp_id: wpId,
@@ -76,7 +78,7 @@ test("mt-board claims and completes JSON microtask contracts", () => {
 
 test("mt-board preserves blocked microtasks and skips them during claim", () => {
   const wpId = "WP-TEST-MT-BOARD-BLOCKED-v1";
-  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const packetDir = path.join(fixtureGov, "task_packets", wpId);
   writeContract(path.join(packetDir, "packet.json"), {
     schema_id: "hsk.work_packet_contract@1",
     wp_id: wpId,
@@ -120,7 +122,7 @@ test("mt-board preserves blocked microtasks and skips them during claim", () => 
 
 test("mt-board preserves managed-resource-proof blockers and skips them during claim", () => {
   const wpId = "WP-TEST-MT-BOARD-MANAGED-RESOURCE-v1";
-  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const packetDir = path.join(fixtureGov, "task_packets", wpId);
   writeContract(path.join(packetDir, "packet.json"), {
     schema_id: "hsk.work_packet_contract@1",
     wp_id: wpId,
@@ -168,7 +170,7 @@ test("mt-board preserves managed-resource-proof blockers and skips them during c
 
 test("mt-board treats open microtasks as visible and claimable", () => {
   const wpId = "WP-TEST-MT-BOARD-OPEN-v1";
-  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const packetDir = path.join(fixtureGov, "task_packets", wpId);
   writeContract(path.join(packetDir, "packet.json"), {
     schema_id: "hsk.work_packet_contract@1",
     wp_id: wpId,
@@ -199,7 +201,7 @@ test("mt-board treats open microtasks as visible and claimable", () => {
 
 test("mt-board treats ready-for-validation microtasks as implemented dependency evidence", () => {
   const wpId = "WP-TEST-MT-BOARD-READY-v1";
-  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const packetDir = path.join(fixtureGov, "task_packets", wpId);
   writeContract(path.join(packetDir, "packet.json"), {
     schema_id: "hsk.work_packet_contract@1",
     wp_id: wpId,
@@ -246,11 +248,10 @@ test("mt-board treats ready-for-validation microtasks as implemented dependency 
   }
 });
 
-test("mt-board requires the claimant's passing readiness receipt before READY_FOR_VALIDATION", () => {
+test("mt-board submits readiness without checklist receipts but preserves ownership and validator state", () => {
   const wpId = "WP-TEST-MT-BOARD-READY-GATE-v1";
   const session = "session-ready-gate";
-  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
-  const commDir = repoPathAbs(communicationPathsForWp(wpId).dir);
+  const packetDir = path.join(fixtureGov, "task_packets", wpId);
   writeContract(path.join(packetDir, "packet.json"), {
     schema_id: "hsk.work_packet_contract@1",
     wp_id: wpId,
@@ -262,39 +263,38 @@ test("mt-board requires the claimant's passing readiness receipt before READY_FO
     title: "Ready-gated JSON MT",
     owned_files: ["src/ready.rs"],
     proof_commands: ["cargo test ready"],
-    lifecycle: { status: "CLAIMED", active: true, claimed_by: session, completed_by: null },
+    lifecycle: { status: "CLAIMED", active: true, claimed_by: session, completed_by: null, validator_verdict: "PENDING" },
     handoff: { coder_session: session },
   });
 
   try {
-    assert.throws(
-      () => runMtBoard(["ready", wpId, "MT-001", session]),
-      /requires a latest PASS KB readiness receipt/,
-    );
-    fs.mkdirSync(commDir, { recursive: true });
-    fs.writeFileSync(path.join(commDir, "KB_READY_CHECKLIST_RECEIPTS.jsonl"), `${JSON.stringify({
-      schema_id: "hsk.kb_ready_checklist_receipt@1",
-      wp_id: wpId,
-      mt_id: "MT-001",
-      actor_session: session,
-      overall_verdict: "PASS",
-    })}\n`, "utf8");
+    assert.throws(() => runMtBoard(["ready", wpId, "MT-001", "wrong-session"]), /is claimed by/);
+    const contractPath = path.join(packetDir, "MT-001.json");
+    const invalid = JSON.parse(fs.readFileSync(contractPath, "utf8"));
+    invalid.lifecycle.completed_by = session;
+    writeContract(contractPath, invalid);
+    assert.throws(() => runMtBoard(["ready", wpId, "MT-001", session]), /completed_by must be unset/);
+    assert.equal(JSON.parse(fs.readFileSync(contractPath, "utf8")).lifecycle.status, "CLAIMED");
+    invalid.lifecycle.completed_by = null;
+    writeContract(contractPath, invalid);
     assert.match(runMtBoard(["ready", wpId, "MT-001", session]), /marked ready for validation/);
     const mt001 = JSON.parse(fs.readFileSync(path.join(packetDir, "MT-001.json"), "utf8"));
     assert.equal(mt001.lifecycle.status, "READY_FOR_VALIDATION");
     assert.equal(mt001.lifecycle.active, false);
     assert.equal(mt001.lifecycle.completed_by, null);
+    assert.equal(mt001.lifecycle.validator_verdict, "PENDING");
+    assert.deepEqual(mt001.proof_commands, ["cargo test ready"]);
+    assert.throws(() => runMtBoard(["ready", wpId, "MT-001", session]), /must be CLAIMED/);
     assert.equal(mt001.lifecycle.ready_for_validation_by, session);
     assert.match(mt001.lifecycle.ready_for_validation_at_utc, /^\d{4}-\d{2}-\d{2}T/);
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
-    fs.rmSync(commDir, { recursive: true, force: true });
   }
 });
 
 test("mt-board targets ready-for-dev MTs without collapsing versioned lifecycle states", () => {
   const wpId = "WP-TEST-MT-BOARD-TARGETED-v1";
-  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const packetDir = path.join(fixtureGov, "task_packets", wpId);
   writeContract(path.join(packetDir, "packet.json"), {
     schema_id: "hsk.work_packet_contract@1",
     wp_id: wpId,

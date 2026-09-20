@@ -14,8 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { listDeclaredWpMicrotasks } from "../lib/wp-microtask-lib.mjs";
-import { communicationPathsForWp } from "../lib/wp-communications-lib.mjs";
-import { normalizePath, repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
 
 const command = String(process.argv[2] || "").trim().toLowerCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -227,24 +226,6 @@ function complete(wpIdValue, mtId) {
   console.log(`[MT_BOARD] ${String(mtId).toUpperCase()} marked completed`);
 }
 
-function latestReadyReceipt(wpIdValue, mtId) {
-  const commPaths = communicationPathsForWp(wpIdValue);
-  const receiptsPath = path.join(repoPathAbs(commPaths.dir), "KB_READY_CHECKLIST_RECEIPTS.jsonl");
-  if (!fs.existsSync(receiptsPath)) return null;
-  let latest = null;
-  for (const line of fs.readFileSync(receiptsPath, "utf8").split(/\r?\n/)) {
-    if (!line.trim()) continue;
-    let receipt;
-    try {
-      receipt = JSON.parse(line);
-    } catch {
-      fail(`Invalid JSON in readiness receipt log: ${normalizePath(receiptsPath)}`);
-    }
-    if (String(receipt?.mt_id || "").trim().toUpperCase() === mtId) latest = receipt;
-  }
-  return latest;
-}
-
 function ready(wpIdValue, mtId, sessionKey) {
   const packetDirAbs = resolvePacketDir(wpIdValue);
   const contract = readMtContract(packetDirAbs, mtId);
@@ -256,12 +237,10 @@ function ready(wpIdValue, mtId, sessionKey) {
   if (String(lifecycle.claimed_by || "").trim() !== sessionKey) {
     fail(`${mtId} is claimed by ${lifecycle.claimed_by || "<none>"}, not ${sessionKey}`);
   }
-  const receipt = latestReadyReceipt(wpIdValue, mtId);
-  if (receipt?.schema_id !== "hsk.kb_ready_checklist_receipt@1"
-      || receipt?.overall_verdict !== "PASS"
-      || String(receipt?.actor_session || "").trim() !== sessionKey) {
-    fail(`${mtId} requires a latest PASS KB readiness receipt from ${sessionKey}`);
+  if (String(lifecycle.completed_by ?? "").trim()) {
+    fail(`${mtId} completed_by must be unset before READY_FOR_VALIDATION`);
   }
+  // Readiness submits implementation evidence; independent validation owns acceptance.
   lifecycle.status = "READY_FOR_VALIDATION";
   lifecycle.active = false;
   lifecycle.ready_for_validation_at_utc = new Date().toISOString();

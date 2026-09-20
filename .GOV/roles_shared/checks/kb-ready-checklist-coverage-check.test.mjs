@@ -356,9 +356,9 @@ test("malformed receipt line: surfaces as read_error and exit 2", () => withFixt
   assert.ok(json.read_errors.length >= 1);
 }));
 
-test("check is wired into the gov-check bundle", () => {
+test("optional checklist audit is not a universal gov-check gate", () => {
   const govCheck = readFileSync(GOV_CHECK_SCRIPT, "utf8");
-  assert.match(
+  assert.doesNotMatch(
     govCheck,
     /\["kb-ready-checklist-coverage-check", "\.\/kb-ready-checklist-coverage-check\.mjs", "WORK_PACKET"\]/,
   );
