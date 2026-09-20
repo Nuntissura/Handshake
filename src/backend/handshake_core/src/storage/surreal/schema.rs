@@ -2123,7 +2123,7 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT139_CURRENT_SCHEMA_INFO_SHA256).
 // Revision 158 measured by the independent MT-109/wpv-v20 embedded-engine probes.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "ef2a6a96a6a869b6bb39cbc3abc2b30491535c73cd36b5fb8f97d6f0bc8ee610";
+    "5fb16f06cf24be6d57ecff05b67c87111d7ebeb096c441db672088817b87d824";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -3121,14 +3121,28 @@ fn loom_receipt_test_schema_ddl() -> String {
         .map(|block| (*block).to_owned())
         .collect::<Vec<_>>();
     let mut include_continuation = false;
+    let mut include_event_continuation = false;
     for line in bounded_source.lines() {
         let trimmed = line.trim_start();
-        if include_continuation
+        let selected_event = trimmed.starts_with("DEFINE EVENT OVERWRITE ")
+            && selected_table_statement(trimmed, loom_receipt_test_tables());
+        if include_event_continuation
+            || include_continuation
+            || selected_event
             || selected_table_statement(trimmed, loom_receipt_test_tables())
             || selected_sequence_statement(trimmed, loom_receipt_test_sequences())
         {
             ddl.push(line.to_owned());
-            include_continuation = !trimmed.ends_with(';');
+            if include_event_continuation {
+                if trimmed == "};" || (trimmed.starts_with("THEN ") && trimmed.ends_with("};")) {
+                    include_event_continuation = false;
+                }
+            } else if selected_event {
+                include_event_continuation = trimmed != "};";
+                include_continuation = false;
+            } else {
+                include_continuation = !trimmed.ends_with(';');
+            }
         }
     }
     ddl.extend(selected_update_guard_events);
