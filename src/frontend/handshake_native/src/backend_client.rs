@@ -3274,7 +3274,11 @@ impl CanvasBoardClient {
         workspace_id: &str,
         canvas_block_id: &str,
     ) -> Result<CanvasBoardData, String> {
-        fetch_canvas_board(&self.client, &self.board_url(workspace_id, canvas_block_id))
+        fetch_canvas_board(
+            &self.client,
+            self.authenticated_context.clone(),
+            &self.board_url(workspace_id, canvas_block_id),
+        )
             .await
             .map_err(|error| error.to_string())
     }
@@ -3303,7 +3307,12 @@ impl CanvasBoardClient {
 
         for card in board.placements {
             let block_url = self.block_url(workspace_id, &card.placed_block_id);
-            let block = get_json(&self.client, &block_url, &[])
+            let block = get_json_authenticated(
+                &self.client,
+                self.authenticated_context.clone(),
+                &block_url,
+                &[],
+            )
                 .await
                 .map_err(|error| error.to_string())?;
             if block.get("title").and_then(serde_json::Value::as_str)
@@ -3461,9 +3470,19 @@ impl CanvasBoardClient {
             .body
             .as_ref()
             .expect("compensation request always has a body");
+        let authenticated_context = self
+            .authenticated_context
+            .clone()
+            .ok_or_else(|| "Account login required".to_owned())?;
         let mut first_ambiguous_error = None;
         for attempt in 0..2 {
-            match self.client.post(&spec.url).json(body).send().await {
+            match send_canvas_request(
+                &self.client,
+                Some(authenticated_context.clone()),
+                self.client.post(&spec.url).timeout(Duration::from_secs(5)).json(body),
+            )
+            .await
+            {
                 Ok(response) => {
                     let status = response.status();
                     if !status.is_success() {
@@ -3471,7 +3490,7 @@ impl CanvasBoardClient {
                             "Stage Canvas compensation rejected with status {status}"
                         ));
                     }
-                    let value = match response.json::<serde_json::Value>().await {
+                    let value = match canvas_response_json(&authenticated_context, response).await {
                         Ok(value) => value,
                         Err(error) if attempt == 0 => {
                             first_ambiguous_error =
@@ -3521,7 +3540,7 @@ impl CanvasBoardClient {
         placement_id: &str,
     ) -> Result<(), String> {
         let spec = self.remove_placement_request(workspace_id, placement_id);
-        send_canvas_mutation(&self.client, &spec)
+        send_canvas_mutation(&self.client, self.authenticated_context.clone(), &spec)
             .await
             .map_err(|error| error.to_string())
     }
@@ -3534,8 +3553,9 @@ impl CanvasBoardClient {
     ) {
         let spec = self.get_board_request(&request.workspace_id, &request.canvas_block_id);
         let client = self.client.clone();
+        let authenticated_context = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = fetch_canvas_board(&client, &spec.url).await;
+            let result = fetch_canvas_board(&client, authenticated_context, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back(CanvasBoardDelivery {
                     request,
@@ -3550,10 +3570,18 @@ impl CanvasBoardClient {
     pub fn resolve_block(&self, workspace_id: &str, placed_block_id: &str, cell: LiveBlockCell) {
         let spec = self.get_block_request(workspace_id, placed_block_id);
         let client = self.client.clone();
+        let authenticated_context = self.authenticated_context.clone();
         let expected_workspace_id = workspace_id.to_owned();
         let id = placed_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_live_block(&client, &spec.url, &expected_workspace_id, &id).await;
+            let result = fetch_live_block_authenticated(
+                &client,
+                authenticated_context,
+                &spec.url,
+                &expected_workspace_id,
+                &id,
+            )
+            .await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((id, result));
             }
@@ -3564,8 +3592,9 @@ impl CanvasBoardClient {
     /// thread, delivering `Ok(())`/`Err(msg)` into `cell`. The host re-fetches the board after a 2xx.
     pub fn dispatch(&self, spec: RequestSpec, cell: CanvasBoardOpCell) {
         let client = self.client.clone();
+        let authenticated_context = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = send_canvas_mutation(&client, &spec).await;
+            let result = send_canvas_mutation(&client, authenticated_context, &spec).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
             }
@@ -3588,12 +3617,14 @@ impl CanvasBoardClient {
         cell: CanvasViewportMutationCell,
     ) {
         let client = self.client.clone();
+        let authenticated_context = self.authenticated_context.clone();
         let expected_workspace_id = expected_workspace_id.to_owned();
         let expected_block_id = expected_block_id.to_owned();
         let prior_event_ledger_event_id = prior_event_ledger_event_id.to_owned();
         self.runtime.spawn(async move {
             let result = send_canvas_viewport_mutation(
                 &client,
+                authenticated_context,
                 &spec,
                 &expected_workspace_id,
                 &expected_block_id,
@@ -3619,11 +3650,13 @@ impl CanvasBoardClient {
         cell: CanvasPlacementRemovalCell,
     ) {
         let client = self.client.clone();
+        let authenticated_context = self.authenticated_context.clone();
         let expected_workspace_id = expected_workspace_id.to_owned();
         let expected_placement_id = expected_placement_id.to_owned();
         self.runtime.spawn(async move {
             let result = send_canvas_placement_removal(
                 &client,
+                authenticated_context,
                 &spec,
                 &expected_workspace_id,
                 &expected_placement_id,
@@ -3640,8 +3673,9 @@ impl CanvasBoardClient {
     /// response body so the shell can register a precise compensating undo for the backend-minted id.
     pub fn dispatch_created_placement(&self, spec: RequestSpec, cell: CanvasBoardCreateCell) {
         let client = self.client.clone();
+        let authenticated_context = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = send_canvas_created_placement(&client, &spec).await;
+            let result = send_canvas_created_placement(&client, authenticated_context, &spec).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
             }
@@ -3651,8 +3685,14 @@ impl CanvasBoardClient {
     /// Send a semantic-edge POST and retain the backend-minted edge identity from its response body.
     pub fn dispatch_created_semantic_edge(&self, spec: RequestSpec, cell: SemanticEdgeCreateCell) {
         let client = self.client.clone();
+        let authenticated_context = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = send_created_semantic_edge(&client, &spec).await;
+            let result = send_created_semantic_edge_authenticated(
+                &client,
+                authenticated_context,
+                &spec,
+            )
+            .await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|error| error.to_string()));
             }
@@ -3671,14 +3711,22 @@ impl CanvasBoardClient {
                 "created-placement dispatch only supports POST".to_owned(),
             ));
         }
+        let authenticated_context = self
+            .authenticated_context
+            .clone()
+            .ok_or_else(|| {
+                CanvasCreateReceiptError::Transport("Account login required".to_owned())
+            })?;
         let empty = serde_json::json!({});
         let body = spec.body.as_ref().unwrap_or(&empty);
-        let response = self
-            .client
-            .post(&spec.url)
-            .timeout(Duration::from_secs(5))
-            .json(body)
-            .send()
+        let response = send_canvas_request(
+            &self.client,
+            Some(authenticated_context.clone()),
+            self.client
+                .post(&spec.url)
+                .timeout(Duration::from_secs(5))
+                .json(body),
+        )
             .await
             .map_err(|error| CanvasCreateReceiptError::Transport(error.to_string()))?;
         if !response.status().is_success() {
@@ -3687,8 +3735,7 @@ impl CanvasBoardClient {
                 response.status()
             )));
         }
-        let value = response
-            .json::<serde_json::Value>()
+        let value = canvas_response_json(&authenticated_context, response)
             .await
             .map_err(|error| CanvasCreateReceiptError::MalformedSuccess(error.to_string()))?;
         let created = created_canvas_placement_from_response(&value)
@@ -3717,12 +3764,14 @@ impl CanvasBoardClient {
     ) {
         let client = self.client.clone();
         let base_url = self.base_url.clone();
+        let authenticated_context = self.authenticated_context.clone();
         let workspace_id = workspace_id.to_owned();
         let canvas_block_id = canvas_block_id.to_owned();
         let atelier_ref = atelier_ref.clone();
         self.runtime.spawn(async move {
             let result = resolve_atelier_projection_and_place(
                 &client,
+                authenticated_context,
                 &base_url,
                 &workspace_id,
                 &canvas_block_id,
@@ -3841,6 +3890,7 @@ fn canonical_atelier_projection_block_id(
 #[allow(clippy::too_many_arguments)]
 async fn resolve_atelier_projection_and_place(
     client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     base_url: &str,
     workspace_id: &str,
     canvas_block_id: &str,
@@ -3850,15 +3900,18 @@ async fn resolve_atelier_projection_and_place(
     w: f64,
     h: f64,
 ) -> Result<CreatedCanvasPlacement, AppError> {
+    let authenticated_context = authenticated_context
+        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     // The Atelier API owns this durable relation. Never derive an identity from workspace/item strings:
     // doing so can make a frontend-only id look canonical and place the wrong or nonexistent block.
     let block_id = canonical_atelier_projection_block_id(atelier_ref)?.to_owned();
     let block_url = format!("{base_url}/workspaces/{workspace_id}/loom/blocks/{block_id}");
-    let get_response = client
-        .get(&block_url)
-        .send()
-        .await
-        .map_err(|error| AppError::Http(error.to_string()))?;
+    let get_response = send_canvas_request(
+        client,
+        Some(authenticated_context.clone()),
+        client.get(&block_url).timeout(Duration::from_secs(5)),
+    )
+    .await?;
     let get_status = get_response.status();
 
     if get_status == reqwest::StatusCode::NOT_FOUND {
@@ -3871,32 +3924,50 @@ async fn resolve_atelier_projection_and_place(
             "Atelier Loom projection GET non-success status {get_status}"
         )));
     } else {
-        verify_atelier_projection_response(get_response, &block_id, atelier_ref.item_kind).await?;
+        verify_atelier_projection_response(
+            &authenticated_context,
+            get_response,
+            &block_id,
+            atelier_ref.item_kind,
+        )
+        .await?;
     }
 
     let board_url =
         format!("{base_url}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_block_id}");
-    if let Some(existing) = find_reconciled_canvas_placement(client, &board_url, &block_id).await? {
+    if let Some(existing) =
+        find_reconciled_canvas_placement(
+            client,
+            Some(authenticated_context.clone()),
+            &board_url,
+            &block_id,
+        )
+        .await?
+    {
         return Ok(existing);
     }
 
     let placement_url = format!("{board_url}/placements");
     let run_id = uuid::Uuid::new_v4().to_string();
-    let response = client
-        .post(placement_url)
-        .header(HSK_HEADER_ACTOR_ID, "handshake-native-atelier-drop")
-        .header(HSK_HEADER_ACTOR_KIND, "operator")
-        .header(HSK_HEADER_KERNEL_TASK_RUN_ID, &run_id)
-        .header(HSK_HEADER_SESSION_RUN_ID, &run_id)
-        .json(&serde_json::json!({
-            "placed_block_id": block_id,
-            "x": x,
-            "y": y,
-            "w": w,
-            "h": h,
-        }))
-        .send()
-        .await;
+    let response = send_canvas_request(
+        client,
+        Some(authenticated_context.clone()),
+        client
+            .post(placement_url)
+            .header(HSK_HEADER_ACTOR_ID, "handshake-native-atelier-drop")
+            .header(HSK_HEADER_ACTOR_KIND, "operator")
+            .header(HSK_HEADER_KERNEL_TASK_RUN_ID, &run_id)
+            .header(HSK_HEADER_SESSION_RUN_ID, &run_id)
+            .timeout(Duration::from_secs(5))
+            .json(&serde_json::json!({
+                "placed_block_id": block_id,
+                "x": x,
+                "y": y,
+                "w": w,
+                "h": h,
+            })),
+    )
+    .await;
     let unambiguous_create = response
         .as_ref()
         .map(|response| response.status().is_success())
@@ -3906,7 +3977,13 @@ async fn resolve_atelier_projection_and_place(
     // from a fresh board after the POST, including conflict, transport loss, or a committed 2xx whose
     // receipt body is malformed. This makes a retry converge on the one canonical placement.
     if let Some(mut reconciled) =
-        find_reconciled_canvas_placement(client, &board_url, &block_id).await?
+        find_reconciled_canvas_placement(
+            client,
+            Some(authenticated_context),
+            &board_url,
+            &block_id,
+        )
+        .await?
     {
         reconciled.created_by_request = unambiguous_create;
         return Ok(reconciled);
@@ -3923,14 +4000,12 @@ async fn resolve_atelier_projection_and_place(
 }
 
 async fn verify_atelier_projection_response(
+    authenticated_context: &crate::local_account::AuthenticatedContext,
     response: reqwest::Response,
     expected_block_id: &str,
     item_kind: crate::interop::AtelierItemKind,
 ) -> Result<(), AppError> {
-    let value = response
-        .json::<serde_json::Value>()
-        .await
-        .map_err(|error| AppError::Parse(error.to_string()))?;
+    let value = canvas_response_json(authenticated_context, response).await?;
     let actual_id = value
         .get("block_id")
         .and_then(serde_json::Value::as_str)
@@ -3964,10 +4039,11 @@ async fn verify_atelier_projection_response(
 
 async fn find_reconciled_canvas_placement(
     client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     board_url: &str,
     placed_block_id: &str,
 ) -> Result<Option<CreatedCanvasPlacement>, AppError> {
-    let value = get_json(client, board_url, &[]).await?;
+    let value = get_json_authenticated(client, authenticated_context, board_url, &[]).await?;
     let Some(placements) = value
         .get("placements")
         .and_then(serde_json::Value::as_array)
@@ -3995,25 +4071,97 @@ async fn find_reconciled_canvas_placement(
 /// never depends on the backend crate.
 pub const LOOM_CANVAS_BOARD_SCHEMA_ID: &str = "hsk.loom_canvas_board@1";
 
+/// Execute one Canvas request through the canonical native authenticated transport. It requires the
+/// immutable account context, whose shared executor performs the backend-origin check, adds both the
+/// account session and channel-binding credentials, and uses the bounded no-redirect backend client.
+async fn send_canvas_request(
+    client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    request: reqwest::RequestBuilder,
+) -> Result<reqwest::Response, AppError> {
+    let context = authenticated_context
+        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    crate::local_account::AuthenticatedRequest::new(client.clone(), Some(context), request)
+        .send()
+        .await
+        .map_err(AppError::Http)
+}
+
+async fn get_json_authenticated(
+    client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<serde_json::Value, AppError> {
+    let context = authenticated_context
+        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    crate::local_account::AuthenticatedRequest::new(
+        client.clone(),
+        Some(context),
+        client
+            .get(url)
+            .query(query)
+            .timeout(Duration::from_secs(5)),
+    )
+    .json()
+    .await
+    .map_err(AppError::Http)
+}
+
+/// Decode a successful response only while the captured account context remains active. Status-sensitive
+/// Canvas operations inspect their response status before consuming the body (notably block 404 and
+/// receipt paths), so this keeps the canonical authenticated JSON executor's post-body logout gate.
+async fn canvas_response_json(
+    authenticated_context: &crate::local_account::AuthenticatedContext,
+    response: reqwest::Response,
+) -> Result<serde_json::Value, AppError> {
+    let value = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| AppError::Parse(error.to_string()))?;
+    if !authenticated_context.is_active() {
+        return Err(AppError::Http("Account session is no longer active".to_owned()));
+    }
+    Ok(value)
+}
+
 /// Send one canvas mutation by method, treating any 2xx as success (the board re-fetches for the body).
 async fn send_canvas_mutation(
     client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     spec: &RequestSpec,
 ) -> Result<(), AppError> {
     let empty = serde_json::json!({});
     let body = spec.body.as_ref().unwrap_or(&empty);
-    match spec.method {
-        HttpMethod::Post => post_expect_success(client, &spec.url, body).await,
-        HttpMethod::Patch => patch_expect_success(client, &spec.url, body).await,
-        HttpMethod::Put => put_expect_success(client, &spec.url, body).await,
-        HttpMethod::Delete => delete_expect_success(client, &spec.url).await,
-        HttpMethod::Get => Err(AppError::Http("GET is not a mutation".to_owned())),
+    let request = match spec.method {
+        HttpMethod::Post => client.post(&spec.url).json(body),
+        HttpMethod::Patch => client.patch(&spec.url).json(body),
+        HttpMethod::Put => client.put(&spec.url).json(body),
+        HttpMethod::Delete => client.delete(&spec.url),
+        HttpMethod::Get => return Err(AppError::Http("GET is not a mutation".to_owned())),
     }
+    .timeout(Duration::from_secs(5));
+    let response = send_canvas_request(client, authenticated_context, request).await?;
+    if !response.status().is_success() {
+        return Err(AppError::Http(format!(
+            "{} non-success status {}",
+            match spec.method {
+                HttpMethod::Post => "POST",
+                HttpMethod::Patch => "PATCH",
+                HttpMethod::Put => "PUT",
+                HttpMethod::Delete => "DELETE",
+                HttpMethod::Get => "GET",
+            },
+            response.status()
+        )));
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn send_canvas_viewport_mutation(
     client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     spec: &RequestSpec,
     expected_workspace_id: &str,
     expected_block_id: &str,
@@ -4027,24 +4175,25 @@ async fn send_canvas_viewport_mutation(
             "viewport dispatch only supports PUT".to_owned(),
         ));
     }
+    let authenticated_context = authenticated_context
+        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     let empty = serde_json::json!({});
-    let response = client
-        .put(&spec.url)
-        .json(spec.body.as_ref().unwrap_or(&empty))
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
-        .map_err(|error| AppError::Http(error.to_string()))?;
+    let response = send_canvas_request(
+        client,
+        Some(authenticated_context.clone()),
+        client
+            .put(&spec.url)
+            .json(spec.body.as_ref().unwrap_or(&empty))
+            .timeout(Duration::from_secs(5)),
+    )
+    .await?;
     if !response.status().is_success() {
         return Err(AppError::Http(format!(
             "PUT non-success status {}",
             response.status()
         )));
     }
-    let value = response
-        .json::<serde_json::Value>()
-        .await
-        .map_err(|error| AppError::Parse(error.to_string()))?;
+    let value = canvas_response_json(&authenticated_context, response).await?;
     parse_canvas_viewport_mutation_receipt(
         &value,
         expected_workspace_id,
@@ -4149,6 +4298,7 @@ fn parse_canvas_viewport_mutation_receipt(
 
 async fn send_canvas_placement_removal(
     client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     spec: &RequestSpec,
     expected_workspace_id: &str,
     expected_placement_id: &str,
@@ -4158,22 +4308,21 @@ async fn send_canvas_placement_removal(
             "placement-removal dispatch only supports DELETE".to_owned(),
         ));
     }
-    let response = client
-        .delete(&spec.url)
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
-        .map_err(|error| AppError::Http(error.to_string()))?;
+    let authenticated_context = authenticated_context
+        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let response = send_canvas_request(
+        client,
+        Some(authenticated_context.clone()),
+        client.delete(&spec.url).timeout(Duration::from_secs(5)),
+    )
+    .await?;
     if !response.status().is_success() {
         return Err(AppError::Http(format!(
             "DELETE non-success status {}",
             response.status()
         )));
     }
-    let value = response
-        .json::<serde_json::Value>()
-        .await
-        .map_err(|error| AppError::Parse(error.to_string()))?;
+    let value = canvas_response_json(&authenticated_context, response).await?;
     parse_canvas_placement_removal_receipt(&value, expected_workspace_id, expected_placement_id)
 }
 
@@ -4237,6 +4386,7 @@ fn parse_canvas_placement_removal_receipt(
 
 async fn send_canvas_created_placement(
     client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     spec: &RequestSpec,
 ) -> Result<CreatedCanvasPlacement, AppError> {
     if spec.method != HttpMethod::Post {
@@ -4244,15 +4394,33 @@ async fn send_canvas_created_placement(
             "created-placement dispatch only supports POST".to_owned(),
         ));
     }
+    let authenticated_context = authenticated_context
+        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     let empty = serde_json::json!({});
     let body = spec.body.as_ref().unwrap_or(&empty);
-    let value = post_json_expect_value(client, &spec.url, body, Duration::from_secs(5)).await?;
+    let response = send_canvas_request(
+        client,
+        Some(authenticated_context.clone()),
+        client
+            .post(&spec.url)
+            .timeout(Duration::from_secs(5))
+            .json(body),
+    )
+    .await?;
+    if !response.status().is_success() {
+        return Err(AppError::Http(format!(
+            "POST non-success status {}",
+            response.status()
+        )));
+    }
+    let value = canvas_response_json(&authenticated_context, response).await?;
     let created = created_canvas_placement_from_response(&value)?;
     validate_created_placement_receipt(&spec.url, body, &value, &created)
         .map_err(AppError::Parse)?;
     Ok(created)
 }
 
+#[cfg(test)]
 async fn send_created_semantic_edge(
     client: &reqwest::Client,
     spec: &RequestSpec,
@@ -4267,6 +4435,41 @@ async fn send_created_semantic_edge(
         .as_ref()
         .ok_or_else(|| AppError::Parse("semantic-edge POST body is missing".to_owned()))?;
     let value = post_json_expect_value(client, &spec.url, body, Duration::from_secs(5)).await?;
+    created_semantic_edge_from_response(spec, &value)
+}
+
+async fn send_created_semantic_edge_authenticated(
+    client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    spec: &RequestSpec,
+) -> Result<CreatedSemanticEdge, AppError> {
+    if spec.method != HttpMethod::Post {
+        return Err(AppError::Http(
+            "created-semantic-edge dispatch only supports POST".to_owned(),
+        ));
+    }
+    let authenticated_context = authenticated_context
+        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let body = spec
+        .body
+        .as_ref()
+        .ok_or_else(|| AppError::Parse("semantic-edge POST body is missing".to_owned()))?;
+    let response = send_canvas_request(
+        client,
+        Some(authenticated_context.clone()),
+        client
+            .post(&spec.url)
+            .timeout(Duration::from_secs(5))
+            .json(body),
+    )
+    .await?;
+    if !response.status().is_success() {
+        return Err(AppError::Http(format!(
+            "POST non-success status {}",
+            response.status()
+        )));
+    }
+    let value = canvas_response_json(&authenticated_context, response).await?;
     created_semantic_edge_from_response(spec, &value)
 }
 
@@ -4348,9 +4551,10 @@ fn created_semantic_edge_from_response(
 /// not copy). A valid empty board has empty required arrays; malformed successful responses fail closed.
 async fn fetch_canvas_board(
     client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     url: &str,
 ) -> Result<CanvasBoardData, AppError> {
-    let v = get_json(client, url, &[]).await?;
+    let v = get_json_authenticated(client, authenticated_context, url, &[]).await?;
     parse_canvas_board_response(&v)
 }
 
@@ -4585,6 +4789,7 @@ fn visual_edge_from_json(e: &serde_json::Value) -> Option<VisualEdge> {
 /// canonical-JSON hash when present (MT-032, READ-only — `Option<String>`, honestly `None` when the
 /// backend omits it). A 404 is [`LiveBlockResolveError::Missing`] so the host shows "(stale
 /// reference)" — never a fabricated title.
+#[cfg(test)]
 async fn fetch_live_block(
     client: &reqwest::Client,
     url: &str,
@@ -4597,6 +4802,58 @@ async fn fetch_live_block(
         .send()
         .await
         .map_err(|error| LiveBlockResolveError::Unavailable(error.to_string()))?;
+    parse_live_block_response(response, None, expected_workspace_id, expected_block_id).await
+}
+
+async fn fetch_live_block_authenticated(
+    client: &reqwest::Client,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    url: &str,
+    expected_workspace_id: &str,
+    expected_block_id: &str,
+) -> Result<LiveBlock, LiveBlockResolveError> {
+    let authenticated_context = authenticated_context.ok_or_else(|| {
+        LiveBlockResolveError::Unavailable("Account login required".to_owned())
+    })?;
+    fetch_live_block_inner(
+        client,
+        authenticated_context,
+        url,
+        expected_workspace_id,
+        expected_block_id,
+    )
+    .await
+}
+
+async fn fetch_live_block_inner(
+    client: &reqwest::Client,
+    authenticated_context: Arc<crate::local_account::AuthenticatedContext>,
+    url: &str,
+    expected_workspace_id: &str,
+    expected_block_id: &str,
+) -> Result<LiveBlock, LiveBlockResolveError> {
+    let response = send_canvas_request(
+        client,
+        Some(authenticated_context.clone()),
+        client.get(url).timeout(Duration::from_secs(5)),
+    )
+    .await
+    .map_err(|error| LiveBlockResolveError::Unavailable(error.to_string()))?;
+    parse_live_block_response(
+        response,
+        Some(&authenticated_context),
+        expected_workspace_id,
+        expected_block_id,
+    )
+    .await
+}
+
+async fn parse_live_block_response(
+    response: reqwest::Response,
+    authenticated_context: Option<&crate::local_account::AuthenticatedContext>,
+    expected_workspace_id: &str,
+    expected_block_id: &str,
+) -> Result<LiveBlock, LiveBlockResolveError> {
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Err(LiveBlockResolveError::Missing);
     }
@@ -4606,10 +4863,15 @@ async fn fetch_live_block(
             response.status()
         )));
     }
-    let v = response
-        .json::<serde_json::Value>()
-        .await
-        .map_err(|error| LiveBlockResolveError::Unavailable(format!("decode: {error}")))?;
+    let v = match authenticated_context {
+        Some(context) => canvas_response_json(context, response)
+            .await
+            .map_err(|error| LiveBlockResolveError::Unavailable(format!("decode: {error}")))?,
+        None => response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|error| LiveBlockResolveError::Unavailable(format!("decode: {error}")))?,
+    };
     let required = |field: &str| {
         v.get(field)
             .and_then(serde_json::Value::as_str)
@@ -13496,6 +13758,99 @@ mod tests {
             Ok((None, "note".to_owned(), None))
         );
         join.join().unwrap();
+    }
+
+    #[test]
+    fn canvas_response_json_rejects_body_completed_after_logout() {
+        use std::io::{Read, Write};
+        use std::sync::mpsc;
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let body = r#"{"workspace_id":"ws-a","block_id":"block-a","content_type":"note"}"#;
+        let (release_body, body_release) = mpsc::sync_channel(1);
+        let server = std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            let (mut stream, _) = loop {
+                match listener.accept() {
+                    Ok(connection) => break connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(
+                            std::time::Instant::now() < deadline,
+                            "client did not connect before delayed-body test deadline"
+                        );
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("delayed-body listener failed: {error}"),
+                }
+            };
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+                .unwrap();
+            stream
+                .set_write_timeout(Some(std::time::Duration::from_secs(2)))
+                .unwrap();
+            let mut request = Vec::with_capacity(1024);
+            loop {
+                let mut chunk = [0_u8; 512];
+                let count = stream.read(&mut chunk).unwrap();
+                assert!(count > 0, "client closed before completing HTTP request headers");
+                request.extend_from_slice(&chunk[..count]);
+                assert!(
+                    request.len() <= 4096,
+                    "HTTP request headers exceeded delayed-body test bound"
+                );
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let headers = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            stream.write_all(headers.as_bytes()).unwrap();
+            stream.flush().unwrap();
+            body_release
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .expect("test must release delayed response body");
+            stream.write_all(body.as_bytes()).unwrap();
+        });
+
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let context = crate::local_account::mock_account_context(&base);
+        let client = shared_http_client();
+        let url = format!("{base}/workspaces/ws-a/loom/blocks/block-a");
+        let response = runtime.block_on(
+            crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                Some(context.clone()),
+                client.get(url).timeout(Duration::from_secs(2)),
+            )
+            .send(),
+        );
+        context.invalidate();
+        let release_result = release_body.try_send(());
+        let server_result = server.join();
+        let result = response.and_then(|response| {
+            runtime
+                .block_on(canvas_response_json(&context, response))
+                .map_err(|error| error.to_string())
+        });
+        assert!(
+            release_result.is_ok(),
+            "delayed body release channel must remain available"
+        );
+        assert!(server_result.is_ok(), "delayed-body server must terminate cleanly");
+        assert!(matches!(
+            result,
+            Err(message)
+                if message.contains("Account session is no longer active")
+        ));
     }
 
     #[test]
