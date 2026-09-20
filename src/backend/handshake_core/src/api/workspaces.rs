@@ -2508,7 +2508,7 @@ mod tests {
         use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
         let binding = WorkspaceBindingFixture::new()?;
         let (state, _store) = setup_state().await?;
-        let (_, owner_headers) =
+        let (owner, owner_headers) =
             workspace_test_principal(&state, &binding, "workspace-owner-a").await?;
         let (other, other_headers) =
             workspace_test_principal(&state, &binding, "workspace-owner-b").await?;
@@ -2527,15 +2527,56 @@ mod tests {
         .expect_err("other account cannot delete");
         assert_eq!(denied.0, StatusCode::FORBIDDEN);
         assert!(state.storage.get_workspace(&workspace.id).await?.is_some());
-        let legacy = state
-            .storage
-            .create_workspace(
-                &WriteContext::human(Some("legacy".to_owned())),
-                NewWorkspace {
-                    name: "ownerless".to_owned(),
-                },
+        let legacy = create_owned_test_workspace(&state, &owner_headers).await?;
+        let owner_account_id = owner.identity.account_id.clone();
+        let owner_principal_id = owner.identity.principal_id.clone();
+        let owner_space_id = owner.identity.access_space_id.clone();
+        state
+            .surreal
+            .test_admin_query_bound(
+                "BEGIN TRANSACTION; \
+                 LET $account = type::record('local_accounts', $account_id); \
+                 LET $principal = type::record('principals', $principal_id); \
+                 LET $space = type::record('access_spaces', $space_id); \
+                 LET $resources = SELECT VALUE id FROM protected_resources WHERE resource_kind = 'workspace' AND external_resource_id = $workspace_id AND owner_account_id = $account AND created_by_principal_id = $principal AND access_space_id = $space AND lifecycle_state = 'active' LIMIT 2; \
+                 IF array::len($resources) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+                 LET $resource = $resources[0]; \
+                 LET $grants = SELECT VALUE id FROM resource_grants WHERE resource_id = $resource AND account_id = $account AND principal_id = $principal AND access_space_id = $space AND status = 'active' AND revoked_at = NONE LIMIT 2; \
+                 IF array::len($grants) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+                 LET $grant = $grants[0]; \
+                 DELETE $grant RETURN NONE; \
+                 DELETE $resource RETURN NONE; \
+                COMMIT TRANSACTION;"
+                    .to_owned(),
+                json!({
+                    "workspace_id": legacy.id.clone(),
+                    "account_id": owner_account_id.clone(),
+                    "principal_id": owner_principal_id.clone(),
+                    "space_id": owner_space_id.clone(),
+                }),
             )
-            .await?;
+            .await?
+            .check()?;
+        let mut ownerless_authority = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN { human_resources: array::len(SELECT VALUE id FROM protected_resources WHERE resource_kind = 'workspace' AND external_resource_id = $workspace_id AND owner_account_id = type::record('local_accounts', $account_id) AND created_by_principal_id = type::record('principals', $principal_id) AND access_space_id = type::record('access_spaces', $space_id)), human_grants: array::len(SELECT VALUE id FROM resource_grants WHERE resource_id.resource_kind = 'workspace' AND resource_id.external_resource_id = $workspace_id AND account_id = type::record('local_accounts', $account_id) AND principal_id = type::record('principals', $principal_id) AND access_space_id = type::record('access_spaces', $space_id)), service_queue_resources: array::len(SELECT VALUE id FROM protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation:' + $workspace_id AND lifecycle_state = 'active'), service_queue_grants: array::len(SELECT VALUE id FROM resource_grants WHERE resource_id.resource_kind = 'reconciliation_queue' AND resource_id.external_resource_id = 'mt109-protected-reconciliation:' + $workspace_id AND status = 'active' AND revoked_at = NONE) };".to_owned(),
+                json!({
+                    "workspace_id": legacy.id.clone(),
+                    "account_id": owner_account_id,
+                    "principal_id": owner_principal_id,
+                    "space_id": owner_space_id,
+                }),
+            )
+            .await?
+            .check()?;
+        let ownerless_authority = ownerless_authority
+            .take::<Option<Value>>(0)?
+            .expect("ownerless authority snapshot");
+        assert_eq!(ownerless_authority["human_resources"], json!(0));
+        assert_eq!(ownerless_authority["human_grants"], json!(0));
+        assert_eq!(ownerless_authority["service_queue_resources"], json!(1));
+        assert_eq!(ownerless_authority["service_queue_grants"], json!(1));
         assert_eq!(
             delete_workspace(
                 State(state.clone()),
