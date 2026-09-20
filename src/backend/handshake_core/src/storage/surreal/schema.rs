@@ -2123,7 +2123,7 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT139_CURRENT_SCHEMA_INFO_SHA256).
 // Revision 158 measured by the independent MT-109/wpv-v20 embedded-engine probes.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "5fb16f06cf24be6d57ecff05b67c87111d7ebeb096c441db672088817b87d824";
+    "c12100ea03d08fe923149b1a128d7ebf1d30ac17d4ef7eb1d77e28d52f0191df";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -2981,7 +2981,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
     // observed).
     const EXPECTED_CATALOG_SHA256: &str =
-        "ed381eaa7c2b0aea809ffeb0e2e5170ac51053a1e024d0fa47f14f8d56894494";
+        "183a578b45778667a66170da2fe3543cf77f2949709908d9f66b223ef89a59fa";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -7409,7 +7409,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "ed381eaa7c2b0aea809ffeb0e2e5170ac51053a1e024d0fa47f14f8d56894494"
+            "183a578b45778667a66170da2fe3543cf77f2949709908d9f66b223ef89a59fa"
         );
     }
 
