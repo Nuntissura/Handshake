@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-09-17T04:56:14.954Z",
+  "updated_at_utc": "2026-09-20T00:20:20.1395841Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -500,5 +500,53 @@
     "record": "validation_v1",
     "binary_source_binding": "Every binary this session built (cargo steps 02-04, 02:13:50Z-02:41:18Z) was compiled from committed ba03f5638e3f6b1903cb2829c1e846958d0dbf42 plus one uncommitted harness file, src/backend/handshake_core/src/storage/tests.rs, which the builder committed unchanged as c0603cbdba2a79bc04711dca83821b687a152b60 at 03:16:32Z (git diff ba03f563..c0603cbd touches only that file and its sha256 equals the snapshot this lane recorded at 02:42:43Z: 3a3f22d9a71349fb18f3e243eb373d1d55ba19fa085ea815678d0f2502e5b2db). Product code in every executed binary is therefore byte-identical to ba03f563 (C-prime); the embedded test harness equals c0603cbd. The builder's later uncommitted edits to ~53 src/tests files began at 03:16:56Z, after the last build of this lane, and are embedded in NO executed binary; exec-only runs read no source. Rows 30-32 recorded head_at_run=c0603cbd because HEAD moved before they started; rows 10-23 recorded ba03f563.",
     "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/00-lane.txt (DIRTY_TREE_DETECTED 02:42:43Z, TREE_NOTE, BINDING_NOTE entries)"
+  },
+  "remediation_v1": {
+    "status": "NATIVE_IMPLEMENTED_PENDING_SHARED_RUNTIME_VALIDATION",
+    "session": "INTEGRATION_VALIDATOR-20260920",
+    "recorded_at_utc": "2026-09-20T00:20:20.1395841Z",
+    "candidate_sha": "83c05ecfdf32e7e91dcd10fb0935094f4f1e6212",
+    "base_sha": "9f2c19298659c1c88be3da7e9a56002f6425592c",
+    "commits": [
+      "1236078e9f0665f938670373160b8f78b5c53d73",
+      "83c05ecfdf32e7e91dcd10fb0935094f4f1e6212"
+    ],
+    "batch_owner": "MT-109",
+    "covered_mts": [
+      "MT-109",
+      "MT-111",
+      "MT-120"
+    ],
+    "checks": [
+      {
+        "kind": "COMPILE_LINT_ONLY",
+        "command": "cargo +1.97.1 clippy -p handshake-native --all-targets --keep-going --features integration,integration_tests --locked --offline -j4 -- -D warnings",
+        "exit_code": 0,
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-clippy-07.log",
+        "log_sha256": "CBEA26719556A863DB4E4673F0F173FC300746807E6DC22D45D18485DDC20D27",
+        "inputs": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-native/logs/native-clippy-07-inputs.json",
+        "inputs_sha256": "42F285264BA484F1E65D1025D2250E2CCFF725C504E5487A3E230DBF0DF3DCC5",
+        "builder_post_run_changed_inputs": 0,
+        "iv_verified": "Log, exit file, hashes, committed native file inventory, clean native tree and matching remote HEAD inspected."
+      }
+    ],
+    "target_reuse": "../Handshake_Artifacts/WP-KERNEL-012/MT-135/kb-b2/target",
+    "not_run": [
+      "Native runtime and mounted GUI acceptance on this candidate",
+      "Backend record-user positive/negative shared validation after active source repairs"
+    ],
+    "independent_static_findings": [
+      "WP_VALIDATOR native_batch_kb: backend session exchange cancellation may strand committed session/vault secret without login audit; builder repair pending.",
+      "WP_VALIDATOR native_batch_kb: logout vault deletion failure cannot retry through revoked-session authentication; builder repair pending."
+    ],
+    "lifecycle_unchanged": true,
+    "verdict_unchanged": true,
+    "proof_limit": "Clippy is not runtime acceptance. Historical PASS/FAIL records remain preserved and do not prove changed backend/native behavior.",
+    "ac_120_6_disposition": {
+      "original": "AC-120-6: test_event_emitter::event_emitter_native_editor_round_trip goes GREEN with NO edit to the test. It requires three mirrored emissions and currently receives two, because document_saved is rejected at ingestion (confirmed: zero document_saved rows in the ledger against 8 each for canvas_node_placed and undo_fired). If this MT is fixed correctly the third emission lands on its own.",
+      "authority": "Operator handoff session4 section3.2: resolve stale fixture versus product policy on correct side; Master Spec2.3.13.12 requires real account/session authority.",
+      "bounded_change": "Permit explicit real account setup/header/context wiring in test_event_emitter; inspected diff retains event operations, three-emission expectations, assertions and negative cases. Formatting and unused-variable lint changes have no acceptance effect.",
+      "runtime": "PENDING: no GREEN claimed."
+    }
   }
 }
