@@ -2378,7 +2378,7 @@ mod tests {
             )
             .await?;
         let issued = issued
-            .take::<Option<serde_json::Value>>(0)?
+            .take::<Option<serde_json::Value>>(2)?
             .expect("service queue result");
         assert_eq!(
             issued["child"], 1,

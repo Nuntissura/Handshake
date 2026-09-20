@@ -5058,6 +5058,13 @@ mod tests {
         event_ids: Vec<String>,
     }
 
+    #[derive(Clone, SurrealValue)]
+    struct LoomStandaloneMutationBinding {
+        block: RecordId,
+        workspace: RecordId,
+        document: RecordId,
+    }
+
     #[derive(SurrealValue)]
     struct LoomTestCountRow {
         count: i64,
@@ -5771,25 +5778,25 @@ mod tests {
             .await
             .unwrap();
         let standalone_before = standalone_before.take::<Option<Value>>(0).unwrap();
-        for mutation in [
-            format!(
-                "UPDATE type::record('loom_blocks', '{canvas_id}') SET workspace_id = type::record('workspaces', '{foreign_workspace_id}') RETURN NONE;"
-            ),
-            format!(
-                "UPDATE type::record('loom_blocks', '{canvas_id}') SET content_type = 'note' RETURN NONE;"
-            ),
-            format!(
-                "UPDATE type::record('loom_blocks', '{canvas_id}') SET source_rich_document_id = type::record('knowledge_rich_documents', '{note_id}') RETURN NONE;"
-            ),
+        let mutation = LoomStandaloneMutationBinding {
+            block: RecordId::new("loom_blocks", canvas_id.to_owned()),
+            workspace: RecordId::new("workspaces", foreign_workspace_id.clone()),
+            document: RecordId::new("knowledge_rich_documents", note_id.to_owned()),
+        };
+        for statement in [
+            "UPDATE $block SET workspace_id = $workspace RETURN AFTER;",
+            "UPDATE $block SET content_type = 'note' RETURN AFTER;",
+            "UPDATE $block SET source_rich_document_id = $document RETURN AFTER;",
         ] {
             let scope = placement_authority.record_user_scope.clone();
+            let bindings = mutation.clone();
             let rejection = state
                 .surreal
                 .with_record_user_scope(
                     scope,
                     state.surreal.with_data_operation(move |database| {
                         Box::pin(async move {
-                            database.client.query(mutation).await?.check()?;
+                            database.execute_returning(statement, bindings).await?;
                             Ok(())
                         })
                     }),
