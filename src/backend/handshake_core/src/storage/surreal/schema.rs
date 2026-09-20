@@ -2069,7 +2069,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // 05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd, the MT-141 R9 pin; the
 // R9 hop was never a released lineage, so the MT-150 pin remains the allowlisted predecessor).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "2f1705bb309dc15e7092559ec203b25aebc079015e9e5db47d71e79519726706";
+    "2c2af7bda13f220bcb00841ffdd439f3d0e1fc4f07df0a9ff8b64d68e73a891f";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.

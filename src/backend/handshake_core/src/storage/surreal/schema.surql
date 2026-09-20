@@ -81,10 +81,13 @@ DEFINE EVENT OVERWRITE mt109_workspace_reconciliation_queue ON TABLE workspaces
     THEN {
         IF !fn::mt120_workspace_create($after.created_in_session_id) { THROW 'HSK-403-PROTECTED-RESOURCE'; };
         LET $service_principal = (SELECT * FROM ONLY principals WHERE principal_key = 'mt109-reconciliation-service-principal' AND principal_kind = 'service_identity' AND status = 'enabled' LIMIT 1);
+        IF $service_principal = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; };
         LET $service_space = (SELECT * FROM ONLY access_spaces WHERE account_id = $service_principal.account_id AND space_key = 'mt109-reconciliation-space' AND status = 'active' LIMIT 1);
+        IF $service_space = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; };
         LET $service_root = (SELECT * FROM ONLY protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation' AND lifecycle_state = 'active' AND owner_account_id = $service_principal.account_id AND access_space_id = $service_space.id LIMIT 1);
+        IF $service_root = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; };
         LET $service_grant = (SELECT * FROM ONLY resource_grants WHERE resource_id = $service_root.id AND account_id = $service_principal.account_id AND principal_id = $service_principal.id AND access_space_id = $service_space.id AND actions = ['reconcile'] AND capability_ids = ['fr.ingest.native_editor','memory.commit'] AND delegation_chain = [record::id($service_principal.id)] AND status = 'active' AND revoked_at = NONE AND expires_at = NONE LIMIT 1);
-        IF $service_principal = NONE OR $service_space = NONE OR $service_root = NONE OR $service_grant = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+        IF $service_grant = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; };
         LET $service_principal_id = $service_principal.id;
         LET $service_space_id = $service_space.id;
         LET $service_root_id = $service_root.id;

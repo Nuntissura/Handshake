@@ -1645,6 +1645,16 @@ mod tests {
         ),
         Box<dyn std::error::Error>,
     > {
+        if !state
+            .surreal
+            .reconciliation_principal_is_provisioned()
+            .await?
+        {
+            state
+                .surreal
+                .provision_reconciliation_principal(&[], None)
+                .await?;
+        }
         let capabilities = [
             "fs.read",
             "fs.write",
