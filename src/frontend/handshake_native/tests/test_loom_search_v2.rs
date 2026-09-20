@@ -2127,7 +2127,9 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     let mounted_empty_query = rebind_proxy
         .captured_requests()
         .into_iter()
-        .rfind(|request| request.method == "POST" && request.prefixed_path == empty_prefixed_search_path)
+        .rfind(|request| {
+            request.method == "POST" && request.prefixed_path == empty_prefixed_search_path
+        })
         .and_then(|request| {
             request
                 .body
@@ -2149,7 +2151,11 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         .state()
         .tab_bar_states()
         .iter()
-        .filter(|(_, bar)| bar.tabs.iter().any(|tab| tab.pane_type == PaneType::LoomSearchV2))
+        .filter(|(_, bar)| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == PaneType::LoomSearchV2)
+        })
         .map(|(pane_id, _)| pane_id.as_ref().to_owned())
         .collect::<Vec<_>>();
     assert_eq!(

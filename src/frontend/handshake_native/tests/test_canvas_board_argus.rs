@@ -1124,7 +1124,9 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
         let g1 = one["group_id"].as_str().map(str::to_owned);
         let g2 = two["group_id"].as_str().map(str::to_owned);
         if let (Some(first), Some(second)) = (&g1, &g2) {
-            if first == second { break (first.clone(), second.clone()); }
+            if first == second {
+                break (first.clone(), second.clone());
+            }
         }
         assert!(
             Instant::now() < deadline,

@@ -17,10 +17,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::{NodeT, Queryable};
-#[path = "native_gui_support/screenshot_harness.rs"]
-mod screenshot_harness;
 #[path = "native_gui_support/hit_reachability.rs"]
 pub mod hit_reachability;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::{

@@ -239,7 +239,13 @@ pub struct ReqwestWikilinkBackend {
 }
 
 impl ReqwestWikilinkBackend {
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
+    }
 
     /// Build a backend client against `base_url` (e.g. `backend_client::BACKEND_BASE_URL`).
     pub fn new(base_url: impl Into<String>) -> Self {
@@ -296,12 +302,14 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
                 "limit": limit,
                 "offset": 0,
             });
-            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client
-                .post(&url)
-                .json(&body)
-                ).send()
-                .await
-                .map_err(|e| WikilinkError::NetworkError(format!("loom search failed: {e}")))?;
+            let response = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account,
+                client.post(&url).json(&body),
+            )
+            .send()
+            .await
+            .map_err(|e| WikilinkError::NetworkError(format!("loom search failed: {e}")))?;
             let status = response.status();
             if !status.is_success() {
                 return Err(map_status(status.as_u16(), "loom search-v2"));
@@ -334,9 +342,14 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
             if ws_empty {
                 return Err(WikilinkError::NoWorkspace);
             }
-            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.get(&url)).send().await.map_err(|e| {
-                WikilinkError::NetworkError(format!("transclusion fetch failed: {e}"))
-            })?;
+            let response = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account,
+                client.get(&url),
+            )
+            .send()
+            .await
+            .map_err(|e| WikilinkError::NetworkError(format!("transclusion fetch failed: {e}")))?;
             let status = response.status();
             if !status.is_success() {
                 return Err(map_status(
@@ -365,24 +378,28 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
             // enters the process-global diagnostic ring consumed by Palmistry. The RAII handle
             // completes on every success/error/404 return below.
             let _operation_handle = crate::diagnostics::register_backend_operation();
-            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client
-                .get(&url)
-                .header(
-                    crate::backend_client::HSK_HEADER_ACTOR_ID,
-                    crate::backend_client::DOC_ACTOR_ID,
-                )
-                .header(
-                    crate::backend_client::HSK_HEADER_KERNEL_TASK_RUN_ID,
-                    format!("native-editor-backlinks-{document_id}"),
-                )
-                .header(
-                    crate::backend_client::HSK_HEADER_SESSION_RUN_ID,
-                    format!("native-editor-wikilinks-{}", std::process::id()),
-                )
-                .timeout(Duration::from_secs(5))
-                ).send()
-                .await
-                .map_err(|e| WikilinkError::NetworkError(format!("backlinks fetch failed: {e}")))?;
+            let response = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account,
+                client
+                    .get(&url)
+                    .header(
+                        crate::backend_client::HSK_HEADER_ACTOR_ID,
+                        crate::backend_client::DOC_ACTOR_ID,
+                    )
+                    .header(
+                        crate::backend_client::HSK_HEADER_KERNEL_TASK_RUN_ID,
+                        format!("native-editor-backlinks-{document_id}"),
+                    )
+                    .header(
+                        crate::backend_client::HSK_HEADER_SESSION_RUN_ID,
+                        format!("native-editor-wikilinks-{}", std::process::id()),
+                    )
+                    .timeout(Duration::from_secs(5)),
+            )
+            .send()
+            .await
+            .map_err(|e| WikilinkError::NetworkError(format!("backlinks fetch failed: {e}")))?;
             let status = response.status();
             // A missing/new document has no inbound edges. Treat that read shape as the same empty
             // projection as a 200 with `backlinks: []`; the panel must never turn an empty backlink

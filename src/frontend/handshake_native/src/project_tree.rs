@@ -364,11 +364,16 @@ impl ProjectTree {
     /// Rebind project-tree loading to the managed backend and immediately reload the current
     /// workspace. Replacing the receiver and incrementing `load_id` through [`Self::spawn_load`]
     /// makes any completion from the former backend stale and unable to restore its error/content.
-    pub fn bind_authenticated_context(&mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) {
+    pub fn bind_authenticated_context(
+        &mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) {
         self.authenticated_context = context;
         self.rx = None;
         self.load_id = self.load_id.wrapping_add(1);
-        self.documents.clear(); self.canvases.clear(); self.bookmarks.clear();
+        self.documents.clear();
+        self.canvases.clear();
+        self.bookmarks.clear();
     }
 
     pub fn set_backend_base_url_for_test(
@@ -402,9 +407,10 @@ impl ProjectTree {
         let (tx, rx): (Sender<LoadResult>, Receiver<LoadResult>) = std::sync::mpsc::channel();
         self.rx = Some(rx);
         runtime.spawn(async move {
-            let payload = load_project_content_authenticated(&backend_base_url, &workspace_id, account)
-                .await
-                .map_err(|e| e.to_string());
+            let payload =
+                load_project_content_authenticated(&backend_base_url, &workspace_id, account)
+                    .await
+                    .map_err(|e| e.to_string());
             // The receiver may have been dropped (the tree was reset again); a send error is benign.
             let _ = tx.send(LoadResult { load_id, payload });
         });
@@ -992,10 +998,15 @@ pub async fn load_project_content(
     load_project_content_authenticated(base_url, workspace_id, None).await
 }
 
-pub async fn load_project_content_authenticated(base_url: &str, workspace_id: &str, account: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Result<LoadedContent, AppError> {
+pub async fn load_project_content_authenticated(
+    base_url: &str,
+    workspace_id: &str,
+    account: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+) -> Result<LoadedContent, AppError> {
     let client = crate::backend_client::shared_http_client();
     let documents = fetch_rich_document_summaries(base_url, workspace_id, account.clone()).await?;
-    let canvases = fetch_summaries(&client, base_url, workspace_id, "canvases", account.clone()).await?;
+    let canvases =
+        fetch_summaries(&client, base_url, workspace_id, "canvases", account.clone()).await?;
     let bookmarks = fetch_bookmarks(&client, base_url, workspace_id, account).await?;
     let documents = documents
         .into_iter()
@@ -1024,7 +1035,8 @@ async fn fetch_rich_document_summaries(
     let client = crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
         crate::backend_client::shared_http_client(),
         base_url,
-    ).with_optional_authenticated_context(account);
+    )
+    .with_optional_authenticated_context(account);
     let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
         "native-project-tree",
         workspace_id,
@@ -1061,9 +1073,14 @@ async fn fetch_bookmarks(
     account: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 ) -> Result<Vec<BookmarkSummary>, AppError> {
     let url = format!("{base_url}/workspaces/{workspace_id}/loom/views/pins?limit=100&offset=0");
-    let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.get(&url).timeout(std::time::Duration::from_secs(5))).send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
+    let resp = crate::local_account::AuthenticatedRequest::new(
+        client.clone(),
+        account,
+        client.get(&url).timeout(std::time::Duration::from_secs(5)),
+    )
+    .send()
+    .await
+    .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
         return Err(AppError::Http(format!(
             "non-success status {}",
@@ -1141,9 +1158,14 @@ async fn fetch_summaries(
     account: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 ) -> Result<Vec<(String, String, Option<String>)>, AppError> {
     let url = format!("{base_url}/workspaces/{workspace_id}/{kind}");
-    let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.get(&url).timeout(std::time::Duration::from_secs(5))).send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
+    let resp = crate::local_account::AuthenticatedRequest::new(
+        client.clone(),
+        account,
+        client.get(&url).timeout(std::time::Duration::from_secs(5)),
+    )
+    .send()
+    .await
+    .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
         return Err(AppError::Http(format!(
             "non-success status {}",

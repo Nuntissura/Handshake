@@ -267,7 +267,6 @@ fn mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve() {
         }),
     );
 
-
     let (mut app, _rt) = tags_shell();
     app.bind_active_project_for_integration_test(&workspace_id);
     app.set_tags_backend_base_url_for_test(live.base.clone());

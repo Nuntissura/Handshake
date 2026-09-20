@@ -490,13 +490,21 @@ impl CodeNavClient {
         }
     }
 
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         self.authenticated_context = context;
         self
     }
 
-    pub fn find_notes_backend(&self) -> std::sync::Arc<dyn crate::interop::cross_ref::FindNotesSearch> {
-        std::sync::Arc::new(crate::interop::cross_ref::FindNotesHttp::new(self.base_url.clone()).with_authenticated_context(self.authenticated_context.clone()))
+    pub fn find_notes_backend(
+        &self,
+    ) -> std::sync::Arc<dyn crate::interop::cross_ref::FindNotesSearch> {
+        std::sync::Arc::new(
+            crate::interop::cross_ref::FindNotesHttp::new(self.base_url.clone())
+                .with_authenticated_context(self.authenticated_context.clone()),
+        )
     }
 
     /// The production client against the hardcoded backend base URL.
@@ -525,7 +533,13 @@ impl CodeNavClient {
             ("prefix".to_owned(), prefix.to_owned()),
             ("limit".to_owned(), limit.to_string()),
         ];
-        let v = code_nav_get_authenticated(&url, &query, &format!("lookup-{workspace_id}"), self.authenticated_context.clone()).await?;
+        let v = code_nav_get_authenticated(
+            &url,
+            &query,
+            &format!("lookup-{workspace_id}"),
+            self.authenticated_context.clone(),
+        )
+        .await?;
         let parsed: CodeSymbolLookupResponse =
             serde_json::from_value(v).map_err(|e| AppError::Parse(e.to_string()))?;
         Ok(parsed.matches)
@@ -548,7 +562,13 @@ impl CodeNavClient {
             ("path".to_owned(), path.to_owned()),
             ("limit".to_owned(), limit.to_string()),
         ];
-        let v = code_nav_get_authenticated(&url, &query, &format!("lookup-path-{workspace_id}"), self.authenticated_context.clone()).await?;
+        let v = code_nav_get_authenticated(
+            &url,
+            &query,
+            &format!("lookup-path-{workspace_id}"),
+            self.authenticated_context.clone(),
+        )
+        .await?;
         let parsed: CodeSymbolLookupResponse =
             serde_json::from_value(v).map_err(|e| AppError::Parse(e.to_string()))?;
         Ok(parsed.matches)
@@ -563,7 +583,13 @@ impl CodeNavClient {
             self.base_url,
             urlencode(entity_id)
         );
-        let v = code_nav_get_authenticated(&url, &[], &format!("symbol-{entity_id}"), self.authenticated_context.clone()).await?;
+        let v = code_nav_get_authenticated(
+            &url,
+            &[],
+            &format!("symbol-{entity_id}"),
+            self.authenticated_context.clone(),
+        )
+        .await?;
         serde_json::from_value(v).map_err(|e| AppError::Parse(e.to_string()))
     }
 
@@ -578,7 +604,13 @@ impl CodeNavClient {
             self.base_url,
             urlencode(entity_id)
         );
-        let v = code_nav_get_authenticated(&url, &[], &format!("references-{entity_id}"), self.authenticated_context.clone()).await?;
+        let v = code_nav_get_authenticated(
+            &url,
+            &[],
+            &format!("references-{entity_id}"),
+            self.authenticated_context.clone(),
+        )
+        .await?;
         serde_json::from_value(v).map_err(|e| AppError::Parse(e.to_string()))
     }
 
@@ -601,7 +633,13 @@ impl CodeNavClient {
             ("content_hash".to_owned(), content_hash.to_owned()),
             ("parser_version".to_owned(), parser_version.to_owned()),
         ];
-        let v = code_nav_get_authenticated(&url, &query, &format!("lens-{workspace_id}"), self.authenticated_context.clone()).await?;
+        let v = code_nav_get_authenticated(
+            &url,
+            &query,
+            &format!("lens-{workspace_id}"),
+            self.authenticated_context.clone(),
+        )
+        .await?;
         serde_json::from_value(v).map_err(|e| AppError::Parse(e.to_string()))
     }
 }

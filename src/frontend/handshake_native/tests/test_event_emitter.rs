@@ -2047,7 +2047,8 @@ fn event_emitter_native_editor_round_trip() {
     }));
     app.set_native_editor_participant_actor_id(handshake_native::event_emitter::DEFAULT_ACTOR_ID)
         .expect("MT-036 proof binds the contract-required native_editor_human actor before mount");
-    app.bind_initial_account(managed_backend.account_context.clone()).expect("bind explicit proof account");
+    app.bind_initial_account(managed_backend.account_context.clone())
+        .expect("bind explicit proof account");
     app.set_backend_base_url_for_test(&base, runtime.handle().clone());
     app.set_active_project_id_for_test(workspace.clone());
     assert!(
@@ -2265,17 +2266,20 @@ fn event_emitter_native_editor_round_trip() {
     let (event_ids, trace_id, _ledger_rows) = runtime.block_on(async {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
         let matching = loop {
-            let response = managed_backend.authenticated(reqwest::Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(3))
-                .timeout(std::time::Duration::from_secs(8))
-                .build()
-                .expect("build bounded MT-036 poll client")
-                .get(format!("{base}/api/flight_recorder"))
-                // Account identity and native channel credentials are attached independently.
-                // MT-111 / AC-111-3: `actor_id` is no longer client authority, so it is no longer a
-                // usable client-side filter either - the durable attribution is server-derived from
-                // the authenticated account. Scope by workspace (the ownership boundary) instead.
-                .query(&[("wsid", workspace.as_str()), ("event_type", "system")]))
+            let response = managed_backend
+                .authenticated(
+                    reqwest::Client::builder()
+                        .connect_timeout(std::time::Duration::from_secs(3))
+                        .timeout(std::time::Duration::from_secs(8))
+                        .build()
+                        .expect("build bounded MT-036 poll client")
+                        .get(format!("{base}/api/flight_recorder"))
+                        // Account identity and native channel credentials are attached independently.
+                        // MT-111 / AC-111-3: `actor_id` is no longer client authority, so it is no longer a
+                        // usable client-side filter either - the durable attribution is server-derived from
+                        // the authenticated account. Scope by workspace (the ownership boundary) instead.
+                        .query(&[("wsid", workspace.as_str()), ("event_type", "system")]),
+                )
                 .send()
                 .await
                 .expect("GET flight recorder");

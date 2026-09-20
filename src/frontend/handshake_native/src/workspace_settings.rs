@@ -1159,7 +1159,13 @@ pub struct SettingsClient {
 }
 
 impl SettingsClient {
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
+    }
 
     /// Build a client against `base_url` (e.g. [`crate::backend_client::BACKEND_BASE_URL`]) bridging
     /// onto `runtime`.
@@ -1206,12 +1212,14 @@ impl SettingsTransport for SettingsClient {
         let client = self.client.clone();
         let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account.clone(), client
-                .get(&url)
-                .timeout(REQUEST_TIMEOUT))
-                .send()
-                .await
-                .map_err(|e| SettingsTransportError(e.to_string()))?;
+            let resp = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account.clone(),
+                client.get(&url).timeout(REQUEST_TIMEOUT),
+            )
+            .send()
+            .await
+            .map_err(|e| SettingsTransportError(e.to_string()))?;
             if !resp.status().is_success() {
                 return Err(SettingsTransportError(format!(
                     "GET settings non-success status {}",
@@ -1240,13 +1248,17 @@ impl SettingsTransport for SettingsClient {
         let request_body = serde_json::json!({ "settings_state": settings_state });
         let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account.clone(), client
-                .put(&url)
-                .timeout(REQUEST_TIMEOUT)
-                .json(&request_body))
-                .send()
-                .await
-                .map_err(|e| SettingsTransportError(e.to_string()))?;
+            let resp = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account.clone(),
+                client
+                    .put(&url)
+                    .timeout(REQUEST_TIMEOUT)
+                    .json(&request_body),
+            )
+            .send()
+            .await
+            .map_err(|e| SettingsTransportError(e.to_string()))?;
             if !resp.status().is_success() {
                 return Err(SettingsTransportError(format!(
                     "PUT settings non-success status {}",

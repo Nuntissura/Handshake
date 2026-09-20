@@ -792,7 +792,13 @@ pub struct WorkbenchLayoutClient {
 }
 
 impl WorkbenchLayoutClient {
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
+    }
 
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     ///
@@ -1878,12 +1884,14 @@ impl LayoutTransport for WorkbenchLayoutClient {
         let client = self.client.clone();
         let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account.clone(), client
-                .get(&url)
-                .timeout(LAYOUT_REQUEST_TIMEOUT))
-                .send()
-                .await
-                .map_err(|e| LayoutError::Transport(e.to_string()))?;
+            let resp = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account.clone(),
+                client.get(&url).timeout(LAYOUT_REQUEST_TIMEOUT),
+            )
+            .send()
+            .await
+            .map_err(|e| LayoutError::Transport(e.to_string()))?;
             if !resp.status().is_success() {
                 return Err(LayoutError::Transport(format!(
                     "GET layout non-success status {}",
@@ -1915,13 +1923,17 @@ impl LayoutTransport for WorkbenchLayoutClient {
         let request_body = serde_json::json!({ "layout_state": layout_state });
         let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account.clone(), client
-                .put(&url)
-                .timeout(LAYOUT_REQUEST_TIMEOUT)
-                .json(&request_body))
-                .send()
-                .await
-                .map_err(|e| LayoutError::Transport(e.to_string()))?;
+            let resp = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account.clone(),
+                client
+                    .put(&url)
+                    .timeout(LAYOUT_REQUEST_TIMEOUT)
+                    .json(&request_body),
+            )
+            .send()
+            .await
+            .map_err(|e| LayoutError::Transport(e.to_string()))?;
             if !resp.status().is_success() {
                 return Err(LayoutError::Transport(format!(
                     "PUT layout non-success status {}",
@@ -2846,7 +2858,13 @@ pub struct CanvasBoardClient {
 }
 
 impl CanvasBoardClient {
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
+    }
 
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
@@ -3314,7 +3332,8 @@ impl CanvasBoardClient {
                 crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
                     self.client.clone(),
                     self.base_url.clone(),
-                ).with_optional_authenticated_context(self.authenticated_context.clone());
+                )
+                .with_optional_authenticated_context(self.authenticated_context.clone());
             let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
                 format!("stage-canvas-reconcile-{canvas_block_id}"),
                 document_id,
@@ -7200,22 +7219,26 @@ pub async fn code_nav_get_authenticated(
 ) -> Result<serde_json::Value, AppError> {
     let client = shared_http_client();
     let context = context.ok_or_else(|| AppError::Http("Account login required".into()))?;
-    let request = context.authorize(client
-        .get(url)
-        .query(query)
-        .header(HSK_HEADER_ACTOR_ID, CODE_NAV_ACTOR_ID)
-        .header(HSK_HEADER_ACTOR_KIND, CODE_NAV_ACTOR_KIND)
-        .header(
-            HSK_HEADER_KERNEL_TASK_RUN_ID,
-            format!("native-editor-{run_id}"),
+    let request = context
+        .authorize(
+            client
+                .get(url)
+                .query(query)
+                .header(HSK_HEADER_ACTOR_ID, CODE_NAV_ACTOR_ID)
+                .header(HSK_HEADER_ACTOR_KIND, CODE_NAV_ACTOR_KIND)
+                .header(
+                    HSK_HEADER_KERNEL_TASK_RUN_ID,
+                    format!("native-editor-{run_id}"),
+                )
+                .header(
+                    HSK_HEADER_SESSION_RUN_ID,
+                    format!("native-editor-session-{run_id}"),
+                )
+                .timeout(Duration::from_secs(5)),
         )
-        .header(
-            HSK_HEADER_SESSION_RUN_ID,
-            format!("native-editor-session-{run_id}"),
-        )
-        .timeout(Duration::from_secs(5))
-        ).map_err(AppError::Http)?;
-    let resp = client.execute(request)
+        .map_err(AppError::Http)?;
+    let resp = client
+        .execute(request)
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     context.observe_status(resp.status());
@@ -7225,8 +7248,13 @@ pub async fn code_nav_get_authenticated(
             resp.status()
         )));
     }
-    let value = resp.json().await.map_err(|e| AppError::Parse(e.to_string()))?;
-    if !context.is_active() { return Err(AppError::Http("Account session is no longer active".into())); }
+    let value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))?;
+    if !context.is_active() {
+        return Err(AppError::Http("Account session is no longer active".into()));
+    }
     Ok(value)
 }
 
@@ -9679,7 +9707,13 @@ impl WorkspaceSearchClient {
         }
     }
 
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
+    }
 
     pub fn production(runtime: tokio::runtime::Handle) -> Self {
         Self::new(BACKEND_BASE_URL, runtime)
@@ -9825,13 +9859,18 @@ impl WorkspaceSearchClient {
         let account = self.authenticated_context.clone();
         let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
-            let result = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.get(&url)).json()
-                .await
-                .map_err(|e| e.to_string())
-                .and_then(|v| {
-                    parse_bookmark_response(&v, &expected_workspace_id, true)
-                        .map(|(blob, receipt)| (blob, None, receipt))
-                });
+            let result = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account,
+                client.get(&url),
+            )
+            .json()
+            .await
+            .map_err(|e| e.to_string())
+            .and_then(|v| {
+                parse_bookmark_response(&v, &expected_workspace_id, true)
+                    .map(|(blob, receipt)| (blob, None, receipt))
+            });
             operation_handle.tick();
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back(FindInFilesDelivery {
@@ -9875,13 +9914,18 @@ impl WorkspaceSearchClient {
         let account = self.authenticated_context.clone();
         let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
-            let result = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.put(&spec.url).json(&body)).json()
-                .await
-                .map_err(|e| e.to_string())
-                .and_then(|v| {
-                    parse_bookmark_response(&v, &expected_workspace_id, false)
-                        .map(|(blob, receipt)| (blob, Some(status), receipt))
-                });
+            let result = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account,
+                client.put(&spec.url).json(&body),
+            )
+            .json()
+            .await
+            .map_err(|e| e.to_string())
+            .and_then(|v| {
+                parse_bookmark_response(&v, &expected_workspace_id, false)
+                    .map(|(blob, receipt)| (blob, Some(status), receipt))
+            });
             operation_handle.tick();
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back(FindInFilesDelivery {
@@ -10109,7 +10153,10 @@ impl RichDocClient {
         Self::new(BACKEND_BASE_URL, runtime)
     }
 
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         self.authenticated_context = context;
         self
     }
@@ -10121,7 +10168,8 @@ impl RichDocClient {
         crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
             self.client.clone(),
             self.base_url.clone(),
-        ).with_optional_authenticated_context(self.authenticated_context.clone())
+        )
+        .with_optional_authenticated_context(self.authenticated_context.clone())
     }
 
     /// Run the PREVIEW pipeline off the UI thread: for each `document_id`, load the doc, walk its
@@ -10424,7 +10472,10 @@ impl RichDocSaveBackend {
         }
     }
 
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         self.client = self.client.with_optional_authenticated_context(context);
         self
     }
@@ -10590,7 +10641,10 @@ impl RichDocDraftBackend {
         }
     }
 
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         self.client = self.client.with_optional_authenticated_context(context);
         self
     }
@@ -13118,7 +13172,10 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let client = RichDocClient::new("http://127.0.0.1:9", runtime.handle().clone()).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:9")));
+        let client = RichDocClient::new("http://127.0.0.1:9", runtime.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(
+                "http://127.0.0.1:9",
+            )));
         let cell: FindReplaceCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
         client.apply_plans(
             "WS-2",

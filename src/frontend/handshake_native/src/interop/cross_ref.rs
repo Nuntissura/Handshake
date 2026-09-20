@@ -928,7 +928,13 @@ pub struct FindNotesHttp {
 }
 
 impl FindNotesHttp {
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
+    }
 
     /// Build against an explicit base URL (a test points it at a live backend).
     pub fn new(base_url: impl Into<String>) -> Self {
@@ -965,10 +971,14 @@ impl FindNotesSearch for FindNotesHttp {
         let account = self.authenticated_context.clone();
         let body = body.clone();
         Box::pin(async move {
-            let response =
-                crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.post(&url).json(&body)).send().await.map_err(|e| {
-                    CrossRefError::Backend(format!("find-notes search failed: {e}"))
-                })?;
+            let response = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account,
+                client.post(&url).json(&body),
+            )
+            .send()
+            .await
+            .map_err(|e| CrossRefError::Backend(format!("find-notes search failed: {e}")))?;
             let status = response.status();
             if status.as_u16() == 404 {
                 return Err(CrossRefError::NotFound("loom search-v2".to_owned()));
@@ -994,7 +1004,8 @@ impl FindNotesSearch for FindNotesHttp {
         let client = crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
             self.client.clone(),
             self.base_url.clone(),
-        ).with_optional_authenticated_context(self.authenticated_context.clone());
+        )
+        .with_optional_authenticated_context(self.authenticated_context.clone());
         let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
             "mt034-note-ref-readback",
             document_id,
@@ -1051,7 +1062,14 @@ impl FindNotesSearch for FindNotesHttp {
         let account = self.authenticated_context.clone();
         let block_id = block_id.to_owned();
         Box::pin(async move {
-            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.get(&url)).send().await.map_err(|error| {
+            let response = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account,
+                client.get(&url),
+            )
+            .send()
+            .await
+            .map_err(|error| {
                 CrossRefError::Backend(format!(
                     "exact Loom block {block_id} readback failed: {error}"
                 ))

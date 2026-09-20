@@ -50,10 +50,10 @@ mod backend_proof_support;
 use backend_proof_support::{require_live_backend, LiveBackend};
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
-use handshake_native::backend_client::HealthInfo;
 use handshake_native::app::{
     MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID, MT064_SHARED_SELECTION_STATE_AUTHOR_ID,
 };
+use handshake_native::backend_client::HealthInfo;
 use handshake_native::fems::memory_proposal::{
     canonical_memory_write_proposal_hash, content_hash_of_selection, fems_class_author_id,
     MemoryClass, FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID, FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
@@ -393,8 +393,9 @@ fn receipt_observed_token(tree: &serde_json::Value, receipt_id: u64) -> serde_js
             panic!("receipt {receipt_id} must carry an observed_value proving its own effect")
         })
         .to_owned();
-    serde_json::from_str(&observed)
-        .unwrap_or_else(|error| panic!("receipt {receipt_id} observed_value is a typed token: {error} ({observed})"))
+    serde_json::from_str(&observed).unwrap_or_else(|error| {
+        panic!("receipt {receipt_id} observed_value is a typed token: {error} ({observed})")
+    })
 }
 
 /// The bounded action-specific `terminal_detail` the durable observer published for `receipt_id`.
@@ -404,8 +405,9 @@ fn receipt_terminal_detail(tree: &serde_json::Value, receipt_id: u64) -> serde_j
         .as_str()
         .unwrap_or_else(|| panic!("receipt {receipt_id} observer token carries terminal_detail"))
         .to_owned();
-    serde_json::from_str(&detail)
-        .unwrap_or_else(|error| panic!("receipt {receipt_id} terminal_detail is typed JSON: {error} ({detail})"))
+    serde_json::from_str(&detail).unwrap_or_else(|error| {
+        panic!("receipt {receipt_id} terminal_detail is typed JSON: {error} ({detail})")
+    })
 }
 
 /// Drive ONE canonical action, then bind it to an action-specific completion predicate evaluated
@@ -429,7 +431,8 @@ fn steer_and_bind(
     );
     let observation = argus.latest_terminal_observation();
     assert_eq!(
-        observation.receipt_status, "applied",
+        observation.receipt_status,
+        "applied",
         "canonical action '{author_id}' must terminalize APPLIED against its own completion \
          predicate '{predicate_id}', not '{}'; receipt={}",
         observation.receipt_status,
@@ -599,8 +602,10 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         },
     );
     {
-        let detail =
-            receipt_terminal_detail(&select_all_observation.after, select_all_observation.receipt_id);
+        let detail = receipt_terminal_detail(
+            &select_all_observation.after,
+            select_all_observation.receipt_id,
+        );
         assert_ne!(
             detail["prior_selection_state"], detail["observed_selection_state"],
             "the select-all receipt must prove the selection CHANGED, not that it was already full"

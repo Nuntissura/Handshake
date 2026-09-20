@@ -1473,7 +1473,10 @@ fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
     );
 
     // The REAL MT-019 daily-note transport issues PUT /loom/journals/:date against this isolated workspace.
-    let journal_backend = Arc::new(ReqwestJournalBackend::new(live.base.clone()).with_authenticated_context(Some(live.account_context.clone())));
+    let journal_backend = Arc::new(
+        ReqwestJournalBackend::new(live.base.clone())
+            .with_authenticated_context(Some(live.account_context.clone())),
+    );
     let svc =
         CalendarInteropService::with_base_url(live.base.clone(), &workspace_id, journal_backend);
     // Call the SAME production open_or_create_daily_note twice for one date against the REAL route.

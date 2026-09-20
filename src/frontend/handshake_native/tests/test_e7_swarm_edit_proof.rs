@@ -544,13 +544,21 @@ fn terminate_child_tree_bounded(child: &mut std::process::Child, budget: Duratio
 
 /// Prefer the product workspace DELETE while the backend is still alive so its Flight Recorder purge
 /// runs. SQL cleanup below remains the crash-safe fallback and canonical residue assertion.
-fn cleanup_timeout_workspace_via_api(account: Option<&interconnect_support::backend_proof_support::CleanupAccount>, path: &Path, budget: Duration) -> bool {
-    let Some(account) = account else { return false; };
+fn cleanup_timeout_workspace_via_api(
+    account: Option<&interconnect_support::backend_proof_support::CleanupAccount>,
+    path: &Path,
+    budget: Duration,
+) -> bool {
+    let Some(account) = account else {
+        return false;
+    };
     let Some(workspace_id) = timeout_workspace_id(path) else {
         return false;
     };
     let base = &account.base;
-    if timeout_backend_base(path).as_deref() != Some(base.as_str()) { return false; }
+    if timeout_backend_base(path).as_deref() != Some(base.as_str()) {
+        return false;
+    }
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -573,7 +581,12 @@ fn cleanup_timeout_workspace_via_api(account: Option<&interconnect_support::back
 /// Crash/timeout cleanup by exact workspace id or, if termination landed between workspace creation
 /// and sidecar publication, by the attempt-unique workspace name. Every request and the whole pass
 /// are bounded by the caller's deadline.
-fn cleanup_timeout_workspace(account: Option<&interconnect_support::backend_proof_support::CleanupAccount>, path: &Path, attempt_id: &str, budget: Duration) {
+fn cleanup_timeout_workspace(
+    account: Option<&interconnect_support::backend_proof_support::CleanupAccount>,
+    path: &Path,
+    attempt_id: &str,
+    budget: Duration,
+) {
     cleanup_timeout_workspace_before(account, path, attempt_id, Instant::now() + budget, None);
 }
 
@@ -585,7 +598,8 @@ fn cleanup_timeout_workspace_at_base(
     backend_base: &str,
 ) {
     cleanup_timeout_workspace_before(
-        account, path,
+        account,
+        path,
         attempt_id,
         Instant::now() + budget,
         Some(backend_base),
@@ -755,7 +769,10 @@ fn probe_timeout_workspace_exists_before(
     absolute_deadline: Instant,
 ) -> Mt128WorkspaceProbe {
     let Some(account) = account else {
-        return Mt128WorkspaceProbe { exists: false, helper_reaped: true };
+        return Mt128WorkspaceProbe {
+            exists: false,
+            helper_reaped: true,
+        };
     };
     let Some(workspace_id) = timeout_workspace_id(path) else {
         return Mt128WorkspaceProbe {
@@ -770,7 +787,12 @@ fn probe_timeout_workspace_exists_before(
             helper_reaped: true,
         };
     };
-    if base != account.base { return Mt128WorkspaceProbe { exists: false, helper_reaped: true }; }
+    if base != account.base {
+        return Mt128WorkspaceProbe {
+            exists: false,
+            helper_reaped: true,
+        };
+    }
     let attempt_name = format!("mt043-{attempt_id}");
     let budget = absolute_deadline
         .checked_duration_since(Instant::now())
@@ -785,8 +807,14 @@ fn probe_timeout_workspace_exists_before(
         };
     };
     let exists = runtime.block_on(async {
-        let request = account.context.authorize_builder(reqwest::Client::new(), reqwest::Client::new()
-            .get(format!("{base}/workspaces"))).expect("owned witness account").timeout(budget)
+        let request = account
+            .context
+            .authorize_builder(
+                reqwest::Client::new(),
+                reqwest::Client::new().get(format!("{base}/workspaces")),
+            )
+            .expect("owned witness account")
+            .timeout(budget)
             .header(HSK_HEADER_ACTOR_ID, "mt128-pre-reap-witness")
             .header(HSK_HEADER_ACTOR_KIND, "human")
             .header(HSK_HEADER_KERNEL_TASK_RUN_ID, "mt128-pre-reap-witness")
@@ -796,7 +824,9 @@ fn probe_timeout_workspace_exists_before(
         let Ok(Ok(response)) = tokio::time::timeout(budget, request).await else {
             return false;
         };
-        if !response.status().is_success() { return false; }
+        if !response.status().is_success() {
+            return false;
+        }
         let Ok(listed) = response.json::<serde_json::Value>().await else {
             return false;
         };
@@ -851,7 +881,12 @@ fn mt128_cleanup_timed_out_attempt(
     // delayed probe cannot turn the captured PID set into a PID-reuse kill target.
     let probe_deadline = (Instant::now() + Duration::from_millis(500)).min(absolute_deadline);
     let pre_reap_probe = std::panic::catch_unwind(|| {
-        probe_timeout_workspace_exists_before(account, workspace_sidecar, attempt_id, probe_deadline)
+        probe_timeout_workspace_exists_before(
+            account,
+            workspace_sidecar,
+            attempt_id,
+            probe_deadline,
+        )
     })
     .unwrap_or(Mt128WorkspaceProbe {
         exists: false,
@@ -864,7 +899,13 @@ fn mt128_cleanup_timed_out_attempt(
         .unwrap_or(absolute_deadline);
     let reap = terminate_observed_child_tree_before(child, tree_before, reap_deadline);
     let workspace_cleanup = std::panic::catch_unwind(|| {
-        cleanup_timeout_workspace_before(account, workspace_sidecar, attempt_id, absolute_deadline, None)
+        cleanup_timeout_workspace_before(
+            account,
+            workspace_sidecar,
+            attempt_id,
+            absolute_deadline,
+            None,
+        )
     });
     let workspace_cleanup_verified = workspace_cleanup.is_ok();
     Mt128TimeoutCleanup {
@@ -2449,7 +2490,10 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
     let session_token = native_binding.token().to_owned();
     let live = interconnect_support::require_reachable_backend();
     interconnect_support::backend_proof_support::publish_cleanup_account(&live, &nonce);
-    let cleanup_account = interconnect_support::backend_proof_support::CleanupAccount { base: live.base.clone(), context: live.account_context.clone() };
+    let cleanup_account = interconnect_support::backend_proof_support::CleanupAccount {
+        base: live.base.clone(),
+        context: live.account_context.clone(),
+    };
     let title = format!("SwarmProofNote-{nonce}");
     let workspace = live.create_workspace(&format!("mt043-{nonce}"));
     let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
@@ -3827,7 +3871,12 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
             "MT-043 workspace cascade left the {label} document {cascaded_document_id} loadable"
         );
     }
-    cleanup_timeout_workspace(Some(&cleanup_account), &timeout_workspace_sidecar, &nonce, Duration::from_secs(2));
+    cleanup_timeout_workspace(
+        Some(&cleanup_account),
+        &timeout_workspace_sidecar,
+        &nonce,
+        Duration::from_secs(2),
+    );
 
     // Exercise the crash window where the child created its uniquely named workspace but was killed
     // before publishing the sidecar. The bounded product-API fallback must find that canonical workspace by
@@ -3844,7 +3893,8 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
         .join(format!("never-published-{nonce}.txt"));
     assert!(!absent_probe_sidecar.exists());
     cleanup_timeout_workspace_at_base(
-        Some(&cleanup_account), &absent_probe_sidecar,
+        Some(&cleanup_account),
+        &absent_probe_sidecar,
         &timeout_probe_attempt,
         Duration::from_secs(2),
         &live.base,
@@ -3905,7 +3955,9 @@ fn swarm_edit_live_conflict_merge_search_and_receipts() {
     let parent_pid = std::process::id().to_string();
     let timeout_workspace_sidecar = timeout_workspace_path(&parent_pid);
     if timeout_workspace_sidecar.exists() {
-        cleanup_timeout_workspace(None, &timeout_workspace_sidecar,
+        cleanup_timeout_workspace(
+            None,
+            &timeout_workspace_sidecar,
             &attempt_id,
             Duration::from_secs(2),
         );
@@ -3918,7 +3970,8 @@ fn swarm_edit_live_conflict_merge_search_and_receipts() {
         );
         panic!("resolve MT-043 test binary: {error}");
     });
-    let mut cleanup_transfer = interconnect_support::backend_proof_support::CleanupAccountTransfer::new(&attempt_id);
+    let mut cleanup_transfer =
+        interconnect_support::backend_proof_support::CleanupAccountTransfer::new(&attempt_id);
     let mut command = Command::new(executable);
     cleanup_transfer.configure_child(&mut command);
     command
@@ -3952,7 +4005,9 @@ fn swarm_edit_live_conflict_merge_search_and_receipts() {
     let mut cleanup_transfer_failed = false;
     let status = loop {
         if !cleanup_transfer_failed {
-            cleanup_transfer_failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cleanup_transfer.poll())).is_err();
+            cleanup_transfer_failed =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cleanup_transfer.poll()))
+                    .is_err();
         }
         match child.try_wait() {
             Ok(Some(status)) => break status,
@@ -3965,7 +4020,8 @@ fn swarm_edit_live_conflict_merge_search_and_receipts() {
                     .checked_sub(MT128_DIAGNOSTIC_RESERVE)
                     .unwrap_or(hard_deadline);
                 let cleanup = mt128_cleanup_timed_out_attempt(
-                    cleanup_transfer.account.as_ref(), &mut child,
+                    cleanup_transfer.account.as_ref(),
+                    &mut child,
                     &attempt_id,
                     &progress_path,
                     &timeout_workspace_sidecar,
@@ -4053,13 +4109,17 @@ fn swarm_edit_live_conflict_merge_search_and_receipts() {
                 panic!("{diagnostic}");
             }
             Err(error) => {
-                let _ = cleanup_timeout_workspace_via_api(cleanup_transfer.account.as_ref(), &timeout_workspace_sidecar,
+                let _ = cleanup_timeout_workspace_via_api(
+                    cleanup_transfer.account.as_ref(),
+                    &timeout_workspace_sidecar,
                     Duration::from_secs(1),
                 );
                 let child_reaped = terminate_child_tree_bounded(&mut child, Duration::from_secs(1));
                 let progress = read_mt128_progress(&progress_path, &attempt_id);
                 let last_gate = progress.last_gate.as_deref().unwrap_or("NO_GATE_REPORTED");
-                cleanup_timeout_workspace(cleanup_transfer.account.as_ref(), &timeout_workspace_sidecar,
+                cleanup_timeout_workspace(
+                    cleanup_transfer.account.as_ref(),
+                    &timeout_workspace_sidecar,
                     &attempt_id,
                     Duration::from_secs(2),
                 );
@@ -4087,9 +4147,14 @@ fn swarm_edit_live_conflict_merge_search_and_receipts() {
     let progress = read_mt128_progress(&progress_path, &attempt_id);
     let last_gate = progress.last_gate.as_deref().unwrap_or("NO_GATE_REPORTED");
     if !status.success() {
-        let _ =
-            cleanup_timeout_workspace_via_api(cleanup_transfer.account.as_ref(), &timeout_workspace_sidecar, Duration::from_secs(1));
-        cleanup_timeout_workspace(cleanup_transfer.account.as_ref(), &timeout_workspace_sidecar,
+        let _ = cleanup_timeout_workspace_via_api(
+            cleanup_transfer.account.as_ref(),
+            &timeout_workspace_sidecar,
+            Duration::from_secs(1),
+        );
+        cleanup_timeout_workspace(
+            cleanup_transfer.account.as_ref(),
+            &timeout_workspace_sidecar,
             &attempt_id,
             Duration::from_secs(2),
         );
@@ -4104,7 +4169,10 @@ fn swarm_edit_live_conflict_merge_search_and_receipts() {
         child_started.elapsed().as_millis(),
         child_budget.as_millis(),
     );
-    assert!(!cleanup_transfer_failed && cleanup_transfer.account.is_some(), "owned cleanup authority transfer was not verified");
+    assert!(
+        !cleanup_transfer_failed && cleanup_transfer.account.is_some(),
+        "owned cleanup authority transfer was not verified"
+    );
     let proof = std::fs::read_to_string(attempt_proof_log_path(&attempt_id))
         .expect("bounded live child must leave a readable attempt-scoped proof artifact");
     assert!(

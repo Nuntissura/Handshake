@@ -2395,10 +2395,7 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
             .groups
             .iter()
             .find(|lane| lane.key == tag_a)
-            .is_none_or( |lane| !lane
-                .blocks
-                .iter()
-                .any(|b| b.block_id == alpha)),
+            .is_none_or(|lane| !lane.blocks.iter().any(|b| b.block_id == alpha)),
         "backend source lane loses the moved card (and may disappear when empty)"
     );
     assert!(

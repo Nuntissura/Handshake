@@ -997,9 +997,10 @@ pub fn flight_recorder_session_token() -> Result<String, SessionBindingUnavailab
         path: display.clone(),
         reason,
     };
-    let bytes = std::fs::read(&path).map_err(|error| unavailable(format!("read failed: {error}")))?;
-    let binding: JsonValue =
-        serde_json::from_slice(&bytes).map_err(|error| unavailable(format!("parse failed: {error}")))?;
+    let bytes =
+        std::fs::read(&path).map_err(|error| unavailable(format!("read failed: {error}")))?;
+    let binding: JsonValue = serde_json::from_slice(&bytes)
+        .map_err(|error| unavailable(format!("parse failed: {error}")))?;
     let token = binding
         .get("token")
         .and_then(JsonValue::as_str)
@@ -1069,7 +1070,10 @@ impl RuntimeChatLedgerTransport {
         }
     }
 
-    pub fn with_authenticated_context(mut self, context: Option<Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         self.client = crate::backend_client::shared_http_client();
         self.authenticated_context = context;
         self
@@ -1141,9 +1145,17 @@ impl EventLedgerTransport for RuntimeChatLedgerTransport {
         let body = self.build_post_body(&event);
         let context = self.authenticated_context.clone();
         Box::pin(async move {
-            let context = context.ok_or_else(|| EmitError::MissingSessionBinding { path: String::new(), reason: "Account login required".into() })?;
-            let request = context.authorize(client.post(&url).json(&body)).map_err(EmitError::Transport)?;
-            let resp = client.execute(request).await.map_err(|e| EmitError::Transport(format!("network: {e}")))?;
+            let context = context.ok_or_else(|| EmitError::MissingSessionBinding {
+                path: String::new(),
+                reason: "Account login required".into(),
+            })?;
+            let request = context
+                .authorize(client.post(&url).json(&body))
+                .map_err(EmitError::Transport)?;
+            let resp = client
+                .execute(request)
+                .await
+                .map_err(|e| EmitError::Transport(format!("network: {e}")))?;
             context.observe_status(resp.status());
             let status = resp.status();
             if status.is_success() {
@@ -1288,10 +1300,14 @@ impl NativeEditorEventEmitter {
     }
 
     pub fn production_with_authenticated_context(
-        workspace_id: impl Into<String>, base_url: impl Into<String>, runtime: tokio::runtime::Handle,
-        error_ring: ErrorRing, context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+        workspace_id: impl Into<String>,
+        base_url: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        error_ring: ErrorRing,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     ) -> Self {
-        let transport = Arc::new(RuntimeChatLedgerTransport::new(base_url).with_authenticated_context(context));
+        let transport =
+            Arc::new(RuntimeChatLedgerTransport::new(base_url).with_authenticated_context(context));
         Self::new_with_error_ring(workspace_id, transport, Some(runtime), error_ring)
     }
 

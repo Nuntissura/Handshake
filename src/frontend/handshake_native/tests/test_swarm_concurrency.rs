@@ -91,7 +91,10 @@ fn render_action_frame(
         .drain_revalidated_into_events(&pre_render);
     let dispatched = events.len();
 
-    let input = egui::RawInput { events, ..Default::default() };
+    let input = egui::RawInput {
+        events,
+        ..Default::default()
+    };
     let _ = ctx.run(input, |ctx| app.ui(ctx));
     // Production acknowledges against refresh_mcp_snapshot's separate, side-effect-free capture pass,
     // not the action frame's tree. Controls such as the search rail consume SetValue after drawing and
@@ -986,7 +989,10 @@ fn test_channel_busy_retry_uses_fresh_snapshot() {
             .unwrap_or_else(|p| p.into_inner())
             .drain_revalidated_into_events(&pre_render);
         assert_eq!(events.len(), 1);
-        let input = egui::RawInput { events, ..Default::default() };
+        let input = egui::RawInput {
+            events,
+            ..Default::default()
+        };
         let _ = ctx.run(input, |ctx| app.ui(ctx));
         let mut post_render = app.capture_mcp_snapshot_for_navigation();
         assert!(set_disabled(&mut post_render, THEME_TOGGLE_AUTHOR_ID));
@@ -994,12 +1000,12 @@ fn test_channel_busy_retry_uses_fresh_snapshot() {
         // Keep the new snapshot locked while the old transaction terminalizes. The waiter can no
         // longer race through a stale clone between acknowledgement and publication.
         {
-        let mut published = snapshot.lock().unwrap_or_else(|p| p.into_inner());
-        channel
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .acknowledge_after_render(&post_render);
-        *published = post_render;
+            let mut published = snapshot.lock().unwrap_or_else(|p| p.into_inner());
+            channel
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .acknowledge_after_render(&post_render);
+            *published = post_render;
         }
 
         let response = waiter.await.expect("fresh-snapshot waiter completed");

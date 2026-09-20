@@ -943,10 +943,9 @@ impl LiveFolderBackend {
                 Some(value) => self.identity(request).json(value),
                 None => self.identity(request),
             };
-            let response = request
-                .send()
-                .await
-                .unwrap_or_else(|error| panic!("requires_surrealdb: {method} {url} failed: {error}"));
+            let response = request.send().await.unwrap_or_else(|error| {
+                panic!("requires_surrealdb: {method} {url} failed: {error}")
+            });
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             (status, text)
@@ -2106,10 +2105,8 @@ fn folder_tree_live_surrealdb_self_seeded_round_trip() {
             // LoomFolder skips serializing None fields, so omission is the canonical response shape for
             // a SurrealDB NULL (an explicit JSON null remains accepted for compatible servers).
             row.get("parent_folder_id")
-                .is_none_or( serde_json::Value::is_null)
-                && row
-                    .get("sort_order")
-                    .is_none_or( serde_json::Value::is_null)
+                .is_none_or(serde_json::Value::is_null)
+                && row.get("sort_order").is_none_or(serde_json::Value::is_null)
         }) {
             break;
         }
@@ -2249,7 +2246,10 @@ fn folder_tree_live_surrealdb_self_seeded_round_trip() {
         }
     });
     let encoded = serde_json::to_vec_pretty(&receipt).expect("encode live SurrealDB seed receipt");
-    assert!(!encoded.is_empty(), "live SurrealDB proof output must be non-zero");
+    assert!(
+        !encoded.is_empty(),
+        "live SurrealDB proof output must be non-zero"
+    );
     std::fs::write(&receipt_path, encoded).expect("write external live SurrealDB seed receipt");
     assert!(
         std::fs::metadata(&receipt_path)

@@ -163,7 +163,13 @@ pub struct ReqwestMetadataBackend {
 }
 
 impl ReqwestMetadataBackend {
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.client = self.client.with_optional_authenticated_context(context); self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.client = self.client.with_optional_authenticated_context(context);
+        self
+    }
 
     /// Build a backend client against `base_url` (e.g. `backend_client::BACKEND_BASE_URL`).
     pub fn new(base_url: impl Into<String>) -> Self {

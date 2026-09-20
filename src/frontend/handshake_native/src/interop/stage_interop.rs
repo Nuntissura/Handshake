@@ -71,7 +71,6 @@ pub const STAGE_CAPTURE_REF_KIND: &str = "stage_capture";
 /// The embed-back read timeout (a bounded timeout so a hung backend cannot stall the editor frame loop).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 
-
 fn sha256_hex(bytes: &[u8]) -> String {
     use std::fmt::Write as _;
 
@@ -799,7 +798,10 @@ impl StageClient {
     }
 
     /// Legacy channel-only compatibility setter; it grants no account authority.
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         self.client = crate::backend_client::shared_http_client();
         self.authenticated_context = context;
         self
@@ -841,9 +843,16 @@ impl StageClient {
             .post(self.url(&path))
             .timeout(REQUEST_TIMEOUT)
             .json(request);
-        let account = self.authenticated_context.as_ref().ok_or_else(|| StageInteropError::Transport("Account login required".into()))?;
-        let request = account.authorize(request_builder).map_err(StageInteropError::Transport)?;
-        let response = self.client.execute(request)
+        let account = self
+            .authenticated_context
+            .as_ref()
+            .ok_or_else(|| StageInteropError::Transport("Account login required".into()))?;
+        let request = account
+            .authorize(request_builder)
+            .map_err(StageInteropError::Transport)?;
+        let response = self
+            .client
+            .execute(request)
             .await
             .map_err(|error| StageInteropError::Transport(error.to_string()))?;
         let status = response.status();
@@ -869,8 +878,15 @@ impl StageClient {
         {
             return Err(StageInteropError::ContentIntegrityMismatch);
         }
-        let artifact = response.json::<StageArtifactRef>().await.map_err(|error| StageInteropError::Transport(format!("decode: {error}")))?;
-        if !account.is_active() { return Err(StageInteropError::Transport("Account session is no longer active".into())); }
+        let artifact = response
+            .json::<StageArtifactRef>()
+            .await
+            .map_err(|error| StageInteropError::Transport(format!("decode: {error}")))?;
+        if !account.is_active() {
+            return Err(StageInteropError::Transport(
+                "Account session is no longer active".into(),
+            ));
+        }
         Ok(artifact)
     }
 
@@ -896,9 +912,16 @@ impl StageClient {
         let path = Self::artifact_path(workspace_id, artifact_id);
         let url = self.url(&path);
         let descriptor_builder = self.client.get(&url).timeout(REQUEST_TIMEOUT);
-        let account = self.authenticated_context.as_ref().ok_or_else(|| StageInteropError::Transport("Account login required".into()))?;
-        let request = account.authorize(descriptor_builder).map_err(StageInteropError::Transport)?;
-        let resp = self.client.execute(request)
+        let account = self
+            .authenticated_context
+            .as_ref()
+            .ok_or_else(|| StageInteropError::Transport("Account login required".into()))?;
+        let request = account
+            .authorize(descriptor_builder)
+            .map_err(StageInteropError::Transport)?;
+        let resp = self
+            .client
+            .execute(request)
             .await
             .map_err(|e| StageInteropError::Transport(e.to_string()))?;
         let status = resp.status();
@@ -946,8 +969,12 @@ impl StageClient {
             .client
             .get(self.url(&content_path))
             .timeout(REQUEST_TIMEOUT);
-        let request = account.authorize(content_builder).map_err(StageInteropError::Transport)?;
-        let mut content_response = self.client.execute(request)
+        let request = account
+            .authorize(content_builder)
+            .map_err(StageInteropError::Transport)?;
+        let mut content_response = self
+            .client
+            .execute(request)
             .await
             .map_err(|error| StageInteropError::Transport(error.to_string()))?;
         if matches!(
@@ -987,7 +1014,11 @@ impl StageClient {
             }
             bytes.extend_from_slice(&chunk);
         }
-        if !account.is_active() { return Err(StageInteropError::Transport("Account session is no longer active".into())); }
+        if !account.is_active() {
+            return Err(StageInteropError::Transport(
+                "Account session is no longer active".into(),
+            ));
+        }
         if artifact.size_bytes != bytes.len() as u64
             || artifact.manifest.size_bytes != artifact.size_bytes
             || artifact.sha256 != artifact.manifest.sha256

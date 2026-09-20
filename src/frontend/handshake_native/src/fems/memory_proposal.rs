@@ -954,12 +954,27 @@ impl HandshakeCoreClient {
     }
 
     /// Legacy channel-only compatibility setter; it grants no account authority.
-    pub fn with_session_token(self, _session_token: impl Into<String>) -> Self { self }
+    pub fn with_session_token(self, _session_token: impl Into<String>) -> Self {
+        self
+    }
 
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
+    }
 
-    fn authenticated(&self, request: reqwest::RequestBuilder) -> crate::local_account::AuthenticatedRequest {
-        crate::local_account::AuthenticatedRequest::new(self.client.clone(), self.authenticated_context.clone(), request)
+    fn authenticated(
+        &self,
+        request: reqwest::RequestBuilder,
+    ) -> crate::local_account::AuthenticatedRequest {
+        crate::local_account::AuthenticatedRequest::new(
+            self.client.clone(),
+            self.authenticated_context.clone(),
+            request,
+        )
     }
 
     fn url(&self, path: &str) -> String {
@@ -1596,12 +1611,13 @@ impl ProposeToMemoryDialog {
                 &self.proposal.source.content_hash,
             );
             let class_state_id = egui::Id::new(FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID);
-            ui.ctx().accesskit_node_builder(class_state_id, move |node| {
-                node.set_role(egui::accesskit::Role::Status);
-                node.set_author_id(FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID.to_owned());
-                node.set_label("Propose to Memory class selection".to_owned());
-                node.set_value(class_state_value.clone());
-            });
+            ui.ctx()
+                .accesskit_node_builder(class_state_id, move |node| {
+                    node.set_role(egui::accesskit::Role::Status);
+                    node.set_author_id(FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID.to_owned());
+                    node.set_label("Propose to Memory class selection".to_owned());
+                    node.set_value(class_state_value.clone());
+                });
 
             // Preview: the selected content + the computed content_hash (short prefix) so the operator
             // sees exactly what will be proposed.

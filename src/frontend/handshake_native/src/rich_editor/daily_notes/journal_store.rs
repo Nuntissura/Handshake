@@ -187,7 +187,16 @@ pub struct ReqwestJournalBackend {
 }
 
 impl ReqwestJournalBackend {
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.document_client = self.document_client.with_optional_authenticated_context(context.clone()); self.authenticated_context = context; self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.document_client = self
+            .document_client
+            .with_optional_authenticated_context(context.clone());
+        self.authenticated_context = context;
+        self
+    }
 
     /// Build a backend client against `base_url` (e.g. `backend_client::BACKEND_BASE_URL`).
     pub fn new(base_url: impl Into<String>) -> Self {
@@ -305,12 +314,14 @@ impl JournalBackend for ReqwestJournalBackend {
         let account = self.authenticated_context.clone();
         let date = journal_date.to_owned();
         Box::pin(async move {
-            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client
-                .put(&url)
-                .timeout(std::time::Duration::from_secs(5))
-                ).send()
-                .await
-                .map_err(|e| JournalError::OpenTransient(format!("open {date} failed: {e}")))?;
+            let response = crate::local_account::AuthenticatedRequest::new(
+                client.clone(),
+                account,
+                client.put(&url).timeout(std::time::Duration::from_secs(5)),
+            )
+            .send()
+            .await
+            .map_err(|e| JournalError::OpenTransient(format!("open {date} failed: {e}")))?;
             let status = response.status();
             if !status.is_success() {
                 let reason = status_reason(status.as_u16(), "open daily journal");
@@ -400,7 +411,13 @@ pub struct ReqwestSaveSeam {
 }
 
 impl ReqwestSaveSeam {
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.client = self.client.with_optional_authenticated_context(context); self }
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.client = self.client.with_optional_authenticated_context(context);
+        self
+    }
 
     /// Build a save seam against `base_url`.
     pub fn new(base_url: impl Into<String>) -> Self {
@@ -664,7 +681,12 @@ impl JournalStore {
         Self::production_with_account(workspace_id, runtime, base, None)
     }
 
-    pub fn production_with_account(workspace_id: impl Into<String>, runtime: tokio::runtime::Handle, base: &str, account: Option<Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn production_with_account(
+        workspace_id: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        base: &str,
+        account: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         let mut store = Self::new(
             Arc::new(ReqwestJournalBackend::new(base).with_authenticated_context(account.clone())),
             Arc::new(ReqwestSaveSeam::new(base).with_authenticated_context(account)),

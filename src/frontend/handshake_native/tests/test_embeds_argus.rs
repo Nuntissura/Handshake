@@ -94,7 +94,7 @@ fn json_retains_non_rejected_click_receipt(
                     && receipt.get("status").and_then(serde_json::Value::as_str) == Some("applied")
                     && receipt
                         .get("rejection")
-                        .is_none_or( serde_json::Value::is_null)
+                        .is_none_or(serde_json::Value::is_null)
             })
         })
 }

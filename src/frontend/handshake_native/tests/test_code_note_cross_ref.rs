@@ -72,9 +72,8 @@ use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
 use handshake_native::rich_editor::slash_commands::{
-    code_symbol_search::CodeSymbolSearchState,
-    render_code_symbol_search_dialog, CODE_SYMBOL_SEARCH_AUTHOR_ID,
-    CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
+    code_symbol_search::CodeSymbolSearchState, render_code_symbol_search_dialog,
+    CODE_SYMBOL_SEARCH_AUTHOR_ID, CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
 };
 use handshake_native::rich_editor::wikilinks::inline_view::{code_ref_chip_author_id, EditorEvent};
 use handshake_native::rich_editor::wikilinks::parser::parse_wikilink;
@@ -1941,7 +1940,8 @@ fn mt034_canonical_argus_create_open_and_reveal() {
         dialog.query = symbol_name.to_owned();
         dialog.spawn_lookup();
     }
-    let result_id = handshake_native::rich_editor::slash_commands::code_symbol_result_author_id(symbol_id);
+    let result_id =
+        handshake_native::rich_editor::slash_commands::code_symbol_result_author_id(symbol_id);
     let result_deadline = Instant::now() + Duration::from_secs(5);
     while !author_ids(&harness).contains(&result_id) {
         assert!(Instant::now() < result_deadline, "{}", {
@@ -2780,7 +2780,8 @@ mod live_backend {
         // Negative identity path: the mutation must fail before it reaches indexing when the required
         // navigation identity is absent. The following attributed request is the one allowed to seed.
         let missing_index_identity = runtime.block_on(async {
-            live.backend.authenticated(http.post(&index_url))
+            live.backend
+                .authenticated(http.post(&index_url))
                 .json(&serde_json::json!({"root_path": root_path.clone()}))
                 .send()
                 .await
@@ -2790,7 +2791,9 @@ mod live_backend {
         assert_eq!(missing_index_identity.as_u16(), 400);
 
         let index_body: serde_json::Value = runtime.block_on(async {
-            let response = live.backend.authenticated(http.post(&index_url))
+            let response = live
+                .backend
+                .authenticated(http.post(&index_url))
                 .header("x-hsk-actor-id", "mt034-managed-proof")
                 .header("x-hsk-actor-kind", "validation_runner")
                 .header("x-hsk-kernel-task-run-id", "KTR-MT034-V2")

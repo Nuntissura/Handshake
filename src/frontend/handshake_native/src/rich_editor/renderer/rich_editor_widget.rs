@@ -844,15 +844,24 @@ impl RichEditorState {
     /// Install the complete wikilink context against an explicitly selected Handshake backend.
     /// Managed-runtime shells use this path so context refreshes cannot silently reset create,
     /// autocomplete, backlinks, or transclusion traffic to the production default endpoint.
-    pub fn bind_authenticated_context(&mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>, base_url: &str) {
+    pub fn bind_authenticated_context(
+        &mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+        base_url: &str,
+    ) {
         let unchanged = match (&self.authenticated_context, &context) {
             (Some(left), Some(right)) => std::sync::Arc::ptr_eq(left, right),
             (None, None) => true,
             _ => false,
         };
-        if unchanged { return; }
+        if unchanged {
+            return;
+        }
         self.authenticated_context = context.clone();
-        self.properties_runtime.backend = std::sync::Arc::new(crate::rich_editor::properties::metadata_client::ReqwestMetadataBackend::new(base_url).with_authenticated_context(context));
+        self.properties_runtime.backend = std::sync::Arc::new(
+            crate::rich_editor::properties::metadata_client::ReqwestMetadataBackend::new(base_url)
+                .with_authenticated_context(context),
+        );
         let document_id = self.wikilinks.document_id.clone();
         self.rebind_wikilink_backend(base_url.to_owned(), &document_id);
     }
@@ -876,7 +885,8 @@ impl RichEditorState {
             std::sync::Arc::new(
                 crate::rich_editor::wikilinks::client::ReqwestWikilinkBackend::new(
                     base_url.clone(),
-                ).with_authenticated_context(self.authenticated_context.clone()),
+                )
+                .with_authenticated_context(self.authenticated_context.clone()),
             );
         self.wikilinks.backend = std::sync::Arc::clone(&backend);
         self.wikilinks.autocomplete.backend = backend;
@@ -884,7 +894,8 @@ impl RichEditorState {
             crate::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend::with_base_url(
                 base_url,
                 format!("native-editor-{document_id}"),
-            ).with_authenticated_context(self.authenticated_context.clone()),
+            )
+            .with_authenticated_context(self.authenticated_context.clone()),
         ));
     }
 
@@ -916,7 +927,8 @@ impl RichEditorState {
             self.wikilinks.set_create_backend(std::sync::Arc::new(
                 crate::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend::production(
                     format!("native-editor-{document_id}"),
-                ).with_authenticated_context(self.authenticated_context.clone()),
+                )
+                .with_authenticated_context(self.authenticated_context.clone()),
             ));
         }
         // WP-KERNEL-012 MT-057 (2): seed the resolver index from the EXISTING Loom search binding so a

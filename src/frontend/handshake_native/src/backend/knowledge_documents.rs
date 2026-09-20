@@ -671,16 +671,24 @@ impl KnowledgeDocumentsClient {
 
     /// Legacy channel-only compatibility setter. It grants no account authority; bind an authenticated context.
     #[must_use]
-    pub fn with_session_token(self, _token: impl Into<String>) -> Self { self }
+    pub fn with_session_token(self, _token: impl Into<String>) -> Self {
+        self
+    }
 
     #[must_use]
-    pub fn with_authenticated_context(mut self, context: std::sync::Arc<crate::local_account::AuthenticatedContext>) -> Self {
+    pub fn with_authenticated_context(
+        mut self,
+        context: std::sync::Arc<crate::local_account::AuthenticatedContext>,
+    ) -> Self {
         self.client = crate::backend_client::shared_http_client();
         self.authenticated_context = Some(context);
         self
     }
 
-    pub fn with_optional_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn with_optional_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         self.client = crate::backend_client::shared_http_client();
         self.authenticated_context = context;
         self
@@ -1017,16 +1025,29 @@ impl KnowledgeDocumentsClient {
     ) -> DocResult<T> {
         // MT-120: the single choke point every one of the twenty `/knowledge/documents/*` calls
         // funnels through, so the credential cannot be forgotten on a route added later.
-        let context = self.authenticated_context.as_ref().ok_or_else(|| KnowledgeDocumentsError::Transport("Account login required".to_owned()))?;
-        let request = context.authorize(builder.timeout(REQUEST_TIMEOUT)).map_err(KnowledgeDocumentsError::Transport)?;
-        let resp = self.client.execute(request)
+        let context = self.authenticated_context.as_ref().ok_or_else(|| {
+            KnowledgeDocumentsError::Transport("Account login required".to_owned())
+        })?;
+        let request = context
+            .authorize(builder.timeout(REQUEST_TIMEOUT))
+            .map_err(KnowledgeDocumentsError::Transport)?;
+        let resp = self
+            .client
+            .execute(request)
             .await
             .map_err(|e| KnowledgeDocumentsError::Transport(e.to_string()))?;
         let status = resp.status();
         context.observe_status(status);
         if status.is_success() {
-            let value = resp.json::<T>().await.map_err(|e| KnowledgeDocumentsError::Parse(e.to_string()))?;
-            if !context.is_active() { return Err(KnowledgeDocumentsError::Transport("Account session is no longer active".into())); }
+            let value = resp
+                .json::<T>()
+                .await
+                .map_err(|e| KnowledgeDocumentsError::Parse(e.to_string()))?;
+            if !context.is_active() {
+                return Err(KnowledgeDocumentsError::Transport(
+                    "Account session is no longer active".into(),
+                ));
+            }
             return Ok(value);
         }
         // Non-success: read the body text once for the typed error detail.

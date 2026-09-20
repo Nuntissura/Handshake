@@ -1207,8 +1207,14 @@ fn canvas_loom_chip_screenshot() {
 /// `getLoomBlock` (GET /workspaces/{ws}/loom/blocks/{id}) correctly needs NONE, so those calls stay
 /// header-free.
 #[cfg(feature = "integration")]
-fn with_rich_doc_headers(account_context: &handshake_native::local_account::AuthenticatedContext, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-    account_context.authorize_builder(live_client(), rb).expect("live fixture account and origin").header("x-hsk-actor-id", "operator")
+fn with_rich_doc_headers(
+    account_context: &handshake_native::local_account::AuthenticatedContext,
+    rb: reqwest::RequestBuilder,
+) -> reqwest::RequestBuilder {
+    account_context
+        .authorize_builder(live_client(), rb)
+        .expect("live fixture account and origin")
+        .header("x-hsk-actor-id", "operator")
         .header("x-hsk-actor-kind", "operator")
         .header("x-hsk-kernel-task-run-id", "KTR-EDITOR-UI")
         .header("x-hsk-session-run-id", "MT-032-integration")
@@ -1272,7 +1278,10 @@ struct LiveDocumentCleanup {
 
 #[cfg(feature = "integration")]
 impl LiveDocumentCleanup {
-    fn new(base_url: impl Into<String>, account_context: Arc<handshake_native::local_account::AuthenticatedContext>) -> Self {
+    fn new(
+        base_url: impl Into<String>,
+        account_context: Arc<handshake_native::local_account::AuthenticatedContext>,
+    ) -> Self {
         Self {
             account_context,
             base_url: base_url.into(),
@@ -1292,10 +1301,13 @@ impl LiveDocumentCleanup {
         let ids = self.ids.lock().unwrap().clone();
         let client = live_client();
         for document_id in ids.iter().rev() {
-            let response = with_rich_doc_headers(&self.account_context, client.delete(format!(
-                "{}/knowledge/documents/{document_id}",
-                self.base_url
-            )))
+            let response = with_rich_doc_headers(
+                &self.account_context,
+                client.delete(format!(
+                    "{}/knowledge/documents/{document_id}",
+                    self.base_url
+                )),
+            )
             .send()
             .await
             .map_err(|err| format!("cleanup DELETE {document_id}: {err}"))?;
@@ -1321,7 +1333,8 @@ async fn save_rich_document(
     content_json: serde_json::Value,
 ) -> serde_json::Value {
     let response = with_rich_doc_headers(
-        account_context, client.put(format!("{base_url}/knowledge/documents/{document_id}/save")),
+        account_context,
+        client.put(format!("{base_url}/knowledge/documents/{document_id}/save")),
     )
     .json(&serde_json::json!({
         "expected_version": expected_version,
@@ -1405,7 +1418,8 @@ impl Drop for LiveDocumentCleanup {
                 let client = live_client();
                 for document_id in ids.iter().rev() {
                     let _ = with_rich_doc_headers(
-                        &account_context, client.delete(format!("{base_url}/knowledge/documents/{document_id}")),
+                        &account_context,
+                        client.delete(format!("{base_url}/knowledge/documents/{document_id}")),
                     )
                     .send()
                     .await;

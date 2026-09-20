@@ -34,8 +34,8 @@ use crate::pane_registry::{
 };
 use crate::popout_window::{popout_title_for, PopOutGeometry, PopOutManager};
 use crate::project_tabs::{
-    fetch_workspaces_authenticated, ProjectItem, ProjectTabBar, ProjectTabColors, WorkspaceRootError,
-    PROJECT_TAB_BAR_HEIGHT,
+    fetch_workspaces_authenticated, ProjectItem, ProjectTabBar, ProjectTabColors,
+    WorkspaceRootError, PROJECT_TAB_BAR_HEIGHT,
 };
 use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
 use crate::rich_editor::renderer::rich_editor_widget::RichEditorState;
@@ -8010,11 +8010,19 @@ impl HandshakeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         Self::install_fonts(&cc.egui_ctx);
         let rt = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(1).enable_all().build().expect("build tokio runtime");
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build tokio runtime");
         let diag_session = Self::install_diagnostics_ring();
         crate::diagnostics::start_global_operation_watchdog();
         let gpu_info = crate::diagnostics::GpuInfo::capture(cc);
-        let mut app = Self::fresh_production_shell(rt, diag_session, gpu_info, backend_client::BACKEND_BASE_URL);
+        let mut app = Self::fresh_production_shell(
+            rt,
+            diag_session,
+            gpu_info,
+            backend_client::BACKEND_BASE_URL,
+        );
         app.spawn_mcp_server();
         app.attach_lsp_for_mounted_code_pane();
         Self::record_startup_marker();
@@ -12405,7 +12413,8 @@ impl HandshakeApp {
             return false;
         };
         let client =
-            crate::backend_client::RichDocClient::new(&self.rich_doc_base_url, handle.clone()).with_authenticated_context(self.local_account.context.clone());
+            crate::backend_client::RichDocClient::new(&self.rich_doc_base_url, handle.clone())
+                .with_authenticated_context(self.local_account.context.clone());
         let cell = Arc::clone(&self.mt117_save_readback_cell);
         let document_id = document_id.to_owned();
         handle.spawn(async move {
@@ -14040,8 +14049,10 @@ impl HandshakeApp {
             crate::backend_client::WorkspaceSearchClient::new(
                 &self.rich_doc_base_url,
                 handle.clone(),
-            ).with_authenticated_context(self.local_account.context.clone()),
-            crate::backend_client::RichDocClient::new(&self.rich_doc_base_url, handle).with_authenticated_context(self.local_account.context.clone()),
+            )
+            .with_authenticated_context(self.local_account.context.clone()),
+            crate::backend_client::RichDocClient::new(&self.rich_doc_base_url, handle)
+                .with_authenticated_context(self.local_account.context.clone()),
             Arc::clone(&self.find_in_files_shared),
             state,
         );
@@ -15404,18 +15415,24 @@ impl HandshakeApp {
                 let base_content =
                     crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
                 state.save = Some(crate::rich_editor::save::save_manager::SaveManager::new(
-                    Arc::new(crate::backend_client::RichDocSaveBackend::new_with_actor(
-                        self.rich_doc_base_url.clone(),
-                        self.native_editor_participant_actor_id.clone(),
-                    ).with_authenticated_context(self.local_account.context.clone())),
+                    Arc::new(
+                        crate::backend_client::RichDocSaveBackend::new_with_actor(
+                            self.rich_doc_base_url.clone(),
+                            self.native_editor_participant_actor_id.clone(),
+                        )
+                        .with_authenticated_context(self.local_account.context.clone()),
+                    ),
                     Some(rt.clone()),
                     doc_id.clone(),
                     doc_version,
                 ));
                 let mut draft = crate::rich_editor::save::draft_manager::DraftManager::new(
-                    Arc::new(crate::backend_client::RichDocDraftBackend::new(
-                        self.rich_doc_base_url.clone(),
-                    ).with_authenticated_context(self.local_account.context.clone())),
+                    Arc::new(
+                        crate::backend_client::RichDocDraftBackend::new(
+                            self.rich_doc_base_url.clone(),
+                        )
+                        .with_authenticated_context(self.local_account.context.clone()),
+                    ),
                     Some(rt),
                     doc_id,
                     doc_version,
@@ -16444,7 +16461,8 @@ impl HandshakeApp {
         let client_runtime = runtime.clone();
         let account = self.local_account.context.clone();
         runtime.spawn(async move {
-            let client = backend_client::RichDocClient::new(base_url, client_runtime).with_authenticated_context(account);
+            let client = backend_client::RichDocClient::new(base_url, client_runtime)
+                .with_authenticated_context(account);
             let loaded = client
                 .load_document(&document_id)
                 .await
@@ -16642,7 +16660,10 @@ impl HandshakeApp {
                     .state_for_view(Some(&document_id), pane_id)
             });
         let mut state = rich_state.lock().unwrap_or_else(|p| p.into_inner());
-        state.bind_authenticated_context(self.local_account.context.clone(), &self.rich_doc_base_url);
+        state.bind_authenticated_context(
+            self.local_account.context.clone(),
+            &self.rich_doc_base_url,
+        );
         state.doc = parsed;
         state.selection = crate::rich_editor::document_model::selection::Selection::caret(
             crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0),
@@ -16651,18 +16672,22 @@ impl HandshakeApp {
         state.pending_events.clear();
         state.find_replace = None;
         state.save = Some(crate::rich_editor::save::save_manager::SaveManager::new(
-            Arc::new(crate::backend_client::RichDocSaveBackend::new_with_actor(
-                self.rich_doc_base_url.clone(),
-                self.native_editor_participant_actor_id.clone(),
-            ).with_authenticated_context(self.local_account.context.clone())),
+            Arc::new(
+                crate::backend_client::RichDocSaveBackend::new_with_actor(
+                    self.rich_doc_base_url.clone(),
+                    self.native_editor_participant_actor_id.clone(),
+                )
+                .with_authenticated_context(self.local_account.context.clone()),
+            ),
             Some(runtime.clone()),
             document_id.clone(),
             doc_version,
         ));
         let mut draft = crate::rich_editor::save::draft_manager::DraftManager::new(
-            Arc::new(crate::backend_client::RichDocDraftBackend::new(
-                self.rich_doc_base_url.clone(),
-            ).with_authenticated_context(self.local_account.context.clone())),
+            Arc::new(
+                crate::backend_client::RichDocDraftBackend::new(self.rich_doc_base_url.clone())
+                    .with_authenticated_context(self.local_account.context.clone()),
+            ),
             Some(runtime.clone()),
             document_id.clone(),
             doc_version,
@@ -18361,10 +18386,10 @@ impl HandshakeApp {
         self.canvas_create_cells
             .push(PendingCanvasPlacementCreateUndo {
                 cell,
-                client: Arc::new(crate::backend_client::CanvasBoardClient::new(
-                    &self.rich_doc_base_url,
-                    rt,
-                ).with_authenticated_context(self.local_account.context.clone())),
+                client: Arc::new(
+                    crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt)
+                        .with_authenticated_context(self.local_account.context.clone()),
+                ),
                 workspace_id,
                 canvas_block_id,
                 operation_sequence,
@@ -19943,8 +19968,10 @@ impl HandshakeApp {
         // must replace that concrete factory too. Otherwise a production-mounted integration proof still
         // talks to the hard-coded production URL while every other app client uses the managed backend.
         let find_in_files_factory = crate::find_in_files::FindInFilesPaneFactory::new(
-            crate::backend_client::WorkspaceSearchClient::new(base_url, handle.clone()).with_authenticated_context(self.local_account.context.clone()),
-            crate::backend_client::RichDocClient::new(base_url, handle.clone()).with_authenticated_context(self.local_account.context.clone()),
+            crate::backend_client::WorkspaceSearchClient::new(base_url, handle.clone())
+                .with_authenticated_context(self.local_account.context.clone()),
+            crate::backend_client::RichDocClient::new(base_url, handle.clone())
+                .with_authenticated_context(self.local_account.context.clone()),
             Arc::clone(&self.find_in_files_shared),
         );
         self.find_in_files_state = find_in_files_factory.states_handle();
@@ -19957,7 +19984,10 @@ impl HandshakeApp {
         // production navigation path. Keep both clients on the same explicitly bound backend;
         // otherwise a managed-runtime search can return an entity from `base_url` and Enter can
         // silently point-get that same id from the production default instead.
-        self.install_mounted_code_nav_client_for_test(CodeNavClient::new(base_url).with_authenticated_context(self.local_account.context.clone()));
+        self.install_mounted_code_nav_client_for_test(
+            CodeNavClient::new(base_url)
+                .with_authenticated_context(self.local_account.context.clone()),
+        );
         self.rich_doc_base_url = base_url.to_owned();
         if let Ok(mut session) = self.editor_mounts.session.lock() {
             session.backend_base_url = base_url.to_owned();
@@ -19973,7 +20003,9 @@ impl HandshakeApp {
         }
         self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
         self.rich_doc_loads.clear();
-        self.left_rail.project_tree.bind_authenticated_context(self.local_account.context.clone());
+        self.left_rail
+            .project_tree
+            .bind_authenticated_context(self.local_account.context.clone());
         self.left_rail
             .project_tree
             .set_backend_base_url_for_test(base_url, &handle);
@@ -24185,7 +24217,11 @@ impl HandshakeApp {
                     };
                     self.rename_error = None;
                     let client =
-                        crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(crate::backend_client::shared_http_client(), self.rich_doc_base_url.clone()).with_optional_authenticated_context(self.local_account.context.clone());
+                        crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+                            crate::backend_client::shared_http_client(),
+                            self.rich_doc_base_url.clone(),
+                        )
+                        .with_optional_authenticated_context(self.local_account.context.clone());
                     let headers =
                         crate::backend::knowledge_documents::HskDocumentHeaders::for_operator(
                             crate::rich_editor::save::save_manager::new_session_run_id(),
@@ -27131,7 +27167,8 @@ impl HandshakeApp {
                             .clone()
                             .unwrap_or_else(|| crate::backend_client::BACKEND_BASE_URL.to_owned()),
                         rt.clone(),
-                    ).with_authenticated_context(self.local_account.context.clone());
+                    )
+                    .with_authenticated_context(self.local_account.context.clone());
                     let in_flight = Arc::clone(&self.stage_embed_back_in_flight);
                     let completion_queue = Arc::clone(&self.stage_embed_ui_queue);
                     let repaint = ctx.clone();
@@ -30224,9 +30261,10 @@ impl HandshakeApp {
             return;
         }
         let base_url = self.rich_doc_base_url.clone();
-        let reverse_lookup = Arc::new(crate::interop::cross_ref::FindNotesHttp::new(
-            base_url.clone(),
-        ).with_authenticated_context(self.local_account.context.clone()));
+        let reverse_lookup = Arc::new(
+            crate::interop::cross_ref::FindNotesHttp::new(base_url.clone())
+                .with_authenticated_context(self.local_account.context.clone()),
+        );
         let service = crate::interop::locus_interop::LocusInteropService::with_base_url(
             base_url,
             workspace.clone(),
@@ -30981,10 +31019,10 @@ impl HandshakeApp {
             },
         }
 
-        let client = Arc::new(crate::backend_client::CanvasBoardClient::new(
-            &self.rich_doc_base_url,
-            rt,
-        ).with_authenticated_context(self.local_account.context.clone()));
+        let client = Arc::new(
+            crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt)
+                .with_authenticated_context(self.local_account.context.clone()),
+        );
         let (workspace_id, canvas_block_id, visual_edge_ids, board_event_ledger_event_id) =
             match self.editor_mounts.secondary.canvas_board.lock() {
                 Ok(b) => (
@@ -31911,7 +31949,8 @@ impl HandshakeApp {
                 Some(Err("graph edge create has no bound workspace".to_owned()));
             return;
         }
-        let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt).with_authenticated_context(self.local_account.context.clone());
+        let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt)
+            .with_authenticated_context(self.local_account.context.clone());
         let spec = client.semantic_edge_request(&workspace_id, source_block_id, target_block_id);
         let cell: crate::backend_client::SemanticEdgeCreateCell =
             Arc::new(std::sync::Mutex::new(None));
@@ -31963,7 +32002,8 @@ impl HandshakeApp {
                 Some(Err("graph edge mutation has no bound workspace".to_owned()));
             return;
         }
-        let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt).with_authenticated_context(self.local_account.context.clone());
+        let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt)
+            .with_authenticated_context(self.local_account.context.clone());
         let spec = build(&client, &ws);
         let cell: crate::backend_client::CanvasBoardOpCell =
             std::sync::Arc::new(std::sync::Mutex::new(None));
@@ -32031,7 +32071,8 @@ impl HandshakeApp {
             return;
         };
 
-        let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt).with_authenticated_context(self.local_account.context.clone());
+        let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt)
+            .with_authenticated_context(self.local_account.context.clone());
         // WP-KERNEL-012 MT-026 V4: a removed placement is gone from the board, so its SOURCE block
         // would never be probed again — and a placement-removal receipt must carry an EXPLICIT
         // source-block existence confirmation (removing a placement must never delete the Loom block).
@@ -32205,7 +32246,8 @@ impl HandshakeApp {
             if current_board_matches {
                 if let Some(rt) = self.runtime_handle.clone() {
                     let client =
-                        crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt).with_authenticated_context(self.local_account.context.clone());
+                        crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt)
+                            .with_authenticated_context(self.local_account.context.clone());
                     self.queue_canvas_board_fetch(
                         &client,
                         &completion.reload.workspace_id,
@@ -32473,7 +32515,8 @@ impl HandshakeApp {
             } else if let Some(rt) = self.runtime_handle.clone() {
                 if let Some(canvas_block_id) = canvas_block_id {
                     let client =
-                        crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt).with_authenticated_context(self.local_account.context.clone());
+                        crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt)
+                            .with_authenticated_context(self.local_account.context.clone());
                     self.queue_canvas_board_fetch(&client, &workspace, &canvas_block_id, ctx);
                 }
             }
@@ -33026,7 +33069,8 @@ impl HandshakeApp {
                             let client = crate::backend_client::CanvasBoardClient::new(
                                 &self.rich_doc_base_url,
                                 rt,
-                            ).with_authenticated_context(self.local_account.context.clone());
+                            )
+                            .with_authenticated_context(self.local_account.context.clone());
                             self.queue_canvas_board_fetch(&client, &ws, &canvas_block_id, ctx);
                             if let Some(error) = remembered_error {
                                 if let Ok(mut board) =
@@ -34067,10 +34111,10 @@ impl HandshakeApp {
             .unwrap_or_else(|| self.runtime().handle().clone());
 
         self.set_backend_base_url_for_test(base_url, handle.clone());
-        self.settings_transport = Some(Arc::new(crate::workspace_settings::SettingsClient::new(
-            base_url,
-            handle.clone(),
-        ).with_authenticated_context(self.local_account.context.clone())));
+        self.settings_transport = Some(Arc::new(
+            crate::workspace_settings::SettingsClient::new(base_url, handle.clone())
+                .with_authenticated_context(self.local_account.context.clone()),
+        ));
         self.preference_transport = Some(Arc::new(
             crate::preference_client::PreferenceClient::new(base_url, "operator", handle.clone()),
         ));
@@ -34087,7 +34131,9 @@ impl HandshakeApp {
         self.project_tabs.set_loading();
         let workspaces_base_url = base_url.to_owned();
         let account = self.local_account.context.clone();
-        self.workspaces_handle = Some(handle.spawn(async move { fetch_workspaces_authenticated(&workspaces_base_url, account).await }));
+        self.workspaces_handle = Some(handle.spawn(async move {
+            fetch_workspaces_authenticated(&workspaces_base_url, account).await
+        }));
 
         self.set_backend_endpoints_for_test(base_url, base_url);
     }
@@ -34105,7 +34151,8 @@ impl HandshakeApp {
         let transport = crate::backend_client::WorkbenchLayoutClient::new(
             layout_base_url.to_owned(),
             handle.clone(),
-        ).with_authenticated_context(self.local_account.context.clone());
+        )
+        .with_authenticated_context(self.local_account.context.clone());
         self.layout_manager = Arc::new(Mutex::new(LayoutPersistenceManager::new(
             Box::new(transport),
             LAYOUT_SAVE_DEBOUNCE,
@@ -35825,24 +35872,47 @@ impl HandshakeApp {
 
     /// Render the shell. Split from eframe::App::update so egui_kittest can drive it without a Frame.
     /// Bind a session obtained through the authority login flow before mounting workspace content.
-    pub fn bind_initial_account(&mut self, context: Arc<crate::local_account::AuthenticatedContext>) -> Result<(), String> {
-        if self.account_has_private_state || !context.is_active() { return Err("Account transition requires the discard confirmation".into()); }
+    pub fn bind_initial_account(
+        &mut self,
+        context: Arc<crate::local_account::AuthenticatedContext>,
+    ) -> Result<(), String> {
+        if self.account_has_private_state || !context.is_active() {
+            return Err("Account transition requires the discard confirmation".into());
+        }
         self.local_account.context = Some(context);
         self.account_has_private_state = true;
         let base = self.rich_doc_base_url.clone();
-        let handle = self.runtime_handle.clone().unwrap_or_else(|| self.runtime().handle().clone());
+        let handle = self
+            .runtime_handle
+            .clone()
+            .unwrap_or_else(|| self.runtime().handle().clone());
         self.bind_backend_clients(&base, handle);
         Ok(())
     }
 
     fn reset_account_workspace(&mut self, ctx: &egui::Context) {
         self.begin_layout_shutdown();
-        if let Some(handle) = self.health_handle.take() { handle.abort(); }
-        if let Some(handle) = self.workspaces_handle.take() { handle.abort(); }
-        if let Some(handle) = self.settings_io_handle.take() { handle.abort(); }
-        if let Some(handle) = self.preference_io_handle.take() { handle.abort(); }
-        let Some(rt) = self.rt.take() else { return; };
-        let mut fresh = Self::fresh_production_shell(rt, self.diag_session.take(), self.gpu_info.clone(), &self.rich_doc_base_url);
+        if let Some(handle) = self.health_handle.take() {
+            handle.abort();
+        }
+        if let Some(handle) = self.workspaces_handle.take() {
+            handle.abort();
+        }
+        if let Some(handle) = self.settings_io_handle.take() {
+            handle.abort();
+        }
+        if let Some(handle) = self.preference_io_handle.take() {
+            handle.abort();
+        }
+        let Some(rt) = self.rt.take() else {
+            return;
+        };
+        let mut fresh = Self::fresh_production_shell(
+            rt,
+            self.diag_session.take(),
+            self.gpu_info.clone(),
+            &self.rich_doc_base_url,
+        );
         fresh.local_account = std::mem::take(&mut self.local_account);
         fresh.account_has_private_state = fresh.local_account.context.is_some();
         fresh.mcp_server = self.mcp_server.take();
@@ -35855,39 +35925,71 @@ impl HandshakeApp {
         fresh.current_theme = self.current_theme;
         fresh.native_editor_participant_actor_id = self.native_editor_participant_actor_id.clone();
         fresh.frame_ctx = Some(ctx.clone());
-        if let Ok(mut snapshot) = fresh.mcp_snapshot.lock() { *snapshot = empty_snapshot(); }
-        if let Ok(mut channel) = fresh.mcp_action_channel.lock() { channel.reject_queued_for_operator_input(); }
+        if let Ok(mut snapshot) = fresh.mcp_snapshot.lock() {
+            *snapshot = empty_snapshot();
+        }
+        if let Ok(mut channel) = fresh.mcp_action_channel.lock() {
+            channel.reject_queued_for_operator_input();
+        }
         ctx.data_mut(|data| data.clear());
         let base = self.rich_doc_base_url.clone();
         let handle = fresh.runtime().handle().clone();
         fresh.bind_backend_clients(&base, handle.clone());
         let account = fresh.local_account.context.clone();
         fresh.layout_manager = Arc::new(Mutex::new(LayoutPersistenceManager::new(
-            Box::new(WorkbenchLayoutClient::new(&base, handle.clone()).with_authenticated_context(account.clone())), LAYOUT_SAVE_DEBOUNCE,
+            Box::new(
+                WorkbenchLayoutClient::new(&base, handle.clone())
+                    .with_authenticated_context(account.clone()),
+            ),
+            LAYOUT_SAVE_DEBOUNCE,
         )));
-        fresh.settings_transport = Some(Arc::new(crate::workspace_settings::SettingsClient::new(&base, handle.clone()).with_authenticated_context(account)));
+        fresh.settings_transport = Some(Arc::new(
+            crate::workspace_settings::SettingsClient::new(&base, handle.clone())
+                .with_authenticated_context(account),
+        ));
 
         let account = fresh.local_account.context.clone();
         if account.is_some() {
             fresh.project_tabs.set_loading();
-            fresh.workspaces_handle = Some(handle.spawn(async move { fetch_workspaces_authenticated(&base, account).await }));
+            fresh.workspaces_handle = Some(
+                handle.spawn(async move { fetch_workspaces_authenticated(&base, account).await }),
+            );
         }
         *self = fresh;
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
-        self.local_account.show(ctx, &self.rich_doc_base_url, self.mcp_token.as_hex().to_owned(), self.runtime_handle.as_ref(), !self.capturing_snapshot);
-        if self.local_account.take_reset_requested() { self.reset_account_workspace(ctx); }
+        self.local_account.show(
+            ctx,
+            &self.rich_doc_base_url,
+            self.mcp_token.as_hex().to_owned(),
+            self.runtime_handle.as_ref(),
+            !self.capturing_snapshot,
+        );
+        if self.local_account.take_reset_requested() {
+            self.reset_account_workspace(ctx);
+        }
         if self.local_account.take_workspace_created() {
             let base = self.rich_doc_base_url.clone();
             let account = self.local_account.context.clone();
             if let Some(handle) = self.runtime_handle.as_ref() {
-                if let Some(old) = self.workspaces_handle.take() { old.abort(); }
-                self.workspaces_handle = Some(handle.spawn(async move { fetch_workspaces_authenticated(&base, account).await }));
+                if let Some(old) = self.workspaces_handle.take() {
+                    old.abort();
+                }
+                self.workspaces_handle =
+                    Some(handle.spawn(async move {
+                        fetch_workspaces_authenticated(&base, account).await
+                    }));
             }
         }
 
-        if self.account_has_private_state && !self.local_account.context.as_ref().is_some_and(|context| context.is_active()) {
+        if self.account_has_private_state
+            && !self
+                .local_account
+                .context
+                .as_ref()
+                .is_some_and(|context| context.is_active())
+        {
             egui::CentralPanel::default().show(ctx, |ui| { ui.label("Session unavailable. Workspace edits remain locked until you log in or confirm discard."); });
             return;
         }
@@ -35907,7 +36009,12 @@ impl HandshakeApp {
         }
         if !self.capturing_snapshot {
             for state in self.editor_mounts.rich_documents.states() {
-                if let Ok(mut state) = state.lock() { state.bind_authenticated_context(self.local_account.context.clone(), &self.rich_doc_base_url); }
+                if let Ok(mut state) = state.lock() {
+                    state.bind_authenticated_context(
+                        self.local_account.context.clone(),
+                        &self.rich_doc_base_url,
+                    );
+                }
             }
             self.ensure_rich_document_workspace();
         }
@@ -38887,7 +38994,8 @@ mod mt035_popout_undo_tests {
         let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
         app.set_runtime_handle(runtime.handle().clone());
         app.rich_doc_base_url = base_url.clone();
-        app.bind_initial_account(crate::local_account::mock_account_context(&base_url)).unwrap();
+        app.bind_initial_account(crate::local_account::mock_account_context(&base_url))
+            .unwrap();
 
         let mut harness = Harness::builder().build_state(
             |ctx, app: &mut HandshakeApp| app.drive_propose_to_memory(ctx),
@@ -40898,11 +41006,25 @@ mod local_account_workspace_tests {
         app.rich_doc_base_url = "http://127.0.0.1:1".into();
         let first = account("first");
         app.bind_initial_account(first.clone()).unwrap();
-        let old_state = app.editor_mounts.rich_documents.state_for_view(Some("private-first-doc"), "pane-a");
+        let old_state = app
+            .editor_mounts
+            .rich_documents
+            .state_for_view(Some("private-first-doc"), "pane-a");
         {
             let mut state = old_state.lock().unwrap();
-            state.doc = crate::rich_editor::document_model::node::BlockNode::doc(vec![crate::rich_editor::document_model::node::BlockNode::paragraph("private unsaved first account text")]);
-            let mut save = crate::rich_editor::save::save_manager::SaveManager::new(Arc::new(backend_client::RichDocSaveBackend::new("http://127.0.0.1:1")), None, "private-first-doc", 1);
+            state.doc = crate::rich_editor::document_model::node::BlockNode::doc(vec![
+                crate::rich_editor::document_model::node::BlockNode::paragraph(
+                    "private unsaved first account text",
+                ),
+            ]);
+            let mut save = crate::rich_editor::save::save_manager::SaveManager::new(
+                Arc::new(backend_client::RichDocSaveBackend::new(
+                    "http://127.0.0.1:1",
+                )),
+                None,
+                "private-first-doc",
+                1,
+            );
             save.mark_dirty();
             state.save = Some(save);
         }
@@ -40910,14 +41032,30 @@ mod local_account_workspace_tests {
         let old_channel = app.mcp_action_channel.clone();
         let old_snapshot = app.mcp_snapshot.clone();
         first.invalidate();
-        assert!(old_state.lock().unwrap().save.as_ref().unwrap().dirty, "rejection retains unsaved edits until explicit discard");
+        assert!(
+            old_state.lock().unwrap().save.as_ref().unwrap().dirty,
+            "rejection retains unsaved edits until explicit discard"
+        );
         app.local_account.context = Some(account("second"));
         app.reset_account_workspace(&egui::Context::default());
-        assert_eq!(app.local_account.context.as_ref().unwrap().account_id, "second");
+        assert_eq!(
+            app.local_account.context.as_ref().unwrap().account_id,
+            "second"
+        );
         assert!(!first.is_active());
-        assert!(app.editor_mounts.rich_documents.canonical_state_for_document("private-first-doc").is_none());
+        assert!(app
+            .editor_mounts
+            .rich_documents
+            .canonical_state_for_document("private-first-doc")
+            .is_none());
         assert!(!Arc::ptr_eq(&old_delivery, &app.rich_doc_load_cell));
-        old_delivery.lock().unwrap().push_back((1, "first-workspace".into(), "pane-a".into(), "private-first-doc".into(), Err("late first account response".into())));
+        old_delivery.lock().unwrap().push_back((
+            1,
+            "first-workspace".into(),
+            "pane-a".into(),
+            "private-first-doc".into(),
+            Err("late first account response".into()),
+        ));
         assert!(app.rich_doc_load_cell.lock().unwrap().is_empty());
         assert!(Arc::ptr_eq(&old_channel, &app.mcp_action_channel));
         assert!(Arc::ptr_eq(&old_snapshot, &app.mcp_snapshot));

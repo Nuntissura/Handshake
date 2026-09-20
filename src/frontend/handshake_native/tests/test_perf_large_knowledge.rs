@@ -25,13 +25,12 @@
 //! routes. No alternate_local_store, no in-memory backend stub. Block creation in the gated scenarios is NOT counted in
 //! the budget (RISK-2 / CTRL-2): only the QUERY phase is timed (impl notes 7, 8).
 
-mod perf_proof_support;
 mod backend_proof_support;
+mod perf_proof_support;
 
-use perf_proof_support::{measurement, time_ms, Budget, ScenarioAttempt};
 use backend_proof_support::LiveBackend;
+use perf_proof_support::{measurement, time_ms, Budget, ScenarioAttempt};
 use std::collections::{HashMap, HashSet};
-
 
 use handshake_native::graph::graph_view::{GraphEdge, GraphNode, LoomGraphView, NODE_CAP};
 
@@ -802,8 +801,16 @@ fn capture_lk03_fixture_counts(
         .iter()
         .map(String::as_str)
         .collect::<std::collections::HashSet<_>>();
-    assert_eq!(unique_sources.len(), 5_000, "LK-03 product block ids are unique");
-    assert_eq!(edge_results.len(), 5_000, "LK-03 product edge writes all returned");
+    assert_eq!(
+        unique_sources.len(),
+        5_000,
+        "LK-03 product block ids are unique"
+    );
+    assert_eq!(
+        edge_results.len(),
+        5_000,
+        "LK-03 product edge writes all returned"
+    );
     let exact_edges = edge_results
         .iter()
         .filter(|edge| {
@@ -814,8 +821,15 @@ fn capture_lk03_fixture_counts(
                     .is_some_and(|source| unique_sources.contains(source))
         })
         .count();
-    assert_eq!(exact_edges, 5_000, "every product edge receipt binds one exact member to the tag hub");
-    let counts = [block_ids.len() as i64 + 1, edge_results.len() as i64, unique_sources.len() as i64];
+    assert_eq!(
+        exact_edges, 5_000,
+        "every product edge receipt binds one exact member to the tag hub"
+    );
+    let counts = [
+        block_ids.len() as i64 + 1,
+        edge_results.len() as i64,
+        unique_sources.len() as i64,
+    ];
     assert_eq!(
         counts,
         [5_001, 5_000, 5_000],
@@ -872,7 +886,11 @@ fn assert_lk03_stage_diagnostics(
     }
     let complete_request_ids: Vec<String> = by_request
         .iter()
-        .filter(|(_, lines)| lines.iter().any(|line| diagnostic_field(line, "stage").as_deref() == Some("response_construction")))
+        .filter(|(_, lines)| {
+            lines.iter().any(|line| {
+                diagnostic_field(line, "stage").as_deref() == Some("response_construction")
+            })
+        })
         .map(|(request_id, _)| request_id.clone())
         .collect();
     assert_eq!(

@@ -627,7 +627,10 @@ impl MemoryClient {
     }
 
     /// Bind the explicit account context; missing context fails closed.
-    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
         self.client = crate::backend_client::shared_http_client();
         self.authenticated_context = context;
         self
@@ -681,9 +684,16 @@ impl MemoryClient {
             )
             .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id);
 
-        let account = self.authenticated_context.as_ref().ok_or_else(|| MemoryClientError::Transport("Account login required".into()))?;
-        let request = account.authorize(builder).map_err(MemoryClientError::Transport)?;
-        let resp = self.client.execute(request)
+        let account = self
+            .authenticated_context
+            .as_ref()
+            .ok_or_else(|| MemoryClientError::Transport("Account login required".into()))?;
+        let request = account
+            .authorize(builder)
+            .map_err(MemoryClientError::Transport)?;
+        let resp = self
+            .client
+            .execute(request)
             .await
             .map_err(|e| MemoryClientError::Transport(e.to_string()))?;
         let status = resp.status();
@@ -721,7 +731,11 @@ impl MemoryClient {
 
         // DEFENSIVE CLAMP (RISK-002/MC-001, AC-002): enforce the <=24 cap client-side regardless of
         // server behavior. If the server returned more, truncate, mark truncated, and log a warning.
-        if !account.is_active() { return Err(MemoryClientError::Transport("Account session is no longer active".into())); }
+        if !account.is_active() {
+            return Err(MemoryClientError::Transport(
+                "Account session is no longer active".into(),
+            ));
+        }
         clamp_pack_items(&mut pack);
         Ok(pack)
     }

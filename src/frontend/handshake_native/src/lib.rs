@@ -17,7 +17,6 @@ pub mod backend;
 // existing WP-KERNEL-005 atelier backend via backend_client::AtelierClient (no mocks).
 pub mod atelier_side_panel;
 pub mod backend_client;
-pub mod local_account;
 pub mod canvas_board;
 pub mod code_editor;
 pub mod command_palette;
@@ -25,6 +24,7 @@ pub mod command_registry;
 pub mod context_menu;
 pub mod context_menu_surfaces;
 pub mod debug_console;
+pub mod local_account;
 // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): the process-global diagnostics facade and
 // its OPEN `record()` API (Master Spec v02.196 §5.8.2 + §5.8.4). Any feature calls `diagnostics::record`
 // and the typed DiagEvent lands in (a) a bounded in-process ring the Diagnostics Panel (MT-087) reads

@@ -721,7 +721,6 @@ pub mod backend_proof_support;
 // Each integration test crate consumes a different fixture entrypoint.
 pub use backend_proof_support::DEFAULT_BASE;
 
-
 /// WP-KERNEL-012 MT-115: the canonical MT-111 Flight Recorder credential helpers, re-exported so a
 /// suite that consumes this fixture through `interconnect_support` presents the SAME genuine
 /// native-MCP binding as `backend_proof_support`'s direct consumers. MT-109 made the whole flight-recorder
