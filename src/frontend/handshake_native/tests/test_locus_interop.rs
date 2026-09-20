@@ -1201,6 +1201,8 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
             db_status: "ok".to_owned(),
             migration_version: Some(1),
         }));
+        app.bind_initial_account(be.account_context.clone())
+            .expect("bind explicit fixture account");
         app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
         app.bind_active_project_for_integration_test(ws.clone());
         // Reuse the default Notes pane. Replacing `pane-a` (the default code pane) with another

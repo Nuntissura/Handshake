@@ -24,9 +24,10 @@
 //!          (workspace id, block id, mutation revision, HTTP outcome, EventLedger correlation, and the
 //!          final persisted pin-order revision), and
 //!        * the AUTHORITATIVE refreshed SurrealDB pin list no longer contains the block.
-//!      Target disappearance alone can never satisfy it: the flexible observer form additionally
-//!      requires `Applied` <=> the Remove control is gone and `Failed` <=> the Remove control is still
-//!      mounted (the rollback preserved the pin).
+//!
+//! Target disappearance alone can never satisfy it: the flexible observer form additionally
+//! requires `Applied` <=> the Remove control is gone and `Failed` <=> the Remove control is still
+//! mounted (the rollback preserved the pin).
 //!   5. The success path exposes NO Pins error/Retry state.
 //!   6. An INDEPENDENT authoritative re-read (the live product HTTP routes, not the UI) confirms the
 //!      pin is gone from `GET /loom/views/pins` and that the receipt's EventLedger event id really

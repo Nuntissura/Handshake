@@ -234,13 +234,17 @@ pub trait WikilinkBackend: Send + Sync {
 #[derive(Clone)]
 pub struct ReqwestWikilinkBackend {
     client: reqwest::Client,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
     base_url: String,
 }
 
 impl ReqwestWikilinkBackend {
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+
     /// Build a backend client against `base_url` (e.g. `backend_client::BACKEND_BASE_URL`).
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
+            authenticated_context: None,
             client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
         }
@@ -278,6 +282,7 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
             self.base_url, workspace_id
         );
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let query = query.to_owned();
         let ws_empty = workspace_id.trim().is_empty();
         Box::pin(async move {
@@ -291,10 +296,10 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
                 "limit": limit,
                 "offset": 0,
             });
-            let response = client
+            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client
                 .post(&url)
                 .json(&body)
-                .send()
+                ).send()
                 .await
                 .map_err(|e| WikilinkError::NetworkError(format!("loom search failed: {e}")))?;
             let status = response.status();
@@ -322,13 +327,14 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
             self.base_url, workspace_id, ref_value
         );
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let ws_empty = workspace_id.trim().is_empty();
         let ref_value = ref_value.to_owned();
         Box::pin(async move {
             if ws_empty {
                 return Err(WikilinkError::NoWorkspace);
             }
-            let response = client.get(&url).send().await.map_err(|e| {
+            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.get(&url)).send().await.map_err(|e| {
                 WikilinkError::NetworkError(format!("transclusion fetch failed: {e}"))
             })?;
             let status = response.status();
@@ -351,6 +357,7 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
             self.base_url, document_id
         );
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let document_id = document_id.to_owned();
         Box::pin(async move {
             // HBR-INT-009 Tier 2/3: backlinks are a bounded backend operation. The shared watchdog
@@ -358,7 +365,7 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
             // enters the process-global diagnostic ring consumed by Palmistry. The RAII handle
             // completes on every success/error/404 return below.
             let _operation_handle = crate::diagnostics::register_backend_operation();
-            let response = client
+            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client
                 .get(&url)
                 .header(
                     crate::backend_client::HSK_HEADER_ACTOR_ID,
@@ -373,7 +380,7 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
                     format!("native-editor-wikilinks-{}", std::process::id()),
                 )
                 .timeout(Duration::from_secs(5))
-                .send()
+                ).send()
                 .await
                 .map_err(|e| WikilinkError::NetworkError(format!("backlinks fetch failed: {e}")))?;
             let status = response.status();

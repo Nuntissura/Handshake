@@ -2106,10 +2106,10 @@ fn folder_tree_live_surrealdb_self_seeded_round_trip() {
             // LoomFolder skips serializing None fields, so omission is the canonical response shape for
             // a SurrealDB NULL (an explicit JSON null remains accepted for compatible servers).
             row.get("parent_folder_id")
-                .map_or(true, serde_json::Value::is_null)
+                .is_none_or( serde_json::Value::is_null)
                 && row
                     .get("sort_order")
-                    .map_or(true, serde_json::Value::is_null)
+                    .is_none_or( serde_json::Value::is_null)
         }) {
             break;
         }

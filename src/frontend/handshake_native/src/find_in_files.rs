@@ -4925,7 +4925,7 @@ mod tests {
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
             .unwrap();
-        let client = WorkspaceSearchClient::new("http://test.local", rt.handle().clone());
+        let client = WorkspaceSearchClient::new("http://test.local", rt.handle().clone()).with_authenticated_context(Some(crate::local_account::mock_account_context("http://test.local")));
         s.run_search(&client, None);
         assert_eq!(s.error.as_deref(), Some("No workspace selected"));
         assert!(!s.loading, "MC-7: no HTTP fired");
@@ -4946,7 +4946,7 @@ mod tests {
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
             .unwrap();
-        let client = RichDocClient::new("http://test.local", rt.handle().clone());
+        let client = RichDocClient::new("http://test.local", rt.handle().clone()).with_authenticated_context(Some(crate::local_account::mock_account_context("http://test.local")));
         s.run_preview_replace(&client, Some("ws-1"));
         assert!(
             s.replace_status
@@ -5543,7 +5543,7 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let client = RichDocClient::new(base, runtime.handle().clone());
+        let client = RichDocClient::new(base.clone(), runtime.handle().clone()).with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let mut state = FindInFilesPanelState::new();
         state.bind_workspace(Some("A"), 1);
         state.query = "needle".to_owned();
@@ -5614,7 +5614,7 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let client = WorkspaceSearchClient::new("http://127.0.0.1:9", runtime.handle().clone());
+        let client = WorkspaceSearchClient::new("http://127.0.0.1:9", runtime.handle().clone()).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:9")));
         let mut state = FindInFilesPanelState::new();
         state.bind_workspace(Some("A"), 1);
         state.query = "same-input".to_owned();
@@ -5669,7 +5669,7 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let client = WorkspaceSearchClient::new("http://127.0.0.1:9", runtime.handle().clone());
+        let client = WorkspaceSearchClient::new("http://127.0.0.1:9", runtime.handle().clone()).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:9")));
         let mut state = FindInFilesPanelState::new();
         state.bind_workspace(Some("A"), 1);
         state.query = "refresh-me".to_owned();
@@ -5852,7 +5852,7 @@ mod tests {
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
             .unwrap();
-        let client = RichDocClient::new("http://test.local", rt.handle().clone());
+        let client = RichDocClient::new("http://test.local", rt.handle().clone()).with_authenticated_context(Some(crate::local_account::mock_account_context("http://test.local")));
         state.run_preview_replace(&client, Some("A"));
         assert!(
             state
@@ -6303,11 +6303,11 @@ mod tests {
         let search_client = crate::backend_client::WorkspaceSearchClient::new(
             "http://127.0.0.1:1",
             runtime.handle().clone(),
-        );
+        ).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:1")));
         let doc_client = crate::backend_client::RichDocClient::new(
             "http://127.0.0.1:1",
             runtime.handle().clone(),
-        );
+        ).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:1")));
         let mut harness = egui_kittest::Harness::builder()
             .with_size(egui::vec2(900.0, 760.0))
             .build_ui(move |ui| {
@@ -6505,11 +6505,11 @@ mod tests {
         let search_client = crate::backend_client::WorkspaceSearchClient::new(
             "http://127.0.0.1:1",
             runtime.handle().clone(),
-        );
+        ).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:1")));
         let doc_client = crate::backend_client::RichDocClient::new(
             "http://127.0.0.1:1",
             runtime.handle().clone(),
-        );
+        ).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:1")));
 
         // 420px. WP-KERNEL-012 MT-122 LOWERED this from the 560px MT-119 shipped with, and the change
         // of number IS the acceptance evidence for AC-122-0 — not a tuning convenience.
@@ -6821,11 +6821,11 @@ mod tests {
         let search_client = crate::backend_client::WorkspaceSearchClient::new(
             "http://127.0.0.1:1",
             runtime.handle().clone(),
-        );
+        ).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:1")));
         let doc_client = crate::backend_client::RichDocClient::new(
             "http://127.0.0.1:1",
             runtime.handle().clone(),
-        );
+        ).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:1")));
 
         // The same 420px narrow pane the MT-119 guard now runs at (AC-122-0). Before MT-122 fixed the
         // static action rows this width was unusable for ANY containment claim, because the chrome

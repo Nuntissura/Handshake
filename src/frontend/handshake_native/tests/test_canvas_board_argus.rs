@@ -1123,8 +1123,8 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
         let two = backend_placement(&board_json, &placement_two);
         let g1 = one["group_id"].as_str().map(str::to_owned);
         let g2 = two["group_id"].as_str().map(str::to_owned);
-        if g1.is_some() && g1 == g2 {
-            break (g1.unwrap(), g2.unwrap());
+        if let (Some(first), Some(second)) = (&g1, &g2) {
+            if first == second { break (first.clone(), second.clone()); }
         }
         assert!(
             Instant::now() < deadline,

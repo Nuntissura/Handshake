@@ -750,8 +750,8 @@ fn validate_screenshots(
             }
             if capture_expected
                 && (marker.status != ScreenshotStatus::Captured
-                    || marker.frame_width.map_or(true, |width| width < 320)
-                    || marker.frame_height.map_or(true, |height| height < 180))
+                    || marker.frame_width.is_none_or( |width| width < 320)
+                    || marker.frame_height.is_none_or( |height| height < 180))
             {
                 return Err(std::io::Error::other(format!(
                     "scenario {:?} lacks a material captured frame",

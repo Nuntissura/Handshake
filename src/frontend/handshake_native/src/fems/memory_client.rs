@@ -100,7 +100,6 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 /// header is the least-privileged read-only actor server-side (the same least-privilege default the
 /// knowledge-documents read path uses), so no write-capable actor-kind is ever attached on this path.
 const FEMS_READ_ACTOR_ID: &str = "native-editor-fems-reader";
-const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // The Pillar 12 MemoryPack model (provenance-first, 3 kinds, <=24 items, <=500 token advisory).
@@ -580,7 +579,7 @@ pub struct MemoryClient {
     client: reqwest::Client,
     base_url: String,
     session_run_id: String,
-    session_token: Option<String>,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl Default for MemoryClient {
@@ -602,10 +601,10 @@ impl MemoryClient {
     /// site (GLOBAL-PORTABILITY-004).
     pub fn with_base_url(base_url: impl Into<String>) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             session_run_id: "native-editor-session".to_owned(),
-            session_token: None,
+            authenticated_context: None,
         }
     }
 
@@ -616,7 +615,7 @@ impl MemoryClient {
             client,
             base_url: base_url.into(),
             session_run_id: "native-editor-session".to_owned(),
-            session_token: None,
+            authenticated_context: None,
         }
     }
 
@@ -627,10 +626,14 @@ impl MemoryClient {
         self
     }
 
-    /// Bind requests to the live native MCP session. Production callers must set this; tests may
-    /// leave it absent when the mock transport intentionally does not enforce authentication.
-    pub fn with_session_token(mut self, session_token: impl Into<String>) -> Self {
-        self.session_token = Some(session_token.into());
+    /// Bind the explicit account context; missing context fails closed.
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+        self.client = crate::backend_client::shared_http_client();
+        self.authenticated_context = context;
+        self
+    }
+
+    pub fn with_session_token(self, _session_token: impl Into<String>) -> Self {
         self
     }
 
@@ -664,7 +667,7 @@ impl MemoryClient {
     ) -> MemoryResult<MemoryPack> {
         let path = Self::pack_path(workspace_id);
         let url = self.url(&path);
-        let mut builder = self
+        let builder = self
             .client
             .get(&url)
             .query(&context.query_pairs())
@@ -677,15 +680,14 @@ impl MemoryClient {
                 format!("native-editor-fems-{workspace_id}"),
             )
             .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id);
-        if let Some(session_token) = &self.session_token {
-            builder = builder.header(HSK_HEADER_SESSION_TOKEN, session_token);
-        }
 
-        let resp = builder
-            .send()
+        let account = self.authenticated_context.as_ref().ok_or_else(|| MemoryClientError::Transport("Account login required".into()))?;
+        let request = account.authorize(builder).map_err(MemoryClientError::Transport)?;
+        let resp = self.client.execute(request)
             .await
             .map_err(|e| MemoryClientError::Transport(e.to_string()))?;
         let status = resp.status();
+        account.observe_status(status);
 
         if !status.is_success() {
             let code = status.as_u16();
@@ -719,6 +721,7 @@ impl MemoryClient {
 
         // DEFENSIVE CLAMP (RISK-002/MC-001, AC-002): enforce the <=24 cap client-side regardless of
         // server behavior. If the server returned more, truncate, mark truncated, and log a warning.
+        if !account.is_active() { return Err(MemoryClientError::Transport("Account session is no longer active".into())); }
         clamp_pack_items(&mut pack);
         Ok(pack)
     }

@@ -46,11 +46,11 @@ use egui_kittest::kittest::{By, NodeT, Queryable};
 #[cfg(feature = "integration")]
 use handshake_diag_ring::{DiagEventCode, DiagRingReader, DiagRingWriter, DEFAULT_CAPACITY};
 #[cfg(feature = "integration")]
-#[path = "native_gui_support/canonical_argus_driver.rs"]
-mod canonical_argus_driver;
-#[cfg(feature = "integration")]
 #[path = "backend_proof_support/mod.rs"]
 mod backend_proof_support;
+#[cfg(feature = "integration")]
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 #[cfg(feature = "integration")]
@@ -392,7 +392,8 @@ fn backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring() {
         ("200 OK", "{", "DOC-BAD-JSON"),
     ] {
         let (base_url, server) = one_shot_backlinks_server(status, body);
-        let backend = ReqwestWikilinkBackend::new(base_url);
+        let backend = ReqwestWikilinkBackend::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&(base_url))));
         let _ = runtime.block_on(backend.list_backlinks(document_id));
         server
             .join()
@@ -401,12 +402,16 @@ fn backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring() {
     let unavailable = TcpListener::bind("127.0.0.1:0").expect("reserve unavailable address");
     let unavailable_address = unavailable.local_addr().expect("unavailable address");
     drop(unavailable);
-    let network_backend = ReqwestWikilinkBackend::new(format!("http://{unavailable_address}"));
+    let network_backend = ReqwestWikilinkBackend::new(format!("http://{unavailable_address}"))
+        .with_authenticated_context(Some(mock_account_context(
+            &(format!("http://{unavailable_address}")),
+        )));
     let _ = runtime.block_on(network_backend.list_backlinks("DOC-NETWORK"));
 
     let (cancel_base, cancel_accepted, cancel_release, cancel_server) = silent_backlinks_server();
     let cancel_task = runtime.spawn(async move {
-        ReqwestWikilinkBackend::new(cancel_base)
+        ReqwestWikilinkBackend::new(cancel_base.clone())
+            .with_authenticated_context(Some(mock_account_context(&(cancel_base))))
             .list_backlinks("DOC-CANCELLED")
             .await
     });
@@ -441,7 +446,8 @@ fn backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring() {
     // a separate Palmistry process maps.
     let (stall_base, stall_accepted, stall_release, stall_server) = silent_backlinks_server();
     let stalled_task = runtime.spawn(async move {
-        ReqwestWikilinkBackend::new(stall_base)
+        ReqwestWikilinkBackend::new(stall_base.clone())
+            .with_authenticated_context(Some(mock_account_context(&(stall_base))))
             .list_backlinks("DOC-STALLED")
             .await
     });
@@ -564,7 +570,8 @@ fn recovering_backlinks_server() -> (String, std::thread::JoinHandle<()>) {
 fn loom_address_backlinks_transport_sends_required_identity_headers() {
     let (base_url, server) =
         one_shot_backlinks_server("200 OK", r#"{"source_document_id":"DOC-B","backlinks":[]}"#);
-    let backend = ReqwestWikilinkBackend::new(base_url);
+    let backend = ReqwestWikilinkBackend::new(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&(base_url))));
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -586,7 +593,8 @@ fn loom_address_backlinks_transport_sends_required_identity_headers() {
 #[test]
 fn loom_address_backlinks_404_is_empty_projection() {
     let (base_url, server) = one_shot_backlinks_server("404 Not Found", r#"{"error":"not_found"}"#);
-    let backend = ReqwestWikilinkBackend::new(base_url);
+    let backend = ReqwestWikilinkBackend::new(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&(base_url))));
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -604,7 +612,8 @@ fn loom_address_backlinks_backend_down_is_bounded_failure() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("reserve unavailable backend address");
     let address = listener.local_addr().expect("unavailable address");
     drop(listener);
-    let backend = ReqwestWikilinkBackend::new(format!("http://{address}"));
+    let backend = ReqwestWikilinkBackend::new(format!("http://{address}"))
+        .with_authenticated_context(Some(mock_account_context(&(format!("http://{address}")))));
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -632,7 +641,10 @@ fn loom_address_backlinks_refresh_recovers_failed_mounted_runtime() {
         .enable_all()
         .build()
         .expect("backlinks recovery runtime");
-    let backend: Arc<dyn WikilinkBackend> = Arc::new(ReqwestWikilinkBackend::new(base_url));
+    let backend: Arc<dyn WikilinkBackend> = Arc::new(
+        ReqwestWikilinkBackend::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&(base_url)))),
+    );
     let mut runtime =
         WikilinkRuntime::new("ws-test", backend, Some(async_runtime.handle().clone()));
     runtime.set_context("ws-test", "DOC-B");
@@ -1195,8 +1207,8 @@ fn canvas_loom_chip_screenshot() {
 /// `getLoomBlock` (GET /workspaces/{ws}/loom/blocks/{id}) correctly needs NONE, so those calls stay
 /// header-free.
 #[cfg(feature = "integration")]
-fn with_rich_doc_headers(rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-    rb.header("x-hsk-actor-id", "operator")
+fn with_rich_doc_headers(account_context: &handshake_native::local_account::AuthenticatedContext, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    account_context.authorize_builder(live_client(), rb).expect("live fixture account and origin").header("x-hsk-actor-id", "operator")
         .header("x-hsk-actor-kind", "operator")
         .header("x-hsk-kernel-task-run-id", "KTR-EDITOR-UI")
         .header("x-hsk-session-run-id", "MT-032-integration")
@@ -1207,7 +1219,9 @@ fn required_doc_field(doc: &serde_json::Value, field: &str) -> String {
     doc.get(field)
         .and_then(|x| x.as_str())
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| panic!("live SurrealDB document response missing required '{field}': {doc}"))
+        .unwrap_or_else(|| {
+            panic!("live SurrealDB document response missing required '{field}': {doc}")
+        })
         .to_owned()
 }
 
@@ -1251,14 +1265,16 @@ fn live_client() -> reqwest::Client {
 /// runtime if an assertion unwinds before cleanup.
 #[cfg(feature = "integration")]
 struct LiveDocumentCleanup {
+    account_context: Arc<handshake_native::local_account::AuthenticatedContext>,
     base_url: String,
     ids: Arc<Mutex<Vec<String>>>,
 }
 
 #[cfg(feature = "integration")]
 impl LiveDocumentCleanup {
-    fn new(base_url: impl Into<String>) -> Self {
+    fn new(base_url: impl Into<String>, account_context: Arc<handshake_native::local_account::AuthenticatedContext>) -> Self {
         Self {
+            account_context,
             base_url: base_url.into(),
             ids: Arc::new(Mutex::new(Vec::new())),
         }
@@ -1276,7 +1292,7 @@ impl LiveDocumentCleanup {
         let ids = self.ids.lock().unwrap().clone();
         let client = live_client();
         for document_id in ids.iter().rev() {
-            let response = with_rich_doc_headers(client.delete(format!(
+            let response = with_rich_doc_headers(&self.account_context, client.delete(format!(
                 "{}/knowledge/documents/{document_id}",
                 self.base_url
             )))
@@ -1297,6 +1313,7 @@ impl LiveDocumentCleanup {
 
 #[cfg(feature = "integration")]
 async fn save_rich_document(
+    account_context: &handshake_native::local_account::AuthenticatedContext,
     client: &reqwest::Client,
     base_url: &str,
     document_id: &str,
@@ -1304,7 +1321,7 @@ async fn save_rich_document(
     content_json: serde_json::Value,
 ) -> serde_json::Value {
     let response = with_rich_doc_headers(
-        client.put(format!("{base_url}/knowledge/documents/{document_id}/save")),
+        account_context, client.put(format!("{base_url}/knowledge/documents/{document_id}/save")),
     )
     .json(&serde_json::json!({
         "expected_version": expected_version,
@@ -1326,13 +1343,16 @@ async fn save_rich_document(
 
 #[cfg(feature = "integration")]
 async fn load_backlinks_runtime(
+    account_context: std::sync::Arc<handshake_native::local_account::AuthenticatedContext>,
     handle: tokio::runtime::Handle,
     base_url: &str,
     workspace_id: &str,
     document_id: &str,
 ) -> Arc<Mutex<WikilinkRuntime>> {
-    let backend: Arc<dyn WikilinkBackend> =
-        Arc::new(ReqwestWikilinkBackend::new(base_url.to_owned()));
+    let backend: Arc<dyn WikilinkBackend> = Arc::new(
+        ReqwestWikilinkBackend::new(base_url.to_owned())
+            .with_authenticated_context(Some(account_context.clone())),
+    );
     let mut runtime = WikilinkRuntime::new(workspace_id, backend, Some(handle));
     runtime.set_context(workspace_id, document_id);
     runtime.ensure_backlinks_loaded();
@@ -1375,6 +1395,7 @@ impl Drop for LiveDocumentCleanup {
             return;
         }
         let base_url = self.base_url.clone();
+        let account_context = self.account_context.clone();
         let _ = std::thread::spawn(move || {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -1384,7 +1405,7 @@ impl Drop for LiveDocumentCleanup {
                 let client = live_client();
                 for document_id in ids.iter().rev() {
                     let _ = with_rich_doc_headers(
-                        client.delete(format!("{base_url}/knowledge/documents/{document_id}")),
+                        &account_context, client.delete(format!("{base_url}/knowledge/documents/{document_id}")),
                     )
                     .send()
                     .await;
@@ -1414,7 +1435,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
     rt.block_on(async {
         let seed_client = live_client();
         let workspace_id = managed_workspace_id.clone();
-        let cleanup = LiveDocumentCleanup::new(live_base_url.clone());
+        let cleanup = LiveDocumentCleanup::new(live_base_url.clone(), managed_backend.account_context.clone());
         let run_suffix = format!(
             "{}-{}",
             std::process::id(),
@@ -1424,8 +1445,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
                 .as_nanos()
         );
 
-        let doc_b = create_rich_document(
-            &seed_client,
+        let doc_b = create_rich_document(&managed_backend.account_context, &seed_client,
             &live_base_url,
             &workspace_id,
             &format!("MT-032-{run_suffix}-B"),
@@ -1448,7 +1468,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert_eq!(parse_loom_uri(&b_addr.to_uri()), Some(b_addr.clone()));
 
         // A fresh authority load must preserve the same canonical block identity.
-        let fresh_b_response = with_rich_doc_headers(seed_client.get(format!(
+        let fresh_b_response = with_rich_doc_headers(&managed_backend.account_context, seed_client.get(format!(
             "{live_base_url}/knowledge/documents/{b_id}"
         )))
         .send()
@@ -1467,8 +1487,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
             "type": "doc",
             "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "source A" }] }]
         });
-        let doc_a = create_rich_document(
-            &seed_client,
+        let doc_a = create_rich_document(&managed_backend.account_context, &seed_client,
             &live_base_url,
             &workspace_id,
             &format!("MT-032-{run_suffix}-A"),
@@ -1497,8 +1516,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
                 ]
             }]
         });
-        let link_save = save_rich_document(
-            &seed_client,
+        let link_save = save_rich_document(&managed_backend.account_context, &seed_client,
             &live_base_url,
             &a_id,
             1,
@@ -1520,6 +1538,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
 
         // End-to-end production client/runtime: Idle -> Loading -> Loaded against managed SurrealDB.
         let panel_runtime = load_backlinks_runtime(
+            managed_backend.account_context.clone(),
             runtime_handle.clone(),
             &live_base_url,
             &workspace_id,
@@ -1592,6 +1611,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
             use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
 
             let (mut mounted_app, mounted_runtime) = live_editor_shell();
+            mounted_app.bind_initial_account(managed_backend.account_context.clone()).expect("bind explicit fixture account");
             mounted_app.set_backend_base_url_for_test(
                 &live_base_url,
                 mounted_runtime.handle().clone(),
@@ -1699,8 +1719,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
 
         // Remove then restore A -> B via successive canonical saves. Each fresh production runtime
         // must observe the new projection; no cached or seeded rows are accepted.
-        let remove_save = save_rich_document(
-            &seed_client,
+        let remove_save = save_rich_document(&managed_backend.account_context, &seed_client,
             &live_base_url,
             &a_id,
             2,
@@ -1711,6 +1730,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert!(remove_save["backlinks_error"].is_null(), "{remove_save}");
         assert!(remove_save["backlinks_skipped_reason"].is_null(), "{remove_save}");
         let after_remove = load_backlinks_runtime(
+            managed_backend.account_context.clone(),
             runtime_handle.clone(),
             &live_base_url,
             &workspace_id,
@@ -1720,12 +1740,13 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert!(loaded_backlinks(&after_remove).is_empty());
 
         let restore_save =
-            save_rich_document(&seed_client, &live_base_url, &a_id, 3, linked_a_content.clone())
+            save_rich_document(&managed_backend.account_context, &seed_client, &live_base_url, &a_id, 3, linked_a_content.clone())
                 .await;
         assert!(restore_save["backlinks_persisted"].as_u64().unwrap_or(0) >= 1);
         assert!(restore_save["backlinks_error"].is_null(), "{restore_save}");
         assert!(restore_save["backlinks_skipped_reason"].is_null(), "{restore_save}");
         let after_restore = load_backlinks_runtime(
+            managed_backend.account_context.clone(),
             runtime_handle.clone(),
             &live_base_url,
             &workspace_id,
@@ -1742,8 +1763,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
             "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": format!("saved-{run_suffix}") }] }]
         });
         let expected_hash = ContentHash::of_content_json(&saved_content);
-        let save_b = save_rich_document(
-            &seed_client,
+        let save_b = save_rich_document(&managed_backend.account_context, &seed_client,
             &live_base_url,
             &b_id,
             1,
@@ -1754,7 +1774,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert!(save_b["backlinks_skipped_reason"].is_null(), "{save_b}");
 
         let refetch_client = live_client();
-        let document_response = with_rich_doc_headers(refetch_client.get(format!(
+        let document_response = with_rich_doc_headers(&managed_backend.account_context, refetch_client.get(format!(
             "{live_base_url}/knowledge/documents/{b_id}"
         )))
         .send()
@@ -1780,7 +1800,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert_eq!(block_body["content_hash"].as_str(), Some(expected_hash.as_str()));
 
         // Delete A and prove authority, Loom projection, and B's inbound projection all clean up.
-        let delete_a = with_rich_doc_headers(seed_client.delete(format!(
+        let delete_a = with_rich_doc_headers(&managed_backend.account_context, seed_client.delete(format!(
             "{live_base_url}/knowledge/documents/{a_id}"
         )))
         .send()
@@ -1793,7 +1813,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert!(delete_a_body["backlinks_deleted"].as_u64().unwrap_or(0) >= 1);
         cleanup.untrack(&a_id);
 
-        let deleted_document = with_rich_doc_headers(seed_client.get(format!(
+        let deleted_document = with_rich_doc_headers(&managed_backend.account_context, seed_client.get(format!(
             "{live_base_url}/knowledge/documents/{a_id}"
         )))
         .send()
@@ -1809,6 +1829,7 @@ fn live_surrealdb_self_seeded_loom_block_backlink_hash_and_ui_proof() {
             .expect("refetch deleted A LoomBlock");
         assert_eq!(deleted_block.status().as_u16(), 404);
         let after_delete = load_backlinks_runtime(
+            managed_backend.account_context.clone(),
             runtime_handle.clone(),
             &live_base_url,
             &workspace_id,
@@ -1945,7 +1966,8 @@ fn live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash() {
     // Keep this exact production wrapper across the backend restart. Its process-global shared HTTP
     // pool may contain an old-process keepalive socket; the post-restart loop below must discard only
     // bounded typed NetworkError deliveries and then make a fresh successful observation.
-    let production_backlinks = ReqwestWikilinkBackend::new(backend.base.clone());
+    let production_backlinks = ReqwestWikilinkBackend::new(backend.base.clone())
+        .with_authenticated_context(Some(backend.account_context.clone()));
     let before_restart_backlinks = runtime
         .block_on(production_backlinks.list_backlinks(&b_id))
         .expect("production backlink transport before restart");
@@ -2093,6 +2115,7 @@ fn live_surrealdb_owned_restart_preserves_document_backlink_and_content_hash() {
 /// (carrying `document_id` + `block_id`).
 #[cfg(feature = "integration")]
 async fn create_rich_document(
+    account_context: &handshake_native::local_account::AuthenticatedContext,
     client: &reqwest::Client,
     base_url: &str,
     workspace_id: &str,
@@ -2105,7 +2128,7 @@ async fn create_rich_document(
         "title": title,
         "content_json": content_json,
     });
-    let resp = with_rich_doc_headers(client.post(&url).json(&body))
+    let resp = with_rich_doc_headers(account_context, client.post(&url).json(&body))
         .send()
         .await
         .ok()?;
@@ -2117,4 +2140,19 @@ async fn create_rich_document(
         .ok()?
         .get("document")
         .cloned()
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }

@@ -71,7 +71,6 @@ pub const STAGE_CAPTURE_REF_KIND: &str = "stage_capture";
 /// The embed-back read timeout (a bounded timeout so a hung backend cannot stall the editor frame loop).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 
-const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
 
 fn sha256_hex(bytes: &[u8]) -> String {
     use std::fmt::Write as _;
@@ -761,7 +760,7 @@ pub fn embed_artifact_as_nodeview(artifact: &StageArtifactRef) -> StageResult<Em
 pub struct StageClient {
     client: reqwest::Client,
     base_url: String,
-    session_token: Option<String>,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl Default for StageClient {
@@ -785,7 +784,7 @@ impl StageClient {
         Self {
             client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
-            session_token: None,
+            authenticated_context: None,
         }
     }
 
@@ -795,14 +794,18 @@ impl StageClient {
         Self {
             client,
             base_url: base_url.into(),
-            session_token: None,
+            authenticated_context: None,
         }
     }
 
-    /// Bind requests to the running native app's owner-restricted MCP session token. The backend
-    /// validates this against the canonical binding file and derives identity/approval server-side.
-    pub fn with_session_token(mut self, session_token: impl Into<String>) -> Self {
-        self.session_token = Some(session_token.into());
+    /// Legacy channel-only compatibility setter; it grants no account authority.
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+        self.client = crate::backend_client::shared_http_client();
+        self.authenticated_context = context;
+        self
+    }
+
+    pub fn with_session_token(self, _session_token: impl Into<String>) -> Self {
         self
     }
 
@@ -833,19 +836,18 @@ impl StageClient {
         request: &StageCaptureRequest,
     ) -> StageResult<StageArtifactRef> {
         let path = Self::create_path(workspace_id);
-        let mut request_builder = self
+        let request_builder = self
             .client
             .post(self.url(&path))
             .timeout(REQUEST_TIMEOUT)
             .json(request);
-        if let Some(token) = &self.session_token {
-            request_builder = request_builder.header(HSK_HEADER_SESSION_TOKEN, token);
-        }
-        let response = request_builder
-            .send()
+        let account = self.authenticated_context.as_ref().ok_or_else(|| StageInteropError::Transport("Account login required".into()))?;
+        let request = account.authorize(request_builder).map_err(StageInteropError::Transport)?;
+        let response = self.client.execute(request)
             .await
             .map_err(|error| StageInteropError::Transport(error.to_string()))?;
         let status = response.status();
+        account.observe_status(status);
         if matches!(
             status,
             reqwest::StatusCode::NOT_FOUND | reqwest::StatusCode::NOT_IMPLEMENTED
@@ -867,10 +869,9 @@ impl StageClient {
         {
             return Err(StageInteropError::ContentIntegrityMismatch);
         }
-        response
-            .json::<StageArtifactRef>()
-            .await
-            .map_err(|error| StageInteropError::Transport(format!("decode: {error}")))
+        let artifact = response.json::<StageArtifactRef>().await.map_err(|error| StageInteropError::Transport(format!("decode: {error}")))?;
+        if !account.is_active() { return Err(StageInteropError::Transport("Account session is no longer active".into())); }
+        Ok(artifact)
     }
 
     fn url(&self, path: &str) -> String {
@@ -894,15 +895,14 @@ impl StageClient {
     ) -> StageResult<StageArtifactRef> {
         let path = Self::artifact_path(workspace_id, artifact_id);
         let url = self.url(&path);
-        let mut descriptor_builder = self.client.get(&url).timeout(REQUEST_TIMEOUT);
-        if let Some(token) = &self.session_token {
-            descriptor_builder = descriptor_builder.header(HSK_HEADER_SESSION_TOKEN, token);
-        }
-        let resp = descriptor_builder
-            .send()
+        let descriptor_builder = self.client.get(&url).timeout(REQUEST_TIMEOUT);
+        let account = self.authenticated_context.as_ref().ok_or_else(|| StageInteropError::Transport("Account login required".into()))?;
+        let request = account.authorize(descriptor_builder).map_err(StageInteropError::Transport)?;
+        let resp = self.client.execute(request)
             .await
             .map_err(|e| StageInteropError::Transport(e.to_string()))?;
         let status = resp.status();
+        account.observe_status(status);
 
         // THE TYPED BLOCKER (BROAD detection — RISK-008/MC-008): 404 (route absent) OR 501 (not
         // implemented) both mean the Stage embed-back route is not present in this build. Surface it as
@@ -942,15 +942,12 @@ impl StageClient {
         } else {
             return Err(StageInteropError::ContentIntegrityMismatch);
         };
-        let mut content_builder = self
+        let content_builder = self
             .client
             .get(self.url(&content_path))
             .timeout(REQUEST_TIMEOUT);
-        if let Some(token) = &self.session_token {
-            content_builder = content_builder.header(HSK_HEADER_SESSION_TOKEN, token);
-        }
-        let mut content_response = content_builder
-            .send()
+        let request = account.authorize(content_builder).map_err(StageInteropError::Transport)?;
+        let mut content_response = self.client.execute(request)
             .await
             .map_err(|error| StageInteropError::Transport(error.to_string()))?;
         if matches!(
@@ -967,6 +964,7 @@ impl StageClient {
                 content_response.status().as_u16()
             )));
         }
+        account.observe_status(content_response.status());
         validate_content_response_headers(&artifact, content_response.headers())?;
         if content_response
             .content_length()
@@ -989,6 +987,7 @@ impl StageClient {
             }
             bytes.extend_from_slice(&chunk);
         }
+        if !account.is_active() { return Err(StageInteropError::Transport("Account session is no longer active".into())); }
         if artifact.size_bytes != bytes.len() as u64
             || artifact.manifest.size_bytes != artifact.size_bytes
             || artifact.sha256 != artifact.manifest.sha256

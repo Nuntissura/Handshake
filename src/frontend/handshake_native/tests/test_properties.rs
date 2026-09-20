@@ -687,10 +687,15 @@ fn mt017_app_load_path_installs_properties_context() {
 #[ignore = "needs a live Handshake-managed backend + a seeded knowledge document (NEEDS_MANAGED_RESOURCE_PROOF)"]
 #[cfg(feature = "integration")]
 fn title_save_roundtrip_live() {
-    let doc_id = std::env::var("HANDSHAKE_TEST_RICH_DOC_ID")
-        .expect("set HANDSHAKE_TEST_RICH_DOC_ID to a seeded knowledge document id");
+    let live = backend_proof_support::require_live_backend();
+    let created = live.post_json("/knowledge/documents", &serde_json::json!({"workspace_id":live.workspace_id,"title":"Properties roundtrip owned fixture"}));
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("created document id")
+        .to_owned();
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let backend = ReqwestMetadataBackend::production();
+    let backend = ReqwestMetadataBackend::new(live.base.clone())
+        .with_authenticated_context(Some(live.account_context.clone()));
     rt.block_on(async {
         // 1) Load the real document metadata.
         let before = backend
@@ -758,3 +763,6 @@ fn mt017_live_content_json_is_pulled_from_the_doc_mc001() {
     // Keep the MetadataError import meaningful in the no-feature build.
     let _ = MetadataError::EmptyTitle.kind_str();
 }
+
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;

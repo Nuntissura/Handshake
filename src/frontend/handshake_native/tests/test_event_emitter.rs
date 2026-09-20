@@ -118,6 +118,7 @@ fn live_author_is_visible_in_mt036_viewport<S>(harness: &Harness<'_, S>, author_
     })
 }
 
+#[cfg(feature = "wgpu_screenshots")]
 fn live_author_bounds<S>(
     harness: &Harness<'_, S>,
     author_id: &str,
@@ -1926,13 +1927,13 @@ fn no_repo_local_artifact_dir() {
 fn event_emitter_native_editor_round_trip() {
     // WP-KERNEL-012 MT-111 / AC-111-7: MT-109 gates the WHOLE flight-recorder route group. This
     // harness both WRITES (through the production emitter inside the mounted app) and READS the
-    // recorder, so it must present a REAL native-MCP binding exactly as a real client does. Published
+    // recorder, so it must present a persisted account session plus a REAL native-MCP channel binding. Published
     // BEFORE the backend is selected so an owned child inherits the same app-data root and both
     // processes resolve the same `swarm_mcp_binding.json`. Nothing about the authorization is
-    // weakened: a missing, forged, or stale binding still fails closed with HSK-401-FR-SESSION.
-    let native_binding = backend_proof_support::RealNativeMcpBinding::publish();
+    // weakened: a missing, forged, or stale account/channel pair fails closed with HSK-403-PROTECTED-RESOURCE.
+    let _native_binding = backend_proof_support::RealNativeMcpBinding::publish();
     let mut managed_backend = backend_proof_support::require_reachable_backend();
-    let backend_binding = managed_backend.owned_backend_binding_receipt();
+    let _backend_binding = managed_backend.owned_backend_binding_receipt();
     let backend_pid = managed_backend.owned_process_id();
     let base = managed_backend.base.clone();
     let marker = uuid::Uuid::new_v4().to_string();
@@ -1950,8 +1951,8 @@ fn event_emitter_native_editor_round_trip() {
         .build()
         .expect("build bounded MT-036 HTTP client");
     let (workspace, document_id, _doc_version, canvas_id, source_block_id) = runtime.block_on(async {
-        let response = http
-            .post(format!("{base}/workspaces"))
+        let response = managed_backend.authenticated(http
+            .post(format!("{base}/workspaces")))
             .header("x-hsk-actor-id", &actor)
             .header("x-hsk-actor-kind", "human")
             .json(&serde_json::json!({"name": format!("MT036 {marker}")}))
@@ -1968,7 +1969,7 @@ fn event_emitter_native_editor_round_trip() {
             .to_owned();
 
         let identified = |request: reqwest::RequestBuilder| {
-            request
+            managed_backend.authenticated(request)
                 .header("x-hsk-actor-id", &actor)
                 .header("x-hsk-kernel-task-run-id", "KTR-MT036-LIVE")
                 .header("x-hsk-session-run-id", &session_id)
@@ -2046,6 +2047,7 @@ fn event_emitter_native_editor_round_trip() {
     }));
     app.set_native_editor_participant_actor_id(handshake_native::event_emitter::DEFAULT_ACTOR_ID)
         .expect("MT-036 proof binds the contract-required native_editor_human actor before mount");
+    app.bind_initial_account(managed_backend.account_context.clone()).expect("bind explicit proof account");
     app.set_backend_base_url_for_test(&base, runtime.handle().clone());
     app.set_active_project_id_for_test(workspace.clone());
     assert!(
@@ -2260,24 +2262,20 @@ fn event_emitter_native_editor_round_trip() {
         "mounted app Edit > Undo dispatch fires the real unified undo path"
     );
 
-    let (event_ids, trace_id, ledger_rows) = runtime.block_on(async {
+    let (event_ids, trace_id, _ledger_rows) = runtime.block_on(async {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
         let matching = loop {
-            let response = reqwest::Client::builder()
+            let response = managed_backend.authenticated(reqwest::Client::builder()
                 .connect_timeout(std::time::Duration::from_secs(3))
                 .timeout(std::time::Duration::from_secs(8))
                 .build()
                 .expect("build bounded MT-036 poll client")
                 .get(format!("{base}/api/flight_recorder"))
-                // MT-111 / AC-111-2: the recorder read is authenticated, not anonymous.
-                .header(
-                    handshake_native::event_emitter::HSK_HEADER_SESSION_TOKEN,
-                    native_binding.token(),
-                )
+                // Account identity and native channel credentials are attached independently.
                 // MT-111 / AC-111-3: `actor_id` is no longer client authority, so it is no longer a
                 // usable client-side filter either - the durable attribution is server-derived from
-                // the authenticated binding. Scope by workspace (the ownership boundary) instead.
-                .query(&[("wsid", workspace.as_str()), ("event_type", "system")])
+                // the authenticated account. Scope by workspace (the ownership boundary) instead.
+                .query(&[("wsid", workspace.as_str()), ("event_type", "system")]))
                 .send()
                 .await
                 .expect("GET flight recorder");
@@ -2622,7 +2620,7 @@ fn event_emitter_native_editor_round_trip() {
         ),
         "the authoritative Retry failure acknowledgement snapshot suppresses the transient target"
     );
-    let failed_retry_terminal_ack = failed_retry_provisional.clone();
+    let _failed_retry_terminal_ack = failed_retry_provisional.clone();
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut app_harness,
         "retry-rejected-fresh-tree-remounts-recovery-target",
@@ -2773,7 +2771,7 @@ fn event_emitter_native_editor_round_trip() {
         ),
     ];
     assert_eq!(action_proof.len(), action_targets.len());
-    let action_records = action_proof
+    let _action_records = action_proof
         .iter()
         .zip(action_targets)
         .map(
@@ -2833,9 +2831,9 @@ fn event_emitter_native_editor_round_trip() {
             (5usize, "retry-recovered-exact-event-rows"),
         ]) {
             capture["preceding_action"] = serde_json::json!({
-                "receipt_id": action_records[action_index]["receipt_id"],
-                "correlation_id": action_records[action_index]["correlation_id"],
-                "receipt_status": action_records[action_index]["receipt_status"],
+                "receipt_id": _action_records[action_index]["receipt_id"],
+                "correlation_id": _action_records[action_index]["correlation_id"],
+                "receipt_status": _action_records[action_index]["receipt_status"],
                 "terminal_predicate_id": predicate_id,
                 "terminal_predicate_passed": true,
             });
@@ -2868,15 +2866,15 @@ fn event_emitter_native_editor_round_trip() {
                 "owned_backend_base": base,
                 "closed_loopback_failure_base": closed_base,
             },
-            "backend_binding": backend_binding,
+            "backend_binding": _backend_binding,
             "backend_cleanup": {"assert_cleanup": true, "owned_backend_reaped": true},
             "workspace_cleanup": {"workspace_id": workspace, "deleted": true},
             "trace_id": trace_id,
             "event_ids_newest_first": event_ids,
-            "ledger_rows_newest_first": ledger_rows,
+            "ledger_rows_newest_first": _ledger_rows,
             "expected_row_author_ids": expected_row_ids,
-            "actions": action_records,
-            "failed_retry_terminal_ack": failed_retry_terminal_ack,
+            "actions": _action_records,
+            "failed_retry_terminal_ack": _failed_retry_terminal_ack,
             "retry_remounted_tree": retry_remounted,
             "open_loaded_tree": open_loaded_tree,
             "diagnostic_rows": diagnostic_rows,

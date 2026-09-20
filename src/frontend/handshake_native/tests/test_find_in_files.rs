@@ -156,7 +156,8 @@ fn graph_search_paginates_past_ten_thousand_until_the_canonical_short_page() {
         .build()
         .expect("build pagination runtime");
     let runtime_guard = runtime.enter();
-    let client = WorkspaceSearchClient::new(base_url, runtime.handle().clone());
+    let client = WorkspaceSearchClient::new(base_url.clone(), runtime.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     drop(runtime_guard);
     let cell: handshake_native::backend_client::GraphSearchCell =
         Arc::new(Mutex::new(std::collections::VecDeque::new()));
@@ -518,8 +519,10 @@ fn accesskit_tree_has_all_contract_author_ids() {
     let state = Arc::new(Mutex::new(seeded_state()));
     let opened = Arc::new(Mutex::new(Vec::new()));
     let r = rt();
-    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let mut harness = harness_for(
         state,
         opened,
@@ -605,8 +608,10 @@ fn text_inputs_advertise_and_apply_canonical_set_value() {
     let state = Arc::new(Mutex::new(seeded_state()));
     let opened = Arc::new(Mutex::new(Vec::new()));
     let r = rt();
-    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let mut harness = harness_for(
         Arc::clone(&state),
         opened,
@@ -683,8 +688,10 @@ fn replacement_set_value_is_rejected_while_apply_is_in_flight() {
     let mut harness = harness_for(
         Arc::clone(&state),
         opened,
-        WorkspaceSearchClient::new(TEST_BASE, r.handle().clone()),
-        RichDocClient::new(TEST_BASE, r.handle().clone()),
+        WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+            .with_authenticated_context(Some(mock_account_context(TEST_BASE))),
+        RichDocClient::new(TEST_BASE, r.handle().clone())
+            .with_authenticated_context(Some(mock_account_context(TEST_BASE))),
         Some("ws-1".to_owned()),
     );
     harness.run_steps(2);
@@ -727,8 +734,10 @@ fn toggle_buttons_flip_state() {
     let state = Arc::new(Mutex::new(FindInFilesPanelState::new()));
     let opened = Arc::new(Mutex::new(Vec::new()));
     let r = rt();
-    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let mut harness = harness_for(
         Arc::clone(&state),
         opened,
@@ -772,8 +781,10 @@ fn preview_and_apply_gating() {
     let state = Arc::new(Mutex::new(FindInFilesPanelState::new()));
     let opened = Arc::new(Mutex::new(Vec::new()));
     let r = rt();
-    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let dc = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let dc = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let mut h = harness_for(state, opened, sc, dc, Some("ws-1".to_owned()));
     h.run();
     let preview_disabled = h
@@ -798,8 +809,10 @@ fn preview_and_apply_gating() {
     let state2 = Arc::new(Mutex::new(seeded_state()));
     let opened2 = Arc::new(Mutex::new(Vec::new()));
     let r2 = rt();
-    let sc2 = WorkspaceSearchClient::new(TEST_BASE, r2.handle().clone());
-    let dc2 = RichDocClient::new(TEST_BASE, r2.handle().clone());
+    let sc2 = WorkspaceSearchClient::new(TEST_BASE, r2.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let dc2 = RichDocClient::new(TEST_BASE, r2.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let mut h2 = harness_for(state2, opened2, sc2, dc2, Some("ws-1".to_owned()));
     h2.run();
     let preview_enabled = h2
@@ -845,7 +858,8 @@ fn stale_result_guard_blocks_preview() {
         MatchOptions::default(),
     ));
     let r = rt();
-    let dc = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let dc = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     s.run_preview_replace(&dc, Some("ws-1"));
     assert!(
         s.replace_status.as_deref().unwrap_or_default().contains("stale"),
@@ -868,7 +882,8 @@ fn stale_result_guard_blocks_preview() {
 #[test]
 fn search_page_query_uses_verified_params() {
     let r = rt();
-    let c = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
+    let c = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     // All-kind, no filters => no source_kinds, no tag_ids, no path.
     let params = c.search_page_query("alpha", None, "", "", SearchMatchOptions::default(), 0);
     assert!(params.contains(&("q".to_owned(), "alpha".to_owned())));
@@ -919,7 +934,8 @@ fn search_page_query_uses_verified_params() {
 #[test]
 fn bookmark_save_request_wraps_blob() {
     let r = rt();
-    let c = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
+    let c = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let blob = handshake_native::find_in_files::bookmark_state_blob(&[]);
     let spec = c.save_bookmarks_request("ws-1", blob.clone());
     assert_eq!(
@@ -1162,8 +1178,10 @@ fn find_in_files_registry() -> PaneRegistry {
 #[test]
 fn pane_opens_via_registry_and_renders_real_panel() {
     let r = rt();
-    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let dc = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let dc = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let shared = Arc::new(Mutex::new(FindInFilesPaneShared::new(
         HsTheme::Dark.palette(),
     )));
@@ -1214,8 +1232,10 @@ fn pane_opens_via_registry_and_renders_real_panel() {
 #[test]
 fn two_registry_find_panes_keep_state_and_author_ids_isolated() {
     let r = rt();
-    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let dc = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let dc = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let pane_a: handshake_native::pane_registry::PaneId = Arc::from("find-pane-a");
     let pane_b: handshake_native::pane_registry::PaneId = Arc::from("find-pane-b");
     let shared = Arc::new(Mutex::new(FindInFilesPaneShared::new(
@@ -1400,8 +1420,10 @@ fn find_in_files_screenshot() {
     let state = Arc::new(Mutex::new(seeded_state()));
     let opened = Arc::new(Mutex::new(Vec::new()));
     let r = rt();
-    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let dc = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let dc = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let workspace_id = Some("ws-1".to_owned());
 
     let mut harness = Harness::builder()
@@ -1784,8 +1806,10 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         .enable_all()
         .build()
         .expect("managed MT-029 runtime");
-    let search_client = WorkspaceSearchClient::new(live.base.clone(), runtime.handle().clone());
-    let doc_client = RichDocClient::new(live.base.clone(), runtime.handle().clone());
+    let search_client = WorkspaceSearchClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(Some(live.account_context.clone()));
+    let doc_client = RichDocClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(Some(live.account_context.clone()));
 
     let cross_preview_cell: FindReplaceCell =
         Arc::new(Mutex::new(std::collections::VecDeque::new()));
@@ -2009,6 +2033,9 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
             },
         ),
     );
+    production_app
+        .bind_initial_account(live.account_context.clone())
+        .expect("bind explicit fixture account");
     production_app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
     production_app.bind_active_project_for_integration_test(workspace_id.clone());
     assert!(production_app.dispatch_palette_action_for_test(
@@ -2282,7 +2309,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     for _ in 0..400 {
         ui_harness.run_steps(1);
         if author_ids(&ui_harness).contains(&ui_result_author_id)
-            && ui_harness.state().find_in_files_diagnostics_for_test().1 == false
+            && !ui_harness.state().find_in_files_diagnostics_for_test().1
         {
             break;
         }
@@ -4180,7 +4207,8 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
 fn find_in_files_screenshot_long_title_narrow_pane_mt122() {
     let _g = wgpu_guard();
     let mut seeded = seeded_state();
-    let long_title = "Session token refresh scheduler: retry backoff plus every call site that still \
+    let long_title =
+        "Session token refresh scheduler: retry backoff plus every call site that still \
                       builds a bearer header by hand, collected from the authentication middleware \
                       refactor across the workspace";
     seeded.results.insert(
@@ -4197,8 +4225,10 @@ fn find_in_files_screenshot_long_title_narrow_pane_mt122() {
     let state = Arc::new(Mutex::new(seeded));
     let opened = Arc::new(Mutex::new(Vec::new()));
     let r = rt();
-    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let dc = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
+    let dc = RichDocClient::new(TEST_BASE, r.handle().clone())
+        .with_authenticated_context(Some(mock_account_context(TEST_BASE)));
     let workspace_id = Some("ws-1".to_owned());
 
     // 420px is the narrow pane AC-122-0 names; the badge previously rendered 712px past its edge.
@@ -4240,14 +4270,37 @@ fn find_in_files_screenshot_long_title_narrow_pane_mt122() {
         return;
     };
     let (w, h) = (image.width(), image.height());
-    assert_eq!((w, h), (420, 640), "frame must be the declared narrow pane size");
+    assert_eq!(
+        (w, h),
+        (420, 640),
+        "frame must be the declared narrow pane size"
+    );
     let ext_dir = external_artifact_dir("wp-kernel-012-mt-122");
     std::fs::create_dir_all(&ext_dir).expect("create MT-122 external screenshot directory");
     let png = ext_dir.join("MT-122-find-in-files-long-title-420px.png");
     image
         .save(&png)
         .unwrap_or_else(|error| panic!("save MT-122 screenshot {}: {error}", png.display()));
-    assert!(png.is_file(), "screenshot PNG was not created at {}", png.display());
+    assert!(
+        png.is_file(),
+        "screenshot PNG was not created at {}",
+        png.display()
+    );
     println!("SCREENSHOT: {w}x{h}, saved=true ({})", png.display());
     assert_no_local_artifact_dir();
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }

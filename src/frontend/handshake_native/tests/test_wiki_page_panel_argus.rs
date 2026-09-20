@@ -96,7 +96,7 @@ fn wait_for_loaded_wiki(harness: &mut Harness<'_, HandshakeApp>, projection_id: 
     }
 }
 
-fn receipt<'a>(snapshot: &'a serde_json::Value, receipt_id: u64) -> &'a serde_json::Value {
+fn receipt(snapshot: &serde_json::Value, receipt_id: u64) -> &serde_json::Value {
     snapshot["action_receipts"]
         .as_array()
         .and_then(|receipts| {

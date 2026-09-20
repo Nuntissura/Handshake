@@ -1879,7 +1879,7 @@ fn canvas_board_live_surrealdb_self_seeds_mounted_round_trip() {
     };
     let source_one_title = format!("MT-026 source one {unique}");
     let source_two_title = format!("MT-026 source two {unique}");
-    let text_card_title;
+
     let source_one = create_block(&source_one_title);
     let source_two = create_block(&source_two_title);
     let canvas = live.post_json(
@@ -2027,7 +2027,7 @@ fn canvas_board_live_surrealdb_self_seeds_mounted_round_trip() {
         .expect("host reload exposes created text-card identity");
     let original_text_placement_id = original_text.placement_id.clone();
     let text_block_id = original_text.placed_block_id.clone();
-    text_card_title = original_text.display_title().to_owned();
+    let text_card_title = original_text.display_title().to_owned();
     assert!(
         text_card_title.starts_with("Card "),
         "mounted + Text card producer persists its timestamp title"

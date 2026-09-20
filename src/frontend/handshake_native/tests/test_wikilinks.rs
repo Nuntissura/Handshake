@@ -667,18 +667,23 @@ fn mt015_backlinks_empty_state() {
 #[ignore = "needs a live Handshake-managed backend + seeded loom block + document (NEEDS_MANAGED_RESOURCE_PROOF)"]
 #[cfg(feature = "integration")]
 fn real_transclusion_and_backlinks_against_live_backend() {
-    use handshake_native::backend_client::BACKEND_BASE_URL;
     use handshake_native::rich_editor::wikilinks::client::ReqwestWikilinkBackend;
 
-    let workspace_id = std::env::var("HANDSHAKE_TEST_WORKSPACE_ID")
-        .expect("set HANDSHAKE_TEST_WORKSPACE_ID to a real workspace");
-    let block_id = std::env::var("HANDSHAKE_TEST_BLOCK_ID")
-        .expect("set HANDSHAKE_TEST_BLOCK_ID to a real seeded transcludable loom block id");
-    let document_id = std::env::var("HANDSHAKE_TEST_DOCUMENT_ID")
-        .expect("set HANDSHAKE_TEST_DOCUMENT_ID to a real seeded document id");
+    let live = backend_proof_support::require_live_backend();
+    let workspace_id = live.workspace_id.clone();
+    let created = live.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({"workspace_id":workspace_id,"title":"Owned transclusion fixture"}),
+    );
+    let document_id = created["document"]["rich_document_id"]
+        .as_str()
+        .expect("created document id")
+        .to_owned();
+    let block_id = document_id.clone();
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let backend = ReqwestWikilinkBackend::new(BACKEND_BASE_URL);
+    let backend = ReqwestWikilinkBackend::new(live.base.clone())
+        .with_authenticated_context(Some(live.account_context.clone()));
 
     // Transclusion resolve.
     let transclusion =
@@ -1210,3 +1215,6 @@ fn mt045_cyclic_transclusion_chain_renders_visible_cycle_indicator_without_panic
         "MT-045 guard: a clean chain shows NO cycle indicator (cycles are flagged specifically)"
     );
 }
+
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;

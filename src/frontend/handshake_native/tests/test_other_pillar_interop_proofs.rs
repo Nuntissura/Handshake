@@ -1137,27 +1137,6 @@ fn wait_for_native_fr(
     }
 }
 
-/// Read every workspace-scoped Flight Recorder row through the authorized credential. Used by the
-/// deterministic fixture cleanup so ledger residue minted by the mounted app — not only the rows a
-/// scenario tracked by id — is named exactly.
-fn authorized_flight_recorder_rows(
-    backend: &backend_proof_support::LiveBackend,
-) -> Option<serde_json::Value> {
-    match try_live_binding_session_token() {
-        Ok(session_token) => Some(backend.get_json_with_session_token(
-            &format!("/api/flight_recorder?wsid={}", backend.workspace_id),
-            &session_token,
-        )),
-        Err(reason) => {
-            eprintln!(
-                "MT-074 cleanup skipped authorized Flight Recorder discovery ({reason}); the \
-                 workspace-scoped SQL residue sweep still runs."
-            );
-            None
-        }
-    }
-}
-
 fn assert_causal_order(first: &serde_json::Value, second: &serde_json::Value, label: &str) {
     let first_ts = first["payload"]["ts_utc"]
         .as_str()
@@ -1187,6 +1166,8 @@ fn build_managed_app_state(
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(backend.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
     app.set_stage_embed_back_base_url_for_test(&backend.base);
     app.bind_active_project_for_integration_test(backend.workspace_id.clone());
@@ -2945,6 +2926,8 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(be.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.set_stage_embed_back_base_url_for_test(&be.base);
     app.bind_active_project_for_integration_test(ws.clone());
@@ -3114,8 +3097,9 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         save_surface_screenshot(&mut harness, &artifact_dir, "op01-stage-terminal");
     fixtures.stage_artifact(artifact_id.clone());
     let stage_token = harness.state().mcp_token();
-    let stage_client =
-        StageClient::with_base_url(be.base.clone()).with_session_token(stage_token.as_hex());
+    let stage_client = StageClient::with_base_url(be.base.clone())
+        .with_authenticated_context(Some(be.account_context.clone()))
+        .with_session_token(stage_token.as_hex());
     let artifact = rt()
         .block_on(stage_client.fetch_stage_artifact(ws, &artifact_id))
         .expect("OP-01 production Stage client verifies the exact stored bytes");
@@ -3447,6 +3431,8 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(be.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(ws.clone());
     let pane_id = PaneId::from("pane-a");
@@ -3779,6 +3765,8 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(be.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(ws.clone());
     let pane_id = PaneId::from("pane-a");

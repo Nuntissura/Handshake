@@ -923,13 +923,17 @@ pub trait FindNotesSearch: Send + Sync {
 #[derive(Clone)]
 pub struct FindNotesHttp {
     client: reqwest::Client,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
     base_url: String,
 }
 
 impl FindNotesHttp {
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+
     /// Build against an explicit base URL (a test points it at a live backend).
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
+            authenticated_context: None,
             client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
         }
@@ -958,10 +962,11 @@ impl FindNotesSearch for FindNotesHttp {
             self.base_url, workspace_id
         );
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let body = body.clone();
         Box::pin(async move {
             let response =
-                client.post(&url).json(&body).send().await.map_err(|e| {
+                crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.post(&url).json(&body)).send().await.map_err(|e| {
                     CrossRefError::Backend(format!("find-notes search failed: {e}"))
                 })?;
             let status = response.status();
@@ -989,7 +994,7 @@ impl FindNotesSearch for FindNotesHttp {
         let client = crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
             self.client.clone(),
             self.base_url.clone(),
-        );
+        ).with_optional_authenticated_context(self.authenticated_context.clone());
         let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
             "mt034-note-ref-readback",
             document_id,
@@ -1043,9 +1048,10 @@ impl FindNotesSearch for FindNotesHttp {
             percent_encode_symbol(block_id)
         );
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let block_id = block_id.to_owned();
         Box::pin(async move {
-            let response = client.get(&url).send().await.map_err(|error| {
+            let response = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.get(&url)).send().await.map_err(|error| {
                 CrossRefError::Backend(format!(
                     "exact Loom block {block_id} readback failed: {error}"
                 ))

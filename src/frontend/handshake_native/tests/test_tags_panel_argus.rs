@@ -266,7 +266,7 @@ fn mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve() {
             "created_by": "user"
         }),
     );
-    drop(seed_block);
+
 
     let (mut app, _rt) = tags_shell();
     app.bind_active_project_for_integration_test(&workspace_id);

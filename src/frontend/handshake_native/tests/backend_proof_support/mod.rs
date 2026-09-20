@@ -93,8 +93,11 @@ pub const EMBEDDED_DATA_DIR_ENV: &str = "HANDSHAKE_DATA_DIR";
 pub const EMBEDDED_STORE_DIRECTORY: &str = "handshake-surreal";
 
 pub struct LiveBackend {
+    account_logout_complete: Cell<bool>,
     pub base: String,
     pub workspace_id: String,
+    pub account_context: std::sync::Arc<handshake_native::local_account::AuthenticatedContext>,
+    _native_binding: Option<RealNativeMcpBinding>,
     client: reqwest::Client,
     rt: tokio::runtime::Runtime,
     owned_backend: RefCell<Option<Child>>,
@@ -104,6 +107,85 @@ pub struct LiveBackend {
     retained_failure_receipt: RefCell<Option<PathBuf>>,
     preserve_runtime_roots: Cell<bool>,
     _fixture_lock: FileLock,
+}
+
+/// One-attempt, in-memory authority transfer to the supervisor that owns the test child.
+/// Credentials never enter the workspace sidecar or proof log.
+pub struct CleanupAccountTransfer {
+    listener: std::net::TcpListener,
+    nonce: String,
+    attempt: String,
+    pub account: Option<CleanupAccount>,
+}
+
+pub struct CleanupAccount {
+    pub base: String,
+    pub context: std::sync::Arc<handshake_native::local_account::AuthenticatedContext>,
+}
+
+impl CleanupAccountTransfer {
+    pub fn new(attempt: &str) -> Self {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("owned cleanup authority listener");
+        listener.set_nonblocking(true).expect("nonblocking authority listener");
+        Self { listener, nonce: uuid::Uuid::new_v4().to_string(), attempt: attempt.to_owned(), account: None }
+    }
+
+    pub fn configure_child(&self, command: &mut std::process::Command) {
+        command.env("HSK_PROOF_CLEANUP_ADDRESS", self.listener.local_addr().expect("listener address").to_string())
+            .env("HSK_PROOF_CLEANUP_NONCE", &self.nonce);
+    }
+
+    pub fn poll(&mut self) {
+        use std::io::Read;
+        if self.account.is_some() { return; }
+        let (mut stream, peer) = match self.listener.accept() {
+            Ok(value) => value,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => return,
+            Err(_) => panic!("cleanup authority accept failed"),
+        };
+        assert!(peer.ip().is_loopback(), "cleanup authority peer rejected");
+        let deadline = Instant::now() + Duration::from_millis(100);
+        let mut bytes = Vec::new();
+        loop {
+            let remaining = deadline.checked_duration_since(Instant::now()).expect("cleanup authority transfer deadline");
+            stream.set_read_timeout(Some(remaining)).expect("bounded authority read");
+            let mut chunk = [0_u8; 1024];
+            let read = stream.read(&mut chunk).expect("bounded cleanup authority transfer");
+            if read == 0 { break; }
+            bytes.extend_from_slice(&chunk[..read]);
+            assert!(bytes.len() <= 8192, "cleanup authority transfer oversized");
+        }
+        assert!(bytes.len() <= 8192, "cleanup authority transfer oversized");
+        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("cleanup authority envelope invalid");
+        assert!(value["nonce"].as_str() == Some(&self.nonce) && value["attempt"].as_str() == Some(&self.attempt), "cleanup authority identity mismatch");
+        let base = value["base"].as_str().expect("cleanup authority origin missing");
+        let url = reqwest::Url::parse(base).expect("cleanup authority origin invalid");
+        assert!(url.scheme() == "http" && url.host_str() == Some("127.0.0.1") && url.port().is_some()
+            && url.username().is_empty() && url.password().is_none() && url.query().is_none() && url.fragment().is_none(), "cleanup authority origin rejected");
+        let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(value["context"].clone()).expect("cleanup authority context invalid");
+        let channel = value["channel"].as_str().expect("cleanup channel missing").to_owned();
+        self.account = Some(CleanupAccount { base: base.to_owned(), context: std::sync::Arc::new(context.bind(base, channel).expect("cleanup authority binding invalid")) });
+    }
+}
+
+pub fn publish_cleanup_account(backend: &LiveBackend, attempt: &str) {
+    use std::io::Write;
+    let Ok(address) = std::env::var("HSK_PROOF_CLEANUP_ADDRESS") else { return; };
+    let address: std::net::SocketAddr = address.parse().expect("cleanup listener address invalid");
+    assert!(address.ip().is_loopback(), "cleanup listener must be loopback");
+    let nonce = std::env::var("HSK_PROOF_CLEANUP_NONCE").expect("cleanup listener nonce missing");
+    // Extract only the headers this real session already authorizes; no production export API.
+    let request = backend.account_context.authorize(backend.client.get(format!("{}/authority/session", backend.base))).expect("real fixture account binding");
+    let context = &backend.account_context;
+    let value = serde_json::json!({"nonce": nonce, "attempt": attempt, "base": backend.base,
+        "channel": request.headers()["x-hsk-channel-binding-token"].to_str().expect("channel header"),
+        "context": {"account_id": context.account_id, "principal_id": context.principal_id,
+            "session_id": context.session_id, "access_space_id": context.access_space_id,
+            "session_token": request.headers()["x-hsk-session-token"].to_str().expect("session header")}});
+    let mut stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(1)).expect("owned supervisor authority connection");
+    stream.set_write_timeout(Some(Duration::from_secs(1))).expect("bounded authority write");
+    stream.write_all(&serde_json::to_vec(&value).expect("authority envelope encoding")).expect("authority transfer");
+    stream.shutdown(std::net::Shutdown::Write).expect("finish authority transfer");
 }
 
 /// Hard aggregate wall-clock deadline for fixture creation. Per-request timeouts alone do not bound a
@@ -420,6 +502,10 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
             lock_timeout.as_secs()
         )
     });
+    let native_binding = if handshake_native::event_emitter::flight_recorder_session_token().is_err() {
+        Some(RealNativeMcpBinding::publish())
+    } else { None };
+    let channel_token = live_flight_recorder_session_token();
     let configured_base =
         std::env::var("HSK_TEST_BASE").unwrap_or_else(|_| DEFAULT_BASE.to_owned());
     let force_owned = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").is_some();
@@ -458,9 +544,26 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         owned_data_dir = Some(data_dir);
     }
 
+    let account_context = rt.block_on(async {
+        let owned = owned_backend.is_some();
+        let account_name = if owned { format!("proof-{}", uuid::Uuid::new_v4()) } else {
+            std::env::var("HANDSHAKE_PROOF_ACCOUNT_NAME").expect("attached backend requires explicit HANDSHAKE_PROOF_ACCOUNT_NAME")
+        };
+        let password = if owned { format!("proof-password-{}", uuid::Uuid::new_v4()) } else {
+            std::env::var("HANDSHAKE_PROOF_ACCOUNT_PASSWORD").expect("attached backend requires explicit HANDSHAKE_PROOF_ACCOUNT_PASSWORD")
+        };
+        if owned {
+            assert!(handshake_native::local_account::setup_required(&client, &base, &channel_token).await.expect("read explicit Owner setup state"));
+            handshake_native::local_account::setup_owner(&client, &base, &channel_token, &account_name, password.clone()).await.expect("explicit proof Owner setup through product authority route");
+        }
+        std::sync::Arc::new(handshake_native::local_account::login(&client, &base, channel_token, &account_name, password).await.expect("proof account login and persisted session exchange"))
+    });
     let mut backend = LiveBackend {
+        account_logout_complete: Cell::new(false),
         base,
         workspace_id: String::new(),
+        account_context,
+        _native_binding: native_binding,
         client,
         rt,
         owned_backend: RefCell::new(owned_backend),
@@ -1020,6 +1123,21 @@ fn wait_for_health(
 }
 
 impl LiveBackend {
+    fn logout_account_bounded(&self) -> Result<(), String> {
+        if self.account_logout_complete.get() { return Ok(()); }
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.rt.block_on(async {
+            tokio::time::timeout(Duration::from_secs(2), handshake_native::local_account::logout(
+                &self.client, &self.base, &self.account_context)).await
+                .map_err(|_| "owned fixture logout deadline exceeded".to_owned())?
+        })));
+        match result {
+            Ok(Ok(())) => { self.account_logout_complete.set(true); Ok(()) }
+            _ => {
+                self.preserve_runtime_roots.set(true);
+                Err("owned fixture session/vault cleanup remains unverified; retain diagnostics for recovery".to_owned())
+            }
+        }
+    }
     /// Produce an inspectable, typed request-failure receipt from the real fixture-owned backend.
     /// This is only called by the MT-045 diagnostics proof when its explicit environment gate is set.
     pub fn trigger_retained_request_failure_probe(&mut self) -> ! {
@@ -1199,8 +1317,12 @@ impl LiveBackend {
         );
     }
 
+    pub fn authenticated(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        self.account_context.authorize_builder(self.client.clone(), request).expect("proof request must use its live account and backend origin")
+    }
+
     fn ident(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        request
+        self.authenticated(request)
             .header("x-hsk-actor-id", "wp-kernel-012-native-proof")
             .header("x-hsk-kernel-task-run-id", "wp-kernel-012-native-proof")
             .header("x-hsk-session-run-id", "wp-kernel-012-native-proof-session")
@@ -1208,7 +1330,7 @@ impl LiveBackend {
     }
 
     fn workspace_ident(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        request
+        self.authenticated(request)
             .header("x-hsk-actor-id", "wp-kernel-012-native-proof")
             .header("x-hsk-actor-kind", "human")
     }
@@ -1246,6 +1368,7 @@ impl LiveBackend {
         } else {
             None
         };
+        let account_cleanup = self.logout_account_bounded();
         if let Some(child) = self.owned_backend.get_mut().as_mut() {
             kill_and_reap(child, "clean up fixture-owned backend");
             *self.owned_backend.get_mut() = None;
@@ -1259,6 +1382,7 @@ impl LiveBackend {
                 Err(payload) => std::panic::resume_unwind(payload),
             }
         }
+        account_cleanup.expect("fixture session and OS-vault entry must be revoked before cleanup is complete");
     }
 
     /// Complete the normal proof teardown and atomically publish the one active backend runtime set.
@@ -1297,6 +1421,7 @@ impl LiveBackend {
         let active_runtime_root = self.owned_runtime_roots.last().cloned().ok_or_else(|| {
             "success runtime publication requires an active runtime root".to_owned()
         })?;
+        let account_cleanup = self.logout_account_bounded();
         let child = self.owned_backend.get_mut().as_mut().ok_or_else(|| {
             "success runtime publication requires a fixture-owned backend".to_owned()
         })?;
@@ -1309,6 +1434,7 @@ impl LiveBackend {
                 format!("fixture-owned backend pid {owned_pid} was not reaped after termination")
             })?;
         *self.owned_backend.get_mut() = None;
+        account_cleanup?;
 
         let outcome = publish_success_runtime_diagnostics(
             &active_runtime_root,
@@ -1559,11 +1685,10 @@ impl LiveBackend {
     pub fn get_json_with_session_token(
         &self,
         path: &str,
-        session_token: &str,
+        channel_token: &str,
     ) -> serde_json::Value {
         let text = self.request_text(
-            self.ident(self.client.get(format!("{}{path}", self.base)))
-                .header("x-hsk-session-token", session_token),
+            self.ident(self.client.get(format!("{}{path}", self.base))).header("x-hsk-channel-binding-token", channel_token),
             &format!("GET {path}"),
         );
         serde_json::from_str(&text)
@@ -1980,9 +2105,7 @@ impl LiveBackend {
         };
         let outcome = retain_backend_failure_files(
             &active_runtime_root,
-            trigger,
-            stage,
-            label,
+            (trigger, stage, label),
             process,
             health,
             request_error,
@@ -2023,7 +2146,7 @@ impl LiveBackend {
                 "reachable": true,
                 "http_status": status,
                 "body": serde_json::from_str::<serde_json::Value>(&text)
-                    .unwrap_or_else(|_| serde_json::Value::String(text)),
+                    .unwrap_or(serde_json::Value::String(text)),
             }),
             Err(error) => serde_json::json!({
                 "url": url,
@@ -2210,7 +2333,7 @@ fn path_is_reparse_or_symlink(path: &Path) -> Result<bool, String> {
     {
         use std::os::windows::fs::MetadataExt;
         const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
-        return Ok(metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0);
+        Ok(metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0)
     }
     #[cfg(not(windows))]
     Ok(false)
@@ -2516,9 +2639,7 @@ fn publish_success_runtime_diagnostics(
 
 fn retain_backend_failure_files(
     runtime_roots: &[PathBuf],
-    trigger: &str,
-    stage: &str,
-    label: &str,
+    (trigger, stage, label): (&str, &str, &str),
     process: serde_json::Value,
     health: serde_json::Value,
     request_error: Option<serde_json::Value>,
@@ -2899,6 +3020,14 @@ fn retain_backend_failure_files(
 
 #[cfg(test)]
 mod failure_diagnostic_tests {
+    // Transport/process diagnostic doubles issue no real session or vault entry.
+    fn diagnostic_mock_account(base: &str) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+        let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+            "account_id":"diagnostic-account", "principal_id":"diagnostic-principal", "session_id":"diagnostic-session",
+            "access_space_id":"diagnostic-space", "session_token":"a".repeat(64)
+        })).expect("diagnostic mock account shape");
+        std::sync::Arc::new(context.bind(base, "b".repeat(64)).expect("diagnostic mock origin"))
+    }
     use super::*;
 
     fn unique_runtime_root(label: &str) -> PathBuf {
@@ -2964,9 +3093,7 @@ mod failure_diagnostic_tests {
         assert_eq!(containment["store_path_present"], true);
         let outcome = retain_backend_failure_files(
             &[complete_runtime_root],
-            "unit_test_failure",
-            "request_send",
-            "../../path escape proof",
+            ("unit_test_failure", "request_send", "../../path escape proof"),
             serde_json::json!({"ownership": "fixture_owned", "pid": 42}),
             serde_json::json!({"reachable": false}),
             Some(serde_json::json!({"is_connect": true})),
@@ -3132,9 +3259,7 @@ mod failure_diagnostic_tests {
 
         let outcome = retain_backend_failure_files(
             std::slice::from_ref(&runtime_root),
-            "unit_test_failure",
-            "request_send",
-            "diagnostic-partial-test",
+            ("unit_test_failure", "request_send", "diagnostic-partial-test"),
             serde_json::json!({
                 "owned": true,
                 "pid": 42,
@@ -3338,6 +3463,9 @@ mod failure_diagnostic_tests {
             .expect("create live success test lock");
         (
             LiveBackend {
+                account_logout_complete: Cell::new(true), // no real session was issued by this HTTP double
+                account_context: diagnostic_mock_account(&base),
+                _native_binding: None,
                 base,
                 workspace_id,
                 client: build_backend_client(),
@@ -3644,6 +3772,9 @@ mod failure_diagnostic_tests {
             .open(&lock_path)
             .expect("create attached-boundary test lock");
         let backend = LiveBackend {
+            account_logout_complete: Cell::new(true), // closed-port diagnostic double, no vault entry
+            account_context: diagnostic_mock_account("http://127.0.0.1:9"),
+            _native_binding: None,
             base: "http://127.0.0.1:9".to_owned(),
             workspace_id: String::new(),
             client: build_backend_client(),
@@ -3727,6 +3858,7 @@ impl Drop for LiveBackend {
                 }
             }
         }
+        if let Err(error) = self.logout_account_bounded() { eprintln!("WARN: {error}"); }
         let mut owned_backend_reaped = false;
         if let Some(child) = self.owned_backend.get_mut().as_mut() {
             if let Err(error) = force_kill_tree_and_reap(child, "drop fixture-owned backend") {
@@ -4167,7 +4299,7 @@ impl RealNativeMcpBinding {
         }
     }
 
-    /// The exact credential to send in the `x-hsk-session-token` header.
+    /// The channel credential, sent only as `x-hsk-channel-binding-token`.
     pub fn token(&self) -> &str {
         &self.token
     }

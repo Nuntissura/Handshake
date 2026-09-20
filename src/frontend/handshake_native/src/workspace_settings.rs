@@ -1155,9 +1155,12 @@ pub struct SettingsClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl SettingsClient {
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+
     /// Build a client against `base_url` (e.g. [`crate::backend_client::BACKEND_BASE_URL`]) bridging
     /// onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
@@ -1165,6 +1168,7 @@ impl SettingsClient {
             client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
     }
 
@@ -1200,10 +1204,11 @@ impl SettingsTransport for SettingsClient {
     fn load(&self, workspace_id: &str) -> Result<Option<Value>, SettingsTransportError> {
         let url = self.settings_url(workspace_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = client
+            let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account.clone(), client
                 .get(&url)
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(REQUEST_TIMEOUT))
                 .send()
                 .await
                 .map_err(|e| SettingsTransportError(e.to_string()))?;
@@ -1233,11 +1238,12 @@ impl SettingsTransport for SettingsClient {
         let url = self.settings_url(workspace_id);
         let client = self.client.clone();
         let request_body = serde_json::json!({ "settings_state": settings_state });
+        let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = client
+            let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account.clone(), client
                 .put(&url)
                 .timeout(REQUEST_TIMEOUT)
-                .json(&request_body)
+                .json(&request_body))
                 .send()
                 .await
                 .map_err(|e| SettingsTransportError(e.to_string()))?;

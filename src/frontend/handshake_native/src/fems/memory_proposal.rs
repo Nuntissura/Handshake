@@ -862,7 +862,6 @@ fn build_proposal_with_text_document_id(
 /// is attributable on the review queue). A proposal is a WRITE-CAPABLE action, so the
 /// `x-hsk-actor-kind=human` write-capable kind is attached (unlike the read-only FEMS capsule read).
 const FEMS_PROPOSE_ACTOR_KIND: &str = "human";
-const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
 
 /// Read timeout for a single proposal submit. A bounded timeout so a hung backend cannot stall the
 /// editor (the submit runs off the frame thread on the shared async runtime).
@@ -923,7 +922,7 @@ pub async fn list_actionable_proposals(
 pub struct HandshakeCoreClient {
     client: reqwest::Client,
     base_url: String,
-    session_token: Option<String>,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl Default for HandshakeCoreClient {
@@ -940,7 +939,7 @@ impl HandshakeCoreClient {
         Self {
             client: crate::backend_client::shared_http_client(),
             base_url: crate::backend_client::BACKEND_BASE_URL.to_owned(),
-            session_token: None,
+            authenticated_context: None,
         }
     }
 
@@ -950,21 +949,17 @@ impl HandshakeCoreClient {
         Self {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
-            session_token: None,
+            authenticated_context: None,
         }
     }
 
-    /// Bind every FEMS request to the authenticated native MCP session.
-    pub fn with_session_token(mut self, session_token: impl Into<String>) -> Self {
-        self.session_token = Some(session_token.into());
-        self
-    }
+    /// Legacy channel-only compatibility setter; it grants no account authority.
+    pub fn with_session_token(self, _session_token: impl Into<String>) -> Self { self }
 
-    fn authenticated(&self, mut request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        if let Some(session_token) = &self.session_token {
-            request = request.header(HSK_HEADER_SESSION_TOKEN, session_token);
-        }
-        request
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+
+    fn authenticated(&self, request: reqwest::RequestBuilder) -> crate::local_account::AuthenticatedRequest {
+        crate::local_account::AuthenticatedRequest::new(self.client.clone(), self.authenticated_context.clone(), request)
     }
 
     fn url(&self, path: &str) -> String {

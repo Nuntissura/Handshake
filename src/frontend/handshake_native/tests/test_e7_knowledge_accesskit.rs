@@ -575,7 +575,8 @@ fn ac04_mounted_host_opens_exact_document_within_200ms() {
         .enable_all()
         .build()
         .expect("MT-042 mounted host runtime");
-    let docs = KnowledgeDocumentsClient::with_client(reqwest::Client::new(), live.base.clone());
+    let docs = KnowledgeDocumentsClient::with_client(reqwest::Client::new(), live.base.clone())
+        .with_authenticated_context(live.account_context.clone());
     let headers = HskDocumentHeaders::for_operator(format!("mt042-session-{nonce}"), &nonce);
     let created = rt
         .block_on(docs.create_document(
@@ -602,6 +603,8 @@ fn ac04_mounted_host_opens_exact_document_within_200ms() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(live.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&live.base, rt.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     app.set_active_pane_for_test(Some("pane-b".into()));
@@ -2162,6 +2165,8 @@ fn ac10_live_surrealdb_populated_graph_accesskit_round_trip() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(live.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&live.base, rt.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     assert!(app.dispatch_palette_action_for_test(CMD_VIEW_GRAPH));
@@ -2341,7 +2346,8 @@ fn ac10_live_surrealdb_populated_graph_accesskit_round_trip() {
         serde_json::json!({"block_id":alpha_id.clone(),"x":123.0,"y":234.0}).to_string();
     host.event(click_event(place.node_id, Some(&place_payload)));
     host.run_steps(1);
-    let canvas_client = CanvasBoardClient::new(live.base.clone(), rt.handle().clone());
+    let canvas_client = CanvasBoardClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(Some(live.account_context.clone()));
     let placement_deadline = Instant::now() + Duration::from_secs(5);
     let persisted_canvas = loop {
         host.run_steps(1);

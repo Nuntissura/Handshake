@@ -277,7 +277,8 @@ fn procedural_review_gated() {
 fn missing_endpoint_blocker() {
     // A 404 (route absent) maps to the typed blocker — NOT a panic, NOT a silent no-op, NOT a commit.
     let (base_url, server) = spawn_mock("HTTP/1.1 404 Not Found", json!({"error": "not found"}));
-    let client = HandshakeCoreClient::with_base_url(base_url);
+    let client = HandshakeCoreClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let sel = text_range("pane-rich", 0, 6, "memory");
     let proposal = build_or_panic(&sel, MemoryClass::Episodic, "WS-1", "a");
 
@@ -334,7 +335,8 @@ fn propose_creates_proposal_via_endpoint() {
         "HTTP/1.1 200 OK",
         json!({"proposal_id": "550e8400-e29b-41d4-a716-446655440007", "status": "pending_review", "created_at": "2026-07-17T00:00:00Z", "flight_recorder_event_id": "550e8400-e29b-41d4-a716-446655440001"}),
     );
-    let client = HandshakeCoreClient::with_base_url(base_url);
+    let client = HandshakeCoreClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     // A capturing transport proves the frontend does not emit a duplicate event.
     let captured: Arc<std::sync::Mutex<Vec<NativeEditorEvent>>> =
@@ -426,7 +428,8 @@ fn backend_owned_proposal_event_is_not_rejected_by_frontend_emitter_scope() {
         "HTTP/1.1 200 OK",
         json!({"proposal_id": "550e8400-e29b-41d4-a716-44665544000a", "status": "pending_review", "created_at": "2026-07-17T00:00:00Z", "flight_recorder_event_id": "550e8400-e29b-41d4-a716-446655440002"}),
     );
-    let client = HandshakeCoreClient::with_base_url(base_url);
+    let client = HandshakeCoreClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let captured = Arc::new(std::sync::Mutex::new(Vec::<NativeEditorEvent>::new()));
     let emitter = NativeEditorEventEmitter::new(
         "WS-B",
@@ -784,3 +787,18 @@ mod helpers {
     }
 }
 use helpers::build_or_panic;
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}

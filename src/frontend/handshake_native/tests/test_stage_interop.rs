@@ -1350,6 +1350,8 @@ fn live_route_round_trip_real_surrealdb() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(cleanup.backend.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&cleanup.backend.base, runtime.handle().clone());
     app.set_stage_embed_back_base_url_for_test(&cleanup.backend.base);
     app.bind_active_project_for_integration_test(workspace_id.clone());
@@ -1695,6 +1697,7 @@ fn live_route_round_trip_real_surrealdb() {
                 &new_backend_base,
                 runtime.handle().clone(),
             )
+            .with_authenticated_context(Some(cleanup.backend.account_context.clone()))
             .load_document(&document_id),
         )
         .expect("reload the exact target document from the restarted backend");
@@ -1752,6 +1755,7 @@ fn live_route_round_trip_real_surrealdb() {
     assert_eq!(outcome_sha, expected_sha);
     let stage_token = harness.state().mcp_token();
     let client = StageClient::with_base_url(cleanup.backend.base.clone())
+        .with_authenticated_context(Some(cleanup.backend.account_context.clone()))
         .with_session_token(stage_token.as_hex());
     let artifact = rt()
         .block_on(client.fetch_stage_artifact(&workspace_id, &artifact_id))
@@ -2103,6 +2107,8 @@ fn mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(cleanup.backend.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&cleanup.backend.base, runtime.handle().clone());
     app.set_stage_embed_back_base_url_for_test(&cleanup.backend.base);
     assert!(app.switch_project(&workspace_id));
@@ -2243,6 +2249,7 @@ fn mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent() {
         other => panic!("expected Canvas Stage embed outcome, got {other:?}"),
     };
     let stage_client = StageClient::with_base_url(cleanup.backend.base.clone())
+        .with_authenticated_context(Some(cleanup.backend.account_context.clone()))
         .with_session_token(harness.state().mcp_token().as_hex());
     let artifact = rt()
         .block_on(stage_client.fetch_stage_artifact(&workspace_id, &artifact_id))
@@ -2257,7 +2264,8 @@ fn mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent() {
     let canvas_client = handshake_native::backend_client::CanvasBoardClient::new(
         cleanup.backend.base.clone(),
         runtime.handle().clone(),
-    );
+    )
+    .with_authenticated_context(Some(cleanup.backend.account_context.clone()));
     let first_board = rt()
         .block_on(canvas_client.fetch_board_now(&workspace_id, &canvas_id))
         .expect("fresh Canvas reload after Stage embed");
@@ -2342,12 +2350,14 @@ fn mounted_canvas_embed_back_live_surrealdb_is_structured_and_idempotent() {
         cleanup.backend.base.clone(),
         runtime.handle().clone(),
         handshake_native::backend_client::build_backend_client(),
-    );
+    )
+    .with_authenticated_context(Some(cleanup.backend.account_context.clone()));
     let client_b = handshake_native::backend_client::CanvasBoardClient::with_http_client(
         cleanup.backend.base.clone(),
         runtime.handle().clone(),
         handshake_native::backend_client::build_backend_client(),
-    );
+    )
+    .with_authenticated_context(Some(cleanup.backend.account_context.clone()));
     let (parallel_a, parallel_b) = runtime.block_on(async {
         tokio::join!(
             client_a.ensure_stage_capture_card_now(
@@ -2567,7 +2577,8 @@ fn embed_back_endpoint_absent_404() {
         "HTTP/1.1 404 Not Found",
         serde_json::json!({"error": "not found"}),
     );
-    let client = StageClient::with_base_url(base_url);
+    let client = StageClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let result = rt().block_on(async { client.fetch_stage_artifact("WS-1", "ART-1").await });
     let req_line = server.join().unwrap();
 
@@ -2602,7 +2613,8 @@ fn embed_back_endpoint_absent_501() {
         "HTTP/1.1 501 Not Implemented",
         serde_json::json!({"error": "not implemented"}),
     );
-    let client = StageClient::with_base_url(base_url);
+    let client = StageClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let result = rt().block_on(async { client.fetch_stage_artifact("WS-1", "ART-2").await });
     let _ = server.join();
     assert!(
@@ -3170,7 +3182,8 @@ fn mt066_product_cleanup_regression(create_stage_card: bool, label: &str) {
             backend.base.clone(),
             runtime.handle().clone(),
             handshake_native::backend_client::build_backend_client(),
-        );
+        )
+        .with_authenticated_context(Some(backend.account_context.clone()));
         let causal_action_id = uuid::Uuid::new_v4().to_string();
         let capture_request = handshake_native::interop::StageCaptureRequest::from_routed_content(
             &handshake_native::stage_pane::StageContent::Selection(
@@ -3183,6 +3196,7 @@ fn mt066_product_cleanup_regression(create_stage_card: bool, label: &str) {
         let artifact = runtime
             .block_on(
                 StageClient::with_base_url(backend.base.clone())
+                    .with_authenticated_context(Some(backend.account_context.clone()))
                     .with_session_token(session_token.clone())
                     .create_stage_capture(&workspace_id, &capture_request),
             )
@@ -3243,4 +3257,19 @@ fn mt066_product_cleanup_regression(create_stage_card: bool, label: &str) {
             .all(|row| row["id"].as_str() != Some(workspace_id.as_str()))),
         "fresh canonical product list confirms workspace absence: {workspaces}"
     );
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }

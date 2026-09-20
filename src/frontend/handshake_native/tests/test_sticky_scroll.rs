@@ -20,7 +20,7 @@ use egui_kittest::kittest::{NodeT, Queryable};
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 #[path = "native_gui_support/hit_reachability.rs"]
-mod hit_reachability;
+pub mod hit_reachability;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::{

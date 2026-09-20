@@ -42,8 +42,11 @@
 #[path = "native_gui_support/source_provenance.rs"]
 mod source_provenance;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(feature = "wgpu_screenshots")]
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+#[cfg(feature = "wgpu_screenshots")]
 use std::time::Duration;
 
 use egui_kittest::kittest::NodeT;
@@ -54,6 +57,7 @@ mod backend_proof_support;
 mod canonical_argus_driver;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+#[cfg(feature = "wgpu_screenshots")]
 use canonical_argus_driver::{ArgusObservation, CanonicalArgusDriver};
 use screenshot_harness::ScreenshotHarness as Harness;
 
@@ -1224,6 +1228,7 @@ fn mt035_capture_frame(
     })
 }
 
+#[cfg(feature = "wgpu_screenshots")]
 fn mt035_bus_counts(ctx: &egui::Context, pane_id: &PaneId) -> (usize, usize, bool) {
     let bus = InteractionBus::get_or_init(ctx);
     InteractionBus::with_try_lock(&bus, |bus| {

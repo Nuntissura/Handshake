@@ -439,6 +439,8 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(live.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(empty_workspace_id.clone());
     isolate_knowledge_proof_surface(&mut app);
@@ -466,7 +468,8 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
     assert!(matches!(empty_cleanup_status, 200..=299 | 404));
     live.workspace_id = workspace_id.clone();
 
-    let docs = KnowledgeDocumentsClient::with_client(reqwest::Client::new(), live.base.clone());
+    let docs = KnowledgeDocumentsClient::with_client(reqwest::Client::new(), live.base.clone())
+        .with_authenticated_context(live.account_context.clone());
     let headers = HskDocumentHeaders::for_operator(format!("mt042-v4-{run_id}"), &run_id);
     let alpha = create_document(&runtime, &docs, &headers, &workspace_id, "MT-042 V4 Alpha");
     let beta = create_document(&runtime, &docs, &headers, &workspace_id, "MT-042 V4 Beta");
@@ -842,6 +845,8 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
             db_status: "ok".to_owned(),
             migration_version: Some(1),
         }));
+        app.bind_initial_account(live.account_context.clone())
+            .expect("bind explicit fixture account");
         app.set_backend_base_url_for_test("http://127.0.0.1:0", runtime.handle().clone());
         app.bind_active_project_for_integration_test(workspace_id.clone());
         isolate_knowledge_proof_surface(&mut app);

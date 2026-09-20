@@ -1135,6 +1135,8 @@ fn live_rich_shell(document_id: &str) -> (HandshakeApp, tokio::runtime::Runtime)
         .build()
         .expect("build rich-route test runtime");
     let mut app = live_shell();
+    app.bind_initial_account(mock_account_context("http://127.0.0.1:1"))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test("http://127.0.0.1:1", runtime.handle().clone());
     assert!(
         matches!(
@@ -1425,6 +1427,8 @@ fn ac4_mounted_canvas_context_route_uses_live_pane_guard_and_rejects_closed_sour
         .build()
         .expect("runtime");
     let mut app = live_shell();
+    app.bind_initial_account(mock_account_context("http://127.0.0.1:1"))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test("http://127.0.0.1:1", runtime.handle().clone());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
     assert!(
@@ -2359,17 +2363,20 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
         .build()
         .expect("bounded proof client");
     let created: serde_json::Value = rt.block_on(async {
-        let response = proof_headers(http.post(format!("{base}/atelier/intake/batches")))
-            .json(&serde_json::json!({
-                "idempotency_key": format!("mt033-{suffix}"),
-                "source_label": source_label.clone(),
-                "source_ref": format!("mt033://{suffix}"),
-                "mode": "manual",
-                "profile_mode": "loose_profile"
-            }))
-            .send()
-            .await
-            .expect("POST owned-backend Atelier batch");
+        let response = proof_headers(fixture_request(
+            &managed_backend.account_context,
+            http.post(format!("{base}/atelier/intake/batches")),
+        ))
+        .json(&serde_json::json!({
+            "idempotency_key": format!("mt033-{suffix}"),
+            "source_label": source_label.clone(),
+            "source_ref": format!("mt033://{suffix}"),
+            "mode": "manual",
+            "profile_mode": "loose_profile"
+        }))
+        .send()
+        .await
+        .expect("POST owned-backend Atelier batch");
         assert_eq!(response.status(), reqwest::StatusCode::CREATED);
         response.json().await.expect("parse created batch")
     });
@@ -2378,17 +2385,19 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
         .expect("created batch_id")
         .to_owned();
     let (item_id, corpus_entry_id) = rt.block_on(async {
-        let item_response =
-            proof_headers(http.post(format!("{base}/atelier/intake/batches/{batch_id}/items")))
-                .json(&serde_json::json!({
-                    "source_path": format!("source://mt033/{suffix}.png"),
-                    "file_name": format!("mt033-{suffix}.png"),
-                    "byte_len": 33,
-                    "content_hash": suffix
-                }))
-                .send()
-                .await
-                .expect("POST owned-backend Atelier item");
+        let item_response = proof_headers(fixture_request(
+            &managed_backend.account_context,
+            http.post(format!("{base}/atelier/intake/batches/{batch_id}/items")),
+        ))
+        .json(&serde_json::json!({
+            "source_path": format!("source://mt033/{suffix}.png"),
+            "file_name": format!("mt033-{suffix}.png"),
+            "byte_len": 33,
+            "content_hash": suffix
+        }))
+        .send()
+        .await
+        .expect("POST owned-backend Atelier item");
         assert_eq!(item_response.status(), reqwest::StatusCode::CREATED);
         let item: serde_json::Value = item_response.json().await.expect("created item JSON");
         let item_id = item["item_id"]
@@ -2397,14 +2406,16 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
             .to_owned();
         uuid::Uuid::parse_str(&item_id).expect("Atelier API generated an item UUID");
 
-        let corpus: serde_json::Value = http
-            .get(format!("{base}/atelier/command-corpus"))
-            .send()
-            .await
-            .expect("GET built-in Atelier command corpus")
-            .json()
-            .await
-            .expect("command corpus JSON");
+        let corpus: serde_json::Value = fixture_request(
+            &managed_backend.account_context,
+            http.get(format!("{base}/atelier/command-corpus")),
+        )
+        .send()
+        .await
+        .expect("GET built-in Atelier command corpus")
+        .json()
+        .await
+        .expect("command corpus JSON");
         let corpus_entry_id = corpus
             .as_array()
             .and_then(|rows| {
@@ -2475,6 +2486,8 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(managed_backend.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
@@ -2540,45 +2553,49 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
 struct WorkspaceBackendCleanup {
     base: String,
     workspace_id: String,
-    session_token: String,
+    account_context: std::sync::Arc<handshake_native::local_account::AuthenticatedContext>,
     armed: bool,
 }
 
 #[cfg(feature = "integration")]
 impl WorkspaceBackendCleanup {
     async fn cleanup(&mut self, client: &reqwest::Client) -> String {
-        let response = workspace_write_headers(
+        let response = workspace_write_headers(fixture_request(
+            &self.account_context,
             client.delete(format!("{}/workspaces/{}", self.base, self.workspace_id)),
-        )
+        ))
         .send()
         .await
         .expect("DELETE owned MT-033 workspace");
         assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
-        let workspaces: serde_json::Value = client
-            .get(format!("{}/workspaces", self.base))
-            .send()
-            .await
-            .expect("list workspaces after cleanup")
-            .json()
-            .await
-            .expect("workspace list JSON");
+        let workspaces: serde_json::Value = fixture_request(
+            &self.account_context,
+            client.get(format!("{}/workspaces", self.base)),
+        )
+        .send()
+        .await
+        .expect("list workspaces after cleanup")
+        .json()
+        .await
+        .expect("workspace list JSON");
         assert!(!workspaces
             .as_array()
             .is_some_and(|rows| rows.iter().any(|row| {
                 row.get("id").and_then(|value| value.as_str()) == Some(self.workspace_id.as_str())
             })));
-        let flight_recorder: serde_json::Value = client
-            .get(format!(
+        let flight_recorder: serde_json::Value = fixture_request(
+            &self.account_context,
+            client.get(format!(
                 "{}/api/flight_recorder?wsid={}",
                 self.base, self.workspace_id
-            ))
-            .header("x-hsk-session-token", &self.session_token)
-            .send()
-            .await
-            .expect("read scoped Flight Recorder after workspace cleanup")
-            .json()
-            .await
-            .expect("Flight Recorder cleanup JSON");
+            )),
+        )
+        .send()
+        .await
+        .expect("read scoped Flight Recorder after workspace cleanup")
+        .json()
+        .await
+        .expect("Flight Recorder cleanup JSON");
         assert!(
             flight_recorder
                 .as_array()
@@ -2606,6 +2623,7 @@ impl Drop for WorkspaceBackendCleanup {
         let already_panicking = std::thread::panicking();
         let base = self.base.clone();
         let workspace_id = self.workspace_id.clone();
+        let account_context = self.account_context.clone();
         let workspace_cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
             std::thread::spawn(move || {
                 let runtime = tokio::runtime::Builder::new_current_thread()
@@ -2618,9 +2636,10 @@ impl Drop for WorkspaceBackendCleanup {
                         .timeout(std::time::Duration::from_secs(5))
                         .build()
                         .expect("workspace cleanup client");
-                    let response = workspace_write_headers(
+                    let response = workspace_write_headers(fixture_request(
+                        &account_context,
                         client.delete(format!("{base}/workspaces/{workspace_id}")),
-                    )
+                    ))
                     .send()
                     .await
                     .expect("drop cleanup DELETE owned MT-033 workspace");
@@ -2630,14 +2649,14 @@ impl Drop for WorkspaceBackendCleanup {
                         "drop cleanup workspace DELETE returned {}",
                         response.status()
                     );
-                    let workspaces: serde_json::Value = client
-                        .get(format!("{base}/workspaces"))
-                        .send()
-                        .await
-                        .expect("drop cleanup list workspaces")
-                        .json()
-                        .await
-                        .expect("drop cleanup workspace list JSON");
+                    let workspaces: serde_json::Value =
+                        fixture_request(&account_context, client.get(format!("{base}/workspaces")))
+                            .send()
+                            .await
+                            .expect("drop cleanup list workspaces")
+                            .json()
+                            .await
+                            .expect("drop cleanup workspace list JSON");
                     assert!(
                         !workspaces
                             .as_array()
@@ -2684,15 +2703,15 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
     let runtime = tokio::runtime::Runtime::new().expect("integration runtime");
     runtime.block_on(async {
         let base = managed_base;
-        let session_token = session_token.as_str();
+        let _session_token = session_token.as_str();
         let client = reqwest::Client::builder()
             .pool_max_idle_per_host(2)
             .connect_timeout(std::time::Duration::from_secs(2))
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .expect("bounded integration client");
-        assert!(client
-            .get(format!("{base}/health"))
+        assert!(fixture_request(&live_backend.account_context, client
+            .get(format!("{base}/health")))
             .send()
             .await
             .expect("integration feature requires live handshake_core")
@@ -2700,7 +2719,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             .is_success());
 
         let suffix = integration_suffix();
-        let response = workspace_write_headers(client.post(format!("{base}/workspaces")))
+        let response = workspace_write_headers(fixture_request(&live_backend.account_context, client.post(format!("{base}/workspaces"))))
             .json(&serde_json::json!({"name": format!("MT-033-{suffix}")}))
             .send().await.expect("create workspace");
         assert_eq!(response.status(), reqwest::StatusCode::CREATED);
@@ -2709,11 +2728,11 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
         let mut workspace_cleanup = WorkspaceBackendCleanup {
             base: base.clone(),
             workspace_id: workspace_id.clone(),
-            session_token: session_token.to_owned(),
+            account_context: live_backend.account_context.clone(),
             armed: true,
         };
 
-        let response = proof_headers(client.post(format!("{base}/knowledge/documents")))
+        let response = proof_headers(fixture_request(&live_backend.account_context, client.post(format!("{base}/knowledge/documents"))))
             .json(&serde_json::json!({
                 "workspace_id": workspace_id.clone(),
                 "title": format!("MT-033 note {suffix}"),
@@ -2724,11 +2743,11 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
         let created: serde_json::Value = response.json().await.expect("document JSON");
         let document_id = created["document"]["rich_document_id"]
             .as_str().expect("document id").to_owned();
-        assert!(client
-            .get(format!("{base}/workspaces/{workspace_id}/loom/blocks/{document_id}"))
+        assert!(fixture_request(&live_backend.account_context, client
+            .get(format!("{base}/workspaces/{workspace_id}/loom/blocks/{document_id}")))
             .send().await.expect("same-id Loom block").status().is_success());
 
-        let response = client.post(format!("{base}/atelier/intake/batches"))
+        let response = fixture_request(&live_backend.account_context, client.post(format!("{base}/atelier/intake/batches")))
             .json(&serde_json::json!({
                 "idempotency_key": format!("mt033-ac23-{suffix}"),
                 "source_label": format!("MT-033 AC2/3 {suffix}"),
@@ -2739,9 +2758,9 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
         assert_eq!(response.status(), reqwest::StatusCode::CREATED);
         let batch: serde_json::Value = response.json().await.expect("batch JSON");
         let batch_id = batch["batch_id"].as_str().expect("batch id").to_owned();
-        let item_response = proof_headers(client.post(format!(
+        let item_response = proof_headers(fixture_request(&live_backend.account_context, client.post(format!(
             "{base}/atelier/intake/batches/{batch_id}/items"
-        )))
+        ))))
         .json(&serde_json::json!({
             "source_path": format!("source://mt033/ac23/{suffix}.png"),
             "file_name": format!("atelier-{suffix}.png"),
@@ -2761,9 +2780,9 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
 
         // Publish a real canonical media asset + Loom block first. The native resolver is intentionally
         // forbidden from fabricating an empty file block for a raw intake row.
-        let imported: serde_json::Value = proof_headers(client.post(format!(
+        let imported: serde_json::Value = proof_headers(fixture_request(&live_backend.account_context, client.post(format!(
             "{base}/workspaces/{workspace_id}/loom/import"
-        )))
+        ))))
         .json(&serde_json::json!({
             "bytes_b64": "bXQwMzMtY2Fub25pY2FsLW1lZGlh",
             "original_filename": format!("atelier-{suffix}.png"),
@@ -2780,9 +2799,9 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             .expect("canonical import block id")
             .to_owned();
         assert!(imported["asset_id"].as_str().is_some());
-        let relation = proof_headers(client.put(format!(
+        let relation = proof_headers(fixture_request(&live_backend.account_context, client.put(format!(
             "{base}/atelier/intake/items/{item_id}/loom-projection"
-        )))
+        ))))
         .json(&serde_json::json!({"loom_block_id": canonical_block_id}))
         .send()
         .await
@@ -2795,7 +2814,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
         let loaded_body = handshake_native::backend_client::RichDocClient::new(
             base.clone(),
             runtime.handle().clone(),
-        )
+        ).with_authenticated_context(Some(live_backend.account_context.clone()))
         .load_document(&document_id)
         .await
         .expect("load document through production client");
@@ -2804,6 +2823,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             db_status: "ok".to_owned(),
             migration_version: Some(1),
         }));
+        rich_app.bind_initial_account(live_backend.account_context.clone()).expect("bind explicit fixture account");
         rich_app.set_backend_base_url_for_test(&base, runtime.handle().clone());
         rich_app.bind_active_project_for_integration_test(workspace_id.clone());
         assert!(
@@ -2883,7 +2903,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             let reloaded = handshake_native::backend_client::RichDocClient::new(
                 base.clone(),
                 runtime.handle().clone(),
-            )
+            ).with_authenticated_context(Some(live_backend.account_context.clone()))
             .load_document(&document_id)
             .await
             .expect("fresh document reload while waiting for mounted save");
@@ -2915,10 +2935,10 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
         };
-        let save_events: serde_json::Value = client
+        let save_events: serde_json::Value = fixture_request(&live_backend.account_context, client
             .get(format!(
                 "{base}/kernel/events/aggregates/knowledge_rich_document/{document_id}"
-            ))
+            )))
             .send()
             .await
             .expect("read save aggregate through product API")
@@ -2995,9 +3015,8 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             // MT-115: MT-109 gates this read. Present the SAME genuine native-MCP credential the
             // mounted client presents; without it the response is `401 HSK-401-FR-SESSION`, whose
             // empty body would read as "the route receipt never arrived".
-            let rows: serde_json::Value = client
-                .get(format!("{base}/api/flight_recorder?wsid={workspace_id}"))
-                .header("x-hsk-session-token", session_token)
+            let rows: serde_json::Value = fixture_request(&live_backend.account_context, client
+                .get(format!("{base}/api/flight_recorder?wsid={workspace_id}")))
                 .send()
                 .await
                 .expect("fresh Flight Recorder route readback")
@@ -3062,10 +3081,10 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
-        let route_events: serde_json::Value = client
+        let route_events: serde_json::Value = fixture_request(&live_backend.account_context, client
             .get(format!(
                 "{base}/kernel/events/aggregates/native_editor_event/{route_event_id}"
-            ))
+            )))
             .send()
             .await
             .expect("read native editor aggregate through product API")
@@ -3095,9 +3114,9 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             .pool_max_idle_per_host(1)
             .timeout(std::time::Duration::from_secs(10))
             .build().expect("fresh reload client");
-        let loaded: serde_json::Value = proof_headers(reload.get(format!(
+        let loaded: serde_json::Value = proof_headers(fixture_request(&live_backend.account_context, reload.get(format!(
             "{base}/knowledge/documents/{document_id}"
-        )))
+        ))))
             .send().await.expect("reload document").json().await.expect("reload JSON");
         assert_eq!(loaded["document"]["content_json"], saved_content);
         assert_eq!(
@@ -3107,9 +3126,9 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
         assert!(loaded["document"]["content_json"].to_string()
             .contains(&format!("atelier-{suffix}.png")));
 
-        let response = client.post(format!(
+        let response = fixture_request(&live_backend.account_context, client.post(format!(
             "{base}/workspaces/{workspace_id}/loom/canvas-boards"
-        )).json(&serde_json::json!({"title":format!("MT-033 canvas {suffix}")}))
+        ))).json(&serde_json::json!({"title":format!("MT-033 canvas {suffix}")}))
             .send().await.expect("create canvas");
         assert!(response.status().is_success());
         let canvas: serde_json::Value = response.json().await.expect("canvas JSON");
@@ -3120,6 +3139,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             db_status: "ok".to_owned(),
             migration_version: Some(1),
         }));
+        app.bind_initial_account(live_backend.account_context.clone()).expect("bind explicit fixture account");
         app.set_backend_base_url_for_test(&base, runtime.handle().clone());
         {
             let mounted = app.mounted_canvas_board();
@@ -3170,18 +3190,18 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             .find(|placement| placement.placed_block_id == projected_block_id)
             .map(|placement| placement.placement_id.clone())
             .expect("mounted host resolver dispatches placement and applies fresh board reload");
-        assert!(reload
+        assert!(fixture_request(&live_backend.account_context, reload
             .get(format!(
                 "{base}/workspaces/{workspace_id}/loom/blocks/{projected_block_id}"
-            ))
+            )))
             .send()
             .await
             .expect("fresh-client projected block reload")
             .status()
             .is_success());
-        let board: serde_json::Value = reload.get(format!(
+        let board: serde_json::Value = fixture_request(&live_backend.account_context, reload.get(format!(
             "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
-        )).send().await.expect("reload canvas").json().await.expect("board JSON");
+        ))).send().await.expect("reload canvas").json().await.expect("board JSON");
         let matching_placements = board["placements"]
             .as_array()
             .expect("fresh board placements array")
@@ -3225,10 +3245,10 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
                 .any(|placement| placement.placement_id == placement_id),
             "Ctrl+Shift+Z removes the exact mounted Canvas placement"
         );
-        let board_after_undo: serde_json::Value = reload
+        let board_after_undo: serde_json::Value = fixture_request(&live_backend.account_context, reload
             .get(format!(
                 "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
-            ))
+            )))
             .send()
             .await
             .expect("reload canvas after key undo")
@@ -3274,10 +3294,10 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
                 .any(|placement| placement.placed_block_id == projected_block_id),
             "Canvas redo reappears in the mounted board after the authoritative reload"
         );
-        let board_after_redo: serde_json::Value = reload
+        let board_after_redo: serde_json::Value = fixture_request(&live_backend.account_context, reload
             .get(format!(
                 "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
-            ))
+            )))
             .send()
             .await
             .expect("reload canvas after redo")
@@ -3418,4 +3438,32 @@ fn mt020_atelier_drop_insert_is_one_undoable_transaction() {
         state.doc, before_doc,
         "MT-020: one undo restored the exact pre-drop doc (no split residue, no atom)"
     );
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}
+
+#[cfg(feature = "integration")]
+fn fixture_request(
+    context: &handshake_native::local_account::AuthenticatedContext,
+    request: reqwest::RequestBuilder,
+) -> reqwest::RequestBuilder {
+    context
+        .authorize_builder(
+            handshake_native::backend_client::shared_http_client(),
+            request,
+        )
+        .expect("owned fixture request matches account origin")
 }

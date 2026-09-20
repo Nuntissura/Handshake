@@ -634,14 +634,17 @@ pub struct ProjectTabColors {
 /// Spawned to a background task by the app (NOT called on the egui UI thread) so a slow/absent backend
 /// never stalls the render loop (red-team: a `/workspaces` timeout must not block the shell).
 pub async fn fetch_workspaces(base_url: &str) -> Result<Vec<ProjectItem>, AppError> {
+    fetch_workspaces_authenticated(base_url, None).await
+}
+
+pub async fn fetch_workspaces_authenticated(base_url: &str, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Result<Vec<ProjectItem>, AppError> {
+    let context = context.ok_or_else(|| AppError::Http("Account login required".into()))?;
     let url = format!("{base_url}/workspaces");
     let client = crate::backend_client::shared_http_client();
-    let resp = client
-        .get(&url)
-        .timeout(std::time::Duration::from_secs(5))
-        .send()
-        .await
+    let request = context.authorize(client.get(&url).timeout(std::time::Duration::from_secs(5))).map_err(AppError::Http)?;
+    let resp = client.execute(request).await
         .map_err(|e| AppError::Http(e.to_string()))?;
+    context.observe_status(resp.status());
     if !resp.status().is_success() {
         return Err(AppError::Http(format!(
             "non-success status {}",
@@ -652,6 +655,7 @@ pub async fn fetch_workspaces(base_url: &str) -> Result<Vec<ProjectItem>, AppErr
         .json()
         .await
         .map_err(|e| AppError::Parse(e.to_string()))?;
+    if !context.is_active() { return Err(AppError::Http("Account session is no longer active".into())); }
     // The endpoint returns a JSON array of workspace objects. Map each to a ProjectItem, skipping any
     // row missing an id (a malformed row must not panic the parse).
     let arr = v

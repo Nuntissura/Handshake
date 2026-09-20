@@ -468,8 +468,8 @@ fn lifecycle_loads_then_autosaves_a_change() {
 fn live_backend_layout_round_trips_through_surrealdb() {
     use handshake_native::backend_client::WorkbenchLayoutClient;
 
-    let workspace_id = std::env::var("HSK_LIVE_WORKSPACE_ID")
-        .expect("set HSK_LIVE_WORKSPACE_ID to an existing workspace id");
+    let live = backend_proof_support::require_live_backend();
+    let workspace_id = live.workspace_id.clone();
 
     // A real runtime for the blocking transport to bridge onto.
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -477,12 +477,16 @@ fn live_backend_layout_round_trips_through_surrealdb() {
         .enable_all()
         .build()
         .expect("runtime");
-    let client = WorkbenchLayoutClient::production(rt.handle().clone());
+    let client = WorkbenchLayoutClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(Some(live.account_context.clone()));
 
     // Build a non-default snapshot, PUT it, GET it back, assert the layout_state round-trips.
     let mut app = ok_app();
     app.set_layout_manager(LayoutPersistenceManager::new(
-        Box::new(WorkbenchLayoutClient::production(rt.handle().clone())),
+        Box::new(
+            WorkbenchLayoutClient::new(live.base.clone(), rt.handle().clone())
+                .with_authenticated_context(Some(live.account_context.clone())),
+        ),
         std::time::Duration::ZERO,
     ));
     *app.split_weights_mut() = SplitWeights {
@@ -506,3 +510,6 @@ fn live_backend_layout_round_trips_through_surrealdb() {
         "live SurrealDB layout_state round-trips identically"
     );
 }
+
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;

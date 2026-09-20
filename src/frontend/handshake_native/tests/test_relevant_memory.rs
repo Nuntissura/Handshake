@@ -305,7 +305,8 @@ fn golden_backend_ace_pack_decodes_with_live_provenance() {
 #[test]
 fn fetch_live_decodes_three_kinds() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", three_kind_body());
-    let client = MemoryClient::with_base_url(base_url);
+    let client = MemoryClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let ctx = MemoryContext::from_focus("W1", Some("D1".into()), None, Some(12));
     let pack = rt()
         .block_on(async { client.fetch_pack("W1", &ctx).await })
@@ -338,7 +339,8 @@ fn fetch_live_decodes_three_kinds() {
 #[test]
 fn fetch_live_clamps_thirty_to_24() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", thirty_item_body());
-    let client = MemoryClient::with_base_url(base_url);
+    let client = MemoryClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let ctx = MemoryContext::for_workspace("W1");
     let pack = rt()
         .block_on(async { client.fetch_pack("W1", &ctx).await })
@@ -381,7 +383,8 @@ fn fetch_decodes_capsule_with_unknown_class() {
         "PACK-unknown-class",
     );
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
-    let client = MemoryClient::with_base_url(base_url);
+    let client = MemoryClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let ctx = MemoryContext::for_workspace("W1");
     let pack = rt()
         .block_on(async { client.fetch_pack("W1", &ctx).await })
@@ -410,7 +413,8 @@ fn fetch_decodes_capsule_with_unknown_class() {
 fn fetch_live_404_is_endpoint_missing() {
     // A 404 (route absent) maps to the typed blocker — NOT a panic, NOT a silent no-op.
     let (base_url, server) = spawn_mock("HTTP/1.1 404 Not Found", json!({"error": "not found"}));
-    let client = MemoryClient::with_base_url(base_url);
+    let client = MemoryClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let ctx = MemoryContext::for_workspace("W1");
     let result = rt().block_on(async { client.fetch_pack("W1", &ctx).await });
     let _ = server.join();
@@ -433,7 +437,8 @@ fn fetch_live_unknown_workspace_404_is_not_endpoint_missing() {
         "HTTP/1.1 404 Not Found",
         json!({"error": "not_found", "detail": "workspace"}),
     );
-    let client = MemoryClient::with_base_url(base_url);
+    let client = MemoryClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let ctx = MemoryContext::for_workspace("deleted-workspace");
     let result = rt().block_on(async { client.fetch_pack("deleted-workspace", &ctx).await });
     let _ = server.join();
@@ -795,4 +800,19 @@ fn author_under(root: &egui_kittest::Node<'_>, child_author: &str, ancestor_auth
         }
     }
     false
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }

@@ -3599,7 +3599,8 @@ fn malformed_success_bodies_fail_closed() {
 
     let layout_server = TestBackend::start(BackendMode::MalformedLayout);
     let layout_client =
-        WorkbenchLayoutClient::new(layout_server.base_url(), runtime.handle().clone());
+        WorkbenchLayoutClient::new(layout_server.base_url(), runtime.handle().clone())
+            .with_authenticated_context(Some(mock_account_context(&layout_server.base_url())));
     let layout_error = layout_client
         .load("default-project")
         .expect_err("{} is not a semantically valid WorkbenchLayoutResponse");
@@ -4478,4 +4479,19 @@ fn extract_fn_body<'a>(src: &'a str, sig_prefix: &str) -> Option<&'a str> {
         i += 1;
     }
     None
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }

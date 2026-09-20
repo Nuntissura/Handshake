@@ -376,7 +376,7 @@ struct LiveProofSession {
 impl LiveProofSession {
     fn new() -> Self {
         let app_data = ScopedLocalAppData::install();
-        let app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
             status: "ok".to_owned(),
             db_status: "ok".to_owned(),
             migration_version: Some(1),
@@ -388,6 +388,8 @@ impl LiveProofSession {
             session_token.clone(),
         );
         let live = require_live_backend(session_token.as_hex());
+        app.bind_initial_account(live._managed_backend.account_context.clone())
+            .expect("bind managed proof account");
         Self {
             live,
             app: std::cell::RefCell::new(Some(app)),
@@ -429,8 +431,8 @@ impl Drop for LiveProofSession {
 
 impl LiveBackend {
     fn workspace_ident(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        request
-            .header("x-hsk-session-token", self.session_token.as_str())
+        self._managed_backend
+            .authenticated(request)
             .header("x-hsk-actor-id", "mt065-live-proof")
             .header("x-hsk-kernel-task-run-id", "wp-kernel-012-mt065-proof")
             .header("x-hsk-session-run-id", "wp-kernel-012-validation-v2")
@@ -1230,6 +1232,7 @@ fn replay_review(
     decision: ProposalReviewDecision,
 ) -> ProposalReviewAck {
     let client = HandshakeCoreClient::with_base_url(live.base.clone())
+        .with_authenticated_context(Some(live._managed_backend.account_context.clone()))
         .with_session_token(live.session_token.clone());
     live.rt
         .block_on(review_proposal(
@@ -1247,6 +1250,7 @@ fn replay_commit(
     proposal_id: &str,
 ) -> handshake_native::fems::memory_proposal::ProposalCommitAck {
     let client = HandshakeCoreClient::with_base_url(live.base.clone())
+        .with_authenticated_context(Some(live._managed_backend.account_context.clone()))
         .with_session_token(live.session_token.clone());
     live.rt
         .block_on(commit_approved_proposal(workspace_id, proposal_id, &client))
@@ -2576,6 +2580,7 @@ fn proof_fems_01_memorypack_render() {
         Some(fixture.content.len()),
     );
     let client = MemoryClient::with_base_url(live.base.clone())
+        .with_authenticated_context(Some(live._managed_backend.account_context.clone()))
         .with_session_token(live.session_token.clone());
     let empty = live
         .rt
@@ -2886,13 +2891,17 @@ fn proof_fems_duplicate_submission_replays_one_proposal_and_one_event() {
     )
     .expect("canonical code proposal builds");
     let client = HandshakeCoreClient::with_base_url(live.base.clone())
+        .with_authenticated_context(Some(live._managed_backend.account_context.clone()))
         .with_session_token(live.session_token.clone());
     let emitter = NativeEditorEventEmitter::new(
         workspace_id.clone(),
-        std::sync::Arc::new(RuntimeChatLedgerTransport::with_session_id(
-            live.base.clone(),
-            uuid::Uuid::new_v4().to_string(),
-        )),
+        std::sync::Arc::new(
+            RuntimeChatLedgerTransport::with_session_id(
+                live.base.clone(),
+                uuid::Uuid::new_v4().to_string(),
+            )
+            .with_authenticated_context(Some(live._managed_backend.account_context.clone())),
+        ),
         Some(live.rt.handle().clone()),
     );
 
@@ -3286,13 +3295,17 @@ fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
     )
     .expect("build restart-recovery proposal");
     let client = HandshakeCoreClient::with_base_url(live.base.clone())
+        .with_authenticated_context(Some(live._managed_backend.account_context.clone()))
         .with_session_token(live.session_token.clone());
     let emitter = NativeEditorEventEmitter::new(
         workspace_id.clone(),
-        std::sync::Arc::new(RuntimeChatLedgerTransport::with_session_id(
-            live.base.clone(),
-            uuid::Uuid::new_v4().to_string(),
-        )),
+        std::sync::Arc::new(
+            RuntimeChatLedgerTransport::with_session_id(
+                live.base.clone(),
+                uuid::Uuid::new_v4().to_string(),
+            )
+            .with_authenticated_context(Some(live._managed_backend.account_context.clone())),
+        ),
         Some(live.rt.handle().clone()),
     );
     let submitted = live
@@ -3307,9 +3320,8 @@ fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
         live.base
     );
     let approved: serde_json::Value = live.rt.block_on(async {
-        live.client
-            .post(&review_url)
-            .header("x-hsk-session-token", &live.session_token)
+        live._managed_backend
+            .authenticated(live.client.post(&review_url))
             .header("x-hsk-actor-id", "native-editor-fems-reviewer")
             .header("x-hsk-actor-kind", "operator")
             .header("x-hsk-kernel-task-run-id", "mt065-approved-recovery")

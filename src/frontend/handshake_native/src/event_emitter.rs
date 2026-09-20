@@ -1019,6 +1019,7 @@ pub fn flight_recorder_session_token() -> Result<String, SessionBindingUnavailab
 /// envelope and never routes native actions through Runtime Chat.
 #[derive(Clone)]
 pub struct RuntimeChatLedgerTransport {
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     client: reqwest::Client,
     base_url: String,
     /// A stable, valid non-nil UUID used as the `session_id` the backend requires (it rejects a nil or
@@ -1034,6 +1035,7 @@ impl RuntimeChatLedgerTransport {
     /// fresh per-session UUID `session_id`.
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
+            authenticated_context: None,
             client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             session_id: uuid::Uuid::new_v4().to_string(),
@@ -1044,7 +1046,8 @@ impl RuntimeChatLedgerTransport {
     /// Build a transport with an explicit `session_id` (tests / a shared trace id).
     pub fn with_session_id(base_url: impl Into<String>, session_id: impl Into<String>) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            authenticated_context: None,
+            client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             session_id: session_id.into(),
             actor_kind: "human".to_owned(),
@@ -1058,11 +1061,18 @@ impl RuntimeChatLedgerTransport {
         actor_kind: impl Into<String>,
     ) -> Self {
         Self {
+            authenticated_context: None,
             client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             session_id: session_id.into(),
             actor_kind: actor_kind.into(),
         }
+    }
+
+    pub fn with_authenticated_context(mut self, context: Option<Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+        self.client = crate::backend_client::shared_http_client();
+        self.authenticated_context = context;
+        self
     }
 
     /// MT-111: the ingest route is WORKSPACE-SCOPED.
@@ -1129,22 +1139,12 @@ impl EventLedgerTransport for RuntimeChatLedgerTransport {
         let client = self.client.clone();
         let url = self.url_for(&event);
         let body = self.build_post_body(&event);
+        let context = self.authenticated_context.clone();
         Box::pin(async move {
-            // Resolved as LATE as possible so a rebind that lands between queueing and dispatch is
-            // still honoured. Fail-closed: with no credential the request is not sent at all.
-            let token = flight_recorder_session_token().map_err(|unavailable| {
-                EmitError::MissingSessionBinding {
-                    path: unavailable.path,
-                    reason: unavailable.reason,
-                }
-            })?;
-            let resp = client
-                .post(&url)
-                .header(HSK_HEADER_SESSION_TOKEN, &token)
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| EmitError::Transport(format!("network: {e}")))?;
+            let context = context.ok_or_else(|| EmitError::MissingSessionBinding { path: String::new(), reason: "Account login required".into() })?;
+            let request = context.authorize(client.post(&url).json(&body)).map_err(EmitError::Transport)?;
+            let resp = client.execute(request).await.map_err(|e| EmitError::Transport(format!("network: {e}")))?;
+            context.observe_status(resp.status());
             let status = resp.status();
             if status.is_success() {
                 return Ok(());
@@ -1284,6 +1284,14 @@ impl NativeEditorEventEmitter {
         error_ring: ErrorRing,
     ) -> Self {
         let transport = Arc::new(RuntimeChatLedgerTransport::new(base_url));
+        Self::new_with_error_ring(workspace_id, transport, Some(runtime), error_ring)
+    }
+
+    pub fn production_with_authenticated_context(
+        workspace_id: impl Into<String>, base_url: impl Into<String>, runtime: tokio::runtime::Handle,
+        error_ring: ErrorRing, context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        let transport = Arc::new(RuntimeChatLedgerTransport::new(base_url).with_authenticated_context(context));
         Self::new_with_error_ring(workspace_id, transport, Some(runtime), error_ring)
     }
 

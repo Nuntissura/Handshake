@@ -31,7 +31,7 @@ mod backend_proof_support;
 use perf_proof_support::{measurement, time_ms, Budget, ScenarioAttempt};
 use backend_proof_support::LiveBackend;
 use std::collections::{HashMap, HashSet};
-use std::time::{Duration, Instant};
+
 
 use handshake_native::graph::graph_view::{GraphEdge, GraphNode, LoomGraphView, NODE_CAP};
 
@@ -872,14 +872,8 @@ fn assert_lk03_stage_diagnostics(
     }
     let complete_request_ids: Vec<String> = by_request
         .iter()
-        .filter_map(|(request_id, lines)| {
-            lines
-                .iter()
-                .any(|line| {
-                    diagnostic_field(line, "stage").as_deref() == Some("response_construction")
-                })
-                .then(|| request_id.clone())
-        })
+        .filter(|(_, lines)| lines.iter().any(|line| diagnostic_field(line, "stage").as_deref() == Some("response_construction")))
+        .map(|(request_id, _)| request_id.clone())
         .collect();
     assert_eq!(
         complete_request_ids.len(),

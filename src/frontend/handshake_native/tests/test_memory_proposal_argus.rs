@@ -373,7 +373,7 @@ fn argus_click(
 }
 
 /// The exact receipt row for `receipt_id` inside a canonical tree.
-fn receipt_in<'a>(tree: &'a serde_json::Value, receipt_id: u64) -> &'a serde_json::Value {
+fn receipt_in(tree: &serde_json::Value, receipt_id: u64) -> &serde_json::Value {
     tree["action_receipts"]
         .as_array()
         .and_then(|receipts| {

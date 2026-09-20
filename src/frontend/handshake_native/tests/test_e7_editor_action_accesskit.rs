@@ -629,8 +629,7 @@ fn ac01_every_action_node_declares_at_least_one_action() {
                 });
             });
         });
-        if output.platform_output.accesskit_update.is_some() {
-            let update = output.platform_output.accesskit_update.unwrap();
+        if let Some(update) = output.platform_output.accesskit_update {
             let snap = collect_ui_tree_snapshot(&update);
             // Every present `editor.<pane>.<action>` node (excluding the present-only `find-panel`
             // container + the health canary) must declare >=1 action a swarm agent can dispatch.

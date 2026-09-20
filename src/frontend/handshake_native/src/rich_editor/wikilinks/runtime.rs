@@ -189,6 +189,8 @@ pub struct KnowledgeCreateNoteBackend {
 }
 
 impl KnowledgeCreateNoteBackend {
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.client = self.client.with_optional_authenticated_context(context); self }
+
     /// Build the production create backend (shares the process-wide HTTP pool via the MT-037 client's
     /// `production()` constructor — NO second reqwest stack).
     pub fn production(session_run_id: impl Into<String>) -> Self {

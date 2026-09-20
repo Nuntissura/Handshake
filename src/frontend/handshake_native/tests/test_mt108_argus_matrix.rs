@@ -261,9 +261,8 @@ fn mt108_argus_manifest_surface_route() {
         observation.receipt_status.as_str(),
         "applied" | "indeterminate"
     ));
-    assert_eq!(
+    assert!(
         json_has_author_id(&terminal_after, &tab_target),
-        true,
         "{}: fresh inspection does not match the declared post-action target state",
         row.scenario_id
     );

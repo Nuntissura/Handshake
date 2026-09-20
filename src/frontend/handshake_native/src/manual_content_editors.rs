@@ -413,6 +413,11 @@ pub fn editors_manual_section() -> ManualSection {
         body: agent_tool_reference_body(),
     });
 
+    topics.push(ManualTopic {
+        heading: "Local account",
+        body: "Use the Account bar at the top of the native shell. Check setup reports whether this installation needs its first explicit Owner. Enter an account name and a password of 12–1024 UTF-8 bytes, choose Set up Owner, then Log in. Login establishes a persisted backend account session bound separately to this native channel; the channel alone grants no account identity. The bar shows the active account and access space. Create workspace creates a new owned workspace; legacy ownerless workspaces are not adopted. Check session verifies the current account. Log out and subsequent login require an explicit discard confirmation before replacing workspace panes and unsaved edits. Cancel keeps edits; a rejected session locks private workspace content until login/discard. Session credentials remain in memory in the native client. The password control clears its published accessibility value. WIRED: account mutations are recorded by the backend authority EventLedger; native editor actions and Flight Recorder reads retain their distinct account/workspace authorization. WIRED: internal_diagnostics records native runtime health, and Palmistry observes external process liveness. NA: account passwords/session tokens are not diagnostic payloads, and diagnostics grant no resource authority. DEFERRED: automatic native login restoration is not implemented; authenticate after launch. Argus controls: account.name, account.password, account.check-setup, account.submit, account.current, account.check-session, account.workspace-name, account.create-workspace, account.logout, account.confirm-discard, account.cancel-discard, account.error. Authentication failures display a generic denial; check backend reachability and retry login without exposing protected resource metadata.".to_owned(),
+    });
+
     ManualSection {
         id: EDITORS_SECTION_ID,
         title: "Native Editors",

@@ -17,6 +17,7 @@ pub mod backend;
 // existing WP-KERNEL-005 atelier backend via backend_client::AtelierClient (no mocks).
 pub mod atelier_side_panel;
 pub mod backend_client;
+pub mod local_account;
 pub mod canvas_board;
 pub mod code_editor;
 pub mod command_palette;

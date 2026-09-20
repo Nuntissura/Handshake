@@ -77,7 +77,7 @@ fn rename_graceful_single_file_fallback_and_banner_present() {
     // Type the new name + confirm. With no runtime injected, the panel uses the synchronous single-file
     // fallback (the deterministic headless path). Set the draft directly then confirm via the input render.
     if let RenameState::Editing {
-        mut draft,
+        draft: _,
         original,
         anchor_byte,
         ident_range,
@@ -85,7 +85,7 @@ fn rename_graceful_single_file_fallback_and_banner_present() {
         focus_requested,
     } = panel.rename_state()
     {
-        draft = "total".to_owned();
+        let draft = "total".to_owned();
         panel.set_rename_state(RenameState::Editing {
             original,
             draft,

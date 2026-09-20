@@ -290,7 +290,7 @@ fn keymap_accesskit_commands() {
         "PT-005 accesskit command nodes ({} total, {} buttons): {:?}",
         command_nodes.len(),
         buttons,
-        &command_nodes
+        command_nodes
     );
 
     // AC-005: at least 5 command nodes, including OpenFind/OpenReplace/GoToLine/GoToDefinition/Save.

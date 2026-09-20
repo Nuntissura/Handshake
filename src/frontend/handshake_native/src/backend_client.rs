@@ -57,6 +57,7 @@ pub fn build_backend_client() -> reqwest::Client {
 
 fn build_backend_client_with_request_timeout(request_timeout: Duration) -> reqwest::Client {
     reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(BACKEND_CONNECT_TIMEOUT)
         .timeout(request_timeout)
         .build()
@@ -787,9 +788,12 @@ pub struct WorkbenchLayoutClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl WorkbenchLayoutClient {
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     ///
     /// WP-KERNEL-012 MT-088: the client carries the backend-down timeouts ([`build_backend_client`] —
@@ -802,6 +806,7 @@ impl WorkbenchLayoutClient {
             client: build_backend_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
     }
 
@@ -1871,10 +1876,11 @@ impl LayoutTransport for WorkbenchLayoutClient {
     fn load(&self, workspace_id: &str) -> Result<Option<Value>, LayoutError> {
         let url = self.layout_url(workspace_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = client
+            let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account.clone(), client
                 .get(&url)
-                .timeout(LAYOUT_REQUEST_TIMEOUT)
+                .timeout(LAYOUT_REQUEST_TIMEOUT))
                 .send()
                 .await
                 .map_err(|e| LayoutError::Transport(e.to_string()))?;
@@ -1907,11 +1913,12 @@ impl LayoutTransport for WorkbenchLayoutClient {
         let url = self.layout_url(workspace_id);
         let client = self.client.clone();
         let request_body = serde_json::json!({ "layout_state": layout_state });
+        let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = client
+            let resp = crate::local_account::AuthenticatedRequest::new(client.clone(), account.clone(), client
                 .put(&url)
                 .timeout(LAYOUT_REQUEST_TIMEOUT)
-                .json(&request_body)
+                .json(&request_body))
                 .send()
                 .await
                 .map_err(|e| LayoutError::Transport(e.to_string()))?;
@@ -2835,15 +2842,19 @@ pub struct CanvasBoardClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl CanvasBoardClient {
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
+
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
     }
 
@@ -2859,6 +2870,7 @@ impl CanvasBoardClient {
             client,
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
     }
 
@@ -3302,7 +3314,7 @@ impl CanvasBoardClient {
                 crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
                     self.client.clone(),
                     self.base_url.clone(),
-                );
+                ).with_optional_authenticated_context(self.authenticated_context.clone());
             let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
                 format!("stage-canvas-reconcile-{canvas_block_id}"),
                 document_id,
@@ -7177,8 +7189,18 @@ pub async fn code_nav_get(
     query: &[(String, String)],
     run_id: &str,
 ) -> Result<serde_json::Value, AppError> {
+    code_nav_get_authenticated(url, query, run_id, None).await
+}
+
+pub async fn code_nav_get_authenticated(
+    url: &str,
+    query: &[(String, String)],
+    run_id: &str,
+    context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+) -> Result<serde_json::Value, AppError> {
     let client = shared_http_client();
-    let resp = client
+    let context = context.ok_or_else(|| AppError::Http("Account login required".into()))?;
+    let request = context.authorize(client
         .get(url)
         .query(query)
         .header(HSK_HEADER_ACTOR_ID, CODE_NAV_ACTOR_ID)
@@ -7192,18 +7214,20 @@ pub async fn code_nav_get(
             format!("native-editor-session-{run_id}"),
         )
         .timeout(Duration::from_secs(5))
-        .send()
+        ).map_err(AppError::Http)?;
+    let resp = client.execute(request)
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
+    context.observe_status(resp.status());
     if !resp.status().is_success() {
         return Err(AppError::Http(format!(
             "GET code-nav non-success status {}",
             resp.status()
         )));
     }
-    resp.json()
-        .await
-        .map_err(|e| AppError::Parse(e.to_string()))
+    let value = resp.json().await.map_err(|e| AppError::Parse(e.to_string()))?;
+    if !context.is_active() { return Err(AppError::Http("Account session is no longer active".into())); }
+    Ok(value)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -9642,6 +9666,7 @@ pub struct WorkspaceSearchClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl WorkspaceSearchClient {
@@ -9650,8 +9675,11 @@ impl WorkspaceSearchClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
     }
+
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self { self.authenticated_context = context; self }
 
     pub fn production(runtime: tokio::runtime::Handle) -> Self {
         Self::new(BACKEND_BASE_URL, runtime)
@@ -9794,9 +9822,10 @@ impl WorkspaceSearchClient {
         let url = self.bookmarks_url(workspace_id);
         let expected_workspace_id = workspace_id.to_owned();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
-            let result = get_json(&client, &url, &[])
+            let result = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.get(&url)).json()
                 .await
                 .map_err(|e| e.to_string())
                 .and_then(|v| {
@@ -9843,9 +9872,10 @@ impl WorkspaceSearchClient {
         let body = spec.body.unwrap_or_default();
         let expected_workspace_id = workspace_id.to_owned();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
-            let result = put_json(&client, &spec.url, &body)
+            let result = crate::local_account::AuthenticatedRequest::new(client.clone(), account, client.put(&spec.url).json(&body)).json()
                 .await
                 .map_err(|e| e.to_string())
                 .and_then(|v| {
@@ -9861,31 +9891,6 @@ impl WorkspaceSearchClient {
             }
         });
     }
-}
-
-/// `PUT {url}` with a JSON body, returning the parsed response body. A non-success status or parse
-/// failure is an [`AppError`]. Mirrors [`post_json`] for the bookmark-save path.
-async fn put_json(
-    client: &reqwest::Client,
-    url: &str,
-    body: &serde_json::Value,
-) -> Result<serde_json::Value, AppError> {
-    let resp = client
-        .put(url)
-        .timeout(Duration::from_secs(10))
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "PUT non-success status {}",
-            resp.status()
-        )));
-    }
-    resp.json()
-        .await
-        .map_err(|e| AppError::Parse(e.to_string()))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -10083,6 +10088,7 @@ pub struct RichDocClient {
     base_url: String,
     runtime: tokio::runtime::Handle,
     session_run_id: String,
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl RichDocClient {
@@ -10091,6 +10097,7 @@ impl RichDocClient {
             // Share the ONE process-wide pool rather than minting an independent connection pool/TLS
             // stack: load/save now delegate to the consolidated MT-037 client (see `load_document` /
             // `save_document`), so the find/replace pipeline and the editor client share one transport.
+            authenticated_context: None,
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
@@ -10102,6 +10109,11 @@ impl RichDocClient {
         Self::new(BACKEND_BASE_URL, runtime)
     }
 
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+        self.authenticated_context = context;
+        self
+    }
+
     /// The consolidated MT-037 client bound to the SAME shared pool + base URL. load/save delegate
     /// through this so there is exactly ONE document load/save wire path with ONE conflict semantic
     /// (the REUSE-NOT-DUPLICATE gate): `RichDocClient` no longer forks its own load/save transport.
@@ -10109,7 +10121,7 @@ impl RichDocClient {
         crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
             self.client.clone(),
             self.base_url.clone(),
-        )
+        ).with_optional_authenticated_context(self.authenticated_context.clone())
     }
 
     /// Run the PREVIEW pipeline off the UI thread: for each `document_id`, load the doc, walk its
@@ -10412,39 +10424,9 @@ impl RichDocSaveBackend {
         }
     }
 
-    /// WP-KERNEL-012 MT-120: the transport this save should use.
-    ///
-    /// When a live native-MCP binding exists the save is issued through a client that presents
-    /// `x-hsk-session-token`, so `knowledge_documents::save_document` authenticates the SAME principal
-    /// the Flight Recorder derives and stamps `minted_by_principal` into the canonical save receipt —
-    /// which is what makes the `document_saved` receipt-ownership clause satisfiable.
-    ///
-    /// When no binding exists (or the credential is malformed) the save falls back to the EXISTING
-    /// unauthenticated client, so saves keep working exactly as they do today. This is safe precisely
-    /// because the backend treats the credential as optional-but-verified: an absent token is the old
-    /// path, and a presented-but-invalid token is a hard 401 rather than a silent downgrade.
-    ///
-    /// The declared `x-hsk-actor-id` is NOT touched here: per-agent save attribution must survive in
-    /// the ledger `actor_id` column.
-    ///
-    /// Takes the fallback client + base URL by value rather than `&self` so the binding file read
-    /// happens on the async save worker, never on the egui frame thread (HBR-QUIET).
-    /// Resolve the live native-MCP session token for THIS save, or `None` when no binding is
-    /// published.
-    ///
-    /// The token is carried PER REQUEST on the save headers rather than baked into a
-    /// session-scoped `reqwest::Client`. The first MT-120 implementation used a token-keyed client
-    /// with `default_headers`, and the MT-088 timeout audit correctly rejected it: it made
-    /// `backend_client.rs` own a SECOND `ClientBuilder` where exactly one is allowed
-    /// (`test_backend_down_responsive::reqwest_clients_carry_connect_and_request_timeouts`,
-    /// left {backend_client.rs: 2} right {backend_client.rs: 1}). Per-request is also strictly
-    /// better: no credential is memoized in a process-wide pool, and a rebind is picked up on the
-    /// very next save because `flight_recorder_session_token` never caches.
-    ///
-    /// Called on the async save worker, never on the egui frame thread, so the binding-file read
-    /// cannot stall a frame (HBR-QUIET).
-    fn session_token_for_save() -> Option<String> {
-        crate::event_emitter::flight_recorder_session_token().ok()
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+        self.client = self.client.with_optional_authenticated_context(context);
+        self
     }
 
     /// Production transport with an explicit operator/agent identity. Parallel mounted hosts use this
@@ -10484,16 +10466,7 @@ impl crate::rich_editor::save::save_manager::SaveBackend for RichDocSaveBackend 
         let read_headers = headers.clone();
         let document_id = document_id.to_owned();
         Box::pin(async move {
-            // MT-120: resolve the credential per save (never cached) so a rebind is picked up by the
-            // very next save; falls back to the unauthenticated client when no binding exists. Done
-            // here, off the egui frame thread, because it touches the filesystem (HBR-QUIET).
-            //
-            // `with_session_token` clones the SHARED pool and only sets a field — it does not mint a
-            // second reqwest client, which the MT-088 timeout audit forbids in this file.
-            let client = match Self::session_token_for_save() {
-                Some(token) => fallback_client.clone().with_session_token(token),
-                None => fallback_client.clone(),
-            };
+            let client = fallback_client;
             let body = crate::backend::knowledge_documents::SaveDocumentRequest {
                 expected_version: i64::try_from(expected_version).unwrap_or(i64::MAX),
                 content_json,
@@ -10615,6 +10588,11 @@ impl RichDocDraftBackend {
             ),
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
         }
+    }
+
+    pub fn with_authenticated_context(mut self, context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>) -> Self {
+        self.client = self.client.with_optional_authenticated_context(context);
+        self
     }
 
     fn headers(
@@ -13140,7 +13118,7 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let client = RichDocClient::new("http://127.0.0.1:9", runtime.handle().clone());
+        let client = RichDocClient::new("http://127.0.0.1:9", runtime.handle().clone()).with_authenticated_context(Some(crate::local_account::mock_account_context("http://127.0.0.1:9")));
         let cell: FindReplaceCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
         client.apply_plans(
             "WS-2",

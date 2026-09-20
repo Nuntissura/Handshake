@@ -181,7 +181,8 @@ fn explorer_list_preserves_rich_document_id_and_matching_updated_at_token() {
         "updated_at": "2026-07-16T10:20:30Z"
     }]);
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
-    let client = KnowledgeDocumentsClient::with_base_url(base_url);
+    let client = KnowledgeDocumentsClient::with_base_url(base_url.clone())
+        .with_authenticated_context(mock_account_context(&base_url));
     let headers = HskDocumentHeaders::for_read("project-tree", "WS-1");
 
     let documents = rt()
@@ -203,7 +204,8 @@ fn explorer_list_preserves_rich_document_id_and_matching_updated_at_token() {
 #[test]
 fn ac_load_document_deserializes_real_backend_shape() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", load_response_body());
-    let client = KnowledgeDocumentsClient::with_base_url(base_url);
+    let client = KnowledgeDocumentsClient::with_base_url(base_url.clone())
+        .with_authenticated_context(mock_account_context(&base_url));
     let headers = HskDocumentHeaders::for_read("session-1", "KRD-abc123");
 
     let resp = rt().block_on(async { client.load_document(&headers, "KRD-abc123").await });
@@ -269,7 +271,8 @@ fn create_response_preserves_backend_reused_existing_flag() {
         "warnings": []
     });
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
-    let client = KnowledgeDocumentsClient::with_base_url(base_url);
+    let client = KnowledgeDocumentsClient::with_base_url(base_url.clone())
+        .with_authenticated_context(mock_account_context(&base_url));
     let headers = HskDocumentHeaders::for_operator("session-1", "design-notes");
     let request = CreateDocumentRequest {
         workspace_id: "WS-1".into(),
@@ -307,7 +310,8 @@ fn create_response_preserves_backend_reused_existing_flag() {
 #[test]
 fn ac_save_conflict_returns_distinct_save_conflict_variant() {
     let (base_url, server) = spawn_mock("HTTP/1.1 409 Conflict", save_409_body());
-    let client = KnowledgeDocumentsClient::with_base_url(base_url);
+    let client = KnowledgeDocumentsClient::with_base_url(base_url.clone())
+        .with_authenticated_context(mock_account_context(&base_url));
     let headers = HskDocumentHeaders::for_operator("session-1", "KRD-abc123");
     let body = SaveDocumentRequest {
         expected_version: 1, // stale on purpose
@@ -361,7 +365,8 @@ fn ac_save_conflict_returns_distinct_save_conflict_variant() {
 #[test]
 fn ac_bad_request_400_returns_typed_bad_request_variant() {
     let (base_url, server) = spawn_mock("HTTP/1.1 400 Bad Request", missing_actor_400_body());
-    let client = KnowledgeDocumentsClient::with_base_url(base_url);
+    let client = KnowledgeDocumentsClient::with_base_url(base_url.clone())
+        .with_authenticated_context(mock_account_context(&base_url));
     let headers = HskDocumentHeaders::for_read("session-1", "KRD-abc123");
 
     let result = rt().block_on(async { client.load_document(&headers, "KRD-abc123").await });
@@ -385,7 +390,8 @@ fn control_move_double_option_serializes_three_ways_on_the_wire() {
     // Capture the actual JSON body the client PUTs for each of the three double-option states.
     fn capture_move_body(req: MoveDocumentRequest) -> Value {
         let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", json!({"document": {}}));
-        let client = KnowledgeDocumentsClient::with_base_url(base_url);
+        let client = KnowledgeDocumentsClient::with_base_url(base_url.clone())
+            .with_authenticated_context(mock_account_context(&base_url));
         let headers = HskDocumentHeaders::for_operator("session-1", "KRD-1");
         let _ = rt().block_on(async { client.move_document(&headers, "KRD-1", &req).await });
         let exchange = server.join().unwrap();
@@ -436,7 +442,8 @@ fn control_move_double_option_serializes_three_ways_on_the_wire() {
 fn control_batch_over_100_is_rejected_client_side_before_send() {
     // No server needed — the guard must fire before a socket is opened. Use an unroutable base URL so
     // any accidental send would error loudly (proving the guard short-circuits before the request).
-    let client = KnowledgeDocumentsClient::with_base_url("http://127.0.0.1:1");
+    let client = KnowledgeDocumentsClient::with_base_url("http://127.0.0.1:1")
+        .with_authenticated_context(mock_account_context("http://127.0.0.1:1"));
     let headers = HskDocumentHeaders::for_operator("session-1", "BATCH");
     let operations: Vec<BatchOperation> = (0..101)
         .map(|i| BatchOperation::Rename {
@@ -482,7 +489,8 @@ fn control_history_limit_clamped_client_side() {
             "offset": 0
         }),
     );
-    let client = KnowledgeDocumentsClient::with_base_url(base_url);
+    let client = KnowledgeDocumentsClient::with_base_url(base_url.clone())
+        .with_authenticated_context(mock_account_context(&base_url));
     let headers = HskDocumentHeaders::for_read("session-1", "KRD-1");
 
     let resp = rt().block_on(async {
@@ -521,14 +529,16 @@ fn stateless_adapter_holds_no_document_state() {
     // document, and each request must carry ONLY its own per-call document id in the path (no id is held
     // on the client between calls). If the client held doc state, a clone would carry a stale id; it
     // does not, because the id is a per-call argument.
-    let client = KnowledgeDocumentsClient::with_base_url("http://placeholder.invalid");
+    let client = KnowledgeDocumentsClient::with_base_url("http://placeholder.invalid")
+        .with_authenticated_context(mock_account_context("http://placeholder.invalid"));
     let clone_a = client.clone();
     let clone_b = client.clone();
 
     fn captured_load_path(client: &KnowledgeDocumentsClient, document_id: &str) -> String {
         let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", load_response_body());
         // Re-point THIS clone at the mock (with_base_url keeps the client stateless: only the host moves).
-        let bound = KnowledgeDocumentsClient::with_base_url(base_url);
+        let bound = KnowledgeDocumentsClient::with_base_url(base_url.clone())
+            .with_authenticated_context(mock_account_context(&base_url));
         let headers = HskDocumentHeaders::for_read("session-stateless", document_id);
         let _ = rt().block_on(async { bound.load_document(&headers, document_id).await });
         // The original client argument is exercised too (its clone-ness is the point under test): it
@@ -547,4 +557,19 @@ fn stateless_adapter_holds_no_document_state() {
         line_b.starts_with("GET /knowledge/documents/KRD-stateless-B"),
         "clone B's call carries ONLY its own per-call document id (no state carried from A): {line_b}"
     );
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }

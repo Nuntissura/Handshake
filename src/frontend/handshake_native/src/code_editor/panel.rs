@@ -4620,6 +4620,7 @@ impl CodeEditorPanel {
     /// fallback at a known backend endpoint while the egui thread keeps using the same nonblocking spawn
     /// path as production.
     pub fn set_code_nav_client(&self, client: CodeNavClient) {
+        self.set_find_notes_backend(client.find_notes_backend());
         *self
             .code_nav_client
             .lock()

@@ -72,7 +72,7 @@ use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
 use handshake_native::rich_editor::slash_commands::{
-    code_symbol_result_author_id, code_symbol_search::CodeSymbolSearchState,
+    code_symbol_search::CodeSymbolSearchState,
     render_code_symbol_search_dialog, CODE_SYMBOL_SEARCH_AUTHOR_ID,
     CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
 };
@@ -1031,7 +1031,10 @@ fn ac2_live_shell_routes_code_ref_event_to_mounted_code_pane() {
     let line_start_zero_based = line_start_one_based - 1;
     let (base_url, server) = spawn_code_symbol_server(symbol_id, &file_path, line_start_one_based);
     let (mut app, _rt) = code_note_editor_shell();
-    app.install_mounted_code_nav_client_for_test(CodeNavClient::new(base_url));
+    app.install_mounted_code_nav_client_for_test(
+        CodeNavClient::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&base_url))),
+    );
     let rich_state = app.mounted_rich_state();
     let source_panel = app.mounted_code_panel();
     source_panel.set_text("// stale mounted buffer must be replaced by the resolved file\n");
@@ -1169,7 +1172,10 @@ fn ac2_live_shell_routes_literal_path_symbol_code_ref_to_mounted_code_pane() {
     let (base_url, server) =
         spawn_code_symbol_lookup_server(symbol_id, &file_path, line_start_one_based);
     let (mut app, _rt) = code_note_editor_shell();
-    app.install_mounted_code_nav_client_for_test(CodeNavClient::new(base_url));
+    app.install_mounted_code_nav_client_for_test(
+        CodeNavClient::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&base_url))),
+    );
     let rich_state = app.mounted_rich_state();
     let source_panel = app.mounted_code_panel();
     source_panel.set_text("// stale mounted buffer must be replaced by the looked-up file\n");
@@ -1525,7 +1531,10 @@ fn ac3_code_pane_dwell_loads_note_refs_panel() {
     let (lookup_base, lookup_thread) = spawn_single_json_response_server(
         code_symbol_lookup_response_body("KEN-MT034-MOCK", "fixtures/mt034_code_ref.rs", 1),
     );
-    panel.set_code_nav_client(CodeNavClient::new(lookup_base));
+    panel.set_code_nav_client(
+        CodeNavClient::new(lookup_base.clone())
+            .with_authenticated_context(Some(mock_account_context(&lookup_base))),
+    );
     panel.set_find_notes_backend(backend_dyn);
     panel.set_show_note_refs(true);
     // Zero dwell threshold so the dwell crosses on the first settled frame (deterministic, no 800ms wait).
@@ -1735,7 +1744,10 @@ fn ac3_live_shell_note_refs_row_click_opens_document_tab() {
     let (lookup_base, lookup_thread) = spawn_single_json_response_server(
         code_symbol_lookup_response_body("KEN-MT034-MOCK", "fixtures/mt034_code_ref.rs", 1),
     );
-    code_panel.set_code_nav_client(CodeNavClient::new(lookup_base));
+    code_panel.set_code_nav_client(
+        CodeNavClient::new(lookup_base.clone())
+            .with_authenticated_context(Some(mock_account_context(&lookup_base))),
+    );
     let offset = code_panel
         .buffer()
         .to_string()
@@ -1832,6 +1844,8 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     // is installed until the chip exists. The full shell backend is bound before navigation, then the
     // visible rich pane enters Reading mode through its production control.
     let (mut app, runtime) = code_note_editor_shell_with_runtime(false);
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind isolated code-ref fixture");
     app.set_active_pane_for_test(Some(PaneId::from("pane-b")));
     let rich_state = app.mounted_rich_state();
     {
@@ -1922,11 +1936,12 @@ fn mt034_canonical_argus_create_open_and_reveal() {
             .as_mut()
             .expect("/code-ref action opened production code-symbol search");
         dialog.runtime = Some(runtime.handle().clone());
-        dialog.client = CodeNavClient::new(base_url.clone());
+        dialog.client = CodeNavClient::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&base_url.clone())));
         dialog.query = symbol_name.to_owned();
         dialog.spawn_lookup();
     }
-    let result_id = code_symbol_result_author_id(symbol_id);
+    let result_id = handshake_native::rich_editor::slash_commands::code_symbol_result_author_id(symbol_id);
     let result_deadline = Instant::now() + Duration::from_secs(5);
     while !author_ids(&harness).contains(&result_id) {
         assert!(Instant::now() < result_deadline, "{}", {
@@ -2005,7 +2020,10 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     // Mount the real dwell -> exact reverse lookup -> NoteRefs pipeline on that newly opened code tab.
     code_panel.set_runtime(runtime.handle().clone());
     code_panel.set_workspace_id(DEFAULT_PROJECT_ID);
-    code_panel.set_code_nav_client(CodeNavClient::new(base_url.clone()));
+    code_panel.set_code_nav_client(
+        CodeNavClient::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&base_url.clone()))),
+    );
     // Keep the exact source and NoteRefs surfaces visible without sacrificing the code text to
     // auxiliary columns. This mirrors an operator disabling Outline/Minimap from the code toolbar.
     code_panel.set_show_outline(false);
@@ -2413,7 +2431,8 @@ fn ac4_stale_source_is_typed_and_never_navigates_silently() {
         .build()
         .expect("build stale-source runtime");
     let resolved = runtime.block_on(handshake_native::interop::cross_ref::resolve_code_ref_with(
-        &CodeNavClient::new(base_url),
+        &CodeNavClient::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&base_url))),
         symbol_id,
     ));
     assert_eq!(
@@ -2450,7 +2469,8 @@ fn ac4_opaque_source_id_without_symbol_key_path_is_unresolved() {
         .build()
         .expect("build malformed-symbol runtime");
     let resolved = runtime.block_on(handshake_native::interop::cross_ref::resolve_code_ref_with(
-        &CodeNavClient::new(base_url),
+        &CodeNavClient::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&base_url))),
         "KEN-mt034-malformed",
     ));
     assert!(
@@ -2470,7 +2490,8 @@ fn ac4_entity_lookup_rejects_a_different_backend_symbol_identity() {
         .build()
         .expect("build identity-mismatch runtime");
     let resolved = runtime.block_on(handshake_native::interop::cross_ref::resolve_code_ref_with(
-        &CodeNavClient::new(base_url),
+        &CodeNavClient::new(base_url.clone())
+            .with_authenticated_context(Some(mock_account_context(&base_url))),
         "KEN-A",
     ));
     assert_eq!(
@@ -2553,7 +2574,8 @@ fn negative_backend_loss_is_typed_for_both_cross_ref_directions() {
         .expect("build backend-loss runtime");
     let unavailable = "http://127.0.0.1:9";
     let resolve = runtime.block_on(resolve_code_ref_with(
-        &CodeNavClient::new(unavailable),
+        &CodeNavClient::new(unavailable)
+            .with_authenticated_context(Some(mock_account_context(unavailable))),
         "KEN-mt034-backend-loss",
     ));
     assert!(
@@ -2758,7 +2780,7 @@ mod live_backend {
         // Negative identity path: the mutation must fail before it reaches indexing when the required
         // navigation identity is absent. The following attributed request is the one allowed to seed.
         let missing_index_identity = runtime.block_on(async {
-            http.post(&index_url)
+            live.backend.authenticated(http.post(&index_url))
                 .json(&serde_json::json!({"root_path": root_path.clone()}))
                 .send()
                 .await
@@ -2768,8 +2790,7 @@ mod live_backend {
         assert_eq!(missing_index_identity.as_u16(), 400);
 
         let index_body: serde_json::Value = runtime.block_on(async {
-            let response = http
-                .post(&index_url)
+            let response = live.backend.authenticated(http.post(&index_url))
                 .header("x-hsk-actor-id", "mt034-managed-proof")
                 .header("x-hsk-actor-kind", "validation_runner")
                 .header("x-hsk-kernel-task-run-id", "KTR-MT034-V2")
@@ -2788,7 +2809,8 @@ mod live_backend {
             "real index must produce the struct + impl member: {index_body:?}"
         );
 
-        let code_nav = CodeNavClient::new(live.base.clone());
+        let code_nav = CodeNavClient::new(live.base.clone())
+            .with_authenticated_context(Some(live.account_context.clone()));
         let symbol = runtime
             .block_on(code_nav.lookup_symbols(&workspace_id, SYMBOL_NAME, 20))
             .expect("live symbol lookup")
@@ -2827,7 +2849,8 @@ mod live_backend {
         });
         assert_eq!(missing_nav_identity.as_u16(), 400);
 
-        let document_client = KnowledgeDocumentsClient::with_base_url(live.base.clone());
+        let document_client = KnowledgeDocumentsClient::with_base_url(live.base.clone())
+            .with_authenticated_context(live.account_context.clone());
         let create_headers = HskDocumentHeaders::for_operator("SR-MT034-CREATE", "pending-mt034");
         let created = runtime
             .block_on(document_client.create_document(
@@ -3082,8 +3105,10 @@ mod live_backend {
             old_backend_pid, new_backend_pid,
             "restart proof must replace only the fixture-owned backend child"
         );
-        let restarted_code_nav = CodeNavClient::new(live.base.clone());
-        let restarted_documents = KnowledgeDocumentsClient::with_base_url(live.base.clone());
+        let restarted_code_nav = CodeNavClient::new(live.base.clone())
+            .with_authenticated_context(Some(live.account_context.clone()));
+        let restarted_documents = KnowledgeDocumentsClient::with_base_url(live.base.clone())
+            .with_authenticated_context(live.account_context.clone());
         let restarted_find_notes = FindNotesHttp::new(live.base.clone());
         let restarted_symbol = runtime
             .block_on(restarted_code_nav.get_symbol(&symbol_id))
@@ -3165,10 +3190,13 @@ mod live_backend {
             let mounted_body = runtime
                 .block_on(
                     RichDocClient::new(live.base.clone(), runtime.handle().clone())
+                        .with_authenticated_context(Some(live.account_context.clone()))
                         .load_document(&document_id),
                 )
                 .expect("load mounted rich document through the production client");
             let (mut app, app_runtime) = code_note_editor_shell();
+            app.bind_initial_account(live.account_context.clone())
+                .expect("bind explicit fixture account");
             app.set_backend_base_url_for_test(&live.base, app_runtime.handle().clone());
             app.install_mounted_code_nav_client_for_test(restarted_code_nav.clone());
             assert!(
@@ -3453,4 +3481,19 @@ mod live_backend {
         .expect("write external MT-034 receipt");
         crate::interconnect_support::assert_no_local_artifact_dir();
     }
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }

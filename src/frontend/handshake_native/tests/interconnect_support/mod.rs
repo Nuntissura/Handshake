@@ -715,11 +715,12 @@ pub fn author_node_value<S>(harness: &Harness<'_, S>, author_id: &str) -> Option
 // ── Real managed backend fixture (shared with parity/performance proofs) ────────────────────────────
 
 #[path = "../backend_proof_support/mod.rs"]
-mod backend_proof_support;
+pub mod backend_proof_support;
 
 #[allow(unused_imports)]
 // Each integration test crate consumes a different fixture entrypoint.
 pub use backend_proof_support::DEFAULT_BASE;
+
 
 /// WP-KERNEL-012 MT-115: the canonical MT-111 Flight Recorder credential helpers, re-exported so a
 /// suite that consumes this fixture through `interconnect_support` presents the SAME genuine
@@ -923,7 +924,8 @@ pub fn save_rich_document_via_production_manager(
             handshake_native::backend_client::RichDocSaveBackend::new_with_actor(
                 backend.base.clone(),
                 format!("mt046-interconnect-{}", std::process::id()),
-            ),
+            )
+            .with_authenticated_context(Some(backend.account_context.clone())),
         ),
         Some(runtime.handle().clone()),
         document_id,
@@ -1075,15 +1077,13 @@ pub fn loom_ai_residue_counts(backend: &LiveBackend, workspace_id: &str) -> Loom
             else {
                 return false;
             };
-            let event = event_ledger_payload(
-                backend,
-                "loom_ai_suggestion",
-                suggestion_id,
-                event_id,
-            );
+            let event =
+                event_ledger_payload(backend, "loom_ai_suggestion", suggestion_id, event_id);
             event.get("_event_type").and_then(serde_json::Value::as_str)
                 == Some("AI_EDIT_PROPOSAL_RECORDED")
-                && event.get("_aggregate_id").and_then(serde_json::Value::as_str)
+                && event
+                    .get("_aggregate_id")
+                    .and_then(serde_json::Value::as_str)
                     == Some(suggestion_id)
         })
         .count();

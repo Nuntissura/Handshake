@@ -598,8 +598,7 @@ fn sync_calendar_event_via_product(
     event_id: &str,
     external_id: &str,
     title: &str,
-    start_date: NaiveDate,
-    end_date: NaiveDate,
+    (start_date, end_date): (NaiveDate, NaiveDate),
 ) {
     let start_utc = format!("{}T09:00:00Z", start_date.format("%Y-%m-%d"));
     let end_utc = format!("{}T10:00:00Z", end_date.format("%Y-%m-%d"));
@@ -838,6 +837,7 @@ fn spawn_mock(
 ///   * a POSITIVE FR assertion (`event_bound_fr_posts >= 1`) cannot be satisfied without it, and
 ///   * a NEGATIVE FR assertion (`native_fr_posts == 0`) is VACUOUS without it — it would pass even if
 ///     the product wrongly tried to emit, because the emitter aborts before the socket.
+///
 /// The transient stub does not validate the credential; the point is that the PRODUCT path is able to
 /// produce the request, so the counter measures product behavior rather than a missing credential.
 struct MountedNativeBinding {
@@ -1469,12 +1469,11 @@ fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
         &event_id,
         &external_event_id,
         event_title,
-        date,
-        date,
+        (date, date),
     );
 
     // The REAL MT-019 daily-note transport issues PUT /loom/journals/:date against this isolated workspace.
-    let journal_backend = Arc::new(ReqwestJournalBackend::new(live.base.clone()));
+    let journal_backend = Arc::new(ReqwestJournalBackend::new(live.base.clone()).with_authenticated_context(Some(live.account_context.clone())));
     let svc =
         CalendarInteropService::with_base_url(live.base.clone(), &workspace_id, journal_backend);
     // Call the SAME production open_or_create_daily_note twice for one date against the REAL route.
@@ -1561,8 +1560,7 @@ fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
         &event_id,
         &external_event_id,
         event_title,
-        date,
-        second_date,
+        (date, second_date),
     );
     let direct_second_date_events = rt()
         .block_on(svc.events_for_range(second_date, second_date))
@@ -1609,6 +1607,8 @@ fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(live.account_context.clone())
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     let pane_id = PaneId::from("pane-a");
@@ -2141,6 +2141,8 @@ fn mounted_host_retries_first_transient_calendar_read_without_unavailable_state(
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let pane_id = PaneId::from("pane-a");
@@ -2231,6 +2233,8 @@ fn canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let pane_id = PaneId::from("pane-a");
@@ -2446,6 +2450,8 @@ fn mounted_empty_event_list_finishes_as_no_event_with_one_journal_put() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let pane_id = PaneId::from("pane-a");
@@ -2523,6 +2529,8 @@ fn mounted_terminal_404_is_one_get_and_endpoint_unavailable() {
         db_status: "ok".into(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let pane_id = PaneId::from("pane-a");
@@ -2589,6 +2597,8 @@ fn mounted_three_503s_are_retry_exhausted_after_exactly_three_gets() {
         db_status: "ok".into(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let pane_id = PaneId::from("pane-a");
@@ -2656,6 +2666,8 @@ fn mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue() {
         db_status: "ok".into(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let pane_id = PaneId::from("pane-a");
@@ -2785,6 +2797,8 @@ fn assert_mounted_activity_failure(
         db_status: "ok".into(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let pane_id = PaneId::from("pane-a");
@@ -2897,6 +2911,8 @@ fn mounted_journal_503_exhaustion_clears_stale_projection_and_skips_calendar() {
         db_status: "ok".into(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let mounted = app.mounted_daily_journal();
@@ -2979,6 +2995,8 @@ fn mounted_malformed_calendar_response_is_invalid_after_one_get() {
         db_status: "ok".into(),
         migration_version: Some(1),
     }));
+    app.bind_initial_account(mock_account_context(&base_url))
+        .expect("bind explicit fixture account");
     app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     let pane_id = PaneId::from("pane-a");
@@ -3656,4 +3674,19 @@ fn author_under(root: &egui_kittest::Node<'_>, child_author: &str, ancestor_auth
         }
     }
     false
+}
+
+// Explicit identity for this file's isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext = serde_json::from_value(serde_json::json!({
+        "account_id":"mock-account", "principal_id":"mock-principal", "session_id":"mock-session",
+        "access_space_id":"mock-space", "session_token":"a".repeat(64)
+    })).expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
 }

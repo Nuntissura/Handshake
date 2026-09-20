@@ -664,14 +664,15 @@ fn live_backend_settings_round_trips_through_surrealdb() {
         default_workspace_settings_state, normalize_workspace_settings_state, SettingsClient,
     };
 
-    let workspace_id = std::env::var("HSK_LIVE_WORKSPACE_ID")
-        .expect("set HSK_LIVE_WORKSPACE_ID to an existing workspace id");
+    let live = backend_proof_support::require_live_backend();
+    let workspace_id = live.workspace_id.clone();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
         .build()
         .expect("runtime");
-    let client = SettingsClient::production(rt.handle().clone());
+    let client = SettingsClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(Some(live.account_context.clone()));
 
     // Build a non-default settings state, PUT it, GET it back, assert it round-trips.
     let mut settings = default_workspace_settings_state();
@@ -692,3 +693,6 @@ fn live_backend_settings_round_trips_through_surrealdb() {
         "live SurrealDB settings_state round-trips identically"
     );
 }
+
+#[path = "backend_proof_support/mod.rs"]
+mod backend_proof_support;
