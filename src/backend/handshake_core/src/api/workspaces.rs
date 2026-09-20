@@ -2373,12 +2373,12 @@ mod tests {
         let mut issued = state
             .surreal
             .test_admin_query_bound(
-                "LET $root = (SELECT * FROM ONLY protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation' AND lifecycle_state = 'active' LIMIT 1); LET $child = (SELECT * FROM ONLY protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation:' + $workspace AND parent_resource_id = $root.id AND lifecycle_state = 'active' LIMIT 1); RETURN { child: array::len(SELECT VALUE id FROM protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation:' + $workspace AND parent_resource_id = $root.id AND lifecycle_state = 'active'), owner: record::id($child.owner_account_id), principal: record::id($child.created_by_principal_id), space: record::id($child.access_space_id), root: record::id($root.id), grant: array::len(SELECT VALUE id FROM resource_grants WHERE resource_id = $child.id AND account_id = $child.owner_account_id AND principal_id = $child.created_by_principal_id AND access_space_id = $child.access_space_id AND actions = ['reconcile'] AND capability_ids = ['fr.ingest.native_editor','memory.commit'] AND delegation_chain = [record::id($child.created_by_principal_id)] AND status = 'active' AND revoked_at = NONE AND expires_at = NONE) };".to_owned(),
+                "LET $account = (SELECT * FROM ONLY local_accounts WHERE account_key = 'mt109-reconciliation-service-account' LIMIT 1); LET $principal = (SELECT * FROM ONLY principals WHERE account_id = $account.id AND principal_key = 'mt109-reconciliation-service-principal' AND principal_kind = 'service_identity' AND status = 'enabled' LIMIT 1); LET $space = (SELECT * FROM ONLY access_spaces WHERE account_id = $account.id AND space_key = 'mt109-reconciliation-space' AND status = 'active' LIMIT 1); LET $root = (SELECT * FROM ONLY protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation' AND owner_account_id = $account.id AND created_by_principal_id = $principal.id AND access_space_id = $space.id AND lifecycle_state = 'active' LIMIT 1); LET $child = (SELECT * FROM ONLY protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation:' + $workspace AND parent_resource_id = $root.id AND owner_account_id = $account.id AND created_by_principal_id = $principal.id AND access_space_id = $space.id AND lifecycle_state = 'active' LIMIT 1); RETURN { child: array::len(SELECT VALUE id FROM protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation:' + $workspace AND parent_resource_id = $root.id AND owner_account_id = $account.id AND created_by_principal_id = $principal.id AND access_space_id = $space.id AND lifecycle_state = 'active'), owner: record::id($child.owner_account_id), expected_owner: record::id($account.id), principal: record::id($child.created_by_principal_id), expected_principal: record::id($principal.id), space: record::id($child.access_space_id), expected_space: record::id($space.id), root: record::id($root.id), grant: array::len(SELECT VALUE id FROM resource_grants WHERE resource_id = $child.id AND account_id = $account.id AND principal_id = $principal.id AND access_space_id = $space.id AND actions = ['reconcile'] AND capability_ids = ['fr.ingest.native_editor','memory.commit'] AND delegation_chain = [record::id($principal.id)] AND status = 'active' AND revoked_at = NONE AND expires_at = NONE) };".to_owned(),
                 json!({"workspace": workspace.id.clone()}),
             )
             .await?;
         let issued = issued
-            .take::<Option<serde_json::Value>>(2)?
+            .take::<Option<serde_json::Value>>(5)?
             .expect("service queue result");
         assert_eq!(
             issued["child"], 1,
@@ -2389,16 +2389,16 @@ mod tests {
             "workspace event creates one exact child queue grant"
         );
         assert_eq!(
-            issued["owner"], "mt109-reconciliation-service-account",
-            "child queue belongs to the canonical service account"
+            issued["owner"], issued["expected_owner"],
+            "child queue belongs to the canonical service account record"
         );
         assert_eq!(
-            issued["principal"], "mt109-reconciliation-service-principal",
-            "child queue uses the canonical service principal"
+            issued["principal"], issued["expected_principal"],
+            "child queue uses the canonical service principal record"
         );
         assert_eq!(
-            issued["space"], "mt109-reconciliation-space",
-            "child queue uses the canonical service space"
+            issued["space"], issued["expected_space"],
+            "child queue uses the canonical service access-space record"
         );
         assert!(issued["root"].is_string());
 
