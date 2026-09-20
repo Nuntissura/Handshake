@@ -5351,6 +5351,51 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "owned Canvas create: {canvas}");
         let note_id = note["block_id"].as_str().unwrap();
         let canvas_id = canvas["block_id"].as_str().unwrap();
+        let source_create_authority = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+            workspace_id,
+            crate::storage::surreal::resource_authority::ResourceAction::Create,
+        )
+        .await
+        .unwrap();
+        let source_database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+        let source_document = state
+            .surreal
+            .with_record_user_scope(
+                source_create_authority.record_user_scope,
+                crate::storage::knowledge::KnowledgeStore::create_knowledge_rich_document(
+                    &source_database,
+                    crate::storage::knowledge::NewKnowledgeRichDocument {
+                        workspace_id: workspace_id.to_owned(),
+                        document_id: None,
+                        title: "Mounted owned source document".to_owned(),
+                        schema_version:
+                            crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION
+                                .to_owned(),
+                        content_json: serde_json::json!({
+                            "type": "doc",
+                            "content": [{
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Mounted source content"}]
+                            }]
+                        }),
+                        crdt_document_id: None,
+                        crdt_snapshot_id: None,
+                        promotion_receipt_event_id: None,
+                        project_ref: None,
+                        folder_ref: None,
+                        authority_label: Some("promoted".to_owned()),
+                        owner_actor_kind: Some("operator".to_owned()),
+                        owner_actor_id: session["principal_id"].as_str().map(str::to_owned),
+                    },
+                ),
+            )
+            .await
+            .unwrap();
+        let source_block_id = source_document.rich_document_id.clone();
         let (status, mounted_note) = loom_create_request(
             &router,
             "GET",
@@ -5413,9 +5458,41 @@ mod tests {
         );
         assert_eq!(transclusion["block_id"], note_id);
         assert_eq!(transclusion["workspace_id"], workspace_id);
-        assert_eq!(transclusion["source_document_id"], note_id);
-        assert_eq!(transclusion["resolved"], true);
-        assert!(transclusion["content_json"].is_object());
+        assert!(transclusion["source_document_id"].is_null());
+        assert!(transclusion["source_doc_version"].is_null());
+        assert!(transclusion["content_json"].is_null());
+        assert_eq!(transclusion["resolved"], false);
+        assert_eq!(
+            transclusion["unresolved_reason"],
+            "source_rich_document_missing"
+        );
+
+        let (status, sourced_transclusion) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{workspace_id}/loom/blocks/{source_block_id}/transclusion"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated rich-document transclusion read: {sourced_transclusion}"
+        );
+        assert_eq!(sourced_transclusion["block_id"], source_block_id);
+        assert_eq!(sourced_transclusion["workspace_id"], workspace_id);
+        assert_eq!(
+            sourced_transclusion["source_document_id"],
+            Value::String(source_document.rich_document_id.clone())
+        );
+        assert_eq!(sourced_transclusion["source_doc_version"], 1);
+        assert_eq!(
+            sourced_transclusion["content_json"],
+            source_document.content_json
+        );
+        assert_eq!(sourced_transclusion["resolved"], true);
+        assert!(sourced_transclusion["unresolved_reason"].is_null());
 
         let (status, patched_canvas) = loom_create_request(
             &router,
