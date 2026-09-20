@@ -2363,6 +2363,80 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn owned_workspace_create_issues_exact_service_queue_and_revoked_root_rolls_back(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let binding = WorkspaceBindingFixture::new()?;
+        let (state, _store) = setup_state().await?;
+        let (_owner, headers) =
+            workspace_test_principal(&state, &binding, "workspace-service-queue-proof").await?;
+        let workspace = create_owned_test_workspace(&state, &headers).await?;
+        let mut issued = state
+            .surreal
+            .test_admin_query_bound(
+                "LET $root = (SELECT * FROM ONLY protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation' AND lifecycle_state = 'active' LIMIT 1); LET $child = (SELECT * FROM ONLY protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation:' + $workspace AND parent_resource_id = $root.id AND lifecycle_state = 'active' LIMIT 1); RETURN { child: array::len(SELECT VALUE id FROM protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation:' + $workspace AND parent_resource_id = $root.id AND lifecycle_state = 'active'), owner: record::id($child.owner_account_id), principal: record::id($child.created_by_principal_id), space: record::id($child.access_space_id), root: record::id($root.id), grant: array::len(SELECT VALUE id FROM resource_grants WHERE resource_id = $child.id AND account_id = $child.owner_account_id AND principal_id = $child.created_by_principal_id AND access_space_id = $child.access_space_id AND actions = ['reconcile'] AND capability_ids = ['fr.ingest.native_editor','memory.commit'] AND delegation_chain = [record::id($child.created_by_principal_id)] AND status = 'active' AND revoked_at = NONE AND expires_at = NONE) };".to_owned(),
+                json!({"workspace": workspace.id.clone()}),
+            )
+            .await?;
+        let issued = issued
+            .take::<Option<serde_json::Value>>(0)?
+            .expect("service queue result");
+        assert_eq!(
+            issued["child"], 1,
+            "workspace event creates one exact child queue resource"
+        );
+        assert_eq!(
+            issued["grant"], 1,
+            "workspace event creates one exact child queue grant"
+        );
+        assert_eq!(
+            issued["owner"], "mt109-reconciliation-service-account",
+            "child queue belongs to the canonical service account"
+        );
+        assert_eq!(
+            issued["principal"], "mt109-reconciliation-service-principal",
+            "child queue uses the canonical service principal"
+        );
+        assert_eq!(
+            issued["space"], "mt109-reconciliation-space",
+            "child queue uses the canonical service space"
+        );
+        assert!(issued["root"].is_string());
+
+        let mut root = state.surreal.test_admin_query(
+            "RETURN (SELECT VALUE record::id(id) FROM resource_grants WHERE resource_id.resource_kind = 'reconciliation_queue' AND resource_id.external_resource_id = 'mt109-protected-reconciliation' AND status = 'active' AND revoked_at = NONE AND actions = ['reconcile'] AND capability_ids = ['fr.ingest.native_editor','memory.commit'] LIMIT 1)[0];".to_owned(),
+        ).await?;
+        let root_grant = root
+            .take::<Option<String>>(0)?
+            .expect("canonical active root grant");
+        state.surreal.revoke_grant(&root_grant).await?;
+        let snapshot = "RETURN { workspaces: (SELECT VALUE id FROM workspaces ORDER BY id), resources: (SELECT VALUE id FROM protected_resources ORDER BY id), grants: (SELECT VALUE id FROM resource_grants ORDER BY id) };";
+        let mut before = state.surreal.test_admin_query(snapshot.to_owned()).await?;
+        let before = before
+            .take::<Option<serde_json::Value>>(0)?
+            .expect("before revoked-root create");
+        assert!(
+            create_owned_test_workspace(&state, &headers).await.is_err(),
+            "a revoked canonical root grant must deny a new real workspace route"
+        );
+        let mut after = state.surreal.test_admin_query(snapshot.to_owned()).await?;
+        assert_eq!(
+            after.take::<Option<serde_json::Value>>(0)?.expect("after revoked-root create"),
+            before,
+            "the event fence must roll back workspace, human authority, and child queue issuance after root revocation"
+        );
+        let mut root_after = state.surreal.test_admin_query_bound(
+            "RETURN { revoked: array::len(SELECT VALUE id FROM resource_grants WHERE id = type::record('resource_grants', $grant) AND status = 'revoked' AND revoked_at != NONE), active_equivalent: array::len(SELECT VALUE id FROM resource_grants WHERE resource_id.resource_kind = 'reconciliation_queue' AND resource_id.external_resource_id = 'mt109-protected-reconciliation' AND actions = ['reconcile'] AND capability_ids = ['fr.ingest.native_editor','memory.commit'] AND status = 'active' AND revoked_at = NONE) };".to_owned(),
+            json!({"grant": root_grant}),
+        ).await?;
+        assert_eq!(
+            root_after.take::<Option<serde_json::Value>>(0)?,
+            Some(json!({"revoked": 1, "active_equivalent": 0})),
+            "revoked root grant is never recreated or revived by workspace creation"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn owned_workspace_state_routes_roundtrip_and_deny_other_account(
     ) -> Result<(), Box<dyn std::error::Error>> {
         use crate::api::MountedRequestExt;

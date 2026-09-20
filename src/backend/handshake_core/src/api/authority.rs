@@ -568,6 +568,127 @@ mod local_account_http_tests {
     }
 
     #[tokio::test]
+    async fn incomplete_owner_setup_recovery_requires_password_and_preserves_one_time_gate() {
+        let binding = BindingFile::new();
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .unwrap();
+        let recorder = Arc::new(
+            crate::flight_recorder::duckdb::DuckDbFlightRecorder::new_in_memory(7).unwrap(),
+        );
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
+            flight_recorder: recorder.clone(),
+            diagnostics: recorder,
+            llm_client: Arc::new(crate::llm::ollama::InMemoryLlmClient::new("ok".into())),
+            capability_registry: Arc::new(crate::capabilities::CapabilityRegistry::new()),
+            session_registry: Arc::new(crate::workflows::SessionRegistry::new(
+                crate::workflows::SessionSchedulerConfig::default(),
+            )),
+        };
+        let router = routes(state.clone());
+        let password =
+            json!({"account_name":"Recovery Owner","password":"correct horse battery staple"});
+        let capabilities = state
+            .capability_registry
+            .profile_by_id("Operator")
+            .expect("Operator profile")
+            .allowed
+            .clone();
+        let verifier = crate::storage::surreal::local_accounts::new_password_verifier(
+            "correct horse battery staple".to_owned(),
+        )
+        .await
+        .expect("test password verifier");
+        state
+            .surreal
+            .setup_local_owner("Recovery Owner", verifier, capabilities)
+            .await
+            .expect("seed owner marker without reconciliation service");
+        assert!(
+            !state
+                .surreal
+                .reconciliation_principal_is_provisioned()
+                .await
+                .unwrap(),
+            "seeded owner setup must be incomplete before recovery"
+        );
+
+        let denial = json!({"error":"HSK-403-PROTECTED-RESOURCE"});
+        assert_eq!(
+            request(
+                &router,
+                "POST",
+                "/authority/setup",
+                Some(&binding.channel),
+                None,
+                json!({"account_name":"Recovery Owner","password":"wrong password value"}),
+            )
+            .await,
+            (StatusCode::FORBIDDEN, denial.clone()),
+            "wrong password must not repair a partial setup"
+        );
+        assert!(
+            !state
+                .surreal
+                .reconciliation_principal_is_provisioned()
+                .await
+                .unwrap(),
+            "wrong recovery password must leave the service identity absent"
+        );
+
+        assert_eq!(
+            request(
+                &router,
+                "POST",
+                "/authority/setup",
+                Some(&binding.channel),
+                None,
+                password.clone(),
+            )
+            .await
+            .0,
+            StatusCode::OK,
+            "the matching owner password repairs only the missing service setup"
+        );
+        assert!(
+            state
+                .surreal
+                .reconciliation_principal_is_provisioned()
+                .await
+                .unwrap(),
+            "recovery must create the canonical reconciliation authority"
+        );
+        let mut rows = state
+            .surreal
+            .test_admin_query(
+                "RETURN { principal: array::len(SELECT VALUE id FROM principals WHERE principal_key = 'mt109-reconciliation-service-principal' AND principal_kind = 'service_identity' AND status = 'enabled'), space: array::len(SELECT VALUE id FROM access_spaces WHERE space_key = 'mt109-reconciliation-space' AND status = 'active'), root: array::len(SELECT VALUE id FROM protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation' AND lifecycle_state = 'active'), root_grant: array::len(SELECT VALUE id FROM resource_grants WHERE resource_id.resource_kind = 'reconciliation_queue' AND resource_id.external_resource_id = 'mt109-protected-reconciliation' AND actions = ['reconcile'] AND capability_ids = ['fr.ingest.native_editor','memory.commit'] AND status = 'active' AND revoked_at = NONE AND expires_at = NONE) };".to_owned(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            rows.take::<Option<Value>>(0).unwrap(),
+            Some(json!({"principal": 1, "space": 1, "root": 1, "root_grant": 1})),
+            "recovery must establish the exact service principal, root queue, and root grant"
+        );
+        assert_eq!(
+            request(
+                &router,
+                "POST",
+                "/authority/setup",
+                Some(&binding.channel),
+                None,
+                password,
+            )
+            .await,
+            (StatusCode::FORBIDDEN, denial),
+            "completed setup remains one-time after recovery"
+        );
+        state.surreal.shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
     async fn local_account_http_setup_login_vault_logout_and_constant_denials() {
         let binding = BindingFile::new();
         let backend = crate::storage::tests::embedded_test_backend()

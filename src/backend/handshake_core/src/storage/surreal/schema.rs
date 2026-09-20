@@ -8955,6 +8955,216 @@ mod tests {
             .expect("close restarted Canvas receipt store");
     }
 
+    #[tokio::test]
+    async fn standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current() {
+        const WRONG_PRE_STANDALONE_LOOM_GENERATED_SHA256: &str =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let previous_schema = restore_pre_standalone_loom_update_schema(SCHEMA.to_owned());
+        assert_eq!(
+            sha256_hex(previous_schema.as_bytes()),
+            PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256,
+            "the revision-159 predecessor must be exactly the current schema without the standalone Loom update authorization"
+        );
+        let directory = tempfile::tempdir().expect("temporary standalone Loom predecessor");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open exact revision-159 predecessor store");
+        storage
+            .with_admin_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_bound(
+                            previous_schema.as_str(),
+                            BootstrapBindings {
+                                schema_version: SCHEMA_VERSION.to_owned(),
+                                schema_revision: PRE_STANDALONE_LOOM_UPDATE_REVISION,
+                                namespace: DEFAULT_NAMESPACE.to_owned(),
+                                database: DEFAULT_DATABASE.to_owned(),
+                                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                                generated_surql_sha256: PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256
+                                    .to_owned(),
+                            },
+                        )
+                        .await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    assert_eq!(
+                        read_schema_catalog(&database).await?.info_fingerprint_sha256,
+                        PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256,
+                        "the seeded predecessor must carry its observed catalog fingerprint"
+                    );
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET apply_state = 'complete', info_fingerprint_sha256 = '{PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256}';                              CREATE workspaces:revision159_sentinel CONTENT {{ name: 'revision159-sentinel' }};"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed exact complete revision-159 predecessor");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "UPDATE ONLY handshake_schema_state:primary SET generated_surql_sha256 = '{WRONG_PRE_STANDALONE_LOOM_GENERATED_SHA256}';"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("tamper predecessor state for rejection proof");
+        let state_rejection = bootstrap_schema(&storage)
+            .await
+            .expect_err("wrong revision-159 state must fail before DDL");
+        assert!(state_rejection
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE"));
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("rejected revision-159 state remains present");
+                    assert_eq!(state.revision, PRE_STANDALONE_LOOM_UPDATE_REVISION);
+                    assert_eq!(
+                        state.generated_surql_sha256,
+                        WRONG_PRE_STANDALONE_LOOM_GENERATED_SHA256
+                    );
+                    assert_eq!(
+                        read_schema_catalog(&database)
+                            .await?
+                            .info_fingerprint_sha256,
+                        PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256,
+                        "wrong state rejection must not alter the predecessor catalog"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("reread unchanged state rejection");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "UPDATE ONLY handshake_schema_state:primary SET generated_surql_sha256 = '{PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256}'; \
+                             DEFINE TABLE standalone_loom_revision_159_unknown_overlay SCHEMAFULL PERMISSIONS NONE;"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("restore predecessor state and introduce catalog drift");
+        let rejected_catalog = storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    Ok(read_schema_catalog(&database)
+                        .await?
+                        .info_fingerprint_sha256)
+                })
+            })
+            .await
+            .expect("read catalog before rejection");
+        let catalog_rejection = bootstrap_schema(&storage)
+            .await
+            .expect_err("unknown revision-159 catalog drift must fail before receipt DDL");
+        assert!(catalog_rejection
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_CATALOG_MISMATCH"));
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("catalog-rejected revision-159 state remains present");
+                    assert_eq!(state.revision, PRE_STANDALONE_LOOM_UPDATE_REVISION);
+                    assert_eq!(
+                        state.generated_surql_sha256,
+                        PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256
+                    );
+                    assert_eq!(
+                        read_schema_catalog(&database)
+                            .await?
+                            .info_fingerprint_sha256,
+                        rejected_catalog,
+                        "catalog rejection must not alter the predecessor catalog"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("reread unchanged catalog rejection");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query("REMOVE TABLE standalone_loom_revision_159_unknown_overlay;")
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("restore exact revision-159 catalog");
+
+        let upgraded = bootstrap_schema(&storage)
+            .await
+            .expect("upgrade exact revision-159 receipt predecessor");
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            upgraded.outcome,
+            SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+        );
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("revision-160 state after exact upgrade");
+                    assert_eq!(state.revision, SCHEMA_REVISION);
+                    assert!(state.is_exact_current());
+                    let mut sentinel = database
+                        .query("RETURN workspaces:revision159_sentinel.name;")
+                        .await?;
+                    assert_eq!(
+                        sentinel.take::<Option<String>>(0)?.as_deref(),
+                        Some("revision159-sentinel")
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("verify revision-160 current state after upgrade");
+        storage
+            .shutdown()
+            .await
+            .expect("close upgraded standalone Loom predecessor store");
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded standalone Loom store");
+        let restarted = bootstrap_schema(&reopened)
+            .await
+            .expect("reuse current standalone Loom schema after restart");
+        assert_eq!(
+            restarted.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        assert_eq!(
+            restarted.outcome,
+            SchemaBootstrapOutcome::ReusedExactCurrent
+        );
+        reopened
+            .shutdown()
+            .await
+            .expect("close restarted standalone Loom store");
+    }
+
     /// MT-141 R9: the exact MT-150 pin is the current script with the MT-150-era
     /// `atelier_media_source_provenance_ref.asset_id` definition restored, proven byte-exact
     /// against `PRE_MT141_GENERATED_SURREALQL_SHA256`.

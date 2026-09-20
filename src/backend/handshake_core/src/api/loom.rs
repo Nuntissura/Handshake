@@ -5372,6 +5372,105 @@ mod tests {
             "authenticated mounted Canvas read: {mounted_canvas}"
         );
         assert_eq!(mounted_canvas["board"]["block_id"], canvas_id);
+
+        let (status, bridge) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{workspace_id}/loom/blocks/{note_id}/knowledge"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated bridge read: {bridge}"
+        );
+        assert_eq!(bridge["block_id"], note_id);
+        assert_eq!(bridge["workspace_id"], workspace_id);
+        assert!(bridge["entity_id"].is_string());
+        assert!(bridge["index_event_id"].is_string());
+
+        let (status, transclusion) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{workspace_id}/loom/blocks/{note_id}/transclusion"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated source transclusion read: {transclusion}"
+        );
+        assert_eq!(transclusion["block_id"], note_id);
+        assert_eq!(transclusion["workspace_id"], workspace_id);
+        assert_eq!(transclusion["source_document_id"], note_id);
+        assert_eq!(transclusion["resolved"], true);
+        assert!(transclusion["content_json"].is_object());
+
+        let (status, patched_canvas) = loom_create_request(
+            &router,
+            "PATCH",
+            &format!("/workspaces/{workspace_id}/loom/blocks/{canvas_id}"),
+            &headers,
+            serde_json::json!({"title": "Mounted Canvas patched through authenticated route"}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated standalone Canvas patch: {patched_canvas}"
+        );
+        assert_eq!(
+            patched_canvas["title"],
+            "Mounted Canvas patched through authenticated route"
+        );
+        let (status, disposable) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &headers,
+            serde_json::json!({"content_type": "note", "title": "Mounted authenticated delete proof"}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "disposable standalone note: {disposable}"
+        );
+        let disposable_id = disposable["block_id"]
+            .as_str()
+            .expect("disposable Loom block id")
+            .to_owned();
+        let (status, deleted) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{workspace_id}/loom/blocks/{disposable_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated standalone delete: {deleted}"
+        );
+        assert_eq!(deleted, serde_json::json!({"status": "deleted"}));
+        let mut deleted_row = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN (SELECT * FROM type::record('loom_blocks', $block_id))[0];".to_owned(),
+                serde_json::json!({"block_id": disposable_id}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            deleted_row.take::<Option<Value>>(0).unwrap(),
+            None,
+            "authenticated delete removes the exact standalone Loom row"
+        );
         let placement_authority = crate::api::authority::authorize_request(
             &state,
             &headers,
@@ -5662,6 +5761,59 @@ mod tests {
         );
         let foreign_note_id = foreign_note["block_id"].as_str().unwrap();
         let foreign_canvas_id = foreign_canvas["block_id"].as_str().unwrap();
+
+        let mut standalone_before = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN (SELECT * FROM type::record('loom_blocks', $block_id))[0];".to_owned(),
+                serde_json::json!({"block_id": canvas_id}),
+            )
+            .await
+            .unwrap();
+        let standalone_before = standalone_before.take::<Option<Value>>(0).unwrap();
+        for mutation in [
+            format!(
+                "UPDATE type::record('loom_blocks', '{canvas_id}') SET workspace_id = type::record('workspaces', '{foreign_workspace_id}') RETURN NONE;"
+            ),
+            format!(
+                "UPDATE type::record('loom_blocks', '{canvas_id}') SET content_type = 'note' RETURN NONE;"
+            ),
+            format!(
+                "UPDATE type::record('loom_blocks', '{canvas_id}') SET source_rich_document_id = type::record('knowledge_rich_documents', '{note_id}') RETURN NONE;"
+            ),
+        ] {
+            let scope = placement_authority.record_user_scope.clone();
+            let rejection = state
+                .surreal
+                .with_record_user_scope(
+                    scope,
+                    state.surreal.with_data_operation(move |database| {
+                        Box::pin(async move {
+                            database.client.query(mutation).await?.check()?;
+                            Ok(())
+                        })
+                    }),
+                )
+                .await
+                .expect_err("record-user standalone identity mutation must fail closed");
+            assert!(
+                rejection.to_string().contains("HSK-403-PROTECTED-RESOURCE"),
+                "standalone identity mutation must report the canonical denial: {rejection}"
+            );
+        }
+        let mut standalone_after = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN (SELECT * FROM type::record('loom_blocks', $block_id))[0];".to_owned(),
+                serde_json::json!({"block_id": canvas_id}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            standalone_after.take::<Option<Value>>(0).unwrap(),
+            standalone_before,
+            "source-free standalone workspace, content type, and source identity must remain immutable"
+        );
         let invalid_placement = |suffix: &str| format!("LCP-{suffix:0>32}");
         for (placement_id, canvas_block_id, placement_workspace_id, placed_block_id, label) in [
             (
@@ -6073,6 +6225,31 @@ mod tests {
             "x-hsk-channel-binding-token",
             binding.channel.parse().unwrap(),
         );
+
+        for path in [
+            format!("/workspaces/{workspace_id}/loom/blocks/{note_id}/knowledge"),
+            format!("/workspaces/{workspace_id}/loom/blocks/{note_id}/transclusion"),
+            format!("/workspaces/{workspace_id}/loom/blocks/{canvas_id}"),
+        ] {
+            let method = if path.ends_with(&canvas_id) {
+                "PATCH"
+            } else {
+                "GET"
+            };
+            let body = if method == "PATCH" {
+                serde_json::json!({"title": "foreign mutation"})
+            } else {
+                Value::Null
+            };
+            assert_eq!(
+                loom_create_request(&router, method, &path, &foreign_headers, body).await,
+                (
+                    StatusCode::FORBIDDEN,
+                    serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+                ),
+                "foreign account must not access or mutate authenticated Loom authority routes"
+            );
+        }
         let before = loom_bundle_snapshot(&state).await;
         assert_eq!(
             loom_create_request(

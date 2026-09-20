@@ -2985,6 +2985,19 @@ async fn route6_document_soft_delete_tombstones_and_receipts() {
     .await
     .expect("delete json");
     assert_eq!(deleted["deleted"], true);
+    assert_eq!(
+        deleted["rich_document_id"].as_str(),
+        Some(doc_id.as_str()),
+        "the delete response identifies the exact authorized document"
+    );
+    assert_eq!(
+        deleted["loom_block_deleted"], true,
+        "individual delete removes the document's same-id Loom projection"
+    );
+    assert!(
+        deleted["source_marked_stale"].is_boolean(),
+        "individual delete returns its canonical source-staleness outcome"
+    );
     let receipt = deleted["deleted_receipt_event_id"]
         .as_str()
         .expect("receipt id");
