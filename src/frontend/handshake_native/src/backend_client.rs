@@ -10706,6 +10706,10 @@ impl RichDocClient {
 pub struct RichDocSaveBackend {
     client: crate::backend::knowledge_documents::KnowledgeDocumentsClient,
     session_run_id: String,
+    /// The server-issued session identity that the canonical receipt persists.  The request keeps
+    /// its per-save run id, while a native `document_saved` claim must carry this immutable receipt
+    /// identity for the Flight Recorder's receipt check.
+    receipt_session_id: Option<String>,
     actor_id: String,
 }
 
@@ -10722,6 +10726,7 @@ impl RichDocSaveBackend {
                 base_url,
             ),
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
+            receipt_session_id: None,
             actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
         }
     }
@@ -10730,6 +10735,7 @@ impl RichDocSaveBackend {
         Self {
             client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::production(),
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
+            receipt_session_id: None,
             actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
         }
     }
@@ -10738,6 +10744,7 @@ impl RichDocSaveBackend {
         mut self,
         context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
     ) -> Self {
+        self.receipt_session_id = context.as_ref().map(|context| context.session_id.clone());
         self.client = self.client.with_optional_authenticated_context(context);
         self
     }
@@ -10776,6 +10783,7 @@ impl crate::rich_editor::save::save_manager::SaveBackend for RichDocSaveBackend 
     ) -> crate::rich_editor::save::save_manager::SaveFuture {
         let fallback_client = self.client.clone();
         let headers = self.headers(document_id);
+        let receipt_session_id = self.receipt_session_id.clone();
         let read_headers = headers.clone();
         let document_id = document_id.to_owned();
         Box::pin(async move {
@@ -10805,7 +10813,8 @@ impl crate::rich_editor::save::save_manager::SaveBackend for RichDocSaveBackend 
                                 actor_id: headers.actor_id,
                                 actor_kind: headers.actor_kind.unwrap_or_default(),
                                 kernel_task_run_id: headers.kernel_task_run_id,
-                                session_run_id: headers.session_run_id,
+                                session_run_id: receipt_session_id
+                                    .unwrap_or(headers.session_run_id),
                                 correlation_id: headers.correlation_id,
                             },
                         ),

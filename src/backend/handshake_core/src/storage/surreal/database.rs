@@ -32,6 +32,21 @@ const LOOM_BLOCKS_TABLE: &str = "loom_blocks";
 const LOOM_EDGES_TABLE: &str = "loom_edges";
 const LOOM_FOLDERS_TABLE: &str = "loom_folders";
 
+fn map_canvas_placement_identity_error(
+    error: super::resource_authority::ResourceAuthorityError,
+) -> StorageError {
+    match error {
+        super::resource_authority::ResourceAuthorityError::Storage(error) => {
+            StorageError::from(error)
+        }
+        super::resource_authority::ResourceAuthorityError::Denied { .. }
+        | super::resource_authority::ResourceAuthorityError::InvalidInput(_)
+        | super::resource_authority::ResourceAuthorityError::Entropy(_) => {
+            StorageError::Guard("HSK-403-PROTECTED-RESOURCE")
+        }
+    }
+}
+
 /// Embedded-SurrealDB control-plane database.
 ///
 /// Every value owns a [`KeyedLockRegistry`] used only as optional contention
@@ -73,6 +88,196 @@ impl SurrealDatabase {
     /// Borrow the embedded store for domain implementations.
     pub fn storage(&self) -> &SurrealStorage {
         &self.storage
+    }
+
+    /// Creates a record-user-owned Loom block and all of its required authority
+    /// rows in one transaction. Canvas callers pass the initial board state;
+    /// note callers pass `None`.
+    pub(crate) async fn create_record_user_loom_bundle(
+        &self,
+        ctx: &WriteContext,
+        mut block: NewLoomBlock,
+        board_state: Option<serde_json::Value>,
+    ) -> StorageResult<LoomBlock> {
+        let block_id = block
+            .block_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
+        block.block_id = Some(block_id.clone());
+        let metadata = self.mutation_metadata(ctx, &block_id).await?;
+        let workspace_id = block.workspace_id.clone();
+        self.guarded_storage_mutation(
+            vec![LockKey::record(LOOM_BLOCKS_TABLE, block_id.clone())],
+            Replay::idempotent(format!(
+                "record-user-loom-create:{block_id}:{}",
+                metadata.edit_event_id
+            )),
+            (block, board_state, metadata, workspace_id),
+            |database, (block, board_state, metadata, workspace_id)| {
+                Box::pin(async move {
+                    super::loom_canvas_store::create_record_user_loom_bundle(
+                        &database,
+                        block,
+                        board_state,
+                        metadata,
+                        &workspace_id,
+                    )
+                    .await
+                })
+            },
+        )
+        .await
+    }
+
+    /// Reads a source-free Loom block through the active exact block-read scope.
+    pub(crate) async fn get_record_user_loom_block(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<LoomBlock> {
+        let scope = super::current_record_user_scope()
+            .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
+        if scope.workspace_id.as_deref() != Some(block_id)
+            || scope.capability_id != "fs.read"
+            || !matches!(
+                scope.action,
+                super::resource_authority::ResourceAction::Read
+            )
+        {
+            return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+        }
+        let workspace_id = workspace_id.to_owned();
+        let block_id = block_id.to_owned();
+        self.storage
+            .with_storage_operation(move |database| {
+                Box::pin(async move {
+                    super::loom_store::get_loom_block(&database, &workspace_id, &block_id).await
+                })
+            })
+            .await
+            .map_err(StorageError::from)?
+    }
+
+    /// Reads a Canvas board through the active exact canvas-block read scope.
+    pub(crate) async fn get_record_user_canvas_board(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<LoomCanvasBoardView> {
+        let scope = super::current_record_user_scope()
+            .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
+        if scope.workspace_id.as_deref() != Some(block_id)
+            || scope.capability_id != "fs.read"
+            || !matches!(
+                scope.action,
+                super::resource_authority::ResourceAction::Read
+            )
+        {
+            return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+        }
+        super::loom_canvas_store::get_canvas_board(&self.storage, workspace_id, block_id).await
+    }
+
+    /// Resolves the two immutable Loom-block witnesses for a placement after a
+    /// workspace read grant has authenticated the caller. The API uses the
+    /// returned ids only to obtain the exact board-update and source-read
+    /// scopes required by the following atomic removal.
+    pub(crate) async fn get_record_user_canvas_placement_identity(
+        &self,
+        workspace_id: &str,
+        placement_id: &str,
+    ) -> StorageResult<(String, String)> {
+        let scope = super::current_record_user_scope()
+            .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
+        if scope.workspace_id.as_deref() != Some(workspace_id)
+            || scope.capability_id != "fs.read"
+            || !matches!(scope.action, super::resource_authority::ResourceAction::Read)
+        {
+            return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+        }
+        self.storage
+            .authorized_canvas_placement_identity(&scope, workspace_id, placement_id)
+            .await
+            .map_err(map_canvas_placement_identity_error)?
+            .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
+    }
+
+    /// Creates a placement and its record-user EventLedger receipt atomically.
+    pub(crate) async fn place_record_user_canvas_block(
+        &self,
+        ctx: &WriteContext,
+        placement: NewLoomCanvasPlacement,
+        source_scope: super::resource_authority::RecordUserScope,
+    ) -> StorageResult<LoomCanvasPlacementCreateReceipt> {
+        let placement_id = format!("LCP-{}", uuid::Uuid::now_v7().simple());
+        let metadata = self.mutation_metadata(ctx, &placement_id).await.map_err(|error| {
+            #[cfg(test)]
+            eprintln!("record-user-canvas-placement failure phase=mutation_metadata error={error}");
+            error
+        })?;
+        let result = self.guarded_storage_mutation(
+            vec![
+                LockKey::record(LOOM_BLOCKS_TABLE, placement.placed_block_id.clone()),
+                LockKey::record("loom_canvas_placements", placement_id.clone()),
+            ],
+            Replay::idempotent(format!(
+                "record-user-canvas-placement-create:{placement_id}:{}",
+                metadata.edit_event_id
+            )),
+            (placement_id, placement, metadata, source_scope),
+            |database, (placement_id, placement, metadata, source_scope)| {
+                Box::pin(async move {
+                    super::loom_canvas_store::place_record_user_canvas_block(
+                        &database,
+                        placement_id,
+                        placement,
+                        metadata,
+                        source_scope,
+                    )
+                    .await
+                })
+            },
+        )
+        .await;
+        #[cfg(test)]
+        if let Err(error) = &result {
+            eprintln!("record-user-canvas-placement failure phase=guarded_storage_mutation error={error}");
+        }
+        result
+    }
+
+    /// Deletes one placement and records the removal before the row disappears.
+    pub(crate) async fn remove_record_user_canvas_placement(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        placement_id: &str,
+        source_scope: super::resource_authority::RecordUserScope,
+    ) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
+        let metadata = self.mutation_metadata(ctx, placement_id).await?;
+        let workspace_id = workspace_id.to_owned();
+        let placement_id = placement_id.to_owned();
+        self.guarded_storage_mutation(
+            vec![LockKey::record("loom_canvas_placements", placement_id.clone())],
+            Replay::idempotent(format!(
+                "record-user-canvas-placement-remove:{placement_id}:{}",
+                metadata.edit_event_id
+            )),
+            (workspace_id, placement_id, metadata, source_scope),
+            |database, (workspace_id, placement_id, metadata, source_scope)| {
+                Box::pin(async move {
+                    super::loom_canvas_store::remove_record_user_canvas_placement(
+                        &database,
+                        workspace_id,
+                        placement_id,
+                        metadata,
+                        source_scope,
+                    )
+                    .await
+                })
+            },
+        )
+        .await
     }
 
     /// Construct the durable KB-003 authority adapter over this database's

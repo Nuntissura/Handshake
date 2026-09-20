@@ -9,6 +9,146 @@ use crate::storage::{NewWorkspace, StorageError, StorageResult, Workspace, Write
 
 const WORKSPACES_TABLE: &str = "workspaces";
 
+macro_rules! workspace_delete_body { () => { r#"UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE;
+DELETE type::record('fems_workspace_write_anchors', $anchor.key) RETURN NONE;
+DELETE atelier_intake_item_loom_projection WHERE workspace_id = $workspace;
+DELETE loom_canvas_visual_edges WHERE workspace_id = $workspace;
+DELETE loom_canvas_placements WHERE workspace_id = $workspace;
+DELETE loom_edges WHERE workspace_id = $workspace;
+DELETE loom_block_search_index WHERE workspace_id = $workspace;
+DELETE loom_block_view_fr_outbox WHERE workspace_id = $workspace;
+DELETE loom_blocks WHERE workspace_id = $workspace;
+DELETE $workspace RETURN BEFORE;"# }; }
+const WORKSPACE_DELETE_BODY: &str = workspace_delete_body!();
+const WORKSPACE_DELETE_TRANSACTION: &str = concat!(
+    "BEGIN TRANSACTION; ",
+    workspace_delete_body!(),
+    " COMMIT TRANSACTION;"
+);
+
+/// Check the physical cascade graph before the trusted delete, including incoming
+/// references from another workspace. Unknown source families remain fail-closed.
+#[cfg(test)]
+fn workspace_cascade_guards() -> Result<String, SurrealStorageError> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let edges = super::schema::workspace_cascade_edges()
+        .map_err(|error| SurrealStorageError::TransactionWorker(error))?;
+    let mut reachable = BTreeSet::from(["workspaces".to_owned()]);
+    loop {
+        let before = reachable.len();
+        for (parent, child, _) in &edges {
+            if reachable.contains(parent) {
+                reachable.insert(child.clone());
+            }
+        }
+        if reachable.len() == before {
+            break;
+        }
+    }
+    let mut scopes = BTreeMap::from([("workspaces".to_owned(), "id = $workspace".to_owned())]);
+    for (parent, child, field) in &edges {
+        if parent == "workspaces" {
+            scopes.insert(child.clone(), format!("{field} = $workspace"));
+        }
+    }
+    // Resolve only acyclic provenance paths. Self-cycles already have direct workspace scope.
+    loop {
+        let before = scopes.len();
+        for (parent, child, field) in &edges {
+            if reachable.contains(child) && !scopes.contains_key(child) {
+                if let Some(parent_scope) = scopes.get(parent) {
+                    scopes.insert(
+                        child.clone(),
+                        format!("{field} IN (SELECT VALUE id FROM {parent} WHERE {parent_scope})"),
+                    );
+                }
+            }
+        }
+        if scopes.len() == before {
+            break;
+        }
+    }
+    let supported = BTreeSet::from([
+        "workspaces",
+        "knowledge_rich_documents",
+        "knowledge_rich_document_versions",
+        "knowledge_rich_document_drafts",
+        "knowledge_document_embeds",
+        "knowledge_editor_code_nodes",
+        "knowledge_rich_document_title_anchors",
+        "knowledge_idempotency_keys",
+        "knowledge_document_backlinks",
+        "knowledge_workbench_layout_states",
+        "knowledge_workspace_settings_states",
+        "knowledge_workspace_search_bookmark_states",
+        "loom_blocks",
+        "loom_edges",
+        "loom_block_search_index",
+        "loom_block_view_fr_outbox",
+        "knowledge_sources",
+        "knowledge_source_roots",
+        "knowledge_index_runs",
+        "knowledge_ingestion_root_policies",
+        "knowledge_ingestion_policy_decisions",
+        "knowledge_ingestion_receipts",
+        "knowledge_ingestion_spans",
+        "knowledge_ingestion_repair_queue",
+        "knowledge_code_repair_queue",
+        "knowledge_spans",
+        "knowledge_entities",
+        "knowledge_entity_spans",
+        "knowledge_edges",
+        "knowledge_edge_spans",
+        "knowledge_code_files",
+        "fems_memory_packs",
+        "fems_memory_proposals",
+        "fems_memory_items",
+        "fems_memory_commit_reports",
+        "fems_memory_commit_fr_outbox",
+        "fems_memory_lifecycle_fr_outbox",
+    ]);
+    let mut sql = String::from("IF array::len(SELECT id FROM atelier_intake_item_loom_projection WHERE workspace_id = $workspace) > 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; };\n");
+    for table in &reachable {
+        let scope = scopes.get(table).ok_or_else(|| {
+            SurrealStorageError::TransactionWorker("unresolved cascade provenance".to_owned())
+        })?;
+        if !supported.contains(table.as_str()) {
+            sql.push_str(&format!("IF array::len(SELECT id FROM {table} WHERE {scope}) > 0 {{ THROW 'HSK-403-PROTECTED-RESOURCE'; }};\n"));
+        }
+    }
+    for (parent, child, field) in &edges {
+        if !reachable.contains(parent) {
+            continue;
+        }
+        let parent_scope = &scopes[parent];
+        let child_scope = &scopes[child];
+        sql.push_str(&format!("IF array::len(SELECT id FROM {child} WHERE {field} IN (SELECT VALUE id FROM {parent} WHERE {parent_scope}) AND ({child_scope}) != true) > 0 {{ THROW 'HSK-403-PROTECTED-RESOURCE'; }};\n"));
+    }
+    for (table, kind, external) in [
+        (
+            "knowledge_sources",
+            "knowledge_source",
+            "record::id($source.id)",
+        ),
+        (
+            "knowledge_code_files",
+            "knowledge_code_file",
+            "record::id($source.id)",
+        ),
+        ("fems_memory_packs", "memory_pack", "$external"),
+        ("fems_memory_proposals", "memory_proposal", "$external"),
+        ("fems_memory_items", "memory_item", "$external"),
+        (
+            "fems_memory_commit_reports",
+            "memory_commit_report",
+            "$external",
+        ),
+    ] {
+        sql.push_str(&format!("FOR $source IN (SELECT id FROM {table} WHERE workspace_id = $workspace) {{ IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = '{kind}' AND external_resource_id = {external} AND lifecycle_state = 'active') != 1 {{ THROW 'HSK-403-PROTECTED-RESOURCE'; }}; }};\n"));
+    }
+    Ok(sql)
+}
+
 /// MT-152 race-proof pause point between a read-decide step and its transaction; a no-op
 /// outside `race_test_support::with_pause_after_decision`. Called with `first_attempt` so
 /// only the FIRST attempt of a retried mutation parks on the two-party barrier: a retried
@@ -131,18 +271,7 @@ impl SurrealDataContext<'_> {
         // cascade now sees the committed row. The removed FEMS process-global mutex used to order the two.
         let deleted = self
             .query_values_at::<WorkspaceRecord, _>(
-                "BEGIN TRANSACTION; \
-                 UPSERT type::record('fems_workspace_write_anchors', $anchor.key) SET anchor_key = $anchor.key, workspace_key = $anchor.key, claim_nonce = $anchor.nonce, updated_at = time::now() RETURN NONE; \
-                 DELETE type::record('fems_workspace_write_anchors', $anchor.key) RETURN NONE; \
-                 DELETE atelier_intake_item_loom_projection WHERE workspace_id = $workspace; \
-                 DELETE loom_canvas_visual_edges WHERE workspace_id = $workspace; \
-                 DELETE loom_canvas_placements WHERE workspace_id = $workspace; \
-                 DELETE loom_edges WHERE workspace_id = $workspace; \
-                 DELETE loom_block_search_index WHERE workspace_id = $workspace; \
-                 DELETE loom_block_view_fr_outbox WHERE workspace_id = $workspace; \
-                 DELETE loom_blocks WHERE workspace_id = $workspace; \
-                 DELETE $workspace RETURN BEFORE; \
-                 COMMIT TRANSACTION;",
+                WORKSPACE_DELETE_TRANSACTION,
                 WorkspaceDeleteBinding {
                     workspace: RecordId::new(WORKSPACES_TABLE, id.to_owned()),
                     anchor: workspace_write_anchor(id),
@@ -155,6 +284,246 @@ impl SurrealDataContext<'_> {
 }
 
 impl SurrealStorage {
+    /// Creates only a fresh server-generated source and its exact grants in one broker transaction.
+    pub async fn create_account_workspace(
+        &self,
+        context: &super::local_accounts::LocalSessionContext,
+        scope: &super::resource_authority::RecordUserScope,
+        workspace: NewWorkspace,
+    ) -> Result<Workspace, super::resource_authority::ResourceAuthorityError> {
+        use super::resource_authority::ResourceAuthorityError;
+        let started = std::time::Instant::now();
+        let id = scope
+            .workspace_id
+            .clone()
+            .ok_or(ResourceAuthorityError::InvalidInput(
+                "workspace create scope missing",
+            ))?;
+        if scope.action != super::resource_authority::ResourceAction::Create
+            || scope.capability_id != "fs.write"
+            || scope.session_id != context.session_id
+            || scope.grant_id.is_some()
+        {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "workspace create scope mismatch",
+            ));
+        }
+        let resource_id = scope.resource_id.clone();
+        let metadata = self
+            .inner
+            .guard
+            .validate_write(&WriteContext::human(Some(context.actor_id.clone())), &id)
+            .await
+            .map_err(|_| {
+                tracing::warn!(
+                    target: "handshake_core",
+                    elapsed_ms = started.elapsed().as_millis(),
+                    "workspace create write guard denied"
+                );
+                ResourceAuthorityError::Denied {
+                    decision_id: Uuid::now_v7().to_string(),
+                }
+            })?;
+        tracing::info!(
+            target: "handshake_core",
+            elapsed_ms = started.elapsed().as_millis(),
+            "workspace create write guard completed"
+        );
+        let account = RecordId::new("local_accounts", context.identity.account_id.clone());
+        let principal = RecordId::new("principals", context.identity.principal_id.clone());
+        let space = RecordId::new("access_spaces", context.identity.access_space_id.clone());
+        let session = RecordId::new("authenticated_sessions", context.session_id.clone());
+        let actor = context.actor_id.clone();
+        let created = self.with_record_user_scope(scope.clone(), self.with_data_operation(move |database| Box::pin(async move {
+            let broker = database.client;
+            let mut result = broker.query(r#"
+BEGIN TRANSACTION;
+LET $live = $auth;
+CREATE $workspace SET created_in_session_id = $account_session, name = $name, last_actor_id = $actor, last_actor_kind = 'HUMAN', edit_event_id = $edit RETURN NONE;
+CREATE $resource SET resource_kind = 'workspace', external_resource_id = $external, owner_account_id = $account,
+    created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
+    creator_grant_id = $workspace_grant, parent_resource_id = NONE, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
+    classification = 'account_private', storage_locator_hash = crypto::sha256('workspace:' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
+CREATE $fr SET resource_kind = 'flight_recorder', external_resource_id = $external, owner_account_id = $account,
+    created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
+    creator_grant_id = $fr_grant, parent_resource_id = $resource, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
+    classification = 'account_private', storage_locator_hash = crypto::sha256('flight_recorder:' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
+IF array::len((CREATE $workspace_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
+    resource_id = $resource, actions = ['create','read','update','delete'], capability_ids = $capabilities,
+    delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
+    expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len((CREATE $fr_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
+    resource_id = $fr, actions = ['create','read'], capability_ids = ['fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor'],
+    delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
+    expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $account_session SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(SELECT VALUE id FROM $workspace) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+SELECT * FROM ONLY $workspace;
+COMMIT TRANSACTION;
+"#).bind(("account_session", session)).bind(("account", account)).bind(("principal", principal)).bind(("space", space))
+                .bind(("workspace", RecordId::new("workspaces", id.clone())))
+                .bind(("external", id)).bind(("name", workspace.name)).bind(("actor", actor))
+                .bind(("edit", metadata.edit_event_id.to_string()))
+                .bind(("resource", RecordId::new("protected_resources", resource_id)))
+                .bind(("fr", RecordId::new("protected_resources", Uuid::now_v7().to_string())))
+                .bind(("workspace_grant", RecordId::new("resource_grants", Uuid::now_v7().to_string())))
+                .bind(("fr_grant", RecordId::new("resource_grants", Uuid::now_v7().to_string())))
+                .bind(("capabilities", vec!["fs.read", "fs.write", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose"]))
+                .await?;
+            let mut errors = result.take_errors().into_iter().collect::<Vec<_>>();
+            errors.sort_by_key(|(statement_index, _)| *statement_index);
+            if !errors.is_empty() {
+                let meaningful = errors.iter().position(|(_, error)| !error.to_string().to_ascii_lowercase().contains("query was not executed due to a failed transaction")).unwrap_or(0);
+                let (statement_index, error) = errors.swap_remove(meaningful);
+                #[cfg(test)] eprintln!("workspace-create transactionfailed statement_index={statement_index} error={error}");
+                #[cfg(not(test))] let _ = statement_index;
+                return Err(error.into());
+            }
+            let created: Option<WorkspaceRecord> = result.take(12)?;
+            created.ok_or(SurrealStorageError::InvalidWorkspaceRecord { reason: "atomic workspace create returned no row" })?.try_into()
+        }))).await;
+        match &created {
+            Ok(_) => tracing::info!(
+                target: "handshake_core",
+                elapsed_ms = started.elapsed().as_millis(),
+                "workspace create record-user signin and transaction completed"
+            ),
+            Err(_) => tracing::warn!(
+                target: "handshake_core",
+                elapsed_ms = started.elapsed().as_millis(),
+                "workspace create record-user signin or transaction failed"
+            ),
+        }
+        created.map_err(Into::into)
+    }
+
+    pub(crate) async fn delete_account_workspace(
+        &self,
+        scope: &super::resource_authority::RecordUserScope,
+        workspace_id: &str,
+    ) -> Result<(), super::resource_authority::ResourceAuthorityError> {
+        use super::resource_authority::{ResourceAction, ResourceAuthorityError};
+        if scope.action != ResourceAction::Delete
+            || scope.capability_id != "fs.write"
+            || scope.workspace_id.as_deref() != Some(workspace_id)
+        {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "workspace delete scope mismatch",
+            ));
+        }
+        let context = self
+            .authenticate_local_session(
+                &scope.session_token,
+                scope.channel_binding_hash.as_deref().ok_or(
+                    ResourceAuthorityError::InvalidInput("channel binding missing"),
+                )?,
+            )
+            .await?;
+        if context.session_id != scope.session_id {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "workspace delete session mismatch",
+            ));
+        }
+        let account = RecordId::new("local_accounts", context.identity.account_id);
+        let principal = RecordId::new("principals", context.identity.principal_id);
+        let space = RecordId::new("access_spaces", context.identity.access_space_id);
+        let session = RecordId::new("authenticated_sessions", context.session_id);
+        let resource = RecordId::new("protected_resources", scope.resource_id.clone());
+        let workspace = RecordId::new("workspaces", workspace_id.to_owned());
+        let external = workspace_id.to_owned();
+        let grant = RecordId::new(
+            "resource_grants",
+            scope
+                .grant_id
+                .clone()
+                .ok_or(ResourceAuthorityError::InvalidInput(
+                    "workspace delete grant missing",
+                ))?,
+        );
+        let delete_body = WORKSPACE_DELETE_BODY.lines().skip(2).collect::<Vec<_>>().join("\n")
+            .replace("DELETE $workspace RETURN BEFORE;", "IF array::len(DELETE $workspace RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };");
+        self.with_record_user_scope(scope.clone(), self.with_data_operation(move |database| Box::pin(async move {
+            let broker = database.client;
+            let query = r#"
+BEGIN TRANSACTION;
+IF array::len(UPDATE $account_session SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+LET $children = (SELECT id, resource_kind FROM protected_resources WHERE parent_resource_id = $resource OR parent_resource_id.parent_resource_id = $resource);
+FOR $child IN $children {
+    LET $child_action = IF $child.resource_kind = 'flight_recorder' { 'read' } ELSE { 'delete' };
+    LET $child_capability = IF $child.resource_kind = 'flight_recorder' { 'fr.read' } ELSE { 'fs.write' };
+    LET $child_grant = (SELECT VALUE id FROM resource_grants WHERE resource_id = $child.id
+        AND principal_id = $principal AND account_id = $account AND access_space_id = $space
+        AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now())
+        AND actions CONTAINS $child_action AND capability_ids CONTAINS $child_capability
+        AND delegation_chain = $auth.delegation_chain AND resource_id.policy_version <= policy_version
+        AND policy_version <= $auth.policy_version LIMIT 1)[0];
+    IF $child_grant = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+    IF array::len(UPDATE $child_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+    LET $child_resource = $child.id;
+    IF array::len(UPDATE $child_resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+};
+__WORKSPACE_DELETE_BODY__
+COMMIT TRANSACTION;
+"#.replace("__WORKSPACE_DELETE_BODY__", &delete_body);
+            let mut result = broker.query(query).bind(("account_session", session)).bind(("account", account)).bind(("principal", principal))
+                .bind(("space", space)).bind(("resource", resource)).bind(("workspace", workspace)).bind(("external", external))
+                .bind(("grant", grant)).await?;
+            let mut errors = result.take_errors().into_iter().collect::<Vec<_>>();
+            errors.sort_by_key(|(statement_index, _)| *statement_index);
+            if !errors.is_empty() {
+                let meaningful = errors
+                    .iter()
+                    .position(|(_, error)| {
+                        !error
+                            .to_string()
+                            .to_ascii_lowercase()
+                            .contains("query was not executed due to a failed transaction")
+                    })
+                    .unwrap_or(0);
+                let (statement_index, error) = errors.swap_remove(meaningful);
+                #[cfg(test)]
+                eprintln!(
+                    "workspace-delete transactionfailed statement_index={statement_index} error={error}"
+                );
+                #[cfg(not(test))]
+                let _ = statement_index;
+                return Err(error.into());
+            }
+            Ok(())
+        }))).await.map_err(Into::into)
+    }
+
+    pub async fn list_account_workspaces(
+        &self,
+        token: &str,
+        channel_hash: &str,
+    ) -> Result<Vec<Workspace>, super::resource_authority::ResourceAuthorityError> {
+        use super::resource_authority::{SigninParams, AUTHORITY_ACCESS_METHOD};
+        use sha2::{Digest, Sha256};
+        use surrealdb::opt::auth::Record;
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
+        let channel_binding_hash = Some(channel_hash.to_owned());
+        self.with_lease(move |client| Box::pin(async move {
+            let ordinary = client.clone();
+            ordinary.use_ns(namespace.clone()).use_db(database.clone()).await?;
+            ordinary.signin(Record { namespace, database, access: AUTHORITY_ACCESS_METHOD.to_owned(),
+                params: SigninParams { token_hash, channel_binding_hash } }).await?;
+            let mut result = ordinary.query("SELECT * FROM workspaces WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fs.read') ORDER BY created_at, id;").await?.check()?;
+            let rows: Vec<WorkspaceRecord> = result.take(0)?;
+            rows.into_iter().map(TryInto::try_into).collect()
+        })).await.map_err(Into::into)
+    }
+
     pub async fn create_workspace(
         &self,
         ctx: &WriteContext,
@@ -246,4 +615,22 @@ impl SurrealStorage {
 
 fn map_storage_error(error: SurrealStorageError) -> StorageError {
     StorageError::Database(error.to_string())
+}
+
+#[cfg(test)]
+mod cascade_guard_tests {
+    #[test]
+    fn workspace_cascade_graph_is_cycle_safe_and_checks_transitive_provenance() {
+        let query = super::workspace_cascade_guards().expect("closed schema graph");
+        assert!(query.contains("FROM loom_folders WHERE workspace_id = $workspace"));
+        assert!(query.contains("FROM knowledge_rich_document_drafts WHERE rich_document_id IN"));
+        assert!(query.contains("FROM knowledge_code_files WHERE workspace_id = $workspace"));
+        assert!(query.contains("FROM calendar_sources WHERE workspace_id = $workspace"));
+        assert!(query.contains("AND (workspace_id = $workspace) != true"));
+        let privileged_checks = query.replace("THROW 'HSK-403-PROTECTED-RESOURCE'", "RETURN false");
+        assert!(
+            include_str!("schema.surql").contains(&privileged_checks),
+            "schema permission closure must contain every current declarative graph guard"
+        );
+    }
 }

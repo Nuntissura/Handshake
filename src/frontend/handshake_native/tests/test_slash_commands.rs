@@ -512,6 +512,18 @@ fn embed_prompt_modal_opens_in_live_tree() {
     let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(600.0, 400.0));
     harness.step();
 
+    let output = harness.output();
+    let update = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .expect("AC-131-4: prompt frame must produce an AccessKit update");
+    let inspected = handshake_native::accessibility::assert_no_unnamed_interactive(update);
+    assert!(
+        inspected > 0,
+        "AC-131-4: the prompt frame must expose named interactive nodes"
+    );
+
     let mut dialog_found = false;
     let mut input_found = false;
     for node in harness.root().children_recursive() {

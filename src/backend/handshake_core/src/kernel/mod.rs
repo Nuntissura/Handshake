@@ -205,6 +205,10 @@ pub fn assert_kernel_authority_storage_mode(mode: ControlPlaneStorageMode) -> Ke
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum KernelEventType {
+    LocalAccountSetup,
+    LocalAccountLogin,
+    LocalAccountLoginDenied,
+    LocalAccountLogout,
     TaskIntentRecorded,
     SessionQueued,
     SessionClaimed,
@@ -310,6 +314,10 @@ pub enum KernelEventType {
 impl KernelEventType {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::LocalAccountSetup => "LOCAL_ACCOUNT_SETUP",
+            Self::LocalAccountLogin => "LOCAL_ACCOUNT_LOGIN",
+            Self::LocalAccountLoginDenied => "LOCAL_ACCOUNT_LOGIN_DENIED",
+            Self::LocalAccountLogout => "LOCAL_ACCOUNT_LOGOUT",
             Self::TaskIntentRecorded => "TASK_INTENT_RECORDED",
             Self::SessionQueued => "SESSION_QUEUED",
             Self::SessionClaimed => "SESSION_CLAIMED",
@@ -401,6 +409,10 @@ impl KernelEventType {
 
     pub fn required_first_slice_events() -> &'static [KernelEventType] {
         &[
+            KernelEventType::LocalAccountSetup,
+            KernelEventType::LocalAccountLogin,
+            KernelEventType::LocalAccountLoginDenied,
+            KernelEventType::LocalAccountLogout,
             KernelEventType::TaskIntentRecorded,
             KernelEventType::SessionQueued,
             KernelEventType::SessionClaimed,

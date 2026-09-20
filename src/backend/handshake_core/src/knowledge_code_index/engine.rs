@@ -51,7 +51,9 @@ use crate::storage::knowledge::{
     KnowledgeSpanKind, KnowledgeStore, NewKnowledgeCodeRepairEntry, NewKnowledgeEdge,
     NewKnowledgeEntity, NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
 };
-use crate::storage::surreal::event_ledger::{append, prepare_event, LedgerWrite};
+use crate::storage::surreal::event_ledger::{append, prepare_event, LedgerWrite, LedgerBulkInsert};
+use crate::storage::surreal::resource_authority::{OwnedIndexResource, ResourceKind};
+use crate::knowledge_ingestion::engine::{owned_index_authority_sql, scoped_index_payload, index_write_fences};
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
@@ -135,7 +137,7 @@ const START_CODE_INDEX_RUN_QUERY: &str = "BEGIN TRANSACTION; \
          created_at: $event.created_at \
      }; \
      CREATE $run CONTENT { \
-         index_run_id: $index_run_id, workspace_id: $workspace, root_id: $root_id, \
+         created_in_session_id: $event.authority_session_id, index_run_id: $index_run_id, workspace_id: $workspace, root_id: $root_id, \
          scope: $scope, actor_kind: $actor_kind, actor_id: $actor_id, \
          worktree_id: NONE, start_receipt_event_id: $event.record \
      }; \
@@ -179,6 +181,8 @@ where
     E: Into<CodeIndexError>,
 {
     let error = error.into();
+    #[cfg(test)]
+    eprintln!("code-index-stage-failure stage={stage} error={error}");
     tracing::error!(
         target: "handshake_core::code_nav_index",
         stage,
@@ -192,6 +196,9 @@ where
 
 #[derive(SurrealValue)]
 struct CodeFileStateBindings {
+    write_fences: Vec<RecordId>,
+    created_in_session_id: Option<RecordId>,
+    owned_resources: Vec<OwnedIndexResource>,
     new_rid: RecordId,
     workspace_id: RecordId,
     source_id: RecordId,
@@ -209,6 +216,7 @@ struct CodeFileStateBindings {
 
 #[derive(SurrealValue)]
 struct CodeRepairBindings {
+    write_fences: Vec<RecordId>,
     new_rid: RecordId,
     code_repair_id: String,
     workspace_id: RecordId,
@@ -260,6 +268,9 @@ struct CleanCodeBatchFileWrite {
 
 #[derive(SurrealValue)]
 struct CleanCodeBatchBindings {
+    write_fences: Vec<RecordId>,
+    owned_resources: Vec<OwnedIndexResource>,
+    events: Vec<LedgerBulkInsert>,
     entities: Vec<CleanCodeEntityRow>,
     spans: Vec<CleanCodeSpanRow>,
     entity_spans: Vec<CleanCodeEntitySpanRow>,
@@ -335,6 +346,7 @@ struct CleanCodeEdgeSpanRow {
 
 #[derive(SurrealValue)]
 struct CleanCodeFileRow {
+    created_in_session_id: Option<RecordId>,
     id: RecordId,
     code_file_id: String,
     workspace_id: RecordId,
@@ -349,7 +361,7 @@ struct CleanCodeFileRow {
     edges_indexed: i64,
     failure_detail: Option<Value>,
     last_indexed_in_run: RecordId,
-    last_index_receipt_event_id: RecordId,
+    last_index_receipt_event_id: Option<RecordId>,
 }
 
 #[derive(SurrealValue)]
@@ -395,18 +407,11 @@ const LOAD_EXISTING_CLEAN_CODE_ROWS: &str = "RETURN { \
       FROM knowledge_code_files WHERE workspace_id = $workspace AND source_id IN $source_ids) \
     };";
 
-const PERSIST_CLEAN_CODE_BATCH: &str = "BEGIN TRANSACTION; \
-    INSERT INTO knowledge_entities $entities ON DUPLICATE KEY UPDATE \
+const PERSIST_CLEAN_CODE_BATCH: &str = concat!("BEGIN TRANSACTION; \
+    IF array::len((INSERT INTO knowledge_entities $entities ON DUPLICATE KEY UPDATE \
       display_name = $input.display_name, detection_provenance = $input.detection_provenance, \
       primary_source_id = $input.primary_source_id, last_detected_in_run = $input.last_detected_in_run, \
-      lifecycle_state = $input.lifecycle_state, updated_at = time::now() RETURN NONE; \
-    INSERT INTO knowledge_spans $spans RETURN NONE; \
-    INSERT INTO knowledge_entity_spans $entity_spans RETURN NONE; \
-    INSERT INTO knowledge_edges $edges ON DUPLICATE KEY UPDATE \
-      confidence = $input.confidence, extractor_version = $input.extractor_version, \
-      last_seen_in_run = $input.last_seen_in_run, lifecycle_state = $input.lifecycle_state, \
-      updated_at = time::now() RETURN NONE; \
-    INSERT INTO knowledge_edge_spans $edge_spans RETURN NONE; \
+      lifecycle_state = $input.lifecycle_state, updated_at = time::now() RETURN VALUE id)) != array::len($entities) { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
     INSERT INTO knowledge_code_files $code_files ON DUPLICATE KEY UPDATE \
       file_entity_id = $input.file_entity_id, language = $input.language, \
       indexed_content_hash = $input.indexed_content_hash, parser_version = $input.parser_version, \
@@ -415,21 +420,37 @@ const PERSIST_CLEAN_CODE_BATCH: &str = "BEGIN TRANSACTION; \
       failure_detail = $input.failure_detail, last_indexed_in_run = $input.last_indexed_in_run, \
       last_index_receipt_event_id = $input.last_index_receipt_event_id, \
       updated_at = time::now() RETURN NONE; \
-    UPDATE knowledge_sources SET parser_status = 'parsed', extraction_status = 'extracted', \
+    ", owned_index_authority_sql!(), " \
+    INSERT INTO kernel_event_ledger $events RETURN NONE; \
+    FOR $file IN $code_files { IF array::len((UPDATE $file.id SET last_index_receipt_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
+    INSERT INTO knowledge_spans $spans RETURN NONE; \
+    INSERT INTO knowledge_entity_spans $entity_spans RETURN NONE; \
+    IF array::len((INSERT INTO knowledge_edges $edges ON DUPLICATE KEY UPDATE \
+      confidence = $input.confidence, extractor_version = $input.extractor_version, \
+      last_seen_in_run = $input.last_seen_in_run, lifecycle_state = $input.lifecycle_state, \
+      updated_at = time::now() RETURN VALUE id)) != array::len($edges) { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    INSERT INTO knowledge_edge_spans $edge_spans RETURN NONE; \
+    IF array::len((UPDATE knowledge_sources SET parser_status = 'parsed', extraction_status = 'extracted', \
       last_index_receipt_event_id = $receipt, \
-      updated_at = time::now() WHERE id IN $sources RETURN NONE; \
-    COMMIT TRANSACTION; \
-    RETURN true;";
+      updated_at = time::now() WHERE id IN $sources RETURN VALUE id)) != array::len($sources) { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((SELECT VALUE id FROM knowledge_entities WHERE id IN $entities.id)) != array::len($entities) OR array::len((SELECT VALUE id FROM knowledge_spans WHERE id IN $spans.id)) != array::len($spans) OR array::len((SELECT VALUE id FROM knowledge_edges WHERE id IN $edges.id)) != array::len($edges) { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    FOR $link IN $entity_spans { IF array::len((SELECT VALUE id FROM knowledge_entity_spans WHERE entity_id = $link.entity_id AND span_id = $link.span_id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
+    FOR $link IN $edge_spans { IF array::len((SELECT VALUE id FROM knowledge_edge_spans WHERE edge_id = $link.edge_id AND span_id = $link.span_id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
+    FOR $fence IN $write_fences { IF array::len((UPDATE $fence SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; };
+    COMMIT TRANSACTION;");
 
-const UPSERT_CODE_FILE_STATE: &str = "BEGIN TRANSACTION; \
+const UPSERT_CODE_FILE_STATE: &str = concat!("BEGIN TRANSACTION; \
     LET $existing = (SELECT VALUE id FROM knowledge_code_files WHERE source_id = $source_id LIMIT 1)[0]; \
     LET $rid = $existing ?? $new_rid; \
     IF $existing IS NONE { \
-      CREATE $new_rid CONTENT { code_file_id: record::id($new_rid), workspace_id: $workspace_id, source_id: $source_id, file_entity_id: $file_entity_id, language: $language, indexed_content_hash: $indexed_content_hash, parser_version: $parser_version, parse_status: $parse_status, stale: false, symbols_indexed: $symbols_indexed, edges_indexed: $edges_indexed, failure_detail: $failure_detail, last_indexed_in_run: $last_indexed_in_run, last_index_receipt_event_id: $last_index_receipt_event_id }; \
+      CREATE $new_rid CONTENT { created_in_session_id: $created_in_session_id, code_file_id: record::id($new_rid), workspace_id: $workspace_id, source_id: $source_id, file_entity_id: $file_entity_id, language: $language, indexed_content_hash: $indexed_content_hash, parser_version: $parser_version, parse_status: $parse_status, stale: false, symbols_indexed: $symbols_indexed, edges_indexed: $edges_indexed, failure_detail: $failure_detail, last_indexed_in_run: $last_indexed_in_run, last_index_receipt_event_id: $last_index_receipt_event_id }; \
     } ELSE { \
       UPDATE $rid SET file_entity_id = $file_entity_id ?? file_entity_id, language = $language, indexed_content_hash = $indexed_content_hash, parser_version = $parser_version, parse_status = $parse_status, stale = false, symbols_indexed = $symbols_indexed, edges_indexed = $edges_indexed, failure_detail = $failure_detail, last_indexed_in_run = $last_indexed_in_run ?? last_indexed_in_run, last_index_receipt_event_id = $last_index_receipt_event_id ?? last_index_receipt_event_id, updated_at = time::now(); \
     }; \
-    COMMIT TRANSACTION;";
+    ", owned_index_authority_sql!(), " \
+    IF array::len((UPDATE $rid SET indexed_content_hash = $indexed_content_hash RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    FOR $fence IN $write_fences { IF array::len((UPDATE $fence SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; };
+    COMMIT TRANSACTION;");
 
 const ENQUEUE_CODE_REPAIR: &str = "BEGIN TRANSACTION; \
     LET $open = (SELECT VALUE id FROM knowledge_code_repair_queue WHERE source_id = $source_id AND state IN ['queued', 'retrying'] ORDER BY updated_at DESC LIMIT 1)[0]; \
@@ -442,6 +463,8 @@ const ENQUEUE_CODE_REPAIR: &str = "BEGIN TRANSACTION; \
     } ELSE { \
       CREATE $rid CONTENT { code_repair_id: $code_repair_id, workspace_id: $workspace_id, source_id: $source_id, relative_path: $relative_path, reason_class: $reason_class, reason_detail: $reason_detail, enqueue_event_id: $enqueue_event_id }; \
     }; \
+    IF array::len((SELECT VALUE id FROM $rid WHERE workspace_id = $workspace_id AND source_id = $source_id AND relative_path = $relative_path AND reason_class = $reason_class AND reason_detail = $reason_detail AND state IN ['queued','retrying'] AND ($enqueue_event_id = NONE OR enqueue_event_id = $enqueue_event_id))) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+    FOR $fence IN $write_fences { IF array::len((UPDATE $fence SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; };
     COMMIT TRANSACTION;";
 
 /// The outcome of indexing one code file.
@@ -513,7 +536,20 @@ impl CodeIndexEngine {
         }
 
         let code_file_id = format!("KCF-{}", &sha256_hex(upsert.source_id.as_bytes())[..32]);
+        let scope = crate::storage::surreal::current_record_user_scope();
+        let mut owned_resources = Vec::new();
+        if scope.is_some() && self.db.get_knowledge_code_file_by_source(&upsert.source_id).await?.is_none() {
+            if let Some(resource) = self.db.storage().prepare_owned_index_resource(
+                ResourceKind::KnowledgeCodeFile, &code_file_id, &upsert.source_id,
+            ).await.map_err(|_| CodeIndexError::Validation("HSK-403-PROTECTED-RESOURCE".into()))? {
+                owned_resources.push(resource);
+            }
+        }
+        let write_fences = index_write_fences(self.db.storage(), &upsert.source_id).await?;
         let bindings = CodeFileStateBindings {
+            write_fences,
+            created_in_session_id: scope.as_ref().map(|scope| RecordId::new("authenticated_sessions", scope.session_id.clone())),
+            owned_resources,
             new_rid: RecordId::new("knowledge_code_files", code_file_id),
             workspace_id: RecordId::new("workspaces", upsert.workspace_id),
             source_id: RecordId::new("knowledge_sources", upsert.source_id),
@@ -558,7 +594,9 @@ impl CodeIndexEngine {
             entry.enqueue_event_id.as_deref().unwrap_or("no-event")
         );
         let code_repair_id = format!("KCRQ-{}", &sha256_hex(identity.as_bytes())[..32]);
+        let write_fences = index_write_fences(self.db.storage(), &entry.source_id).await?;
         let bindings = CodeRepairBindings {
+            write_fences,
             new_rid: RecordId::new("knowledge_code_repair_queue", code_repair_id.clone()),
             code_repair_id,
             workspace_id: RecordId::new("workspaces", entry.workspace_id),
@@ -594,6 +632,7 @@ impl CodeIndexEngine {
         aggregate_id: &str,
         payload: Value,
     ) -> CodeIndexResult<String> {
+        let payload = scoped_index_payload(self.db.storage(), payload).await?;
         let mut builder = NewKernelEvent::builder(
             ctx.kernel_task_run_id.clone(),
             ctx.session_run_id.clone(),
@@ -620,6 +659,14 @@ impl CodeIndexEngine {
         index_run_id: &str,
         kind: &str,
     ) -> CodeIndexResult<String> {
+        let mut payload = json!({"kind": kind, "index_run_id": index_run_id});
+        if crate::storage::surreal::current_record_user_scope().is_some() {
+            let run = self.db.get_knowledge_index_run(index_run_id).await?
+                .ok_or(StorageError::Validation("HSK-403-PROTECTED-RESOURCE"))?;
+            payload["source_ids"] = run.scope.get("source_ids").cloned()
+                .ok_or(StorageError::Validation("HSK-403-PROTECTED-RESOURCE"))?;
+        }
+        let payload = scoped_index_payload(self.db.storage(), payload).await?;
         let mut builder = NewKernelEvent::builder(
             ctx.kernel_task_run_id.clone(),
             ctx.session_run_id.clone(),
@@ -629,7 +676,7 @@ impl CodeIndexEngine {
         .aggregate("knowledge_code_index_run", index_run_id)
         .idempotency_key(format!("knowledge-code-index:finish:{index_run_id}:{kind}"))
         .source_component("knowledge_code_index")
-        .payload(json!({"kind": kind, "index_run_id": index_run_id}));
+        .payload(payload);
         if let Some(correlation_id) = &ctx.correlation_id {
             builder = builder.correlation_id(correlation_id.clone());
         }
@@ -660,7 +707,9 @@ impl CodeIndexEngine {
                 "root_id": root_id,
                 "extractor_version": CODE_EXTRACTOR_VERSION,
             }),
-        )?;
+        ).await.map_err(|error| {
+            stage_error("start_run.build_start_receipt", workspace_id, None, error)
+        })?;
         let (_, event) = prepare_event(start_event).map_err(|error| {
             stage_error("start_run.prepare_start_receipt", workspace_id, None, error)
         })?;
@@ -673,6 +722,7 @@ impl CodeIndexEngine {
             root_id: root_id.map(|id| RecordId::new("knowledge_source_roots", id.to_string())),
             scope: json!({
                 "index_kind": "code",
+                "source_ids": [],
                 "extractor_version": CODE_EXTRACTOR_VERSION,
             }),
             actor_kind: ctx.actor.actor_kind().to_string(),
@@ -709,6 +759,27 @@ impl CodeIndexEngine {
                 StorageError::Database("atomic code-index start returned no run id".to_string()),
             )
         })
+    }
+
+    pub(crate) async fn bind_run_sources(&self, index_run_id: &str, source_ids: Vec<String>) -> CodeIndexResult<()> {
+        if crate::storage::surreal::current_record_user_scope().is_none() { return Ok(()); }
+        #[derive(SurrealValue)]
+        struct Bindings { run: RecordId, source_ids: Vec<String> }
+        let bindings = Bindings { run: RecordId::new("knowledge_index_runs", index_run_id.to_owned()), source_ids };
+        let rows = self.db.storage().with_data_operation(move |database| Box::pin(async move {
+            database.query_values::<RecordId, _>("UPDATE $run SET scope.source_ids = $source_ids RETURN VALUE id;", bindings).await
+        })).await.map_err(StorageError::from).map_err(|error| {
+            stage_error("bind_run_sources.update_scope", "", None, error)
+        })?;
+        if rows.len() != 1 {
+            return Err(stage_error(
+                "bind_run_sources.update_scope",
+                "",
+                None,
+                StorageError::Validation("HSK-403-PROTECTED-RESOURCE".into()),
+            ));
+        }
+        Ok(())
     }
 
     async fn rollback_quiet_run_start(
@@ -1018,7 +1089,10 @@ impl CodeIndexEngine {
                 })
             })
             .await
-            .map_err(StorageError::from)?;
+            .map_err(StorageError::from)
+            .map_err(|error| {
+                stage_error("try_index_prepared_batch.lookup_existing", workspace_id, None, error)
+            })?;
         let existing = existing.ok_or_else(|| {
             CodeIndexError::from(StorageError::Database(
                 "clean code batch existing-row lookup returned no result".to_owned(),
@@ -1048,6 +1122,29 @@ impl CodeIndexEngine {
             .into_iter()
             .map(|row| (row.source_id, row.record_id))
             .collect::<HashMap<_, _>>();
+        let scope = crate::storage::surreal::current_record_user_scope();
+        let mut write_fences = Vec::new();
+        let mut owned_resources = Vec::new();
+        for file in &writes {
+            write_fences.extend(index_write_fences(self.db.storage(), &file.source_id).await.map_err(
+                |error| stage_error("try_index_prepared_batch.index_write_fences", workspace_id, None, error),
+            )?);
+            if !existing_code_files.contains_key(&file.source_id) {
+                if let Some(resource) = self.db.storage().prepare_owned_index_resource(
+                    ResourceKind::KnowledgeCodeFile, &file.code_file_id, &file.source_id,
+                ).await.map_err(|error| {
+                    #[cfg(test)]
+                    eprintln!(
+                        "code-index-stage-failure stage=try_index_prepared_batch.prepare_owned_resource error={error}"
+                    );
+                    #[cfg(not(test))]
+                    let _ = error;
+                    CodeIndexError::Validation("HSK-403-PROTECTED-RESOURCE".into())
+                })? {
+                    owned_resources.push(resource);
+                }
+            }
+        }
         for file in &mut writes {
             if let Some(record_id) =
                 existing_entities.get(&("file".to_owned(), file.file_key.clone()))
@@ -1082,25 +1179,32 @@ impl CodeIndexEngine {
         .aggregate("knowledge_code_index_run", index_run_id)
         .idempotency_key(format!("knowledge-code-index-batch:{index_run_id}"))
         .source_component("knowledge_code_index")
-        .payload(json!({
+        .payload(scoped_index_payload(self.db.storage(), json!({
             "kind": "code_files_indexed_batch",
             "workspace_id": workspace_id,
             "index_run_id": index_run_id,
             "file_count": writes.len(),
             "files": receipt_payloads,
-        }));
+        })).await.map_err(|error| {
+            stage_error("try_index_prepared_batch.scoped_payload", workspace_id, None, error)
+        })?);
         if let Some(correlation_id) = &ctx.correlation_id {
             builder = builder.correlation_id(correlation_id.clone());
         }
         let ledger_started = Instant::now();
-        let stored_event = append(
-            self.db.storage(),
-            builder
-                .build()
-                .map_err(|error| CodeIndexError::Kernel(error.to_string()))?,
-        )
-        .await
-        .map_err(CodeIndexError::from)?;
+        let event = builder.build().map_err(|error| {
+            stage_error("try_index_prepared_batch.build_receipt", workspace_id, None, CodeIndexError::Kernel(error.to_string()))
+        })?;
+        let (stored_event, events) = if scope.is_some() {
+            let (stored, write) = prepare_event(event).map_err(|error| {
+                stage_error("try_index_prepared_batch.prepare_receipt", workspace_id, None, error)
+            })?;
+            (stored, vec![LedgerBulkInsert::from(write)])
+        } else {
+            (append(self.db.storage(), event).await.map_err(|error| {
+                stage_error("try_index_prepared_batch.append_receipt", workspace_id, None, error)
+            })?, Vec::new())
+        };
         tracing::info!(
             target: "handshake_core::code_nav_index",
             stage = "try_index_prepared_batch.event_ledger",
@@ -1204,6 +1308,7 @@ impl CodeIndexEngine {
                 });
             }
             code_files.push(CleanCodeFileRow {
+                created_in_session_id: scope.as_ref().map(|scope| RecordId::new("authenticated_sessions", scope.session_id.clone())),
                 id: file.code_file,
                 code_file_id: file.code_file_id,
                 workspace_id: workspace.clone(),
@@ -1218,11 +1323,12 @@ impl CodeIndexEngine {
                 edges_indexed: symbols_indexed,
                 failure_detail: file.failure_detail,
                 last_indexed_in_run: index_run.clone(),
-                last_index_receipt_event_id: receipt,
+                last_index_receipt_event_id: if scope.is_some() { None } else { Some(receipt) },
             });
             sources.push(file.source);
         }
         let bindings = CleanCodeBatchBindings {
+            owned_resources, events, write_fences,
             entities,
             spans,
             entity_spans,
@@ -1239,12 +1345,15 @@ impl CodeIndexEngine {
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
-                        .query_values_at::<bool, _>(PERSIST_CLEAN_CODE_BATCH, bindings, 9)
+                        .query_values::<surrealdb::types::Value, _>(PERSIST_CLEAN_CODE_BATCH, bindings)
                         .await
                 })
             })
             .await
-            .map_err(StorageError::from)?;
+            .map_err(StorageError::from)
+            .map_err(|error| {
+                stage_error("try_index_prepared_batch.projection", workspace_id, None, error)
+            })?;
         tracing::info!(
             target: "handshake_core::code_nav_index",
             stage = "try_index_prepared_batch.projection",
@@ -1257,7 +1366,7 @@ impl CodeIndexEngine {
         Ok(Some(outcomes))
     }
 
-    fn build_receipt_event(
+    async fn build_receipt_event(
         &self,
         ctx: &CodeIndexContext,
         event_type: KernelEventType,
@@ -1265,6 +1374,7 @@ impl CodeIndexEngine {
         aggregate_id: &str,
         payload: Value,
     ) -> CodeIndexResult<NewKernelEvent> {
+        let payload = scoped_index_payload(self.db.storage(), payload).await?;
         let mut builder = NewKernelEvent::builder(
             ctx.kernel_task_run_id.clone(),
             ctx.session_run_id.clone(),

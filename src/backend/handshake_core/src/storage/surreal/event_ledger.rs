@@ -46,7 +46,7 @@ struct EventBatchBindings {
 }
 
 #[derive(SurrealValue)]
-struct LedgerBulkInsert {
+pub(crate) struct LedgerBulkInsert {
     id: RecordId,
     event_id: String,
     event_version: String,

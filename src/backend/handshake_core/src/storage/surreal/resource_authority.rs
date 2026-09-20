@@ -352,6 +352,7 @@ fn resource_authority_test_base_schema() -> [&'static str; 3] {
 
 #[derive(Clone, Debug)]
 pub(crate) struct RecordUserScope {
+    pub(crate) grant_id: Option<String>,
     pub(crate) workspace_id: Option<String>,
     pub(crate) session_token: String,
     pub(crate) channel_binding_hash: Option<String>,
@@ -359,6 +360,97 @@ pub(crate) struct RecordUserScope {
     pub(crate) session_id: String,
     pub(crate) capability_id: String,
     pub(crate) action: ResourceAction,
+}
+
+/// Bound values for a newly generated ingestion source or code-file row. The
+/// record-user transaction and immutable schema stamps enforce creation ownership.
+#[derive(SurrealValue)]
+pub(crate) struct OwnedIndexResource {
+    pub resource: RecordId,
+    pub grant: RecordId,
+    pub parent: RecordId,
+    pub parent_grant: RecordId,
+    pub delete_parent_grant: Option<RecordId>,
+    pub kind: String,
+    pub external_id: String,
+    pub session: RecordId,
+    pub account: RecordId,
+    pub principal: RecordId,
+    pub space: RecordId,
+    pub policy_version: i64,
+    pub delegation_chain: Vec<String>,
+    pub locator_hash: String,
+}
+
+impl SurrealStorage {
+    pub(crate) async fn prepare_owned_index_resource(
+        &self,
+        kind: ResourceKind,
+        external_id: &str,
+        parent_external_id: &str,
+    ) -> Result<Option<OwnedIndexResource>, ResourceAuthorityError> {
+        let Some(scope) = super::current_record_user_scope() else {
+            return Ok(None);
+        };
+        let parent_kind = match kind {
+            ResourceKind::KnowledgeSource => ResourceKind::Workspace,
+            ResourceKind::KnowledgeCodeFile => ResourceKind::KnowledgeSource,
+            _ => {
+                return Err(ResourceAuthorityError::InvalidInput(
+                    "invalid index resource kind",
+                ))
+            }
+        };
+        let parent = self
+            .authorize_protected_resource(AuthorizationRequest {
+                session_token: scope.session_token.clone(),
+                channel_binding_hash: scope.channel_binding_hash.clone(),
+                capability_id: "memory.propose".into(),
+                resource_kind: parent_kind,
+                external_resource_id: parent_external_id.to_owned(),
+                action: ResourceAction::Create,
+            })
+            .await?;
+        let delete_parent = self
+            .authorize_protected_resource(AuthorizationRequest {
+                session_token: scope.session_token.clone(),
+                channel_binding_hash: scope.channel_binding_hash.clone(),
+                capability_id: "fs.write".into(),
+                resource_kind: parent_kind,
+                external_resource_id: parent_external_id.to_owned(),
+                action: ResourceAction::Delete,
+            })
+            .await
+            .ok()
+            .filter(|decision| {
+                decision.resource_id == parent.resource_id
+                    && decision.session_id == parent.session_id
+            });
+        if parent.session_id != scope.session_id {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "authentication denied",
+            ));
+        }
+        Ok(Some(OwnedIndexResource {
+            resource: RecordId::new("protected_resources", Uuid::now_v7().to_string()),
+            grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
+            parent: RecordId::new("protected_resources", parent.resource_id),
+            parent_grant: RecordId::new("resource_grants", parent.grant_id),
+            delete_parent_grant: delete_parent
+                .map(|decision| RecordId::new("resource_grants", decision.grant_id)),
+            kind: kind.as_str().to_owned(),
+            external_id: external_id.to_owned(),
+            session: RecordId::new("authenticated_sessions", parent.session_id),
+            account: RecordId::new("local_accounts", parent.account_id),
+            principal: RecordId::new("principals", parent.principal_id),
+            space: RecordId::new("access_spaces", parent.access_space_id),
+            policy_version: parent.policy_version,
+            delegation_chain: parent.delegation_chain,
+            locator_hash: hex::encode(Sha256::digest(
+                format!("{}:{external_id}", kind.as_str()).as_bytes(),
+            )),
+        }))
+    }
 }
 
 impl SurrealStorage {
@@ -1367,17 +1459,10 @@ impl SurrealStorage {
                 "restricted",
             )
             .await?;
-        self.grant_resource(
-            &provisioned.identity.account_id,
-            &provisioned.identity.access_space_id,
-            ResourceGrantSpec {
-                principal_id: provisioned.identity.principal_id.clone(),
-                resource_id: queue.resource_id.clone(),
-                actions: vec![ResourceAction::Reconcile],
-                capability_ids: capabilities.clone(),
-                expires_at: Some(provisioned.session.expires_at),
-                delegation_chain: Vec::new(),
-            },
+        self.ensure_reconciliation_queue_grant(
+            &provisioned.identity,
+            &queue.resource_id,
+            &capabilities,
         )
         .await?;
 
@@ -1391,21 +1476,73 @@ impl SurrealStorage {
                     "restricted",
                 )
                 .await?;
-            self.grant_resource(
-                &provisioned.identity.account_id,
-                &provisioned.identity.access_space_id,
-                ResourceGrantSpec {
-                    principal_id: provisioned.identity.principal_id.clone(),
-                    resource_id: workspace_queue.resource_id,
-                    actions: vec![ResourceAction::Reconcile],
-                    capability_ids: capabilities.clone(),
-                    expires_at: Some(provisioned.session.expires_at),
-                    delegation_chain: Vec::new(),
-                },
+            self.ensure_reconciliation_queue_grant(
+                &provisioned.identity,
+                &workspace_queue.resource_id,
+                &capabilities,
             )
             .await?;
         }
         Ok(provisioned)
+    }
+
+    pub async fn reconciliation_principal_is_provisioned(
+        &self,
+    ) -> Result<bool, ResourceAuthorityError> {
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        self.with_lease(move |client| {
+            Box::pin(async move {
+                let authority = client.clone();
+                authority.use_ns(namespace).use_db(database).await?;
+                let mut response = authority
+                    .query(
+                        "LET $principal = (SELECT * FROM ONLY principals WHERE principal_key = 'mt109-reconciliation-service-principal' AND principal_kind = 'service_identity' AND status = 'enabled' LIMIT 1); LET $space = (SELECT * FROM ONLY access_spaces WHERE account_id = $principal.account_id AND space_key = 'mt109-reconciliation-space' AND status = 'active' LIMIT 1); LET $root = (SELECT * FROM ONLY protected_resources WHERE resource_kind = 'reconciliation_queue' AND external_resource_id = 'mt109-protected-reconciliation' AND lifecycle_state = 'active' AND owner_account_id = $principal.account_id AND access_space_id = $space.id LIMIT 1); RETURN $principal != NONE AND $space != NONE AND $root != NONE AND array::len(SELECT VALUE id FROM resource_grants WHERE resource_id = $root.id AND account_id = $principal.account_id AND principal_id = $principal.id AND access_space_id = $space.id AND actions = ['reconcile'] AND capability_ids = ['fr.ingest.native_editor','memory.commit'] AND delegation_chain = [record::id($principal.id)] AND status = 'active' AND revoked_at = NONE AND expires_at = NONE LIMIT 1) = 1;",
+                    )
+                    .await?
+                    .check()?;
+                Ok(response.take::<Option<bool>>(3)?.unwrap_or(false))
+            })
+        })
+        .await
+    }
+
+    async fn ensure_reconciliation_queue_grant(
+        &self,
+        identity: &ProvisionedIdentity,
+        resource_id: &str,
+        capabilities: &[String],
+    ) -> Result<(), ResourceAuthorityError> {
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let account = RecordId::new("local_accounts", identity.account_id.clone());
+        let principal = RecordId::new("principals", identity.principal_id.clone());
+        let space = RecordId::new("access_spaces", identity.access_space_id.clone());
+        let resource = RecordId::new("protected_resources", resource_id.to_owned());
+        let grant = RecordId::new("resource_grants", Uuid::now_v7().to_string());
+        let capabilities = capabilities.to_vec();
+        let delegation_chain = vec![identity.principal_id.clone()];
+        self.with_lease(move |client| {
+            Box::pin(async move {
+                let authority = client.clone();
+                authority.use_ns(namespace).use_db(database).await?;
+                authority
+                    .query(
+                        "LET $revoked = SELECT VALUE id FROM resource_grants WHERE account_id = $account AND principal_id = $principal AND access_space_id = $space AND resource_id = $resource AND actions = ['reconcile'] AND capability_ids = $capabilities AND delegation_chain = $delegation_chain AND revoked_at != NONE LIMIT 1; IF array::len($revoked) != 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; LET $existing = SELECT VALUE id FROM resource_grants WHERE account_id = $account AND principal_id = $principal AND access_space_id = $space AND resource_id = $resource AND actions = ['reconcile'] AND capability_ids = $capabilities AND delegation_chain = $delegation_chain AND status = 'active' AND revoked_at = NONE AND expires_at = NONE LIMIT 1; IF array::len($existing) = 0 { CREATE $grant SET account_id = $account, principal_id = $principal, access_space_id = $space, resource_id = $resource, actions = ['reconcile'], capability_ids = $capabilities, delegation_chain = $delegation_chain, status = 'active', grant_version = 1, policy_version = math::max([$account.policy_version, $principal.policy_version, $space.policy_version, $resource.policy_version]), expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now(); };",
+                    )
+                    .bind(("account", account))
+                    .bind(("principal", principal))
+                    .bind(("space", space))
+                    .bind(("resource", resource))
+                    .bind(("grant", grant))
+                    .bind(("capabilities", capabilities))
+                    .bind(("delegation_chain", delegation_chain))
+                    .await?
+                    .check()?;
+                Ok(())
+            })
+        })
+        .await
     }
 
     pub async fn issue_reconciliation_session(

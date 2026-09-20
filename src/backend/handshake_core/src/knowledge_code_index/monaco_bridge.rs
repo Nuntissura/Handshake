@@ -83,6 +83,26 @@ pub async fn build_monaco_payload(
     current_content_hash: &str,
     current_parser_version: &str,
 ) -> CodeIndexResult<MonacoCodeLensPayload> {
+    build_monaco_payload_with_witnesses(db, workspace_id, relative_path, current_content_hash,
+        current_parser_version).await.map(|(payload, _)| payload)
+}
+
+#[derive(Default, Serialize)]
+pub(crate) struct NavReadWitnesses {
+    pub entity_ids: std::collections::BTreeSet<String>,
+    pub edge_ids: std::collections::BTreeSet<String>,
+    pub source_ids: std::collections::BTreeSet<String>,
+    pub span_ids: std::collections::BTreeSet<String>,
+}
+
+pub(crate) async fn build_monaco_payload_with_witnesses(
+    db: &SurrealDatabase,
+    workspace_id: &str,
+    relative_path: &str,
+    current_content_hash: &str,
+    current_parser_version: &str,
+) -> CodeIndexResult<(MonacoCodeLensPayload, NavReadWitnesses)> {
+    let mut witnesses = NavReadWitnesses::default();
     // Resolve the file entity + its source.
     let file_key = format!("file:{relative_path}");
     let file_entity = db
@@ -94,6 +114,8 @@ pub async fn build_monaco_payload(
     let source_id = file_entity.primary_source_id.clone().ok_or_else(|| {
         CodeIndexError::Validation(format!("indexed file '{relative_path}' has no source"))
     })?;
+    witnesses.entity_ids.insert(file_entity.entity_id.clone());
+    witnesses.source_ids.insert(source_id.clone());
 
     // Staleness from the code-file index state.
     let staleness = match db.get_knowledge_code_file_by_source(&source_id).await? {
@@ -114,6 +136,7 @@ pub async fn build_monaco_payload(
 
     // All spans of the source, indexed by id (for reference ranges + defs).
     let spans = db.list_knowledge_spans_for_source(&source_id).await?;
+    witnesses.span_ids.extend(spans.iter().map(|span| span.span_id.clone()));
     let span_by_id: std::collections::HashMap<String, LineRange> = spans
         .iter()
         .filter(|s| matches!(s.span_kind, KnowledgeSpanKind::Ast))
@@ -177,6 +200,7 @@ pub async fn build_monaco_payload(
         }
 
         // Definition range: the symbol's evidence span.
+        witnesses.entity_ids.insert(symbol.entity_id.clone());
         let def_span_ids = db.list_knowledge_entity_span_ids(&symbol.entity_id).await?;
         let definition = def_span_ids
             .iter()
@@ -191,6 +215,7 @@ pub async fn build_monaco_payload(
         let edges = db
             .list_knowledge_edges_for_entity(&symbol.entity_id)
             .await?;
+        witnesses.edge_ids.extend(edges.iter().map(|edge| edge.edge_id.clone()));
         let mut references: Vec<LineRange> = Vec::new();
         let mut caller_count = 0u32;
         for edge in &edges {
@@ -255,13 +280,13 @@ pub async fn build_monaco_payload(
             .then(a.symbol_key.cmp(&b.symbol_key))
     });
 
-    Ok(MonacoCodeLensPayload {
+    Ok((MonacoCodeLensPayload {
         workspace_id: workspace_id.to_string(),
         relative_path: relative_path.to_string(),
         staleness,
         truncated,
         entries,
-    })
+    }, witnesses))
 }
 
 #[derive(SurrealValue)]

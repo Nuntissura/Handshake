@@ -15,7 +15,2016 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 157;
+pub const SCHEMA_REVISION: i64 = 160;
+/// Exact revision-159 catalog before standalone LoomBlock update authorization.
+const PRE_STANDALONE_LOOM_UPDATE_REVISION: i64 = 159;
+const PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256: &str =
+    "d7cf6adbe590a6807a7ee495cd320add2dada1588d02c7bb90d91c6022abe178";
+const PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256: &str =
+    "ef2a6a96a6a869b6bb39cbc3abc2b30491535c73cd36b5fb8f97d6f0bc8ee610";
+/// Exact revision-158 catalog observed before the Canvas receipt visibility correction.
+const PRE_CANVAS_RECEIPT_REVISION: i64 = 158;
+const PRE_CANVAS_RECEIPT_GENERATED_SHA256: &str =
+    "6dc618075e25af5ae13d61b7914ab07799c5142e9db479cc86016c864de59899";
+const PRE_CANVAS_RECEIPT_INFO_SHA256: &str =
+    "2d2f73504c6dc9efec83497ee7faa4b914fee19398540dbf93bda62fd0ef1b76";
+const PRE_ACCOUNT_SETUP_REVISION: i64 = 157;
+const PRE_ACCOUNT_SETUP_GENERATED_SHA256: &str =
+    "e9a08258c5c0d86bfff6e4dcbdc4b086e0dafd4fa9eaec8735026c37088bcad1";
+const PRE_ACCOUNT_SETUP_INFO_SHA256: &str =
+    "e2a125fd980b463ac63fb857acd919786031d9dc04ce0d88bf9663ae0824944f";
+const AUTHORITY_NONCE_EVENT_STATEMENTS: &str = r#"-- MT109_AUTHORITY_NONCE_EVENT_BEGIN
+DEFINE EVENT OVERWRITE mt109_local_account_authorization_touch ON TABLE local_accounts
+WHEN $event = 'UPDATE' AND $auth != NONE
+THEN {
+    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+        OR $before.account_key != $after.account_key
+        OR $before.account_role != $after.account_role
+        OR $before.status != $after.status
+        OR $before.revocation_epoch != $after.revocation_epoch
+        OR $before.policy_version != $after.policy_version
+        OR $before.created_at != $after.created_at
+        OR $before.updated_at != $after.updated_at
+        OR $before.password_verifier != $after.password_verifier {
+        THROW 'HSK-403-PROTECTED-RESOURCE';
+    };
+};
+DEFINE EVENT OVERWRITE mt109_principal_authorization_touch ON TABLE principals
+WHEN $event = 'UPDATE' AND $auth != NONE
+THEN {
+    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+        OR $before.principal_key != $after.principal_key
+        OR $before.account_id != $after.account_id
+        OR $before.principal_kind != $after.principal_kind
+        OR $before.actor_kind != $after.actor_kind
+        OR $before.actor_id != $after.actor_id
+        OR $before.capability_profile_id != $after.capability_profile_id
+        OR $before.delegated_capabilities != $after.delegated_capabilities
+        OR $before.status != $after.status
+        OR $before.revocation_epoch != $after.revocation_epoch
+        OR $before.policy_version != $after.policy_version
+        OR $before.created_at != $after.created_at
+        OR $before.updated_at != $after.updated_at {
+        THROW 'HSK-403-PROTECTED-RESOURCE';
+    };
+};
+DEFINE EVENT OVERWRITE mt109_access_space_authorization_touch ON TABLE access_spaces
+WHEN $event = 'UPDATE' AND $auth != NONE
+THEN {
+    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+        OR $before.space_key != $after.space_key
+        OR $before.account_id != $after.account_id
+        OR $before.name != $after.name
+        OR $before.status != $after.status
+        OR $before.revocation_epoch != $after.revocation_epoch
+        OR $before.policy_version != $after.policy_version
+        OR $before.created_at != $after.created_at
+        OR $before.updated_at != $after.updated_at {
+        THROW 'HSK-403-PROTECTED-RESOURCE';
+    };
+};
+DEFINE EVENT OVERWRITE mt109_authenticated_session_authorization_touch ON TABLE authenticated_sessions
+WHEN $event = 'UPDATE' AND $auth != NONE
+THEN {
+    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+        OR $before.account_id != $after.account_id
+        OR $before.principal_id != $after.principal_id
+        OR $before.access_space_id != $after.access_space_id
+        OR $before.token_hash != $after.token_hash
+        OR $before.channel_binding_hash != $after.channel_binding_hash
+        OR $before.authentication_strength != $after.authentication_strength
+        OR $before.delegated_capabilities != $after.delegated_capabilities
+        OR $before.delegation_chain != $after.delegation_chain
+        OR $before.account_revocation_epoch != $after.account_revocation_epoch
+        OR $before.principal_revocation_epoch != $after.principal_revocation_epoch
+        OR $before.space_revocation_epoch != $after.space_revocation_epoch
+        OR $before.policy_version != $after.policy_version
+        OR $before.issued_at != $after.issued_at
+        OR $before.expires_at != $after.expires_at
+        OR $before.revoked_at != $after.revoked_at {
+        THROW 'HSK-403-PROTECTED-RESOURCE';
+    };
+};
+DEFINE EVENT OVERWRITE mt109_protected_resource_authorization_touch ON TABLE protected_resources
+WHEN $event = 'UPDATE' AND $auth != NONE
+THEN {
+    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+        OR $before.resource_kind != $after.resource_kind
+        OR $before.external_resource_id != $after.external_resource_id
+        OR $before.owner_account_id != $after.owner_account_id
+        OR $before.created_by_principal_id != $after.created_by_principal_id
+        OR $before.created_in_session_id != $after.created_in_session_id
+        OR $before.access_space_id != $after.access_space_id
+        OR $before.parent_resource_id != $after.parent_resource_id
+        OR $before.schema_version != $after.schema_version
+        OR $before.lifecycle_state != $after.lifecycle_state
+        OR $before.policy_version != $after.policy_version
+        OR $before.classification != $after.classification
+        OR $before.storage_locator_hash != $after.storage_locator_hash
+        OR $before.created_at != $after.created_at
+        OR $before.updated_at != $after.updated_at
+        OR $before.creator_grant_id != $after.creator_grant_id {
+        THROW 'HSK-403-PROTECTED-RESOURCE';
+    };
+};
+DEFINE EVENT OVERWRITE mt109_resource_grant_authorization_touch ON TABLE resource_grants
+WHEN $event = 'UPDATE' AND $auth != NONE
+THEN {
+    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+        OR $before.account_id != $after.account_id
+        OR $before.principal_id != $after.principal_id
+        OR $before.access_space_id != $after.access_space_id
+        OR $before.resource_id != $after.resource_id
+        OR $before.actions != $after.actions
+        OR $before.capability_ids != $after.capability_ids
+        OR $before.delegation_chain != $after.delegation_chain
+        OR $before.status != $after.status
+        OR $before.grant_version != $after.grant_version
+        OR $before.policy_version != $after.policy_version
+        OR $before.expires_at != $after.expires_at
+        OR $before.revoked_at != $after.revoked_at
+        OR $before.created_at != $after.created_at
+        OR $before.updated_at != $after.updated_at {
+        THROW 'HSK-403-PROTECTED-RESOURCE';
+    };
+};
+-- MT109_AUTHORITY_NONCE_EVENT_END
+"#;
+const AUTHORITY_NONCE_IMMUTABLE_FIELDS: &[(&str, &[&str])] = &[
+    (
+        "local_accounts",
+        &[
+            "account_key",
+            "account_role",
+            "status",
+            "revocation_epoch",
+            "policy_version",
+            "created_at",
+            "updated_at",
+            "password_verifier",
+        ],
+    ),
+    (
+        "principals",
+        &[
+            "principal_key",
+            "account_id",
+            "principal_kind",
+            "actor_kind",
+            "actor_id",
+            "capability_profile_id",
+            "delegated_capabilities",
+            "status",
+            "revocation_epoch",
+            "policy_version",
+            "created_at",
+            "updated_at",
+        ],
+    ),
+    (
+        "access_spaces",
+        &[
+            "space_key",
+            "account_id",
+            "name",
+            "status",
+            "revocation_epoch",
+            "policy_version",
+            "created_at",
+            "updated_at",
+        ],
+    ),
+    (
+        "authenticated_sessions",
+        &[
+            "account_id",
+            "principal_id",
+            "access_space_id",
+            "token_hash",
+            "channel_binding_hash",
+            "authentication_strength",
+            "delegated_capabilities",
+            "delegation_chain",
+            "account_revocation_epoch",
+            "principal_revocation_epoch",
+            "space_revocation_epoch",
+            "policy_version",
+            "issued_at",
+            "expires_at",
+            "revoked_at",
+        ],
+    ),
+    (
+        "protected_resources",
+        &[
+            "resource_kind",
+            "external_resource_id",
+            "owner_account_id",
+            "created_by_principal_id",
+            "created_in_session_id",
+            "access_space_id",
+            "parent_resource_id",
+            "schema_version",
+            "lifecycle_state",
+            "policy_version",
+            "classification",
+            "storage_locator_hash",
+            "created_at",
+            "updated_at",
+            "creator_grant_id",
+        ],
+    ),
+    (
+        "resource_grants",
+        &[
+            "account_id",
+            "principal_id",
+            "access_space_id",
+            "resource_id",
+            "actions",
+            "capability_ids",
+            "delegation_chain",
+            "status",
+            "grant_version",
+            "policy_version",
+            "expires_at",
+            "revoked_at",
+            "created_at",
+            "updated_at",
+        ],
+    ),
+];
+const MT120_RECORD_USER_UPDATE_GUARD_TABLES: &[&str] = &[
+    "knowledge_source_roots",
+    "knowledge_sources",
+    "knowledge_index_runs",
+    "knowledge_entities",
+    "knowledge_edges",
+    "knowledge_ingestion_repair_queue",
+    "knowledge_code_files",
+    "knowledge_code_repair_queue",
+    "knowledge_rich_documents",
+    "knowledge_rich_document_title_anchors",
+    "knowledge_document_embeds",
+    "knowledge_workbench_layout_states",
+    "knowledge_workspace_settings_states",
+    "knowledge_workspace_search_bookmark_states",
+];
+const MT120_RECORD_USER_UPDATE_GUARD_RESTORATIONS: &[(&str, &str, &str)] = &[
+    ("knowledge_source_roots", "FOR update WHERE created_in_session_id != NONE AND created_in_session_id.account_id = $auth.account_id AND created_in_session_id.access_space_id = $auth.access_space_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'memory.propose')", "FOR update WHERE created_in_session_id != NONE AND created_in_session_id.account_id = $auth.account_id AND created_in_session_id.access_space_id = $auth.access_space_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'memory.propose') AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.repo_relative_path = $after.repo_relative_path"),
+    ("knowledge_sources", "FOR update WHERE fn::mt109_has_grant('knowledge_source', source_id, 'update', 'memory.propose')", "FOR update WHERE fn::mt109_has_grant('knowledge_source', source_id, 'update', 'memory.propose') AND $before.source_id = $after.source_id AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.source_kind = $after.source_kind AND $before.relative_path = $after.relative_path"),
+    ("knowledge_index_runs", "FOR update WHERE fn::mt120_index_run_access($this, true)", "FOR update WHERE fn::mt120_index_run_access($before, true) AND fn::mt120_index_run_access($after, true) AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.actor_id = $after.actor_id AND $before.actor_kind = $after.actor_kind AND $before.start_receipt_event_id = $after.start_receipt_event_id"),
+    ("knowledge_entities", "FOR update WHERE fn::mt120_entity_write(id, primary_source_id, workspace_id)", "FOR update WHERE fn::mt120_entity_write(id, primary_source_id, workspace_id) AND fn::mt120_entity_write($before.id, $before.primary_source_id, $before.workspace_id) AND $before.workspace_id = $after.workspace_id AND $before.entity_kind = $after.entity_kind AND $before.entity_key = $after.entity_key"),
+    ("knowledge_edges", "FOR update WHERE fn::mt120_edge_write(id, source_entity_id, target_entity_id, workspace_id)", "FOR update WHERE fn::mt120_edge_write(id, source_entity_id, target_entity_id, workspace_id) AND $before.workspace_id = $after.workspace_id AND $before.source_entity_id = $after.source_entity_id AND $before.target_entity_id = $after.target_entity_id AND $before.relationship_id = $after.relationship_id"),
+    ("knowledge_ingestion_repair_queue", "FOR update WHERE fn::mt120_index_source_write(source_id, workspace_id)", "FOR update WHERE fn::mt120_index_source_write(source_id, workspace_id) AND $before.workspace_id = $after.workspace_id AND $before.source_id = $after.source_id"),
+    ("knowledge_code_files", "FOR update WHERE fn::mt109_has_grant('knowledge_code_file', code_file_id, 'update', 'memory.propose')", "FOR update WHERE fn::mt109_has_grant('knowledge_code_file', code_file_id, 'update', 'memory.propose') AND $before.code_file_id = $after.code_file_id AND $before.workspace_id = $after.workspace_id AND $before.source_id = $after.source_id"),
+    ("knowledge_code_repair_queue", "FOR update WHERE fn::mt120_index_source_write(source_id, workspace_id)", "FOR update WHERE fn::mt120_index_source_write(source_id, workspace_id) AND $before.workspace_id = $after.workspace_id AND $before.source_id = $after.source_id"),
+    ("knowledge_rich_documents", "FOR update WHERE fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_document_delete(rich_document_id, record::id(workspace_id))", "FOR update WHERE (fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write') AND $before.deleted_at = NONE AND $after.deleted_at = NONE AND $before.deleted_receipt_event_id = $after.deleted_receipt_event_id) OR (fn::mt120_document_delete(rich_document_id, record::id(workspace_id)) AND $before.deleted_at = NONE AND $after.deleted_at != NONE AND $after.deleted_receipt_event_id != NONE AND $after.deleted_receipt_event_id.event_type = 'KNOWLEDGE_RICH_DOCUMENT_DELETED' AND $after.deleted_receipt_event_id.aggregate_id = rich_document_id AND $after.deleted_receipt_event_id.authority_session_id = $auth.id AND array::len($after.projection_refs) = array::len($before.projection_refs) + 1 AND array::slice($after.projection_refs, 0, array::len($before.projection_refs)) = $before.projection_refs AND $before.rich_document_id = $after.rich_document_id AND $before.workspace_id = $after.workspace_id AND $before.document_id = $after.document_id AND $before.title = $after.title AND $before.schema_version = $after.schema_version AND $before.doc_version = $after.doc_version AND $before.content_json = $after.content_json AND $before.content_sha256 = $after.content_sha256 AND $before.crdt_document_id = $after.crdt_document_id AND $before.crdt_snapshot_id = $after.crdt_snapshot_id AND $before.promotion_receipt_event_id = $after.promotion_receipt_event_id AND $before.project_ref = $after.project_ref AND $before.folder_ref = $after.folder_ref AND $before.authority_label = $after.authority_label AND $before.owner_actor_kind = $after.owner_actor_kind AND $before.owner_actor_id = $after.owner_actor_id AND $before.created_at = $after.created_at AND $before.created_in_session_id = $after.created_in_session_id)"),
+    ("knowledge_rich_document_title_anchors", "FOR update WHERE (fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))", "FOR update WHERE (fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'delete', 'fs.write')) AND $before.workspace_id = $after.workspace_id AND $before.title_key = $after.title_key AND $before.anchor_key = $after.anchor_key"),
+    ("knowledge_document_embeds", "FOR update WHERE rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write')", "FOR update WHERE rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write') AND $before.rich_document_id = $after.rich_document_id"),
+    ("knowledge_workbench_layout_states", "FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')", "FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND $before.workspace_id = $after.workspace_id"),
+    ("knowledge_workspace_settings_states", "FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')", "FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND $before.workspace_id = $after.workspace_id"),
+    ("knowledge_workspace_search_bookmark_states", "FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')", "FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND $before.workspace_id = $after.workspace_id"),
+];
+const LOCAL_ACCOUNT_SETUP_STATEMENTS: &str = r#"-- LOCAL_ACCOUNT_SETUP_BEGIN
+DEFINE FIELD OVERWRITE password_verifier ON TABLE local_accounts TYPE option<string> PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE local_account_setup TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE account_id ON TABLE local_account_setup TYPE record<local_accounts>;
+DEFINE FIELD OVERWRITE principal_id ON TABLE local_account_setup TYPE record<principals>;
+DEFINE FIELD OVERWRITE access_space_id ON TABLE local_account_setup TYPE record<access_spaces>;
+DEFINE FIELD OVERWRITE created_at ON TABLE local_account_setup TYPE datetime;
+-- LOCAL_ACCOUNT_SETUP_END
+"#;
+
+const MT120_DOCUMENT_ACCESS_BLOCK: &str = r#"-- MT120_DOCUMENT_ACCESS_BEGIN
+DEFINE FUNCTION OVERWRITE fn::mt120_document_access($document: string, $workspace: string, $action: string, $capability: string) {
+    RETURN fn::mt109_has_grant('rich_document', $document, $action, $capability)
+        AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active' AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = 'rich_document' AND resource_id.external_resource_id = $document
+              AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.parent_resource_id.resource_kind = 'workspace'
+              AND resource_id.parent_resource_id.external_resource_id = $workspace
+              AND resource_id.parent_resource_id.lifecycle_state = 'active'
+              AND resource_id.parent_resource_id.owner_account_id = $auth.account_id
+              AND resource_id.parent_resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'
+              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_loom_block_access($block: string, $workspace: string, $action: string, $capability: string) {
+    RETURN fn::mt109_has_grant('loom_block', $block, $action, $capability)
+        AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active' AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = 'loom_block' AND resource_id.external_resource_id = $block
+              AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.parent_resource_id.resource_kind = 'workspace'
+              AND resource_id.parent_resource_id.external_resource_id = $workspace
+              AND resource_id.parent_resource_id.lifecycle_state = 'active'
+              AND resource_id.parent_resource_id.owner_account_id = $auth.account_id
+              AND resource_id.parent_resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.parent_resource_id.created_by_principal_id.status = 'enabled'
+              AND actions CONTAINS $action AND capability_ids CONTAINS $capability
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE
+        OR array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
+        OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id
+        OR $actor_kind != $session.principal_id.actor_kind OR $actor_id != $session.principal_id.actor_id { RETURN false; };
+    IF $resource.resource_kind = 'workspace' AND $resource.external_resource_id = $wsids[0]
+        AND $capability = 'fs.write' AND $action = 'create'
+        AND (($event = 'KNOWLEDGE_LOOM_BLOCK_INDEXED'
+              AND $source = 'loom_block_knowledge_bridge' AND $aggregate = 'knowledge_loom_block'
+              AND $aggregate_id = $payload.entity_id AND $payload.type = 'knowledge_loom_block_indexed'
+              AND $payload.block_id != NONE AND $payload.content_type IN ['note', 'canvas']
+              AND type::record('loom_blocks', $payload.block_id).workspace_id = type::record('workspaces', $wsids[0])
+              AND type::record('loom_blocks', $payload.block_id).created_in_session_id = $session)
+             OR ($event = 'KNOWLEDGE_LOOM_CANVAS_BOARD_RECORDED'
+                 AND $source = 'loom_canvas_board' AND $aggregate = 'loom_canvas_board'
+                 AND $aggregate_id = $payload.block_id AND $payload.type = 'knowledge_loom_canvas_board_recorded'
+                 AND $payload.op = 'create' AND type::record('loom_blocks', $payload.block_id).workspace_id = type::record('workspaces', $wsids[0])
+                 AND type::record('loom_blocks', $payload.block_id).content_type = 'canvas'
+                 AND type::record('loom_blocks', $payload.block_id).created_in_session_id = $session)) {
+        RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+                AND fn::mt109_has_workspace_access($wsids[0], 'create', 'fs.write'))
+            OR (!$write AND fn::mt120_loom_block_access($payload.block_id, $wsids[0], 'read', 'fs.read'));
+    };
+    IF $resource.resource_kind != 'loom_block' OR $resource.external_resource_id != $payload.canvas_block_id
+        OR $capability != 'fs.write' OR $action != 'update'
+        OR $event != 'KNOWLEDGE_LOOM_CANVAS_BOARD_RECORDED' OR $source != 'loom_canvas_board'
+        OR $aggregate != 'loom_canvas_placement' OR $aggregate_id != $payload.placement_id
+        OR $payload.type NOT IN ['knowledge_loom_canvas_placement_recorded', 'knowledge_loom_canvas_placement_removed']
+        OR (($payload.type = 'knowledge_loom_canvas_placement_recorded' AND $payload.op != 'create')
+            OR ($payload.type = 'knowledge_loom_canvas_placement_removed' AND $payload.op != 'remove_placement'))
+        OR $payload.canvas_block_id = NONE OR $payload.placed_block_id = NONE
+        OR type::record('loom_blocks', $payload.canvas_block_id).workspace_id != type::record('workspaces', $wsids[0])
+        OR type::record('loom_blocks', $payload.canvas_block_id).content_type != 'canvas'
+        OR type::record('loom_blocks', $payload.placed_block_id).workspace_id != type::record('workspaces', $wsids[0]) { RETURN false; };
+    IF $write AND array::len(SELECT id FROM loom_canvas_placements WHERE placement_id = $payload.placement_id
+        AND workspace_id = type::record('workspaces', $wsids[0])
+        AND canvas_block_id = type::record('loom_canvas_boards', $payload.canvas_block_id)
+        AND placed_block_id = type::record('loom_blocks', $payload.placed_block_id)) != 1 { RETURN false; };
+    RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+            AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'update', 'fs.write')
+            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'))
+        OR (!$write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+            AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'update', 'fs.write')
+            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'))
+        OR (!$write AND fn::mt120_loom_block_access($payload.canvas_block_id, $wsids[0], 'read', 'fs.read')
+            AND fn::mt120_loom_block_access($payload.placed_block_id, $wsids[0], 'read', 'fs.read'));
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_document_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $document: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    RETURN fn::mt109_live_session() AND $resource != NONE AND $session != NONE
+        AND $resource.resource_kind = 'rich_document' AND $resource.external_resource_id = $document
+        AND $resource.owner_account_id = $auth.account_id AND $resource.access_space_id = $auth.access_space_id
+        AND array::len($wsids) = 1 AND $resource.parent_resource_id.external_resource_id = $wsids[0]
+        AND $capability = 'fs.write' AND $action IN ['create', 'update', 'delete']
+        AND $aggregate = 'knowledge_rich_document' AND $source = 'knowledge_documents_api'
+        AND $payload.workspace_id = $wsids[0]
+        AND $payload.minted_by_principal = record::id($session.principal_id)
+        AND $actor_kind = $session.principal_id.actor_kind AND $actor_id = $session.principal_id.actor_id
+        AND (($action IN ['create', 'update'] AND $event = 'KNOWLEDGE_RICH_DOCUMENT_SAVED' AND $payload.event IN ['created', 'saved', 'imported', 'embed_repair', 'renamed', 'moved', 'batch'])
+             OR ($action = 'update' AND $event = 'KNOWLEDGE_CRDT_RECOVERY_RECEIPT_RECORDED' AND $payload.event IN ['draft_saved', 'draft_cleared', 'draft_noop_cleared'])
+             OR ($action = 'delete' AND $event = 'KNOWLEDGE_RICH_DOCUMENT_DELETED' AND $payload.event = 'deleted'))
+        AND (($write AND $session = $auth.id
+                  AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+                  AND fn::mt120_document_access($document, $wsids[0], $action, 'fs.write'))
+             OR (!$write AND fn::mt120_document_access($document, $wsids[0], 'read', 'fs.read')));
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_workspace_state_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $workspace: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    RETURN fn::mt109_live_session() AND $resource != NONE AND $session != NONE
+        AND $resource.resource_kind = 'workspace' AND $resource.external_resource_id = $workspace
+        AND $resource.owner_account_id = $auth.account_id AND $resource.access_space_id = $auth.access_space_id
+        AND array::len($wsids) = 1 AND $wsids[0] = $workspace AND $payload.workspace_id = $workspace
+        AND $capability = 'fs.write' AND $action = 'update'
+        AND $actor_kind = $session.principal_id.actor_kind AND $actor_id = $session.principal_id.actor_id
+        AND (($event = 'KNOWLEDGE_WORKBENCH_LAYOUT_STATE_RECORDED' AND $source = 'workbench_layout_state' AND $aggregate = 'workbench_layout_state')
+          OR ($event = 'KNOWLEDGE_WORKSPACE_SETTINGS_STATE_RECORDED' AND $source = 'workspace_settings_state' AND $aggregate = 'workspace_settings_state')
+          OR ($event = 'KNOWLEDGE_WORKSPACE_SEARCH_BOOKMARK_STATE_RECORDED' AND $source = 'workspace_search_bookmark_state' AND $aggregate = 'workspace_search_bookmark_state'))
+        AND (($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+              AND fn::mt109_has_workspace_access($workspace, 'update', 'fs.write'))
+          OR (!$write AND fn::mt109_has_workspace_access($workspace, 'read', 'fs.read')));
+};
+-- MT120_DOCUMENT_ACCESS_END
+"#;
+const MT120_IDEMPOTENCY_BLOCK: &str = r#"-- MT120_IDEMPOTENCY_BEGIN
+DEFINE FIELD OVERWRITE rich_document_id ON TABLE knowledge_idempotency_keys TYPE option<record<knowledge_rich_documents>>;
+-- MT120_IDEMPOTENCY_END
+"#;
+const MT120_DOCUMENT_TABLE_UPGRADES: &[(&str, &str)] = &[
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_workspace_search_bookmark_states SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_workspace_search_bookmark_states SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND $before.workspace_id = $after.workspace_id
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_workspace_settings_states SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_workspace_settings_states SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND $before.workspace_id = $after.workspace_id
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_workbench_layout_states SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_workbench_layout_states SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND $before.workspace_id = $after.workspace_id
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE deleted_at = NONE AND fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id))
+                FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write')
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_document_versions SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_document_versions SCHEMAFULL
+    PERMISSIONS FOR select WHERE rich_document_id != NONE AND rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'read', 'fs.read')
+                FOR create WHERE rich_document_id != NONE AND rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write')
+                FOR update NONE
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_document_drafts SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_document_drafts SCHEMAFULL
+    PERMISSIONS FOR select WHERE rich_document_id != NONE AND rich_document_id.deleted_at = NONE AND workspace_id = rich_document_id.workspace_id AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'read', 'fs.read')
+                FOR create WHERE rich_document_id != NONE AND rich_document_id.deleted_at = NONE AND workspace_id = rich_document_id.workspace_id AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write')
+                FOR update WHERE rich_document_id != NONE AND rich_document_id.deleted_at = NONE AND workspace_id = rich_document_id.workspace_id AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write')
+                FOR delete WHERE rich_document_id != NONE AND rich_document_id.deleted_at = NONE AND workspace_id = rich_document_id.workspace_id AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write');"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_idempotency_keys SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_idempotency_keys SCHEMAFULL
+    PERMISSIONS FOR select WHERE operation_kind = 'rich_document_save' AND rich_document_id != NONE AND rich_document_id.workspace_id = workspace_id AND fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE operation_kind = 'rich_document_save' AND rich_document_id != NONE AND rich_document_id.workspace_id = workspace_id AND fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR update NONE
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL
+    PERMISSIONS FOR select WHERE (source_rich_document_id = NONE AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'workspace', record::id(workspace_id))) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'rich_document', record::id(source_rich_document_id)) AND fn::mt109_source_read('rich_document', record::id(source_rich_document_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256)
+                FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL
+    PERMISSIONS FOR select WHERE ((source_rich_document_id = NONE AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'workspace', record::id(workspace_id))) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'rich_document', record::id(source_rich_document_id)) AND fn::mt109_source_read('rich_document', record::id(source_rich_document_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256)) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'read', 'fs.read'))
+                FOR create WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND (fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_block_search_index SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE loom_block_search_index SCHEMAFULL
+    PERMISSIONS FOR select WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND (fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write');"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_document_backlinks SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_document_backlinks SCHEMAFULL
+    PERMISSIONS FOR select WHERE source_document_id.workspace_id = workspace_id AND link_kind = 'wikilink' AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'read', 'fs.read') AND fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE source_document_id.workspace_id = workspace_id AND link_kind = 'wikilink' AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read')
+                FOR update WHERE source_document_id.workspace_id = workspace_id AND link_kind = 'wikilink' AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read')
+                FOR delete WHERE source_document_id.workspace_id = workspace_id AND link_kind = 'wikilink' AND fn::mt120_document_access(record::id(source_document_id), record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(target, record::id(workspace_id), 'read', 'fs.read');"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_edges SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE loom_edges SCHEMAFULL
+    PERMISSIONS FOR select WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'read', 'fs.read') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR update WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR delete WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read');"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)
+                FOR create WHERE fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)
+                FOR update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)
+                FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(id), 'reconcile', 'memory.commit') FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fs.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(id), 'reconcile', 'memory.commit') FOR create, update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_document_title_anchors SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_document_title_anchors SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'read', 'fs.read')
+                FOR create, update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_document_embeds SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_document_embeds SCHEMAFULL
+    PERMISSIONS FOR select WHERE rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'read', 'fs.read')
+                FOR create WHERE rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write')
+                FOR update WHERE rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write') AND $before.rich_document_id = $after.rich_document_id
+                FOR delete WHERE rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(rich_document_id), record::id(rich_document_id.workspace_id), 'update', 'fs.write');"#,
+    ),
+    (
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_live_session() {
+    RETURN $auth != NONE
+        AND $auth.revoked_at = NONE
+        AND $auth.expires_at > time::now()
+        AND $auth.account_id.status = 'enabled'
+        AND $auth.principal_id.status = 'enabled'
+        AND $auth.access_space_id.status = 'active'
+        AND $auth.account_id.revocation_epoch = $auth.account_revocation_epoch
+        AND $auth.principal_id.revocation_epoch = $auth.principal_revocation_epoch
+        AND $auth.access_space_id.revocation_epoch = $auth.space_revocation_epoch
+        AND $auth.account_id.policy_version <= $auth.policy_version
+        AND $auth.principal_id.policy_version <= $auth.policy_version
+        AND $auth.access_space_id.policy_version <= $auth.policy_version;
+};"#,
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_live_session() {
+    RETURN $auth != NONE
+        AND $auth.revoked_at = NONE
+        AND $auth.expires_at > time::now()
+        AND $auth.account_id.status = 'enabled'
+        AND $auth.principal_id.status = 'enabled'
+        AND $auth.access_space_id.status = 'active'
+        AND $auth.principal_id.account_id = $auth.account_id
+        AND $auth.access_space_id.account_id = $auth.account_id
+        AND $auth.account_id.revocation_epoch = $auth.account_revocation_epoch
+        AND $auth.principal_id.revocation_epoch = $auth.principal_revocation_epoch
+        AND $auth.access_space_id.revocation_epoch = $auth.space_revocation_epoch
+        AND $auth.account_id.policy_version <= $auth.policy_version
+        AND $auth.principal_id.policy_version <= $auth.policy_version
+        AND $auth.access_space_id.policy_version <= $auth.policy_version;
+};"#,
+    ),
+    (
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, $action: string, $capability: string) {
+    RETURN fn::mt109_live_session()
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active'
+              AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id
+              AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.lifecycle_state = 'active'
+              AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = $kind
+              AND resource_id.external_resource_id = $external
+              AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
+              AND (actions CONTAINS $action)
+              AND (capability_ids CONTAINS $capability)
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, $action: string, $capability: string) {
+    RETURN fn::mt109_live_session()
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active'
+              AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id
+              AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.lifecycle_state = 'active'
+              AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.policy_version <= policy_version
+              AND policy_version <= $auth.policy_version
+              AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = $kind
+              AND resource_id.external_resource_id = $external
+              AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))
+              AND (actions CONTAINS $action)
+              AND (capability_ids CONTAINS $capability)
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+    ),
+    (
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $action: string, $capability: string) {
+    RETURN fn::mt109_live_session()
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active'
+              AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id
+              AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.lifecycle_state = 'active'
+              AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = 'workspace'
+              AND resource_id.external_resource_id = $external
+              AND (actions CONTAINS $action)
+              AND (capability_ids CONTAINS $capability)
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+        r#"DEFINE FUNCTION OVERWRITE fn::mt109_has_workspace_access($external: string, $action: string, $capability: string) {
+    RETURN fn::mt109_live_session()
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability))
+        AND array::len((SELECT id FROM resource_grants
+            WHERE status = 'active'
+              AND revoked_at = NONE
+              AND (expires_at = NONE OR expires_at > time::now())
+              AND account_id = $auth.account_id
+              AND principal_id = $auth.principal_id
+              AND access_space_id = $auth.access_space_id
+              AND resource_id.lifecycle_state = 'active'
+              AND resource_id.created_by_principal_id.status = 'enabled'
+              AND resource_id.policy_version <= policy_version
+              AND policy_version <= $auth.policy_version
+              AND resource_id.owner_account_id = $auth.account_id
+              AND resource_id.access_space_id = $auth.access_space_id
+              AND resource_id.resource_kind = 'workspace'
+              AND resource_id.external_resource_id = $external
+              AND (actions CONTAINS $action)
+              AND (capability_ids CONTAINS $capability)
+              AND delegation_chain = $auth.delegation_chain)) > 0;
+};"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE local_accounts TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE id = $auth.account_id FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE local_accounts TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE id = $auth.account_id FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.account_id AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.account_key = $after.account_key AND $before.account_role = $after.account_role AND $before.status = $after.status AND $before.revocation_epoch = $after.revocation_epoch AND $before.policy_version = $after.policy_version AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at AND $before.password_verifier = $after.password_verifier FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE principals TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE id = $auth.principal_id FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE principals TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE id = $auth.principal_id FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.principal_id AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.principal_key = $after.principal_key AND $before.account_id = $after.account_id AND $before.principal_kind = $after.principal_kind AND $before.actor_kind = $after.actor_kind AND $before.actor_id = $after.actor_id AND $before.capability_profile_id = $after.capability_profile_id AND $before.delegated_capabilities = $after.delegated_capabilities AND $before.status = $after.status AND $before.revocation_epoch = $after.revocation_epoch AND $before.policy_version = $after.policy_version AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE access_spaces TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND id = $auth.access_space_id FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE access_spaces TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND id = $auth.access_space_id FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.access_space_id AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.space_key = $after.space_key AND $before.account_id = $after.account_id AND $before.name = $after.name AND $before.status = $after.status AND $before.revocation_epoch = $after.revocation_epoch AND $before.policy_version = $after.policy_version AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE authenticated_sessions TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE id = $auth.id FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE authenticated_sessions TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE id = $auth.id FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.id AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.account_id = $after.account_id AND $before.principal_id = $after.principal_id AND $before.access_space_id = $after.access_space_id AND $before.token_hash = $after.token_hash AND $before.channel_binding_hash = $after.channel_binding_hash AND $before.authentication_strength = $after.authentication_strength AND $before.delegated_capabilities = $after.delegated_capabilities AND $before.delegation_chain = $after.delegation_chain AND $before.account_revocation_epoch = $after.account_revocation_epoch AND $before.principal_revocation_epoch = $after.principal_revocation_epoch AND $before.space_revocation_epoch = $after.space_revocation_epoch AND $before.policy_version = $after.policy_version AND $before.issued_at = $after.issued_at AND $before.expires_at = $after.expires_at AND $before.revoked_at = $after.revoked_at FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    lifecycle_state = 'active'
+    AND owner_account_id = $auth.account_id
+    AND access_space_id = $auth.access_space_id
+    AND owner_account_id.status = 'enabled'
+    AND created_by_principal_id.status = 'enabled'
+    AND access_space_id.status = 'active'
+    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
+  FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    lifecycle_state = 'active'
+    AND owner_account_id = $auth.account_id
+    AND access_space_id = $auth.access_space_id
+    AND owner_account_id.status = 'enabled'
+    AND created_by_principal_id.status = 'enabled'
+    AND access_space_id.status = 'active'
+    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
+  FOR create WHERE fn::mt120_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read') AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.resource_kind = $after.resource_kind AND $before.external_resource_id = $after.external_resource_id AND $before.owner_account_id = $after.owner_account_id AND $before.created_by_principal_id = $after.created_by_principal_id AND $before.created_in_session_id = $after.created_in_session_id AND $before.access_space_id = $after.access_space_id AND $before.parent_resource_id = $after.parent_resource_id AND $before.schema_version = $after.schema_version AND $before.lifecycle_state = $after.lifecycle_state AND $before.policy_version = $after.policy_version AND $before.classification = $after.classification AND $before.storage_locator_hash = $after.storage_locator_hash AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at AND $before.creator_grant_id = $after.creator_grant_id FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    status = 'active'
+    AND account_id = $auth.account_id
+    AND principal_id = $auth.principal_id
+    AND access_space_id = $auth.access_space_id,
+  FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    status = 'active'
+    AND account_id = $auth.account_id
+    AND principal_id = $auth.principal_id
+    AND access_space_id = $auth.access_space_id,
+  FOR create WHERE fn::mt120_creator_grant($this) FOR update WHERE fn::mt109_live_session() AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND policy_version <= $auth.policy_version AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.account_id = $after.account_id AND $before.principal_id = $after.principal_id AND $before.access_space_id = $after.access_space_id AND $before.resource_id = $after.resource_id AND $before.actions = $after.actions AND $before.capability_ids = $after.capability_ids AND $before.delegation_chain = $after.delegation_chain AND $before.status = $after.status AND $before.grant_version = $after.grant_version AND $before.policy_version = $after.policy_version AND $before.expires_at = $after.expires_at AND $before.revoked_at = $after.revoked_at AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;"#,
+        r#"DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS FOR select NONE FOR create WHERE fn::mt120_resource_create($this) FOR update NONE;"#,
+    ),
+    (
+        r#"DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources TYPE string ASSERT string::len($value) = 64 PERMISSIONS NONE;"#,
+        r#"DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources TYPE string ASSERT string::len($value) = 64 PERMISSIONS FOR select NONE FOR create WHERE fn::mt120_resource_create($this) FOR update NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fs.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(id), 'reconcile', 'memory.commit') FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE workspaces SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(id), 'read', 'fs.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'fr.read') OR fn::mt109_has_workspace_access(record::id(id), 'read', 'memory.read') OR fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + record::id(id), 'reconcile', 'memory.commit') FOR create WHERE fn::mt120_workspace_create(created_in_session_id) FOR update NONE FOR delete WHERE fn::mt120_workspace_delete(record::id(id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write')
+                FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND deleted_at = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write')
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    lifecycle_state = 'active'
+    AND owner_account_id = $auth.account_id
+    AND access_space_id = $auth.access_space_id
+    AND owner_account_id.status = 'enabled'
+    AND created_by_principal_id.status = 'enabled'
+    AND access_space_id.status = 'active'
+    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
+  FOR create WHERE fn::mt120_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read') AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.resource_kind = $after.resource_kind AND $before.external_resource_id = $after.external_resource_id AND $before.owner_account_id = $after.owner_account_id AND $before.created_by_principal_id = $after.created_by_principal_id AND $before.created_in_session_id = $after.created_in_session_id AND $before.access_space_id = $after.access_space_id AND $before.parent_resource_id = $after.parent_resource_id AND $before.schema_version = $after.schema_version AND $before.lifecycle_state = $after.lifecycle_state AND $before.policy_version = $after.policy_version AND $before.classification = $after.classification AND $before.storage_locator_hash = $after.storage_locator_hash AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at AND $before.creator_grant_id = $after.creator_grant_id FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    lifecycle_state = 'active'
+    AND owner_account_id = $auth.account_id
+    AND access_space_id = $auth.access_space_id
+    AND owner_account_id.status = 'enabled'
+    AND created_by_principal_id.status = 'enabled'
+    AND access_space_id.status = 'active'
+    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
+  FOR create WHERE fn::mt120_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read')) AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.resource_kind = $after.resource_kind AND $before.external_resource_id = $after.external_resource_id AND $before.owner_account_id = $after.owner_account_id AND $before.created_by_principal_id = $after.created_by_principal_id AND $before.created_in_session_id = $after.created_in_session_id AND $before.access_space_id = $after.access_space_id AND $before.parent_resource_id = $after.parent_resource_id AND $before.schema_version = $after.schema_version AND $before.lifecycle_state = $after.lifecycle_state AND $before.policy_version = $after.policy_version AND $before.classification = $after.classification AND $before.storage_locator_hash = $after.storage_locator_hash AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at AND $before.creator_grant_id = $after.creator_grant_id FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL
+    PERMISSIONS FOR select WHERE ((source_rich_document_id = NONE AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'workspace', record::id(workspace_id))) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'rich_document', record::id(source_rich_document_id)) AND fn::mt109_source_read('rich_document', record::id(source_rich_document_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256)) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'read', 'fs.read'))
+                FOR create WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND (fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL
+    PERMISSIONS FOR select WHERE ((source_rich_document_id = NONE AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'workspace', record::id(workspace_id))) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'rich_document', record::id(source_rich_document_id)) AND fn::mt109_source_read('rich_document', record::id(source_rich_document_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256)) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'read', 'fs.read'))
+                FOR create WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND (fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_edges SCHEMAFULL
+    PERMISSIONS FOR select WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'read', 'fs.read') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR update WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR delete WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read');"#,
+        r#"DEFINE TABLE OVERWRITE loom_edges SCHEMAFULL
+    PERMISSIONS FOR select WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'read', 'fs.read') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR update WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR delete WHERE source_document_id != NONE AND source_block_id.source_rich_document_id != NONE AND record::id(source_block_id.source_rich_document_id) = source_document_id AND source_block_id.workspace_id = workspace_id AND target_block_id.workspace_id = workspace_id AND target_block_id.source_rich_document_id != NONE AND edge_type = 'mention' AND last_actor_kind = 'SYSTEM' AND last_actor_id = 'knowledge_rich_document_backlink_projection' AND fn::mt120_document_access(source_document_id, record::id(workspace_id), 'update', 'fs.write') AND fn::mt120_document_access(record::id(target_block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read') OR fn::mt120_workspace_delete(record::id(workspace_id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_block_search_index SCHEMAFULL
+    PERMISSIONS FOR select WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND (fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write');"#,
+        r#"DEFINE TABLE OVERWRITE loom_block_search_index SCHEMAFULL
+    PERMISSIONS FOR select WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND (fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_workspace_delete(record::id(workspace_id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_block_view_fr_outbox SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE loom_block_view_fr_outbox SCHEMAFULL PERMISSIONS FOR select, create, update NONE FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_canvas_visual_edges SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE loom_canvas_visual_edges SCHEMAFULL PERMISSIONS FOR select, create, update NONE FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_canvas_placements SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE loom_canvas_placements SCHEMAFULL PERMISSIONS FOR select, create, update NONE FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE atelier_intake_item_loom_projection SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE atelier_intake_item_loom_projection SCHEMAFULL PERMISSIONS FOR select, create, update NONE FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND deleted_at = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write')
+                FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND deleted_at = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE (fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write') AND $before.deleted_at = $after.deleted_at AND $before.deleted_receipt_event_id = $after.deleted_receipt_event_id) OR (fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write') AND $before.deleted_at = NONE AND $after.deleted_at != NONE AND $after.deleted_receipt_event_id != NONE AND $before.rich_document_id = $after.rich_document_id AND $before.workspace_id = $after.workspace_id AND $before.document_id = $after.document_id AND $before.title = $after.title AND $before.schema_version = $after.schema_version AND $before.doc_version = $after.doc_version AND $before.content_json = $after.content_json AND $before.content_sha256 = $after.content_sha256 AND $before.crdt_document_id = $after.crdt_document_id AND $before.crdt_snapshot_id = $after.crdt_snapshot_id AND $before.promotion_receipt_event_id = $after.promotion_receipt_event_id AND $before.project_ref = $after.project_ref AND $before.folder_ref = $after.folder_ref AND $before.authority_label = $after.authority_label AND $before.owner_actor_kind = $after.owner_actor_kind AND $before.owner_actor_id = $after.owner_actor_id AND $before.created_at = $after.created_at AND $before.created_in_session_id = $after.created_in_session_id)
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND deleted_at = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE (fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write') AND $before.deleted_at = $after.deleted_at AND $before.deleted_receipt_event_id = $after.deleted_receipt_event_id) OR (fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write') AND $before.deleted_at = NONE AND $after.deleted_at != NONE AND $after.deleted_receipt_event_id != NONE AND $before.rich_document_id = $after.rich_document_id AND $before.workspace_id = $after.workspace_id AND $before.document_id = $after.document_id AND $before.title = $after.title AND $before.schema_version = $after.schema_version AND $before.doc_version = $after.doc_version AND $before.content_json = $after.content_json AND $before.content_sha256 = $after.content_sha256 AND $before.crdt_document_id = $after.crdt_document_id AND $before.crdt_snapshot_id = $after.crdt_snapshot_id AND $before.promotion_receipt_event_id = $after.promotion_receipt_event_id AND $before.project_ref = $after.project_ref AND $before.folder_ref = $after.folder_ref AND $before.authority_label = $after.authority_label AND $before.owner_actor_kind = $after.owner_actor_kind AND $before.owner_actor_id = $after.owner_actor_id AND $before.created_at = $after.created_at AND $before.created_in_session_id = $after.created_in_session_id)
+                FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND deleted_at = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE (fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write') AND $before.deleted_at = $after.deleted_at AND $before.deleted_receipt_event_id = $after.deleted_receipt_event_id) OR (fn::mt120_document_delete(rich_document_id, record::id(workspace_id)) AND $before.deleted_at = NONE AND $after.deleted_at != NONE AND $after.deleted_receipt_event_id != NONE AND $before.rich_document_id = $after.rich_document_id AND $before.workspace_id = $after.workspace_id AND $before.document_id = $after.document_id AND $before.title = $after.title AND $before.schema_version = $after.schema_version AND $before.doc_version = $after.doc_version AND $before.content_json = $after.content_json AND $before.content_sha256 = $after.content_sha256 AND $before.crdt_document_id = $after.crdt_document_id AND $before.crdt_snapshot_id = $after.crdt_snapshot_id AND $before.promotion_receipt_event_id = $after.promotion_receipt_event_id AND $before.project_ref = $after.project_ref AND $before.folder_ref = $after.folder_ref AND $before.authority_label = $after.authority_label AND $before.owner_actor_kind = $after.owner_actor_kind AND $before.owner_actor_id = $after.owner_actor_id AND $before.created_at = $after.created_at AND $before.created_in_session_id = $after.created_in_session_id)
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL
+    PERMISSIONS FOR select WHERE ((source_rich_document_id = NONE AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'workspace', record::id(workspace_id))) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'rich_document', record::id(source_rich_document_id)) AND fn::mt109_source_read('rich_document', record::id(source_rich_document_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256)) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'read', 'fs.read'))
+                FOR create WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND (fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id));"#,
+        r#"DEFINE TABLE OVERWRITE loom_blocks SCHEMAFULL
+    PERMISSIONS FOR select WHERE ((source_rich_document_id = NONE AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'workspace', record::id(workspace_id))) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND fn::mt109_source_read('loom_block', block_id, record::id(workspace_id), 'rich_document', record::id(source_rich_document_id)) AND fn::mt109_source_read('rich_document', record::id(source_rich_document_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256)) OR (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'read', 'fs.read'))
+                FOR create WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND (fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND source_rich_document_id.workspace_id = workspace_id AND content_type = 'note' AND fn::mt120_document_delete(block_id, record::id(workspace_id))) OR fn::mt120_workspace_delete(record::id(workspace_id));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE loom_block_search_index SCHEMAFULL
+    PERMISSIONS FOR select WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND (fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_workspace_delete(record::id(workspace_id));"#,
+        r#"DEFINE TABLE OVERWRITE loom_block_search_index SCHEMAFULL
+    PERMISSIONS FOR select WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND (fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'create', 'fs.write') OR fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND block_id.source_rich_document_id.workspace_id = workspace_id AND block_id.source_rich_document_id.deleted_at = NONE AND fn::mt120_document_access(record::id(block_id.source_rich_document_id), record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_workspace_delete(record::id(workspace_id)) OR (block_id.source_rich_document_id != NONE AND block_id.workspace_id = workspace_id AND fn::mt120_document_delete(record::id(block_id.source_rich_document_id), record::id(workspace_id)));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_document_title_anchors SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'read', 'fs.read')
+                FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_document_title_anchors SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE (fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'delete', 'fs.write')) FOR update WHERE (fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'delete', 'fs.write')) AND $before.workspace_id = $after.workspace_id AND $before.title_key = $after.title_key AND $before.anchor_key = $after.anchor_key FOR delete WHERE (fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_document_access(last_rich_document_id, record::id(workspace_id), 'delete', 'fs.write'));"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_spans SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_source_read(source_id, source_id.workspace_id) FOR create, update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_entities SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_entities SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_entity_read(id) FOR create, update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_entity_spans SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_entity_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_entity_read(entity_id) AND fn::mt120_index_source_read(span_id.source_id, entity_id.workspace_id) FOR create, update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_edges SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_edges SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_edge_read(id) FOR create, update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_edge_spans SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_edge_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_edge_read(edge_id) AND fn::mt120_index_source_read(span_id.source_id, edge_id.workspace_id) FOR create, update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)
+                FOR update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true)
+                FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true)
+                FOR update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true)
+                FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_agent_quiet_background_work SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_agent_quiet_background_work SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_nav_quiet_row($this, false) FOR create WHERE fn::mt120_nav_quiet_row($this, true) FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    status = 'active'
+    AND account_id = $auth.account_id
+    AND principal_id = $auth.principal_id
+    AND access_space_id = $auth.access_space_id,
+  FOR create WHERE fn::mt120_creator_grant($this) FOR update WHERE fn::mt109_live_session() AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND policy_version <= $auth.policy_version AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.account_id = $after.account_id AND $before.principal_id = $after.principal_id AND $before.access_space_id = $after.access_space_id AND $before.resource_id = $after.resource_id AND $before.actions = $after.actions AND $before.capability_ids = $after.capability_ids AND $before.delegation_chain = $after.delegation_chain AND $before.status = $after.status AND $before.grant_version = $after.grant_version AND $before.policy_version = $after.policy_version AND $before.expires_at = $after.expires_at AND $before.revoked_at = $after.revoked_at AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    status = 'active'
+    AND account_id = $auth.account_id
+    AND principal_id = $auth.principal_id
+    AND access_space_id = $auth.access_space_id,
+  FOR create WHERE fn::mt120_creator_grant($this) FOR update WHERE fn::mt109_live_session() AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND policy_version <= $auth.policy_version  AND delegation_chain = $auth.delegation_chain AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled' AND resource_id.policy_version <= policy_version AND ((capability_ids CONTAINS 'fs.write' AND (actions CONTAINS 'create' OR actions CONTAINS 'update' OR actions CONTAINS 'delete') AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write')) OR (capability_ids CONTAINS 'fr.read' AND actions CONTAINS 'read' AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fr.read') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fr.read'))) AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.account_id = $after.account_id AND $before.principal_id = $after.principal_id AND $before.access_space_id = $after.access_space_id AND $before.resource_id = $after.resource_id AND $before.actions = $after.actions AND $before.capability_ids = $after.capability_ids AND $before.delegation_chain = $after.delegation_chain AND $before.status = $after.status AND $before.grant_version = $after.grant_version AND $before.policy_version = $after.policy_version AND $before.expires_at = $after.expires_at AND $before.revoked_at = $after.revoked_at AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND deleted_at = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE (fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write') AND $before.deleted_at = $after.deleted_at AND $before.deleted_receipt_event_id = $after.deleted_receipt_event_id) OR (fn::mt120_document_delete(rich_document_id, record::id(workspace_id)) AND $before.deleted_at = NONE AND $after.deleted_at != NONE AND $after.deleted_receipt_event_id != NONE AND $before.rich_document_id = $after.rich_document_id AND $before.workspace_id = $after.workspace_id AND $before.document_id = $after.document_id AND $before.title = $after.title AND $before.schema_version = $after.schema_version AND $before.doc_version = $after.doc_version AND $before.content_json = $after.content_json AND $before.content_sha256 = $after.content_sha256 AND $before.crdt_document_id = $after.crdt_document_id AND $before.crdt_snapshot_id = $after.crdt_snapshot_id AND $before.promotion_receipt_event_id = $after.promotion_receipt_event_id AND $before.project_ref = $after.project_ref AND $before.folder_ref = $after.folder_ref AND $before.authority_label = $after.authority_label AND $before.owner_actor_kind = $after.owner_actor_kind AND $before.owner_actor_id = $after.owner_actor_id AND $before.created_at = $after.created_at AND $before.created_in_session_id = $after.created_in_session_id)
+                FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
+    PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND deleted_at = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE (fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write') AND $before.deleted_at = NONE AND $after.deleted_at = NONE AND $before.deleted_receipt_event_id = $after.deleted_receipt_event_id) OR (fn::mt120_document_delete(rich_document_id, record::id(workspace_id)) AND $before.deleted_at = NONE AND $after.deleted_at != NONE AND $after.deleted_receipt_event_id != NONE AND $after.deleted_receipt_event_id.event_type = 'KNOWLEDGE_RICH_DOCUMENT_DELETED' AND $after.deleted_receipt_event_id.aggregate_id = rich_document_id AND $after.deleted_receipt_event_id.authority_session_id = $auth.id AND array::len($after.projection_refs) = array::len($before.projection_refs) + 1 AND array::slice($after.projection_refs, 0, array::len($before.projection_refs)) = $before.projection_refs AND $before.rich_document_id = $after.rich_document_id AND $before.workspace_id = $after.workspace_id AND $before.document_id = $after.document_id AND $before.title = $after.title AND $before.schema_version = $after.schema_version AND $before.doc_version = $after.doc_version AND $before.content_json = $after.content_json AND $before.content_sha256 = $after.content_sha256 AND $before.crdt_document_id = $after.crdt_document_id AND $before.crdt_snapshot_id = $after.crdt_snapshot_id AND $before.promotion_receipt_event_id = $after.promotion_receipt_event_id AND $before.project_ref = $after.project_ref AND $before.folder_ref = $after.folder_ref AND $before.authority_label = $after.authority_label AND $before.owner_actor_kind = $after.owner_actor_kind AND $before.owner_actor_id = $after.owner_actor_id AND $before.created_at = $after.created_at AND $before.created_in_session_id = $after.created_in_session_id)
+                FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_sources SCHEMAFULL
+    PERMISSIONS FOR select WHERE source_kind = 'file' AND fn::mt109_source_read('knowledge_source', source_id, record::id(workspace_id), 'workspace', record::id(workspace_id))
+                FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_sources SCHEMAFULL
+    PERMISSIONS FOR select WHERE source_kind = 'file' AND fn::mt109_source_read('knowledge_source', source_id, record::id(workspace_id), 'workspace', record::id(workspace_id))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND source_kind = 'file' AND (root_id = NONE OR root_id.workspace_id = workspace_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') FOR update WHERE fn::mt109_has_grant('knowledge_source', source_id, 'update', 'memory.propose') AND $before.source_id = $after.source_id AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.source_kind = $after.source_kind AND $before.relative_path = $after.relative_path FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_code_files SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_source_read('knowledge_code_file', code_file_id, record::id(workspace_id), 'knowledge_source', record::id(source_id)) AND fn::mt109_source_read('knowledge_source', record::id(source_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_id.workspace_id = workspace_id AND source_id.source_kind = 'file'
+                FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_code_files SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_source_read('knowledge_code_file', code_file_id, record::id(workspace_id), 'knowledge_source', record::id(source_id)) AND fn::mt109_source_read('knowledge_source', record::id(source_id), record::id(workspace_id), 'workspace', record::id(workspace_id)) AND source_id.workspace_id = workspace_id AND source_id.source_kind = 'file'
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND source_id.workspace_id = workspace_id AND source_id.source_kind = 'file' AND fn::mt109_has_grant('knowledge_source', record::id(source_id), 'create', 'memory.propose') FOR update WHERE fn::mt109_has_grant('knowledge_code_file', code_file_id, 'update', 'memory.propose') AND $before.code_file_id = $after.code_file_id AND $before.workspace_id = $after.workspace_id AND $before.source_id = $after.source_id FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    lifecycle_state = 'active'
+    AND owner_account_id = $auth.account_id
+    AND access_space_id = $auth.access_space_id
+    AND owner_account_id.status = 'enabled'
+    AND created_by_principal_id.status = 'enabled'
+    AND access_space_id.status = 'active'
+    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
+  FOR create WHERE fn::mt120_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read')) AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.resource_kind = $after.resource_kind AND $before.external_resource_id = $after.external_resource_id AND $before.owner_account_id = $after.owner_account_id AND $before.created_by_principal_id = $after.created_by_principal_id AND $before.created_in_session_id = $after.created_in_session_id AND $before.access_space_id = $after.access_space_id AND $before.parent_resource_id = $after.parent_resource_id AND $before.schema_version = $after.schema_version AND $before.lifecycle_state = $after.lifecycle_state AND $before.policy_version = $after.policy_version AND $before.classification = $after.classification AND $before.storage_locator_hash = $after.storage_locator_hash AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at AND $before.creator_grant_id = $after.creator_grant_id FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    lifecycle_state = 'active'
+    AND owner_account_id = $auth.account_id
+    AND access_space_id = $auth.access_space_id
+    AND owner_account_id.status = 'enabled'
+    AND created_by_principal_id.status = 'enabled'
+    AND access_space_id.status = 'active'
+    AND array::len((SELECT id FROM resource_grants WHERE resource_id = $parent.id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id)) > 0,
+  FOR create WHERE fn::mt120_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'memory.propose')) AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.resource_kind = $after.resource_kind AND $before.external_resource_id = $after.external_resource_id AND $before.owner_account_id = $after.owner_account_id AND $before.created_by_principal_id = $after.created_by_principal_id AND $before.created_in_session_id = $after.created_in_session_id AND $before.access_space_id = $after.access_space_id AND $before.parent_resource_id = $after.parent_resource_id AND $before.schema_version = $after.schema_version AND $before.lifecycle_state = $after.lifecycle_state AND $before.policy_version = $after.policy_version AND $before.classification = $after.classification AND $before.storage_locator_hash = $after.storage_locator_hash AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at AND $before.creator_grant_id = $after.creator_grant_id FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    status = 'active'
+    AND account_id = $auth.account_id
+    AND principal_id = $auth.principal_id
+    AND access_space_id = $auth.access_space_id,
+  FOR create WHERE fn::mt120_creator_grant($this) FOR update WHERE fn::mt109_live_session() AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND policy_version <= $auth.policy_version  AND delegation_chain = $auth.delegation_chain AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled' AND resource_id.policy_version <= policy_version AND ((capability_ids CONTAINS 'fs.write' AND (actions CONTAINS 'create' OR actions CONTAINS 'update' OR actions CONTAINS 'delete') AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write')) OR (capability_ids CONTAINS 'fr.read' AND actions CONTAINS 'read' AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fr.read') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fr.read'))) AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.account_id = $after.account_id AND $before.principal_id = $after.principal_id AND $before.access_space_id = $after.access_space_id AND $before.resource_id = $after.resource_id AND $before.actions = $after.actions AND $before.capability_ids = $after.capability_ids AND $before.delegation_chain = $after.delegation_chain AND $before.status = $after.status AND $before.grant_version = $after.grant_version AND $before.policy_version = $after.policy_version AND $before.expires_at = $after.expires_at AND $before.revoked_at = $after.revoked_at AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
+  PERMISSIONS FOR select WHERE
+    status = 'active'
+    AND account_id = $auth.account_id
+    AND principal_id = $auth.principal_id
+    AND access_space_id = $auth.access_space_id,
+  FOR create WHERE fn::mt120_creator_grant($this) FOR update WHERE fn::mt109_live_session() AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND policy_version <= $auth.policy_version  AND delegation_chain = $auth.delegation_chain AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled' AND resource_id.policy_version <= policy_version AND ((capability_ids CONTAINS 'fs.write' AND (actions CONTAINS 'create' OR actions CONTAINS 'update' OR actions CONTAINS 'delete') AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write')) OR (capability_ids CONTAINS 'memory.propose' AND (actions CONTAINS 'create' OR actions CONTAINS 'update' OR actions CONTAINS 'delete') AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'memory.propose') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'memory.propose')) OR (capability_ids CONTAINS 'fr.read' AND actions CONTAINS 'read' AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fr.read') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fr.read'))) AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1 AND $before.account_id = $after.account_id AND $before.principal_id = $after.principal_id AND $before.access_space_id = $after.access_space_id AND $before.resource_id = $after.resource_id AND $before.actions = $after.actions AND $before.capability_ids = $after.capability_ids AND $before.delegation_chain = $after.delegation_chain AND $before.status = $after.status AND $before.grant_version = $after.grant_version AND $before.policy_version = $after.policy_version AND $before.expires_at = $after.expires_at AND $before.revoked_at = $after.revoked_at AND $before.created_at = $after.created_at AND $before.updated_at = $after.updated_at FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_source_roots SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_source_roots SCHEMAFULL PERMISSIONS FOR select WHERE created_in_session_id != NONE AND created_in_session_id.account_id = $auth.account_id AND created_in_session_id.access_space_id = $auth.access_space_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'memory.read') FOR create WHERE created_in_session_id = $auth.id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') FOR update WHERE created_in_session_id != NONE AND created_in_session_id.account_id = $auth.account_id AND created_in_session_id.access_space_id = $auth.access_space_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'memory.propose') AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.repo_relative_path = $after.repo_relative_path FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_index_runs SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_index_runs SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_run_access($this, false) FOR create WHERE created_in_session_id = $auth.id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') AND fn::mt120_index_run_access($this, true) AND actor_id = $auth.principal_id.actor_id AND actor_kind = $auth.principal_id.actor_kind AND start_receipt_event_id.authority_session_id = $auth.id FOR update WHERE fn::mt120_index_run_access($before, true) AND fn::mt120_index_run_access($after, true) AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.actor_id = $after.actor_id AND $before.actor_kind = $after.actor_kind AND $before.start_receipt_event_id = $after.start_receipt_event_id FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_source_read(source_id, source_id.workspace_id) FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_source_read(source_id, source_id.workspace_id) FOR create WHERE fn::mt120_index_source_write(source_id, source_id.workspace_id) FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_entities SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_entity_read(id) FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_entities SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_entity_read(id) FOR create WHERE fn::mt120_entity_write(id, primary_source_id, workspace_id) FOR update WHERE fn::mt120_entity_write(id, primary_source_id, workspace_id) AND fn::mt120_entity_write($before.id, $before.primary_source_id, $before.workspace_id) AND $before.workspace_id = $after.workspace_id AND $before.entity_kind = $after.entity_kind AND $before.entity_key = $after.entity_key FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_entity_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_entity_read(entity_id) AND fn::mt120_index_source_read(span_id.source_id, entity_id.workspace_id) FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_entity_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_entity_read(entity_id) AND fn::mt120_index_source_read(span_id.source_id, entity_id.workspace_id) FOR create, delete WHERE fn::mt120_entity_write(entity_id, entity_id.primary_source_id, entity_id.workspace_id) AND fn::mt120_index_source_write(span_id.source_id, entity_id.workspace_id) FOR update NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_edges SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_edge_read(id) FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_edges SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_edge_read(id) FOR create WHERE fn::mt120_edge_write(id, source_entity_id, target_entity_id, workspace_id) FOR update WHERE fn::mt120_edge_write(id, source_entity_id, target_entity_id, workspace_id) AND $before.workspace_id = $after.workspace_id AND $before.source_entity_id = $after.source_entity_id AND $before.target_entity_id = $after.target_entity_id AND $before.relationship_id = $after.relationship_id FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_edge_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_edge_read(edge_id) AND fn::mt120_index_source_read(span_id.source_id, edge_id.workspace_id) FOR create, update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_edge_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_edge_read(edge_id) AND fn::mt120_index_source_read(span_id.source_id, edge_id.workspace_id) FOR create, delete WHERE fn::mt120_edge_write(edge_id, edge_id.source_entity_id, edge_id.target_entity_id, edge_id.workspace_id) AND fn::mt120_index_source_write(span_id.source_id, edge_id.workspace_id) FOR update NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_receipts SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_receipts SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_source_read(source_id, workspace_id) FOR create WHERE fn::mt120_index_source_write(source_id, workspace_id) AND receipt_event_id != NONE AND receipt_event_id.authority_session_id = $auth.id AND receipt_event_id.payload.workspace_id = record::id(workspace_id) FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_spans SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_source_read(source_id, workspace_id) AND receipt_id.source_id = source_id AND receipt_id.workspace_id = workspace_id FOR create WHERE fn::mt120_index_source_write(source_id, workspace_id) AND receipt_id.source_id = source_id AND receipt_id.workspace_id = workspace_id FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_repair_queue SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_repair_queue SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_source_read(source_id, workspace_id) FOR create WHERE fn::mt120_index_source_write(source_id, workspace_id) FOR update WHERE fn::mt120_index_source_write(source_id, workspace_id) AND $before.workspace_id = $after.workspace_id AND $before.source_id = $after.source_id FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_code_repair_queue SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_code_repair_queue SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_source_read(source_id, workspace_id) FOR create WHERE fn::mt120_index_source_write(source_id, workspace_id) FOR update WHERE fn::mt120_index_source_write(source_id, workspace_id) AND $before.workspace_id = $after.workspace_id AND $before.source_id = $after.source_id FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_root_policies SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_root_policies SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') FOR create, update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_policy_decisions SCHEMAFULL PERMISSIONS NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_ingestion_policy_decisions SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'memory.read') AND receipt_event_id.authority_session_id.account_id = $auth.account_id AND receipt_event_id.authority_session_id.access_space_id = $auth.access_space_id FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') AND receipt_event_id.authority_session_id = $auth.id AND receipt_event_id.source_component = 'knowledge_ingestion' AND receipt_event_id.payload.kind = 'root_registration_policy_decision' AND receipt_event_id.payload.workspace_id = record::id(workspace_id) AND receipt_event_id.payload.candidate_path = candidate_path AND receipt_event_id.payload.verdict = verdict AND actor_id = $auth.principal_id.actor_id AND actor_kind = $auth.principal_id.actor_kind FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true)
+                FOR update, delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true)
+                FOR update, delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_sources SCHEMAFULL
+    PERMISSIONS FOR select WHERE source_kind = 'file' AND fn::mt109_source_read('knowledge_source', source_id, record::id(workspace_id), 'workspace', record::id(workspace_id))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND source_kind = 'file' AND (root_id = NONE OR root_id.workspace_id = workspace_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') FOR update WHERE fn::mt109_has_grant('knowledge_source', source_id, 'update', 'memory.propose') AND $before.source_id = $after.source_id AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.source_kind = $after.source_kind AND $before.relative_path = $after.relative_path FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_sources SCHEMAFULL
+    PERMISSIONS FOR select WHERE source_kind = 'file' AND fn::mt109_source_read('knowledge_source', source_id, record::id(workspace_id), 'workspace', record::id(workspace_id))
+                FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND source_kind = 'file' AND (root_id = NONE OR (root_id.workspace_id = workspace_id AND root_id.created_in_session_id != NONE AND root_id.created_in_session_id.account_id = $auth.account_id AND root_id.created_in_session_id.access_space_id = $auth.access_space_id)) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') FOR update WHERE fn::mt109_has_grant('knowledge_source', source_id, 'update', 'memory.propose') AND $before.source_id = $after.source_id AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.source_kind = $after.source_kind AND $before.relative_path = $after.relative_path FOR delete NONE;"#,
+    ),
+    (
+        r#"DEFINE TABLE OVERWRITE knowledge_index_runs SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_run_access($this, false) FOR create WHERE created_in_session_id = $auth.id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') AND fn::mt120_index_run_access($this, true) AND actor_id = $auth.principal_id.actor_id AND actor_kind = $auth.principal_id.actor_kind AND start_receipt_event_id.authority_session_id = $auth.id FOR update WHERE fn::mt120_index_run_access($before, true) AND fn::mt120_index_run_access($after, true) AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.actor_id = $after.actor_id AND $before.actor_kind = $after.actor_kind AND $before.start_receipt_event_id = $after.start_receipt_event_id FOR delete NONE;"#,
+        r#"DEFINE TABLE OVERWRITE knowledge_index_runs SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_index_run_access($this, false) FOR create WHERE created_in_session_id = $auth.id AND (root_id = NONE OR (root_id.workspace_id = workspace_id AND root_id.created_in_session_id != NONE AND root_id.created_in_session_id.account_id = $auth.account_id AND root_id.created_in_session_id.access_space_id = $auth.access_space_id)) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'memory.propose') AND fn::mt120_index_run_access($this, true) AND actor_id = $auth.principal_id.actor_id AND actor_kind = $auth.principal_id.actor_kind AND start_receipt_event_id.authority_session_id = $auth.id FOR update WHERE fn::mt120_index_run_access($before, true) AND fn::mt120_index_run_access($after, true) AND $before.workspace_id = $after.workspace_id AND $before.root_id = $after.root_id AND $before.actor_id = $after.actor_id AND $before.actor_kind = $after.actor_kind AND $before.start_receipt_event_id = $after.start_receipt_event_id FOR delete NONE;"#,
+    ),
+];
+const RECORD_USER_PRODUCER_BLOCK: &str = r#"-- RECORD_USER_PRODUCER_BEGIN
+DEFINE FIELD OVERWRITE created_in_session_id ON TABLE knowledge_sources TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE created_in_session_id ON TABLE knowledge_code_files TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE created_in_session_id ON TABLE workspaces TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE created_in_session_id ON TABLE knowledge_rich_documents TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE creator_grant_id ON TABLE protected_resources TYPE option<record<resource_grants>> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE authenticated_sessions TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE local_accounts TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE principals TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE access_spaces TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE protected_resources TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE resource_grants TYPE int DEFAULT 0 ASSERT $value >= 0;
+DEFINE FUNCTION OVERWRITE fn::mt120_workspace_create($session: option<record<authenticated_sessions>>) {
+    RETURN fn::mt109_live_session() AND $session = $auth.id
+        AND $auth.account_id.account_role = 'Owner'
+        AND $auth.principal_id.principal_kind = 'human_account'
+        AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write')
+        AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write');
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_resource_create($row: object) {
+    IF !fn::mt109_live_session() OR $row.created_in_session_id != $auth.id
+        OR $row.owner_account_id != $auth.account_id OR $row.created_by_principal_id != $auth.principal_id
+        OR $row.access_space_id != $auth.access_space_id OR $row.lifecycle_state != 'active'
+        OR $row.classification != 'account_private' OR $row.schema_version != 1
+        OR $row.policy_version != $auth.policy_version OR $row.creator_grant_id = NONE
+        OR record::exists($row.creator_grant_id) { RETURN false; };
+    IF $row.resource_kind = 'workspace' {
+        RETURN fn::mt120_workspace_create($row.created_in_session_id)
+            AND $row.parent_resource_id = NONE
+            AND type::record('workspaces', $row.external_resource_id).created_in_session_id = $auth.id;
+    };
+    IF $row.resource_kind = 'rich_document' {
+        LET $doc = type::record('knowledge_rich_documents', $row.external_resource_id);
+        RETURN $doc.created_in_session_id = $auth.id
+            AND $row.parent_resource_id.resource_kind = 'workspace'
+            AND $row.parent_resource_id.external_resource_id = record::id($doc.workspace_id)
+            AND $row.parent_resource_id.owner_account_id = $auth.account_id
+            AND $row.parent_resource_id.access_space_id = $auth.access_space_id
+            AND fn::mt109_has_workspace_access(record::id($doc.workspace_id), 'create', 'fs.write');
+    };
+    IF $row.resource_kind = 'loom_block' {
+        LET $block = type::record('loom_blocks', $row.external_resource_id);
+        RETURN $block.created_in_session_id = $auth.id AND $block.source_rich_document_id = NONE
+            AND $block.content_type IN ['note', 'canvas']
+            AND $row.parent_resource_id.resource_kind = 'workspace'
+            AND $row.parent_resource_id.external_resource_id = record::id($block.workspace_id)
+            AND $row.parent_resource_id.owner_account_id = $auth.account_id
+            AND $row.parent_resource_id.access_space_id = $auth.access_space_id
+            AND fn::mt109_has_workspace_access(record::id($block.workspace_id), 'create', 'fs.write');
+    };
+    IF $row.resource_kind = 'knowledge_source' {
+        LET $source = type::record('knowledge_sources', $row.external_resource_id);
+        RETURN $source.created_in_session_id = $auth.id AND $source.source_kind = 'file'
+            AND $row.parent_resource_id.resource_kind = 'workspace'
+            AND $row.parent_resource_id.external_resource_id = record::id($source.workspace_id)
+            AND $row.parent_resource_id.owner_account_id = $auth.account_id
+            AND $row.parent_resource_id.access_space_id = $auth.access_space_id
+            AND fn::mt109_has_workspace_access(record::id($source.workspace_id), 'create', 'memory.propose');
+    };
+    IF $row.resource_kind = 'knowledge_code_file' {
+        LET $file = type::record('knowledge_code_files', $row.external_resource_id);
+        RETURN $file.created_in_session_id = $auth.id AND $file.source_id.workspace_id = $file.workspace_id
+            AND $file.source_id.source_kind = 'file' AND $row.parent_resource_id.resource_kind = 'knowledge_source'
+            AND $row.parent_resource_id.external_resource_id = record::id($file.source_id)
+            AND $row.parent_resource_id.owner_account_id = $auth.account_id
+            AND $row.parent_resource_id.access_space_id = $auth.access_space_id
+            AND fn::mt109_has_grant('knowledge_source', record::id($file.source_id), 'create', 'memory.propose');
+    };
+    RETURN $row.resource_kind = 'flight_recorder'
+        AND $row.parent_resource_id.resource_kind = 'workspace'
+        AND $row.parent_resource_id.created_in_session_id = $auth.id
+        AND $row.parent_resource_id.owner_account_id = $auth.account_id
+        AND $row.parent_resource_id.access_space_id = $auth.access_space_id
+        AND $row.parent_resource_id.external_resource_id = $row.external_resource_id
+        AND type::record('workspaces', $row.external_resource_id).created_in_session_id = $auth.id;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_creator_grant($row: object) {
+    RETURN fn::mt109_live_session() AND $row.id = $row.resource_id.creator_grant_id
+        AND $row.resource_id.created_in_session_id = $auth.id
+        AND $row.resource_id.owner_account_id = $auth.account_id
+        AND $row.resource_id.created_by_principal_id = $auth.principal_id
+        AND $row.resource_id.access_space_id = $auth.access_space_id
+        AND $row.resource_id.lifecycle_state = 'active'
+        AND $row.account_id = $auth.account_id AND $row.principal_id = $auth.principal_id
+        AND $row.access_space_id = $auth.access_space_id AND $row.delegation_chain = $auth.delegation_chain
+        AND $row.status = 'active' AND $row.grant_version = 1
+        AND $row.revoked_at = NONE AND $row.expires_at = NONE
+        AND $row.resource_id.policy_version <= $row.policy_version AND $row.policy_version <= $auth.policy_version
+        AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINSALL $row.capability_ids)
+        AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINSALL $row.capability_ids)
+        AND (($row.resource_id.resource_kind = 'workspace'
+             AND ['create','read','update','delete'] CONTAINSALL $row.actions
+             AND ['fs.read','fs.write','fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose'] CONTAINSALL $row.capability_ids)
+          OR ($row.resource_id.resource_kind = 'rich_document' AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['fs.read','fs.write'] CONTAINSALL $row.capability_ids)
+          OR ($row.resource_id.resource_kind = 'loom_block' AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['fs.read','fs.write'] CONTAINSALL $row.capability_ids)
+          OR ($row.resource_id.resource_kind IN ['knowledge_source','knowledge_code_file'] AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['memory.read','memory.propose','fs.write'] CONTAINSALL $row.capability_ids AND ((!(($row.actions CONTAINS 'delete') OR ($row.capability_ids CONTAINS 'fs.write'))) OR (($row.capability_ids CONTAINS 'fs.write') AND fn::mt109_has_grant($row.resource_id.parent_resource_id.resource_kind, $row.resource_id.parent_resource_id.external_resource_id, 'delete', 'fs.write'))))
+          OR ($row.resource_id.resource_kind = 'flight_recorder' AND ['create','read'] CONTAINSALL $row.actions
+             AND ['fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor'] CONTAINSALL $row.capability_ids));
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_workspace_delete($external: string) {
+    IF !fn::mt109_has_workspace_access($external, 'delete', 'fs.write') { RETURN false; };
+    LET $workspace = type::record('workspaces', $external);
+    LET $account = $auth.account_id;
+    LET $principal = $auth.principal_id;
+    LET $space = $auth.access_space_id;
+    LET $live = $auth;
+    LET $resource = (SELECT VALUE id FROM protected_resources WHERE resource_kind = 'workspace'
+        AND external_resource_id = $external AND owner_account_id = $account AND access_space_id = $space
+        AND lifecycle_state = 'active')[0];
+    IF $resource = NONE OR !record::exists($workspace) { RETURN false; };
+LET $resources = SELECT * FROM protected_resources WHERE id = $resource
+    OR parent_resource_id = $resource OR parent_resource_id.parent_resource_id = $resource;
+FOR $owned IN $resources {
+    IF $owned.owner_account_id != $account OR $owned.access_space_id != $space { RETURN false; };
+    IF $owned.policy_version > $live.policy_version OR $owned.created_by_principal_id.status != 'enabled'
+        OR $owned.lifecycle_state != 'active' { RETURN false; };
+    IF $owned.resource_kind != 'flight_recorder' {
+        LET $child_grants = SELECT id FROM resource_grants WHERE resource_id = $owned.id AND account_id = $account
+            AND principal_id = $principal AND access_space_id = $space AND status = 'active' AND revoked_at = NONE
+            AND (expires_at = NONE OR expires_at > time::now()) AND delegation_chain = $live.delegation_chain
+            AND actions CONTAINS 'delete' AND capability_ids CONTAINS 'fs.write' AND resource_id.policy_version <= policy_version AND policy_version <= $live.policy_version;
+        IF array::len($child_grants) = 0 { RETURN false; };
+    } ELSE {
+        IF $owned.parent_resource_id != $resource OR $owned.external_resource_id != $external { RETURN false; };
+    };
+
+    IF array::len(SELECT id FROM protected_resources WHERE parent_resource_id = $owned.id AND id NOT IN $resources.id) > 0 {
+        RETURN false;
+    };
+};
+FOR $document IN (SELECT rich_document_id FROM knowledge_rich_documents WHERE workspace_id = $workspace) {
+    IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'rich_document'
+        AND external_resource_id = $document.rich_document_id AND parent_resource_id = $resource
+        AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+        RETURN false;
+    };
+};
+FOR $block IN (SELECT block_id, source_rich_document_id, content_type, content_hash FROM loom_blocks WHERE workspace_id = $workspace) {
+    IF $block.source_rich_document_id != NONE {
+        IF record::id($block.source_rich_document_id) != $block.block_id OR $block.content_type != 'note'
+            OR $block.source_rich_document_id.workspace_id != $workspace
+            OR $block.content_hash != $block.source_rich_document_id.content_sha256
+            OR array::len(SELECT id FROM protected_resources WHERE resource_kind = 'rich_document'
+                AND external_resource_id = $block.block_id AND parent_resource_id = $resource
+                AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+            RETURN false;
+        };
+    } ELSE {
+        IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'loom_block' AND external_resource_id = $block.block_id
+            AND id IN $resources.id AND owner_account_id = $account AND access_space_id = $space AND lifecycle_state = 'active') != 1 {
+            RETURN false;
+        };
+    };
+};
+-- Legacy generic sources have no account-bound resource kind in this producer; never delete them by workspace membership alone.
+IF array::len(SELECT id FROM documents WHERE workspace_id = $workspace) > 0
+    OR array::len(SELECT id FROM assets WHERE workspace_id = $workspace) > 0
+    OR array::len(SELECT id FROM canvases WHERE workspace_id = $workspace) > 0 {
+    RETURN false;
+};
+IF array::len(SELECT id FROM atelier_intake_item_loom_projection WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM ai_bronze_records WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM ai_silver_records WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM assets WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM blocks WHERE document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_activity_spans WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_events WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_sources WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvas_edges WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvas_nodes WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvases WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM documents WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claim_conflicts WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claim_spans WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claims WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_code_scip_imports WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_context_bundle_items WHERE bundle_id IN (SELECT VALUE id FROM knowledge_context_bundles WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_context_bundles WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_debug_breakpoints WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_bridge_decisions WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_detection_findings WHERE job_id IN (SELECT VALUE id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_resolution_jobs WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_facts WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_ontology_aliases WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_ontology_terms WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_passages WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_passage_evidence WHERE passage_id IN (SELECT VALUE id FROM knowledge_memory_passages WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_quick_switcher_recents WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_retrieval_traces WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_semantic_catalog_entries WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_wiki_projections WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_ai_suggestions WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_block_knowledge_bridge WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_boards WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_placements WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_collection_members WHERE collection_id IN (SELECT VALUE id FROM loom_collections WHERE workspace_id = $workspace)) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_collections WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folder_members WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folders WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_wiki_overlays WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM media_asset_tiers WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id = $workspace) > 0 { RETURN false; };
+IF array::len(SELECT id FROM documents WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM blocks WHERE document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace) AND (document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvases WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvas_nodes WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace) AND (canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvas_edges WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace) AND (canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvas_edges WHERE from_node_id IN (SELECT VALUE id FROM canvas_nodes WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) AND (canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM canvas_edges WHERE to_node_id IN (SELECT VALUE id FROM canvas_nodes WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) AND (canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM ai_bronze_records WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM ai_silver_records WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM ai_silver_records WHERE bronze_ref IN (SELECT VALUE id FROM ai_bronze_records WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM assets WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_blocks WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_edges WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_edges WHERE source_block_id IN (SELECT VALUE id FROM loom_blocks WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_edges WHERE target_block_id IN (SELECT VALUE id FROM loom_blocks WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_sources WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_events WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_events WHERE source_id IN (SELECT VALUE id FROM calendar_sources WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_source_roots WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_sources WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_sources WHERE root_id IN (SELECT VALUE id FROM knowledge_source_roots WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_sources WHERE asset_id IN (SELECT VALUE id FROM assets WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_sources WHERE loom_block_id IN (SELECT VALUE id FROM loom_blocks WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_sources WHERE document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_index_runs WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_spans WHERE source_id IN (SELECT VALUE id FROM knowledge_sources WHERE workspace_id = $workspace) AND (source_id IN (SELECT VALUE id FROM knowledge_sources WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_entities WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_entity_spans WHERE entity_id IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace) AND (entity_id IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_edges WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_edges WHERE source_entity_id IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_edges WHERE target_entity_id IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_edge_spans WHERE edge_id IN (SELECT VALUE id FROM knowledge_edges WHERE workspace_id = $workspace) AND (edge_id IN (SELECT VALUE id FROM knowledge_edges WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claims WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claim_spans WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace) AND (claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claim_conflicts WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace) AND (claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_claim_conflicts WHERE conflicting_claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace) AND (claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_passages WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_passage_evidence WHERE passage_id IN (SELECT VALUE id FROM knowledge_memory_passages WHERE workspace_id = $workspace) AND (passage_id IN (SELECT VALUE id FROM knowledge_memory_passages WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_passage_evidence WHERE source_id IN (SELECT VALUE id FROM knowledge_sources WHERE workspace_id = $workspace) AND (passage_id IN (SELECT VALUE id FROM knowledge_memory_passages WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_passage_evidence WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace) AND (passage_id IN (SELECT VALUE id FROM knowledge_memory_passages WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_wiki_projections WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_rich_documents WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_rich_document_title_anchors WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_rich_document_versions WHERE rich_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace) AND (rich_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_editor_code_nodes WHERE rich_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace) AND (rich_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_context_bundles WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_context_bundle_items WHERE bundle_id IN (SELECT VALUE id FROM knowledge_context_bundles WHERE workspace_id = $workspace) AND (bundle_id IN (SELECT VALUE id FROM knowledge_context_bundles WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_retrieval_traces WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_idempotency_keys WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_root_policies WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_policy_decisions WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_receipts WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_receipts WHERE source_id IN (SELECT VALUE id FROM knowledge_sources WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_spans WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_spans WHERE source_id IN (SELECT VALUE id FROM knowledge_sources WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_spans WHERE receipt_id IN (SELECT VALUE id FROM knowledge_ingestion_receipts WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_repair_queue WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_ingestion_repair_queue WHERE source_id IN (SELECT VALUE id FROM knowledge_sources WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_code_files WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_code_files WHERE source_id IN (SELECT VALUE id FROM knowledge_sources WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_code_scip_imports WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_code_repair_queue WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_code_repair_queue WHERE source_id IN (SELECT VALUE id FROM knowledge_sources WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_ontology_terms WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_ontology_aliases WHERE term_id IN (SELECT VALUE id FROM knowledge_memory_ontology_terms WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_ontology_aliases WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_facts WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_facts WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_facts WHERE subject_entity_id IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_facts WHERE object_entity_id IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_detection_findings WHERE job_id IN (SELECT VALUE id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace) AND (job_id IN (SELECT VALUE id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_detection_findings WHERE conflict_id IN (SELECT VALUE id FROM knowledge_claim_conflicts WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) AND (job_id IN (SELECT VALUE id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_resolution_jobs WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_conflict_resolution_jobs WHERE conflict_id IN (SELECT VALUE id FROM knowledge_claim_conflicts WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_bridge_decisions WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_bridge_decisions WHERE entity_id_a IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_memory_bridge_decisions WHERE entity_id_b IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_semantic_catalog_entries WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_document_embeds WHERE rich_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace) AND (rich_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_document_backlinks WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_document_backlinks WHERE source_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_block_knowledge_bridge WHERE block_id IN (SELECT VALUE id FROM loom_blocks WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_block_knowledge_bridge WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_block_knowledge_bridge WHERE entity_id IN (SELECT VALUE id FROM knowledge_entities WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folders WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folders WHERE parent_folder_id IN (SELECT VALUE id FROM loom_folders WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folder_members WHERE folder_id IN (SELECT VALUE id FROM loom_folders WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folder_members WHERE block_id IN (SELECT VALUE id FROM loom_blocks WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_folder_members WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_wiki_overlays WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_quick_switcher_recents WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_workbench_layout_states WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_workspace_settings_states WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_rich_document_drafts WHERE rich_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_rich_document_drafts WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_workspace_search_bookmark_states WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_debug_breakpoints WHERE rich_document_id IN (SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM knowledge_debug_breakpoints WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM media_asset_tiers WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM media_asset_tiers WHERE asset_id IN (SELECT VALUE id FROM assets WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_collections WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_collection_members WHERE collection_id IN (SELECT VALUE id FROM loom_collections WHERE workspace_id = $workspace) AND (collection_id IN (SELECT VALUE id FROM loom_collections WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_collection_members WHERE asset_id IN (SELECT VALUE id FROM assets WHERE workspace_id = $workspace) AND (collection_id IN (SELECT VALUE id FROM loom_collections WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_ai_suggestions WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_boards WHERE block_id IN (SELECT VALUE id FROM loom_blocks WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_boards WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_placements WHERE canvas_block_id IN (SELECT VALUE id FROM loom_canvas_boards WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_placements WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE canvas_block_id IN (SELECT VALUE id FROM loom_canvas_boards WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE from_placement_id IN (SELECT VALUE id FROM loom_canvas_placements WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE to_placement_id IN (SELECT VALUE id FROM loom_canvas_placements WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_block_search_index WHERE block_id IN (SELECT VALUE id FROM loom_blocks WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_block_search_index WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM calendar_activity_spans WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_packs WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_proposals WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_items WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_commit_reports WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_commit_reports WHERE proposal_id IN (SELECT VALUE id FROM fems_memory_proposals WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_commit_fr_outbox WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_commit_fr_outbox WHERE proposal_id IN (SELECT VALUE id FROM fems_memory_proposals WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_commit_fr_outbox WHERE commit_id IN (SELECT VALUE id FROM fems_memory_commit_reports WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_lifecycle_fr_outbox WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM fems_memory_lifecycle_fr_outbox WHERE proposal_id IN (SELECT VALUE id FROM fems_memory_proposals WHERE workspace_id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+IF array::len(SELECT id FROM loom_block_view_fr_outbox WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
+FOR $source IN (SELECT id FROM knowledge_sources WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'knowledge_source' AND external_resource_id = record::id($source.id) AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+FOR $source IN (SELECT id FROM knowledge_code_files WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'knowledge_code_file' AND external_resource_id = record::id($source.id) AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+FOR $source IN (SELECT id FROM fems_memory_packs WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_pack' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+FOR $source IN (SELECT id FROM fems_memory_proposals WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_proposal' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+FOR $source IN (SELECT id FROM fems_memory_items WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_item' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+FOR $source IN (SELECT id FROM fems_memory_commit_reports WHERE workspace_id = $workspace) { IF array::len(SELECT id FROM protected_resources WHERE id IN $resources.id AND resource_kind = 'memory_commit_report' AND external_resource_id = $external AND lifecycle_state = 'active') != 1 { RETURN false; }; };
+    FOR $row IN (SELECT created_in_session_id FROM knowledge_source_roots WHERE workspace_id = $workspace) { IF $row.created_in_session_id = NONE OR $row.created_in_session_id.account_id != $account OR $row.created_in_session_id.access_space_id != $space { RETURN false; }; };
+    FOR $row IN (SELECT created_in_session_id FROM knowledge_index_runs WHERE workspace_id = $workspace) { IF $row.created_in_session_id = NONE OR $row.created_in_session_id.account_id != $account OR $row.created_in_session_id.access_space_id != $space { RETURN false; }; };
+    FOR $run IN (SELECT scope FROM knowledge_index_runs WHERE workspace_id = $workspace) {
+        IF $run.scope.source_ids = NONE { RETURN false; };
+        FOR $key IN $run.scope.source_ids {
+            IF type::record('knowledge_sources', $key).workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', $key, 'delete', 'fs.write') { RETURN false; };
+        };
+    };
+    FOR $entity IN (SELECT * FROM knowledge_entities WHERE workspace_id = $workspace) {
+        IF $entity.primary_source_id = NONE OR $entity.primary_source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($entity.primary_source_id), 'delete', 'fs.write') { RETURN false; };
+        FOR $link IN (SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $entity.id) {
+            IF $link.span_id.source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($link.span_id.source_id), 'delete', 'fs.write') { RETURN false; };
+        };
+    };
+    FOR $edge IN (SELECT * FROM knowledge_edges WHERE workspace_id = $workspace) {
+        IF $edge.source_entity_id.workspace_id != $workspace OR $edge.target_entity_id.workspace_id != $workspace { RETURN false; };
+        FOR $link IN (SELECT span_id FROM knowledge_edge_spans WHERE edge_id = $edge.id) {
+            IF $link.span_id.source_id.workspace_id != $workspace OR !fn::mt109_has_grant('knowledge_source', record::id($link.span_id.source_id), 'delete', 'fs.write') { RETURN false; };
+        };
+    };
+    IF array::len(SELECT id FROM knowledge_ingestion_receipts WHERE workspace_id = $workspace AND (source_id.workspace_id = $workspace) != true) > 0
+        OR array::len(SELECT id FROM knowledge_ingestion_spans WHERE workspace_id = $workspace AND (source_id.workspace_id = $workspace AND receipt_id.workspace_id = $workspace AND receipt_id.source_id = source_id) != true) > 0
+        OR array::len(SELECT id FROM knowledge_ingestion_repair_queue WHERE workspace_id = $workspace AND (source_id.workspace_id = $workspace) != true) > 0
+        OR array::len(SELECT id FROM knowledge_code_repair_queue WHERE workspace_id = $workspace AND (source_id.workspace_id = $workspace) != true) > 0 { RETURN false; };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_document_delete($document: string, $workspace: string) {
+    IF !fn::mt120_document_access($document, $workspace, 'delete', 'fs.write') { RETURN false; };
+    LET $doc = type::record('knowledge_rich_documents', $document);
+    LET $block = type::record('loom_blocks', $document);
+    LET $ws = type::record('workspaces', $workspace);
+    IF $doc.workspace_id != $ws { RETURN false; };
+    IF array::len(SELECT id FROM knowledge_sources WHERE loom_block_id = $block) > 0
+        OR array::len(SELECT id FROM loom_block_knowledge_bridge WHERE block_id = $block) > 0
+        OR array::len(SELECT id FROM loom_folder_members WHERE block_id = $block) > 0
+        OR array::len(SELECT id FROM loom_canvas_boards WHERE block_id = $block) > 0
+        OR array::len(SELECT id FROM loom_canvas_placements WHERE placed_block_id = $block) > 0 { RETURN false; };
+    IF array::len(SELECT id FROM loom_block_search_index WHERE block_id = $block AND (workspace_id = $ws) != true) > 0
+        OR array::len(SELECT id FROM knowledge_rich_document_drafts WHERE rich_document_id = $doc AND (workspace_id = $ws) != true) > 0 { RETURN false; };
+    FOR $edge IN (SELECT * FROM loom_edges WHERE source_block_id = $block OR target_block_id = $block) {
+        IF $edge.workspace_id != $ws OR $edge.source_block_id.workspace_id != $ws OR $edge.target_block_id.workspace_id != $ws
+            OR $edge.source_block_id.source_rich_document_id = NONE OR $edge.target_block_id.source_rich_document_id = NONE
+            OR !fn::mt120_document_access(record::id($edge.source_block_id.source_rich_document_id), $workspace, 'update', 'fs.write')
+            OR !fn::mt120_document_access(record::id($edge.target_block_id.source_rich_document_id), $workspace, 'update', 'fs.write') { RETURN false; };
+    };
+    FOR $backlink IN (SELECT * FROM knowledge_document_backlinks WHERE source_document_id = $doc OR target = $document OR target = $doc.title) {
+        IF $backlink.workspace_id != $ws OR $backlink.source_document_id.workspace_id != $ws
+            OR !fn::mt120_document_access(record::id($backlink.source_document_id), $workspace, 'update', 'fs.write') { RETURN false; };
+    };
+    FOR $source IN (SELECT * FROM knowledge_sources WHERE workspace_id = $ws AND source_kind = 'rich_document' AND provenance.rich_document_id = $document) {
+        IF !fn::mt109_has_grant('knowledge_source', record::id($source.id), 'update', 'fs.write') { RETURN false; };
+    };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_index_source_read($source: option<record<knowledge_sources>>, $workspace: record<workspaces>) {
+    RETURN $source != NONE AND $source.workspace_id = $workspace AND $source.source_kind = 'file'
+        AND fn::mt109_source_read('knowledge_source', record::id($source), record::id($workspace), 'workspace', record::id($workspace));
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_entity_read($entity: record<knowledge_entities>) {
+    IF !record::exists($entity) OR !fn::mt120_index_source_read($entity.primary_source_id, $entity.workspace_id) { RETURN false; };
+    LET $evidence_rows = (SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $entity);
+    FOR $evidence IN $evidence_rows {
+        IF !fn::mt120_index_source_read($evidence.span_id.source_id, $entity.workspace_id) { RETURN false; };
+    };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_edge_read($edge: record<knowledge_edges>) {
+    IF !record::exists($edge) OR $edge.source_entity_id.workspace_id != $edge.workspace_id
+        OR $edge.target_entity_id.workspace_id != $edge.workspace_id
+        OR !fn::mt120_entity_read($edge.source_entity_id) OR !fn::mt120_entity_read($edge.target_entity_id) { RETURN false; };
+    LET $evidence_rows = (SELECT span_id FROM knowledge_edge_spans WHERE edge_id = $edge);
+    FOR $evidence IN $evidence_rows {
+        IF !fn::mt120_index_source_read($evidence.span_id.source_id, $edge.workspace_id) { RETURN false; };
+    };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_nav_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $query_kind: string, $payload: object, $actor_kind: string, $actor_id: string, $session_run: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE OR array::len($wsids) != 1
+        OR $resource.resource_kind != 'workspace' OR $resource.external_resource_id != $wsids[0]
+        OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id
+        OR $event != 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED' OR $source != 'knowledge_code_nav' OR $aggregate != 'knowledge_code_nav'
+        OR $query_kind NOT IN ['symbol_lookup','symbol_get','symbol_references','symbol_tests','symbol_spans','file_lens']
+        OR $capability != 'memory.read' OR $action != 'read' OR $payload.kind != 'code_nav_query'
+        OR $payload.query_kind != $query_kind OR $payload.workspace_id != $wsids[0]
+        OR $payload.minted_by_principal != record::id($session.principal_id)
+        OR $payload.account_id != record::id($session.account_id) OR $payload.access_space_id != record::id($session.access_space_id)
+        OR $payload.delegation_chain != $session.delegation_chain OR $session.account_id != $auth.account_id
+        OR $session.access_space_id != $auth.access_space_id OR $session_run != record::id($session)
+        OR $actor_kind != $session.principal_id.actor_kind OR $actor_id != $session.principal_id.actor_id
+        OR !fn::mt109_has_workspace_access($wsids[0], 'read', 'memory.read') { RETURN false; };
+    IF $write AND ($session != $auth.id OR !fn::mt109_ledger_access($resource, $session, $capability, $action)) { RETURN false; };
+    LET $witness = $payload.read_witnesses;
+    IF $witness = NONE OR $witness.entity_ids = NONE OR $witness.edge_ids = NONE OR $witness.source_ids = NONE OR $witness.span_ids = NONE { RETURN false; };
+    LET $workspace = type::record('workspaces', $wsids[0]);
+    FOR $key IN $witness.entity_ids {
+        LET $entity = type::record('knowledge_entities', $key);
+        IF $entity.workspace_id != $workspace OR !fn::mt120_entity_read($entity) { RETURN false; };
+    };
+    FOR $key IN $witness.edge_ids {
+        LET $edge = type::record('knowledge_edges', $key);
+        IF $edge.workspace_id != $workspace OR !fn::mt120_edge_read($edge) { RETURN false; };
+    };
+    FOR $key IN $witness.source_ids {
+        IF !fn::mt120_index_source_read(type::record('knowledge_sources', $key), $workspace) { RETURN false; };
+    };
+    FOR $key IN $witness.span_ids {
+        LET $span = type::record('knowledge_spans', $key);
+        IF !record::exists($span) OR !fn::mt120_index_source_read($span.source_id, $workspace) { RETURN false; };
+    };
+    IF $query_kind IN ['symbol_get','symbol_references','symbol_tests','symbol_spans']
+        AND !($witness.entity_ids CONTAINS $payload.query.entity_id) { RETURN false; };
+    IF $query_kind = 'symbol_lookup' AND $payload.query.matches > 0 AND array::len($witness.entity_ids) = 0 { RETURN false; };
+    IF $query_kind = 'file_lens' AND $payload.query.entries > 0 AND (array::len($witness.entity_ids) = 0 OR array::len($witness.source_ids) = 0) { RETURN false; };
+    IF $query_kind = 'symbol_spans' AND $payload.query.spans > 0 AND array::len($witness.span_ids) = 0 { RETURN false; };
+    IF (($query_kind = 'symbol_tests' AND $payload.query.tests > 0) OR ($query_kind = 'symbol_references' AND ($payload.query.callers > 0 OR $payload.query.callees > 0))) AND array::len($witness.edge_ids) = 0 { RETURN false; };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_nav_quiet_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $receipt: string, $payload: object, $actor_kind: string, $actor_id: string, $session_run: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $event != 'KNOWLEDGE_QUIET_BACKGROUND_WORK_RECORDED'
+        OR $source != 'parallel_swarm_state_recovery' OR $aggregate != 'parallel_swarm_quiet_background_work'
+        OR $payload.schema_id != 'hsk.parallel_swarm.quiet_background_work@1' OR $payload.work_kind != 'backend_navigation'
+        OR $payload.receipt_id != $receipt OR $payload.evidence_ref != 'event://' + $payload.subject_id
+        OR $session = NONE OR $resource = NONE OR $capability != 'memory.read' OR $action != 'read'
+        OR array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
+        OR $resource.resource_kind != 'workspace' OR $resource.external_resource_id != $wsids[0]
+        OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id
+        OR $payload.minted_by_principal != record::id($session.principal_id)
+        OR $payload.account_id != record::id($session.account_id) OR $payload.access_space_id != record::id($session.access_space_id)
+        OR $payload.delegation_chain != $session.delegation_chain OR $session.account_id != $auth.account_id
+        OR $session.access_space_id != $auth.access_space_id OR $session_run != record::id($session)
+        OR $actor_kind != $session.principal_id.actor_kind OR $actor_id != $session.principal_id.actor_id { RETURN false; };
+    IF $write AND ($session != $auth.id OR !fn::mt109_ledger_access($resource, $session, $capability, $action)) { RETURN false; };
+    LET $nav = type::record('kernel_event_ledger', $payload.subject_id);
+    RETURN record::exists($nav) AND $nav.wsids = $wsids AND $nav.authority_session_id = $session
+        AND fn::mt120_nav_receipt($nav.authority_resource_id, $nav.authority_session_id, $nav.authority_capability_id, $nav.authority_action, $nav.wsids, $nav.event_type, $nav.source_component, $nav.aggregate_type, $nav.aggregate_id, $nav.payload, $nav.actor_kind, $nav.actor_id, $nav.session_run_id, false);
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_nav_quiet_row($row: object, $write: bool) {
+    LET $event = $row.event_ledger_event_id;
+    RETURN $row.work_kind = 'backend_navigation' AND record::exists($event)
+        AND $row.receipt_id = $event.aggregate_id AND $row.workspace_id = $event.payload.workspace_id
+        AND $row.subject_id = $event.payload.subject_id AND $row.evidence_ref = $event.payload.evidence_ref
+        AND $row.session_id = $event.session_run_id AND $row.actor_id = $event.actor_id
+        AND $row.quiet_policy_jsonb = $event.payload.quiet_policy
+        AND $row.wp_id = $event.payload.wp_id AND $row.mt_id = $event.payload.mt_id
+        AND fn::mt120_nav_quiet_receipt($event.authority_resource_id, $event.authority_session_id, $event.authority_capability_id, $event.authority_action, $event.wsids, $event.event_type, $event.source_component, $event.aggregate_type, $event.aggregate_id, $event.payload, $event.actor_kind, $event.actor_id, $event.session_run_id, $write);
+};
+DEFINE FIELD OVERWRITE created_in_session_id ON TABLE knowledge_source_roots TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE created_in_session_id ON TABLE knowledge_index_runs TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FUNCTION OVERWRITE fn::mt120_index_source_write($source: option<record<knowledge_sources>>, $workspace: record<workspaces>) {
+    RETURN $source != NONE AND $source.workspace_id = $workspace AND $source.source_kind = 'file'
+        AND fn::mt109_has_grant('knowledge_source', record::id($source), 'update', 'memory.propose')
+        AND fn::mt109_has_workspace_access(record::id($workspace), 'read', 'memory.read');
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_entity_write($entity: record<knowledge_entities>, $source: option<record<knowledge_sources>>, $workspace: record<workspaces>) {
+    IF !fn::mt120_index_source_write($source, $workspace) { RETURN false; };
+    FOR $evidence IN (SELECT span_id FROM knowledge_entity_spans WHERE entity_id = $entity) {
+        IF !fn::mt120_index_source_write($evidence.span_id.source_id, $workspace) { RETURN false; };
+    };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_edge_write($edge: record<knowledge_edges>, $source: record<knowledge_entities>, $target: record<knowledge_entities>, $workspace: record<workspaces>) {
+    IF $source.workspace_id != $workspace OR $target.workspace_id != $workspace
+        OR !fn::mt120_entity_write($source, $source.primary_source_id, $workspace)
+        OR !fn::mt120_entity_write($target, $target.primary_source_id, $workspace) { RETURN false; };
+    FOR $evidence IN (SELECT span_id FROM knowledge_edge_spans WHERE edge_id = $edge) {
+        IF !fn::mt120_index_source_write($evidence.span_id.source_id, $workspace) { RETURN false; };
+    };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_index_run_access($row: object, $write: bool) {
+    IF $row.created_in_session_id = NONE OR $row.created_in_session_id.account_id != $auth.account_id
+        OR $row.created_in_session_id.access_space_id != $auth.access_space_id OR $row.scope.source_ids = NONE
+        OR !fn::mt109_has_workspace_access(record::id($row.workspace_id), 'read', 'memory.read') { RETURN false; };
+    IF $write AND !fn::mt109_has_workspace_access(record::id($row.workspace_id), 'update', 'memory.propose') { RETURN false; };
+    FOR $key IN $row.scope.source_ids {
+        LET $source = type::record('knowledge_sources', $key);
+        IF !fn::mt120_index_source_read($source, $row.workspace_id) OR ($write AND !fn::mt120_index_source_write($source, $row.workspace_id)) { RETURN false; };
+    };
+    IF ($row.sources_seen > 0 OR $row.sources_indexed > 0 OR $row.spans_extracted > 0 OR $row.entities_detected > 0 OR $row.edges_written > 0) AND array::len($row.scope.source_ids) = 0 { RETURN false; };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::mt120_index_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $session_run: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE OR array::len($wsids) != 1
+        OR $resource.resource_kind != 'workspace' OR $resource.external_resource_id != $wsids[0]
+        OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id
+        OR $capability != 'memory.propose' OR $action != 'create' OR $payload.workspace_id != $wsids[0]
+        OR $payload.minted_by_principal != record::id($session.principal_id)
+        OR $payload.account_id != record::id($session.account_id) OR $payload.access_space_id != record::id($session.access_space_id)
+        OR $payload.delegation_chain != $session.delegation_chain OR $session.account_id != $auth.account_id
+        OR $session.access_space_id != $auth.access_space_id OR $session_run != record::id($session)
+        OR $actor_kind != $session.principal_id.actor_kind OR $actor_id != $session.principal_id.actor_id
+        OR !fn::mt109_has_workspace_access($wsids[0], 'read', 'memory.read') { RETURN false; };
+    IF $write AND ($session != $auth.id OR !fn::mt109_ledger_access($resource, $session, $capability, $action)) { RETURN false; };
+    LET $workspace = type::record('workspaces', $wsids[0]);
+    LET $kind = $payload.kind;
+    IF $source = 'knowledge_ingestion' AND $event = 'VALIDATION_RECORDED' {
+        IF $aggregate = 'knowledge_root_registration' AND $kind = 'root_registration_policy_decision' {
+            RETURN fn::mt109_has_workspace_access($wsids[0], 'create', 'memory.propose');
+        };
+        IF $aggregate = 'knowledge_ingestion_batch' AND $kind = 'extraction_receipt_batch' AND $payload.run_token = $aggregate_id AND $payload.receipts != NONE {
+            FOR $row IN $payload.receipts {
+                LET $src = type::record('knowledge_sources', $row.source_id);
+                IF $row.workspace_id != $wsids[0] OR !fn::mt120_index_source_read($src, $workspace)
+                    OR ($write AND !fn::mt120_index_source_write($src, $workspace)) { RETURN false; };
+            };
+            RETURN true;
+        };
+        IF (($aggregate = 'knowledge_ingestion_receipt' AND $kind = 'extraction_receipt') OR ($aggregate = 'knowledge_source_lifecycle' AND $kind = 'source_stale_marked')) AND $payload.source_id = $aggregate_id {
+            LET $src = type::record('knowledge_sources', $payload.source_id);
+            RETURN fn::mt120_index_source_read($src, $workspace) AND (!$write OR fn::mt120_index_source_write($src, $workspace));
+        };
+        IF $aggregate != 'knowledge_ingestion_run' OR $kind NOT IN ['ingestion_run_started','ingestion_run_finished','ingestion_run_failed'] OR $payload.run_token != $aggregate_id { RETURN false; };
+    } ELSE IF $source = 'knowledge_code_index' {
+        IF $event = 'KNOWLEDGE_VALIDATION_RECORDED' AND $aggregate = 'knowledge_code_index_run' AND $kind = 'code_files_indexed_batch' AND $payload.index_run_id = $aggregate_id AND $payload.files != NONE {
+            FOR $row IN $payload.files {
+                LET $src = type::record('knowledge_sources', $row.source_id);
+                IF $row.workspace_id != $wsids[0] OR !fn::mt120_index_source_read($src, $workspace)
+                    OR ($write AND !fn::mt120_index_source_write($src, $workspace)) { RETURN false; };
+            };
+            RETURN array::len($payload.files) = $payload.file_count;
+        };
+        IF $event = 'KNOWLEDGE_VALIDATION_RECORDED' AND (($aggregate = 'knowledge_code_index_file' AND $kind IN ['code_file_indexed','code_file_parse_failed']) OR ($aggregate = 'knowledge_code_index_config' AND $kind = 'config_file_indexed')) AND $payload.source_id = $aggregate_id {
+            LET $src = type::record('knowledge_sources', $payload.source_id);
+            RETURN fn::mt120_index_source_read($src, $workspace) AND (!$write OR fn::mt120_index_source_write($src, $workspace));
+        };
+        IF $aggregate != 'knowledge_code_index_run' OR !(($event = 'KNOWLEDGE_INDEX_RUN_STARTED' AND $kind = 'code_index_run_started' AND $aggregate_id = $wsids[0]) OR ($event = 'KNOWLEDGE_INDEX_RUN_COMPLETED' AND $kind = 'code_index_run_completed' AND $aggregate_id = $payload.index_run_id) OR ($event = 'KNOWLEDGE_INDEX_RUN_FAILED' AND $kind = 'code_index_run_failed' AND $aggregate_id = $payload.index_run_id) OR ($event = 'KNOWLEDGE_INDEX_RUN_CANCELLED' AND $kind = 'code_index_run_cancelled' AND $aggregate_id = $payload.index_run_id)) { RETURN false; };
+    } ELSE { RETURN false; };
+    IF $payload.source_ids = NONE { RETURN false; };
+    FOR $key IN $payload.source_ids {
+        LET $src = type::record('knowledge_sources', $key);
+        IF !fn::mt120_index_source_read($src, $workspace) OR ($write AND !fn::mt120_index_source_write($src, $workspace)) { RETURN false; };
+    };
+    IF $payload.files_ingested > 0 AND array::len($payload.source_ids) = 0 { RETURN false; };
+    RETURN true;
+};
+-- RECORD_USER_PRODUCER_END
+"#;
+fn authority_nonce_stage_correction_statements() -> String {
+    let mut statements = String::new();
+    for (table, _) in AUTHORITY_NONCE_IMMUTABLE_FIELDS {
+        let declaration = format!("DEFINE TABLE OVERWRITE {table} ");
+        let start = SCHEMA
+            .find(&declaration)
+            .expect("authority table declaration must exist");
+        let end = SCHEMA[start..]
+            .find("\nDEFINE FIELD OVERWRITE ")
+            .map(|offset| start + offset)
+            .expect("authority table declaration must precede fields");
+        statements.push_str(&SCHEMA[start..end]);
+        statements.push('\n');
+    }
+    statements.push_str(AUTHORITY_NONCE_EVENT_STATEMENTS);
+    statements
+}
+
+fn schema_table_definition_bounds(source: &str, table: &str) -> (usize, usize) {
+    let declaration = format!("DEFINE TABLE OVERWRITE {table} ");
+    let start = source
+        .find(&declaration)
+        .expect("stage-correct table declaration must exist");
+    let end = source[start..]
+        .find(";\n")
+        .map(|offset| start + offset + 1)
+        .expect("stage-correct table declaration must terminate");
+    (start, end)
+}
+
+fn schema_event_definition_bounds(source: &str, event: &str) -> (usize, usize) {
+    let declaration = format!("DEFINE EVENT OVERWRITE {event} ");
+    let start = source
+        .find(&declaration)
+        .expect("Loom source-integrity event declaration must exist");
+    let end = source[start..]
+        .find("\n-- MT109_AUTHORITY_END")
+        .map(|offset| start + offset)
+        .expect("Loom source-integrity event declaration must terminate");
+    (start, end)
+}
+
+fn schema_field_definition_bounds(source: &str, table: &str, field: &str) -> (usize, usize) {
+    let declaration = format!("DEFINE FIELD OVERWRITE {field} ON TABLE {table} ");
+    let start = source
+        .find(&declaration)
+        .expect("stage-correct field declaration must exist");
+    let end = source[start..]
+        .find(";\n")
+        .map(|offset| start + offset + 1)
+        .expect("stage-correct field declaration must terminate");
+    (start, end)
+}
+
+fn schema_event_definition_bounds_until_next_table(source: &str, event: &str) -> (usize, usize) {
+    let declaration = format!("DEFINE EVENT OVERWRITE {event} ");
+    let start = source
+        .find(&declaration)
+        .expect("stage-correct event declaration must exist");
+    let end = source[start..]
+        .find("\nDEFINE TABLE OVERWRITE ")
+        .map(|offset| start + offset)
+        .expect("stage-correct event declaration must precede a table");
+    (start, end)
+}
+
+fn mt120_record_user_update_guard_event_statements() -> &'static str {
+    const BEGIN: &str = "-- MT120_RECORD_USER_UPDATE_GUARD_EVENT_BEGIN";
+    const END: &str = "-- MT120_RECORD_USER_UPDATE_GUARD_EVENT_END";
+    let start = SCHEMA
+        .find(BEGIN)
+        .expect("record-user update event block must exist");
+    let end = SCHEMA[start..]
+        .find(END)
+        .map(|offset| start + offset + END.len())
+        .expect("record-user update event block must terminate");
+    &SCHEMA[start..end]
+}
+
+fn mt120_record_user_update_stage_correction_statements() -> String {
+    let mut statements = String::new();
+    for table in MT120_RECORD_USER_UPDATE_GUARD_TABLES {
+        let (start, end) = schema_table_definition_bounds(SCHEMA, table);
+        statements.push_str(&SCHEMA[start..end]);
+        statements.push('\n');
+    }
+    statements.push_str(mt120_record_user_update_guard_event_statements());
+    statements.push('\n');
+    statements
+}
+
+#[cfg(test)]
+fn restore_pre_mt120_record_user_update_guards(mut source: String) -> String {
+    for (table, current, previous) in MT120_RECORD_USER_UPDATE_GUARD_RESTORATIONS {
+        let (start, end) = schema_table_definition_bounds(&source, table);
+        let definition = &source[start..end];
+        assert!(
+            definition.contains(current),
+            "stage-correct {table} table must retain its current-row update gate"
+        );
+        let restored = definition.replacen(current, previous, 1);
+        source.replace_range(start..end, &restored);
+    }
+    source
+}
+
+#[cfg(test)]
+fn restore_pre_account_authority_nonce_guards(mut source: String) -> String {
+    for (table, fields) in AUTHORITY_NONCE_IMMUTABLE_FIELDS {
+        let declaration = format!("DEFINE TABLE OVERWRITE {table} ");
+        let start = source
+            .find(&declaration)
+            .expect("historical authority table declaration must exist");
+        let end = source[start..]
+            .find("\nDEFINE FIELD OVERWRITE ")
+            .map(|offset| start + offset)
+            .expect("historical authority table declaration must precede fields");
+        let table_definition = &source[start..end];
+        assert!(
+            !table_definition.contains("$before.authorization_touch_nonce"),
+            "stage-correct authority table must not retain transition checks"
+        );
+        let guard = format!(
+            " AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1{}",
+            fields
+                .iter()
+                .map(|field| format!(" AND $before.{field} = $after.{field}"))
+                .collect::<String>(),
+        );
+        let marker = " FOR delete NONE;";
+        let marker_offset = table_definition
+            .rfind(marker)
+            .expect("authority update permission must end in delete none");
+        source.insert_str(start + marker_offset, &guard);
+    }
+    source
+}
+
+fn mt120_document_upgrade_statements() -> String {
+    let mut statements = String::from(MT120_DOCUMENT_ACCESS_BLOCK);
+    statements.push_str(MT120_IDEMPOTENCY_BLOCK);
+    statements.push_str(RECORD_USER_PRODUCER_BLOCK);
+    for (_, current) in MT120_DOCUMENT_TABLE_UPGRADES {
+        statements.push_str(current);
+        statements.push('\n');
+    }
+    statements.push_str(&authority_nonce_stage_correction_statements());
+    statements.push('\n');
+    statements.push_str(&mt120_record_user_update_stage_correction_statements());
+    statements.push_str(&mt120_loom_bundle_table_statements());
+    statements
+}
+
+const MT120_LOOM_BUNDLE_TABLES: [&str; 10] = [
+    "protected_resources",
+    "resource_grants",
+    "loom_blocks",
+    "kernel_event_ledger",
+    "knowledge_entities",
+    "loom_block_knowledge_bridge",
+    "loom_canvas_boards",
+    "loom_canvas_placements",
+    "loom_canvas_visual_edges",
+    "loom_block_search_index",
+];
+
+const MT120_LOOM_CREATED_SESSION_FIELD: &str =
+    "DEFINE FIELD OVERWRITE created_in_session_id ON TABLE loom_blocks TYPE option<record<authenticated_sessions>> REFERENCE ON DELETE REJECT;\n";
+const MT120_LOOM_CANVAS_PLACEMENT_RELATION_FIELDS: [&str; 3] =
+    ["canvas_block_id", "workspace_id", "placed_block_id"];
+
+fn mt120_loom_bundle_table_statements() -> String {
+    let mut statements = String::new();
+    for table in MT120_LOOM_BUNDLE_TABLES {
+        let (start, end) = schema_table_definition_bounds(SCHEMA, table);
+        statements.push_str(&SCHEMA[start..end]);
+        statements.push('\n');
+    }
+    for field in MT120_LOOM_CANVAS_PLACEMENT_RELATION_FIELDS {
+        let (start, end) = schema_field_definition_bounds(SCHEMA, "loom_canvas_placements", field);
+        statements.push_str(&SCHEMA[start..end]);
+        statements.push('\n');
+    }
+    statements.push_str(MT120_LOOM_CREATED_SESSION_FIELD);
+    let (start, end) = schema_event_definition_bounds(SCHEMA, "mt109_loom_source_integrity");
+    statements.push_str(&SCHEMA[start..end]);
+    statements.push('\n');
+    let (start, end) = schema_event_definition_bounds_until_next_table(
+        SCHEMA,
+        "enforce_loom_canvas_placement_integrity",
+    );
+    statements.push_str(&SCHEMA[start..end]);
+    statements.push('\n');
+    statements
+}
+
+#[cfg(test)]
+fn restore_pre_mt120_loom_bundle(mut source: String) -> String {
+    source = source.replace(MT120_LOOM_CREATED_SESSION_FIELD, "");
+    source = source.replace(
+        "        IF $event = 'UPDATE' AND $after.created_in_session_id != $before.created_in_session_id {\n            THROW 'HSK-MT109-LOOM-CREATOR-SESSION-IMMUTABLE';\n        };\n",
+        "",
+    );
+    source = source.replace(
+        "            IF $source != NONE OR ($auth != NONE AND $after.created_in_session_id = NONE) { THROW 'HSK-MT109-LOOM-SOURCE-REQUIRED'; };",
+        "            IF $source != NONE { THROW 'HSK-MT109-LOOM-SOURCE-REQUIRED'; };",
+    );
+    for table in MT120_LOOM_BUNDLE_TABLES {
+        let (start, end) = schema_table_definition_bounds(&source, table);
+        let current = &source[start..end];
+        let restored = match table {
+            "protected_resources" => current.replace(
+                " OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read')",
+                "",
+            ),
+            "resource_grants" => current.replace(
+                " OR (capability_ids CONTAINS 'fs.read' AND actions CONTAINS 'read' AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.read') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.read'))",
+                "",
+            ),
+            "loom_blocks" => current
+                .replace(
+                    " OR (source_rich_document_id = NONE AND fn::mt120_loom_block_access(block_id, record::id(workspace_id), 'read', 'fs.read'))",
+                    "",
+                )
+                .replace(
+                    " OR (source_rich_document_id = NONE AND content_type IN ['note','canvas'] AND $auth != NONE AND created_in_session_id = $auth.id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write'))",
+                    "",
+                )
+                .replace(
+                    "FOR create WHERE (source_rich_document_id != NONE",
+                    "FOR create WHERE source_rich_document_id != NONE",
+                )
+                .replace(
+                    "record::id(workspace_id), 'update', 'fs.write')))\n                FOR update",
+                    "record::id(workspace_id), 'update', 'fs.write'))\n                FOR update",
+                )
+                .replace(
+                    " OR (source_rich_document_id = NONE AND fn::mt120_loom_block_access(block_id, record::id(workspace_id), 'delete', 'fs.write'))",
+                    "",
+                ),
+            "kernel_event_ledger" => current.replace(
+                " OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)",
+                "",
+            ).replace(
+                " OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)",
+                "",
+            ),
+            "knowledge_entities" => current.replace(
+                " OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND fn::mt120_loom_block_access(entity_key, record::id(workspace_id), 'read', 'fs.read'))",
+                "",
+            ).replace(
+                " OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND fn::mt120_loom_block_access(entity_key, record::id(workspace_id), 'create', 'fs.write'))",
+                "",
+            ),
+            "loom_block_knowledge_bridge" | "loom_canvas_boards"
+            | "loom_canvas_placements" | "loom_canvas_visual_edges" => {
+                format!("DEFINE TABLE OVERWRITE {table} SCHEMAFULL PERMISSIONS NONE;")
+            }
+            "loom_block_search_index" => current.replace(
+                " OR (block_id.source_rich_document_id = NONE AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'read', 'fs.read'))",
+                "",
+            ).replace(
+                " OR (block_id.source_rich_document_id = NONE AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write'))",
+                "",
+            ).replace(
+                "FOR select WHERE (block_id.source_rich_document_id != NONE",
+                "FOR select WHERE block_id.source_rich_document_id != NONE",
+            ).replace(
+                "record::id(workspace_id), 'read', 'fs.read'))\n                FOR create",
+                "record::id(workspace_id), 'read', 'fs.read')\n                FOR create",
+            ).replace(
+                "FOR create WHERE (block_id.source_rich_document_id != NONE",
+                "FOR create WHERE block_id.source_rich_document_id != NONE",
+            ).replace(
+                "record::id(workspace_id), 'update', 'fs.write')))\n                FOR update",
+                "record::id(workspace_id), 'update', 'fs.write'))\n                FOR update",
+            ),
+            _ => unreachable!("static Loom bundle table list is exhaustive"),
+        };
+        source.replace_range(start..end, &restored);
+    }
+    source = source
+        .replace(
+            "DEFINE FIELD OVERWRITE canvas_block_id ON TABLE loom_canvas_placements TYPE record<loom_canvas_boards> REFERENCE ON DELETE CASCADE;",
+            "DEFINE FIELD OVERWRITE canvas_block_id ON TABLE loom_canvas_placements TYPE record<loom_canvas_boards> ASSERT record::exists($value) AND ($value.workspace_id = $this.workspace_id) AND ($value.workspace_id = $this.placed_block_id.workspace_id) REFERENCE ON DELETE CASCADE;",
+        )
+        .replace(
+            "DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_canvas_placements TYPE record<workspaces> REFERENCE ON DELETE CASCADE;",
+            "DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_canvas_placements TYPE record<workspaces> ASSERT record::exists($value) AND ($value = $this.canvas_block_id.workspace_id) AND ($value = $this.placed_block_id.workspace_id) REFERENCE ON DELETE CASCADE;",
+        )
+        .replace(
+            "DEFINE FIELD OVERWRITE placed_block_id ON TABLE loom_canvas_placements TYPE record<loom_blocks> REFERENCE ON DELETE REJECT;",
+            "DEFINE FIELD OVERWRITE placed_block_id ON TABLE loom_canvas_placements TYPE record<loom_blocks> ASSERT record::exists($value) AND ($value.workspace_id = $this.workspace_id) AND ($value.workspace_id = $this.canvas_block_id.workspace_id) REFERENCE ON DELETE REJECT;",
+        );
+    let (start, end) = schema_event_definition_bounds_until_next_table(
+        &source,
+        "enforce_loom_canvas_placement_integrity",
+    );
+    source.replace_range(start.saturating_sub(1)..end, "");
+    source
+}
+#[cfg(test)]
+fn restore_pre_standalone_loom_update_schema(mut source: String) -> String {
+    source = source.replace(
+        "FOR update WHERE (source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')) OR (source_rich_document_id = NONE AND content_type IN ['note','canvas'] AND fn::mt120_loom_block_access(block_id, record::id(workspace_id), 'update', 'fs.write'))",
+        "FOR update WHERE source_rich_document_id != NONE AND record::id(source_rich_document_id) = block_id AND content_type = 'note' AND source_rich_document_id.workspace_id = workspace_id AND source_rich_document_id.deleted_at = NONE AND content_hash = source_rich_document_id.content_sha256 AND fn::mt120_document_access(record::id(source_rich_document_id), record::id(workspace_id), 'update', 'fs.write')",
+    );
+    source = source.replace(
+        "        IF $event = 'UPDATE' AND $before.source_rich_document_id = NONE\n            AND ($after.source_rich_document_id != NONE OR $after.workspace_id != $before.workspace_id\n                OR $after.content_type != $before.content_type) {\n            THROW 'HSK-403-PROTECTED-RESOURCE';\n        };\n",
+        "",
+    );
+    let (start, end) = schema_event_definition_bounds_until_next_table(
+        &source,
+        "mt109_workspace_reconciliation_queue",
+    );
+    source.replace_range(start..end, "");
+    source
+}
+
+#[cfg(test)]
+fn pre_canvas_receipt_schema() -> String {
+    const CREATOR_RECEIPT_START: &str =
+        "        OR (!$write AND $session = $auth.id AND fn::mt109_ledger_access";
+    const READER_RECEIPT_START: &str = "        OR (!$write AND fn::mt120_loom_block_access";
+    let mut predecessor = restore_pre_standalone_loom_update_schema(SCHEMA.to_owned());
+    let start = predecessor
+        .find(CREATOR_RECEIPT_START)
+        .expect("Canvas creator-session receipt branch must exist exactly once");
+    assert_eq!(
+        predecessor[start + CREATOR_RECEIPT_START.len()..]
+            .matches(CREATOR_RECEIPT_START)
+            .count(),
+        0,
+        "Canvas creator-session receipt branch must be unique"
+    );
+    let end = start
+        + predecessor[start..]
+            .find(READER_RECEIPT_START)
+            .expect("Canvas reader receipt branch must follow creator-session branch");
+    predecessor.replace_range(start..end, "");
+    predecessor
+}
+
+#[cfg(test)]
+fn pre_account_setup_schema() -> String {
+    let mut previous = SCHEMA
+        .replace(&format!("\n{LOCAL_ACCOUNT_SETUP_STATEMENTS}"), "")
+        .replace(&format!("{MT120_DOCUMENT_ACCESS_BLOCK}\n"), "")
+        .replace(MT120_IDEMPOTENCY_BLOCK, "")
+        .replace(&format!("\n{RECORD_USER_PRODUCER_BLOCK}"), "")
+        .replace(&format!("\n{AUTHORITY_NONCE_EVENT_STATEMENTS}"), "")
+        .replace(
+            &format!("\n{}\n", mt120_record_user_update_guard_event_statements()),
+            "",
+        );
+    previous = restore_pre_standalone_loom_update_schema(previous);
+    previous = restore_pre_mt120_record_user_update_guards(previous);
+    previous = restore_pre_account_authority_nonce_guards(previous);
+    previous = restore_pre_mt120_loom_bundle(previous);
+    for (old, current) in MT120_DOCUMENT_TABLE_UPGRADES.iter().rev() {
+        previous = previous.replace(current, old);
+    }
+    previous
+}
 /// Stable v1 lineage identifier retained so existing embedded stores remain readable after the
 /// legacy schema-provenance corpus is removed. New source integrity is proven independently by
 /// [`DECLARATIVE_SCHEMA_CATALOG_SHA256`] and [`GENERATED_SURREALQL_SHA256`].
@@ -60,7 +2069,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // 05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd, the MT-141 R9 pin; the
 // R9 hop was never a released lineage, so the MT-150 pin remains the allowlisted predecessor).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "e9a08258c5c0d86bfff6e4dcbdc4b086e0dafd4fa9eaec8735026c37088bcad1";
+    "2f1705bb309dc15e7092559ec203b25aebc079015e9e5db47d71e79519726706";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -76,7 +2085,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // fields (previous value b90f7345927316be15eb3f7bca0ba033df064d16326d37e3942677ecb84ce99c, the
 // MT-141 R9 pin); observed by `declarative_schema_catalog_is_complete_and_content_sensitive`.
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "17c59e4a42384d4264f8e2568bddc4c18c2aa588a3447fc89def6ff231d642a7";
+    "9071b47e3b68a085efd25011569974f3b44aa36f862ac383b548613d048f9290";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -112,15 +2121,16 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // 91ed6b88d18917d21bb31bfde164ba0d46c8e8f17e87f36f34ca8ff762f12ff6, the MT-141 R9 pin);
 // observed by `mt139_current_schema_info_pin_matches_fresh_mem_catalog` (kb-v2 run 41,
 // MT139_CURRENT_SCHEMA_INFO_SHA256).
+// Revision 158 measured by the independent MT-109/wpv-v20 embedded-engine probes.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "e2a125fd980b463ac63fb857acd919786031d9dc04ce0d88bf9663ae0824944f";
+    "ef2a6a96a6a869b6bb39cbc3abc2b30491535c73cd36b5fb8f97d6f0bc8ee610";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
 // (previous value 4d3f739296e5b59bd3962c0fab23180dd5e3363b8fc7ad277dc6ba17da9f1c63, the asset_id-only
 // MT-141 pin; before that 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 const EXPECTED_ATELIER_CATALOG_SHA256: &str =
-    "68a635faefa1c2dcb85feb6eec9cd6ea64ccef38d0398508cde9c4733f8df19b";
+    "ad696e28be444fd68b39f4c280400ae4914c17234ed0888794df75ed1de6483c";
 const PENDING_SCHEMA_INFO_SHA256: &str =
     "0000000000000000000000000000000000000000000000000000000000000000";
 /// Second allowlisted lineage (MT-142): every store bootstrapped at schema revision 157 before
@@ -484,10 +2494,10 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 // alias assertion); no REFERENCE field.
 // MT-150 re-pin: loom_edges.event_ledger_event_id (+1 field, +1 REFERENCE field, +1 explicit
 // record::exists assertion) and idx_loom_edges_event (+1 named index); no new table.
-const TABLE_DEFINITION_COUNT: usize = 293;
+const TABLE_DEFINITION_COUNT: usize = 294;
 // MT-141 V2-R2 re-pin: +2 fields (knowledge_crdt_ai_edit_proposals.applied_update_id /
 // applied_update_sha256); pin_order and the quick-switcher kind unions changed in place.
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3207;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3227;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 239;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -503,12 +2513,12 @@ const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 55;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
 const INDEX_DEFINITION_COUNT: usize = 816;
-const EVENT_DEFINITION_COUNT: usize = 20;
+const EVENT_DEFINITION_COUNT: usize = 41;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
 const ACCESS_DEFINITION_COUNT: usize = 1;
-const FUNCTION_DEFINITION_COUNT: usize = 10;
-const SOURCE_TABLE_COUNT: usize = 290;
+const FUNCTION_DEFINITION_COUNT: usize = 31;
+const SOURCE_TABLE_COUNT: usize = 291;
 const SOURCE_VIEW_COUNT: usize = 2;
 const SOURCE_NAMED_INDEX_COUNT: usize = 555;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 260;
@@ -516,7 +2526,7 @@ const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 // MT-141 V2-R2: loom_block_view_fr_outbox.block_id lost its cascading REFERENCE (MT-027 0362).
 const REFERENCE_FIELD_COUNT: usize = 406;
-const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 405;
+const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 402;
 const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 229;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
@@ -894,9 +2904,17 @@ async fn inspect_catalog_fingerprint(
 
 fn atelier_schema_ddl() -> String {
     let mut ddl = Vec::new();
+    let mut authority_members = Vec::new();
     let mut include_continuation = false;
+    let mut include_authority_member_continuation = false;
 
     let authority = resource_authority_core_block();
+    let authority_tables = authority
+        .lines()
+        .map(str::trim_start)
+        .filter_map(|line| line.strip_prefix("DEFINE TABLE OVERWRITE "))
+        .filter_map(|rest| rest.split_ascii_whitespace().next())
+        .collect::<BTreeSet<_>>();
     let bounded_source = SCHEMA.replacen(authority, "", 1);
     for line in bounded_source.lines() {
         let trimmed = line.trim_start();
@@ -914,8 +2932,19 @@ fn atelier_schema_ddl() -> String {
             || ((trimmed.starts_with("DEFINE FIELD OVERWRITE ")
                 || trimmed.starts_with("DEFINE INDEX OVERWRITE "))
                 && trimmed.contains(" ON TABLE kernel_event_ledger"));
+        let starts_authority_member = (trimmed.starts_with("DEFINE FIELD OVERWRITE ")
+            || trimmed.starts_with("DEFINE INDEX OVERWRITE ")
+            || trimmed.starts_with("DEFINE EVENT OVERWRITE "))
+            && trimmed
+                .split_once(" ON TABLE ")
+                .and_then(|(_, table_tail)| table_tail.split_ascii_whitespace().next())
+                .is_some_and(|table| authority_tables.contains(table.trim_matches('`')));
 
-        if include_continuation || starts_atelier_statement || starts_event_ledger_dependency {
+        if include_authority_member_continuation || starts_authority_member {
+            authority_members.push(line);
+            include_authority_member_continuation = !trimmed.ends_with(';');
+        } else if include_continuation || starts_atelier_statement || starts_event_ledger_dependency
+        {
             ddl.push(line);
             include_continuation = !trimmed.ends_with(';');
         }
@@ -924,6 +2953,8 @@ fn atelier_schema_ddl() -> String {
     let mut ddl = ddl.join("\n");
     ddl.push('\n');
     ddl.push_str(authority);
+    ddl.push('\n');
+    ddl.push_str(&authority_members.join("\n"));
     ddl.push('\n');
     ddl
 }
@@ -950,7 +2981,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
     // observed).
     const EXPECTED_CATALOG_SHA256: &str =
-        "304dda4465a2a46a68feb3f48dba14ac1df8192daa4a8d6ea72cc72609ec3964";
+        "951794f9342584b953ea4a4dcfad28ae4632156227384ee7ae33f2a01c0261e8";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -1013,6 +3044,7 @@ fn loom_receipt_test_tables() -> &'static [&'static str] {
         "kernel_event_ledger",
         "knowledge_rich_documents",
         "local_accounts",
+        "local_account_setup",
         "principals",
         "access_spaces",
         "authenticated_sessions",
@@ -1060,10 +3092,30 @@ fn loom_receipt_test_schema_ddl() -> String {
             selected_blocks.push(block);
         }
     }
+    let (_, update_guard_block) = SCHEMA
+        .split_once("-- MT120_RECORD_USER_UPDATE_GUARD_EVENT_BEGIN\n")
+        .expect("MT120 update guard event block start");
+    let (update_guard_block, _) = update_guard_block
+        .split_once("-- MT120_RECORD_USER_UPDATE_GUARD_EVENT_END")
+        .expect("MT120 update guard event block end");
+    let selected_update_guard_events = format!("\n{update_guard_block}")
+        .split("\nDEFINE EVENT OVERWRITE ")
+        .skip(1)
+        .map(|event| format!("DEFINE EVENT OVERWRITE {}", event.trim()))
+        .filter(|event| selected_table_statement(event, loom_receipt_test_tables()))
+        .collect::<Vec<_>>();
     let mut bounded_source = SCHEMA.to_owned();
     for block in &selected_blocks {
         bounded_source = bounded_source.replacen(block, "", 1);
     }
+    bounded_source = bounded_source.replacen(
+        &format!(
+            "-- MT120_RECORD_USER_UPDATE_GUARD_EVENT_BEGIN\n{}-- MT120_RECORD_USER_UPDATE_GUARD_EVENT_END",
+            update_guard_block
+        ),
+        "",
+        1,
+    );
     let mut ddl = selected_blocks
         .iter()
         .map(|block| (*block).to_owned())
@@ -1079,6 +3131,7 @@ fn loom_receipt_test_schema_ddl() -> String {
             include_continuation = !trimmed.ends_with(';');
         }
     }
+    ddl.extend(selected_update_guard_events);
     let mut ddl = ddl.join("\n");
     ddl.push('\n');
     ddl
@@ -1380,6 +3433,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "knowledge_workspace_search_bookmark_states",
     "knowledge_workspace_settings_states",
     "local_accounts",
+    "local_account_setup",
     "loom_ai_suggestions",
     "loom_block_knowledge_bridge",
     "loom_block_search_index",
@@ -1502,6 +3556,7 @@ struct FinalizeBindings {
 #[derive(SurrealValue)]
 struct PredecessorUpgradeBindings {
     schema_version: String,
+    predecessor_revision: i64,
     schema_revision: i64,
     namespace: String,
     database: String,
@@ -1537,8 +3592,56 @@ impl SchemaState {
             && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
     }
 
+    fn has_pre_standalone_loom_update_identity(&self) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_STANDALONE_LOOM_UPDATE_REVISION
+            && self.target_revision == PRE_STANDALONE_LOOM_UPDATE_REVISION
+            && self.namespace == DEFAULT_NAMESPACE
+            && self.database == DEFAULT_DATABASE
+            && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
+    }
+
+    fn is_exact_pre_standalone_loom_update_current(&self) -> bool {
+        self.has_pre_standalone_loom_update_identity()
+            && self.generated_surql_sha256 == PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256
+    }
+
+    fn has_pre_canvas_receipt_identity(&self) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_CANVAS_RECEIPT_REVISION
+            && self.target_revision == PRE_CANVAS_RECEIPT_REVISION
+            && self.namespace == DEFAULT_NAMESPACE
+            && self.database == DEFAULT_DATABASE
+            && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
+    }
+
+    fn is_exact_pre_canvas_receipt_current(&self) -> bool {
+        self.has_pre_canvas_receipt_identity()
+            && self.generated_surql_sha256 == PRE_CANVAS_RECEIPT_GENERATED_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_CANVAS_RECEIPT_INFO_SHA256
+    }
+
+    fn has_pre_account_setup_identity(&self) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_ACCOUNT_SETUP_REVISION
+            && self.target_revision == PRE_ACCOUNT_SETUP_REVISION
+            && self.namespace == DEFAULT_NAMESPACE
+            && self.database == DEFAULT_DATABASE
+            && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
+    }
+
+    fn is_exact_pre_account_setup(&self) -> bool {
+        self.has_pre_account_setup_identity()
+            && self.generated_surql_sha256 == PRE_ACCOUNT_SETUP_GENERATED_SHA256
+            && self.apply_state == "complete"
+            && self.info_fingerprint_sha256 == PRE_ACCOUNT_SETUP_INFO_SHA256
+    }
+
     fn is_exact_pre_mt109_current(&self) -> bool {
-        self.has_stable_v1_identity()
+        self.has_pre_account_setup_identity()
             && self.generated_surql_sha256 == PRE_MT109_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT109_SCHEMA_INFO_SHA256
@@ -1547,7 +3650,7 @@ impl SchemaState {
     /// Exact MT-109 current lineage (revision 157 with the authority surface, before the
     /// MT-150 `loom_edges.event_ledger_event_id` receipt binding).
     fn is_exact_pre_mt150_current(&self) -> bool {
-        self.has_stable_v1_identity()
+        self.has_pre_account_setup_identity()
             && self.generated_surql_sha256 == PRE_MT150_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT150_SCHEMA_INFO_SHA256
@@ -1556,14 +3659,14 @@ impl SchemaState {
     /// Exact MT-150 current lineage (revision 157 with the loom_edges receipt binding, before
     /// the MT-141 R9 provenance-ref constraint moved onto `asset_id`).
     fn is_exact_pre_mt141_current(&self) -> bool {
-        self.has_stable_v1_identity()
+        self.has_pre_account_setup_identity()
             && self.generated_surql_sha256 == PRE_MT141_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT141_SCHEMA_INFO_SHA256
     }
 
     fn is_exact_supported_predecessor(&self) -> bool {
-        self.has_stable_v1_identity()
+        self.has_pre_account_setup_identity()
             && self.generated_surql_sha256 == PREDECESSOR_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PREDECESSOR_SCHEMA_INFO_SHA256
@@ -1571,7 +3674,7 @@ impl SchemaState {
 
     /// Exact pre-MT-142 current lineage (revision 157 without the title-anchor table).
     fn is_exact_pre_mt142_current(&self) -> bool {
-        self.has_stable_v1_identity()
+        self.has_pre_account_setup_identity()
             && self.generated_surql_sha256 == PRE_MT142_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT142_SCHEMA_INFO_SHA256
@@ -1580,7 +3683,7 @@ impl SchemaState {
     /// Exact MT-142 current lineage (revision 157 with the title-anchor table, before the
     /// MT-151 journal key and graph anchors).
     fn is_exact_pre_mt151_current(&self) -> bool {
-        self.has_stable_v1_identity()
+        self.has_pre_account_setup_identity()
             && self.generated_surql_sha256 == PRE_MT151_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT151_SCHEMA_INFO_SHA256
@@ -1589,7 +3692,7 @@ impl SchemaState {
     /// Exact MT-151 current lineage (revision 157 with journal_key and graph anchors, before
     /// the MT-152 FEMS workspace write anchors).
     fn is_exact_pre_mt152_current(&self) -> bool {
-        self.has_stable_v1_identity()
+        self.has_pre_account_setup_identity()
             && self.generated_surql_sha256 == PRE_MT152_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT152_SCHEMA_INFO_SHA256
@@ -1942,6 +4045,20 @@ pub async fn bootstrap_schema(
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
                     }
+                    Some(state) if state.is_exact_pre_standalone_loom_update_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_standalone_loom_update_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
+                    Some(state) if state.is_exact_pre_canvas_receipt_current() => {
+                        verified_observed =
+                            Some(upgrade_pre_canvas_receipt_current(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
+                    Some(state) if state.is_exact_pre_account_setup() => {
+                        verified_observed = Some(upgrade_pre_account_setup(&database, &state).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
                     Some(state) if state.is_exact_pre_mt141_current() => {
                         verified_observed =
                             Some(upgrade_pre_mt141_current(&database, &state).await?);
@@ -2160,6 +4277,39 @@ fn compiled_schema_catalog_entries() -> Result<Vec<String>, String> {
     Ok(entries.into_iter().collect())
 }
 
+/// Cascade edges use the same strict declaration-token grammar as the catalog.
+#[cfg(test)]
+pub(super) fn workspace_cascade_edges() -> Result<Vec<(String, String, String)>, String> {
+    compiled_schema_catalog_entries()?;
+    let mut edges = Vec::new();
+    for line in SCHEMA
+        .lines()
+        .filter(|line| line.contains("REFERENCE ON DELETE CASCADE"))
+    {
+        let tokens = line.split_whitespace().collect::<Vec<_>>();
+        let ["DEFINE", "FIELD", "OVERWRITE", field, "ON", "TABLE", table, "TYPE", kind, ..] =
+            tokens.as_slice()
+        else {
+            return Err("unsupported cascade declaration".to_owned());
+        };
+        let kind = kind
+            .strip_prefix("option<")
+            .and_then(|v| v.strip_suffix('>'))
+            .unwrap_or(kind);
+        let target = kind
+            .strip_prefix("record<")
+            .and_then(|v| v.strip_suffix('>'))
+            .ok_or_else(|| "unsupported cascade target".to_owned())?;
+        for name in [*field, *table, target] {
+            if name.is_empty() || !name.bytes().all(|v| v.is_ascii_alphanumeric() || v == b'_') {
+                return Err("unsupported cascade identifier".to_owned());
+            }
+        }
+        edges.push((target.to_owned(), (*table).to_owned(), (*field).to_owned()));
+    }
+    Ok(edges)
+}
+
 fn declarative_function_name(signature: &str) -> Result<&str, String> {
     let (name, _) = signature
         .split_once('(')
@@ -2193,7 +4343,11 @@ fn resource_authority_schema_blocks() -> Vec<&'static str> {
 }
 
 pub(super) fn resource_authority_schema_statements() -> String {
-    resource_authority_schema_blocks().join("\n")
+    format!(
+        "{}\n{}",
+        resource_authority_schema_blocks().join("\n"),
+        RECORD_USER_PRODUCER_BLOCK
+    )
 }
 
 fn resource_authority_upgrade_statements() -> String {
@@ -2209,10 +4363,47 @@ fn resource_authority_upgrade_statements() -> String {
 /// the current fingerprint (which includes both).
 fn post_mt109_upgrade_statements() -> String {
     format!(
-        "{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}\n{}",
         resource_authority_upgrade_statements(),
         MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS,
-        mt141_upgrade_statements()
+        mt141_upgrade_statements(),
+        mt120_document_upgrade_statements(),
+        standalone_loom_update_upgrade_statement(),
+        mt120_loom_receipt_upgrade_statement(),
+    )
+}
+
+/// Reuse the declarative receipt function verbatim so fresh installs and every supported
+/// predecessor carry the same permission predicate.
+fn mt120_loom_receipt_upgrade_statement() -> String {
+    const START: &str = "DEFINE FUNCTION OVERWRITE fn::mt120_loom_receipt(";
+    const END: &str = "\nDEFINE FUNCTION OVERWRITE fn::mt120_document_receipt";
+    let start = SCHEMA
+        .find(START)
+        .expect("current schema defines mt120 loom receipt");
+    let receipt = &SCHEMA[start..];
+    let end = receipt
+        .find(END)
+        .expect("mt120 loom receipt precedes document receipt");
+    receipt[..end].to_owned()
+}
+
+/// Reuse the complete LoomBlock declaration so the current standalone-owner
+/// update permission applies identically to fresh and upgraded stores.
+fn standalone_loom_update_upgrade_statement() -> String {
+    let (table_start, table_end) = schema_table_definition_bounds(SCHEMA, "loom_blocks");
+    let (loom_event_start, loom_event_end) =
+        schema_event_definition_bounds(SCHEMA, "mt109_loom_source_integrity");
+    let (workspace_event_start, workspace_event_end) =
+        schema_event_definition_bounds_until_next_table(
+            SCHEMA,
+            "mt109_workspace_reconciliation_queue",
+        );
+    format!(
+        "{}\n{}\n{}",
+        &SCHEMA[table_start..table_end],
+        &SCHEMA[loom_event_start..loom_event_end],
+        &SCHEMA[workspace_event_start..workspace_event_end],
     )
 }
 
@@ -2464,8 +4655,8 @@ BEGIN TRANSACTION;
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
 IF $current = NONE
     OR $current.version != $schema_version
-    OR $current.revision != $schema_revision
-    OR $current.target_revision != $schema_revision
+    OR $current.revision != $predecessor_revision
+    OR $current.target_revision != $predecessor_revision
     OR $current.namespace != $namespace
     OR $current.database != $database
     OR $current.source_manifest_sha256 != $source_manifest_sha256
@@ -2507,6 +4698,7 @@ CREATE ONLY knowledge_schema_registry:rich_document_title_anchors CONTENT {
     mt_id: 'MT-142'
 };
 UPDATE ONLY handshake_schema_state:primary SET
+    revision = $schema_revision, target_revision = $schema_revision,
     generated_surql_sha256 = $generated_surql_sha256,
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,
     apply_state = 'schema_applied',
@@ -2516,6 +4708,7 @@ COMMIT TRANSACTION;
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -2582,8 +4775,8 @@ async fn materialise_mt151_journal_key(
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
 IF $current = NONE\n\
     OR $current.version != $schema_version\n\
-    OR $current.revision != $schema_revision\n\
-    OR $current.target_revision != $schema_revision\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
     OR $current.namespace != $namespace\n\
     OR $current.database != $database\n\
     OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
@@ -2602,6 +4795,7 @@ COMMIT TRANSACTION;\n"
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -2662,8 +4856,8 @@ async fn materialise_mt152_folder_sibling_key(
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
 IF $current = NONE\n\
     OR $current.version != $schema_version\n\
-    OR $current.revision != $schema_revision\n\
-    OR $current.target_revision != $schema_revision\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
     OR $current.namespace != $namespace\n\
     OR $current.database != $database\n\
     OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
@@ -2682,6 +4876,7 @@ COMMIT TRANSACTION;\n"
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -2785,8 +4980,8 @@ async fn upgrade_pre_mt142_current(
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
 IF $current = NONE\n\
     OR $current.version != $schema_version\n\
-    OR $current.revision != $schema_revision\n\
-    OR $current.target_revision != $schema_revision\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
     OR $current.namespace != $namespace\n\
     OR $current.database != $database\n\
     OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
@@ -2802,6 +4997,7 @@ IF $current = NONE\n\
 {MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
 {authority_delta}\n\
 UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
     apply_state = 'schema_applied',\n\
@@ -2814,6 +5010,7 @@ COMMIT TRANSACTION;\n"
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -2900,8 +5097,8 @@ async fn upgrade_pre_mt151_current(
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
 IF $current = NONE\n\
     OR $current.version != $schema_version\n\
-    OR $current.revision != $schema_revision\n\
-    OR $current.target_revision != $schema_revision\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
     OR $current.namespace != $namespace\n\
     OR $current.database != $database\n\
     OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
@@ -2916,6 +5113,7 @@ IF $current = NONE\n\
 {MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
 {authority_delta}\n\
 UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
     apply_state = 'schema_applied',\n\
@@ -2928,6 +5126,7 @@ COMMIT TRANSACTION;\n"
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -3007,8 +5206,8 @@ async fn upgrade_pre_mt152_current(
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
 IF $current = NONE\n\
     OR $current.version != $schema_version\n\
-    OR $current.revision != $schema_revision\n\
-    OR $current.target_revision != $schema_revision\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
     OR $current.namespace != $namespace\n\
     OR $current.database != $database\n\
     OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
@@ -3022,6 +5221,7 @@ IF $current = NONE\n\
 {MT152_LOOM_FOLDER_SIBLING_KEY_INDEX_STATEMENTS}\
 {authority_delta}\n\
 UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
     apply_state = 'schema_applied',\n\
@@ -3034,6 +5234,7 @@ COMMIT TRANSACTION;\n"
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -3102,13 +5303,14 @@ async fn upgrade_pre_mt150_current(
         .await;
     }
     let mt141_upgrade = mt141_upgrade_statements();
+    let document_upgrade = mt120_document_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
 IF $current = NONE\n\
     OR $current.version != $schema_version\n\
-    OR $current.revision != $schema_revision\n\
-    OR $current.target_revision != $schema_revision\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
     OR $current.namespace != $namespace\n\
     OR $current.database != $database\n\
     OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
@@ -3119,8 +5321,10 @@ IF $current = NONE\n\
     THROW 'HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_STATE_CHANGED';\n\
 }};\n\
 {MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS}\
-{mt141_upgrade}\
+{mt141_upgrade}{LOCAL_ACCOUNT_SETUP_STATEMENTS}\
+{document_upgrade}\
 UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
     apply_state = 'schema_applied',\n\
@@ -3133,6 +5337,7 @@ COMMIT TRANSACTION;\n"
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -3201,13 +5406,14 @@ async fn upgrade_pre_mt141_current(
         .await;
     }
     let mt141_upgrade = mt141_upgrade_statements();
+    let document_upgrade = mt120_document_upgrade_statements();
     let upgrade = format!(
         "BEGIN TRANSACTION;\n\
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
 IF $current = NONE\n\
     OR $current.version != $schema_version\n\
-    OR $current.revision != $schema_revision\n\
-    OR $current.target_revision != $schema_revision\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
     OR $current.namespace != $namespace\n\
     OR $current.database != $database\n\
     OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
@@ -3217,8 +5423,10 @@ IF $current = NONE\n\
 {{\n\
     THROW 'HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_STATE_CHANGED';\n\
 }};\n\
-{mt141_upgrade}\
+{mt141_upgrade}{LOCAL_ACCOUNT_SETUP_STATEMENTS}\
+{document_upgrade}\
 UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,
     generated_surql_sha256 = $generated_surql_sha256,\n\
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
     apply_state = 'schema_applied',\n\
@@ -3231,6 +5439,7 @@ COMMIT TRANSACTION;\n"
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
                 namespace: DEFAULT_NAMESPACE.to_owned(),
                 database: DEFAULT_DATABASE.to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -3283,10 +5492,339 @@ COMMIT TRANSACTION;\n"
     }
 }
 
+/// Revision 160 widens only standalone owned LoomBlock updates. The exact
+/// revision-159 state is upgraded in place so existing stores receive the
+/// same resource-grant predicate as fresh declarative installs.
+async fn upgrade_pre_standalone_loom_update_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_standalone_loom_update_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let predecessor_observed = read_schema_catalog(database).await?;
+    if predecessor_observed.info_fingerprint_sha256 != PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_CATALOG_MISMATCH: expected={PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256}; observed={}",
+                predecessor_observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    let loom_upgrade = standalone_loom_update_upgrade_statement();
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_STATE_CHANGED';\n\
+}};\n\
+{loom_upgrade}\n\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_STANDALONE_LOOM_UPDATE_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256
+                    .to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256
+                    .to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!(
+                    "HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_FINAL_STATE_MISMATCH: {state:?}"
+                ),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+/// Revision 159 changes only the EventLedger receipt permission function. The exact revision-158
+/// state is upgraded in place so existing stores receive the same narrow creator-session rule as
+/// a fresh declarative install.
+async fn upgrade_pre_canvas_receipt_current(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_canvas_receipt_current() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_UPGRADE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let predecessor_observed = read_schema_catalog(database).await?;
+    if predecessor_observed.info_fingerprint_sha256 != PRE_CANVAS_RECEIPT_INFO_SHA256 {
+        return fail_closed(
+            database,
+            format!(
+                "HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_CATALOG_MISMATCH: expected={PRE_CANVAS_RECEIPT_INFO_SHA256}; observed={}",
+                predecessor_observed.info_fingerprint_sha256
+            ),
+        )
+        .await;
+    }
+    let loom_update = standalone_loom_update_upgrade_statement();
+    let receipt_upgrade = mt120_loom_receipt_upgrade_statement();
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_UPGRADE_STATE_CHANGED';\n\
+}};\n\
+{loom_update}\n\
+{receipt_upgrade}\n\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,\n\
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_CANVAS_RECEIPT_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_CANVAS_RECEIPT_GENERATED_SHA256.to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_CANVAS_RECEIPT_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_UPGRADE_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_UPGRADE_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!(
+                    "HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_UPGRADE_FINAL_STATE_MISMATCH: {state:?}"
+                ),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
+async fn upgrade_pre_account_setup(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_account_setup() {
+        return fail_closed(
+            database,
+            "HANDSHAKE_SURREAL_PRE_ACCOUNT_SETUP_UPGRADE_PRECONDITION_FAILED".to_owned(),
+        )
+        .await;
+    }
+    let mt141_upgrade = LOCAL_ACCOUNT_SETUP_STATEMENTS;
+    let document_upgrade = mt120_document_upgrade_statements();
+    let upgrade = format!(
+        "BEGIN TRANSACTION;\n\
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;\n\
+IF $current = NONE\n\
+    OR $current.version != $schema_version\n\
+    OR $current.revision != $predecessor_revision\n\
+    OR $current.target_revision != $predecessor_revision\n\
+    OR $current.namespace != $namespace\n\
+    OR $current.database != $database\n\
+    OR $current.source_manifest_sha256 != $source_manifest_sha256\n\
+    OR $current.generated_surql_sha256 != $predecessor_generated_surql_sha256\n\
+    OR $current.info_fingerprint_sha256 != $predecessor_info_fingerprint_sha256\n\
+    OR $current.apply_state != 'complete'\n\
+{{\n\
+    THROW 'HANDSHAKE_SURREAL_PRE_ACCOUNT_SETUP_UPGRADE_STATE_CHANGED';\n\
+}};\n\
+{mt141_upgrade}\
+{document_upgrade}\
+UPDATE ONLY handshake_schema_state:primary SET\n\
+    revision = $schema_revision, target_revision = $schema_revision,
+    generated_surql_sha256 = $generated_surql_sha256,\n\
+    info_fingerprint_sha256 = $pending_info_fingerprint_sha256,\n\
+    apply_state = 'schema_applied',\n\
+    updated_at = time::now();\n\
+COMMIT TRANSACTION;\n"
+    );
+    database
+        .query_bound(
+            upgrade.as_str(),
+            PredecessorUpgradeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                predecessor_generated_surql_sha256: PRE_ACCOUNT_SETUP_GENERATED_SHA256.to_owned(),
+                predecessor_info_fingerprint_sha256: PRE_ACCOUNT_SETUP_INFO_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                schema_source: "storage/surreal/schema.surql".to_owned(),
+            },
+        )
+        .await?;
+
+    let upgraded = match read_context_and_state(database).await? {
+        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) => {
+            return fail_closed(
+                database,
+                format!("HANDSHAKE_SURREAL_PRE_ACCOUNT_SETUP_UPGRADE_STATE_MISMATCH: {state:?}"),
+            )
+            .await;
+        }
+        None => {
+            return fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_ACCOUNT_SETUP_UPGRADE_STATE_MISSING".to_owned(),
+            )
+            .await;
+        }
+    };
+    ensure_knowledge_schema_registry(database).await?;
+    let observed = inspect_schema(database).await?;
+    verify_expected_info_fingerprint(database, &observed).await?;
+    finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
+    match read_context_and_state(database).await? {
+        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) => {
+            fail_closed(
+                database,
+                format!(
+                    "HANDSHAKE_SURREAL_PRE_ACCOUNT_SETUP_UPGRADE_FINAL_STATE_MISMATCH: {state:?}"
+                ),
+            )
+            .await
+        }
+        None => {
+            fail_closed(
+                database,
+                "HANDSHAKE_SURREAL_PRE_ACCOUNT_SETUP_UPGRADE_FINAL_STATE_MISSING".to_owned(),
+            )
+            .await
+        }
+    }
+}
+
 fn mt109_authority_upgrade_bindings() -> PredecessorUpgradeBindings {
     PredecessorUpgradeBindings {
         schema_version: SCHEMA_VERSION.to_owned(),
         schema_revision: SCHEMA_REVISION,
+        predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
         namespace: DEFAULT_NAMESPACE.to_owned(),
         database: DEFAULT_DATABASE.to_owned(),
         source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -3306,8 +5844,8 @@ BEGIN TRANSACTION;
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
 IF $current = NONE
     OR $current.version != $schema_version
-    OR $current.revision != $schema_revision
-    OR $current.target_revision != $schema_revision
+    OR $current.revision != $predecessor_revision
+    OR $current.target_revision != $predecessor_revision
     OR $current.namespace != $namespace
     OR $current.database != $database
     OR $current.source_manifest_sha256 != $source_manifest_sha256
@@ -3319,6 +5857,7 @@ IF $current = NONE
 }};
 {authority_delta}
 UPDATE ONLY handshake_schema_state:primary SET
+    revision = $schema_revision, target_revision = $schema_revision,
     generated_surql_sha256 = $generated_surql_sha256,
     info_fingerprint_sha256 = $pending_info_fingerprint_sha256,
     apply_state = 'schema_applied',
@@ -3935,7 +6474,7 @@ mod tests {
         let expected_tables = atelier_expected_catalog()
             .into_keys()
             .collect::<BTreeSet<_>>();
-        assert_eq!(expected_tables.len(), 135);
+        assert_eq!(expected_tables.len(), 136);
         let expected_sequences = ATELIER_REQUIRED_SEQUENCES
             .iter()
             .map(|name| (*name).to_owned())
@@ -3955,11 +6494,12 @@ mod tests {
         let fingerprint =
             inspect_atelier_catalog_fingerprint(&database, &expected_tables, &expected_sequences)
                 .await?;
+        eprintln!("EXPECTED_ATELIER_CATALOG_SHA256={fingerprint}");
         if probe_dependencies {
             assert_eq!(authority_catalog_names("access").len(), 1);
-            // MT-141 (carried debt MT150-V3-F04): schema.surql carries 10 fn::mt109_* functions
-            // since 6e239eee; the pin was never moved from 9.
-            assert_eq!(authority_catalog_names("function").len(), 10);
+            // The authority core includes the existing document/workspace receipt helpers
+            // plus mt120_loom_block_access and mt120_loom_receipt.
+            assert_eq!(authority_catalog_names("function").len(), 15);
             let mut saved = database
                 .query("RETURN (INFO FOR DB).functions.mt109_live_session;")
                 .await?;
@@ -4346,6 +6886,65 @@ mod tests {
         .expect("MT-138 canonical fingerprint generation exceeded two minutes");
     }
 
+    #[tokio::test]
+    async fn mt138_full_schema_atelier_noop_matches_bounded_projection() {
+        tokio::time::timeout(std::time::Duration::from_secs(300), async {
+            let directory =
+                tempfile::tempdir().expect("create full-schema Atelier parity directory");
+            let storage = open_test_storage(&directory)
+                .await
+                .expect("open full-schema Atelier parity store");
+            bootstrap_schema(&storage)
+                .await
+                .expect("apply canonical full schema before Atelier bootstrap");
+
+            let expected_tables = atelier_expected_catalog()
+                .into_keys()
+                .collect::<BTreeSet<_>>();
+            let expected_sequences = ATELIER_REQUIRED_SEQUENCES
+                .iter()
+                .map(|name| (*name).to_owned())
+                .collect::<BTreeSet<_>>();
+            let full_schema_fingerprint = storage
+                .with_admin_operation(move |database| {
+                    Box::pin(async move {
+                        inspect_atelier_catalog_fingerprint(
+                            &database,
+                            &expected_tables,
+                            &expected_sequences,
+                        )
+                        .await
+                    })
+                })
+                .await
+                .expect("inspect full-schema Atelier catalog");
+            let bounded_projection_fingerprint = mt138_canonical_mem_fingerprint(false)
+                .await
+                .expect("inspect bounded Atelier projection catalog");
+            eprintln!("FULL_SCHEMA_ATELIER_CATALOG_SHA256={full_schema_fingerprint}");
+            eprintln!("BOUNDED_ATELIER_CATALOG_SHA256={bounded_projection_fingerprint}");
+            assert_eq!(
+                full_schema_fingerprint, bounded_projection_fingerprint,
+                "full-schema no-op and bounded Atelier bootstrap must have identical catalogs"
+            );
+
+            let applied = bootstrap_atelier_schema(&storage)
+                .await
+                .expect("full canonical schema must already satisfy Atelier bootstrap");
+            assert!(
+                !applied,
+                "Atelier bootstrap must be a no-op after the canonical full schema"
+            );
+
+            storage
+                .shutdown()
+                .await
+                .expect("close full-schema Atelier parity store");
+        })
+        .await
+        .expect("MT-138 full-schema Atelier parity exceeded five minutes");
+    }
+
     /// Canonical STRUCTURE catalog of one live store, keyed like `inspect_schema` hashes it,
     /// so a fingerprint mismatch can be explained entry by entry instead of hash by hash.
     async fn canonical_catalog(
@@ -4501,7 +7100,7 @@ mod tests {
             let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async move {
                 storage.with_admin_operation(|database| Box::pin(async move {
                     database.query_bound(PRE_MT109_SCHEMA, BootstrapBindings {
-                        schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
+                        schema_version: SCHEMA_VERSION.to_owned(), schema_revision: PRE_ACCOUNT_SETUP_REVISION,
                         namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
                         source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                         generated_surql_sha256: PRE_MT109_GENERATED_SURREALQL_SHA256.to_owned(),
@@ -4748,7 +7347,7 @@ mod tests {
             .iter()
             .map(|s| (*s).to_owned())
             .collect::<BTreeSet<_>>();
-        assert_eq!(tables.len(), 16);
+        assert_eq!(tables.len(), 17);
         let mut fingerprints = Vec::new();
         for _ in 0..2 {
             let client = Surreal::new::<Mem>(())
@@ -4796,7 +7395,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "304dda4465a2a46a68feb3f48dba14ac1df8192daa4a8d6ea72cc72609ec3964"
+            "951794f9342584b953ea4a4dcfad28ae4632156227384ee7ae33f2a01c0261e8"
         );
     }
 
@@ -4824,7 +7423,11 @@ mod tests {
                         if current { SCHEMA } else { PRE_MT109_SCHEMA },
                         BootstrapBindings {
                             schema_version: SCHEMA_VERSION.to_owned(),
-                            schema_revision: SCHEMA_REVISION,
+                            schema_revision: if current {
+                                SCHEMA_REVISION
+                            } else {
+                                PRE_ACCOUNT_SETUP_REVISION
+                            },
                             namespace: DEFAULT_NAMESPACE.to_owned(),
                             database: DEFAULT_DATABASE.to_owned(),
                             source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -5175,9 +7778,10 @@ mod tests {
             .filter(|line| line.starts_with("DEFINE "))
             .collect();
         assert_eq!(ddl_lines.len(), 10);
+        let predecessor = pre_account_setup_schema();
         for line in ddl_lines {
             assert!(
-                SCHEMA.lines().any(|schema_line| schema_line == line),
+                predecessor.lines().any(|schema_line| schema_line == line),
                 "MT-142 upgrade DDL drifted from schema.surql: {line}"
             );
         }
@@ -5355,7 +7959,7 @@ mod tests {
                             mt151_pin_schema.as_str(),
                             BootstrapBindings {
                                 schema_version: SCHEMA_VERSION.to_owned(),
-                                schema_revision: SCHEMA_REVISION,
+                                schema_revision: PRE_ACCOUNT_SETUP_REVISION,
                                 namespace: DEFAULT_NAMESPACE.to_owned(),
                                 database: DEFAULT_DATABASE.to_owned(),
                                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -5874,7 +8478,7 @@ mod tests {
                             predecessor_schema.as_str(),
                             BootstrapBindings {
                                 schema_version: SCHEMA_VERSION.to_owned(),
-                                schema_revision: SCHEMA_REVISION,
+                                schema_revision: PRE_ACCOUNT_SETUP_REVISION,
                                 namespace: DEFAULT_NAMESPACE.to_owned(),
                                 database: DEFAULT_DATABASE.to_owned(),
                                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -6034,7 +8638,7 @@ mod tests {
                             mt142_pin_schema.as_str(),
                             BootstrapBindings {
                                 schema_version: SCHEMA_VERSION.to_owned(),
-                                schema_revision: SCHEMA_REVISION,
+                                schema_revision: PRE_ACCOUNT_SETUP_REVISION,
                                 namespace: DEFAULT_NAMESPACE.to_owned(),
                                 database: DEFAULT_DATABASE.to_owned(),
                                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -6153,6 +8757,190 @@ mod tests {
         current.shutdown().await.expect("close current store");
     }
 
+    /// The revision-158 receipt schema upgrades only after both its durable marker and its
+    /// live catalog match the observed predecessor. A changed catalog must remain untouched.
+    #[tokio::test]
+    async fn canvas_receipt_revision_158_upgrade_requires_exact_catalog_and_restarts_current() {
+        const WRONG_PRE_CANVAS_GENERATED_SHA256: &str =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let previous_schema = pre_canvas_receipt_schema();
+        assert_eq!(
+            sha256_hex(previous_schema.as_bytes()),
+            PRE_CANVAS_RECEIPT_GENERATED_SHA256,
+            "the revision-158 predecessor must be exactly the current schema without the creator-session receipt read branch"
+        );
+        let directory = tempfile::tempdir().expect("temporary Canvas receipt predecessor");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open exact revision-158 predecessor store");
+        storage
+            .with_admin_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_bound(
+                            previous_schema.as_str(),
+                            BootstrapBindings {
+                                schema_version: SCHEMA_VERSION.to_owned(),
+                                schema_revision: PRE_CANVAS_RECEIPT_REVISION,
+                                namespace: DEFAULT_NAMESPACE.to_owned(),
+                                database: DEFAULT_DATABASE.to_owned(),
+                                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                                generated_surql_sha256: PRE_CANVAS_RECEIPT_GENERATED_SHA256
+                                    .to_owned(),
+                            },
+                        )
+                        .await?;
+                    ensure_knowledge_schema_registry(&database).await?;
+                    assert_eq!(
+                        read_schema_catalog(&database).await?.info_fingerprint_sha256,
+                        PRE_CANVAS_RECEIPT_INFO_SHA256,
+                        "the seeded predecessor must carry its observed catalog fingerprint"
+                    );
+                    database
+                        .query(format!(
+                            "UPDATE ONLY {BOOTSTRAP_STATE_ID} SET apply_state = 'complete', info_fingerprint_sha256 = '{PRE_CANVAS_RECEIPT_INFO_SHA256}';"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("seed exact complete revision-158 predecessor");
+
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "UPDATE ONLY handshake_schema_state:primary SET generated_surql_sha256 = '{WRONG_PRE_CANVAS_GENERATED_SHA256}';"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("tamper predecessor state for rejection proof");
+        let state_rejection = bootstrap_schema(&storage)
+            .await
+            .expect_err("wrong revision-158 state must fail before DDL");
+        assert!(state_rejection
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE"));
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("rejected revision-158 state remains present");
+                    assert_eq!(state.revision, PRE_CANVAS_RECEIPT_REVISION);
+                    assert_eq!(
+                        state.generated_surql_sha256,
+                        WRONG_PRE_CANVAS_GENERATED_SHA256
+                    );
+                    assert_eq!(
+                        read_schema_catalog(&database)
+                            .await?
+                            .info_fingerprint_sha256,
+                        PRE_CANVAS_RECEIPT_INFO_SHA256,
+                        "wrong state rejection must not alter the predecessor catalog"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("reread unchanged state rejection");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query(format!(
+                            "UPDATE ONLY handshake_schema_state:primary SET generated_surql_sha256 = '{PRE_CANVAS_RECEIPT_GENERATED_SHA256}'; \
+                             DEFINE TABLE canvas_receipt_revision_158_unknown_overlay SCHEMAFULL PERMISSIONS NONE;"
+                        ))
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("restore predecessor state and introduce catalog drift");
+        let rejected_catalog = storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    Ok(read_schema_catalog(&database)
+                        .await?
+                        .info_fingerprint_sha256)
+                })
+            })
+            .await
+            .expect("read catalog before rejection");
+        let catalog_rejection = bootstrap_schema(&storage)
+            .await
+            .expect_err("unknown revision-158 catalog drift must fail before receipt DDL");
+        assert!(catalog_rejection
+            .to_string()
+            .contains("HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_CATALOG_MISMATCH"));
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    let state = read_context_and_state(&database)
+                        .await?
+                        .expect("catalog-rejected revision-158 state remains present");
+                    assert_eq!(state.revision, PRE_CANVAS_RECEIPT_REVISION);
+                    assert_eq!(
+                        state.generated_surql_sha256,
+                        PRE_CANVAS_RECEIPT_GENERATED_SHA256
+                    );
+                    assert_eq!(
+                        read_schema_catalog(&database)
+                            .await?
+                            .info_fingerprint_sha256,
+                        rejected_catalog,
+                        "catalog rejection must not alter the predecessor catalog"
+                    );
+                    Ok(())
+                })
+            })
+            .await
+            .expect("reread unchanged catalog rejection");
+        storage
+            .with_admin_operation(|database| {
+                Box::pin(async move {
+                    database
+                        .query("REMOVE TABLE canvas_receipt_revision_158_unknown_overlay;")
+                        .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .expect("restore exact revision-158 catalog");
+
+        let upgraded = bootstrap_schema(&storage)
+            .await
+            .expect("upgrade exact revision-158 receipt predecessor");
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        storage
+            .shutdown()
+            .await
+            .expect("close upgraded Canvas receipt predecessor store");
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded Canvas receipt store");
+        let restarted = bootstrap_schema(&reopened)
+            .await
+            .expect("reuse current Canvas receipt schema after restart");
+        assert_eq!(
+            restarted.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        reopened
+            .shutdown()
+            .await
+            .expect("close restarted Canvas receipt store");
+    }
+
     /// MT-141 R9: the exact MT-150 pin is the current script with the MT-150-era
     /// `atelier_media_source_provenance_ref.asset_id` definition restored, proven byte-exact
     /// against `PRE_MT141_GENERATED_SURREALQL_SHA256`.
@@ -6198,7 +8986,7 @@ mod tests {
             SCHEMA.matches(MT141_AI_EDIT_APPLIED_BINDING_LINES).count(),
             1
         );
-        let pinned = SCHEMA
+        let pinned = pre_account_setup_schema()
             .replace(
                 MT141_PROVENANCE_REF_ASSERT_LINE,
                 PRE_MT141_PROVENANCE_REF_ASSET_ID_LINE,
@@ -6229,6 +9017,148 @@ mod tests {
     /// MT-141 R9: the upgrade DDL is byte-identical (whitespace-normalised) to the fresh-script
     /// `asset_id` definition, it carries the composite constraint, every older lineage's upgrade
     /// query carries it, and the lineage pins moved.
+    #[tokio::test]
+    async fn local_account_setup_upgrade_preserves_revision_157_and_restarts_current() {
+        let previous_schema = pre_account_setup_schema();
+        assert_eq!(
+            sha256_hex(previous_schema.as_bytes()),
+            PRE_ACCOUNT_SETUP_GENERATED_SHA256
+        );
+        let directory = tempfile::tempdir().expect("temporary account setup predecessor");
+        let storage = open_test_storage(&directory)
+            .await
+            .expect("open predecessor store");
+        storage.with_admin_operation(move |database| Box::pin(async move {
+            database.query_bound(previous_schema.as_str(), BootstrapBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: PRE_ACCOUNT_SETUP_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                generated_surql_sha256: PRE_ACCOUNT_SETUP_GENERATED_SHA256.to_owned(),
+            }).await?;
+            ensure_knowledge_schema_registry(&database).await?;
+            assert_eq!(read_schema_catalog(&database).await?.info_fingerprint_sha256, PRE_ACCOUNT_SETUP_INFO_SHA256);
+            database.query(format!("UPDATE handshake_schema_state:primary SET apply_state = 'complete', info_fingerprint_sha256 = '{PRE_ACCOUNT_SETUP_INFO_SHA256}'; CREATE local_accounts:legacy CONTENT {{ account_key: 'legacy', account_role: 'Member', status: 'enabled', revocation_epoch: 0, policy_version: 1, created_at: time::now(), updated_at: time::now() }};")).await?;
+            database.query("CREATE principals:legacy CONTENT { principal_key: 'legacy', account_id: local_accounts:legacy, principal_kind: 'human_account', actor_kind: 'operator', actor_id: 'legacy', capability_profile_id: 'legacy', delegated_capabilities: ['fs.write'], status: 'enabled', revocation_epoch: 0, policy_version: 1, created_at: time::now(), updated_at: time::now() }; CREATE access_spaces:legacy CONTENT { space_key: 'legacy', account_id: local_accounts:legacy, name: 'legacy', status: 'active', revocation_epoch: 0, policy_version: 1, created_at: time::now(), updated_at: time::now() }; CREATE authenticated_sessions:legacy CONTENT { account_id: local_accounts:legacy, principal_id: principals:legacy, access_space_id: access_spaces:legacy, token_hash: crypto::sha256('revision157-nonce-proof'), channel_binding_hash: NONE, authentication_strength: 'test', delegated_capabilities: ['fs.write'], delegation_chain: [], account_revocation_epoch: 0, principal_revocation_epoch: 0, space_revocation_epoch: 0, policy_version: 1, issued_at: time::now(), expires_at: time::now() + 1h, revoked_at: NONE };").await?;
+            Ok(())
+        })).await.expect("seed exact revision 157 without password/setup credentials");
+        let upgraded = bootstrap_schema(&storage)
+            .await
+            .expect("upgrade exact predecessor");
+        assert_eq!(
+            upgraded.info_fingerprint_sha256,
+            EXPECTED_SCHEMA_INFO_SHA256
+        );
+        storage.with_admin_operation(|database| Box::pin(async move {
+            let mut result = database.query("SELECT account_key, account_role, password_verifier FROM local_accounts; SELECT * FROM local_account_setup;").await?;
+            #[derive(SurrealValue)]
+            struct LegacyAccount {
+                account_key: String,
+                account_role: String,
+                password_verifier: Option<String>,
+            }
+            let accounts: Vec<LegacyAccount> = result.take(0)?;
+            let setups: Vec<SurrealValueData> = result.take(1)?;
+            assert_eq!(accounts.len(), 1);
+            assert_eq!(accounts[0].account_key, "legacy");
+            assert_eq!(accounts[0].account_role, "Member");
+            assert!(accounts[0].password_verifier.is_none());
+            assert!(setups.is_empty(), "migration must not claim installation ownership");
+            Ok(())
+        })).await.expect("preserve account and no auto setup");
+        storage.with_admin_operation(|database| Box::pin(async move {
+            database.query(
+                "CREATE protected_resources:legacy_resource CONTENT { resource_kind: 'workspace', external_resource_id: 'legacy-workspace', owner_account_id: local_accounts:legacy, created_by_principal_id: principals:legacy, created_in_session_id: authenticated_sessions:legacy, creator_grant_id: NONE, access_space_id: access_spaces:legacy, parent_resource_id: NONE, schema_version: 1, lifecycle_state: 'active', policy_version: 1, classification: 'account_private', storage_locator_hash: crypto::sha256('revision157-resource'), created_at: time::now(), updated_at: time::now() }; CREATE resource_grants:legacy_grant CONTENT { account_id: local_accounts:legacy, principal_id: principals:legacy, access_space_id: access_spaces:legacy, resource_id: protected_resources:legacy_resource, actions: ['read','create','update','delete'], capability_ids: ['fs.read','fs.write'], delegation_chain: [], status: 'active', grant_version: 1, policy_version: 1, expires_at: NONE, revoked_at: NONE, created_at: time::now(), updated_at: time::now() }; UPDATE protected_resources:legacy_resource SET creator_grant_id = resource_grants:legacy_grant;"
+            ).await?.check()?;
+            Ok(())
+        })).await.expect("seed real protected resource and grant for record-user nonce proof");
+        let scope = super::super::resource_authority::RecordUserScope {
+            grant_id: Some("legacy_grant".to_owned()),
+            workspace_id: Some("legacy-workspace".to_owned()),
+            session_token: "revision157-nonce-proof".to_owned(),
+            channel_binding_hash: None,
+            resource_id: "nonce-only-proof".to_owned(),
+            session_id: "legacy".to_owned(),
+            capability_id: "fs.write".to_owned(),
+            action: super::super::resource_authority::ResourceAction::Update,
+        };
+        storage.with_record_user_scope(scope, storage.with_data_operation(|database| Box::pin(async move {
+            let authority_rows = [
+                "local_accounts:legacy",
+                "principals:legacy",
+                "access_spaces:legacy",
+                "authenticated_sessions:legacy",
+                "protected_resources:legacy_resource",
+                "resource_grants:legacy_grant",
+            ];
+            for row in authority_rows {
+                let mut positive = database.client.query(format!(
+                    "UPDATE {row} SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE authorization_touch_nonce;"
+                )).await?.check()?;
+                let touched: Vec<i64> = positive.take(0)?;
+                assert_eq!(touched, vec![1], "{row} accepts its first record-user nonce increment");
+            }
+
+            let tamper_cases = [
+                ("local_accounts:legacy", "account_role = 'Owner'"),
+                ("principals:legacy", "actor_id = 'tampered'"),
+                ("access_spaces:legacy", "name = 'tampered'"),
+                ("authenticated_sessions:legacy", "authentication_strength = 'tampered'"),
+                ("protected_resources:legacy_resource", "classification = 'tampered'"),
+                ("resource_grants:legacy_grant", "grant_version = 2"),
+            ];
+            for (row, mutation) in tamper_cases {
+                let error = database.client.query(format!(
+                    "UPDATE {row} SET authorization_touch_nonce = authorization_touch_nonce + 1, {mutation} RETURN NONE;"
+                )).await?.check().expect_err("immutable authority tamper must fail");
+                assert!(
+                    error.to_string().contains("HSK-403-PROTECTED-RESOURCE"),
+                    "{row} immutable tamper must report the authority guard: {error}"
+                );
+            }
+            for row in authority_rows {
+                let error = database.client.query(format!(
+                    "UPDATE {row} SET authorization_touch_nonce = authorization_touch_nonce + 2 RETURN NONE;"
+                )).await?.check().expect_err("non-unit authority nonce increment must fail");
+                assert!(
+                    error.to_string().contains("HSK-403-PROTECTED-RESOURCE"),
+                    "{row} non-unit nonce increment must report the authority guard: {error}"
+                );
+            }
+
+            let mut reread = database.client.query(
+                "SELECT VALUE authorization_touch_nonce FROM local_accounts:legacy;                  SELECT VALUE authorization_touch_nonce FROM principals:legacy;                  SELECT VALUE authorization_touch_nonce FROM access_spaces:legacy;                  SELECT VALUE authorization_touch_nonce FROM authenticated_sessions:legacy;                  SELECT VALUE authorization_touch_nonce FROM protected_resources:legacy_resource;                  SELECT VALUE authorization_touch_nonce FROM resource_grants:legacy_grant;                  SELECT VALUE account_role FROM local_accounts:legacy;                  SELECT VALUE actor_id FROM principals:legacy;                  SELECT VALUE name FROM access_spaces:legacy;                  SELECT VALUE authentication_strength FROM authenticated_sessions:legacy;                  SELECT VALUE classification FROM protected_resources:legacy_resource;                  SELECT VALUE grant_version FROM resource_grants:legacy_grant;"
+            ).await?.check()?;
+            for statement_index in 0..6 {
+                let nonce: Vec<i64> = reread.take(statement_index)?;
+                assert_eq!(nonce, vec![1], "rejected tamper must not partially advance authority nonce");
+            }
+            let account_role: Vec<String> = reread.take(6)?;
+            let actor_id: Vec<String> = reread.take(7)?;
+            let space_name: Vec<String> = reread.take(8)?;
+            let authentication_strength: Vec<String> = reread.take(9)?;
+            let classification: Vec<String> = reread.take(10)?;
+            let grant_version: Vec<i64> = reread.take(11)?;
+            assert_eq!(account_role, vec!["Member"]);
+            assert_eq!(actor_id, vec!["legacy"]);
+            assert_eq!(space_name, vec!["legacy"]);
+            assert_eq!(authentication_strength, vec!["test"]);
+            assert_eq!(classification, vec!["account_private"]);
+            assert_eq!(grant_version, vec![1]);
+            Ok(())
+        }))).await.expect("record-user nonce updates and immutable tamper rejection on preserved revision157 authority");
+        storage.shutdown().await.expect("close upgraded store");
+        let reopened = open_test_storage(&directory)
+            .await
+            .expect("reopen upgraded store");
+        let report = bootstrap_schema(&reopened)
+            .await
+            .expect("reuse current after restart");
+        assert_eq!(report.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+        reopened.shutdown().await.expect("close current store");
+    }
+
     #[test]
     fn mt141_upgrade_statements_match_schema() {
         fn statements(source: &str) -> Vec<String> {
@@ -6311,7 +9241,7 @@ mod tests {
                             mt141_pin_schema.as_str(),
                             BootstrapBindings {
                                 schema_version: SCHEMA_VERSION.to_owned(),
-                                schema_revision: SCHEMA_REVISION,
+                                schema_revision: PRE_ACCOUNT_SETUP_REVISION,
                                 namespace: DEFAULT_NAMESPACE.to_owned(),
                                 database: DEFAULT_DATABASE.to_owned(),
                                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -6532,7 +9462,7 @@ mod tests {
                             mt150_pin_schema.as_str(),
                             BootstrapBindings {
                                 schema_version: SCHEMA_VERSION.to_owned(),
-                                schema_revision: SCHEMA_REVISION,
+                                schema_revision: PRE_ACCOUNT_SETUP_REVISION,
                                 namespace: DEFAULT_NAMESPACE.to_owned(),
                                 database: DEFAULT_DATABASE.to_owned(),
                                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
@@ -6675,7 +9605,7 @@ mod tests {
                             mt151_pin_schema.as_str(),
                             BootstrapBindings {
                                 schema_version: SCHEMA_VERSION.to_owned(),
-                                schema_revision: SCHEMA_REVISION,
+                                schema_revision: PRE_ACCOUNT_SETUP_REVISION,
                                 namespace: DEFAULT_NAMESPACE.to_owned(),
                                 database: DEFAULT_DATABASE.to_owned(),
                                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),

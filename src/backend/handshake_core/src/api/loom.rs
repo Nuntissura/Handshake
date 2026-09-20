@@ -18,9 +18,10 @@ use crate::storage::{
 };
 use crate::AppState;
 use axum::{
-    extract::{Path, Query, State},
-    http::{header, HeaderValue, StatusCode},
-    response::Response,
+    extract::{Extension, FromRequestParts, Path, Query, Request, State},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{delete, get, patch, post, put},
     Json, Router,
 };
@@ -64,6 +65,12 @@ fn map_storage_error(err: StorageError) -> ApiError {
         StorageError::Conflict(code) | StorageError::ConflictDetails { code, .. } => {
             (StatusCode::CONFLICT, Json(ErrorResponse { error: code }))
         }
+        StorageError::Guard("HSK-403-PROTECTED-RESOURCE") => (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        ),
         StorageError::Guard(_) | StorageError::Validation("HSK-403-SILENT-EDIT") => (
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -95,13 +102,57 @@ async fn ensure_workspace_exists(state: &AppState, workspace_id: &str) -> ApiRes
     }
 }
 
+async fn loom_create_authority(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let (mut parts, body) = request.into_parts();
+    let workspace_id = match Path::<std::collections::HashMap<String, String>>::from_request_parts(
+        &mut parts, &state,
+    )
+    .await
+    {
+        Ok(Path(params)) => match params.get("workspace_id") {
+            Some(workspace_id) if !workspace_id.is_empty() => workspace_id.clone(),
+            _ => return crate::api::authority::constant_denial().into_response(),
+        },
+        Err(_) => return crate::api::authority::constant_denial().into_response(),
+    };
+    let authority = match crate::api::authority::authorize_request(
+        &state,
+        &parts.headers,
+        "fs.write",
+        ResourceKind::Workspace,
+        &workspace_id,
+        ResourceAction::Create,
+    )
+    .await
+    {
+        Ok(authority) => authority,
+        Err(error) => return error.into_response(),
+    };
+    let scope = authority.record_user_scope.clone();
+    let mut request = Request::from_parts(parts, body);
+    request.extensions_mut().insert(authority);
+    state
+        .surreal
+        .with_record_user_scope(scope, next.run(request))
+        .await
+}
+
 pub fn routes(state: AppState) -> Router {
     spawn_block_view_reconciler(state.clone());
     Router::new()
         // Loom blocks
         .route(
             "/workspaces/:workspace_id/loom/blocks",
-            post(create_loom_block),
+            post(create_loom_block_authenticated).route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                loom_create_authority,
+            )),
         )
         .route(
             "/workspaces/:workspace_id/loom/journals/:journal_date",
@@ -110,8 +161,8 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id",
             get(get_loom_block)
-                .patch(patch_loom_block)
-                .delete(delete_loom_block),
+                .patch(patch_loom_block_authenticated)
+                .delete(delete_loom_block_authenticated),
         )
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/metrics/recompute",
@@ -120,14 +171,14 @@ pub fn routes(state: AppState) -> Router {
         // MT-177: ProjectKnowledgeIndex/EventLedger authority bridge
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/knowledge",
-            get(get_loom_block_knowledge_bridge),
+            get(get_loom_block_knowledge_bridge_authenticated),
         )
         // MT-258: note transclusion read-through. Resolves a block to its SOURCE
         // rich document (loom_blocks.document_id -> knowledge_rich_documents) so
         // an embedding host doc renders the source content WITHOUT copying it.
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/transclusion",
-            get(get_loom_block_transclusion),
+            get(get_loom_block_transclusion_authenticated),
         )
         // MT-183: reorderable Pins grid ordinal
         .route(
@@ -352,7 +403,10 @@ pub fn routes(state: AppState) -> Router {
         // -- MT-261 CanvasBoard --------------------------------------------
         .route(
             "/workspaces/:workspace_id/loom/canvas-boards",
-            post(create_canvas_board),
+            post(create_canvas_board_authenticated).route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                loom_create_authority,
+            )),
         )
         .route(
             "/workspaces/:workspace_id/loom/canvas-boards/:block_id",
@@ -419,10 +473,76 @@ struct CreateLoomBlockRequest {
     journal_date: Option<String>,
 }
 
+async fn create_loom_block_authenticated(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Extension(authority): Extension<crate::api::authority::AuthorizedResourceContext>,
+    Json(payload): Json<CreateLoomBlockRequest>,
+) -> ApiResult<Json<LoomBlock>> {
+    create_record_user_loom_block(state, workspace_id, payload, authority).await
+}
+
+#[cfg(test)]
 async fn create_loom_block(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
     Json(payload): Json<CreateLoomBlockRequest>,
+) -> ApiResult<Json<LoomBlock>> {
+    create_legacy_loom_block(state, workspace_id, payload).await
+}
+
+async fn create_record_user_loom_block(
+    state: AppState,
+    workspace_id: String,
+    payload: CreateLoomBlockRequest,
+    authority: crate::api::authority::AuthorizedResourceContext,
+) -> ApiResult<Json<LoomBlock>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+
+    let ctx = loom_create_write_context(&authority)?;
+    let new_block = NewLoomBlock {
+        block_id: payload.block_id,
+        workspace_id: workspace_id.clone(),
+        content_type: payload.content_type.clone(),
+        document_id: payload.document_id,
+        asset_id: payload.asset_id.clone(),
+        title: payload.title.clone(),
+        original_filename: None,
+        content_hash: None,
+        pinned: payload.pinned.unwrap_or(false),
+        journal_date: payload.journal_date,
+        imported_at: None,
+        derived: LoomBlockDerived::default(),
+    };
+    let block = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+        .create_record_user_loom_bundle(&ctx, new_block, None)
+        .await
+        .map_err(map_storage_error)?;
+
+    finalize_loom_block_create(&state, &ctx, &workspace_id, block).await
+}
+
+fn loom_create_write_context(
+    authority: &crate::api::authority::AuthorizedResourceContext,
+) -> ApiResult<WriteContext> {
+    let actor_id = Some(authority.actor_id.clone());
+    match authority.actor_kind.as_str() {
+        "operator" => Ok(WriteContext::human(actor_id)),
+        "system" => Ok(WriteContext::system(actor_id)),
+        _ => Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )),
+    }
+}
+
+#[cfg(test)]
+async fn create_legacy_loom_block(
+    state: AppState,
+    workspace_id: String,
+    payload: CreateLoomBlockRequest,
 ) -> ApiResult<Json<LoomBlock>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
 
@@ -434,10 +554,10 @@ async fn create_loom_block(
             NewLoomBlock {
                 block_id: payload.block_id,
                 workspace_id: workspace_id.clone(),
-                content_type: payload.content_type.clone(),
+                content_type: payload.content_type,
                 document_id: payload.document_id,
-                asset_id: payload.asset_id.clone(),
-                title: payload.title.clone(),
+                asset_id: payload.asset_id,
+                title: payload.title,
                 original_filename: None,
                 content_hash: None,
                 pinned: payload.pinned.unwrap_or(false),
@@ -460,6 +580,15 @@ async fn create_loom_block(
         .await
         .map_err(map_storage_error)?;
 
+    finalize_loom_block_create(&state, &ctx, &workspace_id, block).await
+}
+
+async fn finalize_loom_block_create(
+    state: &AppState,
+    ctx: &WriteContext,
+    workspace_id: &str,
+    block: LoomBlock,
+) -> ApiResult<Json<LoomBlock>> {
     let block_id = block.block_id.clone();
     let block_workspace_id = block.workspace_id.clone();
     let event = FlightRecorderEvent::new(
@@ -475,7 +604,7 @@ async fn create_loom_block(
             "content_hash": block.content_hash.clone()
         }),
     )
-    .with_wsids(vec![workspace_id]);
+    .with_wsids(vec![workspace_id.to_owned()]);
     let _ = state.flight_recorder.record_event(event).await;
 
     // WP-KERNEL-009 MT-264: refresh the semantic embedding projection so a
@@ -569,11 +698,34 @@ async fn open_daily_journal(
 async fn get_loom_block(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<LoomBlock>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::LoomBlock,
+        &block_id,
+        ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
     let block = state
-        .storage
-        .get_loom_block(&workspace_id, &block_id)
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope,
+            database.get_record_user_loom_block(&workspace_id, &block_id),
+        )
         .await
         .map_err(map_storage_error)?;
     Ok(Json(block))
@@ -583,9 +735,52 @@ async fn get_loom_block(
 /// bridge. Returns the knowledge entity id + EventLedger receipt id that prove
 /// the block resolves to store/EventLedger authority. 404 if the block does
 /// not exist; a 200 with a bridge body proves the authority binding.
+async fn get_loom_block_knowledge_bridge_authenticated(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> ApiResult<Json<crate::storage::LoomKnowledgeBridge>> {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::LoomBlock,
+        &block_id,
+        ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let scoped_state = state.clone();
+    state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope,
+            get_loom_block_knowledge_bridge_inner(scoped_state, workspace_id, block_id),
+        )
+        .await
+}
+
+#[cfg(test)]
 async fn get_loom_block_knowledge_bridge(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<crate::storage::LoomKnowledgeBridge>> {
+    get_loom_block_knowledge_bridge_inner(state, workspace_id, block_id).await
+}
+
+async fn get_loom_block_knowledge_bridge_inner(
+    state: AppState,
+    workspace_id: String,
+    block_id: String,
 ) -> ApiResult<Json<crate::storage::LoomKnowledgeBridge>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     // Confirm the block exists first so a missing block is a clean 404 rather
@@ -633,9 +828,52 @@ struct LoomTransclusionResponse {
     unresolved_reason: Option<&'static str>,
 }
 
+async fn get_loom_block_transclusion_authenticated(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> ApiResult<Json<LoomTransclusionResponse>> {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::LoomBlock,
+        &block_id,
+        ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let scoped_state = state.clone();
+    state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope,
+            get_loom_block_transclusion_inner(scoped_state, workspace_id, block_id),
+        )
+        .await
+}
+
+#[cfg(test)]
 async fn get_loom_block_transclusion(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<LoomTransclusionResponse>> {
+    get_loom_block_transclusion_inner(state, workspace_id, block_id).await
+}
+
+async fn get_loom_block_transclusion_inner(
+    state: AppState,
+    workspace_id: String,
+    block_id: String,
 ) -> ApiResult<Json<LoomTransclusionResponse>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     // A missing block is a clean 404 (not an empty/unresolved 200).
@@ -1824,14 +2062,67 @@ async fn reconcile_block_view_events(
     }
 }
 
+async fn patch_loom_block_authenticated(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<LoomBlockPatchRequest>,
+) -> ApiResult<Json<LoomBlock>> {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.write",
+        ResourceKind::LoomBlock,
+        &block_id,
+        ResourceAction::Update,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let ctx = loom_create_write_context(&authority)?;
+    let scoped_state = state.clone();
+    state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope,
+            patch_loom_block_inner(scoped_state, workspace_id, block_id, payload, ctx),
+        )
+        .await
+}
+
+#[cfg(test)]
 async fn patch_loom_block(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
     headers: axum::http::HeaderMap,
     Json(payload): Json<LoomBlockPatchRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
+    patch_loom_block_inner(
+        state,
+        workspace_id,
+        block_id,
+        payload,
+        block_view_write_context(&headers),
+    )
+    .await
+}
+
+async fn patch_loom_block_inner(
+    state: AppState,
+    workspace_id: String,
+    block_id: String,
+    payload: LoomBlockPatchRequest,
+    ctx: WriteContext,
+) -> ApiResult<Json<LoomBlock>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = block_view_write_context(&headers);
 
     let LoomBlockPatchRequest {
         update,
@@ -1964,9 +2255,54 @@ async fn patch_loom_block(
     Ok(Json(block))
 }
 
+async fn delete_loom_block_authenticated(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> ApiResult<Json<serde_json::Value>> {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.write",
+        ResourceKind::LoomBlock,
+        &block_id,
+        ResourceAction::Delete,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let ctx = loom_create_write_context(&authority)?;
+    let scoped_state = state.clone();
+    state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope,
+            delete_loom_block_inner(scoped_state, workspace_id, block_id, ctx),
+        )
+        .await
+}
+
+#[cfg(test)]
 async fn delete_loom_block(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<serde_json::Value>> {
+    delete_loom_block_inner(state, workspace_id, block_id, WriteContext::human(None)).await
+}
+
+async fn delete_loom_block_inner(
+    state: AppState,
+    workspace_id: String,
+    block_id: String,
+    ctx: WriteContext,
 ) -> ApiResult<Json<serde_json::Value>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let existing = state
@@ -1975,7 +2311,6 @@ async fn delete_loom_block(
         .await
         .map_err(map_storage_error)?;
 
-    let ctx = WriteContext::human(None);
     state
         .storage
         .delete_loom_block(&ctx, &workspace_id, &block_id)
@@ -3951,48 +4286,48 @@ fn default_board_state() -> serde_json::Value {
 /// Create a canvas: a typed LoomBlock(content_type=canvas), bridged to the
 /// ProjectKnowledgeIndex (so it is authority-resolved like any block), plus its
 /// board-state row.
-async fn create_canvas_board(
+async fn create_canvas_board_authenticated(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    Extension(authority): Extension<crate::api::authority::AuthorizedResourceContext>,
     Json(payload): Json<CreateCanvasBoardRequest>,
 ) -> ApiResult<Json<LoomCanvasBoard>> {
+    create_canvas_board_inner(state, workspace_id, payload, authority).await
+}
+
+async fn create_canvas_board_inner(
+    state: AppState,
+    workspace_id: String,
+    payload: CreateCanvasBoardRequest,
+    authority: crate::api::authority::AuthorizedResourceContext,
+) -> ApiResult<Json<LoomCanvasBoard>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = WriteContext::human(None);
-
-    let block = state
-        .storage
-        .create_loom_block(
-            &ctx,
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: workspace_id.clone(),
-                content_type: LoomBlockContentType::Canvas,
-                document_id: None,
-                asset_id: None,
-                title: payload.title.clone(),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
-        .await
-        .map_err(map_storage_error)?;
-
-    state
-        .storage
-        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
-        .await
-        .map_err(map_storage_error)?;
-
     let board_state = payload.board_state.unwrap_or_else(default_board_state);
+    let ctx = loom_create_write_context(&authority)?;
+    let new_block = NewLoomBlock {
+        block_id: None,
+        workspace_id: workspace_id.clone(),
+        content_type: LoomBlockContentType::Canvas,
+        document_id: None,
+        asset_id: None,
+        title: payload.title.clone(),
+        original_filename: None,
+        content_hash: None,
+        pinned: false,
+        journal_date: None,
+        imported_at: None,
+        derived: LoomBlockDerived::default(),
+    };
+    let block = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+        .create_record_user_loom_bundle(&ctx, new_block, Some(board_state))
+        .await
+        .map_err(map_storage_error)?;
     let board = state
         .storage
-        .create_canvas_board(&ctx, &workspace_id, &block.block_id, board_state)
+        .get_canvas_board(&workspace_id, &block.block_id)
         .await
-        .map_err(map_storage_error)?;
+        .map_err(map_storage_error)?
+        .board;
 
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockCreated,
@@ -4013,11 +4348,34 @@ async fn create_canvas_board(
 async fn get_canvas_board(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<LoomCanvasBoardView>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::LoomBlock,
+        &block_id,
+        ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
     let view = state
-        .storage
-        .get_canvas_board(&workspace_id, &block_id)
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope,
+            database.get_record_user_canvas_board(&workspace_id, &block_id),
+        )
         .await
         .map_err(map_storage_error)?;
     Ok(Json(view))
@@ -4065,32 +4423,80 @@ struct PlaceBlockRequest {
 async fn place_block_on_canvas(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<PlaceBlockRequest>,
 ) -> ApiResult<Json<LoomCanvasPlacement>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let placement = state
-        .storage
-        .place_block_on_canvas(
-            &WriteContext::human(None),
-            NewLoomCanvasPlacement {
-                canvas_block_id: block_id,
-                workspace_id: workspace_id.clone(),
-                placed_block_id: payload.placed_block_id,
-                x: payload.x,
-                y: payload.y,
-                w: payload.w,
-                h: payload.h,
-                z_index: payload.z_index.unwrap_or(0),
-                group_id: payload.group_id,
-                // Generic block reference (existing block placed on the canvas),
-                // not the inline text-card editor path.
-                is_text_card: false,
-                stage_provenance_key: None,
-            },
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let board_authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.write",
+        ResourceKind::LoomBlock,
+        &block_id,
+        ResourceAction::Update,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let source_authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::LoomBlock,
+        &payload.placed_block_id,
+        ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let ctx = loom_create_write_context(&board_authority)?;
+    let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+    let receipt = state
+        .surreal
+        .with_record_user_scope(
+            board_authority.record_user_scope,
+            database.place_record_user_canvas_block(
+                &ctx,
+                NewLoomCanvasPlacement {
+                    canvas_block_id: block_id,
+                    workspace_id: workspace_id.clone(),
+                    placed_block_id: payload.placed_block_id,
+                    x: payload.x,
+                    y: payload.y,
+                    w: payload.w,
+                    h: payload.h,
+                    z_index: payload.z_index.unwrap_or(0),
+                    group_id: payload.group_id,
+                    // Generic block reference (existing block placed on the canvas),
+                    // not the inline text-card editor path.
+                    is_text_card: false,
+                    stage_provenance_key: None,
+                },
+                source_authority.record_user_scope,
+            ),
         )
         .await
-        .map_err(map_storage_error)?;
-    Ok(Json(placement))
+        .map_err(|err| {
+            #[cfg(test)]
+            eprintln!("loom canvas placement storage error: {err:?} ({err})");
+            map_storage_error(err)
+        })?;
+    // Preserve the established placement response while the scoped store
+    // retains the canonical creation receipt for audit and test readback.
+    Ok(Json(receipt.placement))
 }
 
 #[derive(Debug, Deserialize)]
@@ -4342,11 +4748,89 @@ async fn update_canvas_placement(
 async fn remove_canvas_placement(
     State(state): State<AppState>,
     Path((workspace_id, placement_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<LoomCanvasPlacementRemovalReceipt>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+
+    let workspace_authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::Workspace,
+        &workspace_id,
+        ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+    let (canvas_block_id, placed_block_id) = state
+        .surreal
+        .with_record_user_scope(
+            workspace_authority.record_user_scope,
+            database.get_record_user_canvas_placement_identity(&workspace_id, &placement_id),
+        )
+        .await
+        .map_err(|_| {
+            (
+                StatusCode::FORBIDDEN,
+                Json(ErrorResponse {
+                    error: "HSK-403-PROTECTED-RESOURCE",
+                }),
+            )
+        })?;
+    let board_authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.write",
+        ResourceKind::LoomBlock,
+        &canvas_block_id,
+        ResourceAction::Update,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let source_authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::LoomBlock,
+        &placed_block_id,
+        ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })?;
+    let ctx = loom_create_write_context(&board_authority)?;
     let receipt = state
-        .storage
-        .remove_canvas_placement(&WriteContext::human(None), &workspace_id, &placement_id)
+        .surreal
+        .with_record_user_scope(
+            board_authority.record_user_scope,
+            database.remove_record_user_canvas_placement(
+                &ctx,
+                &workspace_id,
+                &placement_id,
+                source_authority.record_user_scope,
+            ),
+        )
         .await
         .map_err(map_storage_error)?;
     Ok(Json(receipt))
@@ -4532,11 +5016,21 @@ async fn query_block_view_results(
 #[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
+    #[cfg(feature = "os-keychain")]
+    use crate::api::MountedRequestExt;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter};
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{tests::embedded_test_backend, Database, NewWorkspace};
+    #[cfg(feature = "os-keychain")]
+    use axum::{
+        body::{to_bytes, Body},
+        http::{HeaderMap, Request},
+        Router,
+    };
     use once_cell::sync::Lazy;
+    #[cfg(feature = "os-keychain")]
+    use serde_json::Value;
     use std::sync::{Arc, Mutex};
     use surrealdb::types::{RecordId, SurrealValue};
     use tempfile::TempDir;
@@ -4654,6 +5148,1267 @@ mod tests {
             )
             .await?;
         Ok(ws.id)
+    }
+
+    #[cfg(feature = "os-keychain")]
+    struct LoomCreateBinding {
+        _lock: std::sync::MutexGuard<'static, ()>,
+        _directory: TempDir,
+        previous: Option<std::ffi::OsString>,
+        channel: String,
+    }
+
+    #[cfg(feature = "os-keychain")]
+    impl LoomCreateBinding {
+        fn new() -> Self {
+            let lock = crate::api::stage::NATIVE_BINDING_ENV_LOCK
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let directory =
+                tempfile::tempdir_in(crate::storage::tests::test_store_root().unwrap()).unwrap();
+            let path = directory.path().join("loom-create-binding.json");
+            let channel = "c4".repeat(32);
+            std::fs::write(
+                &path,
+                serde_json::to_vec(&crate::api::stage::current_process_native_binding(&channel))
+                    .unwrap(),
+            )
+            .unwrap();
+            let previous = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
+            std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", path);
+            Self {
+                _lock: lock,
+                _directory: directory,
+                previous,
+                channel,
+            }
+        }
+    }
+
+    #[cfg(feature = "os-keychain")]
+    impl Drop for LoomCreateBinding {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(previous) => std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous),
+                None => std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE"),
+            }
+        }
+    }
+
+    #[cfg(feature = "os-keychain")]
+    async fn loom_create_request(
+        router: &Router,
+        method: &str,
+        uri: &str,
+        headers: &HeaderMap,
+        body: Value,
+    ) -> (StatusCode, Value) {
+        let mut request = Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("content-type", "application/json");
+        for (name, value) in headers {
+            request = request.header(name, value);
+        }
+        let response = router
+            .clone()
+            .oneshot(
+                request
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status = response.status();
+        let bytes = to_bytes(response.into_body(), 4 * 1024 * 1024)
+            .await
+            .unwrap();
+        (
+            status,
+            if bytes.is_empty() {
+                Value::Null
+            } else {
+                serde_json::from_slice(&bytes).unwrap()
+            },
+        )
+    }
+
+    #[cfg(feature = "os-keychain")]
+    async fn loom_bundle_snapshot(state: &AppState) -> Value {
+        let mut snapshot = state
+            .surreal
+            .test_admin_query(
+                "RETURN {blocks: array::len(SELECT id FROM loom_blocks), search: array::len(SELECT id FROM loom_block_search_index), resources: array::len(SELECT id FROM protected_resources), grants: array::len(SELECT id FROM resource_grants), entities: array::len(SELECT id FROM knowledge_entities), bridges: array::len(SELECT id FROM loom_block_knowledge_bridge), ledger: array::len(SELECT id FROM kernel_event_ledger), boards: array::len(SELECT id FROM loom_canvas_boards), placements: array::len(SELECT id FROM loom_canvas_placements)};".to_owned(),
+            )
+            .await
+            .unwrap();
+        snapshot.take::<Option<Value>>(0).unwrap().unwrap()
+    }
+
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows() {
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let router = crate::api::authority::routes(state.clone())
+            .merge(crate::api::workspaces::routes(state.clone()))
+            .merge(routes(state.clone()));
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-hsk-channel-binding-token",
+            binding.channel.parse().unwrap(),
+        );
+        let credentials = serde_json::json!({
+            "account_name": "Loom creator",
+            "password": "loom creator runtime proof password",
+        });
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                "/authority/setup",
+                &headers,
+                credentials.clone()
+            )
+            .await
+            .0,
+            StatusCode::OK
+        );
+        let (status, credential) = loom_create_request(
+            &router,
+            "POST",
+            "/authority/login",
+            &headers,
+            credentials.clone(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "real account login failed");
+        let (status, session) = loom_create_request(
+            &router,
+            "POST",
+            "/authority/session",
+            &headers,
+            serde_json::json!({
+                "account_id": credential["account_id"],
+                "principal_id": credential["principal_id"],
+                "access_space_id": credential["access_space_id"],
+                "authentication_token": credential["token"],
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "real session exchange failed");
+        headers.insert(
+            "x-hsk-session-token",
+            session["session_token"].as_str().unwrap().parse().unwrap(),
+        );
+        headers.insert(
+            "x-hsk-actor-id",
+            session["principal_id"].as_str().unwrap().parse().unwrap(),
+        );
+        headers.insert("x-hsk-actor-kind", "operator".parse().unwrap());
+        headers.insert(
+            "x-hsk-kernel-task-run-id",
+            "mounted-loom-create".parse().unwrap(),
+        );
+        headers.insert(
+            "x-hsk-session-run-id",
+            "mounted-loom-create".parse().unwrap(),
+        );
+        let (status, workspace) = loom_create_request(
+            &router,
+            "POST",
+            "/workspaces",
+            &headers,
+            serde_json::json!({"name": "Owned Loom workspace"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "owned workspace: {workspace}");
+        let workspace_id = workspace["id"].as_str().unwrap();
+        let (status, note) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &headers,
+            serde_json::json!({"content_type": "note", "title": "Mounted owned note"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "owned note create: {note}");
+        let (status, canvas) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+            &headers,
+            serde_json::json!({"title": "Mounted owned canvas"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "owned Canvas create: {canvas}");
+        let note_id = note["block_id"].as_str().unwrap();
+        let canvas_id = canvas["block_id"].as_str().unwrap();
+        let (status, mounted_note) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{workspace_id}/loom/blocks/{note_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated mounted source read: {mounted_note}"
+        );
+        assert_eq!(mounted_note["block_id"], note_id);
+        let (status, mounted_canvas) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated mounted Canvas read: {mounted_canvas}"
+        );
+        assert_eq!(mounted_canvas["board"]["block_id"], canvas_id);
+        let placement_authority = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            crate::storage::surreal::resource_authority::ResourceKind::LoomBlock,
+            canvas_id,
+            crate::storage::surreal::resource_authority::ResourceAction::Update,
+        )
+        .await
+        .unwrap();
+        let board_update_grant = placement_authority
+            .record_user_scope
+            .grant_id
+            .clone()
+            .unwrap();
+        let mut board_capabilities = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT VALUE capability_ids FROM type::record('resource_grants', $grant_id);"
+                    .to_owned(),
+                serde_json::json!({"grant_id": board_update_grant.clone()}),
+            )
+            .await
+            .unwrap();
+        let mut board_capability_rows = board_capabilities.take::<Vec<Vec<String>>>(0).unwrap();
+        let board_capabilities = board_capability_rows.remove(0);
+        let board_without_read = board_capabilities
+            .iter()
+            .filter(|capability| capability.as_str() != "fs.read")
+            .cloned()
+            .collect::<Vec<_>>();
+        assert!(
+            board_without_read
+                .iter()
+                .any(|capability| capability == "fs.write"),
+            "the exact board grant must retain Update/fs.write"
+        );
+        assert!(board_without_read.len() < board_capabilities.len());
+        state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('resource_grants', $grant_id) SET capability_ids = $capabilities RETURN NONE;".to_owned(),
+                serde_json::json!({"grant_id": board_update_grant.clone(), "capabilities": board_without_read.clone()}),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "GET",
+                &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"),
+                &headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            ),
+            "board Update/fs.write alone must not read board content"
+        );
+        let (status, placement) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
+            &headers,
+            serde_json::json!({
+                "placed_block_id": note_id,
+                "x": 24.0,
+                "y": 36.0,
+                "w": 320.0,
+                "h": 180.0,
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated mounted Canvas placement: {placement}"
+        );
+        let placement_id = placement["placement_id"]
+            .as_str()
+            .expect("mounted Canvas placement id")
+            .to_owned();
+        let mut placement_event = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT event_id, actor_id, record::id(authority_session_id) AS authority_session_id, record::id(authority_resource_id) AS authority_resource_id, authority_capability_id, authority_action, payload FROM kernel_event_ledger WHERE payload.placement_id = $placement_id AND payload.op = 'create';".to_owned(),
+                serde_json::json!({"placement_id": placement_id}),
+            )
+            .await
+            .unwrap();
+        let placement_events = placement_event.take::<Vec<Value>>(0).unwrap();
+        assert_eq!(
+            placement_events.len(),
+            1,
+            "placement must have one canonical receipt"
+        );
+        let placement_event = &placement_events[0];
+        let placement_event_id = placement_event["event_id"]
+            .as_str()
+            .expect("placement receipt event id")
+            .to_owned();
+        assert_eq!(placement_event["actor_id"], placement_authority.actor_id);
+        assert_eq!(
+            placement_event["authority_session_id"],
+            placement_authority.session_id
+        );
+        assert_eq!(
+            placement_event["authority_resource_id"],
+            placement_authority.resource_id
+        );
+        assert_eq!(placement_event["authority_capability_id"], "fs.write");
+        assert_eq!(placement_event["authority_action"], "update");
+        assert_eq!(placement_event["payload"]["canvas_block_id"], canvas_id);
+        assert_eq!(placement_event["payload"]["placed_block_id"], note_id);
+
+        let mut second_headers = HeaderMap::new();
+        second_headers.insert(
+            "x-hsk-channel-binding-token",
+            binding.channel.parse().unwrap(),
+        );
+        let (status, second_credential) = loom_create_request(
+            &router,
+            "POST",
+            "/authority/login",
+            &second_headers,
+            credentials,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "second real account login failed");
+        let (status, second_session) = loom_create_request(
+            &router,
+            "POST",
+            "/authority/session",
+            &second_headers,
+            serde_json::json!({
+                "account_id": second_credential["account_id"],
+                "principal_id": second_credential["principal_id"],
+                "access_space_id": second_credential["access_space_id"],
+                "authentication_token": second_credential["token"],
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "second real session exchange failed"
+        );
+        assert_ne!(second_session["session_id"], session["session_id"]);
+        second_headers.insert(
+            "x-hsk-session-token",
+            second_session["session_token"]
+                .as_str()
+                .unwrap()
+                .parse()
+                .unwrap(),
+        );
+        second_headers.insert(
+            "x-hsk-actor-id",
+            second_session["principal_id"]
+                .as_str()
+                .unwrap()
+                .parse()
+                .unwrap(),
+        );
+        second_headers.insert("x-hsk-actor-kind", "operator".parse().unwrap());
+        second_headers.insert(
+            "x-hsk-kernel-task-run-id",
+            "mounted-loom-receipt-peer".parse().unwrap(),
+        );
+        second_headers.insert(
+            "x-hsk-session-run-id",
+            "mounted-loom-receipt-peer".parse().unwrap(),
+        );
+        let second_authority = crate::api::authority::authorize_request(
+            &state,
+            &second_headers,
+            "fs.write",
+            crate::storage::surreal::resource_authority::ResourceKind::LoomBlock,
+            canvas_id,
+            crate::storage::surreal::resource_authority::ResourceAction::Update,
+        )
+        .await
+        .expect("second session receives the same exact board update grant");
+        crate::api::authority::authorize_request(
+            &state,
+            &second_headers,
+            "fs.read",
+            crate::storage::surreal::resource_authority::ResourceKind::LoomBlock,
+            note_id,
+            crate::storage::surreal::resource_authority::ResourceAction::Read,
+        )
+        .await
+        .expect("second session retains the placed source read grant");
+        let second_scope = second_authority.record_user_scope;
+        let peer_event_id = placement_event_id.clone();
+        let peer_workspace_id = workspace_id.to_owned();
+        let peer_receipt_count: Option<LoomTestCountRow> = state
+            .surreal
+            .with_record_user_scope(
+                second_scope,
+                state.surreal.with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .query_first(
+                                "SELECT count() AS count FROM kernel_event_ledger WHERE event_id = $event_id AND wsids CONTAINS record::id($workspace) GROUP ALL;",
+                                LoomTestEventBinding {
+                                    workspace: RecordId::new("workspaces", peer_workspace_id),
+                                    event_id: peer_event_id,
+                                },
+                            )
+                            .await
+                    })
+                }),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            peer_receipt_count.map_or(0, |row| row.count),
+            0,
+            "a distinct session must not read the creator session's write-only Canvas receipt"
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                "/authority/logout",
+                &second_headers,
+                Value::Null,
+            )
+            .await
+            .0,
+            StatusCode::OK,
+            "second receipt-peer session cleanup"
+        );
+        state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('resource_grants', $grant_id) SET capability_ids = $capabilities RETURN NONE;".to_owned(),
+                serde_json::json!({"grant_id": board_update_grant.clone(), "capabilities": board_capabilities.clone()}),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+        let (status, foreign_workspace) = loom_create_request(
+            &router,
+            "POST",
+            "/workspaces",
+            &headers,
+            serde_json::json!({"name": "Mounted foreign Loom workspace"}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::CREATED,
+            "foreign workspace fixture: {foreign_workspace}"
+        );
+        let foreign_workspace_id = foreign_workspace["id"].as_str().unwrap().to_owned();
+        let (status, foreign_note) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{foreign_workspace_id}/loom/blocks"),
+            &headers,
+            serde_json::json!({"content_type": "note", "title": "Mounted foreign note"}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "foreign note fixture: {foreign_note}"
+        );
+        let (status, foreign_canvas) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{foreign_workspace_id}/loom/canvas-boards"),
+            &headers,
+            serde_json::json!({"title": "Mounted foreign canvas"}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "foreign Canvas fixture: {foreign_canvas}"
+        );
+        let foreign_note_id = foreign_note["block_id"].as_str().unwrap();
+        let foreign_canvas_id = foreign_canvas["block_id"].as_str().unwrap();
+        let invalid_placement = |suffix: &str| format!("LCP-{suffix:0>32}");
+        for (placement_id, canvas_block_id, placement_workspace_id, placed_block_id, label) in [
+            (
+                invalid_placement("1"),
+                "missing-canvas-board",
+                workspace_id,
+                note_id,
+                "nonexistent board",
+            ),
+            (
+                invalid_placement("2"),
+                canvas_id,
+                workspace_id,
+                "missing-loom-block",
+                "nonexistent source",
+            ),
+            (
+                invalid_placement("3"),
+                foreign_canvas_id,
+                workspace_id,
+                foreign_note_id,
+                "foreign board and source",
+            ),
+            (
+                invalid_placement("4"),
+                canvas_id,
+                foreign_workspace_id.as_str(),
+                foreign_note_id,
+                "foreign workspace",
+            ),
+        ] {
+            let before = loom_bundle_snapshot(&state).await;
+            let error = state
+                .surreal
+                .test_admin_query_bound(
+                    "CREATE type::record('loom_canvas_placements', $placement_id) SET placement_id = $placement_id, canvas_block_id = type::record('loom_canvas_boards', $canvas_block_id), workspace_id = type::record('workspaces', $workspace_id), placed_block_id = type::record('loom_blocks', $placed_block_id), x = 1.0, y = 1.0, w = 1.0, h = 1.0 RETURN NONE;".to_owned(),
+                    serde_json::json!({
+                        "placement_id": placement_id,
+                        "canvas_block_id": canvas_block_id,
+                        "workspace_id": placement_workspace_id,
+                        "placed_block_id": placed_block_id,
+                    }),
+                )
+                .await
+                .expect_err("invalid placement relation must be rejected by the integrity event");
+            assert!(
+                error.to_string().contains("HSK-403-PROTECTED-RESOURCE"),
+                "{label} must fail at the placement integrity event: {error}"
+            );
+            assert_eq!(
+                loom_bundle_snapshot(&state).await,
+                before,
+                "{label} rejection must leave all bundle rows unchanged"
+            );
+            let mut rejected_row = state
+                .surreal
+                .test_admin_query_bound(
+                    "RETURN (SELECT * FROM type::record('loom_canvas_placements', $placement_id))[0];".to_owned(),
+                    serde_json::json!({"placement_id": placement_id}),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                rejected_row.take::<Option<Value>>(0).unwrap(),
+                None,
+                "{label} rejection must leave no placement row"
+            );
+        }
+        let mut placement_before = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN (SELECT * FROM type::record('loom_canvas_placements', $placement_id))[0];"
+                    .to_owned(),
+                serde_json::json!({"placement_id": placement_id}),
+            )
+            .await
+            .unwrap();
+        let placement_before = placement_before.take::<Option<Value>>(0).unwrap();
+        assert!(
+            placement_before.is_some(),
+            "the positive placement must exist before the update rejection probe"
+        );
+        let update_error = state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('loom_canvas_placements', $placement_id) SET workspace_id = type::record('workspaces', $workspace_id) RETURN NONE;".to_owned(),
+                serde_json::json!({
+                    "placement_id": placement_id,
+                    "workspace_id": foreign_workspace_id,
+                }),
+            )
+            .await
+            .expect_err("cross-workspace placement update must be rejected by the integrity event");
+        assert!(
+            update_error
+                .to_string()
+                .contains("HSK-403-PROTECTED-RESOURCE"),
+            "cross-workspace update must fail at the placement integrity event: {update_error}"
+        );
+        let mut placement_after = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN (SELECT * FROM type::record('loom_canvas_placements', $placement_id))[0];"
+                    .to_owned(),
+                serde_json::json!({"placement_id": placement_id}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            placement_after.take::<Option<Value>>(0).unwrap(),
+            placement_before,
+            "rejected placement update must preserve the canonical row"
+        );
+        let (status, placed_board) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "read board after placement: {placed_board}"
+        );
+        assert!(
+            placed_board["placements"]
+                .as_array()
+                .is_some_and(|placements| placements.iter().any(|row| {
+                    row["placement_id"] == placement_id && row["placed_block_id"] == note_id
+                })),
+            "authenticated board read must expose the exact placed source"
+        );
+        let mut source_before_remove = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN (SELECT * FROM type::record('loom_blocks', $block_id))[0];".to_owned(),
+                serde_json::json!({"block_id": note_id}),
+            )
+            .await
+            .unwrap();
+        let source_before_remove = source_before_remove.take::<Option<Value>>(0).unwrap();
+        assert!(
+            source_before_remove.is_some(),
+            "the placed source must exist before removal"
+        );
+        let mut canonical = state
+            .surreal
+            .test_admin_query(format!(
+                "RETURN {{blocks: array::len(SELECT id FROM loom_blocks WHERE workspace_id = type::record('workspaces', '{workspace_id}') AND record::id(id) IN ['{note_id}', '{canvas_id}']), search: array::len(SELECT id FROM loom_block_search_index WHERE workspace_id = type::record('workspaces', '{workspace_id}') AND record::id(block_id) IN ['{note_id}', '{canvas_id}']), bridges: array::len(SELECT id FROM loom_block_knowledge_bridge WHERE workspace_id = type::record('workspaces', '{workspace_id}') AND record::id(block_id) IN ['{note_id}', '{canvas_id}']), bridge_receipts: array::len(SELECT id FROM kernel_event_ledger WHERE id IN (SELECT VALUE index_event_id FROM loom_block_knowledge_bridge WHERE workspace_id = type::record('workspaces', '{workspace_id}') AND record::id(block_id) IN ['{note_id}', '{canvas_id}'])), entities: array::len(SELECT id FROM knowledge_entities WHERE workspace_id = type::record('workspaces', '{workspace_id}') AND entity_key IN ['{note_id}', '{canvas_id}']), owned_resources: array::len(SELECT id FROM protected_resources WHERE resource_kind = 'loom_block' AND owner_account_id = type::record('local_accounts', '{}') AND external_resource_id IN ['{note_id}', '{canvas_id}']), creator_grants: array::len(SELECT id FROM resource_grants WHERE resource_id.resource_kind = 'loom_block' AND resource_id.external_resource_id IN ['{note_id}', '{canvas_id}'] AND principal_id = type::record('principals', '{}') AND status = 'active'), boards: array::len(SELECT id FROM loom_canvas_boards WHERE workspace_id = type::record('workspaces', '{workspace_id}') AND record::id(block_id) = '{canvas_id}'), board_receipts: array::len(SELECT id FROM kernel_event_ledger WHERE id = (SELECT VALUE event_ledger_event_id FROM loom_canvas_boards WHERE workspace_id = type::record('workspaces', '{workspace_id}') AND record::id(block_id) = '{canvas_id}')[0])}};",
+                credential["account_id"].as_str().unwrap(),
+                session["principal_id"].as_str().unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(
+            canonical.take::<Option<Value>>(0).unwrap(),
+            Some(serde_json::json!({
+                "blocks": 2,
+                "search": 2,
+                "bridges": 2,
+                "bridge_receipts": 2,
+                "entities": 2,
+                "owned_resources": 2,
+                "creator_grants": 2,
+                "boards": 1,
+                "board_receipts": 1,
+            })),
+            "mounted creates must persist complete owned lineage"
+        );
+        let mut denied_headers = headers.clone();
+        denied_headers.remove("x-hsk-session-token");
+        let before = loom_bundle_snapshot(&state).await;
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "GET",
+                &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"),
+                &denied_headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
+                &denied_headers,
+                serde_json::json!({
+                    "placed_block_id": note_id,
+                    "x": 24.0,
+                    "y": 36.0,
+                    "w": 320.0,
+                    "h": 180.0,
+                }),
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "DELETE",
+                &format!("/workspaces/{workspace_id}/loom/canvas-placements/{placement_id}"),
+                &denied_headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "GET",
+                &format!("/workspaces/{workspace_id}/loom/blocks/{note_id}"),
+                &denied_headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "GET",
+                &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"),
+                &denied_headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                &format!("/workspaces/{workspace_id}/loom/blocks"),
+                &denied_headers,
+                serde_json::json!({"content_type": "note", "title": "Denied residue"}),
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_bundle_snapshot(&state).await,
+            before,
+            "denied mounted write must leave no bundle rows"
+        );
+
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let create_grant = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            ResourceKind::Workspace,
+            workspace_id,
+            ResourceAction::Create,
+        )
+        .await
+        .unwrap()
+        .record_user_scope
+        .grant_id
+        .unwrap();
+        let before = loom_bundle_snapshot(&state).await;
+        state.surreal.revoke_grant(&create_grant).await.unwrap();
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                &format!("/workspaces/{workspace_id}/loom/blocks"),
+                &headers,
+                serde_json::json!({"content_type": "note", "title": "Revoked grant residue"}),
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(loom_bundle_snapshot(&state).await, before);
+        state
+            .surreal
+            .test_admin_query(format!(
+                "UPDATE type::record('resource_grants', '{create_grant}') SET status = 'active', revoked_at = NONE, grant_version -= 1, policy_version -= 1 RETURN NONE;"
+            ))
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+
+        let mut capabilities = state
+            .surreal
+            .test_admin_query(format!(
+                "SELECT VALUE capability_ids FROM type::record('resource_grants', '{create_grant}');"
+            ))
+            .await
+            .unwrap();
+        let mut capability_rows = capabilities.take::<Vec<Vec<String>>>(0).unwrap();
+        let capabilities = capability_rows.remove(0);
+        let narrowed = capabilities
+            .iter()
+            .filter(|capability| capability.as_str() != "fs.write")
+            .cloned()
+            .collect::<Vec<_>>();
+        assert!(narrowed.len() < capabilities.len());
+        state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('resource_grants', $grant_id) SET capability_ids = $capabilities RETURN NONE;".to_owned(),
+                serde_json::json!({"grant_id": create_grant.clone(), "capabilities": narrowed}),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+        let mut original_note = state
+            .surreal
+            .test_admin_query(format!(
+                "RETURN (SELECT * FROM type::record('loom_blocks', '{note_id}'))[0];"
+            ))
+            .await
+            .unwrap();
+        let original_note = original_note.take::<Option<Value>>(0).unwrap();
+        assert!(
+            original_note.is_some(),
+            "created note must exist before adoption attempt"
+        );
+        let before = loom_bundle_snapshot(&state).await;
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                &format!("/workspaces/{workspace_id}/loom/blocks"),
+                &headers,
+                serde_json::json!({"content_type": "note", "title": "Narrowed grant residue"}),
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(loom_bundle_snapshot(&state).await, before);
+        state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('resource_grants', $grant_id) SET capability_ids = $capabilities RETURN NONE;".to_owned(),
+                serde_json::json!({"grant_id": create_grant.clone(), "capabilities": capabilities}),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+
+        let foreign_capabilities = [
+            "fs.read",
+            "fs.write",
+            "fr.read",
+            "fr.ingest.runtime_chat",
+            "fr.ingest.native_editor",
+            "memory.read",
+            "memory.propose",
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        let foreign_binding_hash = hex::encode(Sha256::digest(binding.channel.as_bytes()));
+        let foreign = state
+            .surreal
+            .provision_principal(
+                "loom-create-foreign",
+                "loom-create-foreign",
+                "human_account",
+                "loom-create-foreign",
+                "Operator",
+                &foreign_capabilities,
+                "loom-create-foreign",
+                Some(&foreign_binding_hash),
+                Duration::from_secs(3600),
+            )
+            .await
+            .unwrap();
+        let mut foreign_headers = HeaderMap::new();
+        foreign_headers.insert(
+            "x-hsk-session-token",
+            foreign.session.token.parse().unwrap(),
+        );
+        foreign_headers.insert(
+            "x-hsk-channel-binding-token",
+            binding.channel.parse().unwrap(),
+        );
+        let before = loom_bundle_snapshot(&state).await;
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "GET",
+                &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"),
+                &foreign_headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "DELETE",
+                &format!("/workspaces/{workspace_id}/loom/canvas-placements/{placement_id}"),
+                &foreign_headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
+                &foreign_headers,
+                serde_json::json!({
+                    "placed_block_id": note_id,
+                    "x": 24.0,
+                    "y": 36.0,
+                    "w": 320.0,
+                    "h": 180.0,
+                }),
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                &format!("/workspaces/{workspace_id}/loom/blocks"),
+                &foreign_headers,
+                serde_json::json!({"content_type": "note", "title": "Foreign workspace residue"}),
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(loom_bundle_snapshot(&state).await, before);
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                "/authority/logout",
+                &foreign_headers,
+                Value::Null
+            )
+            .await
+            .0,
+            StatusCode::OK
+        );
+
+        let before = loom_bundle_snapshot(&state).await;
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "POST",
+                &format!("/workspaces/{workspace_id}/loom/blocks"),
+                &headers,
+                serde_json::json!({"block_id": note_id, "content_type": "note", "title": "Rejected adoption"}),
+            )
+            .await,
+            (StatusCode::FORBIDDEN, serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"}))
+        );
+        assert_eq!(loom_bundle_snapshot(&state).await, before);
+        let mut retained_note = state
+            .surreal
+            .test_admin_query(format!(
+                "RETURN (SELECT * FROM type::record('loom_blocks', '{note_id}'))[0];"
+            ))
+            .await
+            .unwrap();
+        assert_eq!(
+            retained_note.take::<Option<Value>>(0).unwrap(),
+            original_note,
+            "rejected supplied ID must preserve every existing Loom row field"
+        );
+
+        let source_read_grant = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.read",
+            ResourceKind::LoomBlock,
+            note_id,
+            ResourceAction::Read,
+        )
+        .await
+        .unwrap()
+        .record_user_scope
+        .grant_id
+        .unwrap();
+        let before = loom_bundle_snapshot(&state).await;
+        state
+            .surreal
+            .revoke_grant(&source_read_grant)
+            .await
+            .unwrap();
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "DELETE",
+                &format!("/workspaces/{workspace_id}/loom/canvas-placements/{placement_id}"),
+                &headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(loom_bundle_snapshot(&state).await, before);
+        state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('resource_grants', $grant_id) SET status = 'active', revoked_at = NONE, grant_version -= 1, policy_version -= 1 RETURN NONE;".to_owned(),
+                serde_json::json!({"grant_id": source_read_grant.clone()}),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+
+        let before = loom_bundle_snapshot(&state).await;
+        state
+            .surreal
+            .revoke_grant(&board_update_grant)
+            .await
+            .unwrap();
+        assert_eq!(
+            loom_create_request(
+                &router,
+                "DELETE",
+                &format!("/workspaces/{workspace_id}/loom/canvas-placements/{placement_id}"),
+                &headers,
+                Value::Null,
+            )
+            .await,
+            (
+                StatusCode::FORBIDDEN,
+                serde_json::json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+            )
+        );
+        assert_eq!(loom_bundle_snapshot(&state).await, before);
+        state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('resource_grants', $grant_id) SET status = 'active', revoked_at = NONE, grant_version -= 1, policy_version -= 1 RETURN NONE;".to_owned(),
+                serde_json::json!({"grant_id": board_update_grant.clone()}),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+
+        state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('resource_grants', $grant_id) SET capability_ids = $capabilities RETURN NONE;".to_owned(),
+                serde_json::json!({"grant_id": placement_authority.record_user_scope.grant_id.clone().unwrap(), "capabilities": board_without_read}),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+
+        let (status, removal) = loom_create_request(
+            &router,
+            "DELETE",
+            &format!("/workspaces/{workspace_id}/loom/canvas-placements/{placement_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "authenticated Canvas removal: {removal}"
+        );
+        assert_eq!(removal["workspace_id"], workspace_id);
+        assert_eq!(removal["canvas_block_id"], canvas_id);
+        assert_eq!(removal["placement_id"], placement_id);
+        assert_eq!(removal["placed_block_id"], note_id);
+        let removal_event_id = removal["event"]["event_id"]
+            .as_str()
+            .expect("Canvas removal receipt event id")
+            .to_owned();
+        let mut removal_event = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT actor_id, record::id(authority_session_id) AS authority_session_id, record::id(authority_resource_id) AS authority_resource_id, authority_capability_id, authority_action, payload FROM kernel_event_ledger WHERE event_id = $event_id;".to_owned(),
+                serde_json::json!({"event_id": removal_event_id}),
+            )
+            .await
+            .unwrap();
+        let removal_events = removal_event.take::<Vec<Value>>(0).unwrap();
+        assert_eq!(
+            removal_events.len(),
+            1,
+            "removal must have one canonical receipt"
+        );
+        let removal_event = &removal_events[0];
+        assert_eq!(removal_event["actor_id"], session["principal_id"]);
+        assert_eq!(removal_event["authority_session_id"], session["session_id"]);
+        assert_eq!(
+            removal_event["authority_resource_id"],
+            placement_authority.resource_id
+        );
+        assert_eq!(removal_event["authority_capability_id"], "fs.write");
+        assert_eq!(removal_event["authority_action"], "update");
+        assert_eq!(removal_event["payload"]["op"], "remove_placement");
+        assert_eq!(removal_event["payload"]["canvas_block_id"], canvas_id);
+        assert_eq!(removal_event["payload"]["placed_block_id"], note_id);
+        state
+            .surreal
+            .test_admin_query_bound(
+                "UPDATE type::record('resource_grants', $grant_id) SET capability_ids = $capabilities RETURN NONE;".to_owned(),
+                serde_json::json!({"grant_id": placement_authority.record_user_scope.grant_id.clone().unwrap(), "capabilities": board_capabilities}),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+
+        let (status, board_after_removal) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "read board after removal: {board_after_removal}"
+        );
+        assert!(
+            board_after_removal["placements"]
+                .as_array()
+                .is_some_and(|placements| placements
+                    .iter()
+                    .all(|row| row["placement_id"] != placement_id)),
+            "removal readback must omit the exact placement"
+        );
+        let (status, source_after_removal) = loom_create_request(
+            &router,
+            "GET",
+            &format!("/workspaces/{workspace_id}/loom/blocks/{note_id}"),
+            &headers,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "source must remain readable after removal"
+        );
+        assert_eq!(source_after_removal["block_id"], note_id);
+        let mut canonical_source_after_removal = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN (SELECT * FROM type::record('loom_blocks', $block_id))[0];".to_owned(),
+                serde_json::json!({"block_id": note_id}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            canonical_source_after_removal
+                .take::<Option<Value>>(0)
+                .unwrap(),
+            source_before_remove,
+            "removing a placement must retain every source row field"
+        );
+
+        state
+            .surreal
+            .test_admin_query(
+                "DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT false;".to_owned(),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+        let before = loom_bundle_snapshot(&state).await;
+        let (status, body) = loom_create_request(
+            &router,
+            "POST",
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &headers,
+            serde_json::json!({"content_type": "note", "title": "Ledger failure residue"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(body, serde_json::json!({"error": "HSK-500-LOOM"}));
+        assert_eq!(loom_bundle_snapshot(&state).await, before);
+        state
+            .surreal
+            .test_admin_query(
+                "DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT $value = record::id($this.id);".to_owned(),
+            )
+            .await
+            .unwrap()
+            .check()
+            .unwrap();
+        assert_eq!(
+            loom_create_request(&router, "POST", "/authority/logout", &headers, Value::Null)
+                .await
+                .0,
+            StatusCode::OK
+        );
     }
 
     /// WP-KERNEL-009 MT-264: an AppState whose model runtime DOES expose a real

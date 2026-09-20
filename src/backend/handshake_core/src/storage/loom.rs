@@ -1505,6 +1505,13 @@ pub struct LoomCanvasPlacement {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Exact receipt for creating one Canvas placement without copying its source block.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct LoomCanvasPlacementCreateReceipt {
+    pub placement: LoomCanvasPlacement,
+    pub event: LoomMutationEventReceipt,
+}
+
 /// Exact receipt for deleting one Canvas placement while preserving its source block.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LoomCanvasPlacementRemovalReceipt {

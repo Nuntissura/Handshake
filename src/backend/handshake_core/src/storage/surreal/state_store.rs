@@ -170,20 +170,36 @@ fn quick_recent_key(workspace_id: &str, hit_key: &str) -> String {
     format!("{:x}", digest.finalize())
 }
 
-fn build_event(
+async fn build_event(
+    storage: &SurrealStorage,
     run_id: String,
     event_type: KernelEventType,
     actor_id: &str,
     aggregate_type: &str,
     aggregate_id: String,
     source_component: &str,
-    payload: Value,
+    mut payload: Value,
 ) -> StorageResult<event_ledger::LedgerWrite> {
+    let (session_run_id, actor) = if let Some(scope) = super::current_record_user_scope() {
+        let channel = scope.channel_binding_hash.as_deref().ok_or(StorageError::Validation("authentication denied"))?;
+        let context = storage.authenticate_local_session(&scope.session_token, channel).await
+            .map_err(|_| StorageError::Validation("authentication denied"))?;
+        let fields = payload.as_object_mut().ok_or(StorageError::Validation("invalid state receipt"))?;
+        fields.insert("minted_by_principal".into(), json!(context.identity.principal_id));
+        fields.insert("account_id".into(), json!(context.identity.account_id));
+        fields.insert("access_space_id".into(), json!(context.identity.access_space_id));
+        fields.insert("policy_version".into(), json!(context.policy_version));
+        fields.insert("delegation_chain".into(), json!(context.delegation_chain));
+        fields.insert("producer_actor_id".into(), json!(actor_id));
+        (context.session_id, KernelActor::Operator(context.actor_id))
+    } else {
+        (run_id.clone(), KernelActor::System(actor_id.to_owned()))
+    };
     let event = NewKernelEvent::builder(
         run_id.clone(),
-        run_id,
+        session_run_id,
         event_type,
-        KernelActor::System(actor_id.to_owned()),
+        actor,
     )
     .aggregate(aggregate_type, aggregate_id)
     .source_component(source_component)
@@ -283,6 +299,7 @@ pub(crate) async fn record_quick_switcher_recent(
         input.metadata
     };
     let event = build_event(
+        storage,
         format!("QUICK-SWITCHER-RECENTS-{workspace_id}"),
         KernelEventType::KnowledgeQuickSwitcherRecentRecorded,
         "quick-switcher-ui",
@@ -299,7 +316,7 @@ pub(crate) async fn record_quick_switcher_recent(
             "title": title.clone(),
             "metadata": metadata.clone(),
         }),
-    )?;
+    ).await?;
     let bindings = QuickRecentBindings {
         recent: RecordId::new(QUICK_RECENTS, quick_recent_key(workspace_id, &hit_key)),
         workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
@@ -423,6 +440,7 @@ pub(crate) async fn save_workbench_layout_state(
     }
     validate_workbench_layout_state_shape(&input.layout_state)?;
     let event = build_event(
+        storage,
         format!("WORKBENCH-LAYOUT-{workspace_id}"),
         KernelEventType::KnowledgeWorkbenchLayoutStateRecorded,
         "workbench-layout-ui",
@@ -434,7 +452,7 @@ pub(crate) async fn save_workbench_layout_state(
             "workspace_id": workspace_id,
             "layout_state": input.layout_state.clone(),
         }),
-    )?;
+    ).await?;
     let rows: Vec<WorkbenchLayoutRow> = storage
         .with_data_operation({
             let workspace = RecordId::new(WORKSPACES, workspace_id.to_owned());
@@ -516,6 +534,7 @@ pub(crate) async fn save_workspace_settings_state(
     }
     validate_workspace_settings_state_shape(&input.settings_state)?;
     let event = build_event(
+        storage,
         format!("WORKSPACE-SETTINGS-{workspace_id}"),
         KernelEventType::KnowledgeWorkspaceSettingsStateRecorded,
         "workspace-settings-ui",
@@ -527,7 +546,7 @@ pub(crate) async fn save_workspace_settings_state(
             "workspace_id": workspace_id,
             "settings_state": input.settings_state.clone(),
         }),
-    )?;
+    ).await?;
     let rows: Vec<WorkspaceSettingsRow> = storage
         .with_data_operation({
             let workspace = RecordId::new(WORKSPACES, workspace_id.to_owned());
@@ -610,6 +629,7 @@ pub(crate) async fn save_workspace_search_bookmark_state(
     }
     validate_workspace_search_bookmark_state_shape(&input.bookmark_state)?;
     let event = build_event(
+        storage,
         format!("WORKSPACE-SEARCH-BOOKMARKS-{workspace_id}"),
         KernelEventType::KnowledgeWorkspaceSearchBookmarkStateRecorded,
         "workspace-search-bookmarks-ui",
@@ -621,7 +641,7 @@ pub(crate) async fn save_workspace_search_bookmark_state(
             "workspace_id": workspace_id,
             "bookmark_state": input.bookmark_state.clone(),
         }),
-    )?;
+    ).await?;
     let rows: Vec<SearchBookmarkRow> = storage
         .with_data_operation({
             let workspace = RecordId::new(WORKSPACES, workspace_id.to_owned());
@@ -702,6 +722,7 @@ pub(crate) async fn set_debug_breakpoints(
         }
     }
     let event = build_event(
+        storage,
         format!("DEBUG-BREAKPOINTS-{rich_document_id}"),
         KernelEventType::KnowledgeRichDocumentSaved,
         "debug-breakpoints-ui",
@@ -714,7 +735,7 @@ pub(crate) async fn set_debug_breakpoints(
             "workspace_id": workspace_id,
             "breakpoint_count": breakpoints.len(),
         }),
-    )?;
+    ).await?;
     let bindings = BreakpointSetBindings {
         document: RecordId::new(RICH_DOCUMENTS, rich_document_id.to_owned()),
         workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),

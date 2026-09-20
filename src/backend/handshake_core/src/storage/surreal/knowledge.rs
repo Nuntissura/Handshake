@@ -307,6 +307,9 @@ fn map_guarded_err(
     guards: &[(&str, fn() -> StorageError)],
 ) -> StorageError {
     let rendered = error.to_string();
+    if rendered.contains("HSK-403-PROTECTED-RESOURCE") {
+        return StorageError::Guard("HSK-403-PROTECTED-RESOURCE");
+    }
     for (code, to_error) in guards {
         if rendered.contains(code) {
             return to_error();
@@ -1353,7 +1356,12 @@ fn meaningful_check(
                 .contains("query was not executed due to a failed transaction")
         })
         .unwrap_or(0);
-    Err(errors.swap_remove(meaningful).1.into())
+    let (statement_index, error) = errors.swap_remove(meaningful);
+    #[cfg(test)]
+    eprintln!("knowledge-transactionfailed statement_index={statement_index} error={error}");
+    #[cfg(not(test))]
+    let _ = statement_index;
+    Err(error.into())
 }
 
 /// Runs one statement that returns no rows, under the same lease and bound.
@@ -1392,6 +1400,93 @@ where
         .map_err(map_err)
 }
 
+// Scoped producers create immutable ownership only with a new source; existing rows never gain it.
+async fn owned_root_upsert_rows(
+    storage: &SurrealStorage,
+    statement: &str,
+    mut binds: Binds,
+) -> StorageResult<Vec<RootRecord>> {
+    let Some(scope) = super::current_record_user_scope() else {
+        return query_rows(storage, statement, binds).await;
+    };
+    binds.push(b(
+        "creator",
+        thing("authenticated_sessions", &scope.session_id),
+    ));
+    let mutation = statement
+        .replace("RETURN UPDATE", "UPDATE")
+        .replace("RETURN CREATE", "CREATE")
+        .replace("RETURN AFTER", "RETURN NONE")
+        .replace(
+            "CONTENT { root_id:",
+            "CONTENT { created_in_session_id: $creator, root_id:",
+        );
+    let sql = format!("BEGIN TRANSACTION; {mutation} IF array::len((UPDATE knowledge_source_roots SET display_name = $display_name WHERE workspace_id = $workspace AND repo_relative_path = $path RETURN VALUE id)) != 1 {{ THROW 'HSK-403-PROTECTED-RESOURCE'; }}; COMMIT TRANSACTION;");
+    raw_execute(storage, sql, binds.clone())
+        .await
+        .map_err(map_err)?;
+    query_rows(storage, "SELECT * FROM knowledge_source_roots WHERE workspace_id = $workspace AND repo_relative_path = $path;", binds).await
+}
+
+async fn owned_source_upsert_rows(
+    storage: &SurrealStorage,
+    statement: &str,
+    mut binds: Binds,
+    source_id: String,
+    workspace_id: String,
+) -> StorageResult<Vec<SourceRecord>> {
+    let Some(scope) = super::current_record_user_scope() else {
+        return query_rows(storage, statement, binds).await;
+    };
+    let existing: Vec<SourceRecord> = query_rows(storage,
+        "SELECT * FROM knowledge_sources WHERE $relative_path != NONE AND workspace_id = $workspace AND root_id = $root_id AND relative_path = $relative_path;", binds.clone()).await?;
+    if existing.len() > 1 {
+        return Err(StorageError::Validation("HSK-403-PROTECTED-RESOURCE"));
+    }
+    let result_id = existing
+        .first()
+        .map(|row| row.source_id.clone())
+        .unwrap_or_else(|| source_id.clone());
+    let owned_resources = if existing.is_empty() {
+        vec![storage
+            .prepare_owned_index_resource(
+                super::resource_authority::ResourceKind::KnowledgeSource,
+                &source_id,
+                &workspace_id,
+            )
+            .await
+            .map_err(|_| StorageError::Validation("HSK-403-PROTECTED-RESOURCE"))?
+            .ok_or(StorageError::Validation("HSK-403-PROTECTED-RESOURCE"))?]
+    } else {
+        Vec::new()
+    };
+    binds.extend([
+        b(
+            "creator",
+            thing("authenticated_sessions", &scope.session_id),
+        ),
+        b("owned_resources", owned_resources),
+        b("result_id", result_id),
+    ]);
+    let mutation = statement
+        .replace("RETURN UPDATE", "UPDATE")
+        .replace("RETURN CREATE", "CREATE")
+        .replace("RETURN AFTER", "RETURN NONE")
+        .replace(
+            "WHERE root_id =",
+            "WHERE workspace_id = $workspace AND root_id =",
+        )
+        .replace(
+            "CONTENT { source_id:",
+            "CONTENT { created_in_session_id: $creator, source_id:",
+        );
+    let authority = crate::knowledge_ingestion::engine::owned_index_authority_sql!();
+    let sql = format!("BEGIN TRANSACTION; {mutation} {authority} IF array::len((UPDATE knowledge_sources SET content_hash = $content_hash WHERE source_id = $result_id AND workspace_id = $workspace RETURN VALUE id)) != 1 {{ THROW 'HSK-403-PROTECTED-RESOURCE'; }}; COMMIT TRANSACTION;");
+    raw_execute(storage, sql, binds.clone())
+        .await
+        .map_err(map_err)?;
+    query_rows(storage, "SELECT * FROM knowledge_sources WHERE source_id = $result_id AND workspace_id = $workspace;", binds).await
+}
 async fn query_first_row<R>(
     storage: &SurrealStorage,
     statement: impl Into<String>,
@@ -1961,7 +2056,7 @@ impl SurrealDatabase {
         }
 
         // The transaction stores its externally returned counts on the
-        // tombstone before deleting the contributing rows. That durable
+        // tombstone after cleaning the contributing rows. That durable
         // outcome, linked to the EventLedger receipt, makes an exact replay
         // return byte-for-byte-equivalent semantics after the first commit.
         let statement = "BEGIN TRANSACTION; \
@@ -2030,19 +2125,6 @@ impl SurrealDatabase {
                 correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, \
                 source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, \
                 created_at: $event.created_at } RETURN NONE; \
-            IF array::len((UPDATE $document SET deleted_at = time::now(), \
-                deleted_receipt_event_id = (SELECT VALUE id FROM kernel_event_ledger \
-                    WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0], \
-                projection_refs = array::append(projection_refs, { \
-                    kind: 'rich_document_delete_outcome_v1', \
-                    receipt_event_id: $event.event_id, \
-                    source_marked_stale: $source_count > 0, \
-                    backlinks_deleted: $backlink_count, \
-                    loom_block_deleted: true \
-                }), \
-                updated_at = time::now() WHERE deleted_at = NONE RETURN AFTER)) != 1 { \
-                THROW 'HSK-KRD-DELETE-NOT-FOUND'; \
-            }; \
             UPDATE knowledge_sources SET stale = true, updated_at = time::now() \
                 WHERE workspace_id = $workspace AND source_kind = 'rich_document' \
                     AND provenance.rich_document_id = $doc_id RETURN AFTER; \
@@ -2068,6 +2150,19 @@ impl SurrealDatabase {
                         WHERE workspace_id = $workspace AND target_block_id = $affected \
                             AND edge_type IN ['mention', 'tag'])) \
                     WHERE workspace_id = $workspace AND id = $affected RETURN NONE; \
+            }; \
+            IF array::len((UPDATE $document SET deleted_at = time::now(), \
+                deleted_receipt_event_id = (SELECT VALUE id FROM kernel_event_ledger \
+                    WHERE idempotency_key = $event.idempotency_key LIMIT 1)[0], \
+                projection_refs = array::append(projection_refs, { \
+                    kind: 'rich_document_delete_outcome_v1', \
+                    receipt_event_id: $event.event_id, \
+                    source_marked_stale: $source_count > 0, \
+                    backlinks_deleted: $backlink_count, \
+                    loom_block_deleted: true \
+                }), \
+                updated_at = time::now() WHERE deleted_at = NONE RETURN AFTER)) != 1 { \
+                THROW 'HSK-KRD-DELETE-NOT-FOUND'; \
             }; \
             ";
         // `$unique_title` above reads OTHER documents' title rows, which this
@@ -2106,7 +2201,7 @@ impl SurrealDatabase {
 
         let replay_event = event;
         let result: Result<(), SurrealStorageError> =
-            raw_execute(self.storage(), statement, binds).await;
+            delete_owned_document_execute(self.storage(), statement, binds).await;
         if let Err(error) = result {
             // A second process can commit the exact operation between this
             // process's replay preflight and BEGIN. Reconcile every failure
@@ -2148,6 +2243,38 @@ impl SurrealDatabase {
                 )
             })
     }
+}
+
+async fn delete_owned_document_execute(
+    storage: &SurrealStorage,
+    statement: String,
+    mut binds: Binds,
+) -> Result<(), SurrealStorageError> {
+    let Some(scope) = super::current_record_user_scope() else {
+        return raw_execute(storage, statement, binds).await;
+    };
+    binds.extend([
+        b(
+            "creator",
+            thing("authenticated_sessions", &scope.session_id),
+        ),
+        b(
+            "owned_resource",
+            thing("protected_resources", &scope.resource_id),
+        ),
+        b(
+            "authorizing_grant",
+            opt_thing("resource_grants", scope.grant_id.as_deref()),
+        ),
+    ]);
+    let guard = "IF $creator != $auth.id OR !fn::mt120_document_access($doc_id, record::id($workspace), 'delete', 'fs.write') OR $event.authority_resource_id != $owned_resource OR $event.authority_session_id != $auth.id OR $event.authority_action != 'delete' OR $event.authority_capability_id != 'fs.write' { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF $block.source_rich_document_id != $document OR $block.content_hash != $document.content_sha256 OR array::len(SELECT VALUE id FROM loom_canvas_placements WHERE workspace_id = $workspace AND placed_block_id = $block LIMIT 1) != 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len(SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND (source_block_id = $block OR target_block_id = $block) AND (source_block_id.source_rich_document_id = NONE OR target_block_id.source_rich_document_id = NONE) LIMIT 1) != 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
+    let anchors = "LET $creator_account = $creator.account_id; LET $creator_principal = $creator.principal_id; LET $creator_space = $creator.access_space_id; IF $authorizing_grant = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $owned_resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $authorizing_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
+    let statement = statement.replacen(
+        "BEGIN TRANSACTION;",
+        &format!("BEGIN TRANSACTION; {guard} {anchors}"),
+        1,
+    );
+    raw_execute(storage, statement, binds).await
 }
 
 async fn read_prior_backlink_state(
@@ -2369,7 +2496,7 @@ async fn create_rich_document_transaction(
     binds = dedup_binds(binds);
 
     let rows: Vec<RichDocRecord> =
-        raw_rows_at(storage, statement, binds, 1)
+        create_owned_document_rows(storage, statement, binds, &rich_document_id)
             .await
             .map_err(|error| {
                 map_guarded_err(
@@ -2387,6 +2514,81 @@ async fn create_rich_document_transaction(
             "knowledge rich document CREATE returned no record".to_owned(),
         ))
         .and_then(rich_document_to_domain)
+}
+
+/// The record-user transaction creates the source and its exact initial authority together.
+/// Immutable source/session and creator-grant bindings prevent adoption and re-granting.
+async fn create_owned_document_rows(
+    storage: &SurrealStorage,
+    statement: String,
+    mut binds: Binds,
+    document_id: &str,
+) -> Result<Vec<RichDocRecord>, SurrealStorageError> {
+    let Some(scope) = super::current_record_user_scope() else {
+        return raw_rows_at(storage, statement, binds, 1).await;
+    };
+    let resource_id = uuid::Uuid::now_v7().to_string();
+    binds.extend([
+        b(
+            "creator",
+            thing("authenticated_sessions", &scope.session_id),
+        ),
+        b("parent", thing("protected_resources", &scope.resource_id)),
+        b(
+            "authorizing_grant",
+            opt_thing("resource_grants", scope.grant_id.as_deref()),
+        ),
+        b("owned_resource", thing("protected_resources", &resource_id)),
+        b(
+            "owned_grant",
+            thing("resource_grants", &uuid::Uuid::now_v7().to_string()),
+        ),
+        b(
+            "locator_hash",
+            hex::encode(<sha2::Sha256 as sha2::Digest>::digest(
+                format!("rich_document:{document_id}").as_bytes(),
+            )),
+        ),
+    ]);
+    let guard = "IF $creator != $auth.id OR !fn::mt109_live_session() { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
+    let authority_rows = "CREATE $owned_resource SET resource_kind = 'rich_document', external_resource_id = $doc_id, owner_account_id = $creator.account_id, created_by_principal_id = $creator.principal_id, created_in_session_id = $creator.id, creator_grant_id = $owned_grant, access_space_id = $creator.access_space_id, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', policy_version = $creator.policy_version, classification = 'account_private', storage_locator_hash = $locator_hash, created_at = time::now(), updated_at = time::now(); CREATE $owned_grant SET account_id = $creator.account_id, principal_id = $creator.principal_id, access_space_id = $creator.access_space_id, resource_id = $owned_resource, actions = ['read', 'create', 'update', 'delete'], capability_ids = ['fs.read', 'fs.write'], delegation_chain = $creator.delegation_chain, status = 'active', grant_version = 1, policy_version = $creator.policy_version, expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now();";
+    let early_required_rows = "IF array::len((SELECT VALUE id FROM knowledge_rich_documents WHERE rich_document_id = $doc_id AND workspace_id = $workspace AND content_sha256 = $doc_content_sha256 AND doc_version = 1 AND created_in_session_id = $creator)) != 1 OR array::len((SELECT VALUE id FROM $owned_resource WHERE resource_kind = 'rich_document' AND owner_account_id = $creator.account_id AND created_by_principal_id = $creator.principal_id AND created_in_session_id = $creator AND creator_grant_id = $owned_grant AND access_space_id = $creator.access_space_id AND parent_resource_id = $parent AND lifecycle_state = 'active')) != 1 OR array::len((SELECT VALUE id FROM $owned_grant WHERE account_id = $creator.account_id AND principal_id = $creator.principal_id AND access_space_id = $creator.access_space_id AND resource_id = $owned_resource AND actions = ['read', 'create', 'update', 'delete'] AND capability_ids = ['fs.read', 'fs.write'] AND delegation_chain = $creator.delegation_chain AND status = 'active')) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
+    let target_guard = "FOR $target IN $affected_blocks { IF $target != $doc_id AND !fn::mt120_document_access($target, record::id($workspace), 'update', 'fs.write') { THROW 'HSK-403-PROTECTED-RESOURCE'; }; };";
+    let anchors = "LET $creator_account = $creator.account_id; LET $creator_principal = $creator.principal_id; LET $creator_space = $creator.access_space_id; IF $authorizing_grant = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $creator_space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $parent SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; IF array::len((UPDATE $authorizing_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };";
+    let required_rows = "IF array::len((SELECT VALUE id FROM $owned_resource)) != 1 OR array::len((SELECT VALUE id FROM $owned_grant)) != 1 OR array::len((SELECT VALUE id FROM knowledge_rich_documents WHERE rich_document_id = $doc_id AND content_sha256 = $doc_content_sha256 AND doc_version = 1)) != 1 OR array::len((SELECT VALUE id FROM knowledge_rich_document_versions WHERE rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND doc_version = 1 AND content_sha256 = $doc_content_sha256)) != 1 OR array::len((SELECT VALUE id FROM loom_blocks WHERE block_id = $doc_id AND source_rich_document_id = type::record('knowledge_rich_documents', $doc_id) AND content_hash = $doc_content_sha256)) != 1 OR array::len((SELECT VALUE id FROM loom_block_search_index WHERE block_id = type::record('loom_blocks', $doc_id) AND search_text = $doc_search_text)) != 1 OR array::len((SELECT VALUE id FROM knowledge_rich_document_title_anchors WHERE anchor_key = $anchor_key_current AND last_rich_document_id = $doc_id AND claim_nonce = $anchor_nonce_current)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; FOR $row IN $backlink_rows { IF array::len((SELECT VALUE id FROM knowledge_document_backlinks WHERE backlink_id = $row.backlink_id AND source_document_id = type::record('knowledge_rich_documents', $doc_id))) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; FOR $row IN $loom_edge_rows { IF array::len((SELECT VALUE id FROM loom_edges WHERE edge_id = $row.relationship_id AND source_document_id = $doc_id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; };";
+    let statement = statement
+        .replacen(
+            "BEGIN TRANSACTION;",
+            &format!("BEGIN TRANSACTION; {guard}"),
+            1,
+        )
+        .replacen(
+            "rich_document_id: $doc_id, workspace_id:",
+            "created_in_session_id: $creator, rich_document_id: $doc_id, workspace_id:",
+            1,
+        )
+        .replacen(
+            "RETURN AFTER;",
+            &format!("RETURN NONE; {authority_rows} {early_required_rows}"),
+            1,
+        )
+        .replacen(
+            "COMMIT TRANSACTION;",
+            &format!("{target_guard} {anchors} {required_rows} COMMIT TRANSACTION;"),
+            1,
+        );
+    if let Err(error) = raw_execute(storage, statement, binds).await {
+        #[cfg(test)]
+        eprintln!("owned-rich-document-create transactionfailed error={error}");
+        return Err(error);
+    }
+    raw_rows_at(
+        storage,
+        "SELECT * FROM type::record('knowledge_rich_documents', $doc_id);",
+        vec![b("doc_id", document_id.to_owned())],
+        0,
+    )
+    .await
 }
 
 fn dedup_binds(binds: Binds) -> Binds {
@@ -2412,7 +2614,7 @@ struct IdempotentSaveClaim {
     result_ref_id: String,
 }
 
-const IDEMPOTENCY_CLAIM_STATEMENT: &str = "IF (SELECT VALUE id FROM $idem_key_record)[0] = NONE { CREATE $idem_key_record CONTENT { idempotency_key: $idempotency_key, workspace_id: $idem_workspace, operation_kind: $idem_operation_kind, request_hash: $idem_request_hash, result_ref_kind: $idem_result_ref_kind, result_ref_id: $idem_result_ref_id } RETURN NONE; } ELSE { THROW 'HSK-KIDEM-RACE'; };";
+const IDEMPOTENCY_CLAIM_STATEMENT: &str = "IF (SELECT VALUE id FROM $idem_key_record)[0] = NONE { CREATE $idem_key_record CONTENT { idempotency_key: $idempotency_key, workspace_id: $idem_workspace, operation_kind: $idem_operation_kind, request_hash: $idem_request_hash, result_ref_kind: $idem_result_ref_kind, result_ref_id: $idem_result_ref_id, rich_document_id: $idem_document } RETURN NONE; } ELSE { THROW 'HSK-KIDEM-RACE'; };";
 
 fn checked_next_rich_document_version(expected_version: i64) -> StorageResult<i64> {
     expected_version
@@ -2429,6 +2631,7 @@ fn idempotency_claim_binds(
     request_hash: &str,
     result_ref_kind: &str,
     result_ref_id: &str,
+    rich_document_id: Option<&str>,
 ) -> Binds {
     vec![
         b(
@@ -2441,6 +2644,10 @@ fn idempotency_claim_binds(
         b("idem_request_hash", request_hash.to_owned()),
         b("idem_result_ref_kind", result_ref_kind.to_owned()),
         b("idem_result_ref_id", result_ref_id.to_owned()),
+        b(
+            "idem_document",
+            opt_thing("knowledge_rich_documents", rich_document_id),
+        ),
     ]
 }
 
@@ -2542,6 +2749,7 @@ async fn save_rich_document_version_transaction(
             &claim.request_hash,
             RICH_DOCUMENT_VERSION_RESULT_REF_KIND,
             &claim.result_ref_id,
+            Some(rich_document_id),
         ));
     }
     binds = dedup_binds(binds);
@@ -2804,7 +3012,7 @@ impl KnowledgeStore for SurrealDatabase {
             Some("uq_knowledge_source_roots_workspace_path"),
             || {
                 let root_id = new_knowledge_id("KSR");
-                query_rows(
+                owned_root_upsert_rows(
                     self.storage(),
                     "IF (SELECT VALUE id FROM knowledge_source_roots WHERE workspace_id = $workspace AND repo_relative_path = $path LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_source_roots SET display_name = $display_name, root_kind = $root_kind, allowlist_policy = $allowlist_policy, indexing_eligibility = $indexing_eligibility, updated_at = time::now() WHERE workspace_id = $workspace AND repo_relative_path = $path RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_source_roots', $root_id) CONTENT { root_id: $root_id, workspace_id: $workspace, display_name: $display_name, root_kind: $root_kind, repo_relative_path: $path, allowlist_policy: $allowlist_policy, indexing_eligibility: $indexing_eligibility } RETURN AFTER; };",
                     vec![
@@ -2928,11 +3136,11 @@ impl KnowledgeStore for SurrealDatabase {
             Some("uq_knowledge_sources_root_path"),
             || {
                 let source_id = new_knowledge_id("KSRC");
-                query_rows(
+                owned_source_upsert_rows(
                     self.storage(),
                     "IF $relative_path != NONE AND (SELECT VALUE id FROM knowledge_sources WHERE root_id = $root_id AND relative_path = $relative_path LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_sources SET content_hash = $content_hash, size_bytes = $size_bytes, provenance = $provenance, permission_scope = $permission_scope, redaction_state = $redaction_state, source_modified_at = $source_modified_at, parser_status = 'pending', extraction_status = 'pending', stale = false, updated_at = time::now() WHERE root_id = $root_id AND relative_path = $relative_path RETURN AFTER; } ELSE { RETURN CREATE type::record('knowledge_sources', $source_id) CONTENT { source_id: $source_id, workspace_id: $workspace, root_id: $root_id, source_kind: $source_kind, relative_path: $relative_path, asset_id: $asset_id, loom_block_id: $loom_block_id, document_id: $document_id, content_hash: $content_hash, size_bytes: $size_bytes, provenance: $provenance, permission_scope: $permission_scope, redaction_state: $redaction_state, source_modified_at: $source_modified_at } RETURN AFTER; };",
                     vec![
-                        b("source_id", source_id),
+                        b("source_id", source_id.clone()),
                         b("workspace", thing(WORKSPACES_TABLE, &new_source.workspace_id)),
                         b(
                             "root_id",
@@ -2965,6 +3173,7 @@ impl KnowledgeStore for SurrealDatabase {
                             new_source.source_modified_at.map(Datetime::from),
                         ),
                     ],
+                    source_id, new_source.workspace_id.clone(),
                 )
             },
         )
@@ -3071,10 +3280,18 @@ impl KnowledgeStore for SurrealDatabase {
                 "knowledge index run requires actor_kind and actor_id",
             ));
         }
+        let scope = super::current_record_user_scope();
+        let mut run_scope = new_run.scope.clone();
+        if scope.is_some() {
+            let object = run_scope.as_object_mut().ok_or(StorageError::Validation(
+                "index run scope must be an object",
+            ))?;
+            object.insert("source_ids".into(), serde_json::json!([]));
+        }
         let index_run_id = new_knowledge_id("KIR");
         let rows: Vec<RunRecord> = query_rows(
             self.storage(),
-            "CREATE type::record('knowledge_index_runs', $index_run_id) CONTENT { index_run_id: $index_run_id, workspace_id: $workspace, root_id: $root_id, scope: $scope, actor_kind: $actor_kind, actor_id: $actor_id, worktree_id: $worktree_id, start_receipt_event_id: $start_receipt } RETURN AFTER;",
+            "CREATE type::record('knowledge_index_runs', $index_run_id) CONTENT { created_in_session_id: $creator, index_run_id: $index_run_id, workspace_id: $workspace, root_id: $root_id, scope: $scope, actor_kind: (IF $creator = NONE { $actor_kind } ELSE { $creator.principal_id.actor_kind }), actor_id: (IF $creator = NONE { $actor_id } ELSE { $creator.principal_id.actor_id }), worktree_id: $worktree_id, start_receipt_event_id: $start_receipt } RETURN AFTER;",
             vec![
                 b("index_run_id", index_run_id),
                 b("workspace", thing(WORKSPACES_TABLE, &new_run.workspace_id)),
@@ -3082,7 +3299,8 @@ impl KnowledgeStore for SurrealDatabase {
                     "root_id",
                     opt_thing(KNOWLEDGE_SOURCE_ROOTS_TABLE, new_run.root_id.as_deref()),
                 ),
-                b("scope", new_run.scope.clone()),
+                b("scope", run_scope),
+                b("creator", opt_thing("authenticated_sessions", scope.as_ref().map(|scope| scope.session_id.as_str()))),
                 b("actor_kind", new_run.actor_kind.clone()),
                 b("actor_id", new_run.actor_id.clone()),
                 b("worktree_id", new_run.worktree_id.clone()),
@@ -3156,7 +3374,7 @@ impl KnowledgeStore for SurrealDatabase {
         let counts = outcome.counts();
         let rows: Vec<RunRecord> = query_rows(
             self.storage(),
-            "UPDATE knowledge_index_runs SET run_state = $run_state, sources_seen = $sources_seen, sources_indexed = $sources_indexed, spans_extracted = $spans_extracted, entities_detected = $entities_detected, edges_written = $edges_written, claims_written = $claims_written, error_capture = $error_capture, finish_receipt_event_id = $finish_receipt, restart_checkpoint = NONE, finished_at = time::now() WHERE index_run_id = $index_run_id AND run_state = 'started' RETURN AFTER;",
+            "UPDATE knowledge_index_runs SET scope.source_ids = array::distinct(array::concat(scope.source_ids ?? [], (SELECT VALUE record::id(source_id) FROM knowledge_code_files WHERE last_indexed_in_run = type::record('knowledge_index_runs', $index_run_id)), (SELECT VALUE record::id(source_id) FROM knowledge_spans WHERE index_run_id = type::record('knowledge_index_runs', $index_run_id)))), run_state = $run_state, sources_seen = $sources_seen, sources_indexed = $sources_indexed, spans_extracted = $spans_extracted, entities_detected = $entities_detected, edges_written = $edges_written, claims_written = $claims_written, error_capture = $error_capture, finish_receipt_event_id = $finish_receipt, restart_checkpoint = NONE, finished_at = time::now() WHERE index_run_id = $index_run_id AND run_state = 'started' RETURN AFTER;",
             vec![
                 b("index_run_id", index_run_id.to_owned()),
                 b("run_state", state.as_str().to_owned()),
@@ -5339,6 +5557,7 @@ impl KnowledgeStore for SurrealDatabase {
             &request_hash,
             "memory_passage",
             &passage_id,
+            None,
         ));
         let binds = dedup_binds(binds);
         let result: Result<Vec<PassageRecord>, SurrealStorageError> =

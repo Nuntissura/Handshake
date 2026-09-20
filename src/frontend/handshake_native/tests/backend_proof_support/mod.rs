@@ -583,7 +583,8 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
     let configured_base =
         std::env::var("HSK_TEST_BASE").unwrap_or_else(|_| DEFAULT_BASE.to_owned());
     let force_owned = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").is_some();
-    let rt = tokio::runtime::Builder::new_current_thread()
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
         .enable_all()
         .build()
         .expect("build native proof client runtime");
@@ -4152,7 +4153,29 @@ pub fn publish_mt045_evidence_bytes(
 
 pub fn external_artifact_root() -> PathBuf {
     if let Some(root) = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT") {
-        return PathBuf::from(root).join("wp-kernel-012");
+        let configured_root = PathBuf::from(root);
+        let canonical_configured_root = std::fs::canonicalize(&configured_root).unwrap_or_else(|error| {
+            panic!(
+                "canonicalize configured HANDSHAKE_TEST_ARTIFACTS_ROOT {} before artifact writes: {error}",
+                configured_root.display()
+            )
+        });
+        let canonical_artifact_root = canonical_handshake_artifact_root().unwrap_or_else(|error| {
+            panic!("resolve canonical Handshake_Artifacts boundary before artifact writes: {error}")
+        });
+        if canonical_configured_root == canonical_artifact_root {
+            return configured_root.join("wp-kernel-012");
+        }
+        if canonical_configured_root == canonical_artifact_root.join("handshake-test") {
+            return configured_root.join("wp-kernel-012");
+        }
+        canonical_handshake_artifact_boundary(&canonical_configured_root).unwrap_or_else(|error| {
+            panic!(
+                "reject configured HANDSHAKE_TEST_ARTIFACTS_ROOT {} before artifact writes: {error}",
+                configured_root.display()
+            )
+        });
+        return configured_root.join("wp-kernel-012");
     }
     if let Some(root) = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT") {
         return PathBuf::from(root).join("wp-kernel-012");
@@ -4165,35 +4188,57 @@ pub fn external_artifact_root() -> PathBuf {
         .join("wp-kernel-012")
 }
 
-fn canonical_handshake_artifact_boundary(canonical_wp_root: &Path) -> Result<PathBuf, String> {
-    if canonical_wp_root.file_name().and_then(|name| name.to_str()) != Some("wp-kernel-012") {
+fn canonical_handshake_artifact_root() -> Result<PathBuf, String> {
+    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .ancestors()
+                .nth(4)
+                .expect("native crate must live under a worktree root")
+                .join("Handshake_Artifacts")
+        });
+    let canonical_root = std::fs::canonicalize(&root)
+        .map_err(|error| format!("canonicalize Handshake_Artifacts root {}: {error}", root.display()))?;
+    if canonical_root.file_name().and_then(|name| name.to_str()) != Some("Handshake_Artifacts") {
         return Err(format!(
-            "WP-012 evidence root has an invalid terminal component: {}",
+            "configured canonical artifact root has an invalid terminal component: {}",
+            canonical_root.display()
+        ));
+    }
+    Ok(canonical_root)
+}
+
+fn canonical_handshake_artifact_boundary(canonical_wp_root: &Path) -> Result<PathBuf, String> {
+    let canonical_artifact_root = canonical_handshake_artifact_root()?;
+    if !canonical_wp_root.starts_with(&canonical_artifact_root) {
+        return Err(format!(
+            "WP-012 evidence root is outside the canonical Handshake_Artifacts root: {}",
             canonical_wp_root.display()
         ));
     }
-    let parent = canonical_wp_root.parent().ok_or_else(|| {
-        format!(
-            "WP-012 external artifact root has no artifact boundary: {}",
-            canonical_wp_root.display()
-        )
-    })?;
-    if parent.file_name().and_then(|name| name.to_str()) == Some("Handshake_Artifacts") {
-        return Ok(parent.to_path_buf());
+    let components = canonical_wp_root
+        .strip_prefix(&canonical_artifact_root)
+        .map_err(|error| format!("strip canonical artifact boundary: {error}"))?
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    if components.as_slice() == ["wp-kernel-012"]
+        || components.as_slice() == ["handshake-test", "wp-kernel-012"]
+    {
+        return Ok(canonical_artifact_root);
     }
-    if parent.file_name().and_then(|name| name.to_str()) == Some("handshake-test") {
-        let boundary = parent.parent().ok_or_else(|| {
-            format!(
-                "handshake-test root has no Handshake_Artifacts parent: {}",
-                canonical_wp_root.display()
-            )
-        })?;
-        if boundary.file_name().and_then(|name| name.to_str()) == Some("Handshake_Artifacts") {
-            return Ok(boundary.to_path_buf());
-        }
+    if components.len() >= 3
+        && components[0] == "WP-KERNEL-012"
+        && components[1]
+            .strip_prefix("MT-")
+            .is_some_and(|microtask| !microtask.is_empty())
+        && !components[2].is_empty()
+    {
+        return Ok(canonical_artifact_root);
     }
     Err(format!(
-        "WP-012 evidence root is outside canonical Handshake_Artifacts roots: {}",
+        "configured evidence root must be a canonical WP-KERNEL-012/MT-<id>/owner scope: {}",
         canonical_wp_root.display()
     ))
 }

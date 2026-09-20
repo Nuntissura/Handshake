@@ -523,7 +523,7 @@ impl RuntimeChatPanel {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
                         ui.heading(egui::RichText::new("Runtime Chat").color(palette.text));
-                        ui.add_space(6.0);
+                        ui.add_space(6.0_f32);
                         ui.label(
                             egui::RichText::new(endpoint_state)
                                 .color(palette.error_text)
@@ -532,15 +532,15 @@ impl RuntimeChatPanel {
                     });
                     let status =
                         ui.label(egui::RichText::new(&endpoint_status).color(palette.text_subtle));
-                    ui.add_space(8.0);
+                    ui.add_space(8.0_f32);
                     ui.horizontal(|ui| {
-                        let action_width = 64.0;
+                        let action_width = 64.0_f32;
                         let action_area = if self.active_send.is_some() {
-                            action_width * 2.0 + 16.0
+                            action_width * 2.0_f32 + 16.0_f32
                         } else {
-                            action_width + 8.0
+                            action_width + 8.0_f32
                         };
-                        let input_width = (ui.available_width() - action_area).max(120.0);
+                        let input_width = (ui.available_width() - action_area).max(120.0_f32);
                         let draft_ready = !self.draft.trim().is_empty();
                         let input = egui::Frame::new()
                             .fill(palette.bg)
@@ -548,7 +548,7 @@ impl RuntimeChatPanel {
                             .inner_margin(egui::Margin::symmetric(6, 3))
                             .show(ui, |ui| {
                                 ui.add_sized(
-                                    [input_width, 20.0],
+                                    [input_width, 20.0_f32],
                                     egui::TextEdit::singleline(&mut self.draft)
                                         .id_salt(RUNTIME_CHAT_INPUT_AUTHOR_ID)
                                         .hint_text("Message")
@@ -606,7 +606,7 @@ impl RuntimeChatPanel {
                                 } else {
                                     palette.surface
                                 })
-                                .min_size(egui::vec2(action_width, 28.0)),
+                                .min_size(egui::vec2(action_width, 28.0_f32)),
                         );
                         ui.ctx().accesskit_node_builder(send.id, |node| {
                             node.set_author_id(RUNTIME_CHAT_SEND_AUTHOR_ID.to_owned());

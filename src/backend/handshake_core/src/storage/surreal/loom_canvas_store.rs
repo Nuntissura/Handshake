@@ -23,16 +23,21 @@ use tokio::sync::Notify;
 
 use super::keyed_lock::LockKey;
 use super::retry::Replay;
-use super::{event_ledger, loom_store, SurrealDatabase, SurrealStorage, SurrealStorageError};
+use super::{
+    current_record_user_scope, event_ledger, loom_store, SurrealDataContext, SurrealDatabase,
+    SurrealStorage, SurrealStorageError,
+};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{knowledge_canonical_json_sha256, rich_document_loom_projection};
 use crate::storage::{
     CompensateLoomCanvasStageCard, LoomBlock, LoomBlockContentType, LoomCanvasBoard,
-    LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementRemovalReceipt,
+    LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementCreateReceipt,
+    LoomCanvasPlacementRemovalReceipt,
     LoomCanvasPlacementUpdate, LoomCanvasStageCard, LoomCanvasStageCompensation,
     LoomCanvasStageProvenance, LoomCanvasVisualEdge, LoomMutationEventReceipt,
-    NewLoomCanvasPlacement, NewLoomCanvasStageCard, StorageError, StorageResult, WriteActorKind,
-    WriteContext, LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
+    MutationMetadata, NewLoomBlock, NewLoomCanvasPlacement, NewLoomCanvasStageCard,
+    StorageError, StorageResult, WriteActorKind, WriteContext, LOOM_CANVAS_BOARD_SCHEMA_ID,
+    LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
 };
 
 const WORKSPACES: &str = "workspaces";
@@ -45,6 +50,53 @@ const ENTITIES: &str = "knowledge_entities";
 const EVENT_LEDGER: &str = "kernel_event_ledger";
 const BRIDGES: &str = "loom_block_knowledge_bridge";
 const EXTRACTOR_VERSION: &str = "loom_block_knowledge_bridge_v1";
+const OWNED_LOOM_BUNDLE_SQL: &str = "BEGIN TRANSACTION; \
+    IF $creator != $auth.id OR !fn::mt109_live_session() OR $authorizing_grant = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF record::exists($block) { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    CREATE ONLY $block CONTENT $content RETURN NONE; \
+    CREATE $owned_resource SET resource_kind = 'loom_block', external_resource_id = record::id($block), owner_account_id = $creator.account_id, created_by_principal_id = $creator.principal_id, created_in_session_id = $creator, creator_grant_id = $owned_grant, access_space_id = $creator.access_space_id, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', policy_version = $creator.policy_version, classification = 'account_private', storage_locator_hash = $locator_hash, created_at = time::now(), updated_at = time::now(); \
+    CREATE $owned_grant SET account_id = $creator.account_id, principal_id = $creator.principal_id, access_space_id = $creator.access_space_id, resource_id = $owned_resource, actions = ['read','create','update','delete'], capability_ids = ['fs.read','fs.write'], delegation_chain = $creator.delegation_chain, status = 'active', grant_version = 1, policy_version = $creator.policy_version, expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now(); \
+    UPSERT $search SET block_id = $block, workspace_id = $workspace, content_type = $content_type, search_text = $search_text, indexed_at = time::now(); \
+    CREATE $bridge_event.record CONTENT { event_id: $bridge_event.event_id, event_version: $bridge_event.event_version, kernel_task_run_id: $bridge_event.kernel_task_run_id, session_run_id: $bridge_event.session_run_id, aggregate_type: $bridge_event.aggregate_type, aggregate_id: $bridge_event.aggregate_id, idempotency_key: $bridge_event.idempotency_key, event_type: $bridge_event.event_type, actor_kind: $bridge_event.actor_kind, actor_id: $bridge_event.actor_id, causation_id: $bridge_event.causation_id, correlation_id: $bridge_event.correlation_id, payload_hash: $bridge_event.payload_hash, source_component: $bridge_event.source_component, payload: $bridge_event.payload, wsids: $bridge_event.wsids, authority_resource_id: $bridge_event.authority_resource_id, authority_session_id: $bridge_event.authority_session_id, authority_capability_id: $bridge_event.authority_capability_id, authority_action: $bridge_event.authority_action, created_at: $bridge_event.created_at }; \
+    CREATE $entity SET entity_id = $entity_id, workspace_id = $workspace, entity_kind = 'loom_block', entity_key = record::id($block), display_name = $display_name, detection_provenance = $detection_provenance, lifecycle_state = 'active', updated_at = $updated_at; \
+    CREATE $bridge SET block_id = $block, workspace_id = $workspace, entity_id = $entity, index_event_id = $bridge_event.record, updated_at = $updated_at; \
+    IF $board != NONE { CREATE $board_event.record CONTENT { event_id: $board_event.event_id, event_version: $board_event.event_version, kernel_task_run_id: $board_event.kernel_task_run_id, session_run_id: $board_event.session_run_id, aggregate_type: $board_event.aggregate_type, aggregate_id: $board_event.aggregate_id, idempotency_key: $board_event.idempotency_key, event_type: $board_event.event_type, actor_kind: $board_event.actor_kind, actor_id: $board_event.actor_id, causation_id: $board_event.causation_id, correlation_id: $board_event.correlation_id, payload_hash: $board_event.payload_hash, source_component: $board_event.source_component, payload: $board_event.payload, wsids: $board_event.wsids, authority_resource_id: $board_event.authority_resource_id, authority_session_id: $board_event.authority_session_id, authority_capability_id: $board_event.authority_capability_id, authority_action: $board_event.authority_action, created_at: $board_event.created_at }; CREATE $board SET block_id = $block, workspace_id = $workspace, board_state = $board_state, event_ledger_event_id = $board_event.record, updated_at = time::now(); }; \
+    LET $creator_account = $creator.account_id; LET $creator_principal = $creator.principal_id; LET $creator_space = $creator.access_space_id; \
+    IF array::len((UPDATE $creator SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $parent SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $authorizing_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((SELECT VALUE id FROM $block WHERE workspace_id = $workspace AND source_rich_document_id = NONE AND created_in_session_id = $creator)) != 1 OR array::len((SELECT VALUE id FROM $owned_resource WHERE resource_kind = 'loom_block' AND owner_account_id = $creator.account_id AND created_by_principal_id = $creator.principal_id AND created_in_session_id = $creator AND creator_grant_id = $owned_grant AND access_space_id = $creator.access_space_id AND parent_resource_id = $parent AND lifecycle_state = 'active')) != 1 OR array::len((SELECT VALUE id FROM $owned_grant WHERE account_id = $creator.account_id AND principal_id = $creator.principal_id AND access_space_id = $creator.access_space_id AND resource_id = $owned_resource AND actions = ['read','create','update','delete'] AND capability_ids = ['fs.read','fs.write'] AND delegation_chain = $creator.delegation_chain AND status = 'active')) != 1 OR array::len((SELECT VALUE id FROM $search WHERE block_id = $block AND workspace_id = $workspace)) != 1 OR array::len((SELECT VALUE id FROM $entity WHERE workspace_id = $workspace AND entity_kind = 'loom_block' AND entity_key = record::id($block))) != 1 OR array::len((SELECT VALUE id FROM $bridge_event.record)) != 1 OR array::len((SELECT VALUE id FROM $bridge WHERE block_id = $block AND workspace_id = $workspace AND entity_id = $entity AND index_event_id = $bridge_event.record)) != 1 OR ($board != NONE AND (array::len((SELECT VALUE id FROM $board_event.record)) != 1 OR array::len((SELECT VALUE id FROM $board WHERE block_id = $block AND workspace_id = $workspace AND event_ledger_event_id = $board_event.record)) != 1)) { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    COMMIT TRANSACTION;";
+
+#[cfg(test)]
+async fn execute_record_user_loom_bundle_with_test_diagnostics(
+    db: &SurrealDataContext<'_>,
+    bindings: OwnedLoomBundleBindings,
+) -> Result<usize, SurrealStorageError> {
+    let mut response = db
+        .client
+        .query(OWNED_LOOM_BUNDLE_SQL)
+        .bind(SurrealValue::into_value(bindings))
+        .await?;
+    let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+    errors.sort_by_key(|(statement_index, _)| *statement_index);
+    if !errors.is_empty() {
+        let meaningful = errors
+            .iter()
+            .position(|(_, error)| {
+                !error
+                    .to_string()
+                    .to_ascii_lowercase()
+                    .contains("query was not executed due to a failed transaction")
+            })
+            .unwrap_or(0);
+        let (statement_index, error) = errors.swap_remove(meaningful);
+        eprintln!(
+            "record-user-loom-bundle transactionfailed statement_index={statement_index} error={error}"
+        );
+        return Err(error.into());
+    }
+    let rows: Vec<surrealdb::types::Value> = response.take(0)?;
+    Ok(rows.len())
+}
 
 // Concurrency (MT-152 I-152-2, replacing the process-global Canvas mutation
 // mutex): every Canvas invariant is owned by the guards inside its one
@@ -301,6 +353,64 @@ struct BoardWriteBindings {
     event: event_ledger::LedgerWrite,
 }
 
+#[derive(Clone, SurrealValue)]
+struct OwnedLoomBlockContent {
+    block_id: String,
+    workspace_id: RecordId,
+    created_in_session_id: RecordId,
+    content_type: String,
+    document_id: Option<RecordId>,
+    asset_id: Option<RecordId>,
+    title: Option<String>,
+    original_filename: Option<String>,
+    content_hash: Option<String>,
+    pinned: bool,
+    favorite: bool,
+    pin_order: Option<i64>,
+    journal_date: Option<String>,
+    last_job_id: Option<String>,
+    last_workflow_id: Option<String>,
+    last_actor_id: Option<String>,
+    edit_event_id: String,
+    last_actor_kind: String,
+    created_at: Datetime,
+    updated_at: Datetime,
+    imported_at: Option<Datetime>,
+    backlink_count: i64,
+    mention_count: i64,
+    tag_count: i64,
+    derived_json: Value,
+    preview_status: String,
+    thumbnail_asset_id: Option<RecordId>,
+    proxy_asset_id: Option<RecordId>,
+}
+
+#[derive(Clone, SurrealValue)]
+struct OwnedLoomBundleBindings {
+    block: RecordId,
+    content: OwnedLoomBlockContent,
+    search: RecordId,
+    workspace: RecordId,
+    content_type: String,
+    search_text: String,
+    creator: RecordId,
+    parent: RecordId,
+    authorizing_grant: Option<RecordId>,
+    owned_resource: RecordId,
+    owned_grant: RecordId,
+    locator_hash: String,
+    entity: RecordId,
+    entity_id: String,
+    display_name: String,
+    detection_provenance: Value,
+    bridge: RecordId,
+    bridge_event: event_ledger::LedgerWrite,
+    board_event: Option<event_ledger::LedgerWrite>,
+    board: Option<RecordId>,
+    board_state: Option<Value>,
+    updated_at: Datetime,
+}
+
 #[derive(SurrealValue)]
 struct MutationEventRow {
     event_id: String,
@@ -342,6 +452,28 @@ struct PlacementWriteBindings {
 }
 
 #[derive(SurrealValue)]
+struct RecordUserPlacementBindings {
+    placement: RecordId,
+    placement_id: String,
+    canvas: RecordId,
+    workspace: RecordId,
+    placed_block: RecordId,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    z_index: i64,
+    group_id: Option<String>,
+    is_text_card: bool,
+    creator: RecordId,
+    board_resource: RecordId,
+    source_resource: RecordId,
+    board_grant: RecordId,
+    source_grant: RecordId,
+    event: event_ledger::LedgerWrite,
+}
+
+#[derive(SurrealValue)]
 struct PlacementUpdateBindings {
     placement: RecordId,
     workspace: RecordId,
@@ -370,6 +502,20 @@ struct PlacementRemovalBindings {
 }
 
 #[derive(SurrealValue)]
+struct RecordUserPlacementRemovalBindings {
+    placement: RecordId,
+    workspace: RecordId,
+    canvas: RecordId,
+    placed_block: RecordId,
+    creator: RecordId,
+    board_resource: RecordId,
+    source_resource: RecordId,
+    board_grant: RecordId,
+    source_grant: RecordId,
+    event: event_ledger::LedgerWrite,
+}
+
+#[derive(SurrealValue)]
 struct PlacementRow {
     placement_id: String,
     canvas_block_id: RecordId,
@@ -384,6 +530,12 @@ struct PlacementRow {
     is_text_card: bool,
     created_at: Datetime,
     updated_at: Datetime,
+}
+
+#[derive(SurrealValue)]
+struct PlacementCreateReceiptRow {
+    placement: PlacementRow,
+    event: MutationEventRow,
 }
 
 #[derive(SurrealValue)]
@@ -649,6 +801,8 @@ fn map_err(error: SurrealStorageError) -> StorageError {
         StorageError::Conflict("loom canvas board workspace identity mismatch")
     } else if rendered.contains("HSK-CANVAS-VISUAL-ENDPOINT") {
         StorageError::Validation("canvas visual edge endpoints must be placements on this canvas")
+    } else if rendered.contains("HSK-403-PROTECTED-RESOURCE") {
+        StorageError::Guard("HSK-403-PROTECTED-RESOURCE")
     } else {
         StorageError::Database(rendered)
     }
@@ -809,6 +963,18 @@ fn bridge_actor(ctx: &WriteContext) -> KernelActor {
     }
 }
 
+fn bridge_actor_from_metadata(metadata: &MutationMetadata) -> KernelActor {
+    let actor_id = metadata
+        .actor_id
+        .clone()
+        .unwrap_or_else(|| "loom_block_knowledge_bridge".to_owned());
+    match metadata.actor_kind {
+        WriteActorKind::Human => KernelActor::Operator(actor_id),
+        WriteActorKind::Ai => KernelActor::ModelAdapter(actor_id),
+        WriteActorKind::System => KernelActor::System(actor_id),
+    }
+}
+
 fn prepare_canvas_event(
     block_id: &str,
     workspace_id: &str,
@@ -860,6 +1026,69 @@ fn prepare_placement_removal_event(
     .build()
     .map_err(|_| StorageError::Validation("loom canvas placement removal event build failed"))?;
     event_ledger::prepare_event(event).map(|(_, write)| write)
+}
+
+fn prepare_record_user_placement_event(
+    metadata: &MutationMetadata,
+    placement_id: &str,
+    workspace_id: &str,
+    canvas_block_id: &str,
+    placed_block_id: &str,
+    payload_type: &'static str,
+    operation: &'static str,
+) -> StorageResult<event_ledger::LedgerWrite> {
+    let run_id = format!("LOOM-CANVAS-PLACEMENT-{placement_id}");
+    let event = NewKernelEvent::builder(
+        run_id.clone(),
+        run_id,
+        KernelEventType::KnowledgeLoomCanvasBoardRecorded,
+        bridge_actor_from_metadata(metadata),
+    )
+    .aggregate("loom_canvas_placement", placement_id.to_owned())
+    .source_component("loom_canvas_board")
+    .idempotency_key(format!(
+        "loom-canvas-placement:{operation}:{placement_id}:{}",
+        metadata.edit_event_id
+    ))
+    .payload(json!({
+        "type": payload_type,
+        "op": operation,
+        "workspace_id": workspace_id,
+        "canvas_block_id": canvas_block_id,
+        "placement_id": placement_id,
+        "placed_block_id": placed_block_id,
+    }))
+    .build()
+    .map_err(|_| StorageError::Validation("record-user Canvas placement event build failed"))?;
+    let (_, mut write) = event_ledger::prepare_event(event)?;
+    // The task-local scope remains the exact canvas resource witness; the
+    // receipt carries the independently bound canonical workspace witness.
+    write.wsids = vec![workspace_id.to_owned()];
+    Ok(write)
+}
+
+fn require_record_user_placement_scopes(
+    _workspace_id: &str,
+    canvas_block_id: &str,
+    _placed_block_id: &str,
+    source_scope: &super::resource_authority::RecordUserScope,
+) -> StorageResult<()> {
+    let board_scope = current_record_user_scope()
+        .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
+    if board_scope.workspace_id.as_deref() != Some(canvas_block_id)
+        || board_scope.capability_id != "fs.write"
+        || !matches!(board_scope.action, super::resource_authority::ResourceAction::Update)
+        || source_scope.capability_id != "fs.read"
+        || !matches!(source_scope.action, super::resource_authority::ResourceAction::Read)
+        || source_scope.session_id != board_scope.session_id
+        || source_scope.session_token != board_scope.session_token
+        || source_scope.channel_binding_hash != board_scope.channel_binding_hash
+        || board_scope.grant_id.is_none()
+        || source_scope.grant_id.is_none()
+    {
+        return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+    }
+    Ok(())
 }
 
 async fn validate_write(
@@ -917,6 +1146,222 @@ pub(crate) async fn create_canvas_board(
             },
         )
         .await
+}
+
+/// The authenticated native-editor create path. The Loom block, its searchable
+/// projection, child authority, knowledge bridge, receipts, and optional board
+/// must commit together so a record-user request never leaves a source-free
+/// block behind.
+pub(crate) async fn create_record_user_loom_bundle(
+    db: &SurrealDataContext<'_>,
+    block: NewLoomBlock,
+    board_state: Option<Value>,
+    metadata: MutationMetadata,
+    workspace_id: &str,
+) -> StorageResult<LoomBlock> {
+    let scope = current_record_user_scope().ok_or(StorageError::Guard(
+        "HSK-403-PROTECTED-RESOURCE",
+    ))?;
+    if scope.workspace_id.as_deref() != Some(workspace_id)
+        || scope.capability_id != "fs.write"
+        || !matches!(scope.action, crate::storage::surreal::resource_authority::ResourceAction::Create)
+    {
+        return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+    }
+    if block.workspace_id != workspace_id {
+        return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+    }
+    let block_id = block
+        .block_id
+        .clone()
+        .filter(|id| !id.trim().is_empty() && id.trim() == id)
+        .ok_or(StorageError::Validation(
+            "loom block_id must be non-empty without surrounding whitespace",
+        ))?;
+    let is_canvas = matches!(block.content_type, LoomBlockContentType::Canvas);
+    if !matches!(block.content_type, LoomBlockContentType::Note | LoomBlockContentType::Canvas)
+        || is_canvas != board_state.is_some()
+    {
+        return Err(StorageError::Validation(
+            "record-user Loom creation supports only note or canvas blocks",
+        ));
+    }
+    if let Some(state) = &board_state {
+        validate_board_state(state)?;
+    }
+    if metadata.resource_id != block_id {
+        return Err(StorageError::Guard("guarded resource id mismatch"));
+    }
+
+    let timestamp = Datetime::from(metadata.timestamp);
+    let preview = LoomBlock {
+        block_id: block_id.clone(),
+        workspace_id: workspace_id.to_owned(),
+        content_type: block.content_type.clone(),
+        document_id: block.document_id.clone(),
+        asset_id: block.asset_id.clone(),
+        title: block.title.clone(),
+        original_filename: block.original_filename.clone(),
+        content_hash: block.content_hash.clone(),
+        pinned: block.pinned,
+        favorite: false,
+        pin_order: None,
+        journal_date: block.journal_date.clone(),
+        created_at: metadata.timestamp,
+        updated_at: metadata.timestamp,
+        imported_at: block.imported_at,
+        derived: block.derived.clone(),
+    };
+    let entity_id = format!("KEN-{}", Uuid::now_v7().simple());
+    let display_name = preview
+        .title
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            preview
+                .original_filename
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+        })
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("{} {}", preview.content_type.as_str(), preview.block_id));
+    let run_id = format!("LOOM-BRIDGE-{workspace_id}");
+    let bridge_event = NewKernelEvent::builder(
+        run_id.clone(),
+        run_id,
+        KernelEventType::KnowledgeLoomBlockIndexed,
+        bridge_actor_from_metadata(&metadata),
+    )
+    .aggregate("knowledge_loom_block", entity_id.clone())
+    .idempotency_key(format!("KEI-loom-bridge-{block_id}-{}", metadata.edit_event_id))
+    .source_component("loom_block_knowledge_bridge")
+    .payload(json!({
+        "type": "knowledge_loom_block_indexed",
+        "workspace_id": workspace_id,
+        "block_id": block_id,
+        "entity_id": entity_id,
+        "content_type": preview.content_type.as_str(),
+        "extractor_version": EXTRACTOR_VERSION,
+    }))
+    .build()
+    .map_err(|_| StorageError::Validation("loom bridge EventLedger receipt build failed"))?;
+    let (_, bridge_event) = event_ledger::prepare_event(bridge_event)?;
+    let board_event = board_state.as_ref().map(|state| {
+        let run_id = format!("LOOM-CANVAS-BOARD-{block_id}");
+        NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeLoomCanvasBoardRecorded,
+            bridge_actor_from_metadata(&metadata),
+        )
+        .aggregate("loom_canvas_board", block_id.clone())
+        .idempotency_key(format!("KEI-loom-canvas-{block_id}-{}", metadata.edit_event_id))
+        .source_component("loom_canvas_board")
+        .payload(json!({
+            "type": "knowledge_loom_canvas_board_recorded",
+            "op": "create",
+            "workspace_id": workspace_id,
+            "block_id": block_id,
+            "board_state": state,
+        }))
+        .build()
+        .map_err(|_| StorageError::Validation("loom canvas EventLedger receipt build failed"))
+        .and_then(|event| event_ledger::prepare_event(event).map(|(_, write)| write))
+    }).transpose()?;
+    let mut derived = serde_json::to_value(&preview.derived)?;
+    if !derived.is_object() {
+        derived = json!({});
+    }
+    let content = OwnedLoomBlockContent {
+        block_id: block_id.clone(),
+        workspace_id: RecordId::new(WORKSPACES, workspace_id.to_owned()),
+        created_in_session_id: RecordId::new("authenticated_sessions", scope.session_id.clone()),
+        content_type: preview.content_type.as_str().to_owned(),
+        document_id: preview.document_id.clone().map(|id| RecordId::new("documents", id)),
+        asset_id: preview.asset_id.clone().map(|id| RecordId::new("assets", id)),
+        title: preview.title.clone(),
+        original_filename: preview.original_filename.clone(),
+        content_hash: preview.content_hash.clone(),
+        pinned: preview.pinned,
+        favorite: false,
+        pin_order: None,
+        journal_date: preview.journal_date.clone(),
+        last_job_id: metadata.job_id.map(|id| id.to_string()),
+        last_workflow_id: metadata.workflow_id.map(|id| id.to_string()),
+        last_actor_id: metadata.actor_id.clone(),
+        edit_event_id: metadata.edit_event_id.to_string(),
+        last_actor_kind: metadata.actor_kind.as_str().to_owned(),
+        created_at: timestamp,
+        updated_at: timestamp,
+        imported_at: preview.imported_at.map(Datetime::from),
+        backlink_count: preview.derived.backlink_count,
+        mention_count: preview.derived.mention_count,
+        tag_count: preview.derived.tag_count,
+        derived_json: derived,
+        preview_status: preview.derived.preview_status.as_str().to_owned(),
+        thumbnail_asset_id: preview
+            .derived
+            .thumbnail_asset_id
+            .clone()
+            .map(|id| RecordId::new("assets", id)),
+        proxy_asset_id: preview
+            .derived
+            .proxy_asset_id
+            .clone()
+            .map(|id| RecordId::new("assets", id)),
+    };
+    let bindings = OwnedLoomBundleBindings {
+        block: RecordId::new(BLOCKS, block_id.clone()),
+        content,
+        search: RecordId::new("loom_block_search_index", block_id.clone()),
+        workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
+        content_type: preview.content_type.as_str().to_owned(),
+        search_text: [
+            preview.title.as_deref(),
+            preview.original_filename.as_deref(),
+            preview.derived.full_text_index.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join("\n"),
+        creator: RecordId::new("authenticated_sessions", scope.session_id),
+        parent: RecordId::new("protected_resources", scope.resource_id),
+        authorizing_grant: scope.grant_id.map(|id| RecordId::new("resource_grants", id)),
+        owned_resource: RecordId::new("protected_resources", Uuid::now_v7().to_string()),
+        owned_grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
+        locator_hash: hex::encode(Sha256::digest(format!("loom_block:{block_id}").as_bytes())),
+        entity: RecordId::new(ENTITIES, entity_id.clone()),
+        entity_id,
+        display_name,
+        detection_provenance: json!({
+            "extractor": "loom_block_knowledge_bridge",
+            "extractor_version": EXTRACTOR_VERSION,
+            "method": "record_user_atomic_create",
+            "content_type": preview.content_type.as_str(),
+        }),
+        bridge: RecordId::new(BRIDGES, block_id.clone()),
+        bridge_event,
+        board_event,
+        board: is_canvas.then(|| RecordId::new(BOARDS, block_id.clone())),
+        board_state,
+        updated_at: timestamp,
+    };
+    #[cfg(test)]
+    let execution = execute_record_user_loom_bundle_with_test_diagnostics(db, bindings);
+    #[cfg(not(test))]
+    let execution = db.execute_returning(OWNED_LOOM_BUNDLE_SQL, bindings);
+    execution.await.map_err(|error| {
+            let rendered = error.to_string();
+            if rendered.contains("HSK-403-PROTECTED-RESOURCE") {
+                StorageError::Guard("HSK-403-PROTECTED-RESOURCE")
+            } else {
+                StorageError::Database(rendered)
+            }
+        })?;
+    loom_store::get_loom_block(db, workspace_id, &block_id).await
 }
 
 async fn create_canvas_board_attempt(
@@ -1266,6 +1711,150 @@ async fn place_block_on_canvas_attempt(
         .map(placement_to_domain)
         .transpose()?
         .ok_or_else(|| StorageError::Database("canvas placement create returned no row".to_owned()))
+}
+
+pub(crate) async fn record_user_canvas_placement_identity(
+    db: &SurrealDataContext<'_>,
+    workspace_id: &str,
+    placement_id: &str,
+) -> StorageResult<(String, String)> {
+    let row: Option<PlacementRow> = db
+        .query_first(
+            "SELECT placement_id, canvas_block_id, workspace_id, placed_block_id, x, y, w, h, z_index, group_id, is_text_card, created_at, updated_at FROM $record WHERE workspace_id = $workspace;",
+            RecordWorkspaceBindings {
+                record: RecordId::new(PLACEMENTS, placement_id.to_owned()),
+                workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
+            },
+        )
+        .await
+        .map_err(map_err)?;
+    let placement = row
+        .map(placement_to_domain)
+        .transpose()?
+        .ok_or(StorageError::NotFound("loom_canvas_placement"))?;
+    Ok((placement.canvas_block_id, placement.placed_block_id))
+}
+
+const RECORD_USER_CANVAS_PLACEMENT_SQL: &str = "BEGIN TRANSACTION; \
+             LET $creator_account = $creator.account_id; LET $creator_principal = $creator.principal_id; LET $creator_space = $creator.access_space_id; \
+             IF array::len((UPDATE $creator SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $board_resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $source_resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $board_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $source_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+             LET $created_placement = (CREATE $placement CONTENT { placement_id: $placement_id, canvas_block_id: $canvas, workspace_id: $workspace, placed_block_id: $placed_block, x: $x, y: $y, w: $w, h: $h, z_index: $z_index, group_id: $group_id, is_text_card: $is_text_card, stage_provenance_key: NONE, stage_provenance: NONE } RETURN AFTER)[0]; \
+             IF $created_placement = NONE OR $created_placement.workspace_id != $workspace OR $created_placement.canvas_block_id != $canvas OR $created_placement.placed_block_id != $placed_block { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+             LET $created_event = (CREATE $event.record CONTENT { event_id: $event.event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at } RETURN AFTER)[0]; \
+             IF $created_event = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+             COMMIT TRANSACTION; \
+             RETURN { placement: $created_placement, event: { event_id: $created_event.event_id, event_sequence: $created_event.event_sequence, created_at: $created_event.created_at } };";
+
+#[cfg(test)]
+async fn execute_record_user_canvas_placement_with_test_diagnostics(
+    db: &SurrealDataContext<'_>,
+    bindings: RecordUserPlacementBindings,
+) -> Result<Vec<PlacementCreateReceiptRow>, SurrealStorageError> {
+    let mut response = db
+        .client
+        .query(RECORD_USER_CANVAS_PLACEMENT_SQL)
+        .bind(SurrealValue::into_value(bindings))
+        .await
+        .map_err(|error| {
+            eprintln!("record-user-canvas-placement phase=query error={error}");
+            error
+        })?;
+    let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+    errors.sort_by_key(|(statement_index, _)| *statement_index);
+    if !errors.is_empty() {
+        let meaningful = errors
+            .iter()
+            .position(|(_, error)| {
+                !error
+                    .to_string()
+                    .to_ascii_lowercase()
+                    .contains("query was not executed due to a failed transaction")
+            })
+            .unwrap_or(0);
+        let (statement_index, error) = errors.swap_remove(meaningful);
+        eprintln!(
+            "record-user-canvas-placement transactionfailed statement_index={statement_index} error={error}"
+        );
+        return Err(error.into());
+    }
+    response.take(10).map_err(|error| {
+        eprintln!("record-user-canvas-placement phase=result_decode error={error}");
+        error.into()
+    })
+}
+
+pub(crate) async fn place_record_user_canvas_block(
+    db: &SurrealDataContext<'_>,
+    placement_id: String,
+    placement: NewLoomCanvasPlacement,
+    metadata: MutationMetadata,
+    source_scope: super::resource_authority::RecordUserScope,
+) -> StorageResult<LoomCanvasPlacementCreateReceipt> {
+    validate_geometry(placement.w, placement.h)?;
+    if placement.stage_provenance_key.is_some() {
+        return Err(StorageError::Validation(
+            "Stage provenance placements must use create_stage_canvas_card",
+        ));
+    }
+    require_record_user_placement_scopes(
+        &placement.workspace_id,
+        &placement.canvas_block_id,
+        &placement.placed_block_id,
+        &source_scope,
+    )?;
+    if source_scope.workspace_id.as_deref() != Some(placement.placed_block_id.as_str()) {
+        return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+    }
+    let board_scope = current_record_user_scope()
+        .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
+    let event = prepare_record_user_placement_event(
+        &metadata,
+        &placement_id,
+        &placement.workspace_id,
+        &placement.canvas_block_id,
+        &placement.placed_block_id,
+        "knowledge_loom_canvas_placement_recorded",
+        "create",
+    )?;
+    let bindings = RecordUserPlacementBindings {
+        placement: RecordId::new(PLACEMENTS, placement_id.clone()),
+        placement_id,
+        canvas: RecordId::new(BOARDS, placement.canvas_block_id),
+        workspace: RecordId::new(WORKSPACES, placement.workspace_id),
+        placed_block: RecordId::new(BLOCKS, placement.placed_block_id),
+        x: placement.x,
+        y: placement.y,
+        w: placement.w,
+        h: placement.h,
+        z_index: i64::from(placement.z_index),
+        group_id: placement.group_id,
+        is_text_card: placement.is_text_card,
+        creator: RecordId::new("authenticated_sessions", board_scope.session_id),
+        board_resource: RecordId::new("protected_resources", board_scope.resource_id),
+        source_resource: RecordId::new("protected_resources", source_scope.resource_id),
+        board_grant: RecordId::new("resource_grants", board_scope.grant_id.expect("scope checked")),
+        source_grant: RecordId::new("resource_grants", source_scope.grant_id.expect("scope checked")),
+        event,
+    };
+    // The placement is created before its receipt so the receipt predicate
+    // binds the immutable payload witnesses to this exact row. The transaction
+    // rolls both writes back when either table permission rejects the request.
+    #[cfg(test)]
+    let execution = execute_record_user_canvas_placement_with_test_diagnostics(db, bindings);
+    #[cfg(not(test))]
+    let execution = db.query_values_at(RECORD_USER_CANVAS_PLACEMENT_SQL, bindings, 10);
+    let rows: Vec<PlacementCreateReceiptRow> = execution.await.map_err(map_err)?;
+    let row = rows.into_iter().next().ok_or_else(|| {
+        StorageError::Database("record-user Canvas placement transaction returned no receipt".to_owned())
+    })?;
+    Ok(LoomCanvasPlacementCreateReceipt {
+        placement: placement_to_domain(row.placement)?,
+        event: LoomMutationEventReceipt {
+            event_id: row.event.event_id,
+            event_sequence: row.event.event_sequence,
+            created_at: row.event.created_at.into_inner(),
+        },
+    })
 }
 
 async fn read_stage_authority(
@@ -2429,6 +3018,83 @@ pub(crate) async fn remove_canvas_placement(
             || remove_canvas_placement_attempt(database.storage(), ctx, workspace_id, placement_id),
         )
         .await
+}
+
+pub(crate) async fn remove_record_user_canvas_placement(
+    db: &SurrealDataContext<'_>,
+    workspace_id: String,
+    placement_id: String,
+    metadata: MutationMetadata,
+    source_scope: super::resource_authority::RecordUserScope,
+) -> StorageResult<LoomCanvasPlacementRemovalReceipt> {
+    let (canvas_block_id, placed_block_id) =
+        record_user_canvas_placement_identity(db, &workspace_id, &placement_id).await?;
+    require_record_user_placement_scopes(
+        &workspace_id,
+        &canvas_block_id,
+        &placed_block_id,
+        &source_scope,
+    )?;
+    if source_scope.workspace_id.as_deref() != Some(placed_block_id.as_str()) {
+        return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+    }
+    let board_scope = current_record_user_scope()
+        .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))?;
+    let event = prepare_record_user_placement_event(
+        &metadata,
+        &placement_id,
+        &workspace_id,
+        &canvas_block_id,
+        &placed_block_id,
+        "knowledge_loom_canvas_placement_removed",
+        "remove_placement",
+    )?;
+    let bindings = RecordUserPlacementRemovalBindings {
+        placement: RecordId::new(PLACEMENTS, placement_id.clone()),
+        workspace: RecordId::new(WORKSPACES, workspace_id.clone()),
+        canvas: RecordId::new(BOARDS, canvas_block_id.clone()),
+        placed_block: RecordId::new(BLOCKS, placed_block_id.clone()),
+        creator: RecordId::new("authenticated_sessions", board_scope.session_id),
+        board_resource: RecordId::new("protected_resources", board_scope.resource_id),
+        source_resource: RecordId::new("protected_resources", source_scope.resource_id),
+        board_grant: RecordId::new("resource_grants", board_scope.grant_id.expect("scope checked")),
+        source_grant: RecordId::new("resource_grants", source_scope.grant_id.expect("scope checked")),
+        event,
+    };
+    // Receipt creation precedes deletion so its CREATE permission can bind the
+    // event payload to the live placement. Later receipt reads use the stable
+    // board/source witnesses in that payload after the placement is gone.
+    let rows: Vec<MutationEventRow> = db
+        .query_values_at(
+            "BEGIN TRANSACTION; \
+             LET $creator_account = $creator.account_id; LET $creator_principal = $creator.principal_id; LET $creator_space = $creator.access_space_id; \
+             IF array::len((UPDATE $creator SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $creator_space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $board_resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $source_resource SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $board_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 OR array::len((UPDATE $source_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+             IF array::len((SELECT VALUE id FROM $placement WHERE workspace_id = $workspace AND canvas_block_id = $canvas AND placed_block_id = $placed_block)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+             LET $created_event = (CREATE $event.record CONTENT { event_id: $event.event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at } RETURN AFTER)[0]; \
+             IF $created_event = NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+             LET $removed_placement = (DELETE $placement RETURN BEFORE)[0]; \
+             IF $removed_placement = NONE OR $removed_placement.workspace_id != $workspace OR $removed_placement.canvas_block_id != $canvas OR $removed_placement.placed_block_id != $placed_block { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+             COMMIT TRANSACTION; \
+             RETURN { event_id: $created_event.event_id, event_sequence: $created_event.event_sequence, created_at: $created_event.created_at };",
+            bindings,
+            11,
+        )
+        .await
+        .map_err(map_err)?;
+    let event = rows.into_iter().next().ok_or_else(|| {
+        StorageError::Database("record-user Canvas placement removal receipt is missing".to_owned())
+    })?;
+    Ok(LoomCanvasPlacementRemovalReceipt {
+        workspace_id,
+        canvas_block_id,
+        placement_id,
+        placed_block_id,
+        event: LoomMutationEventReceipt {
+            event_id: event.event_id,
+            event_sequence: event.event_sequence,
+            created_at: event.created_at.into_inner(),
+        },
+    })
 }
 
 async fn remove_canvas_placement_attempt(

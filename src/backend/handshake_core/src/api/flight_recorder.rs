@@ -2332,6 +2332,7 @@ mod tests {
             })
             .await?;
         let scope = RecordUserScope {
+            grant_id: None,
             workspace_id: Some(workspace_id.to_owned()),
             session_token: principal.session.token,
             channel_binding_hash: None,

@@ -35,8 +35,10 @@
 //! Conventions mirror `api/knowledge_memory.rs`.
 
 use axum::{
-    extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    extract::{Path, Query, Request, State},
+    http::{HeaderMap, Method, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{get, post, put},
     Json, Router,
 };
@@ -81,7 +83,6 @@ const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
 const HSK_HEADER_CORRELATION_ID: &str = "x-hsk-correlation-id";
 /// The native-MCP session credential. Same spelling as `api::stage`'s private constant — that module
 /// owns the validation, this module only decides whether to present the headers to it.
-const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
 
 /// WP-KERNEL-012 MT-120: the SERVER-WRITTEN field in a `KNOWLEDGE_RICH_DOCUMENT_SAVED` receipt payload
 /// naming the authenticated native principal that minted the receipt.
@@ -282,7 +283,79 @@ pub fn routes(state: AppState) -> Router {
             post(move_document),
         )
         .route("/knowledge/documents/batch", post(batch_documents))
+        .route_layer(middleware::from_fn_with_state(state.clone(), document_authority))
         .with_state(state)
+}
+
+tokio::task_local! {
+    static DOCUMENT_AUTHORITY: crate::api::authority::AuthorizedResourceContext;
+    static DOCUMENT_STATE: AppState;
+    static DOCUMENT_BATCH_AUTHORITIES: std::collections::BTreeMap<String, crate::api::authority::AuthorizedResourceContext>;
+}
+
+async fn document_authority(State(state): State<AppState>, mut request: Request, next: Next) -> Response {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    let denial = || crate::api::authority::constant_denial().into_response();
+    let path = request.uri().path().trim_start_matches("/knowledge/documents").to_owned();
+    let read = request.method() == Method::GET;
+    let mut batch_documents = Vec::new();
+    let (kind, external, action) = if path == "/batch" {
+        let (parts, body) = request.into_parts();
+        let bytes = match axum::body::to_bytes(body, 8 * 1024 * 1024).await { Ok(bytes) => bytes, Err(_) => return denial() };
+        let batch = match serde_json::from_slice::<BatchBody>(&bytes) { Ok(batch) => batch, Err(_) => return denial() };
+        if batch.operations.is_empty() || batch.operations.len() > BATCH_MAX_OPERATIONS { return denial(); }
+        batch_documents = batch.operations.iter().map(|operation| operation.document_id().to_owned()).collect();
+        request = Request::from_parts(parts, axum::body::Body::from(bytes));
+        (ResourceKind::RichDocument, batch_documents[0].clone(), ResourceAction::Update)
+    } else if path.starts_with("/embeds/") {
+        if crate::api::authority::authenticated_session(&state, request.headers()).await.is_err() { return denial(); }
+        let embed = path.trim_start_matches("/embeds/").split('/').next().unwrap_or("");
+        let document = match state.surreal.document_for_embed(embed).await { Ok(Some(document)) => document, _ => return denial() };
+        (ResourceKind::RichDocument, document, ResourceAction::Update)
+    } else if path.is_empty() || path == "/import" {
+        let workspace = if read {
+            match Query::<ListDocumentsParams>::try_from_uri(request.uri()) {
+                Ok(Query(params)) => params.workspace_id,
+                Err(_) => return denial(),
+            }
+        } else {
+            let (parts, body) = request.into_parts();
+            let bytes = match axum::body::to_bytes(body, 8 * 1024 * 1024).await {
+                Ok(bytes) => bytes, Err(_) => return denial(),
+            };
+            let workspace = serde_json::from_slice::<Value>(&bytes).ok()
+                .and_then(|body| body.get("workspace_id").and_then(Value::as_str).map(str::to_owned));
+            request = Request::from_parts(parts, axum::body::Body::from(bytes));
+            match workspace { Some(workspace) => workspace, None => return denial() }
+        };
+        (ResourceKind::Workspace, workspace, if read { ResourceAction::Read } else { ResourceAction::Create })
+    } else {
+        let document = path.trim_start_matches('/').split('/').next().unwrap_or("");
+        if matches!(document, "batch" | "embeds" | "") { return denial(); }
+        (ResourceKind::RichDocument, document.to_owned(), if read { ResourceAction::Read } else if request.method() == Method::DELETE && !path.trim_start_matches('/' ).contains('/') { ResourceAction::Delete } else { ResourceAction::Update })
+    };
+    let is_document = kind == ResourceKind::RichDocument;
+    let mut authority = match crate::api::authority::authorize_request(&state, request.headers(),
+        if read { "fs.read" } else { "fs.write" }, kind, &external, action).await {
+        Ok(authority) => authority, Err(error) => return error.into_response(),
+    };
+    if is_document {
+        authority.record_user_scope.workspace_id = match state.surreal.authorized_document_workspace(
+            &authority.resource_id, &authority.account_id, &authority.access_space_id).await {
+            Ok(Some(workspace)) => Some(workspace), _ => return denial(),
+        };
+    }
+    let scope = authority.record_user_scope.clone();
+    let mut batch = std::collections::BTreeMap::new();
+    for document in batch_documents {
+        let mut item = match crate::api::authority::authorize_request(&state, request.headers(), "fs.write",
+            ResourceKind::RichDocument, &document, ResourceAction::Update).await { Ok(item) => item, Err(error) => return error.into_response() };
+        item.record_user_scope.workspace_id = match state.surreal.authorized_document_workspace(
+            &item.resource_id, &item.account_id, &item.access_space_id).await { Ok(Some(workspace)) => Some(workspace), _ => return denial() };
+        batch.insert(document, item);
+    }
+    DOCUMENT_BATCH_AUTHORITIES.scope(batch, DOCUMENT_STATE.scope(state.clone(), DOCUMENT_AUTHORITY.scope(authority,
+        state.surreal.with_record_user_scope(scope, next.run(request))))).await
 }
 
 type ApiError = (StatusCode, Json<Value>);
@@ -358,33 +431,6 @@ fn forbidden(reason: impl Into<String>) -> ApiError {
     )
 }
 
-/// WP-KERNEL-012 MT-120: an `x-hsk-session-token` was PRESENTED and did not authenticate (absent,
-/// forged, or stale binding). This is deliberately a hard 401 and NEVER a downgrade to the header
-/// identity: silently continuing as the client-declared actor would let a failed credential buy the
-/// unauthenticated path, which is the single most dangerous failure mode of an optional credential.
-fn doc_session_unauthenticated() -> ApiError {
-    (
-        StatusCode::UNAUTHORIZED,
-        Json(json!({
-            "error": "HSK-401-DOC-SESSION",
-            "detail": "x-hsk-session-token was presented but did not authenticate a live native-MCP session"
-        })),
-    )
-}
-
-/// WP-KERNEL-012 MT-120: the caller declared an `x-hsk-actor-id` inside the reserved
-/// `handshake-native:` principal namespace without an authenticated session that owns exactly that
-/// id. Without this guard an unauthenticated caller forges the server-derived principal by header.
-fn doc_actor_spoof_denied() -> ApiError {
-    (
-        StatusCode::FORBIDDEN,
-        Json(json!({
-            "error": "HSK-403-DOC-ACTOR-SPOOF",
-            "reason": "x-hsk-actor-id claims the reserved handshake-native: principal namespace without an authenticated session for that principal"
-        })),
-    )
-}
-
 fn conflict(detail: impl Into<String>) -> ApiError {
     (
         StatusCode::CONFLICT,
@@ -394,6 +440,7 @@ fn conflict(detail: impl Into<String>) -> ApiError {
 
 fn storage_error(err: StorageError) -> ApiError {
     match err {
+        StorageError::Guard("HSK-403-PROTECTED-RESOURCE") => crate::api::authority::constant_denial(),
         StorageError::NotFound(what) => not_found(what),
         StorageError::Validation(detail) => bad_request(detail),
         StorageError::Conflict(detail) | StorageError::ConflictDetails { code: detail, .. } => {
@@ -426,21 +473,10 @@ struct DocContext {
     minted_by_principal: Option<String>,
 }
 
-/// WP-KERNEL-012 MT-120 — OPTIONAL-BUT-VERIFIED session resolution.
-///
-/// * header ABSENT  -> `Ok(None)`; the route behaves exactly as it did before this MT (no filesystem
-///   read, no process probe, no behavior change for any existing caller).
-/// * header PRESENT and valid -> `Ok(Some(server-derived actor id))`.
-/// * header PRESENT and invalid/stale -> `Err(401 HSK-401-DOC-SESSION)`. NEVER a silent downgrade to
-///   the client-declared header identity.
-fn authenticated_native_principal(headers: &HeaderMap) -> Result<Option<String>, ApiError> {
-    if header_str(headers, HSK_HEADER_SESSION_TOKEN).is_none() {
-        return Ok(None);
-    }
-    match crate::api::stage::capture_context(headers) {
-        Ok(ctx) => Ok(Some(ctx.actor_id)),
-        Err(_) => Err(doc_session_unauthenticated()),
-    }
+/// Identity comes from the authenticated ResourceBroker scope, never the channel or attribution headers.
+fn authenticated_native_principal(_headers: &HeaderMap) -> Result<Option<String>, ApiError> {
+    DOCUMENT_AUTHORITY.try_with(|authority| Some(authority.principal_id.clone()))
+        .map_err(|_| crate::api::authority::constant_denial())
 }
 
 fn doc_context(headers: &HeaderMap) -> Result<DocContext, ApiError> {
@@ -467,7 +503,7 @@ fn doc_context(headers: &HeaderMap) -> Result<DocContext, ApiError> {
     if actor_id.starts_with(RESERVED_NATIVE_PRINCIPAL_PREFIX)
         && minted_by_principal.as_deref() != Some(actor_id.as_str())
     {
-        return Err(doc_actor_spoof_denied());
+        return Err(crate::api::authority::constant_denial());
     }
     // MT-158 hardening (adversarial-v2): the actor kind is a free client
     // string, so it is validated STRICTLY server-side and privilege is never
@@ -673,7 +709,20 @@ async fn record_receipt(
     payload: Value,
 ) -> Result<String, ApiError> {
     let event = build_receipt_event(ctx, event_type, rich_document_id, payload)?;
-    let stored = db.append_kernel_event(event).await.map_err(storage_error)?;
+    let state = DOCUMENT_STATE.try_with(Clone::clone).map_err(|_| crate::api::authority::constant_denial())?;
+    let mut scope = DOCUMENT_AUTHORITY.try_with(|authority| authority.record_user_scope.clone())
+        .map_err(|_| crate::api::authority::constant_denial())?;
+    use crate::storage::surreal::resource_authority::{AuthorizationRequest, ResourceAction, ResourceKind};
+    let decision = state.surreal.authorize_protected_resource(AuthorizationRequest {
+        session_token: scope.session_token.clone(), channel_binding_hash: scope.channel_binding_hash.clone(),
+        capability_id: "fs.write".into(), resource_kind: ResourceKind::RichDocument,
+        external_resource_id: rich_document_id.to_owned(), action: ResourceAction::Update,
+    }).await.map_err(|_| crate::api::authority::constant_denial())?;
+    scope.resource_id = decision.resource_id;
+    scope.action = ResourceAction::Update;
+    scope.capability_id = "fs.write".into();
+    let stored = state.surreal.with_record_user_scope(scope, db.append_kernel_event(event))
+        .await.map_err(storage_error)?;
     Ok(stored.event_id)
 }
 
@@ -681,13 +730,19 @@ fn build_receipt_event(
     ctx: &DocContext,
     event_type: KernelEventType,
     rich_document_id: &str,
-    payload: Value,
+    mut payload: Value,
 ) -> Result<NewKernelEvent, ApiError> {
+    let authority = DOCUMENT_AUTHORITY.try_with(Clone::clone)
+        .map_err(|_| crate::api::authority::constant_denial())?;
+    let fields = payload.as_object_mut().ok_or_else(crate::api::authority::constant_denial)?;
+    fields.insert("workspace_id".into(), json!(authority.record_user_scope.workspace_id));
+    fields.insert("minted_by_principal".into(), json!(authority.principal_id));
+    fields.insert("declared_actor_id".into(), json!(actor_id_of(&ctx.actor)));
     let mut builder = NewKernelEvent::builder(
         ctx.kernel_task_run_id.clone(),
-        ctx.session_run_id.clone(),
+        authority.session_id,
         event_type,
-        ctx.actor.clone(),
+        KernelActor::Operator(authority.actor_id),
     )
     .aggregate("knowledge_rich_document", rich_document_id.to_string())
     .source_component("knowledge_documents_api")
@@ -974,17 +1029,20 @@ async fn create_document(
         owner_actor_kind: Some(ctx.actor_kind.as_str().to_string()),
         owner_actor_id: Some(actor_id_of(&ctx.actor)),
     };
-    let (created, document_created) = if body.create_if_title_absent {
-        db.create_knowledge_rich_document_if_title_absent(new_document)
-            .await
-            .map_err(storage_error)?
+    let created_result = if body.create_if_title_absent {
+        db.create_knowledge_rich_document_if_title_absent(new_document).await
     } else {
-        (
-            db.create_knowledge_rich_document(new_document)
-                .await
-                .map_err(storage_error)?,
-            true,
-        )
+        db.create_knowledge_rich_document(new_document)
+            .await
+            .map(|created| (created, true))
+    };
+    let (created, document_created) = match created_result {
+        Ok(created) => created,
+        Err(error) => {
+            #[cfg(test)]
+            eprintln!("knowledge-document-create failed: {error}");
+            return Err(storage_error(error));
+        }
     };
 
     if !document_created {
@@ -2018,6 +2076,10 @@ async fn batch_documents(
     for operation in &body.operations {
         let document_id = operation.document_id().to_string();
         let op_name = operation.op_name();
+        let authority = DOCUMENT_BATCH_AUTHORITIES.try_with(|items| items.get(&document_id).cloned())
+            .ok().flatten().ok_or_else(crate::api::authority::constant_denial)?;
+        let scope = authority.record_user_scope.clone();
+        DOCUMENT_AUTHORITY.scope(authority, state.surreal.with_record_user_scope(scope, async {
         let outcome: Result<crate::storage::knowledge::KnowledgeRichDocument, StorageError> =
             match operation {
                 BatchOperation::Rename { title, .. } => {
@@ -2102,6 +2164,7 @@ async fn batch_documents(
                 }));
             }
         }
+        })).await;
     }
 
     Ok(Json(json!({

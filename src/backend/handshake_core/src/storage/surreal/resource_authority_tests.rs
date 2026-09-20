@@ -355,6 +355,7 @@ fn direct_negative_scope(
     action: ResourceAction,
 ) -> RecordUserScope {
     RecordUserScope {
+        grant_id: None,
         workspace_id: None,
         session_token: principal.session.token.clone(),
         channel_binding_hash: Some("direct-negative-binding".to_owned()),
@@ -1416,6 +1417,7 @@ async fn two_account_two_space_resource_broker_and_record_user_boundary_fail_clo
             let visible = storage
                 .with_record_user_scope(
                     RecordUserScope {
+                        grant_id: None,
                         workspace_id: None,
                         session_token: account_a.session.token.clone(),
                         channel_binding_hash: Some("matrix-binding-a".to_owned()),
@@ -1499,6 +1501,7 @@ async fn direct_record_user_foreign_table_operations_are_default_deny(
                 })
                 .await?;
             let scope = RecordUserScope {
+                grant_id: None,
                 workspace_id: None,
                 session_token: principal.session.token.clone(),
                 channel_binding_hash: Some("direct-record-user-binding".to_owned()),
@@ -2351,6 +2354,7 @@ async fn direct_record_user_negative_scope_bulk_outbox_and_recovery_matrix_is_de
                 ),
             ];
             let authorized_scope = RecordUserScope {
+                grant_id: None,
                 workspace_id: None,
                 session_token: owner.session.token.clone(),
                 channel_binding_hash: Some("direct-negative-binding".to_owned()),

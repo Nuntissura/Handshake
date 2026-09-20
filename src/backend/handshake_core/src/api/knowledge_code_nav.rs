@@ -53,8 +53,10 @@
 //! linkage graph is populated by other groups).
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{FromRequestParts, Path, Query, Request, State},
     http::{HeaderMap, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::get,
     Json, Router,
 };
@@ -62,7 +64,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
-use crate::knowledge_code_index::monaco_bridge::build_monaco_payload;
+use crate::knowledge_code_index::monaco_bridge::{build_monaco_payload_with_witnesses, NavReadWitnesses};
 use crate::storage::knowledge::{
     KnowledgeCodeParseStatus, KnowledgeEdgeType, KnowledgeEntity, KnowledgeEntityKind,
     KnowledgeSpanKind, KnowledgeStore,
@@ -75,6 +77,11 @@ use crate::swarm_orchestration::state_recovery::{
     QuietBackgroundWorkRequest,
 };
 use crate::AppState;
+use crate::storage::surreal::resource_authority::{RecordUserScope, ResourceAction, ResourceKind};
+
+tokio::task_local! {
+    static NAV_AUTHORITY: super::authority::AuthorizedResourceContext;
+}
 
 const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
@@ -102,7 +109,53 @@ pub fn routes(state: AppState) -> Router {
             get(symbol_spans),
         )
         .route("/knowledge/code/files/:path/lens", get(file_lens))
+        .route_layer(middleware::from_fn_with_state(state.clone(), code_nav_authority))
         .with_state(state)
+}
+
+#[derive(Deserialize)]
+struct NavAuthorityQuery {
+    workspace_id: Option<String>,
+}
+
+async fn code_nav_authority(State(state): State<AppState>, request: Request, next: Next) -> Response {
+    let credentials = match super::authority::authenticated_session_credentials(&state, request.headers()).await {
+        Ok(value) => value,
+        Err(error) => return error.into_response(),
+    };
+    let headers = request.headers().clone();
+    let (mut parts, body) = request.into_parts();
+    let params = match Path::<std::collections::HashMap<String, String>>::from_request_parts(&mut parts, &state).await {
+        Ok(Path(params)) => params,
+        Err(_) => return super::authority::constant_denial().into_response(),
+    };
+    let workspace_id = if let Some(entity_id) = params.get("entity_id") {
+        // Resolve only through record-user permissions: an inaccessible entity is indistinguishable
+        // from an absent entity and cannot supply a workspace or a navigation receipt.
+        let scope = RecordUserScope {
+            grant_id: None, workspace_id: None, session_token: credentials.session_token,
+            channel_binding_hash: Some(credentials.channel_binding_hash), resource_id: String::new(),
+            session_id: credentials.context.session_id, capability_id: "memory.read".into(), action: ResourceAction::Read,
+        };
+        let database = db_for(&state);
+        match state.surreal.with_record_user_scope(scope, database.get_knowledge_entity(entity_id)).await {
+            Ok(Some(entity)) if entity.entity_kind == KnowledgeEntityKind::Symbol => entity.workspace_id,
+            _ => return super::authority::constant_denial().into_response(),
+        }
+    } else {
+        match Query::<NavAuthorityQuery>::try_from_uri(&parts.uri) {
+            Ok(Query(NavAuthorityQuery { workspace_id: Some(id) })) if !id.is_empty() => id,
+            _ => return super::authority::constant_denial().into_response(),
+        }
+    };
+    let authority = match super::authority::authorize_request(&state, &headers, "memory.read",
+        ResourceKind::Workspace, &workspace_id, ResourceAction::Read).await {
+        Ok(authority) => authority,
+        Err(error) => return error.into_response(),
+    };
+    let scope = authority.record_user_scope.clone();
+    NAV_AUTHORITY.scope(authority, state.surreal.with_record_user_scope(scope,
+        next.run(Request::from_parts(parts, body)))).await
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +215,7 @@ struct NavContext {
     kernel_task_run_id: String,
     session_run_id: String,
     correlation_id: Option<String>,
+    declared_attribution: Value,
 }
 
 /// Build the nav identity from the required headers (400 if any is missing).
@@ -179,7 +233,10 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
     let session_run_id = header_str(headers, HSK_HEADER_SESSION_RUN_ID)
         .ok_or_else(|| bad_request(format!("{HSK_HEADER_SESSION_RUN_ID} header is required")))?
         .to_string();
-    let actor = match header_str(headers, HSK_HEADER_ACTOR_KIND).unwrap_or("system") {
+    let authority = NAV_AUTHORITY.try_with(Clone::clone).map_err(|_| super::authority::constant_denial())?;
+    let declared_actor_id = actor_id;
+    let actor_id = authority.actor_id;
+    let actor = match authority.actor_kind.to_ascii_lowercase().as_str() {
         "operator" => KernelActor::Operator(actor_id),
         "system" => KernelActor::System(actor_id),
         "session_broker" => KernelActor::SessionBroker(actor_id),
@@ -196,8 +253,10 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
     Ok(NavContext {
         actor,
         kernel_task_run_id,
-        session_run_id,
+        session_run_id: authority.session_id,
         correlation_id: header_str(headers, HSK_HEADER_CORRELATION_ID).map(ToOwned::to_owned),
+        declared_attribution: json!({"actor_id":declared_actor_id,
+            "actor_kind":header_str(headers, HSK_HEADER_ACTOR_KIND),"session_run_id":session_run_id}),
     })
 }
 
@@ -210,7 +269,9 @@ async fn record_nav_receipt(
     ctx: &NavContext,
     query_kind: &str,
     query: Value,
+    read_witnesses: NavReadWitnesses,
 ) -> Result<String, ApiError> {
+    let authority = NAV_AUTHORITY.try_with(Clone::clone).map_err(|_| super::authority::constant_denial())?;
     let mut builder = NewKernelEvent::builder(
         ctx.kernel_task_run_id.clone(),
         ctx.session_run_id.clone(),
@@ -223,6 +284,13 @@ async fn record_nav_receipt(
         "kind": "code_nav_query",
         "query_kind": query_kind,
         "query": query,
+        "workspace_id": authority.record_user_scope.workspace_id,
+        "minted_by_principal": authority.principal_id,
+        "account_id": authority.account_id,
+        "access_space_id": authority.access_space_id,
+        "delegation_chain": authority.delegation_chain,
+        "declared_attribution": ctx.declared_attribution,
+        "read_witnesses": read_witnesses,
     }));
     if let Some(correlation_id) = &ctx.correlation_id {
         builder = builder.correlation_id(correlation_id.clone());
@@ -478,6 +546,8 @@ async fn lookup_symbols(
         &ctx,
         "symbol_lookup",
         json!({"workspace_id": params.workspace_id, "name": name, "prefix": prefix, "path": path, "matches": results.len()}),
+        NavReadWitnesses { entity_ids: matched.iter().map(|symbol| symbol.entity_id.clone()).collect(),
+            ..Default::default() },
     )
     .await?;
     let quiet_receipt =
@@ -506,6 +576,8 @@ async fn get_symbol(
         &ctx,
         "symbol_get",
         json!({"entity_id": entity_id}),
+        NavReadWitnesses { entity_ids: [symbol.entity_id.clone()].into_iter().collect(),
+            ..Default::default() },
     )
     .await?;
     let quiet_receipt =
@@ -572,6 +644,10 @@ async fn symbol_references(
         &ctx,
         "symbol_references",
         json!({"entity_id": entity_id, "callers": callers.len(), "callees": callees.len()}),
+        NavReadWitnesses {
+            entity_ids: std::iter::once(symbol.entity_id.clone()).chain(callers.iter().chain(callees.iter())
+                .filter_map(|value| value["symbol_entity_id"].as_str().map(str::to_owned))).collect(),
+            edge_ids: edges.iter().map(|edge| edge.edge_id.clone()).collect(), ..Default::default() },
     )
     .await?;
     let quiet_receipt =
@@ -629,6 +705,10 @@ async fn symbol_tests(
         &ctx,
         "symbol_tests",
         json!({"entity_id": entity_id, "tests": tests.len()}),
+        NavReadWitnesses {
+            entity_ids: std::iter::once(symbol.entity_id.clone()).chain(tests.iter()
+                .filter_map(|value| value["test_entity_id"].as_str().map(str::to_owned))).collect(),
+            edge_ids: edges.iter().map(|edge| edge.edge_id.clone()).collect(), ..Default::default() },
     )
     .await?;
     let quiet_receipt =
@@ -684,6 +764,9 @@ async fn symbol_spans(
         &ctx,
         "symbol_spans",
         json!({"entity_id": entity_id, "spans": spans.len()}),
+        NavReadWitnesses { entity_ids: [symbol.entity_id.clone()].into_iter().collect(),
+            span_ids: spans.iter().filter_map(|value| value["span_id"].as_str().map(str::to_owned)).collect(),
+            ..Default::default() },
     )
     .await?;
     let quiet_receipt =
@@ -717,7 +800,7 @@ async fn file_lens(
             "path must be a repo-relative POSIX path with no '..'/'.' segments",
         ));
     }
-    let payload = build_monaco_payload(
+    let (payload, witnesses) = build_monaco_payload_with_witnesses(
         &db,
         &params.workspace_id,
         &relative_path,
@@ -725,13 +808,17 @@ async fn file_lens(
         &params.parser_version,
     )
     .await
-    .map_err(code_index_error)?;
+    .map_err(|error| match error {
+        crate::knowledge_code_index::CodeIndexError::Validation(_) => super::authority::constant_denial(),
+        other => code_index_error(other),
+    })?;
 
     let receipt = record_nav_receipt(
         state.storage.as_ref(),
         &ctx,
         "file_lens",
         json!({"workspace_id": params.workspace_id, "relative_path": relative_path, "entries": payload.entries.len()}),
+        witnesses,
     )
     .await?;
     let quiet_receipt =
@@ -757,7 +844,7 @@ async fn file_lens(
 // Helpers.
 // ---------------------------------------------------------------------------
 
-/// Resolve an entity id, 404 if missing, 400 if it is not a code symbol.
+/// Resolve only visible symbols without distinguishing an absent or private entity.
 async fn require_symbol(
     db: &dyn KnowledgeStore,
     entity_id: &str,
@@ -766,12 +853,9 @@ async fn require_symbol(
         .get_knowledge_entity(entity_id)
         .await
         .map_err(storage_error)?
-        .ok_or_else(|| not_found(format!("symbol '{entity_id}' not found")))?;
+        .ok_or_else(super::authority::constant_denial)?;
     if entity.entity_kind != KnowledgeEntityKind::Symbol {
-        return Err(bad_request(format!(
-            "entity '{entity_id}' is not a code symbol (kind {})",
-            entity.entity_kind.as_str()
-        )));
+        return Err(super::authority::constant_denial());
     }
     Ok(entity)
 }

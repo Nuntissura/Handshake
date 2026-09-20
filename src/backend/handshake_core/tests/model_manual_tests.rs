@@ -939,7 +939,7 @@ fn manual_covers_diagnostics_surfaces() {
         "diagnostics_debug_bundle_export must cite its executable implementation"
     );
 
-    // The manual version moved to the smoke-path bundle-export wired increment
+    // The manual version includes the Local account HTTP workflow
     // (HBR-MAN-001: wired-surface diff bumps MANUAL_VERSION).
-    assert_eq!(MANUAL_VERSION, "1.5.0");
+    assert_eq!(MANUAL_VERSION, "1.6.0");
 }

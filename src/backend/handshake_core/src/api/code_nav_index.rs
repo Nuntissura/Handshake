@@ -167,6 +167,7 @@ fn index_identity(headers: &HeaderMap) -> Result<IndexIdentity, ApiError> {
 /// Map an ingestion error to HTTP. A fail-closed allowlist denial is a 403 WITH
 /// the durable decision id (never a silent skip).
 fn ingestion_error(err: IngestionError) -> ApiError {
+    if err.to_string().contains("HSK-403-PROTECTED-RESOURCE") { return super::authority::constant_denial(); }
     match err {
         IngestionError::PolicyDenied {
             verdict,
@@ -193,6 +194,8 @@ fn ingestion_error(err: IngestionError) -> ApiError {
             Json(json!({"error": "not_found", "detail": what})),
         ),
         other => {
+            #[cfg(test)]
+            eprintln!("code-nav-index-ingestion-failure error={other}");
             tracing::error!(
                 target: "handshake_core::code_nav_index",
                 error = %other,
@@ -208,6 +211,7 @@ fn ingestion_error(err: IngestionError) -> ApiError {
 
 /// Map a code-index error to HTTP.
 fn code_index_error(err: CodeIndexError) -> ApiError {
+    if err.to_string().contains("HSK-403-PROTECTED-RESOURCE") { return super::authority::constant_denial(); }
     match err {
         CodeIndexError::Validation(detail) => bad_request(detail),
         CodeIndexError::Storage(StorageError::NotFound(what)) => (
@@ -215,6 +219,8 @@ fn code_index_error(err: CodeIndexError) -> ApiError {
             Json(json!({"error": "not_found", "detail": what})),
         ),
         other => {
+            #[cfg(test)]
+            eprintln!("code-nav-index-code-index-failure error={other}");
             tracing::error!(
                 target: "handshake_core::code_nav_index",
                 error = %other,
@@ -226,6 +232,14 @@ fn code_index_error(err: CodeIndexError) -> ApiError {
             )
         }
     }
+}
+
+fn code_index_stage_error(stage: &'static str, error: CodeIndexError) -> ApiError {
+    #[cfg(test)]
+    eprintln!("code-nav-index-stage-failure stage={stage} error={error}");
+    #[cfg(not(test))]
+    let _ = stage;
+    code_index_error(error)
 }
 
 // ---------------------------------------------------------------------------
@@ -249,8 +263,25 @@ async fn index_workspace_code(
     headers: HeaderMap,
     Json(body): Json<IndexBody>,
 ) -> Result<Json<Value>, ApiError> {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    let authority = super::authority::authorize_request(
+        &state, &headers, "memory.propose", ResourceKind::Workspace,
+        &workspace_id, ResourceAction::Create,
+    ).await?;
+    let credentials = super::authority::authenticated_session_credentials(&state, &headers).await?;
+    let mut identity = index_identity(&headers)?;
+    identity.actor = KernelActor::Operator(credentials.context.actor_id);
+    identity.session_run_id = credentials.context.session_id;
+    let scope = authority.record_user_scope;
+    let storage = state.surreal.clone();
+    storage.with_record_user_scope(scope,
+        index_workspace_code_authorized(state, workspace_id, body, identity)).await
+}
+
+async fn index_workspace_code_authorized(
+    state: AppState, workspace_id: String, body: IndexBody, identity: IndexIdentity,
+) -> Result<Json<Value>, ApiError> {
     let route_started = Instant::now();
-    let identity = index_identity(&headers)?;
     let root_path = body.root_path.trim();
     if root_path.is_empty() {
         return Err(bad_request("root_path is required"));
@@ -358,7 +389,7 @@ async fn index_workspace_code(
     let index_run_id = code_index
         .start_run(&code_ctx, &workspace_id, Some(root.root_id.as_str()))
         .await
-        .map_err(code_index_error)?;
+        .map_err(|error| code_index_stage_error("start_index_run", error))?;
     tracing::info!(
         target: "handshake_core::code_nav_index",
         workspace_id = %workspace_id,
@@ -368,6 +399,9 @@ async fn index_workspace_code(
         total_elapsed_ms = route_started.elapsed().as_millis() as u64,
         "code_nav_index_stage_completed"
     );
+
+    code_index.bind_run_sources(&index_run_id, persisted_sources.iter().map(|(id, _)| id.clone()).collect())
+        .await.map_err(|error| code_index_stage_error("bind_run_sources", error))?;
 
     // The ingestion pass remains ordered so source lifecycle and stale-source
     // detection retain their canonical semantics. Code indexing is independent
@@ -415,7 +449,7 @@ async fn index_workspace_code(
     );
     let indexed_results = match batch_attempt {
         Err(error) => {
-            let mapped = code_index_error(error);
+            let mapped = code_index_stage_error("persist_code_index_batch", error);
             if let Err(finish_error) = code_index
                 .finish_run_with_retry(
                     &code_ctx,
@@ -462,7 +496,7 @@ async fn index_workspace_code(
                             Some(index_run_id.as_str()),
                         )
                         .await
-                        .map_err(code_index_error)
+                        .map_err(|error| code_index_stage_error("index_code_source", error))
                     }
                 })
                 .buffer_unordered(configured_surreal_operation_concurrency())
@@ -552,7 +586,7 @@ async fn index_workspace_code(
             KnowledgeIndexRunOutcome::Completed { counts },
         )
         .await
-        .map_err(code_index_error)?;
+        .map_err(|error| code_index_stage_error("finish_index_run", error))?;
     tracing::info!(
         target: "handshake_core::code_nav_index",
         workspace_id = %workspace_id,
@@ -574,3 +608,7 @@ async fn index_workspace_code(
         "index_run_id": index_run_id,
     })))
 }
+
+#[cfg(test)]
+#[path = "code_nav_index_account_tests.rs"]
+mod account_tests;

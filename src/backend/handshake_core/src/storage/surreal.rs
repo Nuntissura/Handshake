@@ -64,6 +64,7 @@ mod mt136_rich_document_delete_proof;
 mod preferences;
 mod promotion_store;
 pub mod resource_authority;
+pub mod local_accounts;
 pub mod retry;
 mod schema;
 mod search_store;
@@ -1244,6 +1245,29 @@ impl SurrealStorage {
             Box::pin(async move { Ok(operation(database).await) })
         })
         .await
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn test_admin_query(
+        &self,
+        statement: String,
+    ) -> Result<surrealdb::IndexedResults, SurrealStorageError> {
+        self.with_admin_operation(move |admin| Box::pin(async move {
+            admin.query(statement).await
+        })).await
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn test_admin_query_bound<B>(
+        &self,
+        statement: String,
+        bindings: B,
+    ) -> Result<surrealdb::IndexedResults, SurrealStorageError>
+    where B: surrealdb::types::SurrealValue + Send + 'static,
+    {
+        self.with_admin_operation(move |admin| Box::pin(async move {
+            admin.query_bound(statement, bindings).await
+        })).await
     }
 
     async fn with_admin_operation<T, F>(&self, operation: F) -> Result<T, SurrealStorageError>

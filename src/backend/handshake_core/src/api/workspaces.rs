@@ -1,12 +1,14 @@
 use axum::{
-    extract::{Path, State},
-    http::{HeaderMap, StatusCode},
+    extract::{Path, Request, State},
+    http::{HeaderMap, Method, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::fs;
+use std::{fs, time::Instant};
 use uuid::Uuid;
 
 use crate::ace::validators::atelier_scope::{
@@ -63,7 +65,58 @@ pub fn routes(state: AppState) -> Router {
         )
         .route("/workspaces/:workspace_id", delete(delete_workspace))
         .route("/dcc/control-plane", get(dcc_control_plane_snapshot))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            workspace_authority,
+        ))
         .with_state(state)
+}
+
+/// Workspace-specific routes run under the same exact resource grant and record-user boundary.
+async fn workspace_authority(
+    State(state): State<AppState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    if request.uri().path().starts_with("/documents/") {
+        return protected_workspace_denial().into_response();
+    }
+    let Some(path) = request.uri().path().strip_prefix("/workspaces/") else {
+        // Collection handlers authenticate internally; this boundary covers workspace-specific routes.
+        return next.run(request).await;
+    };
+    let workspace = path.split('/').next().unwrap_or("");
+    if workspace.is_empty() {
+        return protected_workspace_denial().into_response();
+    }
+    let read = request.method() == Method::GET;
+    let action = if read {
+        ResourceAction::Read
+    } else if request.method() == Method::DELETE {
+        ResourceAction::Delete
+    } else if request.method() == Method::POST {
+        ResourceAction::Create
+    } else {
+        ResourceAction::Update
+    };
+    let authority = match crate::api::authority::authorize_request(
+        &state,
+        request.headers(),
+        if read { "fs.read" } else { "fs.write" },
+        ResourceKind::Workspace,
+        workspace,
+        action,
+    )
+    .await
+    {
+        Ok(authority) => authority,
+        Err(_) => return protected_workspace_denial().into_response(),
+    };
+    state
+        .surreal
+        .with_record_user_scope(authority.record_user_scope, next.run(request))
+        .await
 }
 
 const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
@@ -566,39 +619,81 @@ async fn record_atelier_scope_violation_diagnostic(
     }
 }
 
+fn protected_workspace_denial() -> (StatusCode, Json<ErrorResponse>) {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-PROTECTED-RESOURCE",
+        }),
+    )
+}
+
 async fn create_workspace(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<CreateWorkspaceRequest>,
 ) -> Result<(StatusCode, Json<WorkspaceResponse>), (StatusCode, Json<ErrorResponse>)> {
-    let ctx = match write_context_from_headers(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(err) => {
-            record_silent_edit_diagnostic(&state, &headers, None, None, &err, "/workspaces").await;
-            return Err(map_storage_error(err));
-        }
+    let started = Instant::now();
+    tracing::info!(target: "handshake_core", route = "/workspaces", "workspace create request entered");
+    let credentials = crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .map_err(|error| {
+            tracing::warn!(
+                target: "handshake_core",
+                route = "/workspaces",
+                elapsed_ms = started.elapsed().as_millis(),
+                "workspace create session authentication denied"
+            );
+            #[cfg(test)]
+            eprintln!("workspace-create credentialsfailed: {error:?}");
+            #[cfg(not(test))]
+            let _ = error;
+            protected_workspace_denial()
+        })?;
+    tracing::info!(
+        target: "handshake_core",
+        route = "/workspaces",
+        elapsed_ms = started.elapsed().as_millis(),
+        "workspace create session authentication completed"
+    );
+    let scope = crate::storage::surreal::resource_authority::RecordUserScope {
+        workspace_id: Some(uuid::Uuid::now_v7().to_string()),
+        resource_id: uuid::Uuid::now_v7().to_string(),
+        session_id: credentials.context.session_id.clone(),
+        session_token: credentials.session_token,
+        channel_binding_hash: Some(credentials.channel_binding_hash),
+        capability_id: "fs.write".to_owned(),
+        action: crate::storage::surreal::resource_authority::ResourceAction::Create,
+        grant_id: None,
     };
 
-    let workspace = match state
-        .storage
-        .create_workspace(
-            &ctx,
-            NewWorkspace {
-                name: payload.name.clone(),
-            },
+    let workspace = state
+        .surreal
+        .create_account_workspace(
+            &credentials.context,
+            &scope,
+            NewWorkspace { name: payload.name },
         )
         .await
-    {
-        Ok(workspace) => workspace,
-        Err(err) => {
-            record_silent_edit_diagnostic(&state, &headers, None, Some(&ctx), &err, "/workspaces")
-                .await;
-            return Err(map_storage_error(err));
-        }
-    };
-
-    tracing::info!(target: "handshake_core", route = "/workspaces", status = "created", workspace_id = %workspace.id, "workspace created");
-
+        .map_err(|error| {
+            tracing::warn!(
+                target: "handshake_core",
+                route = "/workspaces",
+                elapsed_ms = started.elapsed().as_millis(),
+                "workspace create atomic transaction failed"
+            );
+            #[cfg(test)]
+            eprintln!("workspace-create atomic-createfailed: {error}");
+            #[cfg(not(test))]
+            let _ = error;
+            protected_workspace_denial()
+        })?;
+    tracing::info!(
+        target: "handshake_core",
+        route = "/workspaces",
+        elapsed_ms = started.elapsed().as_millis(),
+        "workspace create atomic transaction completed"
+    );
     Ok((
         StatusCode::CREATED,
         Json(WorkspaceResponse {
@@ -612,26 +707,32 @@ async fn create_workspace(
 
 async fn list_workspaces(
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<Vec<WorkspaceResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    let rows = state
-        .storage
-        .list_workspaces()
+    crate::api::authority::authenticated_session(&state, &headers)
         .await
-        .map_err(map_storage_error)?;
-
-    tracing::info!(target: "handshake_core", route = "/workspaces", status = "ok", count = rows.len(), "list workspaces");
-
-    let workspaces = rows
-        .into_iter()
-        .map(|row| WorkspaceResponse {
-            id: row.id,
-            name: row.name,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-        })
-        .collect();
-
-    Ok(Json(workspaces))
+        .map_err(|_| protected_workspace_denial())?;
+    let channel = crate::api::stage::capture_channel_binding(&headers)
+        .map_err(|_| protected_workspace_denial())?;
+    let token = headers
+        .get("x-hsk-session-token")
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(protected_workspace_denial)?;
+    let rows = state
+        .surreal
+        .list_account_workspaces(token, &channel.binding_hash)
+        .await
+        .map_err(|_| protected_workspace_denial())?;
+    Ok(Json(
+        rows.into_iter()
+            .map(|row| WorkspaceResponse {
+                id: row.id,
+                name: row.name,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            })
+            .collect(),
+    ))
 }
 
 async fn delete_workspace(
@@ -639,34 +740,22 @@ async fn delete_workspace(
     Path(workspace_id): Path<String>,
     headers: HeaderMap,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = match write_context_from_headers(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                Some(&workspace_id),
-                None,
-                &err,
-                "/workspaces/:workspace_id",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
-
-    if let Err(err) = state.storage.delete_workspace(&ctx, &workspace_id).await {
-        record_silent_edit_diagnostic(
-            &state,
-            &headers,
-            Some(&workspace_id),
-            Some(&ctx),
-            &err,
-            "/workspaces/:workspace_id",
-        )
-        .await;
-        return Err(map_storage_error(err));
-    }
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    let authority = crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.write",
+        ResourceKind::Workspace,
+        &workspace_id,
+        ResourceAction::Delete,
+    )
+    .await
+    .map_err(|_| protected_workspace_denial())?;
+    state
+        .surreal
+        .delete_account_workspace(&authority.record_user_scope, &workspace_id)
+        .await
+        .map_err(|_| protected_workspace_denial())?;
 
     if let Err(error) = state
         .flight_recorder
@@ -1452,12 +1541,16 @@ async fn dcc_control_plane_snapshot(
 #[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
+    use crate::api::MountedRequestExt;
     use crate::capabilities::CapabilityRegistry;
     use crate::diagnostics::DiagFilter;
     use crate::flight_recorder::{
         duckdb::DuckDbFlightRecorder, EventFilter, FlightRecorderEventType,
     };
     use crate::llm::ollama::InMemoryLlmClient;
+    use crate::storage::knowledge::{
+        KnowledgeRichDocument, KnowledgeStore, NewKnowledgeRichDocument,
+    };
     use crate::storage::{
         fems_memory, tests::embedded_test_backend, AccessMode, Database, EntityRef, JobKind,
         JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,
@@ -1465,6 +1558,7 @@ mod tests {
     use axum::extract::{Path, State};
     use serde_json::json;
     use std::sync::Arc;
+    use surrealdb::types::SurrealValue;
 
     /// WP-KERNEL-012 MT-144: see the equivalent helper in `api::jobs`. The state is now created
     /// unconditionally from an isolated authoritative store, so there is no skip branch.
@@ -1503,16 +1597,553 @@ mod tests {
         }
     }
 
+    struct WorkspaceBindingFixture {
+        _lock: std::sync::MutexGuard<'static, ()>,
+        _directory: tempfile::TempDir,
+        previous: Option<std::ffi::OsString>,
+        token: String,
+    }
+    impl WorkspaceBindingFixture {
+        fn new() -> Result<Self, Box<dyn std::error::Error>> {
+            let lock = crate::api::stage::NATIVE_BINDING_ENV_LOCK
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let directory = tempfile::tempdir()?;
+            let path = directory.path().join("workspace-binding.json");
+            let token = "c7".repeat(32);
+            std::fs::write(
+                &path,
+                serde_json::to_vec(&crate::api::stage::current_process_native_binding(&token))?,
+            )?;
+            let previous = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
+            std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", path);
+            Ok(Self {
+                _lock: lock,
+                _directory: directory,
+                previous,
+                token,
+            })
+        }
+    }
+    impl Drop for WorkspaceBindingFixture {
+        fn drop(&mut self) {
+            if let Some(previous) = &self.previous {
+                std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous);
+            } else {
+                std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
+            }
+        }
+    }
+    async fn workspace_test_principal(
+        state: &AppState,
+        binding: &WorkspaceBindingFixture,
+        key: &str,
+    ) -> Result<
+        (
+            crate::storage::surreal::resource_authority::ProvisionedPrincipal,
+            HeaderMap,
+        ),
+        Box<dyn std::error::Error>,
+    > {
+        let capabilities = [
+            "fs.read",
+            "fs.write",
+            "fr.read",
+            "fr.ingest.runtime_chat",
+            "fr.ingest.native_editor",
+            "memory.read",
+            "memory.propose",
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        let principal = state
+            .surreal
+            .provision_principal(
+                key,
+                key,
+                "human_account",
+                key,
+                "Operator",
+                &capabilities,
+                key,
+                Some(&sha256_hex(binding.token.as_bytes())),
+                std::time::Duration::from_secs(3600),
+            )
+            .await?;
+        let mut headers = HeaderMap::new();
+        headers.insert("x-hsk-session-token", principal.session.token.parse()?);
+        headers.insert("x-hsk-channel-binding-token", binding.token.parse()?);
+        Ok((principal, headers))
+    }
+    async fn create_owned_test_workspace(
+        state: &AppState,
+        headers: &HeaderMap,
+    ) -> Result<WorkspaceResponse, String> {
+        create_workspace(
+            State(state.clone()),
+            headers.clone(),
+            Json(CreateWorkspaceRequest {
+                name: "owned-delete-proof".to_owned(),
+            }),
+        )
+        .await
+        .map(|(_, Json(row))| row)
+        .map_err(|(status, Json(error))| format!("{status}: {}", error.error))
+    }
+
+    async fn post_owned_rich_document(
+        state: &AppState,
+        headers: &HeaderMap,
+        workspace_id: &str,
+        title: &str,
+    ) -> Result<(StatusCode, Value), Box<dyn std::error::Error>> {
+        let mut request = axum::http::Request::builder()
+            .method("POST")
+            .uri("/knowledge/documents")
+            .header("content-type", "application/json")
+            .header("x-hsk-actor-kind", "operator")
+            .header("x-hsk-actor-id", "workspace-document-proof")
+            .header("x-hsk-kernel-task-run-id", "workspace-document-proof")
+            .header("x-hsk-session-run-id", "workspace-document-proof");
+        for (name, value) in headers {
+            request = request.header(name, value);
+        }
+        let response = crate::api::knowledge_documents::routes(state.clone())
+            .oneshot(request.body(axum::body::Body::from(serde_json::to_vec(
+                &json!({"workspace_id": workspace_id, "title": title}),
+            )?))?)
+            .await?;
+        let status = response.status();
+        let body = axum::body::to_bytes(response.into_body(), 1024 * 1024).await?;
+        Ok((status, serde_json::from_slice(&body)?))
+    }
+
+    #[derive(Debug, PartialEq, SurrealValue)]
+    struct OwnedRichDocumentRows {
+        documents: i64,
+        resources: i64,
+        grants: i64,
+        versions: i64,
+        loom_blocks: i64,
+        loom_search_rows: i64,
+        title_anchors: i64,
+    }
+
+    async fn owned_rich_document_rows(
+        state: &AppState,
+    ) -> Result<OwnedRichDocumentRows, Box<dyn std::error::Error>> {
+        let mut result = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN { documents: array::len(SELECT VALUE id FROM knowledge_rich_documents), resources: array::len(SELECT VALUE id FROM protected_resources), grants: array::len(SELECT VALUE id FROM resource_grants), versions: array::len(SELECT VALUE id FROM knowledge_rich_document_versions), loom_blocks: array::len(SELECT VALUE id FROM loom_blocks), loom_search_rows: array::len(SELECT VALUE id FROM loom_block_search_index), title_anchors: array::len(SELECT VALUE id FROM knowledge_rich_document_title_anchors) };".to_owned(),
+                json!({}),
+            )
+            .await?
+            .check()?;
+        result
+            .take::<Option<OwnedRichDocumentRows>>(0)?
+            .ok_or_else(|| "owned rich document row snapshot missing".into())
+    }
+
+    async fn owned_rich_document_authority_lineage(
+        state: &AppState,
+        document_id: &str,
+        workspace_id: &str,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        let mut result = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN array::len((SELECT VALUE id FROM protected_resources WHERE resource_kind = 'rich_document' AND external_resource_id = $document_id AND parent_resource_id.resource_kind = 'workspace' AND parent_resource_id.external_resource_id = $workspace_id AND lifecycle_state = 'active')) = 1 AND array::len((SELECT VALUE id FROM resource_grants WHERE resource_id = (SELECT VALUE id FROM protected_resources WHERE resource_kind = 'rich_document' AND external_resource_id = $document_id)[0] AND actions = ['read', 'create', 'update', 'delete'] AND capability_ids = ['fs.read', 'fs.write'] AND status = 'active')) = 1;".to_owned(),
+                json!({"document_id": document_id, "workspace_id": workspace_id}),
+            )
+            .await?
+            .check()?;
+        result
+            .take::<Option<bool>>(0)?
+            .ok_or_else(|| "owned rich document authority lineage result missing".into())
+    }
+
+    async fn resource_grant_capabilities(
+        state: &AppState,
+        grant_id: &str,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let mut result = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT VALUE capability_ids FROM type::record('resource_grants', $grant_id);"
+                    .to_owned(),
+                json!({"grant_id": grant_id}),
+            )
+            .await?
+            .check()?;
+        let rows = result.take::<Vec<Vec<String>>>(0)?;
+        match rows.as_slice() {
+            [capabilities] => Ok(capabilities.clone()),
+            _ => Err("workspace create grant capabilities must have exactly one row".into()),
+        }
+    }
+
+    async fn scoped_owned_rich_document(
+        state: &AppState,
+        scope: crate::storage::surreal::resource_authority::RecordUserScope,
+        workspace_id: &str,
+        title: &str,
+    ) -> crate::storage::StorageResult<KnowledgeRichDocument> {
+        let database = crate::storage::surreal::SurrealDatabase::new(state.surreal.clone());
+        state
+            .surreal
+            .with_record_user_scope(
+                scope,
+                database.create_knowledge_rich_document(NewKnowledgeRichDocument {
+                    workspace_id: workspace_id.to_owned(),
+                    document_id: None,
+                    title: title.to_owned(),
+                    schema_version: crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION
+                        .to_owned(),
+                    content_json: json!({"type": "doc", "content": []}),
+                    crdt_document_id: None,
+                    crdt_snapshot_id: None,
+                    promotion_receipt_event_id: None,
+                    project_ref: None,
+                    folder_ref: None,
+                    authority_label: Some("promoted".to_owned()),
+                    owner_actor_kind: Some("operator".to_owned()),
+                    owner_actor_id: Some("workspace-document-proof".to_owned()),
+                }),
+            )
+            .await
+            .map_err(Into::into)
+    }
+
     #[tokio::test]
     async fn delete_workspace_route_atomically_cascades_fems_and_retries_not_found(
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let binding = WorkspaceBindingFixture::new()?;
         let (state, _store) = setup_state().await?;
-        let workspace = state
-            .storage
-            .create_workspace(
-                &WriteContext::human(Some("fems-delete-route-test".to_owned())),
-                NewWorkspace {
-                    name: format!("fems-delete-route-{}", Uuid::now_v7()),
+        let (owner, headers) =
+            workspace_test_principal(&state, &binding, "workspace-delete-owner").await?;
+        let workspace = create_owned_test_workspace(&state, &headers).await?;
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let create_scope = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            ResourceKind::Workspace,
+            &workspace.id,
+            ResourceAction::Create,
+        )
+        .await
+        .map_err(|_| "workspace create grant missing")?
+        .record_user_scope;
+        let create_grant = create_scope
+            .grant_id
+            .clone()
+            .ok_or("workspace create grant missing")?;
+        let original_capabilities = resource_grant_capabilities(&state, &create_grant).await?;
+        let narrowed = original_capabilities
+            .iter()
+            .filter(|capability| capability.as_str() != "fs.write")
+            .cloned()
+            .collect::<Vec<_>>();
+        assert!(
+            narrowed.len() < original_capabilities.len(),
+            "workspace create grant must contain fs.write before narrowing"
+        );
+        let (foreign, foreign_headers) =
+            workspace_test_principal(&state, &binding, "workspace-document-foreign").await?;
+        let foreign_scope = crate::storage::surreal::resource_authority::RecordUserScope {
+            grant_id: Some(create_grant.clone()),
+            workspace_id: Some(workspace.id.clone()),
+            session_token: foreign.session.token,
+            channel_binding_hash: Some(sha256_hex(binding.token.as_bytes())),
+            resource_id: create_scope.resource_id.clone(),
+            session_id: foreign.session.session_id,
+            capability_id: "fs.write".to_owned(),
+            action: ResourceAction::Create,
+        };
+        let before_rows = owned_rich_document_rows(&state).await?;
+        state.surreal.test_admin_query_bound(
+            "UPDATE type::record('resource_grants', $grant_id) SET capability_ids = $capabilities RETURN NONE;".to_owned(),
+            json!({"grant_id": create_grant.clone(), "capabilities": narrowed}),
+        ).await?.check()?;
+        let narrowed_error = scoped_owned_rich_document(
+            &state,
+            create_scope.clone(),
+            &workspace.id,
+            "scoped denied narrowed capability",
+        )
+        .await
+        .expect_err("narrowed capability must fail at the record-user producer boundary");
+        assert!(
+            narrowed_error
+                .to_string()
+                .contains("HSK-403-PROTECTED-RESOURCE"),
+            "narrowed producer failure must come from protected storage: {narrowed_error}"
+        );
+        assert_eq!(
+            owned_rich_document_rows(&state).await?,
+            before_rows,
+            "narrowed capability must roll back source, authority, and projection rows"
+        );
+        let (status, _) = post_owned_rich_document(
+            &state,
+            &headers,
+            &workspace.id,
+            "denied narrowed capability",
+        )
+        .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(
+            owned_rich_document_rows(&state).await?,
+            before_rows,
+            "narrowed route denial must not create rows"
+        );
+        state.surreal.test_admin_query_bound(
+            "UPDATE type::record('resource_grants', $grant_id) SET capability_ids = $capabilities RETURN NONE;".to_owned(),
+            json!({"grant_id": create_grant.clone(), "capabilities": original_capabilities}),
+        ).await?.check()?;
+        let scoped_document = scoped_owned_rich_document(
+            &state,
+            create_scope.clone(),
+            &workspace.id,
+            "Scoped source and Loom projection",
+        )
+        .await?;
+        assert!(
+            crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+                .get_knowledge_rich_document(&scoped_document.rich_document_id)
+                .await?
+                .is_some()
+        );
+        assert!(
+            owned_rich_document_authority_lineage(
+                &state,
+                &scoped_document.rich_document_id,
+                &workspace.id,
+            )
+            .await?,
+            "record-user rich-document creation must persist its exact protected-resource and grant lineage"
+        );
+        let established_rows = owned_rich_document_rows(&state).await?;
+        state.surreal.test_admin_query_bound(
+            "UPDATE type::record('resource_grants', $grant_id) SET status = 'revoked', revoked_at = time::now() RETURN NONE;".to_owned(),
+            json!({"grant_id": create_grant.clone()}),
+        ).await?.check()?;
+        let revoked_error = scoped_owned_rich_document(
+            &state,
+            create_scope.clone(),
+            &workspace.id,
+            "scoped denied revoked grant",
+        )
+        .await
+        .expect_err("revoked grant must fail at the record-user producer boundary");
+        let revoked_rendered = revoked_error.to_string();
+        assert!(
+            revoked_rendered.contains("knowledge_rich_documents")
+                && revoked_rendered.contains("field `workspace_id`")
+                && revoked_rendered.contains("record::exists($value)"),
+            "revoked producer failure must fail closed at the rich-document workspace field boundary: {revoked_error}"
+        );
+        assert_eq!(
+            owned_rich_document_rows(&state).await?,
+            established_rows,
+            "revoked grant must roll back source, authority, and projection rows"
+        );
+        let (status, _) =
+            post_owned_rich_document(&state, &headers, &workspace.id, "denied revoked grant")
+                .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(
+            owned_rich_document_rows(&state).await?,
+            established_rows,
+            "revoked route denial must not create rows"
+        );
+        state.surreal.test_admin_query_bound(
+            "UPDATE type::record('resource_grants', $grant_id) SET status = 'active', revoked_at = NONE RETURN NONE;".to_owned(),
+            json!({"grant_id": create_grant.clone()}),
+        ).await?.check()?;
+        let foreign_error = scoped_owned_rich_document(
+            &state,
+            foreign_scope,
+            &workspace.id,
+            "scoped denied foreign workspace",
+        )
+        .await
+        .expect_err("foreign principal must fail at the record-user producer boundary");
+        let foreign_rendered = foreign_error.to_string();
+        assert!(
+            foreign_rendered.contains("knowledge_rich_documents")
+                && foreign_rendered.contains("field `workspace_id`")
+                && foreign_rendered.contains("record::exists($value)"),
+            "foreign producer failure must fail closed at the rich-document workspace field boundary: {foreign_error}"
+        );
+        assert_eq!(
+            owned_rich_document_rows(&state).await?,
+            established_rows,
+            "foreign principal must roll back source, authority, and projection rows"
+        );
+        let (status, _) = post_owned_rich_document(
+            &state,
+            &foreign_headers,
+            &workspace.id,
+            "denied foreign owner",
+        )
+        .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(
+            owned_rich_document_rows(&state).await?,
+            established_rows,
+            "foreign route denial must not create rows"
+        );
+        #[derive(SurrealValue)]
+        struct RichDocumentTombstoneBindings {
+            document: String,
+        }
+        let document_id = scoped_document.rich_document_id.clone();
+        let live_document_authority = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            ResourceKind::RichDocument,
+            &document_id,
+            ResourceAction::Update,
+        )
+        .await
+        .map_err(|_| "owned rich document update grant missing")?;
+        let live_update_count = state
+            .surreal
+            .with_record_user_scope(
+                live_document_authority.record_user_scope,
+                state.surreal.with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .execute_returning(
+                                "UPDATE type::record('knowledge_rich_documents', $document) SET updated_at = time::now() RETURN AFTER;",
+                                RichDocumentTombstoneBindings { document: document_id },
+                            )
+                            .await
+                    })
+                }),
+            )
+            .await?;
+        assert_eq!(
+            live_update_count, 1,
+            "authorized live-document update must pass its record-user event guard"
+        );
+        let canonical_after_live_update =
+            crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+                .get_knowledge_rich_document(&scoped_document.rich_document_id)
+                .await?
+                .ok_or("live document missing after authorized update")?;
+        let mut document_delete_authority = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            ResourceKind::RichDocument,
+            &scoped_document.rich_document_id,
+            ResourceAction::Delete,
+        )
+        .await
+        .map_err(|_| "owned rich document delete grant missing")?;
+        document_delete_authority.record_user_scope.workspace_id = Some(
+            state
+                .surreal
+                .authorized_document_workspace(
+                    &document_delete_authority.resource_id,
+                    &document_delete_authority.account_id,
+                    &document_delete_authority.access_space_id,
+                )
+                .await?
+                .ok_or("owned rich document workspace missing")?,
+        );
+        let document_id = scoped_document.rich_document_id.clone();
+        let malformed_tombstone = state
+            .surreal
+            .with_record_user_scope(
+                document_delete_authority.record_user_scope,
+                state.surreal.with_data_operation(move |database| {
+                    Box::pin(async move {
+                        database
+                            .execute_returning(
+                                "UPDATE type::record('knowledge_rich_documents', $document) SET deleted_at = time::now() RETURN AFTER;",
+                                RichDocumentTombstoneBindings {
+                                    document: document_id,
+                                },
+                            )
+                            .await
+                    })
+                }),
+            )
+            .await
+            .expect_err("malformed rich-document tombstone must fire the delete guard");
+        assert!(
+            malformed_tombstone
+                .to_string()
+                .contains("HSK-403-PROTECTED-RESOURCE"),
+            "malformed tombstone must fail at the document update guard: {malformed_tombstone}"
+        );
+        assert_eq!(
+            crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+                .get_knowledge_rich_document(&scoped_document.rich_document_id)
+                .await?,
+            Some(canonical_after_live_update),
+            "rejected tombstone must leave the canonical rich document unchanged"
+        );
+        let (status, created) = post_owned_rich_document(
+            &state,
+            &headers,
+            &workspace.id,
+            "Owned source and Loom projection",
+        )
+        .await?;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "real document create failed: {created}"
+        );
+        let document_id = created["document"]["rich_document_id"]
+            .as_str()
+            .ok_or("created document id missing")?
+            .to_owned();
+        assert!(
+            crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+                .get_knowledge_rich_document(&document_id)
+                .await?
+                .is_some()
+        );
+        use crate::storage::surreal::resource_authority::ResourceGrantSpec;
+        let root = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            ResourceKind::Workspace,
+            &workspace.id,
+            ResourceAction::Delete,
+        )
+        .await
+        .map_err(|_| "workspace grant missing")?;
+        let memory = state
+            .surreal
+            .register_protected_resource(
+                &owner.identity,
+                ResourceKind::MemoryItem,
+                &workspace.id,
+                Some(&root.resource_id),
+                "account_private",
+            )
+            .await?;
+        state
+            .surreal
+            .grant_resource(
+                &owner.identity.account_id,
+                &owner.identity.access_space_id,
+                ResourceGrantSpec {
+                    principal_id: owner.identity.principal_id.clone(),
+                    resource_id: memory.resource_id,
+                    actions: vec![ResourceAction::Delete],
+                    capability_ids: vec!["fs.write".to_owned()],
+                    expires_at: None,
+                    delegation_chain: Vec::new(),
                 },
             )
             .await?;
@@ -1523,31 +2154,468 @@ mod tests {
             &json!({"content": "cascade me"}),
         )
         .await?;
-
+        // A revoked descendant grant must abort the entire workspace cascade.
+        let descendant_grant = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            ResourceKind::RichDocument,
+            &document_id,
+            ResourceAction::Delete,
+        )
+        .await
+        .map_err(|_| "rich-document delete grant missing")?
+        .record_user_scope
+        .grant_id
+        .ok_or("rich-document delete grant missing")?;
+        #[derive(Clone, Debug, SurrealValue, PartialEq)]
+        struct DescendantGrantSnapshot {
+            status: String,
+            revoked_at: Option<surrealdb::types::Datetime>,
+            grant_version: i64,
+            policy_version: i64,
+            updated_at: surrealdb::types::Datetime,
+        }
+        #[derive(SurrealValue)]
+        struct DescendantGrantRestoreBindings {
+            grant_id: String,
+            status: String,
+            revoked_at: Option<surrealdb::types::Datetime>,
+            grant_version: i64,
+            policy_version: i64,
+            updated_at: surrealdb::types::Datetime,
+        }
+        let mut original_descendant = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT status, revoked_at, grant_version, policy_version, updated_at FROM type::record('resource_grants', $grant_id);".to_owned(),
+                json!({"grant_id": descendant_grant.clone()}),
+            )
+            .await?
+            .check()?;
+        let original_descendant_rows =
+            original_descendant.take::<Vec<DescendantGrantSnapshot>>(0)?;
+        let original_descendant = match original_descendant_rows.as_slice() {
+            [grant] => grant.clone(),
+            _ => return Err("exact descendant grant canonical read must return one row".into()),
+        };
+        assert_eq!(original_descendant.status, "active");
+        assert_eq!(original_descendant.revoked_at, None);
+        state.surreal.revoke_grant(&descendant_grant).await?;
+        let mut revoked_descendant = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT status, revoked_at, grant_version, policy_version, updated_at FROM type::record('resource_grants', $grant_id);".to_owned(),
+                json!({"grant_id": descendant_grant.clone()}),
+            )
+            .await?
+            .check()?;
+        let revoked_descendant_rows = revoked_descendant.take::<Vec<DescendantGrantSnapshot>>(0)?;
+        let revoked_descendant = match revoked_descendant_rows.as_slice() {
+            [grant] => grant,
+            _ => return Err("revoked descendant canonical read must return one row".into()),
+        };
+        assert_eq!(revoked_descendant.status, "revoked");
+        assert!(revoked_descendant.revoked_at.is_some());
+        assert_eq!(
+            revoked_descendant.grant_version,
+            original_descendant.grant_version + 1
+        );
+        assert_eq!(
+            revoked_descendant.policy_version,
+            original_descendant.policy_version + 1
+        );
+        assert_eq!(
+            delete_workspace(
+                State(state.clone()),
+                Path(workspace.id.clone()),
+                headers.clone()
+            )
+            .await
+            .expect_err("revoked descendant")
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert!(
+            crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+                .get_knowledge_rich_document(&document_id)
+                .await?
+                .is_some()
+        );
+        state.surreal.test_admin_query_bound(
+            "UPDATE type::record('resource_grants', $grant_id) SET status = $status, revoked_at = $revoked_at, grant_version = $grant_version, policy_version = $policy_version, updated_at = $updated_at RETURN NONE;".to_owned(),
+            DescendantGrantRestoreBindings {
+                grant_id: descendant_grant.clone(),
+                status: original_descendant.status.clone(),
+                revoked_at: original_descendant.revoked_at.clone(),
+                grant_version: original_descendant.grant_version,
+                policy_version: original_descendant.policy_version,
+                updated_at: original_descendant.updated_at.clone(),
+            },
+        ).await?.check()?;
+        let mut restored_descendant = state
+            .surreal
+            .test_admin_query_bound(
+                "SELECT status, revoked_at, grant_version, policy_version, updated_at FROM type::record('resource_grants', $grant_id);".to_owned(),
+                json!({"grant_id": descendant_grant}),
+            )
+            .await?
+            .check()?;
+        assert_eq!(
+            restored_descendant.take::<Vec<DescendantGrantSnapshot>>(0)?,
+            vec![original_descendant]
+        );
+        // A draft in another workspace would be removed transitively via its document reference.
+        let foreign = create_owned_test_workspace(&state, &headers).await?;
+        let params = json!({"document": document_id, "workspace": foreign.id});
+        state.surreal.test_admin_query_bound("CREATE type::record('knowledge_rich_document_drafts', $document) SET rich_document_id = type::record('knowledge_rich_documents', $document), workspace_id = type::record('workspaces', $workspace), base_doc_version = 1, base_content_sha256 = string::repeat('a', 64), draft_content_json = {}, draft_content_sha256 = string::repeat('b', 64), actor_kind = 'operator', actor_id = 'cross-workspace-fixture', kernel_task_run_id = 'cascade-proof', session_run_id = 'cascade-proof';".to_owned(), params).await?;
+        assert_eq!(
+            delete_workspace(
+                State(state.clone()),
+                Path(workspace.id.clone()),
+                headers.clone()
+            )
+            .await
+            .expect_err("cross-workspace cascade")
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert!(state.storage.get_workspace(&workspace.id).await?.is_some());
+        let doc_external = document_id.clone();
+        state
+            .surreal
+            .test_admin_query_bound(
+                "DELETE type::record('knowledge_rich_document_drafts', $document);".to_owned(),
+                json!({"document": doc_external}),
+            )
+            .await?;
         let status = delete_workspace(
             State(state.clone()),
             Path(workspace.id.clone()),
-            HeaderMap::new(),
+            headers.clone(),
         )
         .await
         .map_err(|(status, Json(body))| format!("delete route failed: {status} {}", body.error))?;
         assert_eq!(status, StatusCode::NO_CONTENT);
+        assert!(
+            crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+                .get_knowledge_rich_document(&document_id)
+                .await?
+                .is_none()
+        );
+        assert!(
+            crate::storage::surreal::SurrealDatabase::new(state.surreal.clone())
+                .get_knowledge_rich_document(&scoped_document.rich_document_id)
+                .await?
+                .is_none()
+        );
         assert_eq!(
             fems_memory::count_memory_items(&state.surreal, &workspace.id).await?,
             0
         );
+        let retry = delete_workspace(State(state.clone()), Path(workspace.id.clone()), headers)
+            .await
+            .expect_err("deleted and unauthorized targets use the same denial");
+        assert_eq!(retry.0, StatusCode::FORBIDDEN);
+        assert_eq!(retry.1 .0.error, "HSK-403-PROTECTED-RESOURCE");
+        Ok(())
+    }
 
-        let retry = delete_workspace(
-            State(state.clone()),
-            Path(workspace.id.clone()),
-            HeaderMap::new(),
+    #[tokio::test]
+    async fn owned_workspace_create_narrowed_session_rolls_back_every_row(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let binding = WorkspaceBindingFixture::new()?;
+        let (state, _store) = setup_state().await?;
+        let (owner, headers) =
+            workspace_test_principal(&state, &binding, "workspace-create-rollback").await?;
+        let snapshot = "RETURN { workspaces: (SELECT VALUE id FROM workspaces ORDER BY id), resources: (SELECT VALUE id FROM protected_resources ORDER BY id), grants: (SELECT VALUE id FROM resource_grants ORDER BY id) };";
+        let mut before = state.surreal.test_admin_query(snapshot.to_owned()).await?;
+        let before = before
+            .take::<Option<serde_json::Value>>(0)?
+            .expect("pre-mutation snapshot");
+        state.surreal.test_admin_query_bound(
+            "UPDATE authenticated_sessions SET delegated_capabilities = ['fs.write'] WHERE account_id = type::record('local_accounts', $account);".to_owned(),
+            json!({"account": owner.identity.account_id}),
+        ).await?;
+        assert!(
+            create_owned_test_workspace(&state, &headers).await.is_err(),
+            "narrowed session cannot mint the full creator grants"
+        );
+        let mut after = state.surreal.test_admin_query(snapshot.to_owned()).await?;
+        let after = after
+            .take::<Option<serde_json::Value>>(0)?
+            .expect("post-mutation snapshot");
+        assert_eq!(
+            after, before,
+            "rejected grants must roll back source, resources, and both grants"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn owned_workspace_state_routes_roundtrip_and_deny_other_account(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::api::MountedRequestExt;
+        let binding = WorkspaceBindingFixture::new()?;
+        let (state, _store) = setup_state().await?;
+        let (_, headers) =
+            workspace_test_principal(&state, &binding, "workspace-state-owner").await?;
+        let (_, other_headers) =
+            workspace_test_principal(&state, &binding, "workspace-state-other").await?;
+        let workspace = create_owned_test_workspace(&state, &headers).await?;
+        let foreign_workspace = create_owned_test_workspace(&state, &other_headers).await?;
+        let authority = crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+            &workspace.id,
+            crate::storage::surreal::resource_authority::ResourceAction::Update,
         )
         .await
-        .expect_err("deleting an absent workspace must fail closed");
-        assert_eq!(retry.0, StatusCode::NOT_FOUND);
+        .map_err(|(status, body)| {
+            std::io::Error::other(format!(
+                "owner workspace update scope: {status}; {}",
+                body.0
+            ))
+        })?;
+        #[derive(surrealdb::types::SurrealValue)]
+        struct StateSwapBindings {
+            workspace: String,
+            foreign_workspace: String,
+        }
+        let panes: Vec<Value> = ["pane-a", "pane-b", "pane-c", "pane-d"].into_iter().map(|id| json!({"id":id,"module":"MAIN","activeTab":"workspace","tabs":["workspace"],"locked":false,"projectRef":"","activeDocumentId":null,"activeCanvasId":null,"openDocuments":[]})).collect();
+        for (route, field, value) in [
+            (
+                "workbench/layout",
+                "layout_state",
+                json!({"schema_id":"hsk.workbench_layout_state@1","activePaneId":"pane-a","activeModule":"MAIN","splitWeights":{"vertical":0.5,"horizontal":0.5},"drawers":{"project":true,"file":true,"bottom":false},"panes":panes}),
+            ),
+            (
+                "settings",
+                "settings_state",
+                json!({"schema_id":"hsk.workspace_settings_state@1","theme":"dark","custom_theme_tokens":{},"keybindings":{"app.quick_switcher.open":"Mod-k","app.command_palette.open":"Mod-p"},"settings":{"view_mode":"SFW","swarm_board_default_open":false}}),
+            ),
+            (
+                "search-bookmarks",
+                "bookmark_state",
+                json!({"schema_id":"hsk.workspace_search_bookmark_state@1","bookmarks":[]}),
+            ),
+        ] {
+            let uri = format!("/workspaces/{}/{route}", workspace.id);
+            for method in ["PUT", "PUT", "GET"] {
+                let mut request = axum::http::Request::builder()
+                    .method(method)
+                    .uri(&uri)
+                    .header("content-type", "application/json");
+                for (name, value) in &headers {
+                    request = request.header(name, value);
+                }
+                let payload = if method == "PUT" {
+                    serde_json::to_vec(&json!({field:value}))?
+                } else {
+                    Vec::new()
+                };
+                let response = routes(state.clone())
+                    .oneshot(request.body(axum::body::Body::from(payload))?)
+                    .await?;
+                let status = response.status();
+                let body = axum::body::to_bytes(response.into_body(), 1024 * 1024).await?;
+                let body: Value = serde_json::from_slice(&body)?;
+                assert_eq!(status, StatusCode::OK, "{method} {route}: {body}");
+                assert_eq!(body[field], value);
+            }
+            for method in ["GET", "PUT"] {
+                let mut request = axum::http::Request::builder()
+                    .method(method)
+                    .uri(&uri)
+                    .header("content-type", "application/json");
+                for (name, value) in &other_headers {
+                    request = request.header(name, value);
+                }
+                let response = routes(state.clone())
+                    .oneshot(request.body(axum::body::Body::from(serde_json::to_vec(
+                        &json!({field:value}),
+                    )?))?)
+                    .await?;
+                assert_eq!(response.status(), StatusCode::FORBIDDEN);
+            }
+            let scope = authority.record_user_scope.clone();
+            let bindings = StateSwapBindings {
+                workspace: workspace.id.clone(),
+                foreign_workspace: foreign_workspace.id.clone(),
+            };
+            let (statement, state_table) = match route {
+                "workbench/layout" => ("UPDATE type::record('knowledge_workbench_layout_states', $workspace) SET workspace_id = type::record('workspaces', $foreign_workspace) RETURN AFTER;", "knowledge_workbench_layout_states"),
+                "settings" => ("UPDATE type::record('knowledge_workspace_settings_states', $workspace) SET workspace_id = type::record('workspaces', $foreign_workspace) RETURN AFTER;", "knowledge_workspace_settings_states"),
+                "search-bookmarks" => ("UPDATE type::record('knowledge_workspace_search_bookmark_states', $workspace) SET workspace_id = type::record('workspaces', $foreign_workspace) RETURN AFTER;", "knowledge_workspace_search_bookmark_states"),
+                _ => unreachable!("state route fixture is exhaustive"),
+            };
+            let error = state
+                .surreal
+                .with_record_user_scope(
+                    scope,
+                    state.surreal.with_data_operation(move |database| {
+                        Box::pin(
+                            async move { database.execute_returning(statement, bindings).await },
+                        )
+                    }),
+                )
+                .await
+                .expect_err("record-user workspace swap must fail at the immutable field boundary");
+            let rendered = error.to_string();
+            assert!(
+                rendered.contains(state_table)
+                    && rendered.contains("record::exists($value) AND record::id($value) = record::id($this.id)"),
+                "workspace swap must be rejected by the immutable workspace field boundary: {error}"
+            );
+            let mut request = axum::http::Request::builder().method("GET").uri(&uri);
+            for (name, value) in &headers {
+                request = request.header(name, value);
+            }
+            let response = routes(state.clone())
+                .oneshot(request.body(axum::body::Body::empty())?)
+                .await?;
+            let status = response.status();
+            let body = axum::body::to_bytes(response.into_body(), 1024 * 1024).await?;
+            let body: Value = serde_json::from_slice(&body)?;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "canonical state reread {route}: {body}"
+            );
+            assert_eq!(
+                body[field], value,
+                "rejected workspace swap must not persist"
+            );
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn owned_workspace_delete_denies_other_account_ownerless_and_foreign_descendants(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let binding = WorkspaceBindingFixture::new()?;
+        let (state, _store) = setup_state().await?;
+        let (_, owner_headers) =
+            workspace_test_principal(&state, &binding, "workspace-owner-a").await?;
+        let (other, other_headers) =
+            workspace_test_principal(&state, &binding, "workspace-owner-b").await?;
+        let workspace = create_owned_test_workspace(&state, &owner_headers).await?;
+        let other_list = list_workspaces(State(state.clone()), other_headers.clone())
+            .await
+            .map_err(|_| "other-account listing failed")?
+            .0;
+        assert!(!other_list.iter().any(|row| row.id == workspace.id));
+        let denied = delete_workspace(
+            State(state.clone()),
+            Path(workspace.id.clone()),
+            other_headers,
+        )
+        .await
+        .expect_err("other account cannot delete");
+        assert_eq!(denied.0, StatusCode::FORBIDDEN);
+        assert!(state.storage.get_workspace(&workspace.id).await?.is_some());
+        let legacy = state
+            .storage
+            .create_workspace(
+                &WriteContext::human(Some("legacy".to_owned())),
+                NewWorkspace {
+                    name: "ownerless".to_owned(),
+                },
+            )
+            .await?;
         assert_eq!(
-            fems_memory::count_memory_items(&state.surreal, &workspace.id).await?,
-            0
+            delete_workspace(
+                State(state.clone()),
+                Path(legacy.id.clone()),
+                owner_headers.clone()
+            )
+            .await
+            .expect_err("ownerless cannot be claimed")
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert!(state.storage.get_workspace(&legacy.id).await?.is_some());
+        let authority = crate::api::authority::authorize_request(
+            &state,
+            &owner_headers,
+            "fs.write",
+            ResourceKind::Workspace,
+            &workspace.id,
+            ResourceAction::Delete,
+        )
+        .await
+        .map_err(|_| "owner grant missing")?;
+        state
+            .surreal
+            .register_protected_resource(
+                &other.identity,
+                ResourceKind::RichDocument,
+                "foreign-descendant",
+                Some(&authority.resource_id),
+                "account_private",
+            )
+            .await?;
+        assert_eq!(
+            delete_workspace(
+                State(state.clone()),
+                Path(workspace.id.clone()),
+                owner_headers
+            )
+            .await
+            .expect_err("foreign descendant must prevent cascade")
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert!(state.storage.get_workspace(&workspace.id).await?.is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn owned_workspace_delete_rolls_back_source_and_grant_revocation_on_cascade_failure(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let binding = WorkspaceBindingFixture::new()?;
+        let (state, _store) = setup_state().await?;
+        let (_, headers) =
+            workspace_test_principal(&state, &binding, "workspace-rollback-owner").await?;
+        let workspace = create_owned_test_workspace(&state, &headers).await?;
+        state.surreal.test_admin_query("DEFINE EVENT OVERWRITE workspace_delete_proof_failure ON TABLE workspaces WHEN $event = 'DELETE' THEN { THROW 'INJECTED_WORKSPACE_DELETE_ROLLBACK'; };".to_owned()).await?;
+        assert_eq!(
+            delete_workspace(
+                State(state.clone()),
+                Path(workspace.id.clone()),
+                headers.clone()
+            )
+            .await
+            .expect_err("injected cascade failure")
+            .0,
+            StatusCode::FORBIDDEN
+        );
+        assert!(state.storage.get_workspace(&workspace.id).await?.is_some());
+        crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.write",
+            ResourceKind::Workspace,
+            &workspace.id,
+            ResourceAction::Delete,
+        )
+        .await
+        .map_err(|_| "rolled-back deletion must retain active grant")?;
+        state
+            .surreal
+            .test_admin_query(
+                "REMOVE EVENT workspace_delete_proof_failure ON TABLE workspaces;".to_owned(),
+            )
+            .await?;
+        assert_eq!(
+            delete_workspace(State(state.clone()), Path(workspace.id), headers)
+                .await
+                .map_err(|_| "retry deletion failed")?,
+            StatusCode::NO_CONTENT
         );
         Ok(())
     }

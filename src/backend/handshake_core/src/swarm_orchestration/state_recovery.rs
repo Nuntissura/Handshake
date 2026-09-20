@@ -2739,27 +2739,57 @@ impl ParallelSwarmStateRecoveryStore {
         ensure_bounded_text("evidence_ref", &request.evidence_ref, 512)?;
 
         let receipt_id = format!("PSR-QUIET-{}", Uuid::now_v7());
-        let persistent_lane = request.lane.scrubbed_for_persistence();
+        let mut persistent_lane = request.lane.scrubbed_for_persistence();
         let created_at_utc = Utc::now();
-        let event = Self::build_event(
+        let mut payload = json!({
+            "schema_id": "hsk.parallel_swarm.quiet_background_work@1",
+            "receipt_id": &receipt_id,
+            "workspace_id": &request.workspace_id,
+            "wp_id": &request.wp_id,
+            "mt_id": &request.mt_id,
+            "work_kind": request.work_kind,
+            "subject_id": &request.subject_id,
+            "quiet_policy": &request.policy,
+            "evidence_ref": &request.evidence_ref,
+        });
+        let authority = if request.work_kind == QuietBackgroundWorkKind::BackendNavigation {
+            if let Some(scope) = crate::storage::surreal::current_record_user_scope() {
+                let denied = || StateRecoveryError::InvalidInput("HSK-403-PROTECTED-RESOURCE".into());
+                if scope.workspace_id.as_deref() != Some(request.workspace_id.as_str())
+                    || scope.session_id != request.session_id {
+                    return Err(denied());
+                }
+                let context = self.storage.authenticate_local_session(
+                    &scope.session_token,
+                    scope.channel_binding_hash.as_deref().ok_or_else(denied)?,
+                ).await.map_err(|_| denied())?;
+                persistent_lane.actor_id = context.actor_id.clone();
+                payload["minted_by_principal"] = json!(context.identity.principal_id);
+                payload["account_id"] = json!(context.identity.account_id);
+                payload["access_space_id"] = json!(context.identity.access_space_id);
+                payload["delegation_chain"] = json!(context.delegation_chain);
+                payload["policy_version"] = json!(context.policy_version);
+                Some(context)
+            } else { None }
+        } else { None };
+        let mut event = Self::build_event(
             KernelEventType::KnowledgeQuietBackgroundWorkRecorded,
             "parallel_swarm_quiet_background_work",
             &receipt_id,
             &persistent_lane,
             &request.session_id,
-            json!({
-                "schema_id": "hsk.parallel_swarm.quiet_background_work@1",
-                "receipt_id": &receipt_id,
-                "workspace_id": &request.workspace_id,
-                "wp_id": &request.wp_id,
-                "mt_id": &request.mt_id,
-                "work_kind": request.work_kind,
-                "subject_id": &request.subject_id,
-                "quiet_policy": &request.policy,
-                "evidence_ref": &request.evidence_ref,
-            }),
+            payload,
         )?;
-        let kernel_event = KernelEvent::from_new(event.clone());
+        let (kernel_event, event_content) = if let Some(context) = authority {
+            event.actor = KernelActor::Operator(context.actor_id);
+            event.session_run_id = context.session_id;
+            let (stored, write) = crate::storage::surreal::event_ledger::prepare_event(event)?;
+            (stored, crate::storage::surreal::event_ledger::LedgerBulkInsert::from(write).into_value())
+        } else {
+            let stored = KernelEvent::from_new(event.clone());
+            let content = event_ledger_write_row(&event, &stored).into_value();
+            (stored, content)
+        };
         let event_id = kernel_event.event_id.clone();
         let row = QuietWorkRow {
             receipt_id: receipt_id.clone(),
@@ -2780,7 +2810,7 @@ impl ParallelSwarmStateRecoveryStore {
         };
         let bindings = CreateRowWithEventBindings {
             event_record: event_record(&event_id),
-            event_content: event_ledger_write_row(&event, &kernel_event).into_value(),
+            event_content,
             record: RecordId::new(QUIET_TABLE, receipt_id.clone()),
             content: row.into_value(),
         };

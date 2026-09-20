@@ -3549,6 +3549,7 @@ mod tests {
             })
             .await?;
         let scope = RecordUserScope {
+            grant_id: None,
             workspace_id: Some(workspace.to_owned()),
             session_token: principal.session.token.clone(),
             channel_binding_hash: None,
@@ -3963,6 +3964,7 @@ mod tests {
                 .await?;
             eprintln!("MT109_SOURCE_REVOCATION_PHASE=authority_ready");
             let scope = RecordUserScope {
+                grant_id: None,
                 workspace_id: Some(workspace_id.clone()),
                 session_token: owner.session.token.clone(),
                 channel_binding_hash: None,
@@ -4605,6 +4607,7 @@ mod tests {
             })
             .await?;
         Ok(RecordUserScope {
+            grant_id: None,
             workspace_id: Some(workspace_id.to_owned()),
             session_token: principal.session.token,
             channel_binding_hash: None,

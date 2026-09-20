@@ -130,9 +130,9 @@ use handshake_native::rich_editor::document_model::doc_json::to_content_json_val
 // ── artifact-hygiene guard (CX-212E) ─────────────────────────────────────────────────────────────
 
 /// Assert NO repo-local artifact dir exists under the crate (CX-212E): neither `test_output/` nor
-/// `tests/screenshots/`. This MT writes its proof log to the CHECKED-IN evidence fixture
-/// (`tests/fixtures/swarm_edit_proof_log.txt`, the HBR-VIS artifact the contract names) — it writes NO
-/// screenshots and NO `test_output/`/`tests/screenshots/` artifacts. The reviewer also greps
+/// `tests/screenshots/`. This MT writes its proof log to the external
+/// `Handshake_Artifacts/handshake-test` root — it writes NO screenshots and NO
+/// `test_output/`/`tests/screenshots/` artifacts. The reviewer also greps
 /// `git ls-files "src/**/*.png"`; this guard catches a stray local artifact dir.
 fn assert_no_local_artifact_dir() {
     for local in ["test_output", "tests/screenshots"] {
@@ -140,15 +140,15 @@ fn assert_no_local_artifact_dir() {
         assert!(
             !p.exists(),
             "artifact hygiene: no repo-local {local} dir may exist — artifacts go to the external \
-             Handshake_Artifacts/handshake-test root or the checked-in proof-log fixture only (found {})",
+             Handshake_Artifacts/handshake-test root (found {})",
             p.display()
         );
     }
 }
 
-/// Runtime proof evidence is retained both externally and in the contract-required checked-in
-/// fixture. Every authoritative attempt replaces both copies atomically and begins with its unique
-/// attempt id, so an earlier fixture can never masquerade as the current managed-backend verdict.
+/// Runtime proof evidence is retained under the external artifact root. Every authoritative attempt
+/// replaces its canonical and attempt-scoped copies atomically and begins with its unique attempt id,
+/// so an earlier run can never masquerade as the current managed-backend verdict.
 fn proof_log_path() -> PathBuf {
     let artifacts_root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
         .map(PathBuf::from)
@@ -195,10 +195,6 @@ fn mt128_child_budget() -> Duration {
         "{MT128_CHILD_BUDGET_ENV} must leave at least 250ms for deterministic child startup"
     );
     Duration::from_millis(configured_ms)
-}
-
-fn checked_in_proof_log_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/swarm_edit_proof_log.txt")
 }
 
 fn attempt_proof_log_path(attempt_id: &str) -> PathBuf {
@@ -1023,7 +1019,7 @@ impl ProofLog {
     }
 
     /// A pseudo-ISO8601 monotonic timestamp token. The proof is deterministic + headless, so a wall
-    /// clock is unnecessary (and would make the checked-in log churn every run); a monotonic sequence
+    /// clock is unnecessary (and would make the external log churn every run); a monotonic sequence
     /// keeps the IN-043-07 `[<timestamp>]` slot present + ordered without nondeterministic noise.
     fn ts(&mut self) -> String {
         self.seq += 1;
@@ -1126,12 +1122,6 @@ impl ProofLog {
             &proof_log_path(),
             &body,
             "canonical external runtime proof log",
-            lock_budget,
-        );
-        self.write_body(
-            &checked_in_proof_log_path(),
-            &body,
-            "checked-in MT-043 proof fixture",
             lock_budget,
         );
         println!("--- PROOF-043-B: swarm_edit_proof_log.txt ---\n{body}");

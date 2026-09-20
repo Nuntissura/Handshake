@@ -63,11 +63,13 @@ use handshake_native::theme::HsTheme;
 
 // ── Artifact hygiene (CX-212E, disk-agnostic) ────────────────────────────────────────────────────────
 
-/// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. The crate sits at
-/// `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where `Handshake_Artifacts`
-/// is a sibling of the repo worktree. `#[allow(dead_code)]` so the no-feature build does not warn.
+/// The configured root is validated by the shared backend fixture before any write. Without that
+/// override, retain the original crate-relative external-artifact fallback.
 #[allow(dead_code)]
 fn external_artifact_dir(subdir: &str) -> PathBuf {
+    if std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT").is_some() {
+        return backend_proof_support::external_artifact_root().join(subdir);
+    }
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
 }
 
@@ -1936,6 +1938,7 @@ fn event_emitter_native_editor_round_trip() {
     let _backend_binding = managed_backend.owned_backend_binding_receipt();
     let backend_pid = managed_backend.owned_process_id();
     let base = managed_backend.base.clone();
+    let authenticated_principal_id = managed_backend.account_context.principal_id.clone();
     let marker = uuid::Uuid::new_v4().to_string();
     let session_id = uuid::Uuid::new_v4().to_string();
     let actor = format!("mt036-live-human-{marker}");
@@ -2294,7 +2297,7 @@ fn event_emitter_native_editor_round_trip() {
                 .filter(|row| {
                     row["actor_id"]
                         .as_str()
-                        .is_some_and(|actor_id| actor_id.starts_with("handshake-native:"))
+                        .is_some_and(|actor_id| actor_id == authenticated_principal_id.as_str())
                         && row["wsids"]
                             .as_array()
                             .is_some_and(|ids| ids.iter().any(|id| id == &workspace))
@@ -2306,7 +2309,17 @@ fn event_emitter_native_editor_round_trip() {
             }
             assert!(
                 std::time::Instant::now() < deadline,
-                "timed out waiting for three ordered production-emitter events; got {matching:#?}"
+                "timed out waiting for three ordered production-emitter events; matching={matching:#?}; returned_rows={:#?}",
+                rows.iter()
+                    .map(|row| serde_json::json!({
+                        "event_id": row["event_id"],
+                        "actor_id": row["actor_id"],
+                        "event_type": row["event_type"],
+                        "trace_id": row["trace_id"],
+                        "wsids": row["wsids"],
+                        "action": row["payload"]["action"],
+                    }))
+                    .collect::<Vec<_>>()
             );
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         };
@@ -2330,11 +2343,11 @@ fn event_emitter_native_editor_round_trip() {
         assert!(uuid::Uuid::parse_str(trace_id).is_ok());
         assert!(matching.iter().all(|row| {
             row["event_type"] == "system"
-                // AC-111-3: SERVER-derived attribution from the authenticated native-MCP binding,
+                // AC-111-3: SERVER-derived attribution from the authenticated account Principal,
                 // never the caller's or emitter's own actor id.
                 && row["actor_id"]
                     .as_str()
-                    .is_some_and(|actor_id| actor_id.starts_with("handshake-native:"))
+                    .is_some_and(|actor_id| actor_id == authenticated_principal_id.as_str())
                 && row["trace_id"] == trace_id
                 && row["session_span_id"] == trace_id
                 && row["payload"]["schema_version"] == NATIVE_EDITOR_SCHEMA_VERSION

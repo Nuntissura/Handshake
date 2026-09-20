@@ -25,7 +25,8 @@ use crate::storage::knowledge::{
     KnowledgeSource, KnowledgeSourceKind, KnowledgeSourceRoot, KnowledgeStore, NewKnowledgeSource,
     NewKnowledgeSourceRoot,
 };
-use crate::storage::surreal::event_ledger::append;
+use crate::storage::surreal::event_ledger::{append, prepare_event, LedgerBulkInsert};
+use crate::storage::surreal::resource_authority::{OwnedIndexResource, ResourceKind};
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::Database;
 
@@ -48,6 +49,63 @@ use super::spans::{ExtractedSpan, SpanAnchor, SpanRedaction};
 use super::store::{KnowledgeIngestionStore, NewPolicyDecision, PolicyDecision, StoredSpan};
 use super::transcripts::parse_transcript_artifact;
 use super::{new_ingestion_id, IngestionError, IngestionResult};
+
+pub(crate) async fn index_write_fences(
+    storage: &crate::storage::surreal::SurrealStorage, source_id: &str,
+) -> Result<Vec<RecordId>, crate::storage::StorageError> {
+    use crate::storage::surreal::resource_authority::{AuthorizationRequest, ResourceAction};
+    use crate::storage::StorageError;
+    let Some(scope) = crate::storage::surreal::current_record_user_scope() else { return Ok(Vec::new()); };
+    let decision = storage.authorize_protected_resource(AuthorizationRequest {
+        session_token: scope.session_token, channel_binding_hash: scope.channel_binding_hash,
+        capability_id: "memory.propose".into(), resource_kind: ResourceKind::KnowledgeSource,
+        external_resource_id: source_id.to_owned(), action: ResourceAction::Update,
+    }).await.map_err(|_| StorageError::Validation("HSK-403-PROTECTED-RESOURCE"))?;
+    let mut rows = vec![
+        RecordId::new("authenticated_sessions", decision.session_id),
+        RecordId::new("local_accounts", decision.account_id),
+        RecordId::new("principals", decision.principal_id),
+        RecordId::new("access_spaces", decision.access_space_id),
+        RecordId::new("protected_resources", decision.resource_id),
+        RecordId::new("resource_grants", decision.grant_id),
+        RecordId::new("protected_resources", scope.resource_id),
+    ];
+    if let Some(grant) = scope.grant_id { rows.push(RecordId::new("resource_grants", grant)); }
+    Ok(rows)
+}
+
+pub(crate) async fn scoped_index_payload(
+    storage: &crate::storage::surreal::SurrealStorage, mut payload: Value,
+) -> Result<Value, crate::storage::StorageError> {
+    use crate::storage::StorageError;
+    if let Some(scope) = crate::storage::surreal::current_record_user_scope() {
+        let denied = || StorageError::Validation("HSK-403-PROTECTED-RESOURCE");
+        let workspace = scope.workspace_id.as_deref().ok_or_else(denied)?;
+        if payload.get("workspace_id").and_then(Value::as_str).is_some_and(|value| value != workspace) {
+            return Err(denied());
+        }
+        let context = storage.authenticate_local_session(&scope.session_token,
+            scope.channel_binding_hash.as_deref().ok_or_else(denied)?).await.map_err(|_| denied())?;
+        payload["workspace_id"] = json!(workspace);
+        payload["minted_by_principal"] = json!(context.identity.principal_id);
+        payload["account_id"] = json!(context.identity.account_id);
+        payload["access_space_id"] = json!(context.identity.access_space_id);
+        payload["delegation_chain"] = json!(context.delegation_chain);
+        payload["policy_version"] = json!(context.policy_version);
+        let mut sources = std::collections::BTreeSet::new();
+        if let Some(id) = payload.get("source_id").and_then(Value::as_str) { sources.insert(id.to_owned()); }
+        for field in ["receipts", "files"] {
+            if let Some(rows) = payload.get(field).and_then(Value::as_array) {
+                for row in rows { if let Some(id) = row.get("source_id").and_then(Value::as_str) { sources.insert(id.to_owned()); } }
+            }
+        }
+        if let Some(ids) = payload.get("source_ids").and_then(Value::as_array) {
+            for id in ids { sources.insert(id.as_str().ok_or_else(denied)?.to_owned()); }
+        }
+        payload["source_ids"] = json!(sources);
+    }
+    Ok(payload)
+}
 
 /// Backend-navigation context (spec 2.3.13.11): every engine mutation must
 /// carry actor id, session id, and correlation id into its receipts.
@@ -150,6 +208,10 @@ struct CleanIngestionFileWrite {
 
 #[derive(SurrealValue)]
 struct CleanIngestionBatchBindings {
+    write_fences: Vec<RecordId>,
+    owned_resources: Vec<OwnedIndexResource>,
+    events: Vec<LedgerBulkInsert>,
+    receipt_event: RecordId,
     sources: Vec<CleanIngestionSourceRow>,
     receipts: Vec<CleanIngestionReceiptRow>,
     spans: Vec<CleanIngestionSpanRow>,
@@ -157,6 +219,7 @@ struct CleanIngestionBatchBindings {
 
 #[derive(SurrealValue)]
 struct CleanIngestionSourceRow {
+    created_in_session_id: Option<RecordId>,
     id: RecordId,
     source_id: String,
     workspace_id: RecordId,
@@ -171,7 +234,7 @@ struct CleanIngestionSourceRow {
     parser_status: String,
     extraction_status: String,
     stale: bool,
-    last_index_receipt_event_id: RecordId,
+    last_index_receipt_event_id: Option<RecordId>,
 }
 
 #[derive(SurrealValue)]
@@ -212,7 +275,21 @@ struct CleanIngestionSpanRow {
     link_candidates: Value,
 }
 
-const PERSIST_CLEAN_INGESTION_BATCH: &str = "BEGIN TRANSACTION; \
+macro_rules! owned_index_authority_sql {
+    () => {
+        "FOR $owned IN $owned_resources { \
+          CREATE $owned.resource SET resource_kind = $owned.kind, external_resource_id = $owned.external_id, owner_account_id = $owned.account, created_by_principal_id = $owned.principal, created_in_session_id = $owned.session, creator_grant_id = $owned.grant, access_space_id = $owned.space, parent_resource_id = $owned.parent, schema_version = 1, lifecycle_state = 'active', policy_version = $owned.policy_version, classification = 'account_private', storage_locator_hash = $owned.locator_hash, created_at = time::now(), updated_at = time::now() RETURN NONE; \
+          LET $actions = IF $owned.delete_parent_grant = NONE { ['read','create','update'] } ELSE { ['read','create','update','delete'] }; \
+          LET $capabilities = IF $owned.delete_parent_grant = NONE { ['memory.read','memory.propose'] } ELSE { ['memory.read','memory.propose','fs.write'] }; \
+          IF array::len((CREATE $owned.grant SET account_id = $owned.account, principal_id = $owned.principal, access_space_id = $owned.space, resource_id = $owned.resource, actions = $actions, capability_ids = $capabilities, delegation_chain = $owned.delegation_chain, status = 'active', grant_version = 1, policy_version = $owned.policy_version, expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+          FOR $fence IN [$owned.session,$owned.account,$owned.principal,$owned.space,$owned.parent,$owned.parent_grant,$owned.resource,$owned.grant] { IF array::len((UPDATE $fence SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
+          IF $owned.delete_parent_grant != NONE AND $owned.delete_parent_grant != $owned.parent_grant { IF array::len((UPDATE $owned.delete_parent_grant SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
+        }; "
+    };
+}
+pub(crate) use owned_index_authority_sql;
+
+const PERSIST_CLEAN_INGESTION_BATCH: &str = concat!("BEGIN TRANSACTION; \
     INSERT INTO knowledge_sources $sources ON DUPLICATE KEY UPDATE \
       workspace_id = $input.workspace_id, root_id = $input.root_id, \
       source_kind = $input.source_kind, relative_path = $input.relative_path, \
@@ -221,11 +298,14 @@ const PERSIST_CLEAN_INGESTION_BATCH: &str = "BEGIN TRANSACTION; \
       redaction_state = $input.redaction_state, parser_status = $input.parser_status, \
       extraction_status = $input.extraction_status, stale = $input.stale, \
       last_index_receipt_event_id = $input.last_index_receipt_event_id, \
-      updated_at = time::now() RETURN NONE; \
+      updated_at = time::now() RETURN NONE; ", owned_index_authority_sql!(), " \
+    INSERT INTO kernel_event_ledger $events RETURN NONE; \
+    FOR $source IN $sources { IF array::len((UPDATE $source.id SET last_index_receipt_event_id = $receipt_event RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
     INSERT INTO knowledge_ingestion_receipts $receipts RETURN NONE; \
     INSERT INTO knowledge_ingestion_spans $spans RETURN NONE; \
-    COMMIT TRANSACTION; \
-    RETURN true;";
+    IF array::len((SELECT VALUE id FROM knowledge_ingestion_receipts WHERE id IN $receipts.id)) != array::len($receipts) OR array::len((SELECT VALUE id FROM knowledge_ingestion_spans WHERE id IN $spans.id)) != array::len($spans) { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    FOR $fence IN $write_fences { IF array::len((UPDATE $fence SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; };
+    COMMIT TRANSACTION;");
 
 pub(crate) fn prepare_code_nav_file(
     root_kind: KnowledgeRootKind,
@@ -428,7 +508,7 @@ impl IngestionEngine {
             KernelEventType::ValidationRecorded,
             "knowledge_ingestion_run",
             run_token,
-            json!({"kind":"ingestion_run_finished","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token,"files_ingested":sources.len(),"stale_marked":stale_marked,"causation_id":start_event_id}),
+            json!({"kind":"ingestion_run_finished","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token,"files_ingested":sources.len(),"source_ids":sources.iter().map(|(id, _)| id).collect::<Vec<_>>(),"stale_marked":stale_marked,"causation_id":start_event_id}),
         )
         .await?;
         Ok(sources)
@@ -454,6 +534,9 @@ impl IngestionEngine {
             })
             .collect::<std::collections::HashMap<_, _>>();
 
+        let scope = crate::storage::surreal::current_record_user_scope();
+        let mut owned_resources = Vec::new();
+        let mut write_fences = Vec::new();
         let mut receipt_payloads = Vec::with_capacity(prepared.len());
         let mut files = Vec::with_capacity(prepared.len());
         let mut sources = Vec::with_capacity(prepared.len());
@@ -462,6 +545,16 @@ impl IngestionEngine {
                 .get(&file.relative_path)
                 .cloned()
                 .unwrap_or_else(|| new_knowledge_id("KSRC"));
+            if existing_by_path.contains_key(&file.relative_path) {
+                write_fences.extend(index_write_fences(self.db.storage(), &source_id).await?);
+            }
+            if !existing_by_path.contains_key(&file.relative_path) {
+                if let Some(resource) = self.db.storage().prepare_owned_index_resource(
+                    ResourceKind::KnowledgeSource, &source_id, &root.workspace_id,
+                ).await.map_err(|_| IngestionError::Validation("HSK-403-PROTECTED-RESOURCE".into()))? {
+                    owned_resources.push(resource);
+                }
+            }
             let hashes = compute_content_hashes(&file.content);
             let (extractor_id, extractor_version) = extractor_identity(file.extraction.kind);
             let receipt = NewExtractionReceipt {
@@ -566,14 +659,14 @@ impl IngestionEngine {
             root.root_id
         ))
         .source_component("knowledge_ingestion")
-        .payload(json!({
+        .payload(scoped_index_payload(self.db.storage(), json!({
             "kind": "extraction_receipt_batch",
             "workspace_id": root.workspace_id,
             "root_id": root.root_id,
             "run_token": run_token,
             "file_count": files.len(),
             "receipts": receipt_payloads,
-        }));
+        })).await?);
         if let Some(correlation_id) = &ctx.correlation_id {
             event_builder = event_builder.correlation_id(correlation_id.clone());
         }
@@ -581,9 +674,12 @@ impl IngestionEngine {
             .build()
             .map_err(|error| IngestionError::Kernel(error.to_string()))?;
         let ledger_started = Instant::now();
-        let stored_event = append(self.db.storage(), batch_event)
-            .await
-            .map_err(IngestionError::from)?;
+        let (stored_event, events) = if scope.is_some() {
+            let (stored, write) = prepare_event(batch_event).map_err(IngestionError::from)?;
+            (stored, vec![LedgerBulkInsert::from(write)])
+        } else {
+            (append(self.db.storage(), batch_event).await.map_err(IngestionError::from)?, Vec::new())
+        };
         tracing::info!(
             target: "handshake_core::code_nav_index",
             stage = "persist_clean_ingestion_batch.event_ledger",
@@ -628,6 +724,7 @@ impl IngestionEngine {
                 ))
             })?;
             source_rows.push(CleanIngestionSourceRow {
+                created_in_session_id: scope.as_ref().map(|scope| RecordId::new("authenticated_sessions", scope.session_id.clone())),
                 id: source.clone(),
                 source_id: source_id.clone(),
                 workspace_id: workspace.clone(),
@@ -642,7 +739,7 @@ impl IngestionEngine {
                 parser_status: "parsed".to_owned(),
                 extraction_status: "extracted".to_owned(),
                 stale: false,
-                last_index_receipt_event_id: event_receipt.clone(),
+                last_index_receipt_event_id: if scope.is_some() { None } else { Some(event_receipt.clone()) },
             });
             receipt_rows.push(CleanIngestionReceiptRow {
                 id: receipt.clone(),
@@ -682,6 +779,7 @@ impl IngestionEngine {
             }
         }
         let bindings = CleanIngestionBatchBindings {
+            owned_resources, events, write_fences, receipt_event: stored_event.clone(),
             sources: source_rows,
             receipts: receipt_rows,
             spans: span_rows,
@@ -693,7 +791,7 @@ impl IngestionEngine {
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
-                        .query_values_at::<bool, _>(PERSIST_CLEAN_INGESTION_BATCH, bindings, 5)
+                        .query_values::<surrealdb::types::Value, _>(PERSIST_CLEAN_INGESTION_BATCH, bindings)
                         .await
                 })
             })
@@ -719,6 +817,7 @@ impl IngestionEngine {
         aggregate_id: &str,
         payload: serde_json::Value,
     ) -> IngestionResult<String> {
+        let payload = scoped_index_payload(self.db.storage(), payload).await?;
         let mut builder = NewKernelEvent::builder(
             ctx.kernel_task_run_id.clone(),
             ctx.session_run_id.clone(),
@@ -750,6 +849,10 @@ impl IngestionEngine {
         start_event_id: &str,
         error: &IngestionError,
     ) {
+        let payload = match scoped_index_payload(self.db.storage(), json!({
+            "kind": "ingestion_run_failed", "workspace_id": root.workspace_id,
+            "root_id": root.root_id, "run_token": run_token, "error": error.to_string(),
+        })).await { Ok(payload) => payload, Err(_) => return };
         let mut builder = NewKernelEvent::builder(
             ctx.kernel_task_run_id.clone(),
             ctx.session_run_id.clone(),
@@ -759,13 +862,7 @@ impl IngestionEngine {
         .aggregate("knowledge_ingestion_run", run_token)
         .causation_id(start_event_id.to_string())
         .source_component("knowledge_ingestion")
-        .payload(json!({
-            "kind": "ingestion_run_failed",
-            "workspace_id": root.workspace_id,
-            "root_id": root.root_id,
-            "run_token": run_token,
-            "error": error.to_string(),
-        }));
+        .payload(payload);
         if let Some(correlation_id) = &ctx.correlation_id {
             builder = builder.correlation_id(correlation_id.clone());
         }

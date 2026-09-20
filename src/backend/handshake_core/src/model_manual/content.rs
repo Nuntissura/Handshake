@@ -18,6 +18,11 @@ pub fn model_manual() -> &'static Manual {
 
 pub static FEATURE_GROUPS: &[ManualFeatureGroup] = &[
     ManualFeatureGroup {
+        id: "local_account", title: "Local account",
+        description: "Explicit installation Owner setup, password login and private resource access.",
+        commands: &["local_account_authority"],
+    },
+    ManualFeatureGroup {
         id: "hbr_process_diagnostics",
         title: "HBR, Process Ledger, And Diagnostics",
         description: "Build-rule enforcement, typed violation receipts, process lifecycle evidence, and no-context diagnostics entrypoints.",
@@ -362,6 +367,16 @@ pub static FEATURE_GROUPS: &[ManualFeatureGroup] = &[
 ];
 
 pub static COMMAND_REFERENCE: &[CommandReference] = &[
+    CommandReference {
+        id: "local_account_authority", name: "local_account_authority", status: CommandStatus::Wired,
+        ipc_channel: None, tauri_command: None, cli_flag: None,
+        schema_fields: &["account_id", "principal_id", "session_id", "access_space_id"],
+        description: "HTTP routes in src/api/authority.rs: GET/POST /authority/setup, POST /authority/login, GET/POST /authority/session, POST /authority/logout. These are HTTP endpoints, not IPC commands.",
+        expected_input: "A live native channel in x-hsk-channel-binding-token. Setup/login accept account_name and password (12–1024 UTF-8 bytes). Login returns a one-use token; POST /authority/session exchanges its token and account/principal/access-space ids. Protected requests additionally carry the separate x-hsk-session-token.",
+        expected_output: "Explicit setup status, one-use login credential, authenticated session, current account identity or logout acknowledgment. Session secrets remain in the OS-bound vault; passwords and bearer values must never enter diagnostics.",
+        common_errors: &["HSK-403-PROTECTED-RESOURCE is intentionally constant for rejected authentication or resource access", "OS-bound vault unavailable", "Owner setup already completed"],
+        recovery_steps: &["Check GET /authority/session to distinguish a rejected session from a denied resource; a resource403 alone does not imply logout", "Use the native Local account controls to log in again; do not substitute the native channel token for an account session", "Create a newly owned workspace; legacy ownerless data is never automatically claimed"],
+    },
     CommandReference {
         id: "model_manual_get",
         name: "model_manual_get",
@@ -3215,6 +3230,13 @@ pub static SAFETY_CONSTRAINTS: &[ManualSafetyConstraint] = &[
 ];
 
 pub static WORKFLOWS: &[ManualWorkflow] = &[
+    ManualWorkflow {
+        id: "local_account", title: "Local account setup and login",
+        prerequisites: &["Backend and native channel are available", "OS-bound secret store is available"],
+        steps: &["Check setup status and explicitly create the installation Owner once", "Log in with account name and password, exchange the one-use credential, and keep account session and channel tokens separate", "Create a private workspace, then create/read/save documents through its exact resource grants", "Log out before changing accounts; discard or save pending edits explicitly"],
+        expected_outcome: "Account/principal/session/access-space identity is visible. Typed auth events are stored in EventLedger; native-editor document events separately use Flight Recorder ingestion.",
+        failure_modes: &["Backend unavailable: UI remains responsive and authentication is not fabricated", "Wrong, revoked or cross-account credentials are denied", "Legacy ownerless resources remain denied", "Auth EventLedger events are not claimed to be duplicated into Flight Recorder"],
+    },
     ManualWorkflow {
         id: "startup",
         title: "Startup",
