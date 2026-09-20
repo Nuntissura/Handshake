@@ -331,6 +331,7 @@ mod local_account_http_tests {
                 password.clone(),
             )
             .await;
+            let principal_id = credential["principal_id"].as_str().unwrap().to_owned();
             let exchange = json!({"account_id":credential["account_id"],"principal_id":credential["principal_id"],
                 "access_space_id":credential["access_space_id"],"authentication_token":credential["token"]});
             let (observed, release) = lifecycle_pause(&state, phase, false);
@@ -356,7 +357,9 @@ mod local_account_http_tests {
             release.send(()).unwrap();
             let id = tokio::time::timeout(std::time::Duration::from_secs(10), async {
                 loop {
-                    let mut response = state.surreal.test_admin_query("SELECT VALUE record::id(id) FROM authenticated_sessions WHERE revoked_at = NONE;".into()).await.unwrap();
+                    let mut response = state.surreal.test_admin_query(format!(
+                        "SELECT VALUE record::id(id) FROM authenticated_sessions WHERE revoked_at = NONE AND principal_id = type::record('principals', '{principal_id}');"
+                    )).await.unwrap();
                     let ids: Vec<String> = response.take(0).unwrap();
                     let mut audit = state.surreal.test_admin_query("RETURN array::len(SELECT VALUE id FROM kernel_event_ledger WHERE event_type = 'LOCAL_ACCOUNT_LOGIN');".into()).await.unwrap();
                     if audit.take::<Option<i64>>(0).unwrap() == Some((index + 1) as i64) && ids.len() == 1 {
