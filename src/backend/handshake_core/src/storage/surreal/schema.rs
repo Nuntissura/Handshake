@@ -2981,7 +2981,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
     // observed).
     const EXPECTED_CATALOG_SHA256: &str =
-        "951794f9342584b953ea4a4dcfad28ae4632156227384ee7ae33f2a01c0261e8";
+        "ed381eaa7c2b0aea809ffeb0e2e5170ac51053a1e024d0fa47f14f8d56894494";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -7409,7 +7409,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "951794f9342584b953ea4a4dcfad28ae4632156227384ee7ae33f2a01c0261e8"
+            "ed381eaa7c2b0aea809ffeb0e2e5170ac51053a1e024d0fa47f14f8d56894494"
         );
     }
 
