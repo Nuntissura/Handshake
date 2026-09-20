@@ -2085,7 +2085,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // fields (previous value b90f7345927316be15eb3f7bca0ba033df064d16326d37e3942677ecb84ce99c, the
 // MT-141 R9 pin); observed by `declarative_schema_catalog_is_complete_and_content_sensitive`.
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "9071b47e3b68a085efd25011569974f3b44aa36f862ac383b548613d048f9290";
+    "01e4c14cc6e3d75239c053974c5de2c4168c2ae50d76d3f418819ce7d7e993fd";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
