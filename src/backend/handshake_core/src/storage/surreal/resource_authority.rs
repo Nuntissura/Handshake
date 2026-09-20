@@ -1505,6 +1505,7 @@ impl SurrealStorage {
             })
         })
         .await
+        .map_err(ResourceAuthorityError::from)
     }
 
     async fn ensure_reconciliation_queue_grant(
@@ -1543,6 +1544,7 @@ impl SurrealStorage {
             })
         })
         .await
+        .map_err(ResourceAuthorityError::from)
     }
 
     pub async fn issue_reconciliation_session(
