@@ -489,12 +489,13 @@ COMMIT TRANSACTION;
                     })
                     .unwrap_or(0);
                 let (statement_index, error) = errors.swap_remove(meaningful);
-                #[cfg(test)]
-                eprintln!(
-                    "workspace-delete transactionfailed statement_index={statement_index} error={error}"
+                // Local operator diagnostic only; the API response stays the constant denial.
+                tracing::warn!(
+                    target: "handshake_core",
+                    statement_index,
+                    %error,
+                    "workspace delete transaction failed"
                 );
-                #[cfg(not(test))]
-                let _ = statement_index;
                 return Err(error.into());
             }
             Ok(())
