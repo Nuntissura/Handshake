@@ -201,7 +201,23 @@ fn drive_until(
         if board.lock().map(|b| condition(&b)).unwrap_or(false) {
             return;
         }
-        assert!(Instant::now() < deadline, "timed out waiting for '{proof}'");
+        if Instant::now() >= deadline {
+            // Surface the mounted board's own failure state; a mutation error is otherwise only in
+            // `board.error` and would be lost behind a bare timeout.
+            let state = board
+                .lock()
+                .map(|b| {
+                    format!(
+                        "loading={} error={:?} placements={} visual_edges={}",
+                        b.loading,
+                        b.error,
+                        b.placements.len(),
+                        b.visual_edges.len()
+                    )
+                })
+                .unwrap_or_else(|_| "board lock poisoned".to_owned());
+            panic!("timed out waiting for '{proof}'; board: {state}");
+        }
         std::thread::sleep(Duration::from_millis(25));
     }
 }
