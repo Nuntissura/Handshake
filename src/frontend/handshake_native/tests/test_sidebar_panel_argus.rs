@@ -67,6 +67,8 @@ use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 
+// Only the feature-gated canonical Argus proof uses this; keep the default build lint-clean.
+#[allow(dead_code)]
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
 }

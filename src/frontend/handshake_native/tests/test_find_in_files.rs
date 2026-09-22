@@ -29,6 +29,8 @@
 //! EVERY PNG is written ONLY to the EXTERNAL `Handshake_Artifacts/handshake-test/wp-kernel-012-mt-029/`
 //! root via [`external_artifact_dir`]; [`assert_no_local_artifact_dir`] fails the run if a repo-local
 //! `tests/screenshots/` or `test_output/` directory exists.
+// Live-backend proofs are gated on `integration`; their helpers are unused in the default build.
+#![cfg_attr(not(feature = "integration"), allow(dead_code, unused_imports))]
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

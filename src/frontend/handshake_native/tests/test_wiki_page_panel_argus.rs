@@ -5,6 +5,8 @@
 //! `WikiPagePaneMount` load that projection through `LoomWikiClient`, and drives Edit, SetValue, Cancel,
 //! Edit, SetValue, and Save through the localhost canonical Argus transport. Save is accepted only after
 //! the POST overlay receipt is confirmed by the follow-up GET and the unchanged source projection.
+// Live-backend proofs are gated on `integration`; their helpers are unused in the default build.
+#![cfg_attr(not(feature = "integration"), allow(dead_code, unused_imports))]
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};

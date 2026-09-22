@@ -24,6 +24,8 @@
 //!
 //! Artifact hygiene (CX-212E): every artifact is written ONLY under the EXTERNAL
 //! `Handshake_Artifacts/handshake-test/wp-kernel-012-mt-023/` root.
+// Live-backend proofs are gated on `integration`; their helpers are unused in the default build.
+#![cfg_attr(not(feature = "integration"), allow(dead_code, unused_imports))]
 
 use std::path::{Path, PathBuf};
 
