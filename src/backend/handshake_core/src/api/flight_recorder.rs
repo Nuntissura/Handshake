@@ -5,9 +5,11 @@
 //! Every route in this group is behind [`authorize_flight_recorder_request`], a fail-closed
 //! `axum` middleware that mirrors the boundary already proven in [`crate::api::memory`]:
 //!
-//! * The caller is authenticated with [`crate::api::stage::capture_context`] (live native-MCP
-//!   binding token + process-birth identity). No binding, a forged token, or a stale binding is
-//!   `401 HSK-401-FR-SESSION` and performs no recorder or EventLedger mutation.
+//! * The caller is authenticated as a persisted account session (`x-hsk-session-token`) bound to
+//!   the live native-MCP channel. No session, a forged, revoked, expired, or disabled session, or a
+//!   missing channel binding is `401 HSK-401-FR-SESSION` (audited deny) and performs no recorder or
+//!   EventLedger mutation. An authenticated caller the ResourceBroker denies is
+//!   `403 HSK-403-PROTECTED-RESOURCE`.
 //! * The route class maps to exactly one capability, resolved through
 //!   `capability_registry.profile_can("Operator", ..)`. A denied capability is
 //!   `403 HSK-403-FR-CAPABILITY` with no mutation.
@@ -396,6 +398,29 @@ async fn authorize_flight_recorder_request(
     } else {
         crate::storage::surreal::resource_authority::ResourceAction::Create
     };
+    // MT-111 AC-111-2 (Operator ruling 2026-09-22): 401 = no valid authentication, 403 =
+    // authenticated but not permitted. Authenticate the session before any resource resolution, so
+    // a missing, malformed, forged, revoked, expired, or disabled session is one uniform 401 that
+    // cannot disclose whether the selected recorder resource exists (Master Spec §2.3.13.12.3(7)).
+    // The gate is unchanged: an authenticated caller still passes the full ResourceBroker check.
+    if crate::api::authority::authenticated_session_credentials(&state, request.headers())
+        .await
+        .is_err()
+    {
+        if record_flight_recorder_capability_decision(
+            &state,
+            None,
+            capability_id,
+            "deny",
+            Some(workspace_id.clone()),
+        )
+        .await
+        .is_err()
+        {
+            return audit_failed_closed().into_response();
+        }
+        return unauthenticated_recorder().into_response();
+    }
     let authority = match crate::api::authority::authorize_request(
         &state,
         request.headers(),
@@ -4276,14 +4301,11 @@ mod tests {
             ] {
                 assert_eq!(
                     response.status(),
-                    StatusCode::FORBIDDEN,
-                    "{label} must use the constant protected-resource denial"
+                    StatusCode::UNAUTHORIZED,
+                    "{label} has no valid authentication and must use the uniform 401 denial"
                 );
                 let body: Value = response.json().await?;
-                assert_eq!(
-                    body["error"], "HSK-403-PROTECTED-RESOURCE",
-                    "{label} error code"
-                );
+                assert_eq!(body["error"], "HSK-401-FR-SESSION", "{label} error code");
             }
 
             assert_eq!(
@@ -4512,14 +4534,15 @@ mod tests {
                     .map_err(|error| {
                         format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
                     })?;
-                assert_eq!(response.status(), StatusCode::FORBIDDEN);
+                // A revoked session is no longer valid authentication: uniform 401 (MT-111 AC-111-2).
+                assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
                 assert_eq!(
                     response.json::<Value>().await.map_err(|error| format!(
                         "MT109 mounted FR {}:{}: {error}",
                         file!(),
                         line!()
                     ))?,
-                    json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+                    json!({"error": "HSK-401-FR-SESSION"})
                 );
             }
 
@@ -4869,15 +4892,31 @@ mod tests {
                         .map_err(|error| {
                             format!("MT109 mounted FR {}:{}: {error}", file!(), line!())
                         })?;
-                    assert_eq!(response.status(), StatusCode::FORBIDDEN, "{label}");
+                    // MT-111 AC-111-2: sessions that fail authentication (disabled account, expired,
+                    // forged) are a uniform 401; authenticated-but-denied sessions stay the constant 403.
+                    let (expected_status, expected_body) = if matches!(
+                        label,
+                        "disabled-account" | "expired-session" | "forged-session"
+                    ) {
+                        (
+                            StatusCode::UNAUTHORIZED,
+                            json!({"error": "HSK-401-FR-SESSION"}),
+                        )
+                    } else {
+                        (
+                            StatusCode::FORBIDDEN,
+                            json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
+                        )
+                    };
+                    assert_eq!(response.status(), expected_status, "{label}");
                     assert_eq!(
                         response.json::<Value>().await.map_err(|error| format!(
                             "MT109 mounted FR {}:{}: {error}",
                             file!(),
                             line!()
                         ))?,
-                        json!({"error": "HSK-403-PROTECTED-RESOURCE"}),
-                        "{label} constant denial"
+                        expected_body,
+                        "{label} denial shape"
                     );
                 }
             }
