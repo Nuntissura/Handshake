@@ -168,6 +168,9 @@ fn bind_screenshot_to_matrix_receipt(receipt_id: u64) {
 /// mounted `HandshakeApp`.
 pub struct CanonicalArgusDriver {
     runtime: tokio::runtime::Runtime,
+    // Declared before `server`: fields drop in order, so the displaced binding is restored before
+    // the server's ownership-checked shutdown could remove the shared record.
+    binding_restore: DisplacedBindingRestore,
     server: SwarmMcpServer,
     _app_data: Option<ScopedArgusAppData>,
     token: String,
@@ -176,6 +179,35 @@ pub struct CanonicalArgusDriver {
     next_id: u64,
     action_targets: Vec<(String, String, Option<String>)>,
     observations: Vec<ArgusObservation>,
+}
+
+/// Hands the shared app-data root back to the binding a driver displaced (for example the fixture
+/// channel an account session is bound to) before the driver's server shuts down, so later
+/// authenticated fixture cleanup still presents a live channel. A newer publication is never
+/// overwritten (`restore_binding_if_current`). Idempotent.
+#[derive(Default)]
+struct DisplacedBindingRestore {
+    previous: Option<handshake_native::mcp::McpBinding>,
+    installed: Option<handshake_native::mcp::McpBinding>,
+}
+
+impl DisplacedBindingRestore {
+    fn restore(&mut self) {
+        let (Some(previous), Some(installed)) = (self.previous.take(), self.installed.take()) else {
+            return;
+        };
+        if let Err(error) =
+            handshake_native::mcp::restore_binding_if_current(&installed, Some(&previous))
+        {
+            eprintln!("WARN: canonical Argus could not restore the displaced binding: {error}");
+        }
+    }
+}
+
+impl Drop for DisplacedBindingRestore {
+    fn drop(&mut self) {
+        self.restore();
+    }
 }
 
 fn bounded_client_session_id(proof_id: &str) -> String {
@@ -213,7 +245,29 @@ impl CanonicalArgusDriver {
         proof_id: &str,
         session_token: SessionToken,
     ) -> Self {
-        Self::bind_inner(app, proof_id, session_token, None)
+        // A persisted account session is bound to the channel hash of the binding that was live when
+        // it logged in. Republishing this shared root with a different token would (correctly)
+        // invalidate that session, so every later authenticated backend request would fail closed.
+        // When a live binding already exists here, republish that exact channel credential; only a
+        // root without one uses the caller's token.
+        let displaced_binding = std::fs::read_to_string(handshake_native::mcp::binding_path())
+            .ok()
+            .and_then(|json| serde_json::from_str::<handshake_native::mcp::McpBinding>(&json).ok());
+        let session_token = handshake_native::event_emitter::flight_recorder_session_token()
+            .map(SessionToken::from_hex)
+            .unwrap_or(session_token);
+        let mut driver = Self::bind_inner(app, proof_id, session_token, None);
+        if displaced_binding.is_some() {
+            driver.binding_restore = DisplacedBindingRestore {
+                previous: displaced_binding,
+                installed: std::fs::read_to_string(handshake_native::mcp::binding_path())
+                    .ok()
+                    .and_then(|json| {
+                        serde_json::from_str::<handshake_native::mcp::McpBinding>(&json).ok()
+                    }),
+            };
+        }
+        driver
     }
 
     fn bind_inner(
@@ -249,6 +303,7 @@ impl CanonicalArgusDriver {
             runtime,
             server,
             _app_data: app_data,
+            binding_restore: DisplacedBindingRestore::default(),
             token,
             client_session_id,
             correlation_scope: uuid::Uuid::new_v4().simple().to_string(),
@@ -1124,6 +1179,7 @@ impl CanonicalArgusDriver {
             &self.observations,
         );
         assert_eq!(self.server.leases().active_resource_count(), 0);
+        self.binding_restore.restore();
         self.server.shutdown();
         drop(self.runtime);
     }

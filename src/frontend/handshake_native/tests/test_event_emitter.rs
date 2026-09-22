@@ -1932,7 +1932,7 @@ fn event_emitter_native_editor_round_trip() {
     // recorder, so it must present a persisted account session plus a REAL native-MCP channel binding. Published
     // BEFORE the backend is selected so an owned child inherits the same app-data root and both
     // processes resolve the same `swarm_mcp_binding.json`. Nothing about the authorization is
-    // weakened: a missing, forged, or stale account/channel pair fails closed with HSK-403-PROTECTED-RESOURCE.
+    // weakened: a missing, forged, or stale account/channel pair fails closed with HSK-401-FR-SESSION.
     let _native_binding = backend_proof_support::RealNativeMcpBinding::publish();
     let mut managed_backend = backend_proof_support::require_reachable_backend();
     let _backend_binding = managed_backend.owned_backend_binding_receipt();
@@ -2580,13 +2580,19 @@ fn event_emitter_native_editor_round_trip() {
         "closed-loopback failure address must refuse connections"
     );
     let closed_base = format!("http://{closed_addr}");
+    // The mounted recorder read is account-authenticated; the account context refuses to attach its
+    // session and channel credentials to any origin other than the one it logged in against. Pointing
+    // the shell at a different (closed) origin therefore fails closed LOCALLY with the typed origin
+    // guard before any socket is opened - never by leaking credentials to that origin. The bounded
+    // failure -> failed Retry -> recovery matrix below is otherwise unchanged.
+    const MT036_BOUNDED_FAILURE: &str = "Authenticated backend origin mismatch";
     app_harness
         .state_mut()
         .set_backend_base_url_for_test(&closed_base, runtime.handle().clone());
     let failed_refresh_provisional = argus.click_expect_typed_rejected_and_reinspect(
         &mut app_harness,
         FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
-        "error sending request",
+        MT036_BOUNDED_FAILURE,
     );
     let failed_refresh_generation = product_terminal_detail(&failed_refresh_provisional)
         ["request_generation"]
@@ -2624,7 +2630,7 @@ fn event_emitter_native_editor_round_trip() {
     let failed_retry_provisional = argus.click_expect_typed_rejected_and_reinspect(
         &mut app_harness,
         FLIGHT_RECORDER_RETRY_AUTHOR_ID,
-        "error sending request",
+        MT036_BOUNDED_FAILURE,
     );
     let failed_retry_generation = product_terminal_detail(&failed_retry_provisional)
         ["request_generation"]
@@ -2748,7 +2754,9 @@ fn event_emitter_native_editor_round_trip() {
             .send()
             .await
             .expect("cleanup isolated workspace");
-        assert!(cleanup.status().is_success(), "isolated workspace cleanup");
+        let status = cleanup.status();
+        let body = cleanup.text().await.unwrap_or_default();
+        assert!(status.is_success(), "isolated workspace cleanup -> {status}: {body}");
     });
     managed_backend.assert_cleanup();
     let candidate_identity_after = mt036_candidate_identity();
