@@ -2068,8 +2068,11 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // lost its cascading REFERENCE (previous value
 // 05b36f65e0f2328d389c7ca460f2b9846b13d3be527d16dadb244be6f8e3bcfd, the MT-141 R9 pin; the
 // R9 hop was never a released lineage, so the MT-150 pin remains the allowlisted predecessor).
+// MT-109 C1-FDELETE re-pin (Operator decision 2026-09-22): loom_canvas_boards gained an owner
+// delete permission so an authorized workspace delete can remove its Canvas boards (previous value
+// 2c2af7bda13f220bcb00841ffdd439f3d0e1fc4f07df0a9ff8b64d68e73a891f; rev 160 unreleased, re-pinned in place).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "2c2af7bda13f220bcb00841ffdd439f3d0e1fc4f07df0a9ff8b64d68e73a891f";
+    "7544939ae1b81363773e6eb050797c81ce9aa3926ba7ba32109c940e0dd06b36";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2122,8 +2125,11 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // observed by `mt139_current_schema_info_pin_matches_fresh_mem_catalog` (kb-v2 run 41,
 // MT139_CURRENT_SCHEMA_INFO_SHA256).
 // Revision 158 measured by the independent MT-109/wpv-v20 embedded-engine probes.
+// MT-109 C1-FDELETE re-pin: loom_canvas_boards owner delete permission applied (previous value
+// c12100ea03d08fe923149b1a128d7ebf1d30ac17d4ef7eb1d77e28d52f0191df); observed by
+// `mt139_current_schema_info_pin_matches_fresh_mem_catalog` (kb-c1 run 42).
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "c12100ea03d08fe923149b1a128d7ebf1d30ac17d4ef7eb1d77e28d52f0191df";
+    "8955551a907913596f6751ac4a96ad4686b9c98889c293310900874cc06a1ca8";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -2981,7 +2987,7 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
     // observed).
     const EXPECTED_CATALOG_SHA256: &str =
-        "183a578b45778667a66170da2fe3543cf77f2949709908d9f66b223ef89a59fa";
+        "ece107ef99f56231ed9bed66f1d3a3f9f0ffa577166729db9331464bdfe96239";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -7409,7 +7415,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "183a578b45778667a66170da2fe3543cf77f2949709908d9f66b223ef89a59fa"
+            "ece107ef99f56231ed9bed66f1d3a3f9f0ffa577166729db9331464bdfe96239"
         );
     }
 

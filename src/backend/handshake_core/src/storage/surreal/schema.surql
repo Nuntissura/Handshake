@@ -4884,7 +4884,7 @@ DEFINE TABLE OVERWRITE loom_canvas_boards SCHEMAFULL
     PERMISSIONS FOR select WHERE fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'read', 'fs.read')
                 FOR create WHERE block_id.workspace_id = workspace_id AND block_id.content_type = 'canvas' AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write')
                 FOR update NONE
-                FOR delete NONE;
+                FOR delete WHERE block_id.workspace_id = workspace_id AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'delete', 'fs.write');
 DEFINE FIELD OVERWRITE block_id ON TABLE loom_canvas_boards TYPE record<loom_blocks> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) AND ($value.workspace_id = $this.workspace_id) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_canvas_boards TYPE record<workspaces> ASSERT record::exists($value) AND ($value = $this.block_id.workspace_id) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE board_state ON TABLE loom_canvas_boards TYPE object FLEXIBLE ASSERT $value.schema_id = 'hsk.loom_canvas_board@1';

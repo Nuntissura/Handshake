@@ -735,6 +735,9 @@ async fn list_workspaces(
     ))
 }
 
+/// `policy_decision_id` prefix of the one Flight Recorder audit event a workspace delete emits.
+pub(crate) const WORKSPACE_DELETE_AUDIT_PREFIX: &str = "workspace-delete:";
+
 async fn delete_workspace(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
@@ -765,6 +768,29 @@ async fn delete_workspace(
         // The durable delete is already committed. Keep DELETE idempotent/successful and leave an
         // attributable recovery log instead of returning a false 500 after the workspace is gone.
         tracing::error!(target: "handshake_core", %workspace_id, %error, "workspace deleted but Flight Recorder workspace purge failed");
+    }
+
+    // Operator decision 2026-09-22 (MT-109 C1-FDELETE): an owner-authorized workspace delete
+    // cascades to its rich documents, their version history and its Canvas boards, and is recorded
+    // as one auditable capability decision. Written AFTER the workspace purge so it survives it.
+    let audit = FlightRecorderEvent::new(
+        FlightRecorderEventType::CapabilityAction,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "capability_id": "fs.write",
+            "actor_id": authority.actor_id,
+            "job_id": null,
+            "decision_outcome": "allow",
+        }),
+    )
+    .with_actor_id(authority.actor_id.clone())
+    .with_capability_id("fs.write")
+    .with_policy_decision_id(format!("{WORKSPACE_DELETE_AUDIT_PREFIX}{workspace_id}"))
+    .with_wsids(vec![workspace_id.clone()]);
+    if let Err(error) = state.flight_recorder.record_event(audit).await {
+        // The durable delete is committed; keep DELETE idempotent and log the audit gap loudly.
+        tracing::error!(target: "handshake_core", %workspace_id, %error, "workspace deleted but delete audit event failed");
     }
 
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id", status = "deleted", workspace_id = %workspace_id, "workspace deleted");
@@ -2695,6 +2721,255 @@ mod tests {
             StatusCode::FORBIDDEN
         );
         assert!(state.storage.get_workspace(&workspace.id).await?.is_some());
+        Ok(())
+    }
+
+    async fn owned_route_json(
+        router: axum::Router,
+        method: &str,
+        uri: &str,
+        headers: &HeaderMap,
+        body: Option<Value>,
+    ) -> Result<(StatusCode, Value), Box<dyn std::error::Error>> {
+        let mut request = axum::http::Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("content-type", "application/json")
+            .header("x-hsk-actor-kind", "operator")
+            .header("x-hsk-actor-id", "workspace-cascade-proof")
+            .header("x-hsk-kernel-task-run-id", "workspace-cascade-proof")
+            .header("x-hsk-session-run-id", "workspace-cascade-proof");
+        for (name, value) in headers {
+            request = request.header(name, value);
+        }
+        let payload = match body {
+            Some(body) => serde_json::to_vec(&body)?,
+            None => Vec::new(),
+        };
+        let response = router
+            .oneshot(request.body(axum::body::Body::from(payload))?)
+            .await?;
+        let status = response.status();
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024).await?;
+        let value = if bytes.is_empty() {
+            Value::Null
+        } else {
+            serde_json::from_slice(&bytes).unwrap_or(Value::Null)
+        };
+        Ok((status, value))
+    }
+
+    async fn workspace_cascade_rows(
+        state: &AppState,
+        workspace_id: &str,
+        document_id: &str,
+    ) -> Result<Value, Box<dyn std::error::Error>> {
+        let mut result = state
+            .surreal
+            .test_admin_query_bound(
+                "LET $ws = type::record('workspaces', $workspace_id); \
+                 RETURN { \
+                   workspace: array::len(SELECT VALUE id FROM $ws), \
+                   documents: array::len(SELECT VALUE id FROM knowledge_rich_documents WHERE workspace_id = $ws), \
+                   versions: array::len(SELECT VALUE id FROM knowledge_rich_document_versions WHERE rich_document_id = type::record('knowledge_rich_documents', $document_id)), \
+                   boards: array::len(SELECT VALUE id FROM loom_canvas_boards WHERE workspace_id = $ws), \
+                   placements: array::len(SELECT VALUE id FROM loom_canvas_placements WHERE workspace_id = $ws), \
+                   visual_edges: array::len(SELECT VALUE id FROM loom_canvas_visual_edges WHERE workspace_id = $ws), \
+                   loom_blocks: array::len(SELECT VALUE id FROM loom_blocks WHERE workspace_id = $ws) \
+                 };"
+                .to_owned(),
+                json!({"workspace_id": workspace_id, "document_id": document_id}),
+            )
+            .await?
+            .check()?;
+        Ok(result
+            .take::<Option<Value>>(1)?
+            .ok_or("workspace cascade row snapshot missing")?)
+    }
+
+    /// MT-109 C1-FDELETE (Operator decision 2026-09-22): an owner-authorized workspace delete cascades
+    /// to its rich documents, their immutable version history and its Canvas boards with zero residue
+    /// and one audit event; a non-owner delete is 403 and leaves every row intact. Canvas visual-edge
+    /// routes are 401 without a session and 403 for an authenticated non-owner (MT-111 split).
+    #[tokio::test]
+    async fn owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let binding = WorkspaceBindingFixture::new()?;
+        let (state, _store) = setup_state().await?;
+        let (_owner, headers) =
+            workspace_test_principal(&state, &binding, "workspace-cascade-owner").await?;
+        let (_other, other_headers) =
+            workspace_test_principal(&state, &binding, "workspace-cascade-other").await?;
+        let workspace = create_owned_test_workspace(&state, &headers).await?;
+        let ws = workspace.id.clone();
+
+        // Created with content, as the native editor does (see MT-109 finding C1-EMPTY-SAVE).
+        let (status, created) = owned_route_json(
+            crate::api::knowledge_documents::routes(state.clone()),
+            "POST",
+            "/knowledge/documents",
+            &headers,
+            Some(json!({
+                "workspace_id": ws,
+                "title": "Cascade source document",
+                "content_json": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "first version"}]}]}
+            })),
+        )
+        .await?;
+        assert!(
+            status.is_success(),
+            "create rich document -> {status}: {created}"
+        );
+        let document_id = created["document"]["rich_document_id"]
+            .as_str()
+            .ok_or("created rich_document_id")?
+            .to_owned();
+        // Version history is proven by the create-time version row. A route-level save in this
+        // embedded harness returns 500 (MT-109 finding C1-SAVE-500); not needed for the cascade proof.
+
+        let loom = || crate::api::loom::routes(state.clone());
+        let mut note_ids = Vec::new();
+        for title in ["Cascade note A", "Cascade note B"] {
+            let (status, note) = owned_route_json(
+                loom(),
+                "POST",
+                &format!("/workspaces/{ws}/loom/blocks"),
+                &headers,
+                Some(json!({"content_type": "note", "title": title})),
+            )
+            .await?;
+            assert!(status.is_success(), "create note block -> {status}: {note}");
+            note_ids.push(note["block_id"].as_str().ok_or("note block_id")?.to_owned());
+        }
+        let (status, canvas) = owned_route_json(
+            loom(),
+            "POST",
+            &format!("/workspaces/{ws}/loom/canvas-boards"),
+            &headers,
+            Some(json!({"title": "Cascade canvas"})),
+        )
+        .await?;
+        assert!(status.is_success(), "create canvas -> {status}: {canvas}");
+        let canvas_id = canvas["block_id"]
+            .as_str()
+            .ok_or("canvas block_id")?
+            .to_owned();
+        let mut placements = Vec::new();
+        for (note_id, x) in note_ids.iter().zip([0.0, 300.0]) {
+            let (status, placed) = owned_route_json(
+                loom(),
+                "POST",
+                &format!("/workspaces/{ws}/loom/canvas-boards/{canvas_id}/placements"),
+                &headers,
+                Some(json!({"placed_block_id": note_id, "x": x, "y": 0.0, "w": 200.0, "h": 120.0})),
+            )
+            .await?;
+            assert!(status.is_success(), "place block -> {status}: {placed}");
+            placements.push(
+                placed["placement"]["placement_id"]
+                    .as_str()
+                    .or_else(|| placed["placement_id"].as_str())
+                    .ok_or_else(|| format!("placement id in {placed}"))?
+                    .to_owned(),
+            );
+        }
+        let edge_uri = format!("/workspaces/{ws}/loom/canvas-boards/{canvas_id}/visual-edges");
+        let edge_body =
+            json!({"from_placement_id": placements[0], "to_placement_id": placements[1]});
+
+        // Visual edges: no session -> 401, authenticated non-owner -> 403, owner -> created.
+        let (status, body) = owned_route_json(
+            loom(),
+            "POST",
+            &edge_uri,
+            &HeaderMap::new(),
+            Some(edge_body.clone()),
+        )
+        .await?;
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
+        assert_eq!(body["error"], "HSK-401-LOOM-SESSION");
+        let (status, body) = owned_route_json(
+            loom(),
+            "POST",
+            &edge_uri,
+            &other_headers,
+            Some(edge_body.clone()),
+        )
+        .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+        assert_eq!(body["error"], "HSK-403-PROTECTED-RESOURCE");
+        let (status, edge) =
+            owned_route_json(loom(), "POST", &edge_uri, &headers, Some(edge_body)).await?;
+        assert!(status.is_success(), "owner visual edge -> {status}: {edge}");
+        let edge_id = edge["visual_edge_id"]
+            .as_str()
+            .ok_or("visual_edge_id")?
+            .to_owned();
+        let edge_delete_uri = format!("/workspaces/{ws}/loom/canvas-visual-edges/{edge_id}");
+        let (status, _) =
+            owned_route_json(loom(), "DELETE", &edge_delete_uri, &HeaderMap::new(), None).await?;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        let (status, body) =
+            owned_route_json(loom(), "DELETE", &edge_delete_uri, &other_headers, None).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+        let unknown_uri = format!(
+            "/workspaces/{ws}/loom/canvas-visual-edges/LCV-00000000000000000000000000000000"
+        );
+        let (status, _) = owned_route_json(loom(), "DELETE", &unknown_uri, &headers, None).await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "unknown edge uses the constant denial"
+        );
+
+        let before = workspace_cascade_rows(&state, &ws, &document_id).await?;
+        assert_eq!(before["workspace"], json!(1), "{before}");
+        assert_eq!(before["documents"], json!(1), "{before}");
+        assert!(
+            before["versions"].as_i64().unwrap_or(0) >= 1,
+            "document keeps its version history: {before}"
+        );
+        assert_eq!(before["boards"], json!(1), "{before}");
+        assert_eq!(before["placements"], json!(2), "{before}");
+        assert_eq!(before["visual_edges"], json!(1), "{before}");
+
+        // A non-owner delete is denied and leaves every row intact.
+        let denied = delete_workspace(State(state.clone()), Path(ws.clone()), other_headers)
+            .await
+            .expect_err("non-owner cannot delete");
+        assert_eq!(denied.0, StatusCode::FORBIDDEN);
+        assert_eq!(
+            workspace_cascade_rows(&state, &ws, &document_id).await?,
+            before
+        );
+
+        // The owner delete cascades with zero residue.
+        let status = delete_workspace(State(state.clone()), Path(ws.clone()), headers.clone())
+            .await
+            .map_err(|(status, Json(body))| format!("owner delete: {status} {}", body.error))?;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        let after = workspace_cascade_rows(&state, &ws, &document_id).await?;
+        assert_eq!(
+            after,
+            json!({"workspace": 0, "documents": 0, "versions": 0, "boards": 0, "placements": 0, "visual_edges": 0, "loom_blocks": 0}),
+            "workspace delete must leave zero residue"
+        );
+        let audit_id = format!("{WORKSPACE_DELETE_AUDIT_PREFIX}{ws}");
+        let audits = state
+            .flight_recorder
+            .list_events(crate::flight_recorder::EventFilter {
+                wsid: Some(ws.clone()),
+                ..Default::default()
+            })
+            .await?;
+        assert_eq!(
+            audits
+                .iter()
+                .filter(|event| event.policy_decision_id.as_deref() == Some(audit_id.as_str()))
+                .count(),
+            1,
+            "exactly one workspace-delete audit event survives the purge"
+        );
         Ok(())
     }
 

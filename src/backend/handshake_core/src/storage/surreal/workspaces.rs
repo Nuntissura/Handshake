@@ -14,6 +14,7 @@ DELETE type::record('fems_workspace_write_anchors', $anchor.key) RETURN NONE;
 DELETE atelier_intake_item_loom_projection WHERE workspace_id = $workspace;
 DELETE loom_canvas_visual_edges WHERE workspace_id = $workspace;
 DELETE loom_canvas_placements WHERE workspace_id = $workspace;
+DELETE loom_canvas_boards WHERE workspace_id = $workspace;
 DELETE loom_edges WHERE workspace_id = $workspace;
 DELETE loom_block_search_index WHERE workspace_id = $workspace;
 DELETE loom_block_view_fr_outbox WHERE workspace_id = $workspace;
