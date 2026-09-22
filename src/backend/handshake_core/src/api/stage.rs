@@ -525,6 +525,39 @@ fn capture_context_for_token(presented: &str) -> Result<CaptureContext, CaptureC
     })
 }
 
+/// Resolve the caller's capture context for a Stage/Atelier request.
+///
+/// A request presenting the account-session channel header (`x-hsk-channel-binding-token`) is the
+/// MT-109/MT-111 authority model: `x-hsk-session-token` is a persisted account session and the channel
+/// header is the live native-MCP binding. Both must authenticate (`authenticated_session_credentials`:
+/// valid, unrevoked, unexpired session of an enabled account/principal/space, bound to the live
+/// channel); there is no fallback to the binding-only form once the channel header is present. A
+/// request without that header keeps the pre-existing binding-token-only authentication unchanged.
+pub(crate) async fn capture_request_context(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<CaptureContext, CaptureContextFailure> {
+    let Some(channel_token) = header_str(headers, HSK_HEADER_CHANNEL_BINDING_TOKEN) else {
+        return capture_context(headers);
+    };
+    let channel_token = channel_token.to_owned();
+    let session = crate::api::authority::authenticated_session_credentials(state, headers)
+        .await
+        .map_err(|_| CaptureContextFailure::InvalidSession)?;
+    let context = session.context;
+    Ok(CaptureContext {
+        actor_kind: "operator".to_owned(),
+        actor: KernelActor::Operator(context.actor_id.clone()),
+        kernel_task_run_id: format!("account-session-task:{}", context.session_id),
+        actor_id: context.actor_id,
+        limiter_principal: context.identity.principal_id,
+        session_run_id: context.session_id,
+        // Validated against the live binding by `authenticated_session_credentials`; it keys the
+        // per-caller Stage approval HMAC exactly as the binding-only form does.
+        binding_token: channel_token,
+    })
+}
+
 pub fn authenticate_native_session_token(
     presented: Option<&str>,
 ) -> Result<AuthenticatedNativeSession, &'static str> {
@@ -1071,7 +1104,7 @@ async fn create_stage_artifact(
     headers: HeaderMap,
     raw: Bytes,
 ) -> ApiResult<(StatusCode, Json<StageArtifactRefWire>)> {
-    let ctx = match capture_context(&headers) {
+    let ctx = match capture_request_context(&state, &headers).await {
         Ok(ctx) => ctx,
         Err(failure) => {
             record_pre_workspace_denial(
@@ -1275,7 +1308,7 @@ async fn get_stage_artifact(
     Path((workspace_id, artifact_id)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> ApiResult<Json<StageArtifactRefWire>> {
-    let ctx = match capture_context(&headers) {
+    let ctx = match capture_request_context(&state, &headers).await {
         Ok(ctx) => ctx,
         Err(failure) => {
             if failure.records_denial() {
@@ -1327,7 +1360,7 @@ async fn get_stage_artifact_content(
     Path((workspace_id, artifact_id)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> ApiResult<Response> {
-    let ctx = match capture_context(&headers) {
+    let ctx = match capture_request_context(&state, &headers).await {
         Ok(ctx) => ctx,
         Err(failure) => {
             if failure.records_denial() {

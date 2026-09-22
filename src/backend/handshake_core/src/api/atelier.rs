@@ -200,6 +200,26 @@ fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
         .filter(|value| !value.is_empty())
 }
 
+/// Authenticated calling actor for an Atelier request (account session + live channel binding when
+/// the channel header is present; see [`super::stage::capture_request_context`]).
+async fn request_actor(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
+    super::stage::capture_request_context(state, headers)
+        .await
+        .map(|context| context.actor_id)
+        .map_err(|_| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    error: "invalid_session",
+                }),
+            )
+        })
+}
+
+#[cfg(test)]
 fn calling_actor(headers: &HeaderMap) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
     super::stage::capture_context(headers)
         .map(|context| context.actor_id)
@@ -455,7 +475,7 @@ async fn run_filesystem_health_check(
     (StatusCode, Json<crate::atelier::FilesystemHealthReport>),
     (StatusCode, Json<ErrorResponse>),
 > {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let report = store
         .run_filesystem_health_check(&crate::atelier::FilesystemHealthCheckRequest {
@@ -509,7 +529,7 @@ async fn preview_deletion_impact(
     headers: HeaderMap,
     Json(payload): Json<DeletionControlsRequest>,
 ) -> Result<Json<DeletionImpactPreview>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let preview = store
         .preview_deletion_impact(&DeletionImpactPreviewRequest {
@@ -537,7 +557,7 @@ async fn archive_deletion_targets(
     headers: HeaderMap,
     Json(payload): Json<DeletionControlsRequest>,
 ) -> Result<(StatusCode, Json<BulkOperationReceipt>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let receipt = store
         .archive_deletion_targets(&DeletionArchiveRequest {
@@ -565,7 +585,7 @@ async fn restore_deletion_targets(
     headers: HeaderMap,
     Json(payload): Json<DeletionControlsRequest>,
 ) -> Result<(StatusCode, Json<BulkOperationReceipt>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let receipt = store
         .restore_deletion_targets(&DeletionRestoreRequest {
@@ -614,7 +634,7 @@ async fn import_clipboard_image(
     headers: HeaderMap,
     Json(payload): Json<ClipboardImageImportApiRequest>,
 ) -> Result<(StatusCode, Json<ImageImportRecord>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let record = store
         .import_clipboard_image(&ClipboardImageImportRequest {
@@ -646,7 +666,7 @@ async fn record_url_image_import(
     headers: HeaderMap,
     Json(payload): Json<UrlImageImportApiRequest>,
 ) -> Result<(StatusCode, Json<ImageImportRecord>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let record = store
         .record_url_image_import(&UrlImageImportRequest {
@@ -729,7 +749,7 @@ async fn create_intake_item(
     headers: HeaderMap,
     Json(payload): Json<CreateIntakeItemRequest>,
 ) -> Result<(StatusCode, Json<IntakeItemResponse>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let item = atelier_store(&state)
         .add_intake_item(
             batch_id,
@@ -852,7 +872,7 @@ async fn link_intake_item_loom_projection(
     headers: HeaderMap,
     Json(payload): Json<LinkIntakeItemLoomProjectionRequest>,
 ) -> Result<Json<IntakeItemLoomProjection>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let projection = atelier_store(&state)
         .link_intake_item_loom_projection(item_id, &payload.loom_block_id, &actor)
         .await
@@ -1029,7 +1049,7 @@ async fn accept_ai_tag_suggestion(
     Path(suggestion_id): Path<Uuid>,
     Json(payload): Json<AiTagSuggestionDecisionRequest>,
 ) -> Result<Json<AiTagSuggestionResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let suggestion = store
         .accept_ai_tag_suggestion(&AiTagSuggestionDecision {
@@ -1058,7 +1078,7 @@ async fn reject_ai_tag_suggestion(
     Path(suggestion_id): Path<Uuid>,
     Json(payload): Json<AiTagSuggestionDecisionRequest>,
 ) -> Result<Json<AiTagSuggestionResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let suggestion = store
         .reject_ai_tag_suggestion(&AiTagSuggestionDecision {
@@ -1086,7 +1106,7 @@ async fn apply_ai_tag_suggestion(
     headers: HeaderMap,
     Path(suggestion_id): Path<Uuid>,
 ) -> Result<Json<AiTagSuggestionResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let suggestion = store
         .apply_ai_tag_suggestion(suggestion_id, &actor)
@@ -1121,7 +1141,7 @@ async fn list_stealth_windows(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<StealthWindowResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let windows = store
         .list_stealth_windows(&actor, None, LIST_CAP)
@@ -1159,7 +1179,7 @@ async fn resolve_stealth_ref(
     Path((window_ref_id, ref_id)): Path<(Uuid, Uuid)>,
     headers: HeaderMap,
 ) -> Result<Json<ResolvedContentRef>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = calling_actor(&headers)?;
+    let actor = request_actor(&state, &headers).await?;
     let store = atelier_store(&state);
     let window = store
         .get_stealth_window(window_ref_id)
