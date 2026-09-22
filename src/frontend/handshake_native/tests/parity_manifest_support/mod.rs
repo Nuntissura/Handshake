@@ -7,9 +7,12 @@
 //!
 //! Each passing proof function calls [`mark_pass`] (frontend E1) or [`mark_requires_surrealdb`] (the gated
 //! E2/E3/E4 proofs, when run with a live SurrealDB) with its `feature_id`. The helper rewrites the
-//! `status` field of that entry in `tests/parity_manifest.json` to the given value, so after a full run
-//! a no-context model can read the manifest and know each feature's state. The manifest path is
-//! resolved from `CARGO_MANIFEST_DIR` so it is deterministic from any working directory (impl note).
+//! `status` field of that entry in the RUNTIME manifest copy to the given value, so after a full run a
+//! no-context model can read that copy and know each feature's state. The committed
+//! `tests/parity_manifest.json` is the read-only baseline input (CX-984-001: proof runs never write
+//! tracked repo files); the runtime copy is seeded from it on first write and lives under the external
+//! artifact root at [`manifest_path`] (`<root>/wp-kernel-012/mt-044/<run>/parity_manifest.json`, where
+//! `<run>` is `HSK_MT044_RUN_ID` when set, else `default`).
 //!
 //! Concurrency: `cargo test` runs test fns in parallel threads within ONE test binary, and the four
 //! parity suites are SEPARATE binaries that may run concurrently. A naive read-modify-write would race.
@@ -25,7 +28,7 @@
 
 #![allow(dead_code)] // each suite uses a subset of the helpers; the others are not dead in aggregate.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 /// Rewrite the manifest entry for `feature_id` to `status: "PASS"`. Called by each green E1 proof.
@@ -40,10 +43,44 @@ pub fn mark_requires_surrealdb(feature_id: &str) {
     set_status(feature_id, "REQUIRES_SURREALDB");
 }
 
-/// The deterministic manifest path under the crate root, independent of the test's working directory.
-pub fn manifest_path() -> PathBuf {
+/// The committed, read-only baseline manifest under the crate root. Proof runs never write it.
+pub fn baseline_manifest_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
+        .join("parity_manifest.json")
+}
+
+/// The mutable runtime manifest copy under the external artifact root (never a tracked repo path).
+/// Runs sharing `HSK_MT044_RUN_ID` (or leaving it unset) share one copy, so the four parity binaries
+/// accumulate their write-backs into the same file under the cross-process lock.
+pub fn manifest_path() -> PathBuf {
+    let root = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+                .map(PathBuf::from)
+                .map(|root| root.join("handshake-test"))
+        })
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .ancestors()
+                .nth(4)
+                .expect("native crate must live below a worktree root")
+                .join("Handshake_Artifacts")
+                .join("handshake-test")
+        });
+    let run = std::env::var("HSK_MT044_RUN_ID")
+        .ok()
+        .filter(|run| !run.trim().is_empty())
+        .unwrap_or_else(|| "default".to_owned());
+    assert!(
+        run.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'),
+        "HSK_MT044_RUN_ID must be a safe filename component"
+    );
+    root.join("wp-kernel-012")
+        .join("mt-044")
+        .join(run)
         .join("parity_manifest.json")
 }
 
@@ -52,6 +89,14 @@ pub fn manifest_path() -> PathBuf {
 /// gate).
 fn set_status(feature_id: &str, status: &str) {
     let path = manifest_path();
+    if let Some(parent) = path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!(
+                "WARN(parity-manifest): create {parent:?} failed: {e}; skipping {feature_id} write-back"
+            );
+            return;
+        }
+    }
     let lock_path = path.with_extension("json.lock");
 
     let _guard = match FileLock::acquire(&lock_path, Duration::from_secs(10)) {
@@ -65,17 +110,27 @@ fn set_status(feature_id: &str, status: &str) {
         }
     };
 
-    let src = match std::fs::read_to_string(&path) {
+    // Seed from the committed baseline until this run's external copy exists; the baseline is read only.
+    let source_path = if path.exists() {
+        path.clone()
+    } else {
+        baseline_manifest_path()
+    };
+    let src = match std::fs::read_to_string(&source_path) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("WARN(parity-manifest): read {path:?} failed: {e}; skipping {feature_id} write-back");
+            eprintln!(
+                "WARN(parity-manifest): read {source_path:?} failed: {e}; skipping {feature_id} write-back"
+            );
             return;
         }
     };
     let mut value: serde_json::Value = match serde_json::from_str(&src) {
         Ok(v) => v,
         Err(e) => {
-            eprintln!("WARN(parity-manifest): parse {path:?} failed: {e}; skipping {feature_id} write-back");
+            eprintln!(
+                "WARN(parity-manifest): parse {source_path:?} failed: {e}; skipping {feature_id} write-back"
+            );
             return;
         }
     };
