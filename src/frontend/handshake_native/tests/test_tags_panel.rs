@@ -952,7 +952,10 @@ fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
                 })
             })
             .unwrap_or(false);
-        if loaded {
+        // The shell draws panes before it drains the hub result, so the frame that delivers the
+        // members still renders the previous (empty) tree. Wait until the member is actually
+        // mounted in the AccessKit tree, not merely present in panel state.
+        if loaded && mounted_author_ids(&harness).contains(&hub_member_author_id(&first_note)) {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
@@ -963,7 +966,16 @@ fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
             &rust_hub
         ))
     );
-    assert!(hub_ids.contains(&hub_member_author_id(&first_note)));
+    let hub_state = harness
+        .state()
+        .mounted_tags_hub_for_test()
+        .lock()
+        .map(|hub| format!("{:?}", hub.as_ref().map(|hub| (hub.loading, hub.error.clone(), hub.members.len()))))
+        .unwrap_or_else(|_| "hub state lock poisoned".to_owned());
+    assert!(
+        hub_ids.contains(&hub_member_author_id(&first_note)),
+        "tag hub member not mounted; hub (loading, error, members) = {hub_state}"
+    );
 
     dispatch_mounted_action(
         &mut harness,
