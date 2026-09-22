@@ -22,7 +22,7 @@
   "title": "B3-MT-111-Frontend-FlightRecorder-Callers-To-Workspace-Scoped-Authorized-Routes",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T12:42:00.438Z",
-  "updated_at_utc": "2026-09-22T20:51:09.293Z",
+  "updated_at_utc": "2026-09-22T22:55:01.702Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -890,5 +890,37 @@
       "backend lib: api::flight_recorder::tests (see MT-109 C1-FRLIB-HANG)"
     ],
     "recorded_at_utc": "2026-09-22T20:51:09.293Z"
+  },
+  "remediation_v3": {
+    "session": "KERNEL_BUILDER-C1",
+    "round": 2,
+    "candidate_sha": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "base_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "gates": {
+      "native_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/48-native-clippy.log (--features integration,integration_tests, -D warnings)",
+      "core_clippy_changed_lines": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/47-core-clippy.log: 0 errors on lines changed since a8bf221b (set B features); remaining errors pre-existing",
+      "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/49-check-setA.log",
+      "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/50-check-setB.log",
+      "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/51-check-setC.log",
+      "check_native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/52-check-native.log"
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict.",
+    "status": "IMPLEMENTED_PENDING_SHARED_VALIDATION",
+    "followups": [
+      {
+        "id": "C1-BINDING-ONLY",
+        "finding": "Operator 2026-09-22: leave the binding-only (no account session) Stage/Atelier authentication path as is; api/stage.rs capture_request_context keeps it when x-hsk-channel-binding-token is absent. Retiring it needs backend test migration (atelier_loom_projection_api_tests, atelier_stealth_window_tests, wp_kernel_012_native_editor_routes_tests Stage harness, atelier authentication_tests)."
+      }
+    ],
+    "related": "Canvas visual-edge routes now follow the same 401/403 split (693c3ea7).",
+    "recorded_at_utc": "2026-09-22T22:55:01.702Z"
+  },
+  "operator_decision": {
+    "date": "2026-09-22",
+    "decided_by": "OPERATOR (relayed by the Integration Validator orchestrator, round 2)",
+    "text": "C1-FDELETE: deleting a workspace CASCADES to its rich documents, their version history and its Canvas boards. Only an owner/admin (capability-gated) may do it, and it emits an auditable Flight Recorder event. Version history stays immutable while the workspace exists; only whole-workspace deletion removes it.",
+    "spec_basis": "No explicit Master Spec clause for this case (recorded as an Operator decision). Related: capability-gated auditable deletion (07-6 roadmap §11.5.12 reference; LM-RLS-001 admin role) and the ON DELETE CASCADE pattern for workspace-owned records."
   }
 }

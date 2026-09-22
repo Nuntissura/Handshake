@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-22T20:51:09.293Z",
+  "updated_at_utc": "2026-09-22T22:55:01.702Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -13099,5 +13099,72 @@
       "backend lib (app-runtime,surreal-test-support,test-utils): api::flight_recorder::tests (whole module), api::atelier::authentication_tests, api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows"
     ],
     "recorded_at_utc": "2026-09-22T20:51:09.293Z"
+  },
+  "remediation_v21": {
+    "session": "KERNEL_BUILDER-C1",
+    "round": 2,
+    "candidate_sha": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "base_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "gates": {
+      "native_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/48-native-clippy.log (--features integration,integration_tests, -D warnings)",
+      "core_clippy_changed_lines": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/47-core-clippy.log: 0 errors on lines changed since a8bf221b (set B features); remaining errors pre-existing",
+      "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/49-check-setA.log",
+      "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/50-check-setB.log",
+      "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/51-check-setC.log",
+      "check_native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/52-check-native.log"
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict.",
+    "status": "C1_FDELETE_PARTIAL_BLOCKED",
+    "commits": [
+      "c792b8a2 fix(MT-109): cascade owner workspace delete to Canvas boards with audit",
+      "693c3ea7 fix(MT-026): authorize Canvas visual-edge create and delete"
+    ],
+    "implemented": [
+      "loom_canvas_boards: FOR delete WHERE block_id.workspace_id = workspace_id AND fn::mt120_loom_block_access(canvas, workspace, 'delete', 'fs.write') (was NONE); versions keep FOR delete NONE (removed only by the workspace cascade).",
+      "Workspace delete transaction deletes loom_canvas_boards before the workspace (storage/surreal/workspaces.rs workspace_delete_body!).",
+      "delete_workspace emits one Flight Recorder capability_action audit event (policy_decision_id 'workspace-delete:<id>', wsids [id]) AFTER the workspace FR purge so it survives.",
+      "Pins re-measured in place at revision 160 (unreleased): GENERATED_SURREALQL 2c2af7bd..->7544939a..; EXPECTED_SCHEMA_INFO c12100ea..->8955551a.. (mt139, run 42); MT109 loom catalog 183a578b..->ece107ef.. (run 42); atelier catalog unchanged ad696e28..; run 44: all 4 pin tests pass.",
+      "Focused test api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit (owner cascade zero residue + one audit event; non-owner 403 with rows intact; visual-edge 401/403)."
+    ],
+    "blocker": {
+      "id": "C1-FDELETE-GUARD-CLAUSE-1",
+      "status": "OPEN_STOPPED_AT_RUN_BUDGET",
+      "failing": "owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit: owner delete -> 403 HSK-403-PROTECTED-RESOURCE; transaction statement 17 (final DELETE $workspace) deletes 0 rows. Everything before passes (visual-edge 401/403/owner create, non-owner delete 403 with rows intact).",
+      "logs": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/44-core-pins-and-cascade.log",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/46-core-fdelete-probe.log"
+      ],
+      "probe": "Run 46: a test-only copy of fn::mt120_workspace_delete with each RETURN false numbered, evaluated as the owner record user just before the owner delete, returned clause-1: `IF !fn::mt109_has_workspace_access($external, 'delete', 'fs.write') { RETURN false; }` (schema.surql:6406). The API broker authorize_request(Workspace, Delete) for the same owner PASSES, so a DB-only condition of fn::mt109_has_workspace_access (schema.surql:5850-5871: live session, delegated_capabilities, grant actions/capabilities, resource/grant policy_version, delegation_chain) is false after the test's Canvas/loom writes. The existing FEMS-only delete test passes the same clause. Probe code preserved: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/c1-fdelete-probe-and-test.patch",
+      "hypothesis": "UNVERIFIED: a Canvas/loom create or placement path mutates the owner's workspace grant/resource or session state (policy_version, delegation_chain, or status) so the DB clause fails while the broker check still passes. No policy_version writer was found statically in the loom stores.",
+      "next_step": "One run of the probe variant that returns each sub-condition of fn::mt109_has_workspace_access separately (session live, capability sets, and the grant row fields) for the owner; then fix the offending writer."
+    },
+    "hang_finding": {
+      "id": "C1-FRLIB-HANG",
+      "status": "ROOT_CAUSE_ENVIRONMENT_PARTIAL",
+      "evidence": "Run 31 (../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/31-core-ws-cascade.log): C:-rooted HANDSHAKE_SURREAL_TEST_STORE_ROOT/TMP/HANDSHAKE_WORKSPACE_ROOT -> store created, ~12 s CPU, then idle hang (stopped). Run 32 (../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/32-core-ws-cascade-dpaths.log): same exe, same test, D:-rooted store/TMP/workspace (wpv-final layout) -> ran to completion in 157 s. Runs 15/16 (FR lib tests) hung the same way with C: paths.",
+      "explanation": "UNVERIFIED: likely a C:-volume effect on the embedded RocksDB/SurrealDB store (e.g. Defender real-time scanning of C:\\ or file-lock behaviour under C:/.target), not a code path; no drive-letter assumption found in storage/tests.rs. Test runtime roots are now on D: under kb-c1/{runtime-lib,tmp,workspace}; CARGO_TARGET_DIR stays on C:."
+    },
+    "followups": [
+      {
+        "id": "C1-SAVE-500",
+        "finding": "In the embedded route harness, PUT /knowledge/documents/:id/save of a document created with content returned 500 internal_error with `Database record loom_blocks:KRD-... already exists` (knowledge-transactionfailed statement_index=2 HSK-403 on create first). Logs: ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/32-core-ws-cascade-dpaths.log, ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/34-core-ws-cascade.log. The native mounted save path succeeds (runtime-18/kb-c1 run 03 receipts), so product-vs-harness is UNVERIFIED; not changed statically (no evidence of the faulty statement). A save of an existing document must never 500: owner MT for the fix to be decided."
+      },
+      {
+        "id": "C1-KNOWLEDGE-INDEX",
+        "finding": "No WP-KERNEL-012 MT contract (scope acceptance/spec anchors) requires rich documents to be indexed or searchable in the Project Knowledge Index (only MT-037 lists the knowledge_indexed response field). Per Operator round 2: followup only, not implemented. Defect: knowledge_sources create permission requires source_kind='file' (schema.surql:3340), so index_document_non_fatal always logs rich_document_knowledge_index_failed_post_commit HSK-403."
+      }
+    ],
+    "recommended_validation": [
+      "backend lib (app-runtime,surreal-test-support,test-utils; D:-rooted runtime env): api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit (expected RED at owner delete until C1-FDELETE-GUARD-CLAUSE-1 is fixed), storage::surreal::schema::tests::{declarative_schema_catalog_is_complete_and_content_sensitive, mt139_current_schema_info_pin_matches_fresh_mem_catalog, mt109_loom_catalog_dependencies_are_complete_and_deterministic, mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin}, api::workspaces::tests::delete_workspace_route_atomically_cascades_fems_and_retries_not_found"
+    ],
+    "recorded_at_utc": "2026-09-22T22:55:01.702Z"
+  },
+  "operator_decision": {
+    "date": "2026-09-22",
+    "decided_by": "OPERATOR (relayed by the Integration Validator orchestrator, round 2)",
+    "text": "C1-FDELETE: deleting a workspace CASCADES to its rich documents, their version history and its Canvas boards. Only an owner/admin (capability-gated) may do it, and it emits an auditable Flight Recorder event. Version history stays immutable while the workspace exists; only whole-workspace deletion removes it.",
+    "spec_basis": "No explicit Master Spec clause for this case (recorded as an Operator decision). Related: capability-gated auditable deletion (07-6 roadmap §11.5.12 reference; LM-RLS-001 admin role) and the ON DELETE CASCADE pattern for workspace-owned records."
   }
 }

@@ -14,7 +14,7 @@
   "title": "E3-MT026-CanvasBoardLoomBlocks",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-22T20:51:09.293Z",
+  "updated_at_utc": "2026-09-22T22:55:01.702Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-026.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1130,5 +1130,32 @@
       "native: test_canvas_board_argus mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges --exact"
     ],
     "recorded_at_utc": "2026-09-22T20:51:09.293Z"
+  },
+  "remediation_v7": {
+    "session": "KERNEL_BUILDER-C1",
+    "round": 2,
+    "candidate_sha": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "base_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "gates": {
+      "native_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/48-native-clippy.log (--features integration,integration_tests, -D warnings)",
+      "core_clippy_changed_lines": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/47-core-clippy.log: 0 errors on lines changed since a8bf221b (set B features); remaining errors pre-existing",
+      "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/49-check-setA.log",
+      "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/50-check-setB.log",
+      "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/51-check-setC.log",
+      "check_native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/52-check-native.log"
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict.",
+    "status": "VISUAL_EDGE_AUTH_FIXED_FCANVAS_OPEN",
+    "commits": [
+      "693c3ea7 fix(MT-026): authorize Canvas visual-edge create and delete"
+    ],
+    "what_changed": "POST .../canvas-boards/:block_id/visual-edges and DELETE .../canvas-visual-edges/:id: 401 HSK-401-LOOM-SESSION without a valid account session; 403 HSK-403-PROTECTED-RESOURCE unless the caller holds fs.write Update on the owning board (removal resolves the board via loom_canvas_store::canvas_visual_edge_board_id; unknown edge = same 403); writes attributed to the authorized actor. The native mounted Canvas transport already sends account credentials (send_canvas_mutation). CanvasClient::remove_visual_edge / remove_placement helpers (backend_client.rs ~1437-1465) still send unauthenticated requests (pre-existing; only non-mounted paths).",
+    "recommended_validation": [
+      "backend lib: api::workspaces::tests::owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit (visual-edge 401/403 assertions run before the owner delete)",
+      "native: test_canvas_board_argus mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges"
+    ],
+    "recorded_at_utc": "2026-09-22T22:55:01.702Z"
   }
 }
