@@ -970,7 +970,13 @@ fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
         .state()
         .mounted_tags_hub_for_test()
         .lock()
-        .map(|hub| format!("{:?}", hub.as_ref().map(|hub| (hub.loading, hub.error.clone(), hub.members.len()))))
+        .map(|hub| {
+            format!(
+                "{:?}",
+                hub.as_ref()
+                    .map(|hub| (hub.loading, hub.error.clone(), hub.members.len()))
+            )
+        })
         .unwrap_or_else(|_| "hub state lock poisoned".to_owned());
     assert!(
         hub_ids.contains(&hub_member_author_id(&first_note)),

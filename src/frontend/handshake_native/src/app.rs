@@ -25444,17 +25444,15 @@ impl HandshakeApp {
             return;
         }
         let workspace_root = self.active_workspace_root_text();
-        let target_path = match resolve_code_navigation_path(
-            &jump.file_path,
-            &source_file,
-            &workspace_root,
-        ) {
-            Ok(path) => path,
-            Err(error) => {
-                self.quick_switcher_nav_status = Some(format!("Code navigation failed: {error}"));
-                return;
-            }
-        };
+        let target_path =
+            match resolve_code_navigation_path(&jump.file_path, &source_file, &workspace_root) {
+                Ok(path) => path,
+                Err(error) => {
+                    self.quick_switcher_nav_status =
+                        Some(format!("Code navigation failed: {error}"));
+                    return;
+                }
+            };
         let target_id = code_document_key(&target_path);
         let source_id = code_document_key(std::path::Path::new(&source_panel.file_path()));
 

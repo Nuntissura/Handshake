@@ -2756,7 +2756,10 @@ fn event_emitter_native_editor_round_trip() {
             .expect("cleanup isolated workspace");
         let status = cleanup.status();
         let body = cleanup.text().await.unwrap_or_default();
-        assert!(status.is_success(), "isolated workspace cleanup -> {status}: {body}");
+        assert!(
+            status.is_success(),
+            "isolated workspace cleanup -> {status}: {body}"
+        );
     });
     managed_backend.assert_cleanup();
     let candidate_identity_after = mt036_candidate_identity();

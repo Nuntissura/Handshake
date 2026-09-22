@@ -2247,17 +2247,22 @@ fn mt125_sourceless_code_targets_use_chosen_workspace_root_never_process_cwd() {
     ));
     std::fs::create_dir_all(root.join("src")).expect("create chosen workspace root");
     let target = root.join("src").join("lib.rs");
-    std::fs::write(&target, "pub fn chosen() {}
-").expect("write workspace-root target");
+    std::fs::write(
+        &target,
+        "pub fn chosen() {}
+",
+    )
+    .expect("write workspace-root target");
     let root_text = root.to_string_lossy().into_owned();
 
     // No source document: a relative LSP target resolves under the chosen workspace root.
-    let resolved = handshake_native::app::resolve_code_navigation_path_with_workspace_root_for_test(
-        Path::new("src/lib.rs"),
-        "",
-        Ok(root_text.clone()),
-    )
-    .expect("sourceless relative target resolves under the chosen workspace root");
+    let resolved =
+        handshake_native::app::resolve_code_navigation_path_with_workspace_root_for_test(
+            Path::new("src/lib.rs"),
+            "",
+            Ok(root_text.clone()),
+        )
+        .expect("sourceless relative target resolves under the chosen workspace root");
     assert_eq!(
         resolved.canonicalize().expect("canonical resolved target"),
         target.canonicalize().expect("canonical expected target")
@@ -2278,12 +2283,13 @@ fn mt125_sourceless_code_targets_use_chosen_workspace_root_never_process_cwd() {
     assert!(error.contains("WorkspaceRootMissing"), "{error}");
 
     // Persisted code-refs search the chosen root; without one they surface the typed error.
-    let code_ref = handshake_native::app::resolve_code_ref_target_path_with_workspace_root_for_test(
-        Path::new("src/lib.rs"),
-        "",
-        Ok(root_text),
-    )
-    .expect("code-ref resolves under the chosen workspace root");
+    let code_ref =
+        handshake_native::app::resolve_code_ref_target_path_with_workspace_root_for_test(
+            Path::new("src/lib.rs"),
+            "",
+            Ok(root_text),
+        )
+        .expect("code-ref resolves under the chosen workspace root");
     assert_eq!(
         code_ref.canonicalize().expect("canonical code-ref"),
         target.canonicalize().expect("canonical expected code-ref")
@@ -3244,11 +3250,7 @@ fn mt079_snapshot_author_ids(value: &serde_json::Value) -> std::collections::Has
 
 /// One ordered evidence row for a bound canonical action: the exact target, its persisted terminal
 /// receipt, and the action-specific predicate results an external verifier recomputes from `after`.
-fn mt079_action_row(
-    action: &str,
-    target: &str,
-    argus: &CanonicalArgusDriver,
-) -> serde_json::Value {
+fn mt079_action_row(action: &str, target: &str, argus: &CanonicalArgusDriver) -> serde_json::Value {
     let terminal = argus.latest_terminal_observation();
     serde_json::json!({
         "action": action,
@@ -3335,17 +3337,21 @@ fn mt079_routed_location(
     panes.sort_by(|left, right| left.as_ref().cmp(right.as_ref()));
     panes.into_iter().find_map(|pane_id| {
         app.tab_bar_states().get(pane_id).and_then(|bar| {
-            bar.tabs.iter().position(|tab| {
-                &tab.pane_type == pane_type && tab.content_id.as_deref() == Some(content_id)
-            })
-            .map(|index| (pane_id.as_ref().to_owned(), index))
+            bar.tabs
+                .iter()
+                .position(|tab| {
+                    &tab.pane_type == pane_type && tab.content_id.as_deref() == Some(content_id)
+                })
+                .map(|index| (pane_id.as_ref().to_owned(), index))
         })
     })
 }
 
 /// The live per-pane tab identity model: `pane_id -> [(pane_type_label, content_id)]`. Close/popout
 /// proofs compare this exact map before and after so a sibling disturbance cannot hide.
-fn mt079_tab_identities(app: &HandshakeApp) -> std::collections::BTreeMap<String, Vec<(String, Option<String>)>> {
+fn mt079_tab_identities(
+    app: &HandshakeApp,
+) -> std::collections::BTreeMap<String, Vec<(String, Option<String>)>> {
     app.tab_bar_states()
         .iter()
         .map(|(pane_id, bar)| {
@@ -3424,7 +3430,11 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
             applied && real_subtree && single_instance && session_bound
         },
     );
-    receipts.push(mt079_action_row("create-code", "menu.view.open-code-editor", &argus));
+    receipts.push(mt079_action_row(
+        "create-code",
+        "menu.view.open-code-editor",
+        &argus,
+    ));
 
     // ── ACTION 2 — FOCUS RICH: activate the mounted Notes pane's tab over the canonical transport ──
     let rich_tab = tab_author_id("pane-b", 0);
@@ -3441,8 +3451,7 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
             "expected_active_tab_index": 0,
         }),
         |after, app| {
-            let active_pane_is_rich =
-                app.active_pane().map(|pane| pane.as_ref()) == Some("pane-b");
+            let active_pane_is_rich = app.active_pane().map(|pane| pane.as_ref()) == Some("pane-b");
             let active_tab_is_rich = app
                 .tab_bar_states()
                 .get(&PaneId::from("pane-b"))
@@ -3453,8 +3462,7 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
                             .is_some_and(|tab| tab.pane_type == PaneType::LoomWikiPage)
                 })
                 .unwrap_or(false);
-            let rich_addressable =
-                json_has_author_id(after, RICH_EDITOR_ROOT_AUTHOR_ID);
+            let rich_addressable = json_has_author_id(after, RICH_EDITOR_ROOT_AUTHOR_ID);
             active_pane_is_rich && active_tab_is_rich && rich_addressable
         },
     );
@@ -3489,7 +3497,11 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
             applied && real_subtree && single_instance && wikilink_context_bound
         },
     );
-    receipts.push(mt079_action_row("create-rich", "menu.view.open-rich-note", &argus));
+    receipts.push(mt079_action_row(
+        "create-rich",
+        "menu.view.open-rich-note",
+        &argus,
+    ));
 
     // ── ACTION 4 — RICH READING TOGGLE: the mounted editor really enters the read-only view ────────
     // The read-only branch publishes a structurally DIFFERENT `editor.rich.root` (Role::Document, no
@@ -3518,7 +3530,11 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
                 })
         },
     );
-    receipts.push(mt079_action_row("rich-reading-toggle", TOGGLE_READING_AUTHOR_ID, &argus));
+    receipts.push(mt079_action_row(
+        "rich-reading-toggle",
+        TOGGLE_READING_AUTHOR_ID,
+        &argus,
+    ));
 
     // ── ACTION 5 — RICH EDIT TOGGLE: restoring Edit re-exposes the EDITABLE mounted rich surface ───
     let editing = argus.click_and_reinspect(&mut harness, TOGGLE_EDIT_AUTHOR_ID);
@@ -3544,7 +3560,11 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
                 })
         },
     );
-    receipts.push(mt079_action_row("rich-edit-toggle", TOGGLE_EDIT_AUTHOR_ID, &argus));
+    receipts.push(mt079_action_row(
+        "rich-edit-toggle",
+        TOGGLE_EDIT_AUTHOR_ID,
+        &argus,
+    ));
 
     // ── ACTION 6 — open_code_symbol: the MT-030 typed seam routes a CODE symbol into the mounted
     // code pane, then the routed target is FOCUSED over the canonical localhost transport. The
@@ -3641,10 +3661,7 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         .sum::<usize>();
     let doc_nav_outcome = harness.state_mut().open_document(NOTE_REF);
     assert!(
-        matches!(
-            doc_nav_outcome,
-            NavDispatchOutcome::Opened { .. }
-        ),
+        matches!(doc_nav_outcome, NavDispatchOutcome::Opened { .. }),
         "the MT-030 open_document seam opens the MOUNTED rich pane; got {doc_nav_outcome:?}"
     );
     harness.run_steps(3);
@@ -3681,7 +3698,8 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         move |_after, app| {
             let unique_identity =
                 mt079_routed_instances(app, &PaneType::LoomWikiPage, NOTE_REF) == 1;
-            let focused = app.active_pane().map(|pane| pane.as_ref()) == Some(doc_nav_pane_probe.as_str())
+            let focused = app.active_pane().map(|pane| pane.as_ref())
+                == Some(doc_nav_pane_probe.as_str())
                 && app
                     .tab_bar_states()
                     .get(&PaneId::from(doc_nav_pane_probe.as_str()))
@@ -3702,31 +3720,31 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         let rich = harness.state().mounted_rich_state();
         let mut state = rich.lock().expect("mounted rich state");
         state.pending_events.clear();
-        state
-            .pending_events
-            .push(handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::WikilinkActivated {
+        state.pending_events.push(
+            handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::WikilinkActivated {
                 ref_kind: "note".into(),
                 ref_value: NOTE_REF.into(),
                 resolved: true,
-            });
-        state
-            .pending_events
-            .push(handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::BacklinkActivated {
+            },
+        );
+        state.pending_events.push(
+            handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::BacklinkActivated {
                 source_document_id: "MT079-Argus-Backlink".into(),
-            });
-        state
-            .pending_events
-            .push(handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::TagActivated {
+            },
+        );
+        state.pending_events.push(
+            handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::TagActivated {
                 canonical: "mt079-argus-tag".into(),
                 display: "#mt079-argus-tag".into(),
-            });
-        state
-            .pending_events
-            .push(handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::WikilinkActivated {
+            },
+        );
+        state.pending_events.push(
+            handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::WikilinkActivated {
                 ref_kind: handshake_native::interop::locus_interop::LOCUS_REF_KIND.into(),
                 ref_value: "locus://wp/WP-KERNEL-012".into(),
                 resolved: true,
-            });
+            },
+        );
     }
     harness.run_steps(6);
     assert!(
@@ -3739,16 +3757,15 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         "AC-079-5: every queued rich editor event (wikilink/backlink/tag/locus) is drained EXACTLY \
          once by the live host — none is left unrouted and none is re-queued"
     );
-    let tag_pane_open = harness.state().tab_bar_states().values().any(|bar| {
-        bar.tabs
-            .iter()
-            .any(|tab| tab.pane_type.label() == "Tags")
-    });
+    let tag_pane_open = harness
+        .state()
+        .tab_bar_states()
+        .values()
+        .any(|bar| bar.tabs.iter().any(|tab| tab.pane_type.label() == "Tags"));
     assert!(
         tag_pane_open,
         "AC-079-5: the drained TagActivated event routed to the mounted Tags hub surface"
     );
-
 
     // ── ACTION 8 — FOCUS CODE: bring the mounted code pane back as the active work surface ─────────
     let code_tab = tab_author_id("pane-a", 0);
@@ -3796,7 +3813,11 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
                 && json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID)
         },
     );
-    receipts.push(mt079_action_row("code-wrap-toggle", CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID, &argus));
+    receipts.push(mt079_action_row(
+        "code-wrap-toggle",
+        CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID,
+        &argus,
+    ));
 
     // ── ACTION 10 — CLOSE: close the exact mounted code tab and prove it is ABSENT afterwards ──────
     // This is the omission `validation_v4` named. The closed identity is recorded BEFORE dispatch and
@@ -3895,11 +3916,19 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
                             .is_some_and(|tab| tab.pane_type == PaneType::CodeSymbol)
                 })
                 .unwrap_or(false);
-            let single_instance = mt079_surface_instances_on_pane(app, "pane-a", "Code Symbol") == 1;
-            applied && reopened && single_instance && json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID)
+            let single_instance =
+                mt079_surface_instances_on_pane(app, "pane-a", "Code Symbol") == 1;
+            applied
+                && reopened
+                && single_instance
+                && json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID)
         },
     );
-    receipts.push(mt079_action_row("reopen", "menu.view.open-code-editor", &argus));
+    receipts.push(mt079_action_row(
+        "reopen",
+        "menu.view.open-code-editor",
+        &argus,
+    ));
 
     // ── ACTION 12 — POPOUT: the exact mounted pane moves to the DETACHED host and stays steerable ─
     //
@@ -3970,8 +3999,11 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
             detached && record_present && steerable && session_preserved && siblings_intact
         },
     );
-    receipts.push(mt079_action_row("popout", CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID, &argus));
-
+    receipts.push(mt079_action_row(
+        "popout",
+        CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID,
+        &argus,
+    ));
 
     // ── Evidence: the ordered per-action receipts + the authoritative terminal trees ────────────────
     let tree_path = artifact_dir.join("mt079-mounted-editors-argus-lifecycle.json");
@@ -4402,9 +4434,8 @@ fn mt079_code_pane_command_bus_canonical_argus() {
             // share ONE stack — the panel is the same mounted instance the keymap drives).
             let panel_reverted = undo_panel.buffer().to_string() == undo_before_text;
             // NO leakage: the sibling pane's undo scope is untouched by the code pane's command.
-            let sibling_scope_untouched = app
-                .tab_bar_states()
-                .contains_key(&PaneId::from("pane-b"));
+            let sibling_scope_untouched =
+                app.tab_bar_states().contains_key(&PaneId::from("pane-b"));
             scope_mutated && panel_reverted && sibling_scope_untouched
         },
     );
@@ -4432,8 +4463,8 @@ fn mt079_code_pane_command_bus_canonical_argus() {
             let restored = redo_panel.buffer().to_string() == redo_after_text;
             // The same durable MT-035 projection still names the code pane as the focused scope, so
             // the redo travelled the unified stack rather than a second private one.
-            let same_scope = mt035_undo_state(after)
-                .is_some_and(|state| state["focused_pane_id"] == "pane-a");
+            let same_scope =
+                mt035_undo_state(after).is_some_and(|state| state["focused_pane_id"] == "pane-a");
             restored && same_scope
         },
     );
@@ -4461,7 +4492,11 @@ fn mt079_code_pane_command_bus_canonical_argus() {
             mounted && ids.contains(PALETTE_DIALOG_AUTHOR_ID)
         },
     );
-    rows.push(mt079_action_row("open-command-palette", "menu.edit.command-palette", &argus));
+    rows.push(mt079_action_row(
+        "open-command-palette",
+        "menu.edit.command-palette",
+        &argus,
+    ));
 
     let tree_path = artifact_dir.join("mt079-command-bus-argus.json");
     let terminal = argus.latest_terminal_observation();
@@ -4658,11 +4693,7 @@ fn mt079_rich_pending_events_canonical_argus() {
                 drained && landed_once && detached_untouched
             },
         );
-        rows.push(mt079_action_row(
-            round.action,
-            &round.steer_target,
-            &argus,
-        ));
+        rows.push(mt079_action_row(round.action, &round.steer_target, &argus));
     }
 
     // ── TAG routing, bound separately: a tag is NOT a Loom block id, so the host resolves the

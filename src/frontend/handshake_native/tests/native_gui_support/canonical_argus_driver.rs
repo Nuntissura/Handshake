@@ -193,7 +193,8 @@ struct DisplacedBindingRestore {
 
 impl DisplacedBindingRestore {
     fn restore(&mut self) {
-        let (Some(previous), Some(installed)) = (self.previous.take(), self.installed.take()) else {
+        let (Some(previous), Some(installed)) = (self.previous.take(), self.installed.take())
+        else {
             return;
         };
         if let Err(error) =
