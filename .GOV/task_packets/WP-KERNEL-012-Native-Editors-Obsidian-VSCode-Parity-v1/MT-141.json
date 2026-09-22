@@ -30,7 +30,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "FAIL_V3",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -739,8 +739,8 @@
         "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-141/kb01/logs/LANE-E-coverage-sweep.json"
       ]
     },
-    "ready_for_validation_at_utc": "2026-09-10T01:45:58.115Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260909-212427",
+    "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-C1",
     "operator_waiver_20260910": {
       "waiver_id": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
       "granted_by": "OPERATOR",
@@ -782,7 +782,8 @@
         "commit": "fd9060dee489811f0b22903e97d38bd57be64a08",
         "record": "validation_v2"
       }
-    ]
+    ],
+    "status_before_remediation_v5": "FAIL_V3"
   },
   "scope": {
     "summary": "Port src/backend/handshake_core/tests/ off sqlx/PostgreSQL onto the embedded SurrealDB store. These tests compile against the handshake_core lib, so this MT is implementable only after MT-136/137/138 make the lib compile cleanly. Patterns to follow: unit-adjacent storage tests use SurrealStorage opened at a temporary HANDSHAKE_DATA_DIR (see tests/surreal_test_store_support/ and storage/surreal/test_inspector.rs behind the surreal-test-support feature); API-level tests exercise the product HTTP surface; migration-corpus assertions (apply_migration, DDL-constant asserts) are retired with the corpus per MT-139's recorded SEVER decision and replaced by the schema.surql coverage proof. Test-only isolation comes from per-run data directories, never from schemas or shared clusters. No assertion may be weakened or deleted to make a file compile; each file's proof intent is preserved at equivalent strength or the file's owning behavior is recorded as no-longer-existing with the superseding proof named.",
@@ -1067,7 +1068,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-19T22:42:01.940357Z",
+  "updated_at_utc": "2026-09-22T20:51:09.293Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -15137,5 +15138,47 @@
       ],
       "proof_limit": "IPC test registry is mocked dispatch, not production Tauri IPC execution; source SHA256 inventory is static drift proof only."
     }
+  },
+  "remediation_v5": {
+    "session": "KERNEL_BUILDER-C1",
+    "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "base_sha": "a8bf221bcf75870591ca38ddef5b7d466e9ab0e0",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "cargo_target": "C:/.target/WP-KERNEL-012/target (Operator 2026-09-22 grant; CARGO_PROFILE_DEV_DEBUG=line-tables-only; incremental cleared before each cargo)",
+    "build_proof": {
+      "backend_bin": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/11-core-bin-build.log (exit 0)",
+      "native_focused_norun": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/02-native-focused-norun.log (exit 0)",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/19-native-clippy.log (exit 0, -D warnings, --all-targets)",
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/20-native-clippy-integration.log (exit 0, --features integration,integration_tests)",
+      "final_gate": {
+        "rule": "Orchestrator steer 2026-09-22: link-all --no-run replaced by `cargo check --locked --tests` per feature set (set A alone ~394 targets x ~250 MB exe+pdb ~= 98 GB > 100 GB cap; 22-norun-setA stopped at ~56 GB).",
+        "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/25-check-setA.log (exit 0, surreal-test-support,test-utils)",
+        "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/26-check-setB.log (exit 0, app-runtime,surreal-test-support,test-utils)",
+        "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/27-check-setC.log (exit 0, inspector,surreal-test-support,test-utils)",
+        "norun_lib": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/23-norun-lib.log (exit 0, duckdb-flight-recorder,test-utils --lib)",
+        "norun_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/24-norun-setC.log (exit 0, 4 inspector targets)",
+        "norun_setB_lib_subset": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/13-core-lib-setB-norun.log (exit 0, --lib + wp_kernel_012_native_editor_routes_tests + atelier_loom_projection_api_tests)",
+        "native_all_targets": "clippy --all-targets (logs 19, 20) type-checks every native target in both feature variants",
+        "core_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/21-core-clippy.log exit 101: 422 PRE-EXISTING lint errors (default features, --all-targets, -D warnings) in ~100 files; none on C1-changed lines",
+        "target_after_cleanup": "linked test exes/pdbs in deps, top-level pdbs and incremental deleted; C:/.target ~45 GB (du); peak ~65 GB (du)"
+      }
+    },
+    "validator_env_note": "Backend lib/integration tests: HANDSHAKE_SURREAL_TEST_STORE_ROOT=C:/.target/WP-KERNEL-012/runtime requires HANDSHAKE_ARTIFACTS_ROOT=C:/.target/WP-KERNEL-012 (storage::tests::test_store_root demands a strict descendant). Native live tests: HSK_TEST_BACKEND_TARGET_ROOT must be <Handshake_Artifacts>/WP/MT/owner/target, so the C: handshake_core.exe is copied with preserved mtime to ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/backend-target/debug/ (see kb-c1/run_test.sh for the full env).",
+    "known_shared_blocker": {
+      "id": "C1-FDELETE",
+      "status": "OPEN_OPERATOR_DECISION",
+      "summary": "DELETE /workspaces/:id by the authenticated Owner returns 403 HSK-403-PROTECTED-RESOURCE when the workspace contains a rich document or Canvas board. storage/surreal/workspaces.rs delete transaction statement 16 (the final `DELETE $workspace` guard) fails because knowledge_rich_documents, knowledge_rich_document_versions and loom_canvas_boards declare PERMISSIONS ... FOR delete NONE while their workspace_id fields are REFERENCE ON DELETE CASCADE, so a record-user cascade cannot remove them. Existing backend delete tests only cover FEMS-only workspaces.",
+      "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log (test_event_emitter.rs:2759 'isolated workspace cleanup -> 403 Forbidden: {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}') + backend log 'workspace delete transaction failed statement_index=16'",
+      "decision_needed": "Whether an authorized workspace delete may cascade-delete rich documents, their immutable version history and Canvas boards (schema delete permission change + schema pin reconciliation), or whether workspaces with content must be archived/emptied first (then native proof fixtures must clean up differently). Not changed by KERNEL_BUILDER: it relaxes version-history immutability and requires schema pin re-measurement.",
+      "impact": "Any native live proof that creates a rich document or Canvas board and then asserts workspace cleanup will red at cleanup even though its product assertions pass."
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict; PASS/COMPLETED belongs to the independent validator.",
+    "status": "VERIFIED_READY_FOR_SHARED_VALIDATION",
+    "static_verification": "V3-R1 FIXED_AT_HEAD (static): micro_task_executor_tests.rs:760-883 runs the Spec Router in a tempdir workspace (prompt-pack inputs copied in, WorkspaceEnvGuard bound, prompt and workflow_context.repo_root under it); workflows.rs:20332/20533 resolve/write from HANDSHAKE_WORKSPACE_ROOT; no repo_root_from_manifest_dir on this path (c6c974c3). Caveats: assets copied from the working tree; validator must check git porcelain/residue. F500 (R2) verified fixed.",
+    "recommended_validation": [
+      "backend set B: --test micro_task_executor_tests micro_task_executor_spec_router_creates_locus_work_packet_when_routing_metadata_present --exact --test-threads=1, then the whole micro_task_executor_tests binary"
+    ],
+    "recorded_at_utc": "2026-09-22T20:51:09.293Z"
   }
 }

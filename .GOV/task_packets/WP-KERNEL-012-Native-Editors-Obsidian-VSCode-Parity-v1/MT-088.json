@@ -14,7 +14,7 @@
   "title": "D8-MT-088-BackendDown-GracefulDegradation-FreezeFix",
   "group": "D2 internal_diagnostics (Tier 2 — backend-down HARD requirement)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-09-19T23:00:06.842347Z",
+  "updated_at_utc": "2026-09-22T20:51:09.293Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-088.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V6",
+    "status": "READY_FOR_VALIDATION_V7",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -44,8 +44,8 @@
     "remediation_v3_in_progress": false,
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "remediation_v3_review_hardening_completed_at_utc": "2026-07-27T20:17:29.921Z",
-    "ready_for_validation_at_utc": "2026-07-27T20:17:29.921Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-V4",
+    "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-C1",
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_TWO_INDEPENDENT_TECHNICAL_REVIEWS_NO_PRODUCT_BLOCKER_FORMAL_ACCEPTANCE_RESERVED_TO_VALIDATOR",
     "kb_ready_checklist_receipt": {
@@ -74,7 +74,8 @@
       ]
     },
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER"
+    "next_actor": "KERNEL_BUILDER",
+    "status_before_remediation_v7": "FAIL_V6"
   },
   "scope": {
     "summary": "Goal: FIX THE LATENT BACKEND-DOWN FREEZE — the concrete bug from the 2026-06-26 live session — and enforce the HARD spec requirement that the native app DEGRADES, NOT FREEZES when a backend route is unreachable (Master Spec v02.196 §5.8.5 'Backend-down graceful degradation (HARD)': 'a UI path that can freeze the frame loop on an unreachable backend is a spec defect'). When the backend on 127.0.0.1:37501 is down, a mounted-pane load / backend call that runs `Handle::block_on` (or locks waiting on a backend result) ON THE UI THREAD stalls the egui frame loop — the app stops responding (Responding=false, CPU->0) instead of showing a 'disconnected' state. This MT makes those UI-thread backend interactions NON-BLOCKING (off-thread spawn + poll-if-finished), records a typed `BackendUnreachable` internal_diagnostics event, and RE-PROVES the 2026-06-26 repro: launch with the backend down, the app stays responsive and the heartbeat keeps advancing.\n\nROOT-CAUSE LOCATION (verified in this codebase — the coder MUST audit + confirm the exact live frame-path offenders, do not assume): `src/frontend/handshake_native/src/app.rs` contains BOTH the CORRECT pattern and the buggy one:\n- CORRECT reference (reuse this exact shape): the health poll at app.rs ~line 1189-1190 spawns `rt.spawn(async { backend_client::fetch_health(...) })` returning a `JoinHandle` stored in `health_handle`, and polls it each frame, folding the result in when it resolves (the doc at ~line 221 says 'stalls the render loop; polled each frame and folded ... when it resolves'). This is the off-thread + poll-if-finished pattern the whole fix must follow.\n- OFFENDERS (audit + fix the ones reachable on the UI/frame path): `self.runtime.block_on(...)` at app.rs ~lines 979 and 1011 (and any other `block_on` / blocking backend call reachable from `fn update` / `ui()` / a `PaneFactory::render` / a mount path). A `block_on` on the UI thread that awaits a backend round-trip will hang the frame loop for the full connect-timeout (or forever if there is no timeout) when the backend is down. Convert each UI-thread-reachable backend call to the spawn+poll pattern, OR ensure it carries a short connect/request timeout AND cannot be on the frame path. (Backend calls that run on a worker thread / spawn_blocking, e.g. the transport doc at backend_client.rs ~line 82 'short-lived tokio worker (NOT the egui UI thread)', are already safe — leave them; focus on UI-thread-reachable ones.)\n- Also add a short `connect_timeout` + request `timeout` to the reqwest clients used for these calls (reqwest is already a dep) so even a backend that accepts the TCP connection but never responds cannot hang a worker indefinitely.\n\nExact edits:\n- EDIT `src/frontend/handshake_native/src/app.rs` — (1) audit every backend interaction reachable from `fn update` / `ui()` / pane mount / `PaneFactory::render`; (2) convert each UI-thread `block_on`/blocking-lock-on-backend-result to the existing spawn-handle + poll-each-frame pattern (model it on `health_handle`); (3) when a backend call is in-flight or has failed, render a 'disconnected'/degraded state for that surface (not a spinner-forever, not a hang); (4) on a detected backend-unreachable condition, call `diagnostics::record_with(DiagEventCode::BackendUnreachable, ...)` once per transition (debounced — not every frame), and `DiagEventCode::BackendRecovered` on recovery. The status bar already shows live /health — reuse its disconnected display for the global indicator.\n- EDIT `src/frontend/handshake_native/src/backend_client.rs` — add a short `connect_timeout` (e.g. 1-2s) + request `timeout` to the reqwest `ClientBuilder` used by the affected clients so a dead/half-open backend cannot hang a worker forever (this is reuse-config of the EXISTING client, not a backend change; src/backend is untouched).\n- CREATE `src/frontend/handshake_native/tests/test_backend_down_responsive.rs` — the 2026-06-26 repro.\n\nTHE RE-PROVE (the deliverable proof, AC-008-1): a test launches the real HandshakeApp with NO backend listening on 127.0.0.1:37501 (or a bogus base_url that refuses connections), drives the frame loop (egui_kittest `step()` repeatedly), and asserts: (a) the app stays RESPONSIVE — frames keep completing within a tight per-frame time bound (no frame blocks for the connect-timeout), (b) the MT-084 heartbeat counter keeps ADVANCING across frames (proving the UI thread is not stalled, the exact CPU->0 symptom is gone), (c) a `BackendUnreachable` DiagEvent was recorded, (d) the affected surface shows a disconnected/degraded state, not a hang or a perpetual spinner. This directly contradicts the 2026-06-26 symptom (Responding=false, CPU->0, frozen).\n\nReuse note: the spawn-handle + poll-each-frame pattern ALREADY EXISTS (health_handle, app.rs ~1190) — this MT generalizes it to the offending call sites; it does NOT invent a new async pattern. The heartbeat (MT-084) is the responsiveness oracle. The MT-082 recorder provides BackendUnreachable. src/backend is reuse-via-API only (forbidden to edit) — the fix is entirely client-side / frame-path.\n\nRisk if missed: the exact 2026-06-26 freeze recurs (app hangs when the backend is down); §5.8.5 HARD requirement unmet (a spec defect by definition); Palmistry would then have to catch a freeze that should never have happened. This is the single highest-value bug-fix in the WP.",
@@ -2298,5 +2299,51 @@
     "target_reuse": "No builds in this follow-up; canonical supervisor now consumes existing CARGO_TARGET_DIR, never creates a fourth target.",
     "lifecycle_unchanged": true,
     "verdict_unchanged": true
+  },
+  "remediation_v7": {
+    "session": "KERNEL_BUILDER-C1",
+    "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "base_sha": "a8bf221bcf75870591ca38ddef5b7d466e9ab0e0",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "cargo_target": "C:/.target/WP-KERNEL-012/target (Operator 2026-09-22 grant; CARGO_PROFILE_DEV_DEBUG=line-tables-only; incremental cleared before each cargo)",
+    "build_proof": {
+      "backend_bin": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/11-core-bin-build.log (exit 0)",
+      "native_focused_norun": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/02-native-focused-norun.log (exit 0)",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/19-native-clippy.log (exit 0, -D warnings, --all-targets)",
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/20-native-clippy-integration.log (exit 0, --features integration,integration_tests)",
+      "final_gate": {
+        "rule": "Orchestrator steer 2026-09-22: link-all --no-run replaced by `cargo check --locked --tests` per feature set (set A alone ~394 targets x ~250 MB exe+pdb ~= 98 GB > 100 GB cap; 22-norun-setA stopped at ~56 GB).",
+        "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/25-check-setA.log (exit 0, surreal-test-support,test-utils)",
+        "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/26-check-setB.log (exit 0, app-runtime,surreal-test-support,test-utils)",
+        "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/27-check-setC.log (exit 0, inspector,surreal-test-support,test-utils)",
+        "norun_lib": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/23-norun-lib.log (exit 0, duckdb-flight-recorder,test-utils --lib)",
+        "norun_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/24-norun-setC.log (exit 0, 4 inspector targets)",
+        "norun_setB_lib_subset": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/13-core-lib-setB-norun.log (exit 0, --lib + wp_kernel_012_native_editor_routes_tests + atelier_loom_projection_api_tests)",
+        "native_all_targets": "clippy --all-targets (logs 19, 20) type-checks every native target in both feature variants",
+        "core_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/21-core-clippy.log exit 101: 422 PRE-EXISTING lint errors (default features, --all-targets, -D warnings) in ~100 files; none on C1-changed lines",
+        "target_after_cleanup": "linked test exes/pdbs in deps, top-level pdbs and incremental deleted; C:/.target ~45 GB (du); peak ~65 GB (du)"
+      }
+    },
+    "validator_env_note": "Backend lib/integration tests: HANDSHAKE_SURREAL_TEST_STORE_ROOT=C:/.target/WP-KERNEL-012/runtime requires HANDSHAKE_ARTIFACTS_ROOT=C:/.target/WP-KERNEL-012 (storage::tests::test_store_root demands a strict descendant). Native live tests: HSK_TEST_BACKEND_TARGET_ROOT must be <Handshake_Artifacts>/WP/MT/owner/target, so the C: handshake_core.exe is copied with preserved mtime to ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/backend-target/debug/ (see kb-c1/run_test.sh for the full env).",
+    "known_shared_blocker": {
+      "id": "C1-FDELETE",
+      "status": "OPEN_OPERATOR_DECISION",
+      "summary": "DELETE /workspaces/:id by the authenticated Owner returns 403 HSK-403-PROTECTED-RESOURCE when the workspace contains a rich document or Canvas board. storage/surreal/workspaces.rs delete transaction statement 16 (the final `DELETE $workspace` guard) fails because knowledge_rich_documents, knowledge_rich_document_versions and loom_canvas_boards declare PERMISSIONS ... FOR delete NONE while their workspace_id fields are REFERENCE ON DELETE CASCADE, so a record-user cascade cannot remove them. Existing backend delete tests only cover FEMS-only workspaces.",
+      "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log (test_event_emitter.rs:2759 'isolated workspace cleanup -> 403 Forbidden: {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}') + backend log 'workspace delete transaction failed statement_index=16'",
+      "decision_needed": "Whether an authorized workspace delete may cascade-delete rich documents, their immutable version history and Canvas boards (schema delete permission change + schema pin reconciliation), or whether workspaces with content must be archived/emptied first (then native proof fixtures must clean up differently). Not changed by KERNEL_BUILDER: it relaxes version-history immutability and requires schema pin re-measurement.",
+      "impact": "Any native live proof that creates a rich document or Canvas board and then asserts workspace cleanup will red at cleanup even though its product assertions pass."
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict; PASS/COMPLETED belongs to the independent validator.",
+    "status": "FIXED_READY_FOR_SHARED_VALIDATION",
+    "commits": [
+      "ce1e8769 style(MT-079): keep integration-gated native proofs lint-clean in default builds"
+    ],
+    "static_verification": "Native clippy now clean on 1.97.1: `cargo clippy --locked -p handshake-native --all-targets -- -D warnings` exit 0 (kb-c1 log 19) and with --features integration,integration_tests exit 0 (log 20); f3525bbb fixed the 68 attributed sites; ce1e8769 cleared the default-feature dead-code/unused-import errors in integration-gated test files. MT-088-R6-2 env contract implemented in e7e31646 (tests/native_gui_support/source_provenance.rs: HANDSHAKE_PALMISTRY_EXE authoritative, HANDSHAKE_PROOF_SOURCE_SHA provenance).",
+    "recommended_validation": [
+      "cargo clippy -p handshake-native --all-targets -- -D warnings (both feature variants)",
+      "native: test_backend_down_responsive (with HANDSHAKE_PALMISTRY_EXE)"
+    ],
+    "recorded_at_utc": "2026-09-22T20:51:09.293Z"
   }
 }

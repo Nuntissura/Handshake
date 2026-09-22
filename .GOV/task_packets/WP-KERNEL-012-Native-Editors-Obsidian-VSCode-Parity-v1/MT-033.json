@@ -14,7 +14,7 @@
   "title": "E5-MT-033-CkcEmbedsDragInRouteToStage",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-19T22:42:01.940357Z",
+  "updated_at_utc": "2026-09-22T20:51:09.293Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-033.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V6",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -46,8 +46,8 @@
     "remediation_v3_in_progress": false,
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-30T01:50:38.6640735Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-V4",
+    "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-C1",
     "ready_for_validation_reason": "MT-033 FAIL_V2 remediation is committed at product source b6433155f54ab7f9d4f13b95f1a9bba7fcccdd4b. Real PostgreSQL proves physical Atelier drag-in, exact hsLink save/reload, immutable save receipt, Route-to-Stage flight-recorder and EventLedger correlation, and exact cleanup. Canonical mounted Argus success and typed-failure paths contain stable-target steering, fresh observations, terminal predicates/trees, and directly inspected WGPU captures. The current UserManual covers the workflow and recovery. Official V3 validation remains pending.",
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_ARGUS_ARTIFACT_ROOT_MANUAL_RUNTIME_AND_POSTGRESQL_RECEIPT_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",
@@ -71,7 +71,8 @@
       "emitted_at_utc": "2026-07-30T01:50:22.086Z"
     },
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER"
+    "next_actor": "KERNEL_BUILDER",
+    "status_before_remediation_v6": "BLOCKED_ON_DEPENDENCY"
   },
   "scope": {
     "summary": "Goal: let users drag CKC (Atelier/KERNEL-005) media items, characters, and moodboards into a native note or canvas pane as embedded loom:// references, and route any note selection or document to a Stage pane. Expected diff shape: (a) a new drag-source on the AtelierSidePanel widget that emits a DragPayload::AtelierRef; (b) a drop-target in the rich-text editor that converts a dropped AtelierRef into an embed node (similar to how React LoomTransclusionView.tsx inserts a loomTransclusion TipTap node); (c) a drop-target in the canvas pane that places a canvas node pinned to the atelier item; (d) a 'Route to Stage' command dispatched through the existing command_registry.rs + event_bus.rs that takes the current selection or document and opens/focuses the Stage pane with that content; (e) integration tests using a real PG backend to assert the embed survives a save/reload cycle.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/drag_payload.rs  — defines DragPayload enum: AtelierRef { item_id: String, item_kind: AtelierItemKind, label: String, loom_block_id: Option<String> }, LoomBlockRef { block_id: String, workspace_id: String }, PlainText(String). Also defines AtelierItemKind enum: Media | Character | Moodboard. (New interop/ subdir created INSIDE src/frontend/handshake_native/src/.)\n  - src/frontend/handshake_native/src/atelier_side_panel.rs  — an egui side-panel listing AtelierIntakeBatch items and AtelierCommandCorpus entries fetched from the existing backend via backend_client.rs (GET /atelier/intake/batches, GET /atelier/command-corpus). Each item row supports egui drag-source: on drag-start stores DragPayload::AtelierRef in ctx.data_mut. Rows display thumbnail path + label. Reuse the existing rail layout patterns from left_rail.rs / search_rail.rs. AccessKit: panel container author_id=\"atelier-side-panel\", role=List; each row author_id=\"atelier-item-{item_id}\", role=ListItem, actions=[Press, StartDrag].\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/lib.rs  — add `pub mod interop;` and `pub mod atelier_side_panel;` (module registration for the new interop/ subdir and the new flat atelier_side_panel module).\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — (rich-text editor pane created by WP-012 / MT-013) add an egui drop-target zone over the editor area. When a drop is received from ctx.data(|d| d.get_temp::<DragPayload>(...)), match on AtelierRef: insert an embed node { node_type: 'atelierEmbed', item_id, item_kind, label, loom_block_id } into the document tree at the caret position. Serialize as a custom ProseMirror-style block in the rich doc JSON. On save, the block is stored as part of content_json and round-trips through saveRichDocument.\n  - src/frontend/handshake_native/src/canvas_board.rs  — add drop-target at canvas level. On AtelierRef drop at screen position: call PUT /canvas/{canvas_id}/graph (via backend_client.rs) with a new CanvasNodeInput { kind: 'atelier_ref', atelier_item_id, x, y, width, height, label }. Backend stores it; reload canvas graph. The placed node's header shows AtelierItemKind badge + label + loom:// chip if loom_block_id is Some.\n  - src/frontend/handshake_native/src/stage_pane.rs  — add or extend a StagePane widget (new flat module, registered in the existing pane_registry.rs and docked via split_layout.rs; header via pane_header.rs). The Stage pane accepts a StageContent enum: Document(RichDocLoad) | Selection(String, String) | AtelierItem(AtelierRef). Register a 'route-to-stage' command in command_registry.rs (MT-031): args = StageRouteArgs { content: StageContent }; the command opens the Stage pane tile (via split_layout.rs / egui_tiles) and sets its content.\n  - src/frontend/handshake_native/src/command_registry.rs  — register the 'route-to-stage' command descriptor; the route-to-stage handler emits the open/focus event over event_bus.rs and passes StageContent to stage_pane.rs.\n\nStep-by-step implementation notes:\n  1. egui drag-source: call ui.dnd_drag_source(egui::Id::new(item_id), payload, |ui| { ui.label(&row.label) }). The payload is DragPayload::AtelierRef. This is egui 0.28+ API; confirm version in src/frontend/handshake_native/Cargo.toml.\n  2. egui drop-target in rich-text pane: call let response = ui.dnd_drop_zone::<DragPayload, _>(egui::Frame::none(), |ui| { ... }); then check response.1 (the dropped payload) in each frame.\n  3. Embed node in rich doc JSON: define a custom block type \"atelier_embed\" in the document schema. Store as a JSONContent object node with attrs: { item_id, item_kind, label, loom_block_id }. The rich-text editor renders it as a small card widget inline (thumbnail if available, else text label with badge).\n  4. Canvas node creation for atelier drop: map screen position (egui Pos2) to canvas coordinates. Call updateCanvasGraph (api.ts ~1719: PUT /canvas/{id}/graph body { nodes: [{ kind, label, x, y, width, height, atelier_item_id }], edges: [] }) via the Rust backend_client.rs IPC client. Then reload via GET /canvas/{id}.\n  5. Route to Stage: the Stage pane is an egui_tiles tile in the docking layout managed by split_layout.rs. 'route-to-stage' command handler: find the Stage tile id in the tree, call tree.set_active_tile(stage_tile_id), then set stage_pane.content = StageContent::from(args). If Stage tile does not exist yet, insert it as a new floating pane (reuse popout_window.rs for the floating case).\n  6. Right-click context menu on rich-text selection: show 'Route to Stage' menu item via context_menu.rs / context_menu_surfaces.rs. This dispatches the 'route-to-stage' command through command_registry.rs with StageRouteArgs::Selection(selected_text, document_id).\n  7. Right-click context menu on canvas node: show 'Route to Stage' item (context_menu.rs) that routes the node's document or atelier item.\n  8. AtelierSidePanel data loading: call GET /atelier/intake/batches + GET /atelier/command-corpus via backend_client.rs on mount. Display in two sections: 'Media / Characters / Moodboards' (from intake items) and 'Command Corpus'. Refresh button fires a reload.\n  9. AccessKit (accessibility/*): atelier_side_panel rows have actions=[Press, StartDrag]; the Stage pane container has author_id=\"stage-pane\", role=Region. Use the existing accessibility/registry.rs + accessibility/snapshot.rs surfaces.\n  10. Tests: src/frontend/handshake_native/tests/test_ckc_embed.rs — (a) unit: DragPayload::AtelierRef serializes and deserializes correctly; (b) integration (real PG): create a canvas, PUT /canvas/{id}/graph with an atelier_ref node, reload, assert node appears with correct atelier_item_id; (c) integration: create a rich doc, insert an atelier_embed block, saveRichDocument, reload, assert the atelier_embed block survives round-trip; (d) kittest: simulate drag from atelier panel, drop on canvas, assert canvas node count increases by 1.\n\nDependencies / unblock conditions:\n  - MT-031 (command registration via command_registry.rs + event_bus.rs) merged.\n  - MT-032 (LoomBlockAddr, loom:// URI) merged — needed for loom_block_id in AtelierRef.\n  - MT-013 (rich-text embed NodeView infrastructure, rich_text/ module) merged — needed so the atelier_embed block has a renderer in the rich-text pane.\n  - Cross-WP: relies on WP-011 modules command_registry.rs, event_bus.rs, canvas_board.rs, pane_registry.rs, split_layout.rs, pane_header.rs, context_menu.rs, context_menu_surfaces.rs, accessibility/*, backend_client.rs, left_rail.rs, search_rail.rs (already merged in handshake-native).\n  - egui 0.28+ for dnd_drag_source / dnd_drop_zone API; confirm version in src/frontend/handshake_native/Cargo.toml.\n\nRisk if missed: CKC<->editor interconnection is one of the four named interconnection edges in the packet contract. Without this MT, dragging a character or moodboard into a note is impossible, breaking the 'melt-together' proof in MT-046.",
@@ -1006,5 +1007,51 @@
       "MT108 gitless matrix validation requires HANDSHAKE_PROOF_SOURCE_MANIFEST with exact observed source SHA256 map.",
       "Installed Cargo registry inputs were read from existing C cache during offline run; all configured target/temp/runtime outputs used D. Cache-home policy must be checked before resumed build."
     ]
+  },
+  "remediation_v6": {
+    "session": "KERNEL_BUILDER-C1",
+    "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "base_sha": "a8bf221bcf75870591ca38ddef5b7d466e9ab0e0",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "cargo_target": "C:/.target/WP-KERNEL-012/target (Operator 2026-09-22 grant; CARGO_PROFILE_DEV_DEBUG=line-tables-only; incremental cleared before each cargo)",
+    "build_proof": {
+      "backend_bin": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/11-core-bin-build.log (exit 0)",
+      "native_focused_norun": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/02-native-focused-norun.log (exit 0)",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/19-native-clippy.log (exit 0, -D warnings, --all-targets)",
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/20-native-clippy-integration.log (exit 0, --features integration,integration_tests)",
+      "final_gate": {
+        "rule": "Orchestrator steer 2026-09-22: link-all --no-run replaced by `cargo check --locked --tests` per feature set (set A alone ~394 targets x ~250 MB exe+pdb ~= 98 GB > 100 GB cap; 22-norun-setA stopped at ~56 GB).",
+        "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/25-check-setA.log (exit 0, surreal-test-support,test-utils)",
+        "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/26-check-setB.log (exit 0, app-runtime,surreal-test-support,test-utils)",
+        "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/27-check-setC.log (exit 0, inspector,surreal-test-support,test-utils)",
+        "norun_lib": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/23-norun-lib.log (exit 0, duckdb-flight-recorder,test-utils --lib)",
+        "norun_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/24-norun-setC.log (exit 0, 4 inspector targets)",
+        "norun_setB_lib_subset": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/13-core-lib-setB-norun.log (exit 0, --lib + wp_kernel_012_native_editor_routes_tests + atelier_loom_projection_api_tests)",
+        "native_all_targets": "clippy --all-targets (logs 19, 20) type-checks every native target in both feature variants",
+        "core_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/21-core-clippy.log exit 101: 422 PRE-EXISTING lint errors (default features, --all-targets, -D warnings) in ~100 files; none on C1-changed lines",
+        "target_after_cleanup": "linked test exes/pdbs in deps, top-level pdbs and incremental deleted; C:/.target ~45 GB (du); peak ~65 GB (du)"
+      }
+    },
+    "validator_env_note": "Backend lib/integration tests: HANDSHAKE_SURREAL_TEST_STORE_ROOT=C:/.target/WP-KERNEL-012/runtime requires HANDSHAKE_ARTIFACTS_ROOT=C:/.target/WP-KERNEL-012 (storage::tests::test_store_root demands a strict descendant). Native live tests: HSK_TEST_BACKEND_TARGET_ROOT must be <Handshake_Artifacts>/WP/MT/owner/target, so the C: handshake_core.exe is copied with preserved mtime to ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/backend-target/debug/ (see kb-c1/run_test.sh for the full env).",
+    "known_shared_blocker": {
+      "id": "C1-FDELETE",
+      "status": "OPEN_OPERATOR_DECISION",
+      "summary": "DELETE /workspaces/:id by the authenticated Owner returns 403 HSK-403-PROTECTED-RESOURCE when the workspace contains a rich document or Canvas board. storage/surreal/workspaces.rs delete transaction statement 16 (the final `DELETE $workspace` guard) fails because knowledge_rich_documents, knowledge_rich_document_versions and loom_canvas_boards declare PERMISSIONS ... FOR delete NONE while their workspace_id fields are REFERENCE ON DELETE CASCADE, so a record-user cascade cannot remove them. Existing backend delete tests only cover FEMS-only workspaces.",
+      "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log (test_event_emitter.rs:2759 'isolated workspace cleanup -> 403 Forbidden: {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}') + backend log 'workspace delete transaction failed statement_index=16'",
+      "decision_needed": "Whether an authorized workspace delete may cascade-delete rich documents, their immutable version history and Canvas boards (schema delete permission change + schema pin reconciliation), or whether workspaces with content must be archived/emptied first (then native proof fixtures must clean up differently). Not changed by KERNEL_BUILDER: it relaxes version-history immutability and requires schema pin re-measurement.",
+      "impact": "Any native live proof that creates a rich document or Canvas board and then asserts workspace cleanup will red at cleanup even though its product assertions pass."
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict; PASS/COMPLETED belongs to the independent validator.",
+    "status": "FIXED_READY_FOR_SHARED_VALIDATION",
+    "commits": [
+      "08d7869a fix(MT-033): authenticate Stage and Atelier requests with account sessions"
+    ],
+    "what_changed": "F401 root cause: api/atelier.rs calling_actor used stage::capture_context, which treats x-hsk-session-token as the native-MCP binding token; native clients now send the account session token there and the binding in x-hsk-channel-binding-token, so every authenticated Atelier call was 401 (test_ckc_embed left 401 right 201). Atelier handlers now use request_actor -> stage::capture_request_context (account session + live channel, no fallback when the channel header is present).",
+    "recommended_validation": [
+      "native: test_ckc_embed ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend, ac5_atelier_side_panel_loads_from_live_backend",
+      "backend: api::atelier::authentication_tests; tests atelier_loom_projection_api_tests (binding-only path unchanged)"
+    ],
+    "recorded_at_utc": "2026-09-22T20:51:09.293Z"
   }
 }

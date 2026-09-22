@@ -14,7 +14,7 @@
   "title": "E11-MT-079-AppHostMount-EditorPaneFactories",
   "group": "E11 Shell host-mount (app.rs convergence)",
   "created_at_utc": "2026-06-25T00:00:00Z",
-  "updated_at_utc": "2026-09-19T23:00:06.842347Z",
+  "updated_at_utc": "2026-09-22T20:51:09.293Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V6",
+    "status": "READY_FOR_VALIDATION_V7",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt079",
       "mode": "VERIFY_AND_PROVE",
@@ -55,8 +55,8 @@
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-C079-20260917-145500",
     "validated_at_utc": "2026-09-17T15:09:46.597Z",
-    "ready_for_validation_at_utc": "2026-07-24T16:10:00.000Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-C1",
     "remediation_v3_in_progress": false,
     "completed_by": null,
     "ready_for_validation_summary": "MT-079 V3: canonical Argus editor-pane lifecycle (creation/navigation/focus/popout; close via existing runtime tests, product re-seeds base pane) + menu-bar reachability of 13 WP-012 VIEW surfaces + operator Runtime Chat menu item wired. Validator PENDING; completed_by null.",
@@ -97,7 +97,8 @@
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     },
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER"
+    "next_actor": "KERNEL_BUILDER",
+    "status_before_remediation_v7": "FAIL_V6"
   },
   "scope": {
     "summary": "OPERATOR-AUTHORIZED SCOPE EXPANSION (2026-06-25, AskUserQuestion answer = Add app.rs mount MT now): this NEW MT closes the structural gap that NO existing WP-012 MT owned - the actual HOST-MOUNT of the built+widget-proven editor panes into the running Handshake app (app.rs). Today app.rs (~4902 lines) registers PlaceholderPaneFactory for the editor PaneTypes (the editor-pane TYPED SEAM, Rich-text/Code editor pane not mounted yet, at ~app.rs:286), so the panes are proven only at the kittest widget level and never render in the live app; this MT replaces those placeholders with the REAL editor pane factories, threads the per-pane session context, and wires the ~14 accumulated E11 carry-forwards so the native editors become LIVE in the running app (enabling real-app GUI inspection per the goal). HOST-INTEGRATION GLUE ONLY: no new editor features, no backend endpoints, no SQLite. It binds the EXISTING set_* hooks + pane widgets the prior MTs built+tested, and mounts/threads them in app.rs. Every backend gap stays a typed blocker (FEMS/Stage/Calendar/Locus HTTP routes verified ABSENT; live-PG round-trips = NEEDS_MANAGED_RESOURCE_PROOF). PostgreSQL/EventLedger only; no SQLite; src/backend is reuse-via-API-only. CORE MOUNT (must-have, prove first): (1) register a REAL CodeEditorPaneFactory (PaneType::CodeEditor) + RichEditorPaneFactory (rich/document PaneType) in app.rs factories HashMap, replacing PlaceholderPaneFactory for those types; construct from the existing CodeEditorPanel (code_editor/panel.rs) + RichEditorWidget (rich_editor/renderer/rich_editor_widget.rs); create thin impl PaneFactory wrappers if absent. (2) thread session context via PaneRenderContext on mount: code pane set_runtime(tokio Handle)+set_workspace_id (MT-008/010); rich pane RichEditorState::set_embed_context(workspace_id,runtime) (MT-014) + set_wikilink_context (MT-057); use the SAME shared-cell pattern app.rs already uses for LoomSearchV2PaneFactory/FindInFilesPaneFactory. (3) wire the shell command Sender into the code pane so Save/Undo/Redo/OpenCommandPalette reach the WP-011 command bus + MT-035 unified undo (MT-010). (4) wire MT-030 ShellNavigator open_document->rich pane + open_code_symbol->code pane (MT-030). (5) DRAIN RichEditorState.pending_events each frame + ROUTE WikilinkActivated/BacklinkActivated/TagActivated/locus open-ref to the nav bus (MT-015). FULLER MOUNT (as far as the run allows; gate/defer honestly, NEVER fake): (6) CANVAS pane (graph/canvas_board.rs): mount factory; consume MT-061 ResizePlacement/AssignSection/EditTextCard -> real PATCH/POST + getCanvasBoard refresh; set CanvasCardKind from the card response; push_canvas_placement_undo + emit_canvas_node_placed (MT-035/036/061). (7) GRAPH pane (graph/graph_view.rs): depth-parameterized graph-search client (backend_client local_request taking backlink_depth) + consume GraphEvent::DepthChanged to re-query (MT-060). (8) code pane live undo + FR: route code Ctrl+Z/Ctrl+Y -> bus.undo/redo + push_code_edit_undo; emit_code_edit debounced 2s; app.rs bus.set_undo_runtime(handle)+register_undo_commands()+render_undo_count_indicator (MT-035/036). (9) DOCK the widget-proven side panes: loom.outgoing_links (build resolver_index from /knowledge/documents + /loom/blocks, wire on_open) (MT-062); relevant-memory (subscribe refresh_for_context to MT-031 bus, wire source-links) (MT-063); Propose-to-Memory live invocation (MT-064); StagePane + Route-to-Stage/embed-stage-capture (MT-066); DailyJournalPanel + MT-030 date-selected -> open-or-create (MT-067). (10) MT-043 swarm-authoring: add AccessKit Action::SetValue/ReplaceSelectedText on code_editor_text + a wikilink-by-id insertion action; the MT-043 swarm-edit proof STEP2/STEP3 become live-drivable (gated on managed PG). PRIORITIZE core 1-5 (prove code+rich panes render LIVE in the running HandshakeApp tree via a kittest driving the real app + a wgpu screenshot of the mounted editor), THEN 6-10 as far as the run allows. Anything not completed = HONEST typed carry (NOT faked, NOT todo!()); live-PG halves stay NEEDS_MANAGED_RESOURCE_PROOF. A partial-but-honest mount that makes the core editors live + leaves the rest as typed carries is the expected, acceptable outcome.",
@@ -2310,5 +2311,51 @@
     "target_reuse": "No builds in this follow-up; canonical supervisor now consumes existing CARGO_TARGET_DIR, never creates a fourth target.",
     "lifecycle_unchanged": true,
     "verdict_unchanged": true
+  },
+  "remediation_v7": {
+    "session": "KERNEL_BUILDER-C1",
+    "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "base_sha": "a8bf221bcf75870591ca38ddef5b7d466e9ab0e0",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "cargo_target": "C:/.target/WP-KERNEL-012/target (Operator 2026-09-22 grant; CARGO_PROFILE_DEV_DEBUG=line-tables-only; incremental cleared before each cargo)",
+    "build_proof": {
+      "backend_bin": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/11-core-bin-build.log (exit 0)",
+      "native_focused_norun": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/02-native-focused-norun.log (exit 0)",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/19-native-clippy.log (exit 0, -D warnings, --all-targets)",
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/20-native-clippy-integration.log (exit 0, --features integration,integration_tests)",
+      "final_gate": {
+        "rule": "Orchestrator steer 2026-09-22: link-all --no-run replaced by `cargo check --locked --tests` per feature set (set A alone ~394 targets x ~250 MB exe+pdb ~= 98 GB > 100 GB cap; 22-norun-setA stopped at ~56 GB).",
+        "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/25-check-setA.log (exit 0, surreal-test-support,test-utils)",
+        "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/26-check-setB.log (exit 0, app-runtime,surreal-test-support,test-utils)",
+        "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/27-check-setC.log (exit 0, inspector,surreal-test-support,test-utils)",
+        "norun_lib": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/23-norun-lib.log (exit 0, duckdb-flight-recorder,test-utils --lib)",
+        "norun_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/24-norun-setC.log (exit 0, 4 inspector targets)",
+        "norun_setB_lib_subset": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/13-core-lib-setB-norun.log (exit 0, --lib + wp_kernel_012_native_editor_routes_tests + atelier_loom_projection_api_tests)",
+        "native_all_targets": "clippy --all-targets (logs 19, 20) type-checks every native target in both feature variants",
+        "core_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/21-core-clippy.log exit 101: 422 PRE-EXISTING lint errors (default features, --all-targets, -D warnings) in ~100 files; none on C1-changed lines",
+        "target_after_cleanup": "linked test exes/pdbs in deps, top-level pdbs and incremental deleted; C:/.target ~45 GB (du); peak ~65 GB (du)"
+      }
+    },
+    "validator_env_note": "Backend lib/integration tests: HANDSHAKE_SURREAL_TEST_STORE_ROOT=C:/.target/WP-KERNEL-012/runtime requires HANDSHAKE_ARTIFACTS_ROOT=C:/.target/WP-KERNEL-012 (storage::tests::test_store_root demands a strict descendant). Native live tests: HSK_TEST_BACKEND_TARGET_ROOT must be <Handshake_Artifacts>/WP/MT/owner/target, so the C: handshake_core.exe is copied with preserved mtime to ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/backend-target/debug/ (see kb-c1/run_test.sh for the full env).",
+    "known_shared_blocker": {
+      "id": "C1-FDELETE",
+      "status": "OPEN_OPERATOR_DECISION",
+      "summary": "DELETE /workspaces/:id by the authenticated Owner returns 403 HSK-403-PROTECTED-RESOURCE when the workspace contains a rich document or Canvas board. storage/surreal/workspaces.rs delete transaction statement 16 (the final `DELETE $workspace` guard) fails because knowledge_rich_documents, knowledge_rich_document_versions and loom_canvas_boards declare PERMISSIONS ... FOR delete NONE while their workspace_id fields are REFERENCE ON DELETE CASCADE, so a record-user cascade cannot remove them. Existing backend delete tests only cover FEMS-only workspaces.",
+      "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log (test_event_emitter.rs:2759 'isolated workspace cleanup -> 403 Forbidden: {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}') + backend log 'workspace delete transaction failed statement_index=16'",
+      "decision_needed": "Whether an authorized workspace delete may cascade-delete rich documents, their immutable version history and Canvas boards (schema delete permission change + schema pin reconciliation), or whether workspaces with content must be archived/emptied first (then native proof fixtures must clean up differently). Not changed by KERNEL_BUILDER: it relaxes version-history immutability and requires schema pin re-measurement.",
+      "impact": "Any native live proof that creates a rich document or Canvas board and then asserts workspace cleanup will red at cleanup even though its product assertions pass."
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict; PASS/COMPLETED belongs to the independent validator.",
+    "status": "FIXED_READY_FOR_SHARED_VALIDATION",
+    "commits": [
+      "ce1e8769 style(MT-079): keep integration-gated native proofs lint-clean in default builds"
+    ],
+    "static_verification": "Native clippy now clean on 1.97.1: `cargo clippy --locked -p handshake-native --all-targets -- -D warnings` exit 0 (kb-c1 log 19) and with --features integration,integration_tests exit 0 (log 20); f3525bbb fixed the 68 attributed sites; ce1e8769 cleared the default-feature dead-code/unused-import errors in integration-gated test files.",
+    "recommended_validation": [
+      "cargo clippy -p handshake-native --all-targets -- -D warnings (both feature variants)",
+      "native build halves per validation_v6"
+    ],
+    "recorded_at_utc": "2026-09-22T20:51:09.293Z"
   }
 }

@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-09-20T03:53:29.8265108Z",
+  "updated_at_utc": "2026-09-22T20:51:09.293Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -12998,5 +12998,106 @@
       "lifecycle_unchanged": true,
       "verdict_unchanged": true
     }
+  },
+  "remediation_v20": {
+    "session": "KERNEL_BUILDER-C1",
+    "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "base_sha": "a8bf221bcf75870591ca38ddef5b7d466e9ab0e0",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "cargo_target": "C:/.target/WP-KERNEL-012/target (Operator 2026-09-22 grant; CARGO_PROFILE_DEV_DEBUG=line-tables-only; incremental cleared before each cargo)",
+    "build_proof": {
+      "backend_bin": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/11-core-bin-build.log (exit 0)",
+      "native_focused_norun": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/02-native-focused-norun.log (exit 0)",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/19-native-clippy.log (exit 0, -D warnings, --all-targets)",
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/20-native-clippy-integration.log (exit 0, --features integration,integration_tests)",
+      "final_gate": {
+        "rule": "Orchestrator steer 2026-09-22: link-all --no-run replaced by `cargo check --locked --tests` per feature set (set A alone ~394 targets x ~250 MB exe+pdb ~= 98 GB > 100 GB cap; 22-norun-setA stopped at ~56 GB).",
+        "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/25-check-setA.log (exit 0, surreal-test-support,test-utils)",
+        "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/26-check-setB.log (exit 0, app-runtime,surreal-test-support,test-utils)",
+        "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/27-check-setC.log (exit 0, inspector,surreal-test-support,test-utils)",
+        "norun_lib": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/23-norun-lib.log (exit 0, duckdb-flight-recorder,test-utils --lib)",
+        "norun_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/24-norun-setC.log (exit 0, 4 inspector targets)",
+        "norun_setB_lib_subset": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/13-core-lib-setB-norun.log (exit 0, --lib + wp_kernel_012_native_editor_routes_tests + atelier_loom_projection_api_tests)",
+        "native_all_targets": "clippy --all-targets (logs 19, 20) type-checks every native target in both feature variants",
+        "core_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/21-core-clippy.log exit 101: 422 PRE-EXISTING lint errors (default features, --all-targets, -D warnings) in ~100 files; none on C1-changed lines",
+        "target_after_cleanup": "linked test exes/pdbs in deps, top-level pdbs and incremental deleted; C:/.target ~45 GB (du); peak ~65 GB (du)"
+      }
+    },
+    "validator_env_note": "Backend lib/integration tests: HANDSHAKE_SURREAL_TEST_STORE_ROOT=C:/.target/WP-KERNEL-012/runtime requires HANDSHAKE_ARTIFACTS_ROOT=C:/.target/WP-KERNEL-012 (storage::tests::test_store_root demands a strict descendant). Native live tests: HSK_TEST_BACKEND_TARGET_ROOT must be <Handshake_Artifacts>/WP/MT/owner/target, so the C: handshake_core.exe is copied with preserved mtime to ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/backend-target/debug/ (see kb-c1/run_test.sh for the full env).",
+    "known_shared_blocker": {
+      "id": "C1-FDELETE",
+      "status": "OPEN_OPERATOR_DECISION",
+      "summary": "DELETE /workspaces/:id by the authenticated Owner returns 403 HSK-403-PROTECTED-RESOURCE when the workspace contains a rich document or Canvas board. storage/surreal/workspaces.rs delete transaction statement 16 (the final `DELETE $workspace` guard) fails because knowledge_rich_documents, knowledge_rich_document_versions and loom_canvas_boards declare PERMISSIONS ... FOR delete NONE while their workspace_id fields are REFERENCE ON DELETE CASCADE, so a record-user cascade cannot remove them. Existing backend delete tests only cover FEMS-only workspaces.",
+      "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log (test_event_emitter.rs:2759 'isolated workspace cleanup -> 403 Forbidden: {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}') + backend log 'workspace delete transaction failed statement_index=16'",
+      "decision_needed": "Whether an authorized workspace delete may cascade-delete rich documents, their immutable version history and Canvas boards (schema delete permission change + schema pin reconciliation), or whether workspaces with content must be archived/emptied first (then native proof fixtures must clean up differently). Not changed by KERNEL_BUILDER: it relaxes version-history immutability and requires schema pin re-measurement.",
+      "impact": "Any native live proof that creates a rich document or Canvas board and then asserts workspace cleanup will red at cleanup even though its product assertions pass."
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict; PASS/COMPLETED belongs to the independent validator.",
+    "status": "BATCH_IMPLEMENTED_BLOCKED_ON_OPERATOR_DECISION",
+    "commits": [
+      "adc18fdc fix(MT-111): return 401 for unauthenticated Flight Recorder requests",
+      "08d7869a fix(MT-033): authenticate Stage and Atelier requests with account sessions",
+      "0e74bfbc fix(MT-109): log the failing workspace delete cascade statement",
+      "6c1b5cb8 test(MT-036): keep the account-bound channel across canonical Argus binds",
+      "41366e60 fix(MT-125): resolve sourceless code targets from the chosen workspace root",
+      "c1e7d1a0 test(MT-023): wait for the tag hub member in the mounted tree",
+      "5639e6e0 test(MT-026): report Canvas board state on mounted timeout",
+      "51cdb199 test(MT-128): keep parity manifest writes out of the tracked tree",
+      "bd2d0496 style(MT-125): rustfmt native files touched by the C1 batch",
+      "ce1e8769 style(MT-079): keep integration-gated native proofs lint-clean in default builds"
+    ],
+    "previous_session_state_established": {
+      "runtime_18_unrecorded": "native-emitter-runtime-18 (kb-native) matched 2/3 events; document_saved missing because the claim's session_run_id differed from the receipt row; fixed by 456dc63a (RichDocSaveBackend receipt_session_id), proven by kb-c1 run 03.",
+      "wpv_final_lane_unrecorded": "MT-109/wpv-final at 456dc63a..a8bf221b: last result 61/62 loom-expanded red (loom.rs:5416 source_document_id Null); a8bf221b corrected the fixture (bare note transclusion is unresolved; resolved case proven on a sourced rich document). That selector hung in kb-c1 run 15 in a shared process after two FR test failures; NOT re-proven."
+    },
+    "native_round_trip": {
+      "status": "NATIVE_AUTH_FLOW_PROVEN_UP_TO_WORKSPACE_CLEANUP",
+      "runs": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/03-native-emitter-roundtrip.log: three production-emitter events (undo_fired, canvas_node_placed, document_saved) now persist with server-derived principal attribution (runtime-18 missing document_saved resolved by 456dc63a receipt_session_id); failed at canonical FR open with 401 because CanonicalArgusDriver::bind_in_current_app_data republished the shared native binding with a different token, invalidating the channel-bound account session",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/06-native-emitter-roundtrip.log: after the Argus fix, open/refresh render exact rows; bounded-failure step expected stale text 'error sending request' but the account context correctly refuses a different origin ('Authenticated backend origin mismatch')",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/08 and 10: full V4 matrix (open, refresh, bounded failure, failed retry, recovery) passes; failure moves to the test's own workspace cleanup (403)",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log: cleanup 403 root-caused to C1-FDELETE (statement 16); stopped per brief §4 / CX-EXEC-003"
+      ]
+    },
+    "fixed_this_batch": [
+      "F111: api/flight_recorder.rs middleware authenticates the account session + live channel before ResourceBroker authorization; no valid authentication -> audited uniform 401 HSK-401-FR-SESSION; authenticated-but-denied -> constant 403 (tests updated: no-binding/forged, revoked, disabled/expired/forged matrix rows).",
+      "F401: api/stage.rs capture_request_context + api/atelier.rs request_actor authenticate account sessions when x-hsk-channel-binding-token is present (no fallback); binding-only form unchanged when the header is absent.",
+      "Argus republish invalidating account sessions: native_gui_support/canonical_argus_driver.rs bind_in_current_app_data reuses the live binding token and restores the displaced binding before server shutdown (fixes all 13 call sites in 8 native test files).",
+      "Workspace delete diagnosability: storage/surreal/workspaces.rs logs the failing cascade statement (response unchanged)."
+    ],
+    "blockers_left": [
+      {
+        "id": "C1-FDELETE",
+        "status": "OPEN_OPERATOR_DECISION",
+        "summary": "DELETE /workspaces/:id by the authenticated Owner returns 403 HSK-403-PROTECTED-RESOURCE when the workspace contains a rich document or Canvas board. storage/surreal/workspaces.rs delete transaction statement 16 (the final `DELETE $workspace` guard) fails because knowledge_rich_documents, knowledge_rich_document_versions and loom_canvas_boards declare PERMISSIONS ... FOR delete NONE while their workspace_id fields are REFERENCE ON DELETE CASCADE, so a record-user cascade cannot remove them. Existing backend delete tests only cover FEMS-only workspaces.",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log (test_event_emitter.rs:2759 'isolated workspace cleanup -> 403 Forbidden: {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}') + backend log 'workspace delete transaction failed statement_index=16'",
+        "decision_needed": "Whether an authorized workspace delete may cascade-delete rich documents, their immutable version history and Canvas boards (schema delete permission change + schema pin reconciliation), or whether workspaces with content must be archived/emptied first (then native proof fixtures must clean up differently). Not changed by KERNEL_BUILDER: it relaxes version-history immutability and requires schema pin re-measurement.",
+        "impact": "Any native live proof that creates a rich document or Canvas board and then asserts workspace cleanup will red at cleanup even though its product assertions pass."
+      },
+      {
+        "id": "C1-FRLIB-HANG",
+        "status": "UNRESOLVED_STOPPED_AT_2_ATTEMPTS",
+        "summary": "handshake_core lib tests api::flight_recorder::tests::flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue and ::mt109_every_flight_recorder_route_uses_persisted_credentials_and_full_denial_matrix FAILED in run 15 (failure text not captured: process hung afterwards in api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows and was stopped); run 16 (--nocapture, FR unauth test alone) hung idle in setup_state before the test body (no binding temp dir created; 15 s CPU then idle). Hypothesis (UNVERIFIED): a shared embedded-store/reconciliation setup regression from the unrecorded 8fb3a26f..a8bf221b commits (edb54c0e changed the workspace-create reconciliation guard), not the C1 middleware change (no-binding requests fail before any DB call).",
+        "logs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/15-core-lib-changed-selectors.log",
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/16-core-lib-fr-unauth.log"
+        ],
+        "exit_127_note": "Logs 15/16 end with exit=127 because KERNEL_BUILDER-C1 force-stopped its own hung test processes (PIDs 124092, 90464) after ~34 min and ~10 min idle; 127 is the wrapper status of a killed process, not a test result."
+      }
+    ],
+    "findings_for_operator": [
+      "Rich-document post-commit knowledge indexing is always denied under record-user scope: knowledge_sources PERMISSIONS FOR create requires source_kind = 'file' (schema.surql:3340), so index_document_non_fatal logs rich_document_knowledge_index_failed_post_commit HSK-403 on every save (non-fatal; knowledge_indexed=false).",
+      "loom.rs routes POST/DELETE .../canvas visual-edges (add_canvas_visual_edge/remove_canvas_visual_edge, loom.rs:437/441) have no authority middleware, unlike board/placement routes (authority gap; closing it needs a record-user storage path because loom_canvas_visual_edges is FOR create NONE).",
+      "Stage/Atelier still accept the binding-only (no account session) form when x-hsk-channel-binding-token is absent; retiring it (Master Spec §2.3.13.12.3(2)) needs backend test migration (atelier_loom_projection_api_tests, atelier_stealth_window_tests, wp_kernel_012_native_editor_routes_tests Stage harness, atelier.rs authentication_tests).",
+      "handshake_core `cargo clippy --all-targets -- -D warnings` (default features, 1.97.1) reports 422 pre-existing errors in ~100 files (dead code under default features, doc-list indentation, disallowed methods, ...); none on C1-changed lines (log 21). Crate-wide sweep not performed: scope decision.",
+      "test_e7_swarm_edit_proof::watchdog_failure_write_is_bounded_under_live_log_contention red at ba03f563 was a cascade of the F403 live-test crash leaving swarm_edit_proof_log.lock; lock recovery treats the dead child as alive while the parent holds its process handle (residual hardening item)."
+    ],
+    "recommended_validation": [
+      "native (features integration,integration_tests): test_event_emitter event_emitter_native_editor_round_trip (expect product assertions green up to cleanup unless C1-FDELETE is decided)",
+      "native: test_flight_recorder_authz mt111_flight_recorder_authorization_boundary_real_surrealdb",
+      "backend lib (app-runtime,surreal-test-support,test-utils): api::flight_recorder::tests (whole module), api::atelier::authentication_tests, api::loom::tests::mounted_record_user_loom_creates_are_atomic_and_denied_writes_leave_no_rows"
+    ],
+    "recorded_at_utc": "2026-09-22T20:51:09.293Z"
   }
 }

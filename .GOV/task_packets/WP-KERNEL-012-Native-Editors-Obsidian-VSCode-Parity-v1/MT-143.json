@@ -31,7 +31,7 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "BLOCKED_ON_DEPENDENCY",
+    "status": "READY_FOR_VALIDATION_V2",
     "depends_on": [],
     "blocks": [
       "MT-117"
@@ -114,8 +114,8 @@
     },
     "ready_for_validation_v4_at_utc": "2026-09-03T17:43:37.480Z",
     "ready_for_validation_v4_by": "KERNEL_BUILDER-20260903-170735",
-    "ready_for_validation_at_utc": "2026-09-03T17:43:37.480Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260903-170735",
+    "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-C1",
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "generated_at_utc": "2026-09-03T17:43:37.480Z",
@@ -136,7 +136,8 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:56.858Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER"
+    "next_actor": "KERNEL_BUILDER",
+    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY"
   },
   "scope": {
     "summary": "A mounted next-day click on the daily-journal surface must actually navigate while a calendar read for the previous date is still in flight. Today it does not. test_calendar_interop::mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue clicks the journal-EDITOR next-day control (author_id `journal-next-day`, JOURNAL_DATE_NAV_AUTHOR_IDS, rendered by rich_editor/daily_notes/journal_panel.rs line 439) and then waits for the MOUNTED graph::daily_journal_panel::DailyJournalState to reach the second date with projection NoEvent. It never does. The mock request log captured at the failure shows only first-date traffic after the click: GET /knowledge/documents, POST /loom/search-v2, PUT /loom/journals/<first_date>, GET /api/flight_recorder, and the /calendar/events GET for <first_date> twice. There is no PUT /loom/journals/<second_date> and no /calendar/events GET for <second_date>. Because the editor's own handler (journal_panel.rs, DateNavOutcome::Navigated -> state.store.open(date)) would itself have issued that PUT, the editor's nav did not advance either. The click is therefore NOT landing on the control at all, rather than landing and being dropped downstream. Two mechanisms remain open and must be distinguished by measurement before any fix: (a) POSITION drift, since egui_kittest dispatches a click at the observed node's rect and the conditional projection labels in graph/daily_journal_panel.rs ('Loading calendar event and activity...', 'Waiting for daily note...', 'Calendar binding paused...') appear and disappear as the transient read settles, moving every widget below them between the inspected frame and the frame that processes the click; (b) IDENTITY drift of an ANCESTOR of the nav row, the same class MT-113 and MT-117 hit. Stabilizing the DateNavWidget row itself was already attempted and did NOT change the outcome, and that attempt was reverted, so the row's own scope is not the cause. This microtask must also decide and record whether the mounted daily-journal panel is expected to follow the EDITOR's date navigation at all: the editor nav writes only the editor's own DateNav and store, while the mounted panel's nav advances only through DailyJournalEvent::DateNavigated emitted by the panel's own widget (author_ids DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS, graph/daily_journal_panel.rs line 563). If no such cross-surface sync is intended, then the product contract is what needs stating and the test must be corrected to the surface that owns the state it asserts on, with the reasoning recorded rather than the assertion weakened.",
@@ -769,5 +770,52 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-09-16T23:19:56.858Z"
+  "updated_at_utc": "2026-09-22T20:51:09.293Z",
+  "remediation_v2": {
+    "session": "KERNEL_BUILDER-C1",
+    "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",
+    "base_sha": "a8bf221bcf75870591ca38ddef5b7d466e9ab0e0",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "cargo_target": "C:/.target/WP-KERNEL-012/target (Operator 2026-09-22 grant; CARGO_PROFILE_DEV_DEBUG=line-tables-only; incremental cleared before each cargo)",
+    "build_proof": {
+      "backend_bin": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/11-core-bin-build.log (exit 0)",
+      "native_focused_norun": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/02-native-focused-norun.log (exit 0)",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/19-native-clippy.log (exit 0, -D warnings, --all-targets)",
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/20-native-clippy-integration.log (exit 0, --features integration,integration_tests)",
+      "final_gate": {
+        "rule": "Orchestrator steer 2026-09-22: link-all --no-run replaced by `cargo check --locked --tests` per feature set (set A alone ~394 targets x ~250 MB exe+pdb ~= 98 GB > 100 GB cap; 22-norun-setA stopped at ~56 GB).",
+        "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/25-check-setA.log (exit 0, surreal-test-support,test-utils)",
+        "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/26-check-setB.log (exit 0, app-runtime,surreal-test-support,test-utils)",
+        "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/27-check-setC.log (exit 0, inspector,surreal-test-support,test-utils)",
+        "norun_lib": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/23-norun-lib.log (exit 0, duckdb-flight-recorder,test-utils --lib)",
+        "norun_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/24-norun-setC.log (exit 0, 4 inspector targets)",
+        "norun_setB_lib_subset": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/13-core-lib-setB-norun.log (exit 0, --lib + wp_kernel_012_native_editor_routes_tests + atelier_loom_projection_api_tests)",
+        "native_all_targets": "clippy --all-targets (logs 19, 20) type-checks every native target in both feature variants",
+        "core_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/21-core-clippy.log exit 101: 422 PRE-EXISTING lint errors (default features, --all-targets, -D warnings) in ~100 files; none on C1-changed lines",
+        "target_after_cleanup": "linked test exes/pdbs in deps, top-level pdbs and incremental deleted; C:/.target ~45 GB (du); peak ~65 GB (du)"
+      }
+    },
+    "validator_env_note": "Backend lib/integration tests: HANDSHAKE_SURREAL_TEST_STORE_ROOT=C:/.target/WP-KERNEL-012/runtime requires HANDSHAKE_ARTIFACTS_ROOT=C:/.target/WP-KERNEL-012 (storage::tests::test_store_root demands a strict descendant). Native live tests: HSK_TEST_BACKEND_TARGET_ROOT must be <Handshake_Artifacts>/WP/MT/owner/target, so the C: handshake_core.exe is copied with preserved mtime to ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/backend-target/debug/ (see kb-c1/run_test.sh for the full env).",
+    "known_shared_blocker": {
+      "id": "C1-FDELETE",
+      "status": "OPEN_OPERATOR_DECISION",
+      "summary": "DELETE /workspaces/:id by the authenticated Owner returns 403 HSK-403-PROTECTED-RESOURCE when the workspace contains a rich document or Canvas board. storage/surreal/workspaces.rs delete transaction statement 16 (the final `DELETE $workspace` guard) fails because knowledge_rich_documents, knowledge_rich_document_versions and loom_canvas_boards declare PERMISSIONS ... FOR delete NONE while their workspace_id fields are REFERENCE ON DELETE CASCADE, so a record-user cascade cannot remove them. Existing backend delete tests only cover FEMS-only workspaces.",
+      "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/12-native-emitter-roundtrip.log (test_event_emitter.rs:2759 'isolated workspace cleanup -> 403 Forbidden: {\"error\":\"HSK-403-PROTECTED-RESOURCE\"}') + backend log 'workspace delete transaction failed statement_index=16'",
+      "decision_needed": "Whether an authorized workspace delete may cascade-delete rich documents, their immutable version history and Canvas boards (schema delete permission change + schema pin reconciliation), or whether workspaces with content must be archived/emptied first (then native proof fixtures must clean up differently). Not changed by KERNEL_BUILDER: it relaxes version-history immutability and requires schema pin re-measurement.",
+      "impact": "Any native live proof that creates a rich document or Canvas board and then asserts workspace cleanup will red at cleanup even though its product assertions pass."
+    },
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict; PASS/COMPLETED belongs to the independent validator.",
+    "status": "DEPENDENCY_RESOLVED_READY_FOR_SHARED_VALIDATION",
+    "commits": [
+      "6c1b5cb8 test(MT-036): keep the account-bound channel across canonical Argus binds",
+      "adc18fdc fix(MT-111): return 401 for unauthenticated Flight Recorder requests",
+      "08d7869a fix(MT-033): authenticate Stage and Atelier requests with account sessions"
+    ],
+    "static_verification": "F403 dependency: native fixtures authenticate via product Owner setup + login session exchange (1236078e/83c05ecf/456dc63a); KERNEL_BUILDER-C1 proved the native account flow end to end through the full mounted Argus matrix of test_event_emitter (kb-c1 logs 03-12). Canonical Argus rebinding no longer invalidates the account session (6c1b5cb8). F500 verified fixed at HEAD (state_recovery.rs:1790 wsids Vec::new(); event_ledger.rs prepare_event fills wsids; all kernel_event_ledger writers bind wsids per schema.surql:6126). FDIRTY resolved (456dc63a moved swarm_edit_proof_log to the external artifact root).",
+    "recommended_validation": [
+      "test_other_pillar_interop_proofs; test_stage_interop"
+    ],
+    "recorded_at_utc": "2026-09-22T20:51:09.293Z"
+  }
 }
