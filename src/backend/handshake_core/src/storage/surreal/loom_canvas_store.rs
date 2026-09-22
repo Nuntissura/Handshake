@@ -3262,6 +3262,36 @@ async fn add_canvas_visual_edge_attempt(
         })
 }
 
+/// The canvas board that owns `visual_edge_id` inside `workspace_id`, read for API-boundary
+/// authorization of a visual-edge removal. `None` for an unknown edge or a workspace mismatch.
+pub(crate) async fn canvas_visual_edge_board_id(
+    storage: &SurrealStorage,
+    workspace_id: &str,
+    visual_edge_id: &str,
+) -> StorageResult<Option<String>> {
+    let bindings = RecordWorkspaceBindings {
+        record: RecordId::new(VISUAL_EDGES, visual_edge_id.to_owned()),
+        workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
+    };
+    let rows: Vec<VisualEdgeRow> = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values(
+                        "SELECT visual_edge_id, canvas_block_id, workspace_id, from_placement_id, \n                           to_placement_id, label, created_at FROM $record \n                         WHERE workspace_id = $workspace;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(map_err)?;
+    match rows.into_iter().next() {
+        Some(row) => Ok(Some(visual_edge_to_domain(row)?.canvas_block_id)),
+        None => Ok(None),
+    }
+}
+
 pub(crate) async fn remove_canvas_visual_edge(
     database: &SurrealDatabase,
     ctx: &WriteContext,

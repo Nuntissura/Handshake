@@ -40,7 +40,7 @@ mod kernel_queue_store;
 pub mod keyed_lock;
 mod knowledge;
 pub(crate) mod locus_store;
-mod loom_canvas_store;
+pub(crate) mod loom_canvas_store;
 pub(crate) mod loom_store;
 mod mcp_store;
 #[cfg(any(test, feature = "surreal-test-support"))]

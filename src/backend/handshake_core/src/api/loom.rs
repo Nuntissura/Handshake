@@ -4844,16 +4844,58 @@ struct AddVisualEdgeRequest {
     label: Option<String>,
 }
 
+/// Visual-edge routes use the account authorization of the other Canvas mutation routes, with the
+/// MT-111 status split: 401 = no valid account session, 403 = authenticated but not permitted on the
+/// owning canvas board (constant shape, so an unknown board or edge is indistinguishable).
+async fn authorize_canvas_visual_edge_write(
+    state: &AppState,
+    headers: &HeaderMap,
+    canvas_block_id: &str,
+) -> ApiResult<crate::api::authority::AuthorizedResourceContext> {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    if crate::api::authority::authenticated_session_credentials(state, headers)
+        .await
+        .is_err()
+    {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse {
+                error: "HSK-401-LOOM-SESSION",
+            }),
+        ));
+    }
+    crate::api::authority::authorize_request(
+        state,
+        headers,
+        "fs.write",
+        ResourceKind::LoomBlock,
+        canvas_block_id,
+        ResourceAction::Update,
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    })
+}
+
 async fn add_canvas_visual_edge(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: HeaderMap,
     Json(payload): Json<AddVisualEdgeRequest>,
 ) -> ApiResult<Json<LoomCanvasVisualEdge>> {
+    let board_authority = authorize_canvas_visual_edge_write(&state, &headers, &block_id).await?;
+    let ctx = loom_create_write_context(&board_authority)?;
     ensure_workspace_exists(&state, &workspace_id).await?;
     let edge = state
         .storage
         .add_canvas_visual_edge(
-            &WriteContext::human(None),
+            &ctx,
             &workspace_id,
             &block_id,
             &payload.from_placement_id,
@@ -4868,11 +4910,41 @@ async fn add_canvas_visual_edge(
 async fn remove_canvas_visual_edge(
     State(state): State<AppState>,
     Path((workspace_id, visual_edge_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<StatusCode> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    if crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .is_err()
+    {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse {
+                error: "HSK-401-LOOM-SESSION",
+            }),
+        ));
+    }
+    let denied = || {
+        (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-PROTECTED-RESOURCE",
+            }),
+        )
+    };
+    let canvas_block_id = crate::storage::surreal::loom_canvas_store::canvas_visual_edge_board_id(
+        &state.surreal,
+        &workspace_id,
+        &visual_edge_id,
+    )
+    .await
+    .map_err(|_| denied())?
+    .ok_or_else(denied)?;
+    let board_authority =
+        authorize_canvas_visual_edge_write(&state, &headers, &canvas_block_id).await?;
+    let ctx = loom_create_write_context(&board_authority)?;
     state
         .storage
-        .remove_canvas_visual_edge(&WriteContext::human(None), &workspace_id, &visual_edge_id)
+        .remove_canvas_visual_edge(&ctx, &workspace_id, &visual_edge_id)
         .await
         .map_err(map_storage_error)?;
     Ok(StatusCode::NO_CONTENT)
