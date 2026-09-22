@@ -5564,6 +5564,7 @@ fn canonical_or_lexical_code_path(path: &std::path::Path) -> std::path::PathBuf 
 fn resolve_code_navigation_path(
     raw: &std::path::Path,
     source_file: &str,
+    workspace_root: &Result<String, WorkspaceRootError>,
 ) -> Result<std::path::PathBuf, String> {
     let raw = raw.to_string_lossy();
     let is_file_uri = raw
@@ -5606,15 +5607,22 @@ fn resolve_code_navigation_path(
     // Every relative target is relative to the source document, including explicit `./` and `../`
     // forms. Language servers define these paths in document/workspace context; resolving either form
     // against process CWD can silently open an unrelated shadow file when the app starts elsewhere.
+    // Without a source document, the only anchor is the chosen workspace root (MT-125); an unbound or
+    // stale root is a typed failure, never a process-CWD fallback.
     let source = std::path::Path::new(source_file);
     if !source_file.trim().is_empty() {
         if let Some(parent) = source.parent() {
             return Ok(lexical_normalize_code_path(&parent.join(candidate)));
         }
     }
-    std::env::current_dir()
-        .map(|workspace| canonical_or_lexical_code_path(&workspace.join(candidate)))
-        .map_err(|error| format!("relative navigation target has no resolvable workspace: {error}"))
+    let workspace = workspace_root.as_ref().map_err(|error| {
+        format!(
+            "relative navigation target has no source document or chosen workspace root: {error}"
+        )
+    })?;
+    Ok(canonical_or_lexical_code_path(
+        &std::path::Path::new(workspace).join(candidate),
+    ))
 }
 
 fn code_document_key(path: &std::path::Path) -> String {
@@ -5698,7 +5706,24 @@ pub fn resolve_code_navigation_path_for_test(
     raw: &std::path::Path,
     source_file: &str,
 ) -> Result<std::path::PathBuf, String> {
-    resolve_code_navigation_path(raw, source_file)
+    resolve_code_navigation_path_with_workspace_root_for_test(
+        raw,
+        source_file,
+        Err(WorkspaceRootError::Missing {
+            workspace_id: String::new(),
+        }),
+    )
+}
+
+/// Test seam binding the chosen workspace root (or its typed failure) that the mounted resolver
+/// receives from `active_workspace_root_text`; the resolver never consults process CWD (MT-125).
+#[doc(hidden)]
+pub fn resolve_code_navigation_path_with_workspace_root_for_test(
+    raw: &std::path::Path,
+    source_file: &str,
+    workspace_root: Result<String, WorkspaceRootError>,
+) -> Result<std::path::PathBuf, String> {
+    resolve_code_navigation_path(raw, source_file, &workspace_root)
 }
 
 /// Test seam for the stricter persisted code-ref resolver. It must return a real canonical file and
@@ -5708,7 +5733,23 @@ pub fn resolve_code_ref_target_path_for_test(
     raw: &std::path::Path,
     source_file: &str,
 ) -> Result<std::path::PathBuf, String> {
-    resolve_code_ref_target_path(raw, source_file)
+    resolve_code_ref_target_path_with_workspace_root_for_test(
+        raw,
+        source_file,
+        Err(WorkspaceRootError::Missing {
+            workspace_id: String::new(),
+        }),
+    )
+}
+
+/// Test seam for the code-ref resolver with an explicit chosen workspace root (or typed failure).
+#[doc(hidden)]
+pub fn resolve_code_ref_target_path_with_workspace_root_for_test(
+    raw: &std::path::Path,
+    source_file: &str,
+    workspace_root: Result<String, WorkspaceRootError>,
+) -> Result<std::path::PathBuf, String> {
+    resolve_code_ref_target_path(raw, source_file, &workspace_root)
 }
 
 /// WP-KERNEL-012 MT-008 REMEDIATION: the typed LSP attach state the shell keeps for the mounted code
@@ -25402,7 +25443,12 @@ impl HandshakeApp {
             self.quick_switcher_nav_status = None;
             return;
         }
-        let target_path = match resolve_code_navigation_path(&jump.file_path, &source_file) {
+        let workspace_root = self.active_workspace_root_text();
+        let target_path = match resolve_code_navigation_path(
+            &jump.file_path,
+            &source_file,
+            &workspace_root,
+        ) {
             Ok(path) => path,
             Err(error) => {
                 self.quick_switcher_nav_status = Some(format!("Code navigation failed: {error}"));
@@ -33350,6 +33396,7 @@ impl HandshakeApp {
                         ctx.request_repaint();
                         return;
                     }
+                    let workspace_root = self.active_workspace_root_text();
                     let target_path = match resolve_code_ref_target_path(
                         std::path::Path::new(&code_ref.file_path),
                         if std::path::Path::new(&mounted_source_path).is_file() {
@@ -33357,6 +33404,7 @@ impl HandshakeApp {
                         } else {
                             &operation.source_file_hint
                         },
+                        &workspace_root,
                     ) {
                         Ok(path) => path,
                         Err(error) => {
@@ -39967,11 +40015,13 @@ impl Drop for HandshakeApp {
 
 /// Resolve a persisted code-ref path to a real readable file. Unlike generic LSP navigation, a
 /// code-ref may carry a repository-relative path while the mounted source panel contains an unrelated
-/// file. Search source ancestors (the repository-root direction), then process CWD, and reject an
-/// unbacked path rather than jumping inside the wrong buffer.
+/// file. Search source ancestors (the repository-root direction), then the chosen workspace root
+/// (MT-125: never process CWD), and reject an unbacked path rather than jumping inside the wrong
+/// buffer. An unbound/stale workspace root surfaces its typed failure when nothing else matches.
 fn resolve_code_ref_target_path(
     raw: &std::path::Path,
     source_file: &str,
+    workspace_root: &Result<String, WorkspaceRootError>,
 ) -> Result<std::path::PathBuf, String> {
     let decoded = raw.to_string_lossy();
     let explicit = raw.is_absolute()
@@ -39979,7 +40029,7 @@ fn resolve_code_ref_target_path(
             .get(..7)
             .is_some_and(|prefix| prefix.eq_ignore_ascii_case("file://"));
     if explicit {
-        let path = resolve_code_navigation_path(raw, source_file)?;
+        let path = resolve_code_navigation_path(raw, source_file, workspace_root)?;
         return path
             .is_file()
             .then(|| canonical_or_lexical_code_path(&path))
@@ -40008,23 +40058,30 @@ fn resolve_code_ref_target_path(
             }
         }
     }
-    let cwd = std::env::current_dir()
-        .map_err(|error| format!("cannot resolve code-ref runtime root: {error}"))?;
-    let candidate = cwd.join(relative);
-    if candidate.is_file() {
-        let candidate = canonical_or_lexical_code_path(&candidate);
-        if seen.insert(code_document_key(&candidate)) {
-            matches.push(candidate);
+    if let Ok(workspace) = workspace_root {
+        let candidate = std::path::Path::new(workspace).join(&relative);
+        if candidate.is_file() {
+            let candidate = canonical_or_lexical_code_path(&candidate);
+            if seen.insert(code_document_key(&candidate)) {
+                matches.push(candidate);
+            }
         }
     }
     match matches.as_slice() {
         [path] => Ok(path.clone()),
-        [] => Err(format!(
-            "code-ref target '{}' is not backed by a readable file from source '{}' or runtime root '{}'",
-            raw.display(),
-            source_file,
-            cwd.display()
-        )),
+        [] => Err(match workspace_root {
+            Ok(workspace) => format!(
+                "code-ref target '{}' is not backed by a readable file from source '{}' or workspace root '{}'",
+                raw.display(),
+                source_file,
+                workspace
+            ),
+            Err(error) => format!(
+                "code-ref target '{}' is not backed by a readable file from source '{}' and no chosen workspace root is usable: {error}",
+                raw.display(),
+                source_file
+            ),
+        }),
         _ => Err(format!(
             "code-ref target '{}' is ambiguous across readable runtime roots: {}",
             raw.display(),

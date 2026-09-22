@@ -2239,6 +2239,66 @@ fn popout_scoped_command_drain_retains_interleaved_docked_command() {
 }
 
 #[test]
+fn mt125_sourceless_code_targets_use_chosen_workspace_root_never_process_cwd() {
+    use handshake_native::project_tabs::WorkspaceRootError;
+    let root = external_artifact_dir(&format!(
+        "wp-kernel-012-mt-125/workspace-root-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    std::fs::create_dir_all(root.join("src")).expect("create chosen workspace root");
+    let target = root.join("src").join("lib.rs");
+    std::fs::write(&target, "pub fn chosen() {}
+").expect("write workspace-root target");
+    let root_text = root.to_string_lossy().into_owned();
+
+    // No source document: a relative LSP target resolves under the chosen workspace root.
+    let resolved = handshake_native::app::resolve_code_navigation_path_with_workspace_root_for_test(
+        Path::new("src/lib.rs"),
+        "",
+        Ok(root_text.clone()),
+    )
+    .expect("sourceless relative target resolves under the chosen workspace root");
+    assert_eq!(
+        resolved.canonicalize().expect("canonical resolved target"),
+        target.canonicalize().expect("canonical expected target")
+    );
+
+    // No chosen root: a typed failure, never a process-CWD join.
+    let missing = || {
+        Err(WorkspaceRootError::Missing {
+            workspace_id: "WS-MT125".to_owned(),
+        })
+    };
+    let error = handshake_native::app::resolve_code_navigation_path_with_workspace_root_for_test(
+        Path::new("src/lib.rs"),
+        "",
+        missing(),
+    )
+    .expect_err("sourceless relative target without a chosen root must fail closed");
+    assert!(error.contains("WorkspaceRootMissing"), "{error}");
+
+    // Persisted code-refs search the chosen root; without one they surface the typed error.
+    let code_ref = handshake_native::app::resolve_code_ref_target_path_with_workspace_root_for_test(
+        Path::new("src/lib.rs"),
+        "",
+        Ok(root_text),
+    )
+    .expect("code-ref resolves under the chosen workspace root");
+    assert_eq!(
+        code_ref.canonicalize().expect("canonical code-ref"),
+        target.canonicalize().expect("canonical expected code-ref")
+    );
+    let error = handshake_native::app::resolve_code_ref_target_path_with_workspace_root_for_test(
+        Path::new("src/lib.rs"),
+        "",
+        missing(),
+    )
+    .expect_err("code-ref without source match or chosen root must fail closed");
+    assert!(error.contains("WorkspaceRootMissing"), "{error}");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn relative_navigation_is_source_anchored_and_late_completion_cannot_refocus_after_round_trip() {
     let dir = external_artifact_dir("wp-kernel-012-mt-008/source-anchor");
     std::fs::create_dir_all(&dir).expect("create source-anchor directory");
