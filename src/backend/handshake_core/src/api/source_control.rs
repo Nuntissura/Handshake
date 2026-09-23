@@ -112,7 +112,14 @@ impl SourceControlEventRecorder for KernelSourceControlEventRecorder {
 }
 
 pub fn routes(state: AppState) -> Router {
-    routes_with_event_recorder(kernel_event_recorder(state.storage.clone()))
+    // MT-109 C2: repository reads and writes require an authenticated account session (deny by
+    // default); `routes_with_event_recorder` stays the unmounted composition seam for recorder tests.
+    routes_with_event_recorder(kernel_event_recorder(state.storage.clone())).route_layer(
+        axum::middleware::from_fn_with_state(
+            state,
+            crate::api::authority::require_authenticated_session,
+        ),
+    )
 }
 
 /// Builds the real EventLedger-backed source-control event recorder over the

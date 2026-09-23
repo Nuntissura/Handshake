@@ -1007,6 +1007,21 @@ pub(crate) async fn authenticated_session(
         .map(|session| session.context)
 }
 
+/// MT-109 C2 (Master Spec 02-system-architecture:2758 deny by default): gate for routes that start
+/// processes or touch repository state and have no protected-resource row. Only a persisted account
+/// session bound to the live native channel passes; everything else gets the constant denial.
+pub(crate) async fn require_authenticated_session(
+    State(state): State<AppState>,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    match authenticated_session(&state, request.headers()).await {
+        Ok(_) => next.run(request).await,
+        Err(denial) => denial.into_response(),
+    }
+}
+
 pub(crate) struct AuthenticatedLocalSession {
     pub context: crate::storage::surreal::local_accounts::LocalSessionContext,
     pub session_token: String,

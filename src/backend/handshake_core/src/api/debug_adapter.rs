@@ -155,12 +155,9 @@ pub async fn terminate_all_sessions() -> Result<usize, DebugAdapterError> {
 }
 
 pub fn routes(state: AppState) -> Router {
-    Router::new()
-        .route("/debug/adapters", get(list_adapters))
-        .route(
-            "/debug/documents/:rich_document_id/breakpoints",
-            get(get_breakpoints).put(put_breakpoints),
-        )
+    // MT-109 C2: launching and driving a debuggee starts and controls a local process; every
+    // `/debug/sessions*` route requires an authenticated account session (deny by default).
+    let sessions = Router::new()
         .route("/debug/sessions", post(launch_session))
         .route(
             "/debug/sessions/:id",
@@ -184,6 +181,17 @@ pub fn routes(state: AppState) -> Router {
         .route("/debug/sessions/:id/continue", post(session_continue))
         .route("/debug/sessions/:id/pause", post(session_pause))
         .route("/debug/sessions/:id/events", get(session_events))
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::api::authority::require_authenticated_session,
+        ));
+    Router::new()
+        .route("/debug/adapters", get(list_adapters))
+        .route(
+            "/debug/documents/:rich_document_id/breakpoints",
+            get(get_breakpoints).put(put_breakpoints),
+        )
+        .merge(sessions)
         .with_state(state)
 }
 

@@ -665,7 +665,21 @@ fn session_runtime_state(state: &ModelSessionState) -> SessionRuntimeState {
 async fn list_kernel_events_for_aggregate(
     State(state): State<AppState>,
     Path((aggregate_type, aggregate_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
 ) -> Result<Json<Vec<KernelEvent>>, (StatusCode, Json<ErrorResponse>)> {
+    // MT-109 C2: deny by default; the read runs as the authenticated record user so it returns only
+    // receipts the caller's account may read (Master Spec 02-system-architecture:2773/:2776).
+    let session = crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await
+        .map_err(|_| {
+            (
+                StatusCode::FORBIDDEN,
+                Json(ErrorResponse {
+                    code: "HSK-403-PROTECTED-RESOURCE",
+                    message: "authenticated account session required".to_owned(),
+                }),
+            )
+        })?;
     if aggregate_type.trim().is_empty() || aggregate_id.trim().is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -676,8 +690,13 @@ async fn list_kernel_events_for_aggregate(
         ));
     }
     let events = state
-        .storage
-        .list_kernel_events_for_aggregate(&aggregate_type, &aggregate_id)
+        .surreal
+        .list_account_kernel_events_for_aggregate(
+            &session.session_token,
+            &session.channel_binding_hash,
+            &aggregate_type,
+            &aggregate_id,
+        )
         .await
         .map_err(|error| {
             (

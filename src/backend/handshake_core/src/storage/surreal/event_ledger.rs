@@ -617,6 +617,66 @@ pub(crate) async fn list_for_session(
     .await
 }
 
+impl SurrealStorage {
+    /// MT-109 C2 (Master Spec 02-system-architecture:2773/:2776): the aggregate EventLedger read runs
+    /// as the calling record user, so the `kernel_event_ledger` read permissions return only receipts
+    /// the caller's account may see (its authorized workspaces), never another account's ledger.
+    pub async fn list_account_kernel_events_for_aggregate(
+        &self,
+        token: &str,
+        channel_hash: &str,
+        aggregate_type: &str,
+        aggregate_id: &str,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        use super::resource_authority::{SigninParams, AUTHORITY_ACCESS_METHOD};
+        use sha2::{Digest, Sha256};
+        use surrealdb::opt::auth::Record;
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let token_hash = hex::encode(Sha256::digest(token.as_bytes()));
+        let channel_binding_hash = Some(channel_hash.to_owned());
+        let aggregate_type = aggregate_type.to_owned();
+        let aggregate_id = aggregate_id.to_owned();
+        let rows: Vec<LedgerRow> = self
+            .with_lease(move |client| {
+                Box::pin(async move {
+                    let ordinary = client.clone();
+                    ordinary
+                        .use_ns(namespace.clone())
+                        .use_db(database.clone())
+                        .await?;
+                    ordinary
+                        .signin(Record {
+                            namespace,
+                            database,
+                            access: AUTHORITY_ACCESS_METHOD.to_owned(),
+                            params: SigninParams {
+                                token_hash,
+                                channel_binding_hash,
+                            },
+                        })
+                        .await?;
+                    let mut result = ordinary
+                        .query(
+                            "SELECT event_id, event_sequence, event_version, kernel_task_run_id, session_run_id, \
+                             aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id, \
+                             causation_id, correlation_id, payload_hash, source_component, payload, created_at \
+                             FROM kernel_event_ledger WHERE aggregate_type = $aggregate_type \
+                             AND aggregate_id = $aggregate_id ORDER BY event_sequence ASC;",
+                        )
+                        .bind(("aggregate_type", aggregate_type))
+                        .bind(("aggregate_id", aggregate_id))
+                        .await?
+                        .check()?;
+                    Ok(result.take(0)?)
+                })
+            })
+            .await
+            .map_err(StorageError::from)?;
+        rows.into_iter().map(row_to_event).collect()
+    }
+}
+
 pub(crate) async fn list_for_aggregate(
     storage: &SurrealStorage,
     aggregate_type: &str,
