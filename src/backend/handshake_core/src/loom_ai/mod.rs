@@ -303,6 +303,8 @@ pub async fn run_loom_ai_job(
         .source_component("loom_ai_job")
         .payload(json!({
             "schema_id": LOOM_AI_SUGGESTION_SCHEMA_ID,
+            // MT-109 C3: the receipt names its workspace (record-user receipt predicate).
+            "workspace_id": req.workspace_id,
             "suggestion_id": suggestion_id,
             "job_id": job_id,
             "kind": req.kind.as_str(),

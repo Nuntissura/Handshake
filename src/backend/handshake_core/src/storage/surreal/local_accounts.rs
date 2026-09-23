@@ -279,6 +279,8 @@ impl SurrealStorage {
         self.with_lease(move |client| Box::pin(async move {
             let broker = client.clone();
             broker.use_ns(namespace).use_db(database).await?;
+            // MT-109 C3 (C2 follow-up b): a text card places its RichDocument's same-id Loom
+            // projection, whose protected resource is the `rich_document`.
             let mut response = broker.query(
                 "SELECT canvas_block_id, placed_block_id FROM $placement \
                  WHERE workspace_id = $workspace \
@@ -297,7 +299,7 @@ impl SurrealStorage {
                      AND parent_resource_id.resource_kind = 'workspace' AND parent_resource_id.external_resource_id = record::id($workspace) \
                      AND parent_resource_id.lifecycle_state = 'active' AND parent_resource_id.owner_account_id = $account \
                      AND parent_resource_id.access_space_id = $space)) = 1 \
-                   AND array::len((SELECT id FROM protected_resources WHERE resource_kind = 'loom_block' \
+                   AND array::len((SELECT id FROM protected_resources WHERE resource_kind IN ['loom_block', 'rich_document'] \
                      AND external_resource_id = record::id($placement.placed_block_id) AND lifecycle_state = 'active' \
                      AND owner_account_id = $account AND created_by_principal_id.status = 'enabled' AND access_space_id = $space \
                      AND parent_resource_id.resource_kind = 'workspace' AND parent_resource_id.external_resource_id = record::id($workspace) \

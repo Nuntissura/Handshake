@@ -264,6 +264,7 @@ pub async fn accept_loom_ai_suggestion(
     .source_component("loom_ai_promotion")
     .payload(json!({
         "schema_id": LOOM_AI_SUGGESTION_SCHEMA_ID,
+        "workspace_id": accepted.workspace_id,
         "suggestion_id": suggestion_id,
         "kind": accepted.kind,
         "block_id": accepted.block_id,
@@ -284,6 +285,7 @@ pub async fn accept_loom_ai_suggestion(
     .source_component("loom_ai_promotion")
     .payload(json!({
         "schema_id": LOOM_AI_SUGGESTION_SCHEMA_ID,
+        "workspace_id": accepted.workspace_id,
         "suggestion_id": suggestion_id,
         "decided_by": reviewer.canonical(),
         "promoted_artifact_ref": artifact_ref,
@@ -562,6 +564,7 @@ async fn decided_event(
     .source_component("loom_ai_promotion")
     .payload(json!({
         "schema_id": LOOM_AI_SUGGESTION_SCHEMA_ID,
+        "workspace_id": suggestion.workspace_id,
         "suggestion_id": suggestion.suggestion_id,
         "decision": new_state,
         "decided_by": reviewer.canonical(),
@@ -601,6 +604,7 @@ async fn deny(
     .source_component("loom_ai_promotion")
     .payload(json!({
         "schema_id": LOOM_AI_PROMOTION_DENIAL_SCHEMA_ID,
+        "workspace_id": suggestion.workspace_id,
         "suggestion_id": suggestion.suggestion_id,
         "reason": reason,
         "gate_actor": gate_actor.canonical(),

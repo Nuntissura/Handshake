@@ -8,6 +8,38 @@ use crate::storage::{StorageError, StorageResult};
 
 const EVENT_TABLE: &str = "kernel_event_ledger";
 
+/// MT-109 C3: the authenticated session principal and workspace of an account-scoped Loom route.
+#[derive(Clone)]
+struct LoomSessionReceipt {
+    actor: KernelActor,
+    workspace_id: String,
+}
+
+tokio::task_local! {
+    /// Set only by account-scoped Loom routes. Every receipt prepared inside such a route carries
+    /// the session principal as its actor and the route workspace as its single `wsids` entry,
+    /// which `fn::mt120_loom_receipt` requires (Master Spec 02-system-architecture.md:2773).
+    static LOOM_SESSION_RECEIPT: LoomSessionReceipt;
+}
+
+/// Runs `operation` so that its EventLedger receipts are stamped with the session principal
+/// `actor` and bound to `workspace_id` (MT-109 C3).
+pub(crate) async fn with_loom_session_receipt<T>(
+    actor: KernelActor,
+    workspace_id: String,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    LOOM_SESSION_RECEIPT
+        .scope(
+            LoomSessionReceipt {
+                actor,
+                workspace_id,
+            },
+            operation,
+        )
+        .await
+}
+
 #[derive(Clone, SurrealValue)]
 pub(crate) struct LedgerWrite {
     pub(crate) record: RecordId,
@@ -140,7 +172,13 @@ struct LedgerRow {
     created_at: Datetime,
 }
 
-pub(crate) fn prepare_event(event: NewKernelEvent) -> StorageResult<(KernelEvent, LedgerWrite)> {
+pub(crate) fn prepare_event(
+    mut event: NewKernelEvent,
+) -> StorageResult<(KernelEvent, LedgerWrite)> {
+    let loom_session = LOOM_SESSION_RECEIPT.try_with(Clone::clone).ok();
+    if let Some(session) = &loom_session {
+        event.actor = session.actor.clone();
+    }
     event
         .validate()
         .map_err(|_| StorageError::Validation("invalid kernel event"))?;
@@ -163,11 +201,14 @@ pub(crate) fn prepare_event(event: NewKernelEvent) -> StorageResult<(KernelEvent
         payload_hash: event.payload_hash,
         source_component: event.source_component,
         payload: event.payload,
-        wsids: authority
-            .as_ref()
-            .and_then(|scope| scope.workspace_id.clone())
-            .into_iter()
-            .collect(),
+        wsids: match loom_session {
+            Some(session) => vec![session.workspace_id],
+            None => authority
+                .as_ref()
+                .and_then(|scope| scope.workspace_id.clone())
+                .into_iter()
+                .collect(),
+        },
         authority_resource_id: authority
             .as_ref()
             .map(|scope| RecordId::new("protected_resources", scope.resource_id.clone())),

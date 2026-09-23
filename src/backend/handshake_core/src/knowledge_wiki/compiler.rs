@@ -747,8 +747,14 @@ impl ProjectWikiCompiler {
         ctx: &WikiCompileContext,
         workspace_id: &str,
         causation_id: Option<&str>,
-        payload: Value,
+        mut payload: Value,
     ) -> WikiCompileResult<String> {
+        // MT-109 C3: every wiki compile receipt names its workspace (record-user receipt predicate).
+        if let Value::Object(fields) = &mut payload {
+            fields
+                .entry("workspace_id")
+                .or_insert_with(|| Value::String(workspace_id.to_string()));
+        }
         let mut builder = NewKernelEvent::builder(
             ctx.kernel_task_run_id.clone(),
             ctx.session_run_id.clone(),

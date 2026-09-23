@@ -920,6 +920,12 @@ impl Database for SurrealDatabase {
         ctx: &WriteContext,
         block: NewLoomBlock,
     ) -> StorageResult<LoomBlock> {
+        // MT-109 C3 (LM-RLS-001/002): under an account scope a Loom block is always created as
+        // the owned bundle (block + protected resource + creator grant + knowledge bridge +
+        // receipt), so the creating account can read and edit it afterwards.
+        if super::current_record_user_scope().is_some() {
+            return self.create_record_user_loom_bundle(ctx, block, None).await;
+        }
         let mut block = block;
         let block_id = block
             .block_id

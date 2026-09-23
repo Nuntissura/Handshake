@@ -270,6 +270,8 @@ async fn prior_create_publication(
 struct BlockCreateContent {
     block_id: String,
     workspace_id: RecordId,
+    /// MT-109 C3: the creating account session of a record-user saved view (NONE for root).
+    created_in_session_id: Option<RecordId>,
     content_type: String,
     document_id: Option<RecordId>,
     asset_id: Option<RecordId>,
@@ -526,6 +528,8 @@ pub(crate) async fn create_block_view(
     let content = BlockCreateContent {
         block_id: block_id.to_owned(),
         workspace_id: thing(WORKSPACES, workspace_id),
+        created_in_session_id: super::current_record_user_scope()
+            .map(|scope| RecordId::new("authenticated_sessions", scope.session_id)),
         content_type: "view_def".to_owned(),
         document_id: None,
         asset_id: None,
