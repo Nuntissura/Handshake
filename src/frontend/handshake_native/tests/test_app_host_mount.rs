@@ -572,9 +572,18 @@ fn code_pane_create_note_from_link_routes_through_host_drain() {
         create_in_flight,
         "W3/R2: the HOST drain routed the staged title into WikilinkRuntime::dispatch_create_note \
          (the create for '[[Design Notes]]' went in flight on the SAME runtime the rich chip-click uses); \
-         status={:?}, resolver_ready={}",
+         status={:?}, resolver_ready={}, pending_create_note_link={:?}, \
+         account(context_active, error, private_state)={:?}, \
+         create_note(confirms, staged)={:?}, link_under_cursor={:?}, unresolved_under_cursor={:?}",
         harness.state().quick_switcher_nav_status(),
-        rich_state.lock().unwrap().wikilinks.is_resolver_index_ready()
+        rich_state.lock().unwrap().wikilinks.is_resolver_index_ready(),
+        // MT-109 C2 (diagnosis e): a still-staged link means the host drain never ran (account gate);
+        // none staged with an active account means the confirm was swallowed (panel/cursor).
+        code_panel.take_pending_create_note_link(),
+        harness.state().account_diagnostic_for_test(),
+        code_panel.create_note_confirm_counts(),
+        code_panel.wikilink_under_cursor(),
+        code_panel.unresolved_wikilink_under_cursor()
     );
     // The staged intent is GONE from the panel — the HOST consumed it, not this test.
     assert_eq!(

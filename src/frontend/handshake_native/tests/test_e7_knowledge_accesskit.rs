@@ -2414,7 +2414,8 @@ fn ac10_live_surrealdb_populated_graph_accesskit_round_trip() {
             "created_by":"user"
         }),
     );
-    let block_view_client = BlockViewClient::new(live.base.clone(), rt.handle().clone());
+    let block_view_client = BlockViewClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(live.account());
     let mut kanban_definition = BlockViewDefinition::of_kind(BlockViewKind::Kanban);
     kanban_definition.query.content_type = Some("note".to_owned());
     kanban_definition.group_by = Some(BlockViewGroupBy::Tag);

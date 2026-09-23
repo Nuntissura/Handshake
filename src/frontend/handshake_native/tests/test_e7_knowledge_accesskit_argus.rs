@@ -535,7 +535,8 @@ fn mt042_v4_canonical_argus_complete_runtime_proof() {
             "created_by":"user"
         }),
     );
-    let block_view_client = BlockViewClient::new(live.base.clone(), runtime.handle().clone());
+    let block_view_client = BlockViewClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(live.account());
     let kanban_id = create_kanban(&block_view_client, &workspace_id, "MT-042 V4 Kanban");
 
     harness

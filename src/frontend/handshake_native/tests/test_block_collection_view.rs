@@ -2124,7 +2124,8 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
         .enable_all()
         .build()
         .expect("block-view product-client runtime");
-    let client = BlockViewClient::new(live.base.clone(), rt.handle().clone());
+    let client = BlockViewClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(live.account());
 
     // Fresh canonical state: no fixture ids and no leaked rows from another run.
     let initial = live.get_json(&format!("/workspaces/{workspace_id}/loom/views/all"));
@@ -2334,7 +2335,8 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
         desc_results.blocks[0].display_title(),
         format!("{unique}-Zulu")
     );
-    let fresh_client = BlockViewClient::new(live.base.clone(), rt.handle().clone());
+    let fresh_client = BlockViewClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(live.account());
     assert_eq!(
         live_fetch_view(&fresh_client, &workspace_id, &table_id)
             .definition
