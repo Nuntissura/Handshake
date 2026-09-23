@@ -3110,7 +3110,8 @@ mod not_implemented_surface {
 
     #[test]
     fn not_implemented_surface_is_declared() {
-        let module_source = include_str!("../mod.rs");
+        // Normalized: a Windows checkout (core.autocrlf) has CRLF, the markers below are LF.
+        let module_source = include_str!("../mod.rs").replace("\r\n", "\n");
         let trait_start = module_source
             .find("pub trait Database: Send + Sync {")
             .expect("Database trait declaration must remain discoverable");
@@ -3126,7 +3127,7 @@ mod not_implemented_surface {
             "Database method count changed; re-audit the exact Surreal override surface"
         );
 
-        let module_impl_source = include_str!("database.rs");
+        let module_impl_source = include_str!("database.rs").replace("\r\n", "\n");
         let impl_start = module_impl_source
             .find("impl Database for SurrealDatabase {")
             .expect("SurrealDatabase impl declaration must remain discoverable");
