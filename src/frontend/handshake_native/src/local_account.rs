@@ -138,13 +138,31 @@ impl AuthenticatedRequest {
             .client
             .execute(request)
             .await
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| send_error_detail(&error))?;
         context.observe_status(response.status());
         if !context.is_active() {
             return Err("Account session is no longer active".into());
         }
         Ok(response)
     }
+}
+
+/// MT-109 C2 (diagnosis d): keep the transport failure kind and source chain instead of the bare
+/// "error sending request for url (...)" display, so a per-request timeout is distinguishable from a
+/// refused or reset connection.
+fn send_error_detail(error: &reqwest::Error) -> String {
+    let kind = if error.is_timeout() {
+        "timeout"
+    } else if error.is_connect() {
+        "connect"
+    } else if error.is_body() {
+        "body"
+    } else if error.is_request() {
+        "request"
+    } else {
+        "other"
+    };
+    format!("{error} [kind={kind}; {error:?}]")
 }
 
 fn valid_token(token: &str) -> bool {
@@ -302,6 +320,15 @@ enum AccountResult {
 }
 
 impl AccountUi {
+    /// MT-109 C2 (diagnosis e): the bound context state and last account error, for proofs that must
+    /// tell an account-gated frame from a swallowed UI intent.
+    pub fn diagnostic(&self) -> (Option<bool>, Option<String>) {
+        (
+            self.context.as_ref().map(|context| context.is_active()),
+            self.error.clone(),
+        )
+    }
+
     pub fn take_workspace_created(&mut self) -> bool {
         std::mem::take(&mut self.workspace_created)
     }

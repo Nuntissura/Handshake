@@ -19946,6 +19946,13 @@ impl HandshakeApp {
     /// assert the EXACT URL + body reaches the wire through the REAL app dispatch path. Production code
     /// never calls this (it uses [`set_runtime_handle`](Self::set_runtime_handle) -> hardcoded backend
     /// URL); it exists so the MAJOR #1/#2/#3 "client genuinely consumed by the app" proof is end-to-end.
+    /// MT-109 C2 (diagnosis e): `(context_active, account_error, account_has_private_state)` so a proof can
+    /// tell whether the account gate skipped `drive_editor_mounts` on a frame.
+    pub fn account_diagnostic_for_test(&self) -> (Option<bool>, Option<String>, bool) {
+        let (active, error) = self.local_account.diagnostic();
+        (active, error, self.account_has_private_state)
+    }
+
     pub fn set_backend_base_url_for_test(
         &mut self,
         base_url: &str,
@@ -20321,9 +20328,12 @@ impl HandshakeApp {
             .ok()
             .and_then(|base_url| base_url.clone())
         {
-            return crate::backend_client::BlockViewClient::new(base_url, runtime);
+            return crate::backend_client::BlockViewClient::new(base_url, runtime)
+                .with_authenticated_context(self.local_account.context.clone());
         }
+        // MT-109 C2 (diagnosis c): saved-view requests carry the account session.
         crate::backend_client::BlockViewClient::new(self.rich_doc_base_url.clone(), runtime)
+            .with_authenticated_context(self.local_account.context.clone())
     }
 
     fn bind_block_collection_view(&mut self, view_block_id: &str) {
@@ -25181,6 +25191,8 @@ impl HandshakeApp {
             self.scm_error = Some("Source control unavailable (no backend runtime)".to_owned());
             return false;
         };
+        // MT-109 C2: source-control routes require the current account session.
+        let client = client.with_authenticated_context(self.local_account.context.clone());
         match event {
             E::Stage { path } => {
                 self.scm_error = None;

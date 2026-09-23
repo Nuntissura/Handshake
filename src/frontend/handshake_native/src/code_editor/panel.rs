@@ -1301,6 +1301,10 @@ pub struct CodeEditorPanel {
     /// via [`take_pending_create_note_link`](Self::take_pending_create_note_link) and routes it to the
     /// MT-057 create-note intent handler (the code panel itself has no wikilink runtime).
     pending_create_note_link: Mutex<Option<String>>,
+    /// MT-109 C2 (diagnosis e): confirmed 'Create note from link' entries, and how many of them found
+    /// an unresolved link under the caret at confirm time (diagnostic counters for proofs).
+    create_note_confirms: std::sync::atomic::AtomicUsize,
+    create_note_confirms_staged: std::sync::atomic::AtomicUsize,
     /// A snapshot of the mounted rich editor's authoritative wikilink resolver. `None` means the
     /// workspace enumeration has not completed successfully, so Create-note-from-link fails closed.
     wikilink_resolver_index: Mutex<Option<crate::rich_editor::wikilinks::resolver::ResolverIndex>>,
@@ -2336,6 +2340,8 @@ impl CodeEditorPanel {
             // context-menu entry / command dispatch fires.
             pending_copy_note_reference: Mutex::new(None),
             pending_create_note_link: Mutex::new(None),
+            create_note_confirms: std::sync::atomic::AtomicUsize::new(0),
+            create_note_confirms_staged: std::sync::atomic::AtomicUsize::new(0),
             wikilink_resolver_index: Mutex::new(None),
             context_menu_open_for_snapshot: std::sync::atomic::AtomicBool::new(false),
             context_menu_open_generation: AtomicU64::new(0),
@@ -9469,7 +9475,10 @@ impl CodeEditorPanel {
     /// the typed create-note intent the host drains ([`take_pending_create_note_link`]). A no-op when
     /// no wikilink is under the caret (the entry is disabled then, so this is belt-and-braces).
     fn stage_create_note_from_link(&self) {
+        self.create_note_confirms.fetch_add(1, Ordering::Relaxed);
         if let Some(title) = self.unresolved_wikilink_under_cursor() {
+            self.create_note_confirms_staged
+                .fetch_add(1, Ordering::Relaxed);
             *self
                 .pending_create_note_link
                 .lock()
@@ -9480,6 +9489,14 @@ impl CodeEditorPanel {
     /// MT-070/MT-057: drain the staged create-note-from-link intent (the `[[title]]` the confirmed menu
     /// entry captured). The host/shell routes it to the MT-057 create-note handler; a test drains it to
     /// prove the entry fired its REAL handler. `None` when nothing is staged.
+    /// MT-109 C2 (diagnosis e): `(confirms, confirms_that_staged)` for the create-note entry.
+    pub fn create_note_confirm_counts(&self) -> (usize, usize) {
+        (
+            self.create_note_confirms.load(Ordering::Relaxed),
+            self.create_note_confirms_staged.load(Ordering::Relaxed),
+        )
+    }
+
     pub fn take_pending_create_note_link(&self) -> Option<String> {
         self.pending_create_note_link
             .lock()

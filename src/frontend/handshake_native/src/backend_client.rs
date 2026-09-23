@@ -46,6 +46,10 @@ pub const BACKEND_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 /// enough for the backend to enqueue and return real workflow state instead of cancelling early and
 /// risking an orphaned queued job.
 pub const MODEL_SESSION_JOBS_REQUEST_TIMEOUT: Duration = Duration::from_secs(130);
+/// MT-109 C2 (diagnosis d): a Canvas create (placement or text card) runs the record-user chain
+/// (authorizations, RichDocument create + index, placement, block read); the text card exceeded the
+/// generic 5 s request timeout (kb-c2 run 13: kind=timeout), so it gets its own bounded budget.
+pub const CANVAS_CREATE_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// WP-KERNEL-012 MT-088: build a backend [`reqwest::Client`] carrying the backend-down timeouts
 /// ([`BACKEND_CONNECT_TIMEOUT`] + [`BACKEND_REQUEST_TIMEOUT`]). Construction failure is fatal rather
@@ -1204,6 +1208,7 @@ pub struct SourceControlClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl SourceControlClient {
@@ -1213,7 +1218,17 @@ impl SourceControlClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-109 C2: every `/source-control/*` route requires an authenticated account session.
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -1270,8 +1285,9 @@ impl SourceControlClient {
     pub fn diff(&self, repo_path: &str, path: &str, scope: ScmDiffScope, cell: ScmTextCell) {
         let spec = self.diff_request(repo_path, path, scope);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = get_json_field(&client, &spec.url, &spec.query, "patch").await;
+            let result = get_json_field(&client, account, &spec.url, &spec.query, "patch").await;
             deliver_text(&cell, result);
         });
     }
@@ -1294,8 +1310,9 @@ impl SourceControlClient {
     pub fn blame(&self, repo_path: &str, path: &str, cell: ScmTextCell) {
         let spec = self.blame_request(repo_path, path);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = fetch_blame_text(&client, &spec.url, &spec.query).await;
+            let result = fetch_blame_text(&client, account, &spec.url, &spec.query).await;
             deliver_text(&cell, result);
         });
     }
@@ -1315,8 +1332,20 @@ impl SourceControlClient {
     /// Shared spawn for a write op (stage/unstage/discard): POST the body, deliver `Ok(())`/`Err(msg)`.
     fn spawn_receipt(&self, url: String, body: serde_json::Value, cell: ScmReceiptCell) {
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = post_expect_success(&client, &url, &body).await;
+            let result = send_canvas_request(&client, account, client.post(&url).json(&body))
+                .await
+                .and_then(|response| {
+                    let status = response.status();
+                    if status.is_success() {
+                        Ok(())
+                    } else {
+                        Err(AppError::Http(format!(
+                            "source-control write non-success status {status}"
+                        )))
+                    }
+                });
             let delivered = result.map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(delivered);
@@ -1584,11 +1613,12 @@ async fn delete_expect_success(client: &reqwest::Client, url: &str) -> Result<()
 /// GET `url?query` and return the string at top-level JSON `field` (e.g. the diff's `patch`).
 async fn get_json_field(
     client: &reqwest::Client,
+    account: Option<Arc<crate::local_account::AuthenticatedContext>>,
     url: &str,
     query: &[(String, String)],
     field: &str,
 ) -> Result<String, AppError> {
-    let v = get_json(client, url, query).await?;
+    let v = get_json_authenticated(client, account, url, query).await?;
     let text = v
         .get(field)
         .and_then(|x| x.as_str())
@@ -1601,10 +1631,11 @@ async fn get_json_field(
 /// monospace `"{short_commit}  {content}"` block for the V1 blame display.
 async fn fetch_blame_text(
     client: &reqwest::Client,
+    account: Option<Arc<crate::local_account::AuthenticatedContext>>,
     url: &str,
     query: &[(String, String)],
 ) -> Result<String, AppError> {
-    let v = get_json(client, url, query).await?;
+    let v = get_json_authenticated(client, account, url, query).await?;
     let mut out = String::new();
     if let Some(lines) = v.get("lines").and_then(|x| x.as_array()) {
         for line in lines {
@@ -4403,7 +4434,7 @@ async fn send_canvas_created_placement(
         Some(authenticated_context.clone()),
         client
             .post(&spec.url)
-            .timeout(Duration::from_secs(5))
+            .timeout(CANVAS_CREATE_REQUEST_TIMEOUT)
             .json(body),
     )
     .await?;
@@ -8353,6 +8384,7 @@ pub struct BlockViewClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl BlockViewClient {
@@ -8362,7 +8394,18 @@ impl BlockViewClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-109 C2 (diagnosis c): carry the account session so every saved-view request, including the
+    /// Kanban card move (`PATCH .../loom/blocks/:id`, a record-user route), is authenticated.
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -8507,9 +8550,10 @@ impl BlockViewClient {
     ) {
         let spec = self.get_view_request(workspace_id, view_block_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let id = view_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_block_view(&client, &spec.url, &id)
+            let result = fetch_block_view(&client, &account, &spec.url, &id)
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
@@ -8576,8 +8620,9 @@ impl BlockViewClient {
         let spec = self.query_results_request(workspace_id, view_block_id, limit, offset);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = post_block_view_results(&client, &spec.url, &body)
+            let result = post_block_view_results(&client, &account, &spec.url, &body)
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
@@ -8607,10 +8652,11 @@ impl BlockViewClient {
         cell: BlockViewOpCell,
     ) {
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let workspace_id = workspace_id.to_owned();
         let expected_bound_view_id = echo_id.clone();
         self.runtime.spawn(async move {
-            let result = send_block_view_mutation(&client, &spec)
+            let result = send_block_view_mutation(&client, &account, &spec)
                 .await
                 .map(|_| echo_id);
             if let Ok(mut slot) = cell.lock() {
@@ -8645,10 +8691,11 @@ impl BlockViewClient {
         let spec = self.create_view_request(workspace_id, block_id, title, definition);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let url = spec.url.clone();
         let workspace_id = workspace_id.to_owned();
         self.runtime.spawn(async move {
-            let result = post_create_block_view(&client, &url, &body)
+            let result = post_create_block_view(&client, &account, &url, &body)
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
@@ -9191,10 +9238,11 @@ pub fn results_from_json(v: &serde_json::Value) -> Result<BlockViewResults, Stri
 /// [`BlockViewRecordData`]. The `block.block_id` (or the requested id) identifies the view.
 async fn fetch_block_view(
     client: &reqwest::Client,
+    account: &BlockViewAccount,
     url: &str,
     requested_id: &str,
 ) -> Result<BlockViewRecordData, AppError> {
-    let v = block_view_get_json(client, url).await?;
+    let v = block_view_get_json(client, account, url).await?;
     let definition = v
         .get("definition")
         .ok_or_else(|| AppError::Parse("getBlockView response missing definition".to_owned()))
@@ -9233,20 +9281,22 @@ async fn fetch_block_view(
 /// `POST {url}` (body `{limit,offset}`) and parse the verified `BlockViewResults` (RISK-1: POST not GET).
 async fn post_block_view_results(
     client: &reqwest::Client,
+    account: &BlockViewAccount,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<BlockViewResults, AppError> {
-    let v = block_view_post_json(client, url, body).await?;
+    let v = block_view_post_json(client, account, url, body).await?;
     results_from_json(&v).map_err(AppError::Parse)
 }
 
 /// `POST {url}` (createBlockView body) and read the NEW view block id from the returned `BlockViewRecord`.
 async fn post_create_block_view(
     client: &reqwest::Client,
+    account: &BlockViewAccount,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<String, AppError> {
-    let v = block_view_post_json(client, url, body).await?;
+    let v = block_view_post_json(client, account, url, body).await?;
     create_block_view_id_from_json(&v).map_err(AppError::Parse)
 }
 
@@ -9283,13 +9333,16 @@ pub fn create_block_view_id_from_json(v: &serde_json::Value) -> Result<String, S
 /// re-queries for the body).
 async fn send_block_view_mutation(
     client: &reqwest::Client,
+    account: &BlockViewAccount,
     spec: &RequestSpec,
 ) -> Result<(), AppError> {
     let empty = serde_json::json!({});
     let body = spec.body.as_ref().unwrap_or(&empty);
     match spec.method {
-        HttpMethod::Post => block_view_post_expect_success(client, &spec.url, body).await,
-        HttpMethod::Patch => block_view_patch_expect_success(client, &spec.url, body).await,
+        HttpMethod::Post => block_view_post_expect_success(client, account, &spec.url, body).await,
+        HttpMethod::Patch => {
+            block_view_patch_expect_success(client, account, &spec.url, body).await
+        }
         _ => Err(AppError::Http(
             "block-view mutation must be POST or PATCH".to_owned(),
         )),
@@ -9310,15 +9363,39 @@ fn block_view_identity(request: reqwest::RequestBuilder) -> reqwest::RequestBuil
         .header(HSK_HEADER_SESSION_RUN_ID, "block-collection-view-session")
 }
 
-async fn block_view_get_json(
+/// The account session a saved-view request carries, when the client is bound to one.
+type BlockViewAccount = Option<Arc<crate::local_account::AuthenticatedContext>>;
+
+/// Execute one saved-view request with its attributable identity and bounded timeout; a bound
+/// account session sends it through the canonical [`crate::local_account::AuthenticatedRequest`].
+async fn block_view_send(
     client: &reqwest::Client,
-    url: &str,
-) -> Result<serde_json::Value, AppError> {
-    let resp = block_view_identity(client.get(url))
-        .timeout(Duration::from_secs(5))
+    account: &BlockViewAccount,
+    request: reqwest::RequestBuilder,
+) -> Result<reqwest::Response, AppError> {
+    let request = block_view_identity(request).timeout(Duration::from_secs(5));
+    match account {
+        Some(context) => crate::local_account::AuthenticatedRequest::new(
+            client.clone(),
+            Some(context.clone()),
+            request,
+        )
         .send()
         .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
+        .map_err(AppError::Http),
+        None => request
+            .send()
+            .await
+            .map_err(|e| AppError::Http(e.to_string())),
+    }
+}
+
+async fn block_view_get_json(
+    client: &reqwest::Client,
+    account: &BlockViewAccount,
+    url: &str,
+) -> Result<serde_json::Value, AppError> {
+    let resp = block_view_send(client, account, client.get(url)).await?;
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
@@ -9333,15 +9410,11 @@ async fn block_view_get_json(
 
 async fn block_view_post_json(
     client: &reqwest::Client,
+    account: &BlockViewAccount,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<serde_json::Value, AppError> {
-    let resp = block_view_identity(client.post(url))
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
+    let resp = block_view_send(client, account, client.post(url).json(body)).await?;
     let status = resp.status();
     if !status.is_success() {
         let response_body = resp.text().await.unwrap_or_default();
@@ -9356,15 +9429,11 @@ async fn block_view_post_json(
 
 async fn block_view_post_expect_success(
     client: &reqwest::Client,
+    account: &BlockViewAccount,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<(), AppError> {
-    let resp = block_view_identity(client.post(url))
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
+    let resp = block_view_send(client, account, client.post(url).json(body)).await?;
     let status = resp.status();
     if !status.is_success() {
         let response_body = resp.text().await.unwrap_or_default();
@@ -9377,15 +9446,11 @@ async fn block_view_post_expect_success(
 
 async fn block_view_patch_expect_success(
     client: &reqwest::Client,
+    account: &BlockViewAccount,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<(), AppError> {
-    let resp = block_view_identity(client.patch(url))
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
+    let resp = block_view_send(client, account, client.patch(url).json(body)).await?;
     let status = resp.status();
     if !status.is_success() {
         let response_body = resp.text().await.unwrap_or_default();
@@ -9667,7 +9732,7 @@ impl LoomSearchV2Client {
         let client = self.client.clone();
         let url = spec.url;
         self.runtime.spawn(async move {
-            let result = post_create_block_view(&client, &url, &req_body)
+            let result = post_create_block_view(&client, &None, &url, &req_body)
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
