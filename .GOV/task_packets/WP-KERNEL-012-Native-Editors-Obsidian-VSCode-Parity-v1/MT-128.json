@@ -22,7 +22,7 @@
   "title": "E7-MT-128-Give-The-MT-043-Live-Child-A-Wall-Clock-Budget-That-Is-Not-1.4-Seconds-From-Reaping-Itself",
   "group": "E7-Swarm-Proof",
   "created_at_utc": "2026-08-13T06:15:00Z",
-  "updated_at_utc": "2026-09-23T04:07:17.531Z",
+  "updated_at_utc": "2026-09-23T23:27:08.158Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-128.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -128,13 +128,13 @@
     }
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260818-130753",
     "claimed_at_utc": "2026-08-18T15:40:00Z",
     "claim_note_2026_08_18": "Claimed by KERNEL_BUILDER-20260818-130753. Found on claim: the budget machinery (HSK_MT128_CHILD_BUDGET_MS lower-only override, 120s canonical budget derived from the measured 57.43s loaded child, HSK_MT128_FORCE_STALL_MS injected-stall RED path, typed MT128_BOUNDED_CHILD_REAP report with elapsed/budget/last_gate) was already implemented. The REAL remaining work was that the proof file itself still verified rows by spawning psql with PL/pgSQL DO-blocks against the deleted PostgreSQL — dead at runtime and forbidden language. Ported 2026-08-18 under this MT: sidecar now publishes the fixture backend base URL; pre-reap witness and crash-window cleanup run bounded through the product HTTP surface with embedded-store containment when the backend is reaped; the six former SQL verification sites moved to product-API proofs (document loads, /kernel/events/aggregates reads, loom backlinks projection) or containment observations (the retired shared-cluster FR-mirror sweep); the test fn was renamed swarm_edit_live_conflict_merge_search_and_receipts (PostgreSQL language purge). Embedded-store re-measurement of the child budget (pivot_impact requirement) pending the proof runs.",
@@ -157,8 +157,16 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:55.450Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER",
-    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY"
+    "next_actor": "WP_VALIDATOR",
+    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
+    "ready_for_validation_transition": {
+      "at_utc": "2026-09-23T23:27:08.158Z",
+      "by": "INTEGRATION_VALIDATOR (session 6, Operator correction 2026-09-24)",
+      "from_status": "FAIL_V2",
+      "prior_validator_verdict": "FAIL_V2",
+      "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
+      "prior_next_actor": "KERNEL_BUILDER"
+    }
   },
   "hbr_obligations": {
     "MAN": "UserManual must state the governed invocation condition for this proof - that it needs a machine not under concurrent build load - if the budget cannot be made load-independent.",

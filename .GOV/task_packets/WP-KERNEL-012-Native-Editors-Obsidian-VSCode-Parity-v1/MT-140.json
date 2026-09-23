@@ -30,13 +30,13 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260826-020321",
     "claimed_at_utc": "2026-08-26T02:08:47.3692220Z",
@@ -86,8 +86,16 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:56.659Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER",
-    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY"
+    "next_actor": "WP_VALIDATOR",
+    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
+    "ready_for_validation_transition": {
+      "at_utc": "2026-09-23T23:27:08.158Z",
+      "by": "INTEGRATION_VALIDATOR (session 6, Operator correction 2026-09-24)",
+      "from_status": "FAIL_V2",
+      "prior_validator_verdict": "FAIL_V2",
+      "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
+      "prior_next_actor": "KERNEL_BUILDER"
+    }
   },
   "scope": {
     "summary": "Port the remaining frontend test-suite direct-store verification to embedded-SurrealDB-era patterns and purge PostgreSQL/SQLite language from the frontend test tree. SurrealDB is the canonical main database. CROSS-FILE NOTE: renaming the MT-074 test mt074-op01-save-persists-exact-embed-provenance-in-postgresql must also update the comment referencing it at src/frontend/handshake_native/src/app.rs:755. The reference conversion is test_e7_swarm_edit_proof.rs as ported under MT-128: live-phase row verification goes through product HTTP APIs (documents load, /workspaces list, /workspaces/{id}/loom/blocks/{block}/backlinks, /kernel/events/aggregates/{type}/{id}, credentialed /events); crash-path verification becomes containment observation (the per-run embedded store under a fixture-owned runtime root cannot leak into other runs); shared-cluster sweeps are retired as out-of-band ledger mutation. The pg_proof_support directory is renamed to backend_proof_support with all module references updated across every consuming binary in one change. Operator-approved scope widening adds only the typed calendar source/event ingestion and Atelier intake-item creation API paths needed to replace fixture writes without introducing a generic query backdoor.",
@@ -795,7 +803,7 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-09-23T04:07:17.531Z",
+  "updated_at_utc": "2026-09-23T23:27:08.158Z",
   "remediation_v2": {
     "session": "KERNEL_BUILDER-C1",
     "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",

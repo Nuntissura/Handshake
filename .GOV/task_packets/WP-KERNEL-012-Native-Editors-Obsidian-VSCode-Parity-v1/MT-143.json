@@ -31,13 +31,13 @@
     "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [],
     "blocks": [
       "MT-117"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260903-170735",
     "origin": "Created 2026-09-03 by KERNEL_BUILDER-20260903-170735 under the Operator instruction to open a lane for the Calendar navigation defect found while closing the MT-117/121/122/135 readiness batch. MT-117 PT-117-2 requires the MT-067 Calendar suite green; test_calendar_interop::mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue fails deterministically (30/31) and is NOT an MT-117 defect: MT-117 owns completion observers, this is the navigation dispatch path. Recorded per the standing rule that a gap outside the current MT becomes a new MT in the same work packet rather than being lost or silently absorbed.",
@@ -136,8 +136,16 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:56.858Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER",
-    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY"
+    "next_actor": "WP_VALIDATOR",
+    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
+    "ready_for_validation_transition": {
+      "at_utc": "2026-09-23T23:27:08.158Z",
+      "by": "INTEGRATION_VALIDATOR (session 6, Operator correction 2026-09-24)",
+      "from_status": "FAIL_V2",
+      "prior_validator_verdict": "FAIL_V2",
+      "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
+      "prior_next_actor": "KERNEL_BUILDER"
+    }
   },
   "scope": {
     "summary": "A mounted next-day click on the daily-journal surface must actually navigate while a calendar read for the previous date is still in flight. Today it does not. test_calendar_interop::mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue clicks the journal-EDITOR next-day control (author_id `journal-next-day`, JOURNAL_DATE_NAV_AUTHOR_IDS, rendered by rich_editor/daily_notes/journal_panel.rs line 439) and then waits for the MOUNTED graph::daily_journal_panel::DailyJournalState to reach the second date with projection NoEvent. It never does. The mock request log captured at the failure shows only first-date traffic after the click: GET /knowledge/documents, POST /loom/search-v2, PUT /loom/journals/<first_date>, GET /api/flight_recorder, and the /calendar/events GET for <first_date> twice. There is no PUT /loom/journals/<second_date> and no /calendar/events GET for <second_date>. Because the editor's own handler (journal_panel.rs, DateNavOutcome::Navigated -> state.store.open(date)) would itself have issued that PUT, the editor's nav did not advance either. The click is therefore NOT landing on the control at all, rather than landing and being dropped downstream. Two mechanisms remain open and must be distinguished by measurement before any fix: (a) POSITION drift, since egui_kittest dispatches a click at the observed node's rect and the conditional projection labels in graph/daily_journal_panel.rs ('Loading calendar event and activity...', 'Waiting for daily note...', 'Calendar binding paused...') appear and disappear as the transient read settles, moving every widget below them between the inspected frame and the frame that processes the click; (b) IDENTITY drift of an ANCESTOR of the nav row, the same class MT-113 and MT-117 hit. Stabilizing the DateNavWidget row itself was already attempted and did NOT change the outcome, and that attempt was reverted, so the row's own scope is not the cause. This microtask must also decide and record whether the mounted daily-journal panel is expected to follow the EDITOR's date navigation at all: the editor nav writes only the editor's own DateNav and store, while the mounted panel's nav advances only through DailyJournalEvent::DateNavigated emitted by the panel's own widget (author_ids DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS, graph/daily_journal_panel.rs line 563). If no such cross-surface sync is intended, then the product contract is what needs stating and the test must be corrected to the surface that owns the state it asserts on, with the reasoning recorded rather than the assertion weakened.",
@@ -770,7 +778,7 @@
     "next_actor": "KERNEL_BUILDER",
     "no_context_instruction": "FAIL_V1 by WP_VALIDATOR-N1B-20260916-113023 at ba03f5638e3f6b1903cb2829c1e846958d0dbf42; KERNEL_BUILDER remediates the items in remediation_required, reruns the named binaries, and returns READY_FOR_VALIDATION_V2."
   },
-  "updated_at_utc": "2026-09-23T04:07:17.531Z",
+  "updated_at_utc": "2026-09-23T23:27:08.158Z",
   "remediation_v2": {
     "session": "KERNEL_BUILDER-C1",
     "candidate_sha": "ce1e87698fcffdc97e559dae99d9009357427c4a",

@@ -22,7 +22,7 @@
   "title": "R2-MT-127-Own-The-AC-108-3-Red-Surface-Measured-By-The-Full-187-Binary-Sweep",
   "group": "R2-Capstone",
   "created_at_utc": "2026-08-13T00:40:00Z",
-  "updated_at_utc": "2026-09-23T04:07:17.531Z",
+  "updated_at_utc": "2026-09-23T23:27:08.158Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-127.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,13 +31,13 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-108"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260829-030210",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260812-113007",
@@ -48,8 +48,16 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:55.214Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER",
-    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY"
+    "next_actor": "WP_VALIDATOR",
+    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
+    "ready_for_validation_transition": {
+      "at_utc": "2026-09-23T23:27:08.158Z",
+      "by": "INTEGRATION_VALIDATOR (session 6, Operator correction 2026-09-24)",
+      "from_status": "FAIL_V2",
+      "prior_validator_verdict": "FAIL_V2",
+      "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
+      "prior_next_actor": "KERNEL_BUILDER"
+    }
   },
   "scope": {
     "summary": "Route every binary failing the AC-108-3 full sweep to an owning microtask with evidence, so the capstone can be re-run against a green suite instead of re-discovering the same 25 failures.",

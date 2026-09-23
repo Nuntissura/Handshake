@@ -22,7 +22,7 @@
   "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
   "group": "E6-Interop",
   "created_at_utc": "2026-08-06T12:50:39.525Z",
-  "updated_at_utc": "2026-09-23T04:07:17.531Z",
+  "updated_at_utc": "2026-09-23T23:27:08.158Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,13 +31,13 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-068"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260805-054937",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
@@ -148,8 +148,16 @@
     "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
     "validated_at_utc": "2026-09-16T23:19:53.617Z",
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER",
-    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY"
+    "next_actor": "WP_VALIDATOR",
+    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
+    "ready_for_validation_transition": {
+      "at_utc": "2026-09-23T23:27:08.158Z",
+      "by": "INTEGRATION_VALIDATOR (session 6, Operator correction 2026-09-24)",
+      "from_status": "FAIL_V2",
+      "prior_validator_verdict": "FAIL_V2",
+      "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
+      "prior_next_actor": "KERNEL_BUILDER"
+    }
   },
   "scope": {
     "summary": "The cross-reference chip pill background is rendered slightly narrower than its own label, so with long ids the tail of the id paints just outside the pill.",

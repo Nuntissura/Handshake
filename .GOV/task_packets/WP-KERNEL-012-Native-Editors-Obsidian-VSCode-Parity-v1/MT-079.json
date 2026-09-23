@@ -14,7 +14,7 @@
   "title": "E11-MT-079-AppHostMount-EditorPaneFactories",
   "group": "E11 Shell host-mount (app.rs convergence)",
   "created_at_utc": "2026-06-25T00:00:00Z",
-  "updated_at_utc": "2026-09-23T04:07:17.531Z",
+  "updated_at_utc": "2026-09-23T23:27:08.158Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V7",
+    "status": "READY_FOR_VALIDATION",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt079",
       "mode": "VERIFY_AND_PROVE",
@@ -51,7 +51,7 @@
       "MT-070",
       "MT-071"
     ],
-    "validator_verdict": "FAIL_V7",
+    "validator_verdict": null,
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-C079-20260917-145500",
     "validated_at_utc": "2026-09-17T15:09:46.597Z",
@@ -97,8 +97,16 @@
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     },
     "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER",
-    "status_before_remediation_v7": "FAIL_V6"
+    "next_actor": "WP_VALIDATOR",
+    "status_before_remediation_v7": "FAIL_V6",
+    "ready_for_validation_transition": {
+      "at_utc": "2026-09-23T23:27:08.158Z",
+      "by": "INTEGRATION_VALIDATOR (session 6, Operator correction 2026-09-24)",
+      "from_status": "FAIL_V7",
+      "prior_validator_verdict": "FAIL_V7",
+      "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate",
+      "prior_next_actor": "KERNEL_BUILDER"
+    }
   },
   "scope": {
     "summary": "OPERATOR-AUTHORIZED SCOPE EXPANSION (2026-06-25, AskUserQuestion answer = Add app.rs mount MT now): this NEW MT closes the structural gap that NO existing WP-012 MT owned - the actual HOST-MOUNT of the built+widget-proven editor panes into the running Handshake app (app.rs). Today app.rs (~4902 lines) registers PlaceholderPaneFactory for the editor PaneTypes (the editor-pane TYPED SEAM, Rich-text/Code editor pane not mounted yet, at ~app.rs:286), so the panes are proven only at the kittest widget level and never render in the live app; this MT replaces those placeholders with the REAL editor pane factories, threads the per-pane session context, and wires the ~14 accumulated E11 carry-forwards so the native editors become LIVE in the running app (enabling real-app GUI inspection per the goal). HOST-INTEGRATION GLUE ONLY: no new editor features, no backend endpoints, no SQLite. It binds the EXISTING set_* hooks + pane widgets the prior MTs built+tested, and mounts/threads them in app.rs. Every backend gap stays a typed blocker (FEMS/Stage/Calendar/Locus HTTP routes verified ABSENT; live-PG round-trips = NEEDS_MANAGED_RESOURCE_PROOF). PostgreSQL/EventLedger only; no SQLite; src/backend is reuse-via-API-only. CORE MOUNT (must-have, prove first): (1) register a REAL CodeEditorPaneFactory (PaneType::CodeEditor) + RichEditorPaneFactory (rich/document PaneType) in app.rs factories HashMap, replacing PlaceholderPaneFactory for those types; construct from the existing CodeEditorPanel (code_editor/panel.rs) + RichEditorWidget (rich_editor/renderer/rich_editor_widget.rs); create thin impl PaneFactory wrappers if absent. (2) thread session context via PaneRenderContext on mount: code pane set_runtime(tokio Handle)+set_workspace_id (MT-008/010); rich pane RichEditorState::set_embed_context(workspace_id,runtime) (MT-014) + set_wikilink_context (MT-057); use the SAME shared-cell pattern app.rs already uses for LoomSearchV2PaneFactory/FindInFilesPaneFactory. (3) wire the shell command Sender into the code pane so Save/Undo/Redo/OpenCommandPalette reach the WP-011 command bus + MT-035 unified undo (MT-010). (4) wire MT-030 ShellNavigator open_document->rich pane + open_code_symbol->code pane (MT-030). (5) DRAIN RichEditorState.pending_events each frame + ROUTE WikilinkActivated/BacklinkActivated/TagActivated/locus open-ref to the nav bus (MT-015). FULLER MOUNT (as far as the run allows; gate/defer honestly, NEVER fake): (6) CANVAS pane (graph/canvas_board.rs): mount factory; consume MT-061 ResizePlacement/AssignSection/EditTextCard -> real PATCH/POST + getCanvasBoard refresh; set CanvasCardKind from the card response; push_canvas_placement_undo + emit_canvas_node_placed (MT-035/036/061). (7) GRAPH pane (graph/graph_view.rs): depth-parameterized graph-search client (backend_client local_request taking backlink_depth) + consume GraphEvent::DepthChanged to re-query (MT-060). (8) code pane live undo + FR: route code Ctrl+Z/Ctrl+Y -> bus.undo/redo + push_code_edit_undo; emit_code_edit debounced 2s; app.rs bus.set_undo_runtime(handle)+register_undo_commands()+render_undo_count_indicator (MT-035/036). (9) DOCK the widget-proven side panes: loom.outgoing_links (build resolver_index from /knowledge/documents + /loom/blocks, wire on_open) (MT-062); relevant-memory (subscribe refresh_for_context to MT-031 bus, wire source-links) (MT-063); Propose-to-Memory live invocation (MT-064); StagePane + Route-to-Stage/embed-stage-capture (MT-066); DailyJournalPanel + MT-030 date-selected -> open-or-create (MT-067). (10) MT-043 swarm-authoring: add AccessKit Action::SetValue/ReplaceSelectedText on code_editor_text + a wikilink-by-id insertion action; the MT-043 swarm-edit proof STEP2/STEP3 become live-drivable (gated on managed PG). PRIORITIZE core 1-5 (prove code+rich panes render LIVE in the running HandshakeApp tree via a kittest driving the real app + a wgpu screenshot of the mounted editor), THEN 6-10 as far as the run allows. Anything not completed = HONEST typed carry (NOT faked, NOT todo!()); live-PG halves stay NEEDS_MANAGED_RESOURCE_PROOF. A partial-but-honest mount that makes the core editors live + leaves the rest as typed carries is the expected, acceptable outcome.",

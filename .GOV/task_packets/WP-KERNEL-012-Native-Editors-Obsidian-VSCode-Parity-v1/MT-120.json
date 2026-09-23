@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-09-23T06:14:41.580Z",
+  "updated_at_utc": "2026-09-23T23:27:08.158Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-109",
@@ -40,7 +40,7 @@
     "blocks": [
       "MT-115"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
@@ -148,7 +148,14 @@
     "ready_for_validation_at_utc": "2026-09-22T20:51:09.293Z",
     "ready_for_validation_by": "KERNEL_BUILDER-C1",
     "ready_for_validation_summary": "ALL SIX acceptance criteria proven. AC-120-1 and AC-120-2 by targeted tests (with the non-weakening property verified by KERNEL_BUILDER reading flight_recorder.rs:885-940 directly rather than accepting the sub-agent report); AC-120-3 by test_e7_swarm_edit_proof 25 passed / 0 failed, up from 24/1, with NO test edit; AC-120-4 by test_flight_recorder_authz 12 passed / 0 failed unchanged; AC-120-5 by a direct ledger query showing document_saved rows now exist where the pre-fix census recorded ZERO; AC-120-6 by test_event_emitter 33 passed / 0 failed with event_emitter_native_editor_round_trip green and no test edit. HBR-MAN closed in the same change. Official validator verdict remains PENDING.",
-    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY"
+    "status_before_remediation_v2": "BLOCKED_ON_DEPENDENCY",
+    "ready_for_validation_transition": {
+      "at_utc": "2026-09-23T23:27:08.158Z",
+      "by": "INTEGRATION_VALIDATOR (session 6, Operator correction 2026-09-24)",
+      "from_status": "FAIL_V2",
+      "prior_validator_verdict": "FAIL_V2",
+      "reason": "remediation recorded after the last validation; awaiting re-validation on the next candidate"
+    }
   },
   "scope": {
     "summary": "Make the document_saved receipt-ownership check enforceable by authenticating the document-save route as the same principal the Flight Recorder derives, instead of leaving a clause that rejects every legitimate save.",
