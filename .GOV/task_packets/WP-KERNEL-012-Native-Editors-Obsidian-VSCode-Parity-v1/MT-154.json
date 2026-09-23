@@ -25,7 +25,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T16:38:09.426Z",
+  "updated_at_utc": "2026-09-23T16:40:15.789Z",
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1852,5 +1852,12 @@
       },
       "kernel_crdt_updates_cascade": "FIXED (5f31aa07 permission + 7e73eb03 delete body); knowledge_crdt_denial_receipts retained as audit trail (IV approved)"
     }
+  },
+  "out_of_scope_edit_waiver": {
+    "granted_by": "OPERATOR (session waiver 2026-09-23, relayed by INTEGRATION_VALIDATOR session 6)",
+    "granted_at_utc": "2026-09-23T16:40:15.789Z",
+    "covers": "every path listed in remediation_v1.out_of_scope_edits (KERNEL_BUILDER-C4 batch, commits bea9496d..0caf1c10)",
+    "listed_count": 42,
+    "note": "Validators treat these edits as in scope for MT-154; they must still be correct and proven."
   }
 }
