@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-15T22:38:41.986Z",
+  "updated_at_utc": "2026-09-23T16:17:20.741Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -1543,5 +1543,12 @@
       "why_not_deleted": "It predates this session and is not KERNEL_BUILDER own output, and the operator standing rule is to never force-delete. Relocating satisfies the placement instruction immediately and loses nothing, while leaving the disposal decision with the operator.",
       "operator_decision_requested": "RECOMMEND DELETING it: 4.4 GB of superseded, regenerable build output whose newer complete counterpart already exists in the sanctioned root. The STALE- name prefix makes it unambiguous. Say the word and it goes."
     }
-  ]
+  ],
+  "governance_pin": {
+    "gov_kernel_commit": "896f4e15",
+    "pinned_at_utc": "2026-09-23T16:17:20.740Z",
+    "pinned_by": "INTEGRATION_VALIDATOR session 6 (Operator approved 2026-09-23)",
+    "rule": "WP-KERNEL-012 closes under the Codex, role protocols, build rules and handoff rules as of gov_kernel 896f4e15. A later repo-governance refactor applies from WP-KERNEL-012-bis onward and must not re-judge this WP's settled verdicts.",
+    "exceptions": "Operator decisions recorded after the pin in MT JSON or the session handoffs still apply."
+  }
 }
