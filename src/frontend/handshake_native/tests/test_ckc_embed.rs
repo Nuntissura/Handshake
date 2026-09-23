@@ -2915,7 +2915,16 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend() {
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        assert!(persisted, "fresh GET must observe the saved CKC hsLink");
+        assert!(
+            persisted,
+            "fresh GET must observe the saved CKC hsLink; mounted save_state={:?}",
+            rich_state
+                .lock()
+                .unwrap()
+                .save
+                .as_ref()
+                .map(|save| save.state.clone())
+        );
         let save_receipt_deadline =
             std::time::Instant::now() + std::time::Duration::from_secs(5);
         let save_receipt_event_id = loop {

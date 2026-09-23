@@ -512,14 +512,20 @@ fn code_pane_create_note_from_link_routes_through_host_drain() {
         .find(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID))
         .expect("the mounted code pane's context surface node is live");
     context_surface.click_secondary();
+    // egui renders a freshly opened popup's first frame as an invisible, DISABLED sizing pass, and the
+    // next frame hit-tests pointer input against that previous frame's widget senses. A click issued
+    // on the first frame the item node appears is therefore swallowed. Click only once the live item
+    // advertises AccessKit Click (visible + enabled — the same signal the component proof uses for a
+    // disabled create-note item), so the proof exercises the real confirm path.
     let mut clicked_create = false;
     for _ in 0..20 {
         harness.run_steps(1);
-        if let Some(node) = harness
-            .root()
-            .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("ctx-menu.ctxmenu-editor-create-note"))
-        {
+        if let Some(node) = harness.root().children_recursive().find(|n| {
+            n.accesskit_node().author_id() == Some("ctx-menu.ctxmenu-editor-create-note")
+                && n.accesskit_node()
+                    .data()
+                    .supports_action(egui::accesskit::Action::Click)
+        }) {
             node.click();
             clicked_create = true;
             break;
@@ -527,7 +533,14 @@ fn code_pane_create_note_from_link_routes_through_host_drain() {
     }
     assert!(
         clicked_create,
-        "the open menu's 'Create note from link' item is live; visible ctx ids: {:?}",
+        "the open menu's 'Create note from link' item is live and enabled (advertises Click); \
+         resolver_ready={}, panel_unresolved_link={:?}, visible ctx ids: {:?}",
+        rich_state
+            .lock()
+            .unwrap()
+            .wikilinks
+            .is_resolver_index_ready(),
+        code_panel.unresolved_wikilink_under_cursor(),
         harness
             .root()
             .children_recursive()
@@ -762,11 +775,17 @@ fn managed_surrealdb_code_create_note_opens_exact_durable_rich_document() {
         })
         .expect("mounted code context surface");
     context_surface.click_secondary();
+    // Same egui first-frame rule as the in-process drain proof: the popup's opening frame is a
+    // disabled sizing pass, so only click once the live item advertises AccessKit Click.
     let mut clicked = false;
     for _ in 0..20 {
         harness.run_steps(1);
         if let Some(node) = harness.root().children_recursive().find(|node| {
             node.accesskit_node().author_id() == Some("ctx-menu.ctxmenu-editor-create-note")
+                && node
+                    .accesskit_node()
+                    .data()
+                    .supports_action(egui::accesskit::Action::Click)
         }) {
             node.click();
             clicked = true;
@@ -775,7 +794,14 @@ fn managed_surrealdb_code_create_note_opens_exact_durable_rich_document() {
     }
     assert!(
         clicked,
-        "canonical Create note from link menu item is mounted"
+        "canonical Create note from link menu item is mounted and enabled (advertises Click); \
+         resolver_ready={}, panel_unresolved_link={:?}",
+        rich_state
+            .lock()
+            .unwrap()
+            .wikilinks
+            .is_resolver_index_ready(),
+        code_panel.unresolved_wikilink_under_cursor()
     );
 
     let mut created = None;
