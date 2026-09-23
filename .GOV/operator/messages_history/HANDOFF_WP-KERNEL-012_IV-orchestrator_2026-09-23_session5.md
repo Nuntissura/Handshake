@@ -4,6 +4,16 @@ You are the INTEGRATION VALIDATOR acting as orchestrator for `WP-KERNEL-012-Nati
 
 Read the LIVE kernel copies (`wt-gov-kernel/.GOV/...`, never `handshake_main/.GOV`): Codex `codex/Handshake_Codex_v1.4.md` (compact v1.5), `roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, and root `CLAUDE.md`/`AGENTS.md`. Codex CX-021 + Operator: no `just`, no repomem/ACP/receipts/dossiers; MT-json is the only status surface; status correctness + state recovery are the only governance goals.
 
+## 0. Read first: the two mistakes that cost the most last session
+
+1. **Test-by-test discovery of one systemic defect (the biggest waste).** Builder rounds 2–4 took about 6.5 h and about 3.2M tokens (≈685k+712k, 819k, 945k) and produced **0 new PASS**. Each round fixed one failure layer and exposed the next. A read-only static audit then found the whole defect class in **18 min and ≈450k tokens** (159-route matrix, §3.2).
+   - Why it happened: SurrealDB fails denied writes silently, so one design gap (routes running as the root session) looked like many unrelated 403/500/timeouts. Each round showed some fixes landing, so continuing felt like progress. The orchestrator applied the 2-attempt rule to the builders' individual reruns but not to its OWN rounds, and relayed the builder's "next blocker" framing instead of asking whether the pattern was the finding.
+   - Rule for you: apply Codex CX-EXEC-003/003A to your own orchestration. If a fix round's representative tests fail in a NEW place instead of passing, you get at most one more round of the same approach. After that, stop testing and run a static audit (read-only Opus agent over code + schema + spec) before the next build. Ask every round: "is this one cause showing up in many places?"
+2. **Broad validation over an unexplained systemic failure.** The C1 shared validation ran 3 h 50 min and ≈500k tokens; most of it reproduced the same auth failure across binaries, which masked every later assertion.
+   - Rule for you: before a broad validation run, check that the known failure classes are fixed. If the first ~10–20% of rows show one dominant class, stop the run, route the class to a builder, and resume after the fix.
+
+Smaller losses: about 1 h of a validator stalled on an approval prompt (now fixed by the allowlist); a false disk-cap alarm from hardlink double counting; C3 gates blocked by a host-wide busy check (§10).
+
 ## 1. Goal
 
 Close WP-KERNEL-012: every MT at validator-proven `PASS_Vn`, then the whole-WP IV verdict, then merge to `main`. Push real progress: parallel lanes on separate disks, fix-then-validate-once, no test-by-test discovery loops.
