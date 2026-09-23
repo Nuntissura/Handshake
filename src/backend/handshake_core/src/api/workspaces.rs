@@ -2943,6 +2943,43 @@ mod tests {
             before
         );
 
+        // MT-109 C1-FDELETE probe (env-gated): install a numbered copy of the workspace-delete guard;
+        // the real delete route evaluates it on its own record-user connection if it fails.
+        if std::env::var_os("HSK_C1_FDELETE_PROBE").is_some() {
+            let schema = include_str!("../storage/surreal/schema.surql");
+            let start = schema
+                .find("DEFINE FUNCTION OVERWRITE fn::mt120_workspace_delete($external: string) {")
+                .ok_or("guard start")?;
+            let rest = &schema[start..];
+            let end = rest[1..].find("\nDEFINE ").ok_or("guard end")? + 1;
+            let mut clauses = 0usize;
+            let mut probe = String::new();
+            for line in rest[..end].lines() {
+                let mut line = line.replace(
+                    "fn::mt120_workspace_delete($external",
+                    "fn::c1_probe_workspace_delete($external",
+                );
+                while let Some(at) = line.find("RETURN false;") {
+                    clauses += 1;
+                    eprintln!(
+                        "C1_FDELETE_CLAUSE {clauses}: {}",
+                        line.trim().chars().take(200).collect::<String>()
+                    );
+                    line.replace_range(
+                        at..at + "RETURN false;".len(),
+                        &format!("RETURN 'clause-{clauses}';"),
+                    );
+                }
+                probe.push_str(&line);
+                probe.push('\n');
+            }
+            state
+                .surreal
+                .test_admin_query_bound(probe, json!({}))
+                .await?
+                .check()?;
+        }
+
         // The owner delete cascades with zero residue.
         let status = delete_workspace(State(state.clone()), Path(ws.clone()), headers.clone())
             .await

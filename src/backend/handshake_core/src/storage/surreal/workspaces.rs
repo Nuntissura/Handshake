@@ -474,6 +474,8 @@ FOR $child IN $children {
 __WORKSPACE_DELETE_BODY__
 COMMIT TRANSACTION;
 "#.replace("__WORKSPACE_DELETE_BODY__", &delete_body);
+            #[cfg(test)]
+            let probe_external = external.clone();
             let mut result = broker.query(query).bind(("account_session", session)).bind(("account", account)).bind(("principal", principal))
                 .bind(("space", space)).bind(("resource", resource)).bind(("workspace", workspace)).bind(("external", external))
                 .bind(("grant", grant)).await?;
@@ -497,6 +499,20 @@ COMMIT TRANSACTION;
                     %error,
                     "workspace delete transaction failed"
                 );
+                // MT-109 C1-FDELETE probe (test builds only, env-gated): evaluate the numbered guard
+                // copy a test defined, on this exact record-user connection and scope.
+                #[cfg(test)]
+                if std::env::var_os("HSK_C1_FDELETE_PROBE").is_some() {
+                    let verdict = match broker
+                        .query("RETURN fn::c1_probe_workspace_delete($external);")
+                        .bind(("external", probe_external))
+                        .await
+                    {
+                        Ok(mut probe) => format!("{:?}", probe.take::<Option<String>>(0)),
+                        Err(probe_error) => format!("probe error: {probe_error}"),
+                    };
+                    eprintln!("C1_FDELETE_ROUTE_PROBE statement_index={statement_index} verdict={verdict}");
+                }
                 return Err(error.into());
             }
             Ok(())
