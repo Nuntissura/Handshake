@@ -22,7 +22,7 @@
   "title": "E4-MT-131-Name-Or-Desense-The-Slash-Menu-Framework-Container-Nodes",
   "group": "E4-Rich-Editor",
   "created_at_utc": "2026-08-13T09:45:00Z",
-  "updated_at_utc": "2026-09-23T04:07:17.531Z",
+  "updated_at_utc": "2026-09-23T11:52:52.986Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-131.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -62,11 +62,11 @@
   },
   "lifecycle": {
     "active": false,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "PASS_V3",
     "claimed_by": "KERNEL_BUILDER-20260812-113007",
-    "completed_by": null,
+    "completed_by": "WP_VALIDATOR-C3X-20260923-100258",
     "created_by": "KERNEL_BUILDER-20260812-113007",
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "PASS_V3",
     "depends_on": [],
     "blocks": [
       "MT-108"
@@ -93,10 +93,10 @@
     },
     "ready_for_validation_at_utc": "2026-09-23T04:07:17.531Z",
     "ready_for_validation_by": "KERNEL_BUILDER-C1",
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:55.849Z",
-    "validated_commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
-    "next_actor": "KERNEL_BUILDER",
+    "validated_by": "WP_VALIDATOR-C3X-20260923-100258",
+    "validated_at_utc": "2026-09-23T11:52:52.986Z",
+    "validated_commit": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+    "next_actor": "ORCHESTRATOR",
     "status_before_remediation_v2": "NEEDS_REIMPLEMENTATION_V1",
     "status_before_remediation_v3": "FAIL_V2"
   },
@@ -803,5 +803,59 @@
     "status": "CLASSES_FIXED_READY_FOR_SHARED_VALIDATION",
     "note": "All failure classes listed in this MT's latest validation have a round-3 fix (static; representative tests named per class in failure_classes). NOT-RUN-MASKED items are for the validator to execute.",
     "recorded_at_utc": "2026-09-23T04:07:17.531Z"
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-C3X-20260923-100258",
+    "candidate_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+    "export": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/export-0cfbff64 (7139 files, git archive verified)",
+    "target": "src/frontend/handshake_native test_slash_commands (default features)",
+    "proof_records": [
+      {
+        "schema_id": "hsk.proof_record@1",
+        "executor_role": "WP_VALIDATOR",
+        "session": "WP_VALIDATOR-C3X-20260923-100258",
+        "command": "cargo test --locked --test test_slash_commands -- --test-threads=2",
+        "cwd": "src/frontend/handshake_native",
+        "exe": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target/debug/deps/test_slash_commands-23de769f76c64add.exe",
+        "exe_sha256": "27990087823db2626c1363a37cf6f8e6b6c5c04c44968bf2a6855ece4cfcef39",
+        "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/04-mt131-slash-commands.log",
+        "log_sha256": "817627244e7cb77e26bf354d08565f7951c0dba13a4edaa97d78ba3ebfb44db9",
+        "result_line": "test result: ok. 25 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.35s",
+        "wall_s": 281,
+        "covers": [
+          "MT-131"
+        ],
+        "started_at_utc": "2026-09-23T13:58:00Z",
+        "finished_at_utc": "2026-09-23T14:02:41Z"
+      }
+    ],
+    "ac_evidence": {
+      "AC-131-1": "MET (proven pre-existing, unaffected): accesskit_menu_and_item_roles PASS",
+      "AC-131-2": "MET (proven pre-existing, unaffected): scrollbar named, no_unnamed_interactive_nodes_with_menu_open PASS",
+      "AC-131-3": "MET (proven pre-existing, unaffected): both area nodes fixed, no_unnamed_interactive_nodes_with_menu_open + _with_prompt_open PASS",
+      "AC-131-4": "MET: embed_prompt_modal_opens_in_live_tree PASS (this was the remediation_v3 target: prompt frame now produces an AccessKit update via ctx.run-style capture, harness.output().platform_output.accesskit_update no longer None). Independently executed by WP_VALIDATOR, real egui_kittest live-tree runtime (no mocks)."
+    },
+    "spec_realism_gate": {
+      "sub_rule_1_no_deferred_live_escape": "PASS: no LiveClientUnavailable/LiveSpawnUnavailable/NativeToolchainUnavailable/deferred-to-follow-on strings in test_slash_commands.rs or its diff; test exercises live egui_kittest harness end to end.",
+      "sub_rule_2_handshake_owned_resource_touch": "PASS: test drives the real RichEditorState/slash-menu widget through the live AccessKit tree via egui_kittest.Harness, not a mock/fixture double; this is the Handshake-native UI runtime surface the MT targets (no backend/SurrealDB resource is in scope for this MT).",
+      "sub_rule_3_no_self_certification": "PASS: claimed_by=KERNEL_BUILDER-20260812-113007, completed_by=WP_VALIDATOR-C3X-20260923-100258 (different actor)."
+    },
+    "adversarial_checks": {
+      "real_runtime_boundary": "YES: egui_kittest drives the actual widget tree, not a headless stub.",
+      "account_session_writes": "N/A: no backend/account-session writes in this MT's scope.",
+      "deferred_live_escape_strings": "none found",
+      "weakened_or_ignored_assertions_since_last_validation": "1 pre-existing #[ignore] (mt108_argus_slash_menu_real_server_loop, explicitly MT-108 runner-only proof, unrelated to MT-131 scope, not newly added by this remediation)."
+    },
+    "verdict": "PASS_V3",
+    "remediation_required": [],
+    "notes": "candidate 0cfbff64 is superseded by incoming bea9496d per IV steer 2026-09-23; this MT's target file (tests/test_slash_commands.rs) is NOT in the 0cfbff64..bea9496d diff (104 files), so this verdict is safe to issue at 0cfbff64 per IV instruction."
+  },
+  "validation_v3_transition": {
+    "schema_id": "hsk.mt_lifecycle_transition@1",
+    "session": "WP_VALIDATOR-C3X-20260923-100258",
+    "recorded_at_utc": "2026-09-23T11:52:52.986Z",
+    "from_status": "READY_FOR_VALIDATION_V3",
+    "to_status": "PASS_V3"
   }
 }
