@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T16:38:01.974Z",
+  "updated_at_utc": "2026-09-23T18:56:17.805Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1861,5 +1861,110 @@
         "clippy_changed_lines": "runs 86 and 90: 0 errors on lines changed since 0cfbff64 (396 pre-existing unique errors elsewhere; exit 101 is from those)"
       }
     }
+  },
+  "validation": {},
+  "validation_v1_partial": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "partial": true,
+    "session": "WP_VALIDATOR-C4V-20260923-1840",
+    "timestamp_utc": "2026-09-23T18:56:17.805Z",
+    "candidate_sha": "0caf1c102c48f88b68027f4fcfe18e16f8168cbb",
+    "export_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/export-e9973e8c/src/backend/handshake_core",
+    "diff_base": "0cfbff64",
+    "env": {
+      "target": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/target",
+      "features": "app-runtime,surreal-test-support,test-utils"
+    },
+    "proof_records": [
+      {
+        "id": "PR-nondb-check-tests",
+        "executor_role": "WP_VALIDATOR",
+        "command": "cargo check --locked -j 12 --tests --features app-runtime,surreal-test-support,test-utils",
+        "exe": "n/a (check only)",
+        "log": "../../../../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/26-nondb-checks.log",
+        "log_sha256": "04dd29b913d861edf66c40a6bdce87036d460d67b7c4e6e80a27b5d2be708614",
+        "result_line": "CHECK_TESTS_EXIT=0 (Finished dev profile in 14m 11s, zero error[ lines)",
+        "covers": [
+          "MT-153",
+          "MT-154",
+          "MT-155",
+          "MT-156",
+          "MT-157",
+          "MT-158"
+        ],
+        "candidate_sha": "0caf1c102c48f88b68027f4fcfe18e16f8168cbb",
+        "export_path": "C:/.target/WP-KERNEL-012/MT-109/wpv-c3x/export-e9973e8c"
+      },
+      {
+        "id": "PR-nondb-clippy-changed",
+        "executor_role": "WP_VALIDATOR",
+        "command": "cargo clippy --locked --keep-going -j 12 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+        "exe": "n/a (lint only)",
+        "log": "../../../../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/26-nondb-checks.log",
+        "log_sha256": "04dd29b913d861edf66c40a6bdce87036d460d67b7c4e6e80a27b5d2be708614",
+        "result_line": "CLIPPY_EXIT=101 (tolerated: 396 total errors = pre-existing baseline per MT-079; 148 findings in the 105 changed files but 0 findings on actually-changed lines per git diff -U0 hunk cross-reference)",
+        "covers": [
+          "MT-153",
+          "MT-154",
+          "MT-155",
+          "MT-156",
+          "MT-157",
+          "MT-158"
+        ],
+        "candidate_sha": "0caf1c102c48f88b68027f4fcfe18e16f8168cbb",
+        "diff_base": "0cfbff64",
+        "supporting_evidence": [
+          "logs/30-clippy-all-396-errors.txt (sha256 9db04c9002090731f291a2618ad0bb8ad9d0a0003e4012a0fff75c637d09824e)",
+          "logs/31-changed-line-ranges.tsv (sha256 4a14285e1443b951664bbd7765ba470a626c23d5b3d0a7e17fc39ed9baf61aec)",
+          "logs/32-clippy-on-changed-files-148.txt (sha256 edf07558389c6983eae7a93285681502b923daa707265433e3e7cdc4ed42183d)",
+          "logs/33-clippy-on-changed-lines-RESULT.txt (sha256 10d7bb430599d3b9b06c16085e6a8bda1fa65ac94424ab74671d9c7c13eab087, result: 0 findings)"
+        ]
+      },
+      {
+        "id": "PR-nondb-fmt-check",
+        "executor_role": "WP_VALIDATOR",
+        "command": "rustfmt --edition 2021 --check <each of 105 changed .rs files> (pinned 1.97.1-x86_64-pc-windows-msvc toolchain)",
+        "exe": "C:/Users/Ilja Smets/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/rustfmt.exe",
+        "log": "../../../../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/29-fmt-check-clean.log",
+        "log_sha256": "955ca84bb8108e621fe447f9e8c207a196f3176fa793389c1417a91e1711d4ea",
+        "result_line": "FMT_TOTAL=105 FMT_FAILED=1 (the 1 flagged file, storage/mod.rs, is rustfmt following a mod-tree diff into storage/fems_memory.rs, a submodule NOT in the 105 changed-file list; pre-existing drift, out of scope; treated as PASS)",
+        "covers": [
+          "MT-153",
+          "MT-154",
+          "MT-155",
+          "MT-156",
+          "MT-157",
+          "MT-158"
+        ],
+        "candidate_sha": "0caf1c102c48f88b68027f4fcfe18e16f8168cbb",
+        "diff_base": "0cfbff64"
+      },
+      {
+        "id": "PR-nondb-diff-check",
+        "executor_role": "WP_VALIDATOR",
+        "command": "git diff --check 0cfbff64..0caf1c10 -- <105 changed files>",
+        "exe": "git",
+        "log": "../../../../Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/27-diff-check.log",
+        "log_sha256": "fc81ad274059f2c11e11919bd7917d3cb983ca6112ed1485c747dd6f55350b02",
+        "result_line": "DIFF_CHECK_EXIT=0, no whitespace errors",
+        "covers": [
+          "MT-153",
+          "MT-154",
+          "MT-155",
+          "MT-156",
+          "MT-157",
+          "MT-158"
+        ],
+        "candidate_sha": "0caf1c102c48f88b68027f4fcfe18e16f8168cbb",
+        "diff_base": "0cfbff64"
+      }
+    ],
+    "non_db_checks_status": "CHECK-TESTS PASS; CLIPPY-CHANGED PASS (0 findings on changed lines); FMT-CHECK PASS; DIFF-CHECK PASS",
+    "pending": {
+      "pin_measure_confirm": "DEFERRED to MT-159 re-pin SHA per Integration Validator instruction (2026-09-23)",
+      "db_dependent_checks": "BLOCKED on HANG-A fix (SURREAL_DATASTORE_SYNC env var not reaching embedded SurrealDB engine; builder adding HANDSHAKE_TEST_SURREAL_SYNC=never store-path param in next SHA). Confirmed reproductions: MT-155-ROUTE-AUTH (mt155_account_without_capability_is_403_and_spawns_nothing hung, dumped: logs/hang-run25-mt155.dmp), MT-157-WORKSPACE-DELETE/AC-157-4 (owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit hung twice, dumped: logs/hang-run24-owned-workspace-delete.dmp, logs/hang-run25-owned-workspace-delete-isolated.dmp)"
+    },
+    "reuse_note": "Proof on these 4 non-DB checks carries forward to the next SHA only if the relevant crate inputs (0cfbff64..0caf1c10 diff scope, features, toolchain) are unchanged (VPX-004); re-verify when the new candidate SHA lands.",
+    "note": "lifecycle.status and validator_verdict intentionally NOT modified by this partial block; MT remains READY_FOR_VALIDATION pending DB-dependent checks and pin re-confirm."
   }
 }
