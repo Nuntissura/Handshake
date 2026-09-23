@@ -25,7 +25,7 @@
   "title": "B18-MT-154-Non-Loom-Routes-Account-Session-Authority-And-Residuals",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T14:10:13.277Z",
+  "updated_at_utc": "2026-09-23T14:59:40.948Z",
   "identity": {
     "mt_id": "MT-154",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1166,7 +1166,7 @@
     ],
     "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4",
     "note": "Recorded at claim per KB-OUT-001 before proof.",
-    "updated_at_utc": "2026-09-23T14:10:13.277Z",
+    "updated_at_utc": "2026-09-23T14:59:40.948Z",
     "candidate_history": [
       "bea9496d70670ade7abc97dfd06515795275c546 (compiling batch, pins not re-measured)",
       "888229743b8f8decb01e305367182c44ad79f058 (partial re-pin + test(MT-088))",
@@ -1334,6 +1334,194 @@
         "storage::surreal::schema::tests::standalone_loom_revision_159_upgrade_requires_exact_catalog_and_restarts_current",
         "bootstrap_resumes* (skipped per IV; DEFERRED-SLOW-IO)"
       ]
+    },
+    "out_of_scope_edits": {
+      "generated_at_utc": "2026-09-23T14:59:40.880Z",
+      "base": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+      "head": "51d9f40f24f900be803c08f59eaefb32020041df",
+      "method": "git diff --name-only <base> minus every path/prefix in MT-153..157 execution.allowed_write_paths",
+      "count": 42,
+      "operator_waiver_requested": true,
+      "one_line_for_operator": "KB-C4 touched 42 files outside the MT-153..157 allowed_write_paths: 4 core receipt/silent-deny lines, 5 core test files adapting to session-required routes, 8 native client files binding the account context, 25 native test files binding that context; no assertion weakened.",
+      "paths": [
+        {
+          "path": "src/backend/handshake_core/src/kernel/crdt/save_semantics.rs",
+          "reason": "Receipt payload names workspace_id so the account-scoped CRDT save receipt is accepted by fn::mt154_workspace_receipt (AC-154-3 knowledge CRDT family); +2 lines."
+        },
+        {
+          "path": "src/backend/handshake_core/src/kernel/crdt/yjs_bridge.rs",
+          "reason": "Same as save_semantics.rs for the CRDT push receipt (POST /knowledge/crdt/updates/push); +3 lines."
+        },
+        {
+          "path": "src/backend/handshake_core/src/knowledge_retrieval/compiler.rs",
+          "reason": "Retrieval trace receipt names workspace_id so the record-user append passes fn::mt154_workspace_receipt (knowledge retrieval family); +2 lines."
+        },
+        {
+          "path": "src/backend/handshake_core/src/storage/surreal/knowledge.rs",
+          "reason": "Silent-deny class fix (spec_ruling_c3_silent_deny): wiki page upsert returning no row under record-user scope maps to Guard HSK-403 instead of 200."
+        },
+        {
+          "path": "src/backend/handshake_core/tests/atelier_loom_projection_api_tests.rs",
+          "reason": "Existing Atelier route tests updated to authenticate (routes now require the account session, AC-154-2/AC-154-4); no assertion weakened."
+        },
+        {
+          "path": "src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
+          "reason": "Same: stealth-window routes now require the account session; tests seed/read via api::atelier::with_account_session."
+        },
+        {
+          "path": "src/backend/handshake_core/tests/kernel_end_to_end_tests.rs",
+          "reason": "GET /kernel/trace_projection now requires session + fr.read: the route test asserts anonymous/other-account 403 and inspects directly."
+        },
+        {
+          "path": "src/backend/handshake_core/tests/knowledge_parallel_write_conflict_fixture_tests.rs",
+          "reason": "Fixture writes receipts that now must name workspace_id (receipt predicate); test updated to the new receipt shape."
+        },
+        {
+          "path": "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_tests.rs",
+          "reason": "route1_locus and related route tests seed as the owning account and call with account.client() (Locus rows are account-owned per D-154-3)."
+        },
+        {
+          "path": "src/frontend/handshake_native/src/backend/knowledge_crdt.rs",
+          "reason": "C3 open item (4) / MT-153-MT-154: native client binds the authenticated account context (with_authenticated_context) so its backend calls run under the account session instead of anonymously."
+        },
+        {
+          "path": "src/frontend/handshake_native/src/backend/loom.rs",
+          "reason": "C3 open item (4) / MT-153-MT-154: native client binds the authenticated account context (with_authenticated_context) so its backend calls run under the account session instead of anonymously."
+        },
+        {
+          "path": "src/frontend/handshake_native/src/interop/calendar_interop.rs",
+          "reason": "C3 open item (4) / MT-153-MT-154: native client binds the authenticated account context (with_authenticated_context) so its backend calls run under the account session instead of anonymously."
+        },
+        {
+          "path": "src/frontend/handshake_native/src/interop/locus_interop.rs",
+          "reason": "C3 open item (4) / MT-153-MT-154: native client binds the authenticated account context (with_authenticated_context) so its backend calls run under the account session instead of anonymously."
+        },
+        {
+          "path": "src/frontend/handshake_native/src/local_account.rs",
+          "reason": "Adds rebound_to_origin_for_test (cfg test/integration) so native tests bind the account session to the live test backend origin."
+        },
+        {
+          "path": "src/frontend/handshake_native/src/preference_client.rs",
+          "reason": "C3 open item (4) / MT-153-MT-154: native client binds the authenticated account context (with_authenticated_context) so its backend calls run under the account session instead of anonymously."
+        },
+        {
+          "path": "src/frontend/handshake_native/src/rich_editor/embeds/asset_resolver.rs",
+          "reason": "C3 open item (4) / MT-153-MT-154: native client binds the authenticated account context (with_authenticated_context) so its backend calls run under the account session instead of anonymously."
+        },
+        {
+          "path": "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+          "reason": "C3 open item (4) / MT-153-MT-154: native client binds the authenticated account context (with_authenticated_context) so its backend calls run under the account session instead of anonymously."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/backend_proof_support/mod.rs",
+          "reason": "Shared native test support: exposes the live account context; test(MT-088) external_artifact_root create_dir_all fix (IV-directed)."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_app_host_mount_secondary.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_backend_down_responsive.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_calendar_interop.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_canvas_board_argus.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_ckc_embed.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_context_menu_surfaces_part2.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_drawer_item_actions.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_e7_knowledge_accesskit.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_editor_preference_records.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_embeds.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_folder_tree.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_folder_tree_argus.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_graph_view.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_knowledge_crdt.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_locus_interop.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_loom.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_loom_search_v2.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_notes_end_to_end.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_other_pillar_interop_proofs.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_sidebar_panel.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_tags_panel.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_tags_panel_argus.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_wiki_page_panel.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_wiki_page_panel_argus.rs",
+          "reason": "Native test updated to bind the account context on its client (routes now deny anonymous callers); no assertion weakened."
+        }
+      ]
+    },
+    "residual_locus_job_path": {
+      "status": "SUPERSEDED_BY_MT-158",
+      "note": "Operator ruling 2026-09-23 ~17:00 (option A, relayed by INTEGRATION_VALIDATOR session 6): POST /jobs (api/jobs.rs:194, no session layer) -> run_job (workflows.rs:10508) -> locus_store writers ran as root; mt_iterations / dependencies PERMISSIONS NONE and the global storage_graph_anchors dependency anchor. Fixed in MT-158."
+    },
+    "residual_kernel_crdt_updates": {
+      "status": "FIXED_IN_BATCH",
+      "basis": "03-local-first-infrastructure.md:657 (CRDT updates are pre-promotion working state); residual (d) retains kernel_event_ledger only; knowledge_crdt_denial_receipts retained as ledger-bound audit trail (IV approved).",
+      "change": "schema.surql kernel_crdt_updates FOR delete WHERE fn::mt109_has_workspace_access(workspace_id,'delete','fs.write'); storage/surreal/workspaces.rs delete body DELETE kernel_crdt_updates WHERE workspace_id = record::id($workspace)"
     }
   }
 }
