@@ -821,10 +821,30 @@ async fn mt259_http_retry_endpoint_requeues_failed_tier() {
     std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", tmp.path());
 
     // A real image block so find_loom_block_by_asset_id resolves (the retry
-    // endpoint requeues the job keyed by the owning block).
-    // MT-109 C2: root seed (create_asset + create_loom_block + upsert_media_tier) kept; the
-    // retry route reads it.
-    let (_block_id, asset_id, _hash) = make_image_block(&store.db, tmp.path(), &ws).await;
+    // endpoint requeues the job keyed by the owning block). MT-109 C3: the retry route runs as
+    // the account record user, so the owning file block is created by the account through the
+    // import route (a root-created block has no account grant and stays invisible); the failed
+    // tier row stays a root seed because tiers are workspace-scoped.
+    let (base, http, _state, _recorder) = loom_server(&store, &account).await;
+    let imported: serde_json::Value = {
+        use base64::Engine as _;
+        let response = http
+            .post(format!("{base}/workspaces/{ws}/loom/import"))
+            .json(&serde_json::json!({
+                "bytes_b64": base64::engine::general_purpose::STANDARD.encode(real_png(800, 600)),
+                "original_filename": "media.png",
+                "mime": "image/png",
+            }))
+            .send()
+            .await
+            .expect("account import send");
+        assert_eq!(response.status(), 200, "account image import");
+        response.json().await.expect("account import json")
+    };
+    let asset_id = imported["asset_id"]
+        .as_str()
+        .expect("import returns asset_id")
+        .to_owned();
 
     // Seed a FAILED poster tier (the honest video-poster failure shape).
     let ctx = WriteContext::human(None);
@@ -844,8 +864,6 @@ async fn mt259_http_retry_endpoint_requeues_failed_tier() {
         )
         .await
         .expect("seed failed poster");
-
-    let (base, http, _state, _recorder) = loom_server(&store, &account).await;
 
     // It is in the failed queue before retry.
     assert_eq!(

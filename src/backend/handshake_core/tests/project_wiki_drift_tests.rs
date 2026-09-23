@@ -37,9 +37,7 @@ use handshake_core::storage::knowledge::{
     KnowledgeRootKind, KnowledgeStore, NewKnowledgeSourceRoot, NewKnowledgeWikiProjection,
 };
 use handshake_core::storage::surreal::SurrealDatabase;
-use handshake_core::storage::{
-    Database, LoomBlockContentType, LoomBlockDerived, NewLoomBlock, WriteContext,
-};
+use handshake_core::storage::Database;
 use serde_json::{json, Value};
 use user_manual_support::{app_state_for, manual_test_backend, start_server, ManualTestBackend};
 use uuid::Uuid;
@@ -570,35 +568,24 @@ async fn mt242_verdict_attached_on_every_serve_path_fail_closed() {
     );
 
     // ---- compile serve path (POST returns the page WITH its verdict) ----------
-    let ctx = WriteContext::human(None);
-    let mut derived = LoomBlockDerived::default();
-    derived.full_text_index = Some("wiki drift api test block".to_string());
-    // MT-109 C2: root seed (create_loom_block, no account grant) kept; the create route cannot
-    // set `derived.full_text_index`, which this compile input carries.
-    let block = pg
-        .db
-        .create_loom_block(
-            &ctx,
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: ws.clone(),
-                content_type: LoomBlockContentType::Note,
-                document_id: None,
-                asset_id: None,
-                title: Some("Drift API note".to_string()),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived,
-            },
-        )
+    // MT-109 C3: the compile route runs as the account record user, so its cited block is created
+    // by the account through the product route (a root-created block has no account grant).
+    let block_json: Value = http
+        .post(format!("{base}/workspaces/{ws}/loom/blocks"))
+        .json(&json!({"content_type": "note", "title": "Drift API note wiki drift api test block"}))
+        .send()
         .await
-        .expect("create block");
+        .expect("account block send")
+        .json()
+        .await
+        .expect("account block json");
+    let block_id = block_json["block_id"]
+        .as_str()
+        .expect("account block id")
+        .to_owned();
     let compiled: Value = http
         .post(format!("{base}/workspaces/{ws}/loom/wiki"))
-        .json(&json!({"title": "Drift API topic", "block_ids": [block.block_id]}))
+        .json(&json!({"title": "Drift API topic", "block_ids": [block_id]}))
         .send()
         .await
         .expect("compile send")
