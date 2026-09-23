@@ -137,11 +137,13 @@ struct Matrix {
 
 impl Matrix {
     async fn start() -> Self {
-        let lock = NATIVE_BINDING_ENV_LOCK.lock().await;
-        let binding = NativeBindingEnv::install();
+        // Open the isolated store before taking the process-wide binding lock: store open does not
+        // read HANDSHAKE_STAGE_BINDING_FILE, and a stalled open must not serialize the whole file.
         let store = open_embedded_store()
             .await
             .expect("isolated embedded store is required for the MT-154 route matrix");
+        let lock = NATIVE_BINDING_ENV_LOCK.lock().await;
+        let binding = NativeBindingEnv::install();
         let owner = OwnerSession::provision(&store.storage, binding.token()).await;
         let other = OwnerSession::provision(&store.storage, binding.token()).await;
         let state = app_state(&store);
