@@ -512,8 +512,26 @@ fn embed_prompt_modal_opens_in_live_tree() {
     let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(600.0, 400.0));
     harness.step();
 
-    let output = harness.output();
-    let update = output
+    // egui_kittest's `Harness::step` `take()`s `platform_output.accesskit_update` into its own
+    // kittest tree, so `harness.output()` never carries it. Run the prompt frame once more on the
+    // SAME accesskit-enabled harness context (same screen rect, same widget/state) and inspect the
+    // TreeUpdate that frame actually produced.
+    let prompt_frame = harness.ctx.run(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(600.0, 400.0),
+            )),
+            ..Default::default()
+        },
+        |ctx| {
+            handshake_native::app::HandshakeApp::install_fonts(ctx);
+            egui::CentralPanel::default().show(ctx, |ui| {
+                RichEditorWidget::new(Arc::clone(&state)).show(ui);
+            });
+        },
+    );
+    let update = prompt_frame
         .platform_output
         .accesskit_update
         .as_ref()
