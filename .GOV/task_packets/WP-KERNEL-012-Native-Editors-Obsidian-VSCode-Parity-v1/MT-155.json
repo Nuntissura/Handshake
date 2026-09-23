@@ -25,7 +25,7 @@
   "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-09-23T12:15:26.970Z",
   "identity": {
     "mt_id": "MT-155",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -49,8 +49,8 @@
     "validated_by": null,
     "validated_at_utc": null,
     "completed_by": null,
-    "claimed_by": null,
-    "claimed_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
+    "claimed_at_utc": "2026-09-23T10:03:00.000Z",
     "created_by": "ORCHESTRATOR governance subagent (operator-directed MT authoring 2026-09-23)",
     "created_at_utc": "2026-09-23T09:49:34.269Z",
     "origin": "operator_scope_expansion_2026-09-23",
@@ -505,5 +505,24 @@
     "operator_decision_requests": [],
     "worker_final_status": "ready_for_validation_or_blocked",
     "commit_policy": "The Coder commits product changes on feat/WP-KERNEL-012 (fix/test/style(MT-155) messages). The Integration Validator commits governance (this file) on gov_kernel; the Coder does not edit this file except the handoff report fields if the launcher routes the report here."
+  },
+  "remediation_v1": {
+    "session": "KERNEL_BUILDER-C4-20260923-100258",
+    "status": "IN_PROGRESS_CANDIDATE_PUSHED",
+    "batch_owner": "MT-154",
+    "covered_mts": [
+      "MT-153",
+      "MT-154",
+      "MT-155",
+      "MT-156",
+      "MT-157"
+    ],
+    "base_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
+    "candidate_sha": "bea9496d70670ade7abc97dfd06515795275c546",
+    "commits": [
+      "efe3a1a6 fix(MT-155)"
+    ],
+    "note": "Recorded at claim per KB-OUT-001 before proof.",
+    "updated_at_utc": "2026-09-23T12:15:26.970Z"
   }
 }
