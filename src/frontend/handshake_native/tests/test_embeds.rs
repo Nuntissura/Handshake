@@ -1426,7 +1426,9 @@ fn mt014_seeded_asset_real_backend_decode_aspect_missing_corrupt() {
         .enable_all()
         .build()
         .expect("managed seeded-asset proof runtime");
-    let fetcher = Arc::new(ReqwestAssetFetcher::new(&base));
+    // MT-154: asset routes run as the account record user; carry the fixture's real session.
+    let fetcher =
+        Arc::new(ReqwestAssetFetcher::new(&base).with_authenticated_context(backend.account()));
 
     // ── GOOD: metadata resolves, content decodes, intrinsic dimensions + aspect ratio preserved.
     let resolved = rt

@@ -54,6 +54,17 @@ impl AuthenticatedContext {
         Ok(self)
     }
 
+    /// Test seam (MT-154): the SAME session (identity, tokens and shared invalidation/rejection state)
+    /// re-bound to another backend origin, for proofs that route a live session through a loopback
+    /// proxy or swap the mounted host onto an isolated fault-injection server. Never compiled into a
+    /// production build.
+    #[cfg(any(test, feature = "integration"))]
+    #[doc(hidden)]
+    pub fn rebound_to_origin_for_test(&self, backend: &str) -> Result<Self, String> {
+        let channel_token = self.channel_token.clone();
+        self.clone().bind(backend, channel_token)
+    }
+
     pub fn authorize_builder(
         &self,
         _client: reqwest::Client,

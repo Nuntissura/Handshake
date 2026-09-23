@@ -53,7 +53,7 @@ macro_rules! loom_ledger_append_sql {
         concat!(
             "LET $existing_receipt = (SELECT id, payload_hash FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0]; ",
             "IF $existing_receipt = NONE { ",
-            "CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; ",
+            "IF array::len((CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
             "} ELSE IF $existing_receipt.payload_hash != $ledger.payload_hash { THROW 'HSK-LOOM-RECEIPT-DIVERGENT'; }; ",
             "LET $receipt = $existing_receipt.id ?? $ledger.record; "
         )
@@ -156,13 +156,102 @@ async fn read_graph_anchor_version(
     Ok(versions.into_iter().next().unwrap_or(0))
 }
 
+/// The constant protected-resource denial (MT-154 silent-deny ruling; Master Spec
+/// 02-system-architecture.md:2758 and :16447 HSK-403-SILENT-EDIT,
+/// 11-shared-dev-platform-and-oss-foundations.md:4519). SurrealDB 3.2.0 silently drops a
+/// record-user CREATE/UPDATE/UPSERT/DELETE its table or field permissions deny (no row, no
+/// error), so every protected Loom write checks what it wrote and surfaces a dropped write as
+/// this error, which `api/loom.rs` `map_storage_error` maps to the constant 403 body.
+pub(crate) const PROTECTED_RESOURCE_DENIAL: &str = "HSK-403-PROTECTED-RESOURCE";
+
+pub(crate) fn protected_denial() -> StorageError {
+    StorageError::Guard(PROTECTED_RESOURCE_DENIAL)
+}
+
+/// Requires that a write returned exactly `expected` rows (RETURN AFTER / BEFORE / VALUE id);
+/// anything else is a silently denied record-user write and becomes the constant denial.
+pub(crate) fn require_written<T>(rows: Vec<T>, expected: usize) -> StorageResult<Vec<T>> {
+    if rows.len() == expected {
+        Ok(rows)
+    } else {
+        Err(protected_denial())
+    }
+}
+
+/// [`require_written`] for a single-row write.
+pub(crate) fn require_written_one<T>(rows: Vec<T>) -> StorageResult<T> {
+    require_written(rows, 1)?
+        .into_iter()
+        .next()
+        .ok_or_else(protected_denial)
+}
+
+#[derive(SurrealValue)]
+struct DenialProbeBinding {
+    record: RecordId,
+}
+
+/// A create-if-absent that returned no row either lost to an existing row the caller can read
+/// (`existing` stands, e.g. a typed 409) or was silently denied (constant denial).
+async fn existing_or_denied(
+    db: &SurrealDataContext<'_>,
+    record: RecordId,
+    existing: StorageError,
+) -> StorageError {
+    match db
+        .query_values::<RecordId, _>(
+            "SELECT VALUE id FROM $record;",
+            DenialProbeBinding { record },
+        )
+        .await
+    {
+        Ok(rows) if !rows.is_empty() => existing,
+        Ok(_) => protected_denial(),
+        Err(error) => map_err(error),
+    }
+}
+
+/// An update/delete that returned no row on a record that is still readable in `workspace`
+/// under the same scope was silently denied (constant denial); an unreadable or absent record
+/// keeps the caller's `missing` outcome (typed 404).
+async fn denied_or_missing(
+    db: &SurrealDataContext<'_>,
+    record: RecordId,
+    workspace: RecordId,
+    missing: StorageError,
+) -> StorageError {
+    match db
+        .query_values::<RecordId, _>(
+            "SELECT VALUE id FROM $record WHERE workspace_id = $workspace;",
+            WorkspaceRecordBinding { workspace, record },
+        )
+        .await
+    {
+        Ok(rows) if !rows.is_empty() => protected_denial(),
+        Ok(_) => missing,
+        Err(error) => map_err(error),
+    }
+}
+
+/// True when a SurrealDB error carries the in-transaction silent-deny guard
+/// (`THROW 'HSK-403-PROTECTED-RESOURCE'`).
+pub(crate) fn is_protected_denial(rendered: &str) -> bool {
+    rendered.contains(PROTECTED_RESOURCE_DENIAL)
+}
+
 fn map_err(error: SurrealStorageError) -> StorageError {
-    StorageError::Database(error.to_string())
+    let rendered = error.to_string();
+    if is_protected_denial(&rendered) {
+        return protected_denial();
+    }
+    StorageError::Database(rendered)
 }
 
 fn guarded_err(error: SurrealStorageError) -> StorageError {
     let rendered = error.to_string();
-    if rendered.contains("HSK-LOOM-NOT-FOUND") {
+    if is_protected_denial(&rendered) {
+        protected_denial()
+    } else if rendered.contains("HSK-LOOM-NOT-FOUND") {
         StorageError::NotFound("loom_block")
     } else if rendered.contains("HSK-LOOM-FOLDER-NOT-FOUND") {
         StorageError::NotFound("loom_folder")
@@ -354,8 +443,18 @@ pub(crate) async fn create_asset(
     let row = db
         .create_if_absent::<AssetRow, _>(ASSETS_TABLE, &asset_id, content)
         .await
-        .map_err(map_err)?
-        .ok_or(StorageError::Conflict("asset_id"))?;
+        .map_err(map_err)?;
+    let row = match row {
+        Some(row) => row,
+        None => {
+            return Err(existing_or_denied(
+                db,
+                thing(ASSETS_TABLE, &asset_id),
+                StorageError::Conflict("asset_id"),
+            )
+            .await)
+        }
+    };
     asset_to_domain(row)
 }
 
@@ -491,7 +590,7 @@ pub(crate) async fn set_media_tier_status(
 ) -> StorageResult<MediaAssetTier> {
     let row = db
         .query_values_at::<MediaTierRow, _>(
-            "BEGIN TRANSACTION; LET $rows = UPDATE media_asset_tiers SET attempt_count += IF $status = 'pending' AND status != 'pending' { 1 } ELSE { 0 }, status = $status, failure_reason = $failure_reason, updated_at = time::now() WHERE workspace_id = $workspace AND asset_id = $asset AND tier = $tier RETURN AFTER; IF array::len($rows) = 0 { THROW 'HSK-MEDIA-TIER-NOT-FOUND'; } ELSE { RETURN $rows[0]; }; COMMIT TRANSACTION;",
+            "BEGIN TRANSACTION; LET $rows = UPDATE media_asset_tiers SET attempt_count += IF $status = 'pending' AND status != 'pending' { 1 } ELSE { 0 }, status = $status, failure_reason = $failure_reason, updated_at = time::now() WHERE workspace_id = $workspace AND asset_id = $asset AND tier = $tier RETURN AFTER; IF array::len($rows) = 0 { IF (SELECT VALUE id FROM media_asset_tiers WHERE workspace_id = $workspace AND asset_id = $asset AND tier = $tier LIMIT 1)[0] != NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; THROW 'HSK-MEDIA-TIER-NOT-FOUND'; } ELSE { RETURN $rows[0]; }; COMMIT TRANSACTION;",
             MediaTierStatusBinding {
                 workspace: thing("workspaces", workspace_id),
                 asset: thing(ASSETS_TABLE, asset_id),
@@ -651,8 +750,18 @@ pub(crate) async fn create_loom_collection(
             },
         )
         .await
-        .map_err(map_err)?
-        .ok_or(StorageError::Conflict("loom_collection_id"))?;
+        .map_err(map_err)?;
+    let row = match row {
+        Some(row) => row,
+        None => {
+            return Err(existing_or_denied(
+                db,
+                thing(COLLECTIONS_TABLE, &collection_id),
+                StorageError::Conflict("loom_collection_id"),
+            )
+            .await)
+        }
+    };
     collection_to_domain(row)
 }
 
@@ -722,7 +831,7 @@ pub(crate) async fn set_loom_collection_order(
         })
         .collect();
     db.execute_returning(
-        "BEGIN TRANSACTION; IF (SELECT VALUE id FROM $collection WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-COLLECTION-NOT-FOUND'; }; DELETE loom_collection_members WHERE collection_id = $collection; FOR $member IN $members { CREATE $member.record SET collection_id = $collection, asset_id = $member.asset, position = $member.position; }; UPDATE $collection SET updated_at = time::now() RETURN AFTER; COMMIT TRANSACTION;",
+        "BEGIN TRANSACTION; IF (SELECT VALUE id FROM $collection WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-COLLECTION-NOT-FOUND'; }; DELETE loom_collection_members WHERE collection_id = $collection; IF (SELECT VALUE id FROM loom_collection_members WHERE collection_id = $collection LIMIT 1)[0] != NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; FOR $member IN $members { IF array::len((CREATE $member.record SET collection_id = $collection, asset_id = $member.asset, position = $member.position RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; IF array::len((UPDATE $collection SET updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; COMMIT TRANSACTION;",
         CollectionOrderBinding {
             collection,
             workspace: thing("workspaces", workspace_id),
@@ -1195,8 +1304,8 @@ pub(crate) async fn update_loom_block(
                 loom_ledger_append_sql!(),
                 "IF $existing_receipt = NONE { ",
                 "IF $expected_updated_at != NONE AND (SELECT VALUE updated_at FROM $block LIMIT 1)[0] != $expected_updated_at { THROW 'HSK-LOOM-STALE'; }; ",
-                "UPDATE $block SET title = IF $title = NONE { title } ELSE { $title }, pinned = IF $pinned = NONE { pinned } ELSE { $pinned }, favorite = IF $favorite = NONE { favorite } ELSE { $favorite }, pin_order = IF $pin_order = NONE { pin_order } ELSE { $pin_order }, journal_date = IF $journal_date = NONE { journal_date } ELSE { $journal_date }, last_job_id = $last_job_id, last_workflow_id = $last_workflow_id, last_actor_id = $last_actor_id, edit_event_id = $edit_event_id, last_actor_kind = $last_actor_kind, updated_at = $updated_at, event_ledger_event_id = $receipt RETURN NONE; ",
-                "UPDATE $search SET search_text = $search_text, indexed_at = time::now() RETURN NONE; ",
+                "IF array::len((UPDATE $block SET title = IF $title = NONE { title } ELSE { $title }, pinned = IF $pinned = NONE { pinned } ELSE { $pinned }, favorite = IF $favorite = NONE { favorite } ELSE { $favorite }, pin_order = IF $pin_order = NONE { pin_order } ELSE { $pin_order }, journal_date = IF $journal_date = NONE { journal_date } ELSE { $journal_date }, last_job_id = $last_job_id, last_workflow_id = $last_workflow_id, last_actor_id = $last_actor_id, edit_event_id = $edit_event_id, last_actor_kind = $last_actor_kind, updated_at = $updated_at, event_ledger_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF (SELECT VALUE id FROM $search)[0] != NONE AND array::len((UPDATE $search SET search_text = $search_text, indexed_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
                 "}; ",
                 "SELECT * FROM $block; ",
                 "COMMIT TRANSACTION;"
@@ -1292,7 +1401,7 @@ pub(crate) async fn delete_loom_block(
     // never left with a stale count; an edge writer still in flight collides on this
     // block's record at commit (its count UPDATE writes the key this DELETE removes).
     db.execute_returning(
-        "BEGIN TRANSACTION; IF (SELECT VALUE id FROM $record WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-NOT-FOUND'; }; LET $affected = array::distinct(array::flatten((SELECT VALUE [source_block_id, target_block_id] FROM loom_edges WHERE workspace_id = $workspace AND (source_block_id = $record OR target_block_id = $record)))); DELETE $record RETURN BEFORE; FOR $block IN $affected { IF $block != $record { UPDATE $block SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $block AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $block AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $block AND edge_type IN ['mention', 'tag'])); }; }; COMMIT TRANSACTION;",
+        "BEGIN TRANSACTION; IF (SELECT VALUE id FROM $record WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-NOT-FOUND'; }; LET $affected = array::distinct(array::flatten((SELECT VALUE [source_block_id, target_block_id] FROM loom_edges WHERE workspace_id = $workspace AND (source_block_id = $record OR target_block_id = $record)))); IF array::len((DELETE $record RETURN BEFORE)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; FOR $block IN $affected { IF $block != $record AND (SELECT VALUE id FROM $block)[0] != NONE { IF array::len((UPDATE $block SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $block AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $block AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $block AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; }; COMMIT TRANSACTION;",
         DeleteBlockBinding {
             workspace: thing("workspaces", workspace_id),
             record: thing(BLOCKS_TABLE, block_id),
@@ -1458,10 +1567,10 @@ pub(crate) async fn create_loom_edge(
                 loom_ledger_append_sql!(),
                 "IF $existing_receipt = NONE { ",
                 "IF record::exists($edge) { THROW 'HSK-LOOM-EDGE-EXISTS'; }; ",
-                "CREATE $edge CONTENT $content RETURN NONE; ",
-                "UPDATE $edge SET event_ledger_event_id = $receipt RETURN NONE; ",
-                "UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN NONE; ",
-                "UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN NONE; ",
+                "IF array::len((CREATE $edge CONTENT $content RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $edge SET event_ledger_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+                "IF array::len((UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
                 "}; ",
                 "SELECT * FROM $edge; ",
                 "COMMIT TRANSACTION;"
@@ -1546,9 +1655,9 @@ pub(crate) async fn delete_loom_edge(
             "BEGIN TRANSACTION; ",
             "IF (SELECT VALUE workspace_id FROM $record LIMIT 1)[0] != $workspace { THROW 'HSK-LOOM-EDGE-NOT-FOUND'; }; ",
             loom_ledger_append_sql!(),
-            "DELETE $record RETURN NONE; ",
-            "UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN NONE; ",
-            "UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN NONE; ",
+            "IF array::len((DELETE $record RETURN BEFORE)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+            "IF array::len((UPDATE $source SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $source AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $source AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
+            "IF array::len((UPDATE $target SET mention_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'mention')), tag_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND source_block_id = $target AND edge_type = 'tag')), backlink_count = array::len((SELECT VALUE id FROM loom_edges WHERE workspace_id = $workspace AND target_block_id = $target AND edge_type IN ['mention', 'tag'])) RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
             "COMMIT TRANSACTION;"
         ),
         DeleteEdgeBinding {
@@ -1721,7 +1830,13 @@ pub(crate) async fn recompute_block_metrics(
         .await
         .map_err(map_err)?;
     if count == 0 {
-        Err(StorageError::NotFound("loom_block"))
+        Err(denied_or_missing(
+            db,
+            thing(BLOCKS_TABLE, block_id),
+            thing("workspaces", workspace_id),
+            StorageError::NotFound("loom_block"),
+        )
+        .await)
     } else {
         Ok(())
     }
@@ -3534,7 +3649,7 @@ async fn mutate_pin(
                 "IF (SELECT VALUE id FROM $block WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-NOT-FOUND'; }; ",
                 loom_ledger_append_sql!(),
                 "IF $existing_receipt = NONE { ",
-                "UPDATE $block SET pin_order = $pin_order, pinned = $pinned ?? pinned, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id, updated_at = $updated_at, event_ledger_event_id = $receipt RETURN NONE; ",
+                "IF array::len((UPDATE $block SET pin_order = $pin_order, pinned = $pinned ?? pinned, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id, updated_at = $updated_at, event_ledger_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
                 "}; ",
                 "SELECT * FROM $block; ",
                 "COMMIT TRANSACTION;"
@@ -3699,13 +3814,15 @@ pub(crate) async fn create_loom_folder(
     let (_, ledger) = event_ledger::prepare_event(event)?;
     let sibling_key =
         loom_folder_sibling_key(workspace_id, folder.parent_folder_id.as_deref(), name);
-    // Result-set index 4: BEGIN(0), receipt read(1), append(2), bind(3), CREATE(4), COMMIT(5).
+    // Result-set index 5: BEGIN(0), receipt read(1), append(2), bind(3), CREATE-LET(4),
+    // silent-deny guard returning the created row(5), COMMIT(6).
     let rows = db
         .query_values_at::<FolderRow, _>(
             concat!(
                 "BEGIN TRANSACTION; ",
                 loom_ledger_append_sql!(),
-                "CREATE $folder SET folder_id = record::id($folder), workspace_id = $workspace, parent_folder_id = $parent, name = $name, sibling_key = $sibling_key, color = $color, sort_mode = $sort_mode, sort_order = $sort_order, project_ref = $project_ref, event_ledger_event_id = $receipt RETURN AFTER; ",
+                "LET $created = (CREATE $folder SET folder_id = record::id($folder), workspace_id = $workspace, parent_folder_id = $parent, name = $name, sibling_key = $sibling_key, color = $color, sort_mode = $sort_mode, sort_order = $sort_order, project_ref = $project_ref, event_ledger_event_id = $receipt RETURN AFTER); ",
+                "IF array::len($created) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $created; }; ",
                 "COMMIT TRANSACTION;"
             ),
             FolderCreateBinding {
@@ -3720,14 +3837,11 @@ pub(crate) async fn create_loom_folder(
                 project_ref: folder.project_ref,
                 ledger,
             },
-            4,
+            5,
         )
         .await
         .map_err(guarded_err)?;
-    rows.into_iter()
-        .next()
-        .ok_or_else(|| StorageError::Database("loom folder create returned no row".to_owned()))
-        .and_then(folder_to_domain)
+    require_written_one(rows).and_then(folder_to_domain)
 }
 
 pub(crate) async fn get_loom_folder(
@@ -3893,21 +4007,25 @@ pub(crate) async fn update_loom_folder(
         &LoomMutationIdentity::per_call(),
     )?;
     let (_, ledger) = event_ledger::prepare_event(event)?;
-    // Result-set index 5: BEGIN(0), folder guard(1), receipt read(2), append(3), bind(4),
-    // UPDATE(5), sibling UPDATE(6), reparent block(7), COMMIT(8).
+    // Result-set index 8: BEGIN(0), folder guard(1), receipt read(2), append(3), bind(4),
+    // UPDATE-LET(5), sibling UPDATE guard(6), reparent block(7), silent-deny guard returning the
+    // updated row(8), COMMIT(9). The RETURN is the last statement before COMMIT because a
+    // RETURN inside a transaction skips every later non-COMMIT statement (surrealdb-core 3.2.0
+    // dbs/executor.rs skip_remaining).
     let rows = db
         .query_values_at::<FolderRow, _>(
             concat!(
                 "BEGIN TRANSACTION; ",
                 "IF (SELECT VALUE id FROM $folder WHERE workspace_id = $workspace LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-FOLDER-NOT-FOUND'; }; ",
                 loom_ledger_append_sql!(),
-                "UPDATE $folder SET name = $name ?? name, color = IF $set_color { $color } ELSE { color }, sort_mode = $sort_mode ?? sort_mode, sort_order = IF $set_sort_order { $sort_order } ELSE { sort_order }, parent_folder_id = IF $set_parent { $parent } ELSE { parent_folder_id }, project_ref = IF $set_project_ref { $project_ref } ELSE { project_ref }, event_ledger_event_id = $receipt, updated_at = time::now() RETURN AFTER; ",
-                "UPDATE $folder SET sibling_key = $sibling_key RETURN NONE; ",
+                "LET $updated = (UPDATE $folder SET name = $name ?? name, color = IF $set_color { $color } ELSE { color }, sort_mode = $sort_mode ?? sort_mode, sort_order = IF $set_sort_order { $sort_order } ELSE { sort_order }, parent_folder_id = IF $set_parent { $parent } ELSE { parent_folder_id }, project_ref = IF $set_project_ref { $project_ref } ELSE { project_ref }, event_ledger_event_id = $receipt, updated_at = time::now() RETURN AFTER); ",
+                "IF array::len($updated) != 1 OR array::len((UPDATE $folder SET sibling_key = $sibling_key RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
                 "IF $reparent { ",
                 "LET $anchor_version = (SELECT VALUE version FROM $anchor)[0] ?? 0; ",
                 "IF $anchor_version != $expected_anchor_version { THROW 'HSK-LOOM-FOLDER-TREE-STALE'; }; ",
-                "UPSERT $anchor SET anchor_key = $anchor_key, graph_kind = $graph_kind, scope_key = $scope_key, version = $anchor_version + 1, updated_at = time::now(); ",
+                "IF array::len((UPSERT $anchor SET anchor_key = $anchor_key, graph_kind = $graph_kind, scope_key = $scope_key, version = $anchor_version + 1, updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
                 "}; ",
+                "IF array::len($updated) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $updated; }; ",
                 "COMMIT TRANSACTION;"
             ),
             FolderUpdateBinding {
@@ -3940,7 +4058,7 @@ pub(crate) async fn update_loom_folder(
                 scope_key: workspace_id.to_owned(),
                 expected_anchor_version,
             },
-            5,
+            8,
         )
         .await
         .map_err(folder_tree_err)?;
@@ -3977,7 +4095,7 @@ pub(crate) async fn delete_loom_folder(
         concat!(
             "BEGIN TRANSACTION; ",
             "LET $deleted = (DELETE $folder WHERE workspace_id = $workspace RETURN BEFORE); ",
-            "IF array::len($deleted) = 0 { THROW 'HSK-LOOM-FOLDER-NOT-FOUND'; }; ",
+            "IF array::len($deleted) = 0 { IF (SELECT VALUE id FROM $folder WHERE workspace_id = $workspace)[0] != NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; THROW 'HSK-LOOM-FOLDER-NOT-FOUND'; }; ",
             loom_ledger_append_sql!(),
             "COMMIT TRANSACTION;"
         ),
@@ -4027,7 +4145,7 @@ pub(crate) async fn add_block_to_loom_folder(
         concat!(
             "BEGIN TRANSACTION; ",
             loom_ledger_append_sql!(),
-            "UPSERT $member SET folder_id = $folder, block_id = $block, workspace_id = $workspace, sort_order = $sort_order, event_ledger_event_id = $receipt; ",
+            "IF array::len((UPSERT $member SET folder_id = $folder, block_id = $block, workspace_id = $workspace, sort_order = $sort_order, event_ledger_event_id = $receipt RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
             "COMMIT TRANSACTION;"
         ),
         FolderMemberBinding {
@@ -4067,7 +4185,7 @@ pub(crate) async fn remove_block_from_loom_folder(
             "LET $deleted = (DELETE loom_folder_members WHERE workspace_id = $workspace AND folder_id = $folder AND block_id = $block RETURN BEFORE); ",
             "IF array::len($deleted) > 0 { ",
             loom_ledger_append_sql!(),
-            "}; ",
+            "} ELSE IF (SELECT VALUE id FROM loom_folder_members WHERE workspace_id = $workspace AND folder_id = $folder AND block_id = $block LIMIT 1)[0] != NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; ",
             "COMMIT TRANSACTION;"
         ),
         FolderMemberBinding {
@@ -5361,5 +5479,34 @@ mod tests {
             .shutdown()
             .await
             .expect("close reopened helper store");
+    }
+}
+
+#[cfg(test)]
+mod silent_deny_helper_tests {
+    use super::*;
+
+    /// MT-154 silent-deny ruling: a short write result and an in-transaction guard THROW both
+    /// become the constant `HSK-403-PROTECTED-RESOURCE` denial that `api/loom.rs`
+    /// `map_storage_error` maps to the constant 403 body.
+    #[test]
+    fn short_write_results_and_guard_throws_are_the_constant_denial() {
+        assert!(matches!(
+            require_written(Vec::<u8>::new(), 1),
+            Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
+        ));
+        assert_eq!(
+            require_written(vec![1_u8], 1).expect("exact write"),
+            vec![1]
+        );
+        assert!(matches!(
+            require_written_one(vec![1_u8, 2]),
+            Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
+        ));
+        assert_eq!(require_written_one(vec![7_u8]).expect("one row"), 7);
+        assert!(is_protected_denial(
+            "An error occurred: HSK-403-PROTECTED-RESOURCE"
+        ));
+        assert!(!is_protected_denial("HSK-LOOM-NOT-FOUND"));
     }
 }

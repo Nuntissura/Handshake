@@ -499,6 +499,9 @@ pub struct KnowledgeCrdtClient {
     client: reqwest::Client,
     base_url: String,
     on_denied: Option<CrdtConflictListener>,
+    /// MT-155: every `/knowledge/crdt/*` route requires the account session. `None` fails every call
+    /// with "Account login required" before any socket is opened.
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl Default for KnowledgeCrdtClient {
@@ -524,6 +527,7 @@ impl KnowledgeCrdtClient {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
             on_denied: None,
+            authenticated_context: None,
         }
     }
 
@@ -534,7 +538,31 @@ impl KnowledgeCrdtClient {
             client,
             base_url: base_url.into(),
             on_denied: None,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-155: bind the immutable account context every CRDT request carries (session + channel-binding
+    /// headers through the canonical [`crate::local_account::AuthenticatedRequest`]).
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
+    }
+
+    /// Send one request through the canonical authenticated transport; no bound account fails with
+    /// "Account login required" before any socket.
+    async fn send(&self, request: reqwest::RequestBuilder) -> CrdtResult<reqwest::Response> {
+        let context = self
+            .authenticated_context
+            .clone()
+            .ok_or_else(|| CrdtError::Transport("Account login required".to_owned()))?;
+        crate::local_account::AuthenticatedRequest::new(self.client.clone(), Some(context), request)
+            .send()
+            .await
+            .map_err(CrdtError::Transport)
     }
 
     /// Register the conflict listener (contract note 10). Returns `self` for builder chaining. When a
@@ -576,12 +604,12 @@ impl KnowledgeCrdtClient {
             envelope: envelope.clone(),
         };
         let resp = self
-            .client
-            .post(self.url("/knowledge/crdt/updates/push"))
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| CrdtError::Transport(e.to_string()))?;
+            .send(
+                self.client
+                    .post(self.url("/knowledge/crdt/updates/push"))
+                    .json(&body),
+            )
+            .await?;
 
         let status = resp.status();
         let code = status.as_u16();
@@ -635,12 +663,12 @@ impl KnowledgeCrdtClient {
             ("correlation_id", params.correlation_id.clone()),
         ];
         let resp = self
-            .client
-            .get(self.url("/knowledge/crdt/updates/pull"))
-            .query(&query)
-            .send()
-            .await
-            .map_err(|e| CrdtError::Transport(e.to_string()))?;
+            .send(
+                self.client
+                    .get(self.url("/knowledge/crdt/updates/pull"))
+                    .query(&query),
+            )
+            .await?;
 
         let parsed: PullUpdatesResponse = self.parse_success(resp).await?;
         Ok(parsed.result)
@@ -670,12 +698,12 @@ impl KnowledgeCrdtClient {
             ("correlation_id", params.correlation_id.clone()),
         ];
         let resp = self
-            .client
-            .get(self.url("/knowledge/crdt/conflict_state"))
-            .query(&query)
-            .send()
-            .await
-            .map_err(|e| CrdtError::Transport(e.to_string()))?;
+            .send(
+                self.client
+                    .get(self.url("/knowledge/crdt/conflict_state"))
+                    .query(&query),
+            )
+            .await?;
 
         let parsed: ConflictStateResponse = self.parse_success(resp).await?;
         Ok(parsed.result)

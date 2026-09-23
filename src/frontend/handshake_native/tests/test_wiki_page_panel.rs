@@ -915,6 +915,26 @@ fn one_shot_http_500() -> (String, std::thread::JoinHandle<()>) {
     (format!("http://{address}"), join)
 }
 
+/// MT-153 C3: Loom routes require the account session. Explicit identity for this file's isolated
+/// one-shot mock HTTP servers only.
+#[cfg(feature = "integration")]
+fn mock_account_context(
+    base: &str,
+) -> Option<std::sync::Arc<handshake_native::local_account::AuthenticatedContext>> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    Some(std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    ))
+}
+
 #[cfg(feature = "integration")]
 fn one_shot_http_json(body: serde_json::Value) -> (String, std::thread::JoinHandle<()>) {
     use std::io::{Read, Write};
@@ -1158,7 +1178,8 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
         "real compile cites both API-created Loom blocks"
     );
 
-    let production_client = LoomWikiClient::new(live.base.clone(), live.rt.handle().clone());
+    let production_client = LoomWikiClient::new(live.base.clone(), live.rt.handle().clone())
+        .with_authenticated_context(live.backend.account());
     let typed_cell: WikiProjectionCell = Arc::new(Mutex::new(None));
     production_client.fetch_projection(
         &workspace_id,
@@ -1209,7 +1230,8 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
     assert_eq!(loaded.staleness_verdict["state"], "fresh");
 
     let (malformed_base, malformed_join) = one_shot_http_json(serde_json::json!({}));
-    let malformed_client = LoomWikiClient::new(malformed_base, live.rt.handle().clone());
+    let malformed_client = LoomWikiClient::new(malformed_base.clone(), live.rt.handle().clone())
+        .with_authenticated_context(mock_account_context(&malformed_base));
     let malformed_cell: WikiProjectionCell = Arc::new(Mutex::new(None));
     malformed_client.fetch_projection(&workspace_id, &projection_id, Arc::clone(&malformed_cell));
     let malformed_error = await_projection(&malformed_cell, "malformed projection rejection")
@@ -1224,7 +1246,8 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
     ));
     mismatched_body["projection_id"] = serde_json::Value::String("projection-crossed".to_owned());
     let (mismatch_base, mismatch_join) = one_shot_http_json(mismatched_body);
-    let mismatch_client = LoomWikiClient::new(mismatch_base, live.rt.handle().clone());
+    let mismatch_client = LoomWikiClient::new(mismatch_base.clone(), live.rt.handle().clone())
+        .with_authenticated_context(mock_account_context(&mismatch_base));
     let mismatch_cell: WikiProjectionCell = Arc::new(Mutex::new(None));
     mismatch_client.fetch_projection(&workspace_id, &projection_id, Arc::clone(&mismatch_cell));
     let mismatch_error = await_projection(&mismatch_cell, "cross-identity projection rejection")
@@ -1242,6 +1265,8 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
         migration_version: None,
     }));
     app.set_runtime_handle(live.rt.handle().clone());
+    // MT-154: the mounted Loom wiki client carries the fixture's real account session.
+    live.backend.bind_app_account(&mut app);
     app.set_wiki_backend_base_url_for_test(live.base.clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     let binding = app.mounted_wiki_binding_for_test();
@@ -1318,6 +1343,10 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
         serde_json::Value::String("workspace-crossed".to_owned());
     let (mounted_mismatch_base, mounted_mismatch_join) =
         one_shot_http_json(mounted_workspace_mismatch);
+    // MT-154: the mounted account session follows the origin this proof swaps the wiki pane to.
+    host.state_mut()
+        .rebind_account_origin_for_test(&mounted_mismatch_base)
+        .expect("rebind the mounted account to the swapped wiki origin");
     host.state()
         .set_wiki_backend_base_url_for_test(mounted_mismatch_base);
     assert!(host.state().queue_mounted_wiki_reload_for_test());
@@ -1338,6 +1367,10 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
     mounted_mismatch_join
         .join()
         .expect("mounted mismatch JSON server completed");
+    // MT-154: the mounted account session follows the origin this proof swaps the wiki pane to.
+    host.state_mut()
+        .rebind_account_origin_for_test(&live.base)
+        .expect("rebind the mounted account to the swapped wiki origin");
     host.state()
         .set_wiki_backend_base_url_for_test(live.base.clone());
     let retry_id = retry_author_id(&projection_id);
@@ -1428,7 +1461,8 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
         assert_eq!(sent, partial_annotation);
         (identity.clone(), action_generation)
     };
-    let partial_client = LoomWikiClient::new(live.base.clone(), live.rt.handle().clone());
+    let partial_client = LoomWikiClient::new(live.base.clone(), live.rt.handle().clone())
+        .with_authenticated_context(live.backend.account());
     let partial_save: handshake_native::backend_client::ScmReceiptCell = Arc::new(Mutex::new(None));
     partial_client.add_overlay(
         &workspace_id,
@@ -1460,6 +1494,10 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
         .expect("partial overlay persisted row");
 
     let (reload_500_base, reload_500_join) = one_shot_http_500();
+    // MT-154: the mounted account session follows the origin this proof swaps the wiki pane to.
+    host.state_mut()
+        .rebind_account_origin_for_test(&reload_500_base)
+        .expect("rebind the mounted account to the swapped wiki origin");
     host.state()
         .set_wiki_backend_base_url_for_test(reload_500_base);
     host.state().deliver_wiki_save_for_test(
@@ -1485,6 +1523,10 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
     reload_500_join
         .join()
         .expect("post-save reload HTTP 500 server completed");
+    // MT-154: the mounted account session follows the origin this proof swaps the wiki pane to.
+    host.state_mut()
+        .rebind_account_origin_for_test(&live.base)
+        .expect("rebind the mounted account to the swapped wiki origin");
     host.state()
         .set_wiki_backend_base_url_for_test(live.base.clone());
     assert!(host_author_ids(&host).contains(&retry_author_id(&projection_id)));
@@ -1537,7 +1579,8 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
 
     // A fresh product client reload proves the projection came from SurrealDB, not the mounted panel's
     // copy; the derived content stays unchanged because the edit is an independent overlay authority row.
-    let fresh_client = LoomWikiClient::new(live.base.clone(), live.rt.handle().clone());
+    let fresh_client = LoomWikiClient::new(live.base.clone(), live.rt.handle().clone())
+        .with_authenticated_context(live.backend.account());
     let reload_cell: WikiProjectionCell = Arc::new(Mutex::new(None));
     fresh_client.fetch_projection(&workspace_id, &projection_id, Arc::clone(&reload_cell));
     let reloaded = await_projection(&reload_cell, "fresh-client wiki reload")
@@ -1576,6 +1619,10 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
         .set_edit_buffer(&preserved);
     host.step();
     let (http_500_base, http_500_join) = one_shot_http_500();
+    // MT-154: the mounted account session follows the origin this proof swaps the wiki pane to.
+    host.state_mut()
+        .rebind_account_origin_for_test(&http_500_base)
+        .expect("rebind the mounted account to the swapped wiki origin");
     host.state()
         .set_wiki_backend_base_url_for_test(http_500_base);
     dispatch_host_click(&mut host, &save_id);
@@ -1587,6 +1634,10 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
             .unwrap_or(false)
     });
     http_500_join.join().expect("HTTP 500 server completed");
+    // MT-154: the mounted account session follows the origin this proof swaps the wiki pane to.
+    host.state_mut()
+        .rebind_account_origin_for_test(&live.base)
+        .expect("rebind the mounted account to the swapped wiki origin");
     host.state()
         .set_wiki_backend_base_url_for_test(live.base.clone());
     {
@@ -1654,6 +1705,10 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
     // Error + Retry are mounted and AccessKit-addressable. A second real HTTP 500 produces the load
     // error, then Retry is completed by the managed backend through the same host queue.
     let (load_500_base, load_500_join) = one_shot_http_500();
+    // MT-154: the mounted account session follows the origin this proof swaps the wiki pane to.
+    host.state_mut()
+        .rebind_account_origin_for_test(&load_500_base)
+        .expect("rebind the mounted account to the swapped wiki origin");
     host.state()
         .set_wiki_backend_base_url_for_test(load_500_base);
     assert!(host.state().queue_mounted_wiki_reload_for_test());
@@ -1667,6 +1722,10 @@ fn wiki_page_panel_live_surrealdb_self_seeded_round_trip() {
     load_500_join
         .join()
         .expect("load HTTP 500 server completed");
+    // MT-154: the mounted account session follows the origin this proof swaps the wiki pane to.
+    host.state_mut()
+        .rebind_account_origin_for_test(&live.base)
+        .expect("rebind the mounted account to the swapped wiki origin");
     host.state()
         .set_wiki_backend_base_url_for_test(live.base.clone());
     let ids = host_author_ids(&host);

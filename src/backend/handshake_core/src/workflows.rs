@@ -9819,27 +9819,38 @@ pub async fn start_workflow_for_job(
         let job_id = job.job_id;
         let workflow_run_id = workflow_run.id;
         let node_exec_id = node_exec.id;
+        // MT-153/MT-156 (Master Spec 02-system-architecture.md:2773): a job started by an account
+        // request keeps running as that account's record user in the background task.
+        let account_authority = crate::storage::surreal::event_ledger::capture_account_authority();
+        let authority_storage = state.surreal.clone();
 
         tokio::spawn(async move {
-            if let Err(err) = run_and_finalize_workflow_job(
-                state_for_run,
-                job_clone,
-                workflow_run_clone,
-                node_exec_clone,
-                trace_id,
+            crate::storage::surreal::event_ledger::with_captured_account_authority(
+                &authority_storage,
+                account_authority,
+                async move {
+                    if let Err(err) = run_and_finalize_workflow_job(
+                        state_for_run,
+                        job_clone,
+                        workflow_run_clone,
+                        node_exec_clone,
+                        trace_id,
+                    )
+                    .await
+                    {
+                        mark_workflow_job_failed_if_non_terminal(
+                            &state_for_failure,
+                            job_id,
+                            workflow_run_id,
+                            node_exec_id,
+                            trace_id,
+                            err.to_string(),
+                        )
+                        .await;
+                    }
+                },
             )
-            .await
-            {
-                mark_workflow_job_failed_if_non_terminal(
-                    &state_for_failure,
-                    job_id,
-                    workflow_run_id,
-                    node_exec_id,
-                    trace_id,
-                    err.to_string(),
-                )
-                .await;
-            }
+            .await;
         });
 
         return Ok(workflow_run);

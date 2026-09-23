@@ -492,6 +492,17 @@ pub trait AssetMetadataFetcher: Send + Sync {
         self.fetch_content(workspace_id, asset_id)
     }
 
+    /// MT-154: return a copy of this fetcher bound to the account session, or `None` when the
+    /// fetcher has no account-scoped transport (in-memory test doubles). The host calls this when the
+    /// account context changes so the production fetcher never sends an unauthenticated request while
+    /// an injected mock is left untouched.
+    fn rebind_authenticated_context(
+        &self,
+        _context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Option<Arc<dyn AssetMetadataFetcher>> {
+        None
+    }
+
     /// Resolve backend-owned album/slideshow membership.
     fn fetch_collection<'a>(
         &'a self,
@@ -595,6 +606,38 @@ pub struct ReqwestAssetFetcher {
     client_init_error: Option<Arc<str>>,
     base_url: String,
     request_timeout: Duration,
+    /// MT-154: `/workspaces/:ws/assets/*` and `/workspaces/:ws/loom/collections/*` run as the account
+    /// record user. `None` fails every request with "Account login required" before any socket.
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+}
+
+/// Send one embed GET through the canonical authenticated transport, bounded by `request_timeout`.
+/// A missing account is a typed [`EmbedError::Forbidden`] raised before any socket opens; a transport
+/// timeout keeps its typed [`EmbedError::TimedOut`] mapping.
+async fn send_authenticated(
+    client: &reqwest::Client,
+    account: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    url: &str,
+    request_timeout: Duration,
+    label: &str,
+) -> Result<reqwest::Response, EmbedError> {
+    let context = account.ok_or_else(|| {
+        EmbedError::Forbidden(format!("{label} is not accessible: Account login required"))
+    })?;
+    crate::local_account::AuthenticatedRequest::new(
+        client.clone(),
+        Some(context),
+        client.get(url).timeout(request_timeout),
+    )
+    .send()
+    .await
+    .map_err(|error| {
+        if error.contains("kind=timeout") {
+            EmbedError::TimedOut(format!("{label} exceeded its transport deadline: {error}"))
+        } else {
+            EmbedError::NetworkError(format!("{label} failed: {error}"))
+        }
+    })
 }
 
 impl ReqwestAssetFetcher {
@@ -623,14 +666,25 @@ impl ReqwestAssetFetcher {
                 client_init_error: None,
                 base_url,
                 request_timeout,
+                authenticated_context: None,
             },
             Err(error) => Self {
                 client: None,
                 client_init_error: Some(Arc::from(error.to_string())),
                 base_url,
                 request_timeout,
+                authenticated_context: None,
             },
         }
+    }
+
+    /// MT-154: bind the immutable account context every embed request carries.
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production fetcher against the hardcoded backend base URL.
@@ -729,6 +783,13 @@ fn tier_body_limit(tier: MediaTier, used_original_fallback: bool) -> usize {
 }
 
 impl AssetMetadataFetcher for ReqwestAssetFetcher {
+    fn rebind_authenticated_context(
+        &self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Option<Arc<dyn AssetMetadataFetcher>> {
+        Some(Arc::new(self.clone().with_authenticated_context(context)))
+    }
+
     fn fetch_metadata<'a>(
         &'a self,
         workspace_id: &'a str,
@@ -736,6 +797,7 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
     ) -> MetadataFuture<'a> {
         let url = asset_metadata_url(&self.base_url, workspace_id, asset_id);
         let client = self.cloned_client();
+        let account = self.authenticated_context.clone();
         let asset_id = asset_id.to_owned();
         let request_timeout = self.request_timeout;
         Box::pin(async move {
@@ -744,11 +806,14 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
                 format!("asset '{asset_id}' metadata request"),
                 async move {
                     let client = client?;
-                    let response = client
-                        .get(&url)
-                        .send()
-                        .await
-                        .map_err(|error| map_reqwest_error("asset metadata request", error))?;
+                    let response = send_authenticated(
+                        &client,
+                        account,
+                        &url,
+                        request_timeout,
+                        "asset metadata request",
+                    )
+                    .await?;
                     let status = response.status();
                     map_response_status(status, &format!("asset '{asset_id}' metadata"))?;
                     let body =
@@ -766,6 +831,7 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
     fn fetch_content<'a>(&'a self, workspace_id: &'a str, asset_id: &'a str) -> ContentFuture<'a> {
         let url = asset_content_url(&self.base_url, workspace_id, asset_id);
         let client = self.cloned_client();
+        let account = self.authenticated_context.clone();
         let asset_id = asset_id.to_owned();
         let request_timeout = self.request_timeout;
         Box::pin(async move {
@@ -774,11 +840,14 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
                 format!("asset '{asset_id}' content request"),
                 async move {
                     let client = client?;
-                    let response = client
-                        .get(&url)
-                        .send()
-                        .await
-                        .map_err(|error| map_reqwest_error("asset content request", error))?;
+                    let response = send_authenticated(
+                        &client,
+                        account,
+                        &url,
+                        request_timeout,
+                        "asset content request",
+                    )
+                    .await?;
                     let status = response.status();
                     map_response_status(status, &format!("asset content '{asset_id}'"))?;
                     read_bounded_response(response, MAX_FULL_IMAGE_BYTES, "asset content").await
@@ -798,6 +867,7 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
         let url = asset_tier_url(&self.base_url, workspace_id, asset_id, tier);
         let original_url = asset_content_url(&self.base_url, workspace_id, asset_id);
         let client = self.cloned_client();
+        let account = self.authenticated_context.clone();
         let asset_id = asset_id.to_owned();
         let request_timeout = self.request_timeout;
         Box::pin(async move {
@@ -806,9 +876,14 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
                 format!("{} tier request for asset '{asset_id}'", tier.as_str()),
                 async move {
                     let client = client?;
-                    let mut response = client.get(&url).send().await.map_err(|error| {
-                        map_reqwest_error(&format!("{} request", tier.as_str()), error)
-                    })?;
+                    let mut response = send_authenticated(
+                        &client,
+                        account.clone(),
+                        &url,
+                        request_timeout,
+                        &format!("{} request", tier.as_str()),
+                    )
+                    .await?;
 
                     // React parity only falls a single-image thumbnail back to its original. Album and
                     // slideshow grids keep a missing thumbnail typed/visible, and a missing video poster
@@ -817,12 +892,14 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
                         && tier == MediaTier::Thumbnail
                         && response.status() == reqwest::StatusCode::NOT_FOUND;
                     if used_original_fallback {
-                        response = client.get(&original_url).send().await.map_err(|error| {
-                            map_reqwest_error(
-                                &format!("{} fallback content request", tier.as_str()),
-                                error,
-                            )
-                        })?;
+                        response = send_authenticated(
+                            &client,
+                            account,
+                            &original_url,
+                            request_timeout,
+                            &format!("{} fallback content request", tier.as_str()),
+                        )
+                        .await?;
                     }
                     map_response_status(
                         response.status(),
@@ -847,6 +924,7 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
     ) -> CollectionFuture<'a> {
         let url = collection_url(&self.base_url, workspace_id, collection_id);
         let client = self.cloned_client();
+        let account = self.authenticated_context.clone();
         let collection_id = collection_id.to_owned();
         let request_timeout = self.request_timeout;
         Box::pin(async move {
@@ -855,11 +933,14 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
                 format!("collection '{collection_id}' request"),
                 async move {
                     let client = client?;
-                    let response = client
-                        .get(&url)
-                        .send()
-                        .await
-                        .map_err(|error| map_reqwest_error("collection request", error))?;
+                    let response = send_authenticated(
+                        &client,
+                        account,
+                        &url,
+                        request_timeout,
+                        "collection request",
+                    )
+                    .await?;
                     map_response_status(
                         response.status(),
                         &format!("collection '{collection_id}'"),
@@ -1395,7 +1476,9 @@ mod tests {
             (tier_path, 404, Vec::new()),
             (original_path, 200, vec![0x5a; fallback_len]),
         ]);
-        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(Some(
+            crate::local_account::mock_account_context(&base_url),
+        ));
         let bytes = fetcher
             .fetch_tier("ws", "img", MediaEmbedKind::Images, MediaTier::Thumbnail)
             .await
@@ -1426,7 +1509,9 @@ mod tests {
     async fn video_poster_404_never_fetches_full_video_body() {
         let poster_path = "/workspaces/ws/assets/video/content?tier=poster";
         let (base_url, server) = scripted_http_server(vec![(poster_path, 404, Vec::new())]);
-        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(Some(
+            crate::local_account::mock_account_context(&base_url),
+        ));
         let error = fetcher
             .fetch_tier("ws", "video", MediaEmbedKind::Video, MediaTier::Poster)
             .await
@@ -1443,7 +1528,9 @@ mod tests {
     async fn album_thumbnail_404_does_not_expand_into_original_body_fanout() {
         let thumb_path = "/workspaces/ws/assets/cell/content?tier=thumb";
         let (base_url, server) = scripted_http_server(vec![(thumb_path, 404, Vec::new())]);
-        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(Some(
+            crate::local_account::mock_account_context(&base_url),
+        ));
         let error = fetcher
             .fetch_tier("ws", "cell", MediaEmbedKind::Album, MediaTier::Thumbnail)
             .await
@@ -1459,7 +1546,9 @@ mod tests {
     async fn derived_tier_server_error_never_falls_back_to_original() {
         let thumb_path = "/workspaces/ws/assets/img/content?tier=thumb";
         let (base_url, server) = scripted_http_server(vec![(thumb_path, 500, Vec::new())]);
-        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(Some(
+            crate::local_account::mock_account_context(&base_url),
+        ));
         let error = fetcher
             .fetch_tier("ws", "img", MediaEmbedKind::Images, MediaTier::Thumbnail)
             .await
@@ -1479,7 +1568,9 @@ mod tests {
             br#"{"asset_id":"img","workspace_id":"ws"}"#.to_vec(),
         ] {
             let (base_url, server) = scripted_http_server(vec![(path, 200, body)]);
-            let fetcher = ReqwestAssetFetcher::new(base_url);
+            let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(
+                Some(crate::local_account::mock_account_context(&base_url)),
+            );
             let error = fetcher
                 .fetch_metadata("ws", "img")
                 .await
@@ -1503,7 +1594,9 @@ mod tests {
             let path = "/workspaces/ws/assets/img";
             let body = metadata_body(returned_workspace, returned_id, mime);
             let (base_url, server) = scripted_http_server(vec![(path, 200, body)]);
-            let fetcher = ReqwestAssetFetcher::new(base_url.clone());
+            let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(
+                Some(crate::local_account::mock_account_context(&base_url)),
+            );
             let error = resolve_one(MediaEmbedKind::Images, "ws", "img", &base_url, &fetcher)
                 .await
                 .expect_err("unbound metadata must fail closed");
@@ -1520,7 +1613,9 @@ mod tests {
     async fn missing_asset_metadata_is_typed_not_found() {
         let path = "/workspaces/ws/assets/missing";
         let (base_url, server) = scripted_http_server(vec![(path, 404, Vec::new())]);
-        let fetcher = ReqwestAssetFetcher::new(base_url.clone());
+        let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(Some(
+            crate::local_account::mock_account_context(&base_url),
+        ));
         let error = resolve_one(MediaEmbedKind::Images, "ws", "missing", &base_url, &fetcher)
             .await
             .expect_err("missing asset must remain visible and typed");
@@ -1538,7 +1633,9 @@ mod tests {
             format!("HTTP/1.1 200 OK\r\nContent-Length: {declared}\r\nConnection: close\r\n\r\n")
                 .into_bytes();
         let (base_url, server) = raw_http_server(response, Duration::ZERO);
-        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(Some(
+            crate::local_account::mock_account_context(&base_url),
+        ));
         let error = fetcher
             .fetch_metadata("ws", "oversized")
             .await
@@ -1562,7 +1659,9 @@ mod tests {
         response.extend_from_slice(&body);
         response.extend_from_slice(b"\r\n0\r\n\r\n");
         let (base_url, server) = raw_http_server(response, Duration::ZERO);
-        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let fetcher = ReqwestAssetFetcher::new(base_url.clone()).with_authenticated_context(Some(
+            crate::local_account::mock_account_context(&base_url),
+        ));
         let error = fetcher
             .fetch_metadata("ws", "streamed")
             .await
@@ -1581,10 +1680,11 @@ mod tests {
             b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".to_vec();
         let (base_url, server) = raw_http_server(response, Duration::from_millis(150));
         let fetcher = ReqwestAssetFetcher::with_timeouts(
-            base_url,
+            base_url.clone(),
             Duration::from_millis(25),
             Duration::from_millis(40),
-        );
+        )
+        .with_authenticated_context(Some(crate::local_account::mock_account_context(&base_url)));
         let started = std::time::Instant::now();
         let error = fetcher
             .fetch_metadata("ws", "slow")
@@ -1607,10 +1707,11 @@ mod tests {
         let (base_url, server) =
             raw_http_server_parts(headers, Duration::from_millis(150), b"{}".to_vec());
         let fetcher = ReqwestAssetFetcher::with_timeouts(
-            base_url,
+            base_url.clone(),
             Duration::from_millis(25),
             Duration::from_millis(40),
-        );
+        )
+        .with_authenticated_context(Some(crate::local_account::mock_account_context(&base_url)));
         let started = std::time::Instant::now();
         let error = fetcher
             .fetch_metadata("ws", "slow-body")

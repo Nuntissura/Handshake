@@ -203,7 +203,16 @@ pub(crate) async fn create(storage: &SurrealStorage, job: NewAiJob) -> StorageRe
         .next()
         .map(map_job)
         .transpose()?
-        .ok_or_else(|| StorageError::Database("AI job create returned no row".to_owned()))
+        .ok_or_else(|| {
+            // MT-153/MT-156 (spec_ruling_c3_silent_deny, Master Spec 02-system-architecture.md:2758):
+            // a record user's CREATE denied by ai_jobs permissions returns no row; report the
+            // constant denial instead of a storage fault.
+            if super::current_record_user_scope().is_some() {
+                StorageError::Guard("HSK-403-PROTECTED-RESOURCE")
+            } else {
+                StorageError::Database("AI job create returned no row".to_owned())
+            }
+        })
 }
 
 pub(crate) async fn update_status(

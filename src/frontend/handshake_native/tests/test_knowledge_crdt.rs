@@ -220,6 +220,25 @@ fn spawn_mock(
     (base_url, handle)
 }
 
+/// MT-155: `/knowledge/crdt/*` requires the account session. Explicit identity for this file's isolated
+/// mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}
+
 /// Read one full HTTP request (headers + Content-Length body) off the stream.
 fn read_one_http_request(stream: &mut std::net::TcpStream) -> (String, String) {
     let mut buf = Vec::new();
@@ -291,7 +310,8 @@ fn valid_envelope(update_bytes: &[u8]) -> YjsUpdateEnvelopeV1 {
 #[test]
 fn ac_push_200_stored_returns_ok_stored_with_update_seq() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", push_200_stored_body());
-    let client = KnowledgeCrdtClient::with_base_url(base_url);
+    let client = KnowledgeCrdtClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let env = valid_envelope(b"hello-update");
 
     let outcome = rt().block_on(async { client.push_update(&env).await });
@@ -321,11 +341,11 @@ fn crdt_push_409_is_ok() {
     // Also prove the conflict listener fires (note 10 — denial is never silently swallowed).
     let fired: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let fired_clone = Arc::clone(&fired);
-    let client = KnowledgeCrdtClient::with_base_url(base_url).with_conflict_listener(Arc::new(
-        move |denial| {
+    let client = KnowledgeCrdtClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)))
+        .with_conflict_listener(Arc::new(move |denial| {
             fired_clone.lock().unwrap().push(denial.update_id.clone());
-        },
-    ));
+        }));
     let env = valid_envelope(b"stale-update");
 
     let outcome = rt().block_on(async { client.push_update(&env).await });
@@ -381,7 +401,8 @@ fn crdt_base64_roundtrip() {
         0x00, 0xFF, 0x3E, 0x3F, 0xFB, 0xEF, b'y', b'j', b's', 0x80, 0x10,
     ];
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", pull_one_update_body(&raw));
-    let client = KnowledgeCrdtClient::with_base_url(base_url);
+    let client = KnowledgeCrdtClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let params = PullUpdatesParams {
         workspace_id: "WS-1".into(),
         document_id: "DOC-1".into(),
@@ -417,7 +438,8 @@ fn crdt_base64_roundtrip() {
 #[test]
 fn pull_since_update_seq_is_on_the_wire() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", pull_empty_body());
-    let client = KnowledgeCrdtClient::with_base_url(base_url);
+    let client = KnowledgeCrdtClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let params = PullUpdatesParams {
         workspace_id: "WS-1".into(),
         document_id: "DOC-1".into(),
@@ -452,7 +474,8 @@ fn pull_since_update_seq_is_on_the_wire() {
 #[test]
 fn pull_empty_doc_is_not_an_error() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", pull_empty_body());
-    let client = KnowledgeCrdtClient::with_base_url(base_url);
+    let client = KnowledgeCrdtClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let params = PullUpdatesParams {
         workspace_id: "WS-1".into(),
         document_id: "DOC-1".into(),
@@ -481,7 +504,8 @@ fn pull_empty_doc_is_not_an_error() {
 #[test]
 fn ac_conflict_state_has_conflict_true() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", conflict_has_one_body());
-    let client = KnowledgeCrdtClient::with_base_url(base_url);
+    let client = KnowledgeCrdtClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let params = ConflictStateParams {
         workspace_id: "WS-1".into(),
         document_id: "DOC-1".into(),
@@ -578,7 +602,8 @@ fn push_real_backend_400_maps_to_http_error() {
     // If a request DID reach the backend with empty ids (e.g. ids present client-side but rejected
     // server-side for another reason), the 400 is a genuine HttpError, never a Denied/Ok.
     let (base_url, server) = spawn_mock("HTTP/1.1 400 Bad Request", missing_ids_400_body());
-    let client = KnowledgeCrdtClient::with_base_url(base_url);
+    let client = KnowledgeCrdtClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let env = valid_envelope(b"x"); // identity present so the client actually sends
 
     let outcome = rt().block_on(async { client.push_update(&env).await });

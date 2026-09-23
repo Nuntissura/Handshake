@@ -49,7 +49,11 @@ const WIKI_PROJECTIONS: &str = "knowledge_wiki_projections";
 const WIKI_PROJECTION_IDENTITY_INDEX: &str = "uq_knowledge_wiki_projections_identity";
 
 fn map_err(error: SurrealStorageError) -> StorageError {
-    StorageError::Database(error.to_string())
+    let rendered = error.to_string();
+    if super::loom_store::is_protected_denial(&rendered) {
+        return super::loom_store::protected_denial();
+    }
+    StorageError::Database(rendered)
 }
 
 fn thing(table: &str, key: impl Into<String>) -> RecordId {
@@ -425,14 +429,16 @@ async fn compile_loom_wiki_projection_attempt(
     // transaction. A changed source fails closed instead of emitting a page
     // whose rendering, hashes, and compile stamp describe different moments.
     // Result-set index 6: BEGIN(0), source proof FOR(1), ledger LET(2),
-    // ledger guard(3), stable-identity upsert IF(4), COMMIT(5), read(6).
+    // ledger guard(3), stable-identity upsert IF(4), COMMIT(5), read(6). The upsert IF THROWs the
+    // constant denial when SurrealDB silently drops the record-user UPDATE/CREATE (MT-154
+    // silent-deny ruling) instead of committing and re-reading a stale page.
     let rows = database
         .storage()
         .with_data_operation(move |database| {
             Box::pin(async move {
                 database
                     .query_values_at::<ProjectionRow, _>(
-                        "BEGIN TRANSACTION; FOR $source IN $sources { LET $actual = (SELECT title, content_type, derived_json.full_text_index AS full_text_index, document_id, asset_id, content_hash, updated_at FROM ONLY $source.block WHERE workspace_id = $workspace); IF $actual = NONE OR $actual.title != $source.title OR $actual.content_type != $source.content_type OR $actual.full_text_index != $source.full_text_index OR $actual.document_id != $source.document_id OR $actual.asset_id != $source.asset_id OR $actual.content_hash != $source.content_hash OR $actual.updated_at != $source.updated_at { THROW 'HSK-LOOM-WIKI-SNAPSHOT-CHANGED'; }; }; LET $current_ledger_version = (SELECT VALUE event_sequence FROM kernel_event_ledger ORDER BY event_sequence DESC LIMIT 1)[0] ?? 0; IF $current_ledger_version != $expected_ledger_version { THROW 'HSK-LOOM-WIKI-LEDGER-CHANGED'; }; IF (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title LIMIT 1)[0] != NONE { RETURN UPDATE knowledge_wiki_projections SET source_records = $source_records, rendered_content = $rendered_content, rebuild_status = 'fresh', staleness_hash = $staleness_hash, rebuild_receipt_event_id = NONE, last_rebuilt_at = time::now(), page_type = NONE, compile_stamp = $compile_stamp, compile_recipe = $compile_recipe, page_links = $page_links, updated_at = time::now() WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title RETURN NONE; } ELSE { RETURN CREATE type::record('knowledge_wiki_projections', $projection_id) CONTENT { projection_id: $projection_id, workspace_id: $workspace, projection_kind: 'wiki_page', title: $title, source_records: $source_records, rendered_content: $rendered_content, rebuild_status: 'fresh', staleness_hash: $staleness_hash, rebuild_receipt_event_id: NONE, last_rebuilt_at: time::now(), page_type: NONE, compile_stamp: $compile_stamp, compile_recipe: $compile_recipe, page_links: $page_links } RETURN NONE; }; COMMIT TRANSACTION; SELECT projection_id, workspace_id, title, source_records, rendered_content, rebuild_status, staleness_hash, page_type, compile_stamp, page_links, created_at, updated_at FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title LIMIT 1;",
+                        "BEGIN TRANSACTION; FOR $source IN $sources { LET $actual = (SELECT title, content_type, derived_json.full_text_index AS full_text_index, document_id, asset_id, content_hash, updated_at FROM ONLY $source.block WHERE workspace_id = $workspace); IF $actual = NONE OR $actual.title != $source.title OR $actual.content_type != $source.content_type OR $actual.full_text_index != $source.full_text_index OR $actual.document_id != $source.document_id OR $actual.asset_id != $source.asset_id OR $actual.content_hash != $source.content_hash OR $actual.updated_at != $source.updated_at { THROW 'HSK-LOOM-WIKI-SNAPSHOT-CHANGED'; }; }; LET $current_ledger_version = (SELECT VALUE event_sequence FROM kernel_event_ledger ORDER BY event_sequence DESC LIMIT 1)[0] ?? 0; IF $current_ledger_version != $expected_ledger_version { THROW 'HSK-LOOM-WIKI-LEDGER-CHANGED'; }; IF (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title LIMIT 1)[0] != NONE { IF array::len((UPDATE knowledge_wiki_projections SET source_records = $source_records, rendered_content = $rendered_content, rebuild_status = 'fresh', staleness_hash = $staleness_hash, rebuild_receipt_event_id = NONE, last_rebuilt_at = time::now(), page_type = NONE, compile_stamp = $compile_stamp, compile_recipe = $compile_recipe, page_links = $page_links, updated_at = time::now() WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title RETURN VALUE id)) = 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; } ELSE { IF array::len((CREATE type::record('knowledge_wiki_projections', $projection_id) CONTENT { projection_id: $projection_id, workspace_id: $workspace, projection_kind: 'wiki_page', title: $title, source_records: $source_records, rendered_content: $rendered_content, rebuild_status: 'fresh', staleness_hash: $staleness_hash, rebuild_receipt_event_id: NONE, last_rebuilt_at: time::now(), page_type: NONE, compile_stamp: $compile_stamp, compile_recipe: $compile_recipe, page_links: $page_links } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; COMMIT TRANSACTION; SELECT projection_id, workspace_id, title, source_records, rendered_content, rebuild_status, staleness_hash, page_type, compile_stamp, page_links, created_at, updated_at FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_kind = 'wiki_page' AND title = $title LIMIT 1;",
                         bindings,
                         6,
                     )
@@ -544,9 +550,10 @@ pub(crate) async fn delete_loom_wiki_projection(
             move |database| {
                 Box::pin(async move {
                     database
-                        .query_values::<ProjectionRow, _>(
-                            "DELETE knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_id = $projection_id RETURN BEFORE;",
+                        .query_values_at::<ProjectionRow, _>(
+                            "LET $deleted = (DELETE knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_id = $projection_id RETURN BEFORE); IF array::len($deleted) = 0 AND (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_id = $projection_id LIMIT 1)[0] != NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $deleted; };",
                             bindings,
+                            1,
                         )
                         .await
                 })
@@ -665,9 +672,9 @@ async fn add_loom_wiki_overlay_attempt(
                 Box::pin(async move {
                     database
                         .query_values_at::<OverlayRow, _>(
-                            "BEGIN TRANSACTION; IF (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_id = $projection_id LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-WIKI-PROJECTION-NOT-FOUND'; }; CREATE $event.record CONTENT { event_id: $event.event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at }; CREATE $overlay CONTENT { overlay_id: $overlay_id, projection_id: $projection_id, workspace_id: $workspace, annotation: $annotation, anchor: $anchor, event_ledger_event_id: $event.record } RETURN AFTER; COMMIT TRANSACTION;",
+                            "BEGIN TRANSACTION; IF (SELECT VALUE id FROM knowledge_wiki_projections WHERE workspace_id = $workspace AND projection_id = $projection_id LIMIT 1)[0] = NONE { THROW 'HSK-LOOM-WIKI-PROJECTION-NOT-FOUND'; }; IF array::len((CREATE $event.record CONTENT { event_id: $event.event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; LET $created = (CREATE $overlay CONTENT { overlay_id: $overlay_id, projection_id: $projection_id, workspace_id: $workspace, annotation: $annotation, anchor: $anchor, event_ledger_event_id: $event.record } RETURN AFTER); IF array::len($created) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $created; }; COMMIT TRANSACTION;",
                             bindings,
-                            3,
+                            4,
                         )
                         .await
                 })
@@ -778,9 +785,9 @@ async fn delete_loom_wiki_overlay_attempt(
                 Box::pin(async move {
                     database
                         .query_values_at::<OverlayRow, _>(
-                            "BEGIN TRANSACTION; IF (SELECT VALUE id FROM $overlay WHERE workspace_id = $workspace AND projection_id = $projection_id)[0] = NONE { THROW 'HSK-LOOM-WIKI-OVERLAY-NOT-FOUND'; }; CREATE $event.record CONTENT { event_id: $event.event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at }; DELETE $overlay RETURN BEFORE; COMMIT TRANSACTION;",
+                            "BEGIN TRANSACTION; IF (SELECT VALUE id FROM $overlay WHERE workspace_id = $workspace AND projection_id = $projection_id)[0] = NONE { THROW 'HSK-LOOM-WIKI-OVERLAY-NOT-FOUND'; }; IF array::len((CREATE $event.record CONTENT { event_id: $event.event_id, event_version: $event.event_version, kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, idempotency_key: $event.idempotency_key, event_type: $event.event_type, actor_kind: $event.actor_kind, actor_id: $event.actor_id, causation_id: $event.causation_id, correlation_id: $event.correlation_id, payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; LET $deleted = (DELETE $overlay RETURN BEFORE); IF array::len($deleted) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $deleted; }; COMMIT TRANSACTION;",
                             bindings,
-                            3,
+                            4,
                         )
                         .await
                 })

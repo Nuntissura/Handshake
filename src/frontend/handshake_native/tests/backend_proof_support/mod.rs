@@ -1508,6 +1508,22 @@ impl LiveBackend {
         Some(self.account_context.clone())
     }
 
+    /// MT-154: the fixture's real proof session re-bound to another origin (a loopback proxy in front
+    /// of this backend, an isolated fault-injection server, or a refused port), so an "unavailable
+    /// backend" proof still reaches the transport path instead of stopping at "Account login required".
+    #[cfg(feature = "integration")]
+    #[allow(dead_code)]
+    pub fn account_for_origin(
+        &self,
+        base: &str,
+    ) -> Option<std::sync::Arc<handshake_native::local_account::AuthenticatedContext>> {
+        Some(std::sync::Arc::new(
+            self.account_context
+                .rebound_to_origin_for_test(base)
+                .expect("re-bind the fixture account to the requested origin"),
+        ))
+    }
+
     /// Bind the fixture's real proof account into a mounted app through the product's own
     /// `bind_initial_account` seam (the same path a completed login takes). Call it BEFORE
     /// `set_backend_base_url_for_test` so every rebound client carries the session.

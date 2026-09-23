@@ -270,6 +270,8 @@ fn mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve() {
     );
 
     let (mut app, _rt) = tags_shell();
+    // MT-153 C3: the mounted Loom tag client carries the fixture's real account session.
+    live.bind_app_account(&mut app);
     app.bind_active_project_for_integration_test(&workspace_id);
     app.set_tags_backend_base_url_for_test(live.base.clone());
     retype_pane_a_to_tags(&mut app, &workspace_id);

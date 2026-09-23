@@ -32,7 +32,9 @@ const VECTOR_MATCH_THRESHOLD: f64 = 0.45;
 
 fn map_err(error: SurrealStorageError) -> StorageError {
     let rendered = error.to_string();
-    if rendered.contains("HSK-LOOM-SEARCH-BLOCK-NOT-FOUND") {
+    if super::loom_store::is_protected_denial(&rendered) {
+        super::loom_store::protected_denial()
+    } else if rendered.contains("HSK-LOOM-SEARCH-BLOCK-NOT-FOUND") {
         StorageError::NotFound("loom_block")
     } else {
         StorageError::Database(rendered)
@@ -154,9 +156,10 @@ fn build_index_event(
 /// Refreshes one persisted LoomSearchV2 projection row and appends its typed
 /// EventLedger receipt in the same transaction.
 ///
-/// Result-set index 4 is the `UPSERT ... RETURN AFTER` statement:
-/// 0 BEGIN, 1 block guard, 2 content-type LET, 3 ledger append, 4 UPSERT,
-/// 5 COMMIT.
+/// Result-set index 5 is the silent-deny guard that returns the `UPSERT ... RETURN AFTER`
+/// rows: 0 BEGIN, 1 block guard, 2 content-type LET, 3 ledger append, 4 UPSERT LET,
+/// 5 guard/RETURN (last before COMMIT), 6 COMMIT. A record-user receipt CREATE or projection
+/// UPSERT that SurrealDB silently drops THROWs the constant denial (MT-154 silent-deny ruling).
 pub(crate) async fn reindex_loom_block_search(
     db: &SurrealDataContext<'_>,
     workspace_id: &str,
@@ -197,9 +200,10 @@ pub(crate) async fn reindex_loom_block_search(
              IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] != NONE { \
                 IF (SELECT VALUE payload_hash FROM kernel_event_ledger WHERE idempotency_key = $ledger.idempotency_key LIMIT 1)[0] != $ledger.payload_hash { THROW 'HSK-EVENT-LEDGER-IDEMPOTENCY-CONFLICT'; }; \
              } ELSE { \
-                CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at }; \
+                IF array::len((CREATE $ledger.record CONTENT { event_id: $ledger.event_id, event_version: $ledger.event_version, kernel_task_run_id: $ledger.kernel_task_run_id, session_run_id: $ledger.session_run_id, aggregate_type: $ledger.aggregate_type, aggregate_id: $ledger.aggregate_id, idempotency_key: $ledger.idempotency_key, event_type: $ledger.event_type, actor_kind: $ledger.actor_kind, actor_id: $ledger.actor_id, causation_id: $ledger.causation_id, correlation_id: $ledger.correlation_id, payload_hash: $ledger.payload_hash, source_component: $ledger.source_component, payload: $ledger.payload, wsids: $ledger.wsids, authority_resource_id: $ledger.authority_resource_id, authority_session_id: $ledger.authority_session_id, authority_capability_id: $ledger.authority_capability_id, authority_action: $ledger.authority_action, created_at: $ledger.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
              }; \
-             UPSERT $search SET block_id = $block, workspace_id = $workspace, content_type = $content_type, search_text = $search_text, embedding = $embedding, embedding_model = $embedding_model, indexed_at = $indexed_at RETURN AFTER; \
+             LET $written = (UPSERT $search SET block_id = $block, workspace_id = $workspace, content_type = $content_type, search_text = $search_text, embedding = $embedding, embedding_model = $embedding_model, indexed_at = $indexed_at RETURN AFTER); \
+             IF array::len($written) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $written; }; \
              COMMIT TRANSACTION;",
             SearchIndexWriteBinding {
                 block: thing(BLOCKS_TABLE, block_id),
@@ -211,14 +215,14 @@ pub(crate) async fn reindex_loom_block_search(
                 indexed_at: Datetime::from(metadata.timestamp),
                 ledger,
             },
-            4,
+            5,
         )
         .await
         .map_err(map_err)?;
     let row = rows
         .into_iter()
         .next()
-        .ok_or_else(|| StorageError::Database("loom search reindex returned no row".to_owned()))?;
+        .ok_or_else(super::loom_store::protected_denial)?;
     if record_key(row.block_id, BLOCKS_TABLE)? != block_id {
         return Err(StorageError::Database(
             "loom search reindex returned the wrong block".to_owned(),

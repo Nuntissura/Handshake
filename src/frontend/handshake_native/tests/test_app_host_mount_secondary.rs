@@ -921,6 +921,10 @@ fn sidebar_active_block_deliveries_bind_backlinks_and_unlinked() {
 #[test]
 fn sidebar_active_block_reload_debounces_to_the_newest_identity() {
     let (mut app, _runtime) = secondary_shell();
+    // MT-153 C3: the sidebar client requires an account session; bind it to the refused origin so
+    // the failure stays the real transport failure rather than "Account login required".
+    app.bind_initial_account(typed_test_double_account("http://127.0.0.1:0"))
+        .expect("bind the refused origin's test-double account");
     app.set_sidebar_backend_base_url_for_test("http://127.0.0.1:0");
 
     app.bind_sidebar_active_block_for_test("rapid-a");
@@ -1047,6 +1051,10 @@ fn sidebar_failed_mutation_and_failed_refetch_restore_truthful_rows() {
             ),
         )],
     );
+    // MT-153 C3: the sidebar client requires an account session; bind it to the refused origin so
+    // the failure stays the real transport failure rather than "Account login required".
+    app.bind_initial_account(typed_test_double_account("http://127.0.0.1:0"))
+        .expect("bind the refused origin's test-double account");
     app.set_sidebar_backend_base_url_for_test("http://127.0.0.1:0");
     let panel = app.mounted_sidebar_panel_for_test();
     let sidebar_events = app.mounted_sidebar_events_for_test();
@@ -4024,6 +4032,10 @@ fn mt024_failed_pin_removal_rolls_back_and_publishes_terminal_typed_failure() {
     app.set_runtime_handle(runtime.handle().clone());
     // A closed port is a REAL transport failure against a real client; no mock, stub, or injected
     // result stands in for the backend boundary.
+    // MT-153 C3: the sidebar client requires an account session; bind it to the refused origin so
+    // the failure stays the real transport failure rather than "Account login required".
+    app.bind_initial_account(typed_test_double_account("http://127.0.0.1:1"))
+        .expect("bind the refused origin's test-double account");
     app.set_sidebar_backend_base_url_for_test("http://127.0.0.1:1");
     retype_panes(
         &mut app,

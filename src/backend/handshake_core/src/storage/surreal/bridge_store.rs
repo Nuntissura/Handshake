@@ -211,11 +211,11 @@ async fn bridge_attempt(
                          IF $identity != NONE AND $identity != $entity_id { \
                            THROW 'HSK-LOOM-BRIDGE-IDENTITY-CONFLICT'; \
                          }; \
-                         UPSERT $entity_record SET entity_id = $entity_id, workspace_id = $workspace, \
+                         IF array::len((UPSERT $entity_record SET entity_id = $entity_id, workspace_id = $workspace, \
                            entity_kind = 'loom_block', entity_key = $block_id, display_name = $display_name, \
                            detection_provenance = $detection_provenance, lifecycle_state = 'active', \
-                           updated_at = $updated_at; \
-                         CREATE $event.record CONTENT { \
+                           updated_at = $updated_at RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+                         IF array::len((CREATE $event.record CONTENT { \
                            event_id: $event.event_id, event_version: $event.event_version, \
                            kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, \
                            aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, \
@@ -224,9 +224,9 @@ async fn bridge_attempt(
                            causation_id: $event.causation_id, correlation_id: $event.correlation_id, \
                            payload_hash: $event.payload_hash, source_component: $event.source_component, \
                            payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, authority_action: $event.authority_action, created_at: $event.created_at \
-                         }; \
-                         UPSERT $bridge_record SET block_id = $block, workspace_id = $workspace, \
-                           entity_id = $entity_record, index_event_id = $event.record, updated_at = $updated_at; \
+                         } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+                         IF array::len((UPSERT $bridge_record SET block_id = $block, workspace_id = $workspace, \
+                           entity_id = $entity_record, index_event_id = $event.record, updated_at = $updated_at RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
                          COMMIT TRANSACTION; \
                          SELECT block_id, workspace_id, entity_id, index_event_id, created_at, updated_at \
                            FROM $bridge_record;",
@@ -237,7 +237,16 @@ async fn bridge_attempt(
             })
         })
         .await
-        .map_err(|error| StorageError::Database(error.to_string()))?;
+        .map_err(|error| {
+            // MT-154 silent-deny ruling: each record-user write above THROWs the constant
+            // denial when SurrealDB silently drops it; the statement count (index 7) is unchanged.
+            let rendered = error.to_string();
+            if super::loom_store::is_protected_denial(&rendered) {
+                super::loom_store::protected_denial()
+            } else {
+                StorageError::Database(rendered)
+            }
+        })?;
     rows.into_iter()
         .next()
         .map(map_bridge)

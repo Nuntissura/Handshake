@@ -1196,6 +1196,26 @@ fn mount_folder_pane_for_live_host(
     bar.active_index = 0;
 }
 
+#[cfg(feature = "integration")]
+/// MT-153 C3 / MT-154: the app's Loom, source-control and drawer clients require the account session.
+/// Explicit identity for this file's isolated capture servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}
+
 #[test]
 #[cfg(feature = "integration")]
 fn failed_recolor_and_failed_refetch_keep_prior_swatch_in_mounted_host() {
@@ -1258,6 +1278,10 @@ fn failed_recolor_and_failed_refetch_keep_prior_swatch_in_mounted_host() {
         ),
     );
     app.set_runtime_handle(runtime.handle().clone());
+    // MT-153 C3: the mounted Loom folder client requires an account session; bind an explicit mock
+    // identity to this isolated loss server so the host still reaches the scripted failures.
+    app.bind_initial_account(mock_account_context(&base))
+        .expect("bind the loss server's mock account");
     app.set_folder_backend_base_url_for_test(base);
     app.bind_active_project_for_integration_test("ws-loss".to_owned());
     mount_folder_pane_for_live_host(&mut app, "ws-loss");
@@ -1342,7 +1366,8 @@ fn folder_tree_live_surrealdb_self_seeded_round_trip() {
         .collect();
 
     let runtime = tokio::runtime::Runtime::new().expect("tokio runtime for live folder client");
-    let client = LoomFolderClient::new(backend.base.clone(), runtime.handle().clone());
+    let client = LoomFolderClient::new(backend.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(backend._managed_backend.account());
     let live_epoch = 1;
 
     let write: FolderWriteCell = Arc::new(Mutex::new(None));
@@ -1561,7 +1586,8 @@ fn folder_tree_live_surrealdb_self_seeded_round_trip() {
     )
     .expect("move persists");
 
-    let fresh_client = LoomFolderClient::new(backend.base.clone(), runtime.handle().clone());
+    let fresh_client = LoomFolderClient::new(backend.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(backend._managed_backend.account());
     let fresh_rows_cell: FolderListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     fresh_client.fetch_folders(
         &backend.workspace_id,
@@ -1722,6 +1748,8 @@ fn folder_tree_live_surrealdb_self_seeded_round_trip() {
         ),
     );
     app.set_runtime_handle(runtime.handle().clone());
+    // MT-153 C3: the mounted Loom folder client carries the fixture's real account session.
+    backend._managed_backend.bind_app_account(&mut app);
     app.set_folder_backend_base_url_for_test(backend.base.clone());
     app.bind_active_project_for_integration_test(backend.workspace_id.clone());
     mount_folder_pane_for_live_host(&mut app, &backend.workspace_id);
@@ -2135,7 +2163,8 @@ fn folder_tree_live_surrealdb_self_seeded_round_trip() {
         13,
     )
     .expect("move to root persists");
-    let fresh_client = LoomFolderClient::new(backend.base.clone(), runtime.handle().clone());
+    let fresh_client = LoomFolderClient::new(backend.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(backend._managed_backend.account());
     let ordered_cell: FolderListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     fresh_client.fetch_folders(
         &backend.workspace_id,
@@ -2187,12 +2216,14 @@ fn folder_tree_live_surrealdb_self_seeded_round_trip() {
     )
     .expect("delete persists");
     let absent_cell: FolderListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
-    LoomFolderClient::new(backend.base.clone(), runtime.handle().clone()).fetch_folders(
-        &backend.workspace_id,
-        live_epoch,
-        16,
-        Arc::clone(&absent_cell),
-    );
+    LoomFolderClient::new(backend.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(backend._managed_backend.account())
+        .fetch_folders(
+            &backend.workspace_id,
+            live_epoch,
+            16,
+            Arc::clone(&absent_cell),
+        );
     let rows_after_delete = identified_folder_result(
         wait_for_live_queue(&absent_cell, "fresh-client delete refetch"),
         &backend.workspace_id,

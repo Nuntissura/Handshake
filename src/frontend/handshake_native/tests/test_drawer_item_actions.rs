@@ -24,6 +24,25 @@ use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::stash_shelf::{DrawerActionTarget, DrawerCardAction, DrawerCardKind};
 
+/// MT-153 C3 / MT-154: the app's Loom, source-control and drawer clients require the account session.
+/// Explicit identity for this file's isolated capture servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}
+
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_string(),
@@ -403,6 +422,8 @@ fn confirm_ok_fires_the_real_delete_on_the_wire() {
         let app = harness.state_mut();
         // Point the drawer-action client at the capture server on a real runtime (the production dispatch
         // path), and bind the Notes card to a concrete block so Discard has a real target.
+        app.bind_initial_account(mock_account_context(&base))
+            .expect("bind the capture server's mock account");
         app.set_backend_base_url_for_test(&base, rt.handle().clone());
         app.set_bottom_drawer_open(true);
         if let Some(card) = app.drawer_mut().card_mut(DrawerCardKind::Notes) {
@@ -475,6 +496,8 @@ fn successful_action_clears_error_and_shows_success_state() {
     harness.run();
     {
         let app = harness.state_mut();
+        app.bind_initial_account(mock_account_context(&base))
+            .expect("bind the capture server's mock account");
         app.set_backend_base_url_for_test(&base, rt.handle().clone());
         app.set_bottom_drawer_open(true);
         if let Some(card) = app.drawer_mut().card_mut(DrawerCardKind::Notes) {

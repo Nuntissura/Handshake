@@ -169,7 +169,11 @@ fn record_to_suggestion(record: SuggestionRecord) -> StorageResult<LoomAiSuggest
 }
 
 fn map_err(error: super::surreal::SurrealStorageError) -> StorageError {
-    StorageError::Database(error.to_string())
+    let rendered = error.to_string();
+    if super::surreal::loom_store::is_protected_denial(&rendered) {
+        return super::surreal::loom_store::protected_denial();
+    }
+    StorageError::Database(rendered)
 }
 
 #[derive(SurrealValue)]
@@ -236,11 +240,11 @@ pub async fn insert_loom_ai_suggestion(
         })
         .await
         .map_err(map_err)?;
+    // MT-154 silent-deny ruling: the CREATE branch returns no row only when SurrealDB silently
+    // drops a record-user write the loom_ai_suggestions permissions deny.
     rows.into_iter()
         .next()
-        .ok_or(StorageError::Database(
-            "loom ai suggestion insert returned no record".to_owned(),
-        ))
+        .ok_or_else(super::surreal::loom_store::protected_denial)
         .and_then(record_to_suggestion)
 }
 
@@ -333,16 +337,24 @@ pub async fn decide_loom_ai_suggestion(
     let row: Option<SuggestionRecord> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
+                // MT-154 silent-deny ruling: zero rows is a lost race (row no longer pending)
+                // unless the row is still readable AND pending, which means the record-user
+                // UPDATE was silently denied -> constant denial.
                 database
-                    .query_first(
-                        "UPDATE loom_ai_suggestions SET review_state = $new_state, \
+                    .query_values_at::<SuggestionRecord, _>(
+                        "LET $rows = (UPDATE loom_ai_suggestions SET review_state = $new_state, \
                          decided_by = $decided_by, decided_at_utc = time::now(), \
                          decision_reason = $decision_reason, decided_event_id = $decided_event \
                          WHERE suggestion_id = $suggestion_id AND review_state = 'pending' \
-                         RETURN AFTER;",
+                         RETURN AFTER); \
+                         IF array::len($rows) = 0 AND (SELECT VALUE id FROM loom_ai_suggestions \
+                           WHERE suggestion_id = $suggestion_id AND review_state = 'pending' LIMIT 1)[0] != NONE \
+                         { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $rows; };",
                         bindings,
+                        1,
                     )
                     .await
+                    .map(|rows| rows.into_iter().next())
             })
         })
         .await
@@ -382,17 +394,24 @@ pub async fn mark_loom_ai_suggestion_promoted(
     let row: Option<SuggestionRecord> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
+                // MT-154 silent-deny ruling: as for the decision stamp, a still-readable
+                // 'accepted' row after zero updated rows is a silently denied write.
                 database
-                    .query_first(
-                        "UPDATE loom_ai_suggestions SET review_state = 'promoted', \
+                    .query_values_at::<SuggestionRecord, _>(
+                        "LET $rows = (UPDATE loom_ai_suggestions SET review_state = 'promoted', \
                          promotion_requested_event_id = $promotion_requested_event, \
                          promotion_accepted_event_id = $promotion_accepted_event, \
                          promoted_artifact_ref = $promoted_artifact_ref \
                          WHERE suggestion_id = $suggestion_id AND review_state = 'accepted' \
-                         RETURN AFTER;",
+                         RETURN AFTER); \
+                         IF array::len($rows) = 0 AND (SELECT VALUE id FROM loom_ai_suggestions \
+                           WHERE suggestion_id = $suggestion_id AND review_state = 'accepted' LIMIT 1)[0] != NONE \
+                         { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $rows; };",
                         bindings,
+                        1,
                     )
                     .await
+                    .map(|rows| rows.into_iter().next())
             })
         })
         .await
@@ -432,16 +451,22 @@ pub async fn apply_loom_block_auto_derived(
     let updated: Vec<String> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
+                // MT-154 silent-deny ruling: zero updated rows on a block that is still readable
+                // in the workspace is a silently denied record-user UPDATE -> constant denial.
                 database
-                    .query_values(
-                        "UPDATE loom_blocks SET \
+                    .query_values_at(
+                        "LET $rows = (UPDATE loom_blocks SET \
                          derived_json.auto_caption = IF $auto_caption != NONE { $auto_caption } ELSE { derived_json.auto_caption }, \
                          derived_json.auto_tags = IF $auto_tags != NONE { $auto_tags } ELSE { derived_json.auto_tags }, \
                          derived_json.generated_by = $generated_by, \
                          updated_at = time::now() \
                          WHERE workspace_id = $workspace AND block_id = $block_id \
-                         RETURN VALUE block_id;",
+                         RETURN VALUE block_id); \
+                         IF array::len($rows) = 0 AND (SELECT VALUE id FROM loom_blocks \
+                           WHERE workspace_id = $workspace AND block_id = $block_id LIMIT 1)[0] != NONE \
+                         { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $rows; };",
                         bindings,
+                        1,
                     )
                     .await
             })

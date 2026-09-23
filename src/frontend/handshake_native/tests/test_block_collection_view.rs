@@ -2480,6 +2480,8 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
         migration_version: Some(1),
     }));
     app.set_runtime_handle(rt.handle().clone());
+    // MT-153 C3: the mounted block-view client carries the fixture's real account session.
+    live.bind_app_account(&mut app);
     app.bind_active_project_for_integration_test(workspace_id.clone());
     app.set_block_collection_backend_base_url_for_test(live.base.clone());
     mount_collection_pane(&mut app, &workspace_id);
@@ -3007,6 +3009,11 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
         "canonical SetValue title must persist exactly"
     );
 
+    // MT-154: the mounted account follows the refused origin so the failure is the transport path.
+    app_harness
+        .state_mut()
+        .rebind_account_origin_for_test("http://127.0.0.1:9")
+        .expect("rebind the mounted account to the refused origin");
     app_harness
         .state()
         .set_block_collection_backend_base_url_for_test("http://127.0.0.1:9");
@@ -3099,6 +3106,10 @@ fn block_collection_views_live_surrealdb_self_seed_full_round_trip() {
     // mounted error state and its stable Retry node are present in the AccessKit tree before interaction.
     app_harness.run_steps(2);
     assert!(author_ids(&app_harness).contains(RETRY_AUTHOR_ID));
+    app_harness
+        .state_mut()
+        .rebind_account_origin_for_test(&live.base)
+        .expect("rebind the mounted account back to the managed origin");
     app_harness
         .state()
         .set_block_collection_backend_base_url_for_test(live.base.clone());

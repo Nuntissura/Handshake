@@ -805,7 +805,8 @@ fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
         .enable_all()
         .build()
         .expect("mounted tags runtime");
-    let client = LoomTagClient::new(live.base.clone(), runtime.handle().clone());
+    let client = LoomTagClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(live.account());
 
     // The isolated real workspace starts empty.
     let empty_cell: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
@@ -823,6 +824,8 @@ fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
         migration_version: Some(1),
     }));
     app.set_runtime_handle(runtime.handle().clone());
+    // MT-153 C3: the mounted Loom tag client carries the fixture's real account session.
+    live.bind_app_account(&mut app);
     app.bind_active_project_for_integration_test(&workspace_id);
     app.set_tags_backend_base_url_for_test(live.base.clone());
     let tags_type = placeholder_pane_type(TAGS_PANE_LABEL);
@@ -1077,7 +1080,8 @@ fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
     );
 
     // A newly constructed client proves the mutation was persisted, not merely cached in the panel.
-    let fresh = LoomTagClient::new(live.base.clone(), runtime.handle().clone());
+    let fresh = LoomTagClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(live.account());
     let fresh_list: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     fresh.fetch_tags(&workspace_id, Arc::clone(&fresh_list));
     assert_eq!(
@@ -1121,6 +1125,18 @@ fn tags_tag_hub_live_surrealdb_self_seeds_mounted_round_trip() {
     let loss_cell: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     loss_client.fetch_tags("mt023-backend-loss", Arc::clone(&loss_cell));
     assert!(await_tag_list(&loss_cell, "mt023-backend-loss").is_err());
+    // MT-154: the same backend loss with an account bound to that origin keeps the transport-failure
+    // path covered (the unbound client above stops at "Account login required").
+    let bound_loss_client = LoomTagClient::new("http://127.0.0.1:0", runtime.handle().clone())
+        .with_authenticated_context(live.account_for_origin("http://127.0.0.1:0"));
+    let bound_loss_cell: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    bound_loss_client.fetch_tags("mt023-backend-loss", Arc::clone(&bound_loss_cell));
+    let bound_loss = await_tag_list(&bound_loss_cell, "mt023-backend-loss")
+        .expect_err("an authenticated backend loss is a typed Err");
+    assert!(
+        !bound_loss.contains("Account login required"),
+        "the bound variant reaches the transport failure: {bound_loss}"
+    );
 
     cleanup.assert_cleaned();
     drop(cleanup);

@@ -58,6 +58,25 @@ struct RecordedRequest {
     body: String,
 }
 
+/// MT-153 C3 / MT-154: the app's Loom, source-control and drawer clients require the account session.
+/// Explicit identity for this file's isolated capture servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}
+
 struct NotesMockServer {
     base_url: String,
     stop: Arc<AtomicBool>,
@@ -649,6 +668,10 @@ fn open_edit_save_reopen_round_trips_through_knowledge_documents() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
 
     let opened = app.open_document(DOC_ID);
@@ -793,6 +816,10 @@ fn switching_notes_does_not_save_with_stale_document_context() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
 
     assert!(
@@ -903,6 +930,10 @@ fn slow_note_get_shows_blank_non_editable_loading_surface_without_demo_content()
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
     assert!(matches!(
         app.open_document(DOC_ID),
@@ -938,6 +969,10 @@ fn outline_retains_exact_launching_note_and_click_targets_that_notes_scroll() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context("http://127.0.0.1:9"))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
     assert!(matches!(
         app.open_document(DOC_ID),
@@ -1037,6 +1072,10 @@ fn same_document_split_views_share_document_save_authority_but_keep_view_state_a
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
     assert!(app.open_document_in_pane_for_test("pane-a", DOC_ID));
     app.apply_loaded_rich_document_to_view_for_test("pane-a", rich_doc_body(DOC_ID, "pane A", 7))
@@ -1251,6 +1290,10 @@ fn reverse_open_order_keeps_pane_a_as_deterministic_unsuffixed_rich_view() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context("http://127.0.0.1:9"))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
     assert!(app.open_document_in_pane_for_test("pane-b", DOC_ID));
     app.apply_loaded_rich_document_to_view_for_test("pane-b", rich_doc_body(DOC_ID, "shared", 7))
@@ -1292,6 +1335,10 @@ fn closing_file_backed_note_restores_unsuffixed_untitled_action_authority() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context("http://127.0.0.1:9"))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
     assert!(app.open_document_in_pane_for_test("pane-b", DOC_ID));
     app.apply_loaded_rich_document_to_view_for_test("pane-b", rich_doc_body(DOC_ID, "file", 7))
@@ -1338,6 +1385,10 @@ fn two_visible_unready_notes_panes_load_without_activating_each_pane() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
     assert!(app.open_document_in_pane_for_test("pane-a", DOC_ID));
     assert!(app.open_document_in_pane_for_test("pane-b", SECOND_DOC_ID));
@@ -1403,6 +1454,10 @@ fn out_of_order_note_gets_keep_current_document_load() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
     assert!(
         matches!(app.open_document(DOC_ID), NavDispatchOutcome::Opened { .. }),
@@ -1469,6 +1524,10 @@ fn mismatched_note_get_identity_fails_closed_without_cross_document_mutation() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context("http://127.0.0.1:9"))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
     assert!(matches!(
         app.open_document(DOC_ID),
@@ -1528,6 +1587,10 @@ fn same_document_reopen_ignores_stale_get_generation() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
     assert!(
         matches!(app.open_document(DOC_ID), NavDispatchOutcome::Opened { .. }),
@@ -1583,6 +1646,10 @@ fn failed_note_load_latches_until_explicit_accesskit_retry() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
     assert!(
         matches!(app.open_document(DOC_ID), NavDispatchOutcome::Opened { .. }),
@@ -1712,6 +1779,10 @@ fn draft_recovery_banner_restores_draft_through_mounted_pane_on_second_open() {
         .build()
         .expect("tokio runtime");
     let mut app = ok_app();
+    // MT-111/MT-153: the mounted document, Loom and search clients require an account session; bind
+    // an explicit mock identity to this isolated origin.
+    app.bind_initial_account(mock_account_context(&server.base_url))
+        .expect("bind the isolated origin's mock account");
     app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
 
     // FIRST open: no draft exists (`draft: null`) — no recovery banner may appear.

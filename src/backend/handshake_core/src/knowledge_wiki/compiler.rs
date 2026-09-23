@@ -50,6 +50,22 @@ use super::{
     MAX_BOOTSTRAP_PAGES, MAX_PAGE_TOKEN_BUDGET, MIN_PAGE_TOKEN_BUDGET,
 };
 
+/// MT-154 silent-deny ruling (Master Spec 02-system-architecture.md:2758): the storage upsert
+/// reports an UPDATE/CREATE that returned no row as a Database error. Under an account
+/// (record-user) scope that empty result can only be a write SurrealDB silently dropped, so it
+/// becomes the constant denial instead of a 500.
+fn silent_deny_upsert(error: crate::storage::StorageError) -> crate::storage::StorageError {
+    match error {
+        crate::storage::StorageError::Database(message)
+            if message == "knowledge wiki page upsert returned no record"
+                && crate::storage::surreal::current_record_user_scope().is_some() =>
+        {
+            crate::storage::surreal::loom_store::protected_denial()
+        }
+        other => other,
+    }
+}
+
 /// Caller identity for compile receipts (mirrors
 /// `knowledge_code_index::engine::CodeIndexContext`).
 #[derive(Clone, Debug)]
@@ -605,7 +621,11 @@ impl ProjectWikiCompiler {
             ledger_version,
             receipt_event_id,
         );
-        let page = self.db.upsert_knowledge_wiki_page(page).await?;
+        let page = self
+            .db
+            .upsert_knowledge_wiki_page(page)
+            .await
+            .map_err(silent_deny_upsert)?;
         Ok(page)
     }
 
@@ -637,10 +657,33 @@ impl ProjectWikiCompiler {
             ledger_version,
             receipt_event_id,
         );
-        let page = self
+        let workspace_id = page.workspace_id.clone();
+        let page = match self
             .db
             .replace_knowledge_wiki_page_by_projection_id(projection_id, page)
-            .await?;
+            .await
+        {
+            Ok(page) => page,
+            // MT-154 silent-deny ruling: under an account scope an UPDATE that returned no row on
+            // a page the same scope can still read was silently denied -> constant denial; a page
+            // that is gone keeps the typed NotFound.
+            Err(crate::storage::StorageError::NotFound(code))
+                if crate::storage::surreal::current_record_user_scope().is_some() =>
+            {
+                let still_visible = self
+                    .db
+                    .list_knowledge_wiki_pages(&workspace_id, None, false, 2_000, 0)
+                    .await?
+                    .iter()
+                    .any(|visible| visible.projection_id == projection_id);
+                return Err(if still_visible {
+                    crate::storage::surreal::loom_store::protected_denial().into()
+                } else {
+                    crate::storage::StorageError::NotFound(code).into()
+                });
+            }
+            Err(error) => return Err(error.into()),
+        };
         Ok(page)
     }
 

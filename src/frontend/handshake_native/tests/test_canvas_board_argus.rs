@@ -690,7 +690,8 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
     let placement_two = place(&source_two, 360.0, 260.0);
 
     let (app, rt, board) = canvas_shell(&live, &workspace_id, &canvas_id);
-    let graph_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone());
+    let graph_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(live.account());
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);

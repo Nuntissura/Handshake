@@ -647,6 +647,25 @@ fn capture_one(listener: std::net::TcpListener) -> CapturedReq {
     CapturedReq { request_line, body }
 }
 
+/// MT-153 C3 / MT-154: the app's Loom, source-control and drawer clients require the account session.
+/// Explicit identity for this file's isolated capture servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}
+
 fn capture_server() -> (std::net::TcpListener, String) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().unwrap().port();
@@ -668,6 +687,8 @@ fn app_scm_stage_event_sends_real_post_on_the_wire() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
     let mut app = ok_app();
+    app.bind_initial_account(mock_account_context(&base))
+        .expect("bind the capture server's mock account");
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     let dispatched = app.apply_source_control_event(
@@ -696,6 +717,8 @@ fn app_scm_diff_event_sends_real_get_with_scope() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
     let mut app = ok_app();
+    app.bind_initial_account(mock_account_context(&base))
+        .expect("bind the capture server's mock account");
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     app.apply_source_control_event(
@@ -726,6 +749,8 @@ fn app_canvas_move_to_front_sends_real_patch_z_index() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
     let mut app = ok_app();
+    app.bind_initial_account(mock_account_context(&base))
+        .expect("bind the capture server's mock account");
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     let dispatched = app.apply_canvas_event(
@@ -752,6 +777,8 @@ fn app_canvas_remove_sends_real_delete_placement() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
     let mut app = ok_app();
+    app.bind_initial_account(mock_account_context(&base))
+        .expect("bind the capture server's mock account");
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     app.apply_canvas_event(
@@ -776,6 +803,8 @@ fn app_canvas_remove_edges_deletes_only_supplied_visual_edges() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
     let mut app = ok_app();
+    app.bind_initial_account(mock_account_context(&base))
+        .expect("bind the capture server's mock account");
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     app.apply_canvas_event(
@@ -799,6 +828,8 @@ fn app_loom_pin_sends_real_patch_pinned_flag() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
     let mut app = ok_app();
+    app.bind_initial_account(mock_account_context(&base))
+        .expect("bind the capture server's mock account");
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     let dispatched = app.apply_loom_node_event(
@@ -832,6 +863,8 @@ fn app_loom_favorite_sends_real_patch_favorite_flag() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
     let mut app = ok_app();
+    app.bind_initial_account(mock_account_context(&base))
+        .expect("bind the capture server's mock account");
     app.set_backend_base_url_for_test(&base, rt.handle().clone());
 
     app.apply_loom_node_event(

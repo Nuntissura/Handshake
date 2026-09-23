@@ -40,6 +40,48 @@ pub(crate) async fn with_loom_session_receipt<T>(
         .await
 }
 
+/// MT-153/MT-156: the account authority active on the current task (record-user scope plus the
+/// session receipt principal), captured so work the request hands to a spawned task (a background
+/// kernel job) keeps running as the same account record user instead of falling back to root
+/// (Master Spec 02-system-architecture.md:2773).
+#[derive(Clone)]
+pub(crate) struct CapturedAccountAuthority {
+    scope: super::resource_authority::RecordUserScope,
+    receipt: Option<LoomSessionReceipt>,
+}
+
+/// Captures the current task's account authority, if any.
+pub(crate) fn capture_account_authority() -> Option<CapturedAccountAuthority> {
+    let scope = super::current_record_user_scope()?;
+    Some(CapturedAccountAuthority {
+        scope,
+        receipt: LOOM_SESSION_RECEIPT.try_with(Clone::clone).ok(),
+    })
+}
+
+/// Runs `operation` under a previously captured account authority; without one it runs as is.
+pub(crate) async fn with_captured_account_authority<T>(
+    storage: &SurrealStorage,
+    captured: Option<CapturedAccountAuthority>,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    match captured {
+        None => operation.await,
+        Some(CapturedAccountAuthority {
+            scope,
+            receipt: None,
+        }) => storage.with_record_user_scope(scope, operation).await,
+        Some(CapturedAccountAuthority {
+            scope,
+            receipt: Some(receipt),
+        }) => {
+            storage
+                .with_record_user_scope(scope, LOOM_SESSION_RECEIPT.scope(receipt, operation))
+                .await
+        }
+    }
+}
+
 #[derive(Clone, SurrealValue)]
 pub(crate) struct LedgerWrite {
     pub(crate) record: RecordId,
@@ -278,10 +320,15 @@ pub(crate) async fn append(
             return Err(StorageError::from(error));
         }
     };
-    let stored = row
-        .map(row_to_event)
-        .transpose()?
-        .ok_or_else(|| StorageError::Database("EventLedger append returned no row".to_owned()))?;
+    let stored = row.map(row_to_event).transpose()?.ok_or_else(|| {
+        // spec_ruling_c3_silent_deny (Master Spec 02-system-architecture.md:2758): a record
+        // user's receipt CREATE denied by the kernel_event_ledger predicates returns no row.
+        if super::current_record_user_scope().is_some() {
+            StorageError::Guard("HSK-403-PROTECTED-RESOURCE")
+        } else {
+            StorageError::Database("EventLedger append returned no row".to_owned())
+        }
+    })?;
     ensure_same_event(&stored, &candidate)?;
     Ok(stored)
 }

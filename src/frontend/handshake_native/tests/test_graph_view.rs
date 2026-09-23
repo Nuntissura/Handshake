@@ -680,7 +680,8 @@ fn graph_view_live_surrealdb_self_seeds_local_global() {
         .enable_all()
         .build()
         .expect("graph client runtime");
-    let client = LoomGraphClient::new(live.base.clone(), rt.handle().clone());
+    let client = LoomGraphClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(live.account());
 
     // AC7 against the real managed resource: the isolated workspace is empty before this test seeds it.
     let empty_cell: LoomGraphCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
@@ -797,6 +798,26 @@ fn graph_view_live_surrealdb_self_seeds_local_global() {
     assert!(
         !failure.trim().is_empty(),
         "backend error remains visible/actionable"
+    );
+    // MT-154: the unbound client above stops at "Account login required"; the same unavailable
+    // socket with an account bound to that origin keeps the transport-failure path covered.
+    let unavailable_bound_client = LoomGraphClient::new("http://127.0.0.1:0", rt.handle().clone())
+        .with_authenticated_context(live.account_for_origin("http://127.0.0.1:0"));
+    let bound_failed_cell: LoomGraphCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    unavailable_bound_client.fetch_local_with_depth(
+        &workspace_id,
+        &beta,
+        "MT-021 Beta",
+        1,
+        44,
+        Arc::clone(&bound_failed_cell),
+    );
+    let bound_failed_request = LoomGraphRequestIdentity::local(44, &workspace_id, &beta, 1);
+    let bound_failure = await_graph_delivery(&bound_failed_cell, &bound_failed_request)
+        .expect_err("an authenticated unavailable backend must produce a typed graph error");
+    assert!(
+        !bound_failure.contains("Account login required"),
+        "the bound variant reaches the transport failure: {bound_failure}"
     );
 
     let retry_cell: LoomGraphCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));

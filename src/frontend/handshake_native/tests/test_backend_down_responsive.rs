@@ -2757,10 +2757,14 @@ fn backend_down_responsive_real_surrealdb_palmistry_argus() {
         !backend_workspace_id.is_empty(),
         "the integrated mounted proof requires a real SurrealDB-backed workspace"
     );
+    // MT-154: the mounted settings/preference/Loom clients carry the fixture's real account session.
+    let backend_account = backend.account_context.clone();
     let mut harness: Harness<HandshakeApp> = Harness::builder()
         .with_size(egui::vec2(1600.0, 1100.0))
         .build_eframe(|cc| {
             let mut app = HandshakeApp::new(cc);
+            app.bind_initial_account(backend_account.clone())
+                .expect("bind the fixture's authenticated proof account");
             app.bind_managed_backend_for_test(&backend_base);
             app.set_active_project_id_for_test(backend_workspace_id.clone());
             replace_unrelated_sibling_panes_with_manual(&mut app, &backend_workspace_id);

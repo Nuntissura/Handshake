@@ -19953,6 +19953,23 @@ impl HandshakeApp {
         (active, error, self.account_has_private_state)
     }
 
+    /// Test seam (MT-154): keep the bound account session but follow the backend origin a proof swaps
+    /// the mounted host to (a loopback proxy in front of the managed backend, or an isolated
+    /// fault-injection server). Account-scoped clients read the context at dispatch time, so the next
+    /// request carries the session for the new origin; swapping back restores the original origin.
+    #[cfg(any(test, feature = "integration"))]
+    #[doc(hidden)]
+    pub fn rebind_account_origin_for_test(&mut self, base_url: &str) -> Result<(), String> {
+        let context = self
+            .local_account
+            .context
+            .as_ref()
+            .ok_or_else(|| "no account is bound to rebind".to_owned())?;
+        let rebound = context.rebound_to_origin_for_test(base_url)?;
+        self.local_account.context = Some(Arc::new(rebound));
+        Ok(())
+    }
+
     pub fn set_backend_base_url_for_test(
         &mut self,
         base_url: &str,
@@ -19996,11 +20013,11 @@ impl HandshakeApp {
             base_url,
             handle.clone(),
         ));
-        self.atelier_side_panel
-            .bind_client(crate::backend_client::AtelierClient::new(
-                base_url,
-                handle.clone(),
-            ));
+        // MT-156: /atelier/* requires the account session.
+        self.atelier_side_panel.bind_client(
+            crate::backend_client::AtelierClient::new(base_url, handle.clone())
+                .with_authenticated_context(self.local_account.context.clone()),
+        );
         // MT-028 remediation: the mounted Loom Search factory owns its transport client just like
         // Find-in-Files. Rebind the concrete factory too, otherwise a managed-runtime proof (and any
         // future explicit backend adapter) changes the app clients while Loom Search silently keeps
@@ -20008,7 +20025,8 @@ impl HandshakeApp {
         self.factories.insert(
             PaneType::LoomSearchV2,
             Box::new(crate::loom_search_v2::LoomSearchV2PaneFactory::new(
-                crate::backend_client::LoomSearchV2Client::new(base_url, handle.clone()),
+                crate::backend_client::LoomSearchV2Client::new(base_url, handle.clone())
+                    .with_authenticated_context(self.local_account.context.clone()),
                 Arc::clone(&self.loom_search_v2_shared),
             )),
         );
@@ -21031,6 +21049,8 @@ impl HandshakeApp {
                 Some("Drawer actions unavailable (no backend runtime)".to_owned());
             return false;
         };
+        // MT-153 C3: Loom routes run as the account record user; carry the current account session.
+        let client = client.with_authenticated_context(self.local_account.context.clone());
         self.drawer_action_error = None;
         // Attribute the delivered receipt to this card (MAJOR FIX AC-024-4/5 success feedback).
         self.drawer_action_in_flight = Some(kind);
@@ -21118,6 +21138,8 @@ impl HandshakeApp {
                         Some("Drawer actions unavailable (no backend runtime)".to_owned());
                     return false;
                 };
+                // MT-153 C3: Loom routes run as the account record user; carry the current account session.
+                let client = client.with_authenticated_context(self.local_account.context.clone());
                 self.drawer_action_error = None;
                 // Attribute the delivered receipt to this card so the receipt drain shows the success
                 // indicator + refreshes the affected count (MAJOR FIX AC-024-4/5 success feedback).
@@ -21236,6 +21258,8 @@ impl HandshakeApp {
         let Some(client) = self.drawer_data_client.clone() else {
             return;
         };
+        // MT-153 C3: Loom routes run as the account record user; carry the current account session.
+        let client = client.with_authenticated_context(self.local_account.context.clone());
         self.drawer.mark_data_cards_loading();
         let cell = self.drawer_data_cell.clone();
         client.fetch_agenda(&workspace_id, &today_utc_ymd(), cell.clone());
@@ -24242,6 +24266,9 @@ impl HandshakeApp {
                         self.pending_rename = Some(pending);
                         return;
                     };
+                    // MT-153 C3: Loom routes run as the account record user; carry the current account session.
+                    let client =
+                        client.with_authenticated_context(self.local_account.context.clone());
                     self.rename_error = None;
                     client.rename_block(
                         &ws,
@@ -24310,13 +24337,15 @@ impl HandshakeApp {
                         return;
                     };
                     self.rename_error = None;
-                    crate::backend_client::CanvasTitleClient::production(runtime).rename_canvas(
-                        &canvas_id,
-                        &new_title,
-                        expected_updated_at.as_deref(),
-                        operation,
-                        self.rename_cell.clone(),
-                    );
+                    crate::backend_client::CanvasTitleClient::production(runtime)
+                        .with_authenticated_context(self.local_account.context.clone())
+                        .rename_canvas(
+                            &canvas_id,
+                            &new_title,
+                            expected_updated_at.as_deref(),
+                            operation,
+                            self.rename_cell.clone(),
+                        );
                     self.pending_rename = Some(pending);
                 }
             }
@@ -25258,6 +25287,8 @@ impl HandshakeApp {
             self.canvas_error = Some("Canvas backend unavailable (no runtime)".to_owned());
             return false;
         };
+        // MT-153 C3: Loom routes run as the account record user; carry the current account session.
+        let client = client.with_authenticated_context(self.local_account.context.clone());
         match event {
             E::MoveToFront { placement_id } => {
                 self.canvas_error = None;
@@ -27448,9 +27479,16 @@ impl HandshakeApp {
             .lock()
             .ok()
             .and_then(|base_url| base_url.clone());
-        let tag_client = |runtime| match tags_backend_base_url.as_ref() {
-            Some(base_url) => crate::backend_client::LoomTagClient::new(base_url.clone(), runtime),
-            None => crate::backend_client::LoomTagClient::production(runtime),
+        let tag_account = self.local_account.context.clone();
+        let tag_client = |runtime| {
+            let client = match tags_backend_base_url.as_ref() {
+                Some(base_url) => {
+                    crate::backend_client::LoomTagClient::new(base_url.clone(), runtime)
+                }
+                None => crate::backend_client::LoomTagClient::production(runtime),
+            };
+            // MT-153 C3: Loom tag routes run as the account record user.
+            client.with_authenticated_context(tag_account.clone())
         };
 
         // Workspace binding is independent of visibility. Hidden panes must not retain A state while
@@ -28101,9 +28139,12 @@ impl HandshakeApp {
             .ok()
             .and_then(|value| value.clone())
         {
-            return crate::backend_client::LoomSidebarClient::new(base_url, runtime);
+            return crate::backend_client::LoomSidebarClient::new(base_url, runtime)
+                .with_authenticated_context(self.local_account.context.clone());
         }
+        // MT-153 C3: Loom sidebar routes run as the account record user.
         crate::backend_client::LoomSidebarClient::production(runtime)
+            .with_authenticated_context(self.local_account.context.clone())
     }
 
     /// Bind the sidebar to `workspace` even while the pane is hidden. Every transition advances an
@@ -28845,12 +28886,16 @@ impl HandshakeApp {
             .lock()
             .ok()
             .and_then(|value| value.clone());
+        let folder_account = self.local_account.context.clone();
         let folder_client = |runtime| {
             #[cfg(any(test, feature = "integration"))]
             if let Some(base_url) = &folder_backend_base_url {
-                return crate::backend_client::LoomFolderClient::new(base_url.clone(), runtime);
+                return crate::backend_client::LoomFolderClient::new(base_url.clone(), runtime)
+                    .with_authenticated_context(folder_account.clone());
             }
+            // MT-153 C3: Loom folder routes run as the account record user.
             crate::backend_client::LoomFolderClient::production(runtime)
+                .with_authenticated_context(folder_account.clone())
         };
 
         // Workspace identity is product state, not pane-visibility state. Reset immediately even when
@@ -29550,9 +29595,12 @@ impl HandshakeApp {
             .ok()
             .and_then(|url| url.clone())
         {
-            return crate::backend_client::LoomWikiClient::new(base_url, runtime);
+            return crate::backend_client::LoomWikiClient::new(base_url, runtime)
+                .with_authenticated_context(self.local_account.context.clone());
         }
+        // MT-153 C3: Loom wiki routes run as the account record user.
         crate::backend_client::LoomWikiClient::production(runtime)
+            .with_authenticated_context(self.local_account.context.clone())
     }
 
     /// MT-025/059 REMEDIATION: drain the wiki pane's load/save/regenerate requests onto the verified
@@ -30321,11 +30369,13 @@ impl HandshakeApp {
             crate::interop::cross_ref::FindNotesHttp::new(base_url.clone())
                 .with_authenticated_context(self.local_account.context.clone()),
         );
+        // MT-154: the Locus record read carries the same account session as the reverse lookup.
         let service = crate::interop::locus_interop::LocusInteropService::with_base_url(
             base_url,
             workspace.clone(),
             reverse_lookup,
-        );
+        )
+        .with_authenticated_context(self.local_account.context.clone());
         let repaint = ctx.clone();
         rt.spawn(async move {
             let record = match service.resolve_locus_ref(&locus).await {
@@ -30620,15 +30670,17 @@ impl HandshakeApp {
                 let backend = std::sync::Arc::new(
                     crate::rich_editor::daily_notes::journal_store::ReqwestJournalBackend::new(
                         backend_base.clone(),
-                    ).with_authenticated_context(account),
+                    ).with_authenticated_context(account.clone()),
                 );
+                // MT-154: the Calendar reads carry the same account session as the journal PUT.
                 let service =
                     crate::interop::calendar_interop::CalendarInteropService::with_base_url(
                         backend_base,
                         ws.clone(),
                         backend,
                     )
-                    .with_view_tzid(view_tzid);
+                    .with_view_tzid(view_tzid)
+                    .with_authenticated_context(account);
                 const MAX_ATTEMPTS: usize = 3;
                 let events_result = {
                     let mut attempt = 1usize;
@@ -31483,7 +31535,9 @@ impl HandshakeApp {
             view.error = None;
         }
 
-        let client = crate::backend_client::LoomGraphClient::new(&self.rich_doc_base_url, rt);
+        // MT-153 C3: Loom graph routes run as the account record user.
+        let client = crate::backend_client::LoomGraphClient::new(&self.rich_doc_base_url, rt)
+            .with_authenticated_context(self.local_account.context.clone());
         match mode {
             GraphMode::Global => {
                 client.fetch_global(&workspace_id, generation, Arc::clone(&self.graph_data_cell))
@@ -33877,6 +33931,8 @@ impl HandshakeApp {
                         Some("Loom flag update unavailable (no backend runtime)".to_owned());
                     return false;
                 };
+                // MT-153 C3: Loom routes run as the account record user; carry the current account session.
+                let client = client.with_authenticated_context(self.local_account.context.clone());
                 self.loom_flag_error = None;
                 client.set_flag(
                     workspace_id,
@@ -33893,6 +33949,8 @@ impl HandshakeApp {
                         Some("Loom flag update unavailable (no backend runtime)".to_owned());
                     return false;
                 };
+                // MT-153 C3: Loom routes run as the account record user; carry the current account session.
+                let client = client.with_authenticated_context(self.local_account.context.clone());
                 self.loom_flag_error = None;
                 client.set_flag(
                     workspace_id,
@@ -34173,8 +34231,10 @@ impl HandshakeApp {
             crate::workspace_settings::SettingsClient::new(base_url, handle.clone())
                 .with_authenticated_context(self.local_account.context.clone()),
         ));
+        // MT-154: preference routes require the account session.
         self.preference_transport = Some(Arc::new(
-            crate::preference_client::PreferenceClient::new(base_url, "operator", handle.clone()),
+            crate::preference_client::PreferenceClient::new(base_url, "operator", handle.clone())
+                .with_authenticated_context(self.local_account.context.clone()),
         ));
         self.settings_failures.clear();
         self.settings_persist_error = None;
@@ -36023,6 +36083,11 @@ impl HandshakeApp {
         )));
         fresh.settings_transport = Some(Arc::new(
             crate::workspace_settings::SettingsClient::new(&base, handle.clone())
+                .with_authenticated_context(account.clone()),
+        ));
+        // MT-154: the canonical PreferenceRecord transport carries the same account session.
+        fresh.preference_transport = Some(Arc::new(
+            crate::preference_client::PreferenceClient::new(&base, "operator", handle.clone())
                 .with_authenticated_context(account),
         ));
 

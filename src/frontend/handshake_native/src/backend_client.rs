@@ -914,6 +914,7 @@ pub struct LoomBlockClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl LoomBlockClient {
@@ -923,7 +924,16 @@ impl LoomBlockClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -954,8 +964,9 @@ impl LoomBlockClient {
         let spec = self.set_flag_request(workspace_id, block_id, flag, value);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = patch_expect_success(&client, &spec.url, &body).await;
+            let result = patch_expect_success(&client, account, &spec.url, &body).await;
             let delivered = result.map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(delivered);
@@ -1020,9 +1031,16 @@ impl LoomBlockClient {
         let client = self.client.clone();
         let new_title = new_title.to_owned();
         let expected_updated_at = expected_updated_at.map(str::to_owned);
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result =
-                patch_block_title(&client, &url, &new_title, expected_updated_at.as_deref()).await;
+            let result = patch_block_title(
+                &client,
+                account,
+                &url,
+                &new_title,
+                expected_updated_at.as_deref(),
+            )
+            .await;
             let delivered = match result {
                 Ok(title) => Ok(title),
                 Err(e) => Err(e.to_string()),
@@ -1045,6 +1063,7 @@ pub struct CanvasTitleClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl CanvasTitleClient {
@@ -1053,7 +1072,16 @@ impl CanvasTitleClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     pub fn production(runtime: tokio::runtime::Handle) -> Self {
@@ -1088,19 +1116,22 @@ impl CanvasTitleClient {
         let spec = self.rename_request(canvas_id, new_title, expected_updated_at);
         let client = self.client.clone();
         let fallback_title = new_title.to_owned();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
             let result = async {
-                let response = client
-                    .patch(&spec.url)
-                    .json(&spec.body.unwrap_or_default())
-                    .send()
-                    .await
-                    .map_err(|error| AppError::Http(error.to_string()))?;
+                let context =
+                    account.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+                let response = send_canvas_request(
+                    &client,
+                    Some(context.clone()),
+                    client
+                        .patch(&spec.url)
+                        .timeout(Duration::from_secs(5))
+                        .json(&spec.body.unwrap_or_default()),
+                )
+                .await?;
                 let status = response.status();
-                let value: serde_json::Value = response
-                    .json()
-                    .await
-                    .map_err(|error| AppError::Parse(error.to_string()))?;
+                let value = canvas_response_json(&context, response).await?;
                 if !status.is_success() {
                     let detail = value
                         .get("error")
@@ -1128,6 +1159,7 @@ impl CanvasTitleClient {
 /// non-success status or a parse failure is an [`AppError`], never a panic.
 async fn patch_block_title(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     new_title: &str,
     expected_updated_at: Option<&str>,
@@ -1136,23 +1168,16 @@ async fn patch_block_title(
     if let Some(expected) = expected_updated_at {
         body["expected_updated_at"] = serde_json::Value::String(expected.to_owned());
     }
-    let resp = client
-        .patch(url)
-        .timeout(Duration::from_secs(5))
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "PATCH block non-success status {}",
-            resp.status()
-        )));
-    }
-    let v: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Parse(e.to_string()))?;
+    let v = authenticated_json_expect_success(
+        client,
+        account,
+        "PATCH block",
+        client
+            .patch(url)
+            .timeout(Duration::from_secs(5))
+            .json(&body),
+    )
+    .await?;
     let title = v
         .get("title")
         .and_then(|x| x.as_str())
@@ -1396,6 +1421,7 @@ pub struct CanvasClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl CanvasClient {
@@ -1405,7 +1431,16 @@ impl CanvasClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -1440,8 +1475,9 @@ impl CanvasClient {
         let spec = self.set_z_index_request(workspace_id, placement_id, z_index);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = patch_expect_success(&client, &spec.url, &body).await;
+            let result = patch_expect_success(&client, account, &spec.url, &body).await;
             deliver_op(&cell, result);
         });
     }
@@ -1466,8 +1502,9 @@ impl CanvasClient {
     pub fn remove_placement(&self, workspace_id: &str, placement_id: &str, cell: CanvasOpCell) {
         let spec = self.remove_placement_request(workspace_id, placement_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = delete_expect_success(&client, &spec.url).await;
+            let result = delete_expect_success(&client, account, &spec.url).await;
             deliver_op(&cell, result);
         });
     }
@@ -1487,8 +1524,9 @@ impl CanvasClient {
     pub fn remove_visual_edge(&self, workspace_id: &str, visual_edge_id: &str, cell: CanvasOpCell) {
         let spec = self.remove_visual_edge_request(workspace_id, visual_edge_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = delete_expect_success(&client, &spec.url).await;
+            let result = delete_expect_success(&client, account, &spec.url).await;
             deliver_op(&cell, result);
         });
     }
@@ -1521,27 +1559,81 @@ fn deliver_text(cell: &ScmTextCell, result: Result<String, AppError>) {
     }
 }
 
-/// POST `body` and treat any 2xx as success (the receipt body is not needed by the menu). A
-/// non-success status (e.g. discard's 409 when not confirmed) is an [`AppError`], never a panic.
-async fn post_expect_success(
+/// MT-153 C3: the immutable account context every account-scoped native client carries. `None` means no
+/// account session is bound; the shared authenticated helpers below then fail with "Account login
+/// required" BEFORE any socket is opened, so no unauthenticated request ever reaches the backend.
+pub type AccountContext = Option<Arc<crate::local_account::AuthenticatedContext>>;
+
+/// Send `request` through the canonical authenticated transport and, on a 2xx, decode its JSON body
+/// only while the captured account context is still active. Non-2xx keeps the historical
+/// `"{verb} non-success status {status}"` detail callers and panels already match on.
+async fn authenticated_json_expect_success(
     client: &reqwest::Client,
-    url: &str,
-    body: &serde_json::Value,
-) -> Result<(), AppError> {
-    let resp = client
-        .post(url)
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
+    account: AccountContext,
+    verb: &str,
+    request: reqwest::RequestBuilder,
+) -> Result<serde_json::Value, AppError> {
+    let context = account.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let resp = send_canvas_request(client, Some(context.clone()), request).await?;
     if !resp.status().is_success() {
         return Err(AppError::Http(format!(
-            "POST non-success status {}",
+            "{verb} non-success status {}",
+            resp.status()
+        )));
+    }
+    canvas_response_json(&context, resp).await
+}
+
+/// Send `request` through the canonical authenticated transport and treat any 2xx as success.
+async fn authenticated_expect_success(
+    client: &reqwest::Client,
+    account: AccountContext,
+    verb: &str,
+    request: reqwest::RequestBuilder,
+) -> Result<(), AppError> {
+    let resp = send_canvas_request(client, account, request).await?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!(
+            "{verb} non-success status {}",
             resp.status()
         )));
     }
     Ok(())
+}
+
+/// POST `body` and treat any 2xx as success (the receipt body is not needed by the menu). A
+/// non-success status (e.g. discard's 409 when not confirmed) is an [`AppError`], never a panic.
+/// MT-153 C3: sent with the bound account session; no context => "Account login required".
+async fn post_expect_success(
+    client: &reqwest::Client,
+    account: AccountContext,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<(), AppError> {
+    authenticated_expect_success(
+        client,
+        account,
+        "POST",
+        client.post(url).timeout(Duration::from_secs(5)).json(body),
+    )
+    .await
+}
+
+/// Authenticated counterpart of [`post_json_expect_value`] for account-scoped routes.
+async fn post_json_expect_value_authenticated(
+    client: &reqwest::Client,
+    account: AccountContext,
+    url: &str,
+    body: &serde_json::Value,
+    timeout: Duration,
+) -> Result<serde_json::Value, AppError> {
+    authenticated_json_expect_success(
+        client,
+        account,
+        "POST",
+        client.post(url).timeout(timeout).json(body),
+    )
+    .await
 }
 
 /// POST `body`, require a 2xx response, and return the JSON body. Used when a receipt body matters
@@ -1571,43 +1663,35 @@ async fn post_json_expect_value(
         .map_err(|e| AppError::Parse(e.to_string()))
 }
 
-/// PATCH `body` and treat any 2xx as success.
+/// PATCH `body` and treat any 2xx as success (MT-153 C3: authenticated account session).
 async fn patch_expect_success(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<(), AppError> {
-    let resp = client
-        .patch(url)
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "PATCH non-success status {}",
-            resp.status()
-        )));
-    }
-    Ok(())
+    authenticated_expect_success(
+        client,
+        account,
+        "PATCH",
+        client.patch(url).timeout(Duration::from_secs(5)).json(body),
+    )
+    .await
 }
 
-/// DELETE `url` and treat any 2xx as success.
-async fn delete_expect_success(client: &reqwest::Client, url: &str) -> Result<(), AppError> {
-    let resp = client
-        .delete(url)
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "DELETE non-success status {}",
-            resp.status()
-        )));
-    }
-    Ok(())
+/// DELETE `url` and treat any 2xx as success (MT-153 C3: authenticated account session).
+async fn delete_expect_success(
+    client: &reqwest::Client,
+    account: AccountContext,
+    url: &str,
+) -> Result<(), AppError> {
+    authenticated_expect_success(
+        client,
+        account,
+        "DELETE",
+        client.delete(url).timeout(Duration::from_secs(5)),
+    )
+    .await
 }
 
 /// GET `url?query` and return the string at top-level JSON `field` (e.g. the diff's `patch`).
@@ -1649,27 +1733,20 @@ async fn fetch_blame_text(
 }
 
 /// GET `url?query` and parse the JSON body. A non-success status or parse failure is an [`AppError`].
+/// MT-153 C3: sent with the bound account session; no context => "Account login required".
 async fn get_json(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     query: &[(String, String)],
 ) -> Result<serde_json::Value, AppError> {
-    let resp = client
-        .get(url)
-        .query(query)
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "GET non-success status {}",
-            resp.status()
-        )));
-    }
-    resp.json()
-        .await
-        .map_err(|e| AppError::Parse(e.to_string()))
+    authenticated_json_expect_success(
+        client,
+        account,
+        "GET",
+        client.get(url).query(query).timeout(Duration::from_secs(5)),
+    )
+    .await
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1746,6 +1823,7 @@ pub struct DrawerDataClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl DrawerDataClient {
@@ -1755,7 +1833,16 @@ impl DrawerDataClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -1807,8 +1894,9 @@ impl DrawerDataClient {
     pub fn fetch_count(&self, workspace_id: &str, kind: DrawerDataKind, cell: DrawerDataCell) {
         let spec = self.count_request(workspace_id, kind);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = fetch_view_count(&client, &spec.url, &spec.query).await;
+            let result = fetch_view_count(&client, account, &spec.url, &spec.query).await;
             deliver_drawer(&cell, kind, result.map_err(|e| e.to_string()));
         });
     }
@@ -1818,8 +1906,9 @@ impl DrawerDataClient {
     pub fn fetch_agenda(&self, workspace_id: &str, journal_date: &str, cell: DrawerDataCell) {
         let spec = self.journal_request(workspace_id, journal_date);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = fetch_daily_journal(&client, &spec.url).await;
+            let result = fetch_daily_journal(&client, account, &spec.url).await;
             deliver_drawer(
                 &cell,
                 DrawerDataKind::Agenda,
@@ -1845,10 +1934,11 @@ fn deliver_drawer(
 /// (CONTROL-023-D — never an error). A non-success status or parse failure is an [`AppError`].
 async fn fetch_view_count(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     query: &[(String, String)],
 ) -> Result<DrawerCardData, AppError> {
-    let v = get_json(client, url, query).await?;
+    let v = get_json(client, account, url, query).await?;
     let count = v
         .get("blocks")
         .and_then(|b| b.as_array())
@@ -1871,24 +1961,16 @@ async fn fetch_view_count(
 /// [`AppError`], never a panic.
 async fn fetch_daily_journal(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<DrawerCardData, AppError> {
-    let resp = client
-        .put(url)
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "PUT journal non-success status {}",
-            resp.status()
-        )));
-    }
-    let v: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Parse(e.to_string()))?;
+    let v = authenticated_json_expect_success(
+        client,
+        account,
+        "PUT journal",
+        client.put(url).timeout(Duration::from_secs(5)),
+    )
+    .await?;
     let title = v
         .get("title")
         .and_then(|x| x.as_str())
@@ -2035,6 +2117,7 @@ pub struct DrawerActionClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl DrawerActionClient {
@@ -2044,7 +2127,16 @@ impl DrawerActionClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -2116,8 +2208,9 @@ impl DrawerActionClient {
     pub fn discard(&self, workspace_id: &str, block_id: &str, cell: DrawerActionCell) {
         let spec = self.discard_request(workspace_id, block_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = delete_expect_success(&client, &spec.url).await;
+            let result = delete_expect_success(&client, account, &spec.url).await;
             deliver_drawer_action(&cell, result);
         });
     }
@@ -2200,16 +2293,18 @@ impl DrawerActionClient {
 
     fn spawn_post_receipt(&self, url: String, body: serde_json::Value, cell: DrawerActionCell) {
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = post_expect_success(&client, &url, &body).await;
+            let result = post_expect_success(&client, account, &url, &body).await;
             deliver_drawer_action(&cell, result);
         });
     }
 
     fn spawn_put_receipt(&self, url: String, body: serde_json::Value, cell: DrawerActionCell) {
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = put_expect_success(&client, &url, &body).await;
+            let result = put_expect_success(&client, account, &url, &body).await;
             deliver_drawer_action(&cell, result);
         });
     }
@@ -2225,23 +2320,17 @@ fn deliver_drawer_action(cell: &DrawerActionCell, result: Result<(), AppError>) 
 /// PUT `body` and treat any 2xx as success (the pin-order receipt body is not needed by the card).
 async fn put_expect_success(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<(), AppError> {
-    let resp = client
-        .put(url)
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "PUT non-success status {}",
-            resp.status()
-        )));
-    }
-    Ok(())
+    authenticated_expect_success(
+        client,
+        account,
+        "PUT",
+        client.put(url).timeout(Duration::from_secs(5)).json(body),
+    )
+    .await
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2346,6 +2435,7 @@ pub struct LoomGraphClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl LoomGraphClient {
@@ -2355,7 +2445,16 @@ impl LoomGraphClient {
             client: shared_http_client().clone(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -2426,8 +2525,9 @@ impl LoomGraphClient {
         let spec = self.global_request(workspace_id);
         let request = LoomGraphRequestIdentity::global(generation, workspace_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = fetch_graph_projection(&client, &spec.url, &spec.query).await;
+            let result = fetch_graph_projection(&client, account, &spec.url, &spec.query).await;
             deliver_graph(&cell, request, result.map_err(|e| e.to_string()));
         });
     }
@@ -2469,8 +2569,9 @@ impl LoomGraphClient {
         let request =
             LoomGraphRequestIdentity::local(generation, workspace_id, focus_block_id, depth);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = fetch_graph_projection(&client, &spec.url, &spec.query).await;
+            let result = fetch_graph_projection(&client, account, &spec.url, &spec.query).await;
             deliver_graph(&cell, request, result.map_err(|e| e.to_string()));
         });
     }
@@ -2528,10 +2629,11 @@ fn block_to_node(block: &serde_json::Value) -> Option<GraphNode> {
 /// list; when present it remains strictly typed. Empty node/edge arrays are a valid workspace (AC7).
 async fn fetch_graph_projection(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     query: &[(String, String)],
 ) -> Result<LoomGraphData, AppError> {
-    let v = get_json(client, url, query).await?;
+    let v = get_json(client, account, url, query).await?;
     parse_graph_projection(v)
 }
 
@@ -3310,8 +3412,8 @@ impl CanvasBoardClient {
             self.authenticated_context.clone(),
             &self.board_url(workspace_id, canvas_block_id),
         )
-            .await
-            .map_err(|error| error.to_string())
+        .await
+        .map_err(|error| error.to_string())
     }
 
     /// Find an already-persisted Stage capture card by its complete provenance tuple. This fresh-read
@@ -3344,8 +3446,8 @@ impl CanvasBoardClient {
                 &block_url,
                 &[],
             )
-                .await
-                .map_err(|error| error.to_string())?;
+            .await
+            .map_err(|error| error.to_string())?;
             if block.get("title").and_then(serde_json::Value::as_str)
                 != Some(expected_title.as_str())
             {
@@ -3510,7 +3612,10 @@ impl CanvasBoardClient {
             match send_canvas_request(
                 &self.client,
                 Some(authenticated_context.clone()),
-                self.client.post(&spec.url).timeout(Duration::from_secs(5)).json(body),
+                self.client
+                    .post(&spec.url)
+                    .timeout(Duration::from_secs(5))
+                    .json(body),
             )
             .await
             {
@@ -3718,12 +3823,9 @@ impl CanvasBoardClient {
         let client = self.client.clone();
         let authenticated_context = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = send_created_semantic_edge_authenticated(
-                &client,
-                authenticated_context,
-                &spec,
-            )
-            .await;
+            let result =
+                send_created_semantic_edge_authenticated(&client, authenticated_context, &spec)
+                    .await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|error| error.to_string()));
             }
@@ -3742,12 +3844,9 @@ impl CanvasBoardClient {
                 "created-placement dispatch only supports POST".to_owned(),
             ));
         }
-        let authenticated_context = self
-            .authenticated_context
-            .clone()
-            .ok_or_else(|| {
-                CanvasCreateReceiptError::Transport("Account login required".to_owned())
-            })?;
+        let authenticated_context = self.authenticated_context.clone().ok_or_else(|| {
+            CanvasCreateReceiptError::Transport("Account login required".to_owned())
+        })?;
         let empty = serde_json::json!({});
         let body = spec.body.as_ref().unwrap_or(&empty);
         let response = send_canvas_request(
@@ -3758,8 +3857,8 @@ impl CanvasBoardClient {
                 .timeout(Duration::from_secs(5))
                 .json(body),
         )
-            .await
-            .map_err(|error| CanvasCreateReceiptError::Transport(error.to_string()))?;
+        .await
+        .map_err(|error| CanvasCreateReceiptError::Transport(error.to_string()))?;
         if !response.status().is_success() {
             return Err(CanvasCreateReceiptError::Rejected(format!(
                 "POST non-success status {}",
@@ -3931,8 +4030,8 @@ async fn resolve_atelier_projection_and_place(
     w: f64,
     h: f64,
 ) -> Result<CreatedCanvasPlacement, AppError> {
-    let authenticated_context = authenticated_context
-        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let authenticated_context =
+        authenticated_context.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     // The Atelier API owns this durable relation. Never derive an identity from workspace/item strings:
     // doing so can make a frontend-only id look canonical and place the wrong or nonexistent block.
     let block_id = canonical_atelier_projection_block_id(atelier_ref)?.to_owned();
@@ -3966,14 +4065,13 @@ async fn resolve_atelier_projection_and_place(
 
     let board_url =
         format!("{base_url}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_block_id}");
-    if let Some(existing) =
-        find_reconciled_canvas_placement(
-            client,
-            Some(authenticated_context.clone()),
-            &board_url,
-            &block_id,
-        )
-        .await?
+    if let Some(existing) = find_reconciled_canvas_placement(
+        client,
+        Some(authenticated_context.clone()),
+        &board_url,
+        &block_id,
+    )
+    .await?
     {
         return Ok(existing);
     }
@@ -4008,13 +4106,8 @@ async fn resolve_atelier_projection_and_place(
     // from a fresh board after the POST, including conflict, transport loss, or a committed 2xx whose
     // receipt body is malformed. This makes a retry converge on the one canonical placement.
     if let Some(mut reconciled) =
-        find_reconciled_canvas_placement(
-            client,
-            Some(authenticated_context),
-            &board_url,
-            &block_id,
-        )
-        .await?
+        find_reconciled_canvas_placement(client, Some(authenticated_context), &board_url, &block_id)
+            .await?
     {
         reconciled.created_by_request = unambiguous_create;
         return Ok(reconciled);
@@ -4110,8 +4203,8 @@ async fn send_canvas_request(
     authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     request: reqwest::RequestBuilder,
 ) -> Result<reqwest::Response, AppError> {
-    let context = authenticated_context
-        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let context =
+        authenticated_context.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     crate::local_account::AuthenticatedRequest::new(client.clone(), Some(context), request)
         .send()
         .await
@@ -4124,15 +4217,12 @@ async fn get_json_authenticated(
     url: &str,
     query: &[(String, String)],
 ) -> Result<serde_json::Value, AppError> {
-    let context = authenticated_context
-        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let context =
+        authenticated_context.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     crate::local_account::AuthenticatedRequest::new(
         client.clone(),
         Some(context),
-        client
-            .get(url)
-            .query(query)
-            .timeout(Duration::from_secs(5)),
+        client.get(url).query(query).timeout(Duration::from_secs(5)),
     )
     .json()
     .await
@@ -4151,7 +4241,9 @@ async fn canvas_response_json(
         .await
         .map_err(|error| AppError::Parse(error.to_string()))?;
     if !authenticated_context.is_active() {
-        return Err(AppError::Http("Account session is no longer active".to_owned()));
+        return Err(AppError::Http(
+            "Account session is no longer active".to_owned(),
+        ));
     }
     Ok(value)
 }
@@ -4206,8 +4298,8 @@ async fn send_canvas_viewport_mutation(
             "viewport dispatch only supports PUT".to_owned(),
         ));
     }
-    let authenticated_context = authenticated_context
-        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let authenticated_context =
+        authenticated_context.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     let empty = serde_json::json!({});
     let response = send_canvas_request(
         client,
@@ -4339,8 +4431,8 @@ async fn send_canvas_placement_removal(
             "placement-removal dispatch only supports DELETE".to_owned(),
         ));
     }
-    let authenticated_context = authenticated_context
-        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let authenticated_context =
+        authenticated_context.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     let response = send_canvas_request(
         client,
         Some(authenticated_context.clone()),
@@ -4425,8 +4517,8 @@ async fn send_canvas_created_placement(
             "created-placement dispatch only supports POST".to_owned(),
         ));
     }
-    let authenticated_context = authenticated_context
-        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let authenticated_context =
+        authenticated_context.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     let empty = serde_json::json!({});
     let body = spec.body.as_ref().unwrap_or(&empty);
     let response = send_canvas_request(
@@ -4479,8 +4571,8 @@ async fn send_created_semantic_edge_authenticated(
             "created-semantic-edge dispatch only supports POST".to_owned(),
         ));
     }
-    let authenticated_context = authenticated_context
-        .ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
+    let authenticated_context =
+        authenticated_context.ok_or_else(|| AppError::Http("Account login required".to_owned()))?;
     let body = spec
         .body
         .as_ref()
@@ -4843,9 +4935,8 @@ async fn fetch_live_block_authenticated(
     expected_workspace_id: &str,
     expected_block_id: &str,
 ) -> Result<LiveBlock, LiveBlockResolveError> {
-    let authenticated_context = authenticated_context.ok_or_else(|| {
-        LiveBlockResolveError::Unavailable("Account login required".to_owned())
-    })?;
+    let authenticated_context = authenticated_context
+        .ok_or_else(|| LiveBlockResolveError::Unavailable("Account login required".to_owned()))?;
     fetch_live_block_inner(
         client,
         authenticated_context,
@@ -5010,6 +5101,7 @@ pub struct LoomFolderClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl LoomFolderClient {
@@ -5021,7 +5113,16 @@ impl LoomFolderClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -5163,9 +5264,10 @@ impl LoomFolderClient {
     ) {
         let spec = self.list_folders_request(workspace_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let workspace_id = workspace_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_folder_rows(&client, &spec.url).await;
+            let result = fetch_folder_rows(&client, account, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     workspace_id,
@@ -5190,10 +5292,11 @@ impl LoomFolderClient {
     ) {
         let url = self.folder_blocks_url(workspace_id, folder_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let workspace_id = workspace_id.to_owned();
         let folder_id = folder_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_all_folder_leaves(&client, &url).await;
+            let result = fetch_all_folder_leaves(&client, account, &url).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((
                     workspace_id,
@@ -5221,10 +5324,11 @@ impl LoomFolderClient {
         let spec = self.recolor_request(workspace_id, folder_id, hex);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let workspace_id = workspace_id.to_owned();
         let folder_id = folder_id.to_owned();
         self.runtime.spawn(async move {
-            let result = patch_expect_success(&client, &spec.url, &body).await;
+            let result = patch_expect_success(&client, account, &spec.url, &body).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((
                     workspace_id,
@@ -5246,22 +5350,29 @@ impl LoomFolderClient {
         cell: FolderWriteCell,
     ) {
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let workspace_id = workspace_id.to_owned();
         self.runtime.spawn(async move {
             let result = match spec.method {
                 HttpMethod::Post => {
                     let body = spec.body.as_ref().expect("folder POST body");
-                    post_json_expect_value(&client, &spec.url, body, Duration::from_secs(5))
-                        .await
-                        .and_then(|value| folder_to_row(&value).map(Some))
+                    post_json_expect_value_authenticated(
+                        &client,
+                        account,
+                        &spec.url,
+                        body,
+                        Duration::from_secs(5),
+                    )
+                    .await
+                    .and_then(|value| folder_to_row(&value).map(Some))
                 }
                 HttpMethod::Patch => {
                     let body = spec.body.as_ref().expect("folder PATCH body");
-                    patch_json_expect_value(&client, &spec.url, body)
+                    patch_json_expect_value(&client, account, &spec.url, body)
                         .await
                         .and_then(|value| folder_to_row(&value).map(Some))
                 }
-                HttpMethod::Delete => delete_expect_success(&client, &spec.url)
+                HttpMethod::Delete => delete_expect_success(&client, account, &spec.url)
                     .await
                     .map(|_| None),
                 _ => Err(AppError::Http(
@@ -5358,26 +5469,17 @@ impl LoomFolderClient {
 
 async fn patch_json_expect_value(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<serde_json::Value, AppError> {
-    let response = client
-        .patch(url)
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
-        .map_err(|error| AppError::Http(error.to_string()))?;
-    if !response.status().is_success() {
-        return Err(AppError::Http(format!(
-            "PATCH non-success status {}",
-            response.status()
-        )));
-    }
-    response
-        .json()
-        .await
-        .map_err(|error| AppError::Parse(error.to_string()))
+    authenticated_json_expect_success(
+        client,
+        account,
+        "PATCH",
+        client.patch(url).timeout(Duration::from_secs(5)).json(body),
+    )
+    .await
 }
 
 /// Parse one verified `LoomFolder` JSON object into a [`FolderRow`]. The complete canonical wire shape
@@ -5502,9 +5604,10 @@ fn block_to_leaf(block: &serde_json::Value) -> Result<LeafBlock, AppError> {
 /// (AC8), never silently reinterpreted as an empty workspace.
 async fn fetch_folder_rows(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<Vec<FolderRow>, AppError> {
-    let v = get_json(client, url, &[]).await?;
+    let v = get_json(client, account, url, &[]).await?;
     let array = v
         .as_array()
         .ok_or_else(|| AppError::Parse("Loom folder list response must be an array".to_owned()))?;
@@ -5524,10 +5627,11 @@ async fn fetch_folder_rows(
 /// or malformed block row is a typed parse error, never silently dropped.
 async fn fetch_folder_leaves(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     query: &[(String, String)],
 ) -> Result<Vec<LeafBlock>, AppError> {
-    let v = get_json(client, url, query).await?;
+    let v = get_json(client, account, url, query).await?;
     let array = v.as_array().ok_or_else(|| {
         AppError::Parse("Loom folder children response must be an array".to_owned())
     })?;
@@ -5546,6 +5650,7 @@ async fn fetch_folder_leaves(
 /// pages or a folder beyond the explicit safety ceiling fail closed as a typed pane error.
 async fn fetch_all_folder_leaves(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<Vec<LeafBlock>, AppError> {
     let mut all = Vec::new();
@@ -5556,7 +5661,7 @@ async fn fetch_all_folder_leaves(
             ("limit".to_owned(), FOLDER_CHILD_PAGE_SIZE.to_string()),
             ("offset".to_owned(), offset.to_string()),
         ];
-        let page = fetch_folder_leaves(client, url, &query).await?;
+        let page = fetch_folder_leaves(client, account.clone(), url, &query).await?;
         let page_len = page.len();
         for leaf in page {
             if !seen.insert(leaf.block_id.clone()) {
@@ -5668,6 +5773,7 @@ pub struct LoomTagClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl LoomTagClient {
@@ -5677,7 +5783,16 @@ impl LoomTagClient {
             client: shared_http_client().clone(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -5800,9 +5915,10 @@ impl LoomTagClient {
     ) {
         let spec = self.list_tags_request(workspace_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_all_tag_entries(&client, &spec.url).await;
+            let result = fetch_all_tag_entries(&client, account, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     delivered_workspace,
@@ -5842,11 +5958,12 @@ impl LoomTagClient {
     ) {
         let spec = self.tag_detail_request(workspace_id, tag_block_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_hub = tag_block_id.to_owned();
         let fallback_id = tag_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_tag_hub_detail(&client, &spec.url, &fallback_id).await;
+            let result = fetch_tag_hub_detail(&client, account, &spec.url, &fallback_id).await;
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     delivered_workspace,
@@ -5887,10 +6004,11 @@ impl LoomTagClient {
     ) {
         let spec = self.list_members_request(workspace_id, tag_block_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_hub = tag_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_tag_members(&client, &spec.url, &spec.query).await;
+            let result = fetch_tag_members(&client, account, &spec.url, &spec.query).await;
             if let Ok(mut slot) = cell.lock() {
                 // The member-list route carries no hub title; deliver an empty title so the host keeps
                 // its existing title and replaces only the members.
@@ -5933,10 +6051,11 @@ impl LoomTagClient {
     ) {
         let spec = self.search_blocks_request(workspace_id, q);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_query = q.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_add_tag_candidates(&client, &spec.url, &spec.query).await;
+            let result = fetch_add_tag_candidates(&client, account, &spec.url, &spec.query).await;
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     delivered_workspace,
@@ -5994,10 +6113,11 @@ impl LoomTagClient {
         let spec = self.tag_block_request(workspace_id, source_block_id, hub_block_id);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_hub = hub_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = post_expect_success(&client, &spec.url, &body).await;
+            let result = post_expect_success(&client, account, &spec.url, &body).await;
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     delivered_workspace,
@@ -6075,10 +6195,11 @@ fn block_to_hub_member(block: &serde_json::Value) -> Result<HubMember, AppError>
 /// failure is an [`AppError`] (the error banner).
 async fn fetch_tag_entries_page(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     query: &[(String, String)],
 ) -> Result<Vec<TagEntry>, AppError> {
-    let value = get_json(client, url, query).await?;
+    let value = get_json(client, account, url, query).await?;
     parse_tag_entries_page(&value)
 }
 
@@ -6100,6 +6221,7 @@ fn parse_tag_entries_page(value: &serde_json::Value) -> Result<Vec<TagEntry>, Ap
 /// explicit safety ceiling fail closed rather than yielding a partial successful list.
 async fn fetch_all_tag_entries(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<Vec<TagEntry>, AppError> {
     let mut all = Vec::new();
@@ -6110,7 +6232,7 @@ async fn fetch_all_tag_entries(
             ("limit".to_owned(), TAG_HUB_PAGE_SIZE.to_string()),
             ("offset".to_owned(), offset.to_string()),
         ];
-        let page = fetch_tag_entries_page(client, url, &query).await?;
+        let page = fetch_tag_entries_page(client, account.clone(), url, &query).await?;
         let page_len = page.len();
         for entry in page {
             if !seen.insert(entry.block_id.clone()) {
@@ -6140,10 +6262,11 @@ async fn fetch_all_tag_entries(
 /// `tagged_blocks` array. A non-success status / parse failure is an [`AppError`].
 async fn fetch_tag_hub_detail(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     expected_id: &str,
 ) -> Result<(String, Vec<HubMember>), AppError> {
-    let v = get_json(client, url, &[]).await?;
+    let v = get_json(client, account, url, &[]).await?;
     parse_tag_hub_detail(&v, expected_id)
 }
 
@@ -6207,10 +6330,11 @@ fn parse_tag_hub_detail(
 /// empty array yields an empty member list, never an error.
 async fn fetch_tag_members(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     query: &[(String, String)],
 ) -> Result<Vec<HubMember>, AppError> {
-    let v = get_json(client, url, query).await?;
+    let v = get_json(client, account, url, query).await?;
     parse_tag_members(&v)
 }
 
@@ -6286,10 +6410,11 @@ fn parse_add_tag_candidates(v: &serde_json::Value) -> Result<Vec<AddTagCandidate
 /// never an error.
 async fn fetch_add_tag_candidates(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     query: &[(String, String)],
 ) -> Result<Vec<AddTagCandidate>, AppError> {
-    let v = get_json(client, url, query).await?;
+    let v = get_json(client, account, url, query).await?;
     parse_add_tag_candidates(&v)
 }
 
@@ -6471,6 +6596,7 @@ pub struct LoomSidebarClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl LoomSidebarClient {
@@ -6480,7 +6606,16 @@ impl LoomSidebarClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -6623,9 +6758,10 @@ impl LoomSidebarClient {
     ) {
         let spec = self.pins_request(workspace_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_view_blocks(&client, &spec.url, &spec.query).await;
+            let result = fetch_view_blocks(&client, account, &spec.url, &spec.query).await;
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back((
                     delivered_workspace,
@@ -6651,9 +6787,10 @@ impl LoomSidebarClient {
     ) {
         let spec = self.favorites_request(workspace_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_view_blocks(&client, &spec.url, &spec.query).await;
+            let result = fetch_view_blocks(&client, account, &spec.url, &spec.query).await;
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back((
                     delivered_workspace,
@@ -6689,10 +6826,11 @@ impl LoomSidebarClient {
     ) {
         let spec = self.backlinks_request(workspace_id, block_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_backlink_rows(&client, &spec.url).await;
+            let result = fetch_backlink_rows(&client, account, &spec.url).await;
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back((
                     delivered_workspace,
@@ -6729,10 +6867,11 @@ impl LoomSidebarClient {
     ) {
         let spec = self.unlinked_request(workspace_id, block_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_unlinked_rows(&client, &spec.url).await;
+            let result = fetch_unlinked_rows(&client, account, &spec.url).await;
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back((
                     delivered_workspace,
@@ -6775,11 +6914,13 @@ impl LoomSidebarClient {
         let remove = self.remove_pin_request(workspace_id, block_id);
         let remove_body = remove.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
             let result = sidebar_pin_mutation_receipt(
                 &client,
+                account,
                 &remove.url,
                 &remove_body,
                 &delivered_workspace,
@@ -6816,11 +6957,13 @@ impl LoomSidebarClient {
         let body = unfav.body.unwrap_or_default();
         let ledger_url = self.block_event_ledger_url(block_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
             let result = sidebar_mutation_receipt(
                 &client,
+                account,
                 HttpMethod::Patch,
                 &unfav.url,
                 &body,
@@ -6849,6 +6992,7 @@ impl LoomSidebarClient {
 /// request. No aggregate scan or newest-event heuristic participates in this receipt.
 async fn sidebar_pin_mutation_receipt(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     body: &serde_json::Value,
     workspace_id: &str,
@@ -6859,16 +7003,16 @@ async fn sidebar_pin_mutation_receipt(
         workspace_id,
         block_id,
     );
-    let response = match client
-        .post(url)
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
+    let response = match send_canvas_request(
+        client,
+        account,
+        client.post(url).timeout(Duration::from_secs(5)).json(body),
+    )
+    .await
     {
         Ok(response) => response,
         Err(error) => {
-            let message = AppError::Http(error.to_string()).to_string();
+            let message = error.to_string();
             receipt.failure = Some(message.clone());
             return Err(SidebarMutationFailure {
                 message,
@@ -7029,6 +7173,7 @@ fn parse_pin_mutation_receipt(
 #[allow(clippy::too_many_arguments)]
 async fn sidebar_mutation_receipt(
     client: &reqwest::Client,
+    account: AccountContext,
     method: HttpMethod,
     url: &str,
     body: &serde_json::Value,
@@ -7043,15 +7188,16 @@ async fn sidebar_mutation_receipt(
         HttpMethod::Patch => client.patch(url),
         _ => client.post(url),
     };
-    let response = match request
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
+    let response = match send_canvas_request(
+        client,
+        account.clone(),
+        request.timeout(Duration::from_secs(5)).json(body),
+    )
+    .await
     {
         Ok(response) => response,
         Err(error) => {
-            let message = AppError::Http(error.to_string()).to_string();
+            let message = error.to_string();
             receipt.failure = Some(message.clone());
             return Err(SidebarMutationFailure {
                 message,
@@ -7134,7 +7280,7 @@ async fn sidebar_mutation_receipt(
         });
     }
     receipt.outcome = SidebarMutationReceipt::OUTCOME_PERSISTED.to_owned();
-    correlate_block_event_ledger(client, ledger_url, ledger_operation, &mut receipt).await;
+    correlate_block_event_ledger(client, account, ledger_url, ledger_operation, &mut receipt).await;
     Ok(receipt)
 }
 
@@ -7143,15 +7289,17 @@ async fn sidebar_mutation_receipt(
 /// recorded as a typed `event_ledger_lookup` state and never silently dropped.
 async fn correlate_block_event_ledger(
     client: &reqwest::Client,
+    account: AccountContext,
     ledger_url: &str,
     ledger_operation: &str,
     receipt: &mut SidebarMutationReceipt,
 ) {
-    let events = match client
-        .get(ledger_url)
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
+    let events = match send_canvas_request(
+        client,
+        account,
+        client.get(ledger_url).timeout(Duration::from_secs(5)),
+    )
+    .await
     {
         Ok(response) if response.status().is_success() => {
             match response.json::<Vec<serde_json::Value>>().await {
@@ -7296,10 +7444,11 @@ pub fn parse_sidebar_view_blocks(
 /// an [`AppError`] surfaced by the AC9 error banner.
 async fn fetch_view_blocks(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     query: &[(String, String)],
 ) -> Result<Vec<SidebarBlock>, AppError> {
-    let v = get_json(client, url, query).await?;
+    let v = get_json(client, account, url, query).await?;
     let expected_view_type = if url.ends_with("/pins") {
         "pins"
     } else if url.ends_with("/favorites") {
@@ -7318,9 +7467,10 @@ async fn fetch_view_blocks(
 /// optional context snippet is retained. A present empty array is valid; malformed rows fail closed.
 async fn fetch_backlink_rows(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<Vec<BacklinkRow>, AppError> {
-    let v = get_json(client, url, &[]).await?;
+    let v = get_json(client, account, url, &[]).await?;
     parse_sidebar_backlinks(&v)
 }
 
@@ -7383,9 +7533,10 @@ pub fn parse_sidebar_backlinks(value: &serde_json::Value) -> Result<Vec<Backlink
 /// is valid; malformed rows fail closed.
 async fn fetch_unlinked_rows(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<Vec<UnlinkedRow>, AppError> {
-    let v = get_json(client, url, &[]).await?;
+    let v = get_json(client, account, url, &[]).await?;
     parse_sidebar_unlinked(&v)
 }
 
@@ -7805,6 +7956,7 @@ pub struct LoomWikiClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl LoomWikiClient {
@@ -7814,7 +7966,16 @@ impl LoomWikiClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: every route this client calls runs as the account record user and returns the
+    /// constant 403 without the account session headers. Bind the immutable account context; with none,
+    /// every request fails with "Account login required" before any socket is opened.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -7895,11 +8056,19 @@ impl LoomWikiClient {
         let spec = self.load_request(workspace_id, projection_id);
         let overlays_url = self.overlays_url(workspace_id, projection_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let workspace_id = workspace_id.to_owned();
         let pid = projection_id.to_owned();
         self.runtime.spawn(async move {
-            let result =
-                fetch_wiki_projection(&client, &spec.url, &overlays_url, &workspace_id, &pid).await;
+            let result = fetch_wiki_projection(
+                &client,
+                account,
+                &spec.url,
+                &overlays_url,
+                &workspace_id,
+                &pid,
+            )
+            .await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
             }
@@ -7917,11 +8086,13 @@ impl LoomWikiClient {
         let spec = self.load_request(&identity.workspace_id, &identity.projection_id);
         let overlays_url = self.overlays_url(&identity.workspace_id, &identity.projection_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let requested_workspace_id = identity.workspace_id.clone();
         let requested_id = identity.projection_id.clone();
         self.runtime.spawn(async move {
             let result = fetch_wiki_projection(
                 &client,
+                account,
                 &spec.url,
                 &overlays_url,
                 &requested_workspace_id,
@@ -7950,11 +8121,19 @@ impl LoomWikiClient {
         let spec = self.regenerate_request(workspace_id, projection_id);
         let overlays_url = self.overlays_url(workspace_id, projection_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let workspace_id = workspace_id.to_owned();
         let pid = projection_id.to_owned();
         self.runtime.spawn(async move {
-            let result =
-                post_wiki_regenerate(&client, &spec.url, &overlays_url, &workspace_id, &pid).await;
+            let result = post_wiki_regenerate(
+                &client,
+                account,
+                &spec.url,
+                &overlays_url,
+                &workspace_id,
+                &pid,
+            )
+            .await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
             }
@@ -7970,11 +8149,13 @@ impl LoomWikiClient {
         let spec = self.regenerate_request(&identity.workspace_id, &identity.projection_id);
         let overlays_url = self.overlays_url(&identity.workspace_id, &identity.projection_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let requested_workspace_id = identity.workspace_id.clone();
         let requested_id = identity.projection_id.clone();
         self.runtime.spawn(async move {
             let result = post_wiki_regenerate(
                 &client,
+                account,
                 &spec.url,
                 &overlays_url,
                 &requested_workspace_id,
@@ -8006,8 +8187,9 @@ impl LoomWikiClient {
         let spec = self.add_overlay_request(workspace_id, projection_id, annotation, anchor);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = post_expect_success(&client, &spec.url, &body).await;
+            let result = post_expect_success(&client, account, &spec.url, &body).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
             }
@@ -8031,18 +8213,25 @@ impl LoomWikiClient {
         );
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.spawn(async move {
-            let result = post_json_expect_value(&client, &spec.url, &body, Duration::from_secs(5))
-                .await
-                .and_then(|value| {
-                    parse_wiki_overlay(
-                        &value,
-                        &identity.workspace_id,
-                        &identity.projection_id,
-                        "WikiOverlay.POST",
-                    )
-                })
-                .map_err(|e| e.to_string());
+            let result = post_json_expect_value_authenticated(
+                &client,
+                account,
+                &spec.url,
+                &body,
+                Duration::from_secs(5),
+            )
+            .await
+            .and_then(|value| {
+                parse_wiki_overlay(
+                    &value,
+                    &identity.workspace_id,
+                    &identity.projection_id,
+                    "WikiOverlay.POST",
+                )
+            })
+            .map_err(|e| e.to_string());
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back(WikiSaveDelivery {
                     identity,
@@ -8058,15 +8247,16 @@ impl LoomWikiClient {
 /// parse failure is an [`AppError`] (AC8). `requested_id` is the GET's projection id (the parse fallback).
 async fn fetch_wiki_projection(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     overlays_url: &str,
     requested_workspace_id: &str,
     requested_projection_id: &str,
 ) -> Result<WikiProjection, AppError> {
-    let v = get_json(client, url, &[]).await?;
+    let v = get_json(client, account.clone(), url, &[]).await?;
     let mut projection =
         WikiProjection::from_json(&v, requested_workspace_id, requested_projection_id)?;
-    let overlays = get_json(client, overlays_url, &[]).await?;
+    let overlays = get_json(client, account, overlays_url, &[]).await?;
     projection.overlays =
         parse_wiki_overlays(&overlays, requested_workspace_id, requested_projection_id)?;
     Ok(projection)
@@ -8076,30 +8266,22 @@ async fn fetch_wiki_projection(
 /// status or parse failure is an [`AppError`].
 async fn post_wiki_regenerate(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     overlays_url: &str,
     requested_workspace_id: &str,
     requested_projection_id: &str,
 ) -> Result<WikiProjection, AppError> {
-    let resp = client
-        .post(url)
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "POST regenerate non-success status {}",
-            resp.status()
-        )));
-    }
-    let v: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::Parse(e.to_string()))?;
+    let v = authenticated_json_expect_success(
+        client,
+        account.clone(),
+        "POST regenerate",
+        client.post(url).timeout(Duration::from_secs(5)),
+    )
+    .await?;
     let mut projection =
         WikiProjection::from_json(&v, requested_workspace_id, requested_projection_id)?;
-    let overlays = get_json(client, overlays_url, &[]).await?;
+    let overlays = get_json(client, account, overlays_url, &[]).await?;
     projection.overlays =
         parse_wiki_overlays(&overlays, requested_workspace_id, requested_projection_id)?;
     Ok(projection)
@@ -9383,10 +9565,8 @@ async fn block_view_send(
         .send()
         .await
         .map_err(AppError::Http),
-        None => request
-            .send()
-            .await
-            .map_err(|e| AppError::Http(e.to_string())),
+        // MT-153 C3: never send an unauthenticated Loom request.
+        None => Err(AppError::Http("Account login required".to_owned())),
     }
 }
 
@@ -9465,25 +9645,11 @@ async fn block_view_patch_expect_success(
 /// failure is an [`AppError`]. Used by the block-view query + create (both POST + read a body).
 async fn post_json(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<serde_json::Value, AppError> {
-    let resp = client
-        .post(url)
-        .timeout(Duration::from_secs(5))
-        .json(body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "POST non-success status {}",
-            resp.status()
-        )));
-    }
-    resp.json()
-        .await
-        .map_err(|e| AppError::Parse(e.to_string()))
+    post_json_expect_value_authenticated(client, account, url, body, Duration::from_secs(5)).await
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -9626,6 +9792,7 @@ pub struct LoomSearchV2Client {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl LoomSearchV2Client {
@@ -9635,7 +9802,15 @@ impl LoomSearchV2Client {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: Loom search and saved-view routes run as the account record user. Bind the
+    /// immutable account context; with none, every request fails with "Account login required".
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -9707,9 +9882,10 @@ impl LoomSearchV2Client {
         let spec = self.search_request(workspace_id, body);
         let req_body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let url = spec.url;
         self.runtime.spawn(async move {
-            let result = post_loom_search_v2(&client, &url, &req_body)
+            let result = post_loom_search_v2(&client, account, &url, &req_body)
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
@@ -9730,9 +9906,10 @@ impl LoomSearchV2Client {
         let spec = self.save_view_request(workspace_id, block_id, query_text, active_content_type);
         let req_body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let url = spec.url;
         self.runtime.spawn(async move {
-            let result = post_create_block_view(&client, &None, &url, &req_body)
+            let result = post_create_block_view(&client, &account, &url, &req_body)
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
@@ -9746,10 +9923,11 @@ impl LoomSearchV2Client {
 /// status or a parse failure is an [`AppError`] (NEVER a panic; the panel shows the error string).
 async fn post_loom_search_v2(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
     body: &serde_json::Value,
 ) -> Result<LoomSearchV2Response, AppError> {
-    let v = post_json(client, url, body).await?;
+    let v = post_json(client, account, url, body).await?;
     serde_json::from_value(v).map_err(|e| AppError::Parse(e.to_string()))
 }
 
@@ -10142,7 +10320,7 @@ impl WorkspaceSearchClient {
                     opts,
                     offset,
                 );
-                match get_json(&client, &url, &params).await {
+                match get_json(&client, this.authenticated_context.clone(), &url, &params).await {
                     Ok(v) => {
                         let page = match parse_graph_search_page(&v) {
                             Ok(page) => page,
@@ -11163,6 +11341,7 @@ pub struct AtelierClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
 }
 
 impl AtelierClient {
@@ -11172,7 +11351,15 @@ impl AtelierClient {
             client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-156: every `/atelier/*` route requires the account session. Bind the immutable account
+    /// context; with none, every read fails with "Account login required" before any socket.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
@@ -11217,9 +11404,10 @@ impl AtelierClient {
         let batches_url = self.batches_request().url;
         let corpus_url = self.corpus_request().url;
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
-            let result = load_atelier_side_panel(&client, &batches_url, &corpus_url).await;
+            let result = load_atelier_side_panel(&client, account, &batches_url, &corpus_url).await;
             operation_handle.tick();
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((generation, result.map_err(|e| e.to_string())));
@@ -11233,10 +11421,11 @@ impl AtelierClient {
     pub fn fetch_items(&self, generation: u64, batch_id: &str, cell: AtelierItemsCell) {
         let url = self.items_request(batch_id).url;
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         let id = batch_id.to_owned();
         let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
-            let result = fetch_atelier_items(&client, &url)
+            let result = fetch_atelier_items(&client, account, &url)
                 .await
                 .map_err(|e| e.to_string());
             operation_handle.tick();
@@ -11250,12 +11439,13 @@ impl AtelierClient {
 /// GET the two side-panel reads and assemble the projection. Either read failing fails the whole load.
 async fn load_atelier_side_panel(
     client: &reqwest::Client,
+    account: AccountContext,
     batches_url: &str,
     corpus_url: &str,
 ) -> Result<AtelierSidePanelData, AppError> {
     let (batches, corpus) = tokio::try_join!(
-        fetch_atelier_batches(client, batches_url),
-        fetch_atelier_corpus(client, corpus_url)
+        fetch_atelier_batches(client, account.clone(), batches_url),
+        fetch_atelier_corpus(client, account, corpus_url)
     )?;
     Ok(AtelierSidePanelData { batches, corpus })
 }
@@ -11271,10 +11461,13 @@ struct AtelierBatchWire {
 /// row fails the load visibly instead of silently disappearing or acquiring a fabricated default.
 async fn fetch_atelier_batches(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<Vec<AtelierBatchRow>, AppError> {
-    let wire: Vec<AtelierBatchWire> = serde_json::from_value(get_json(client, url, &[]).await?)
-        .map_err(|error| AppError::Parse(format!("atelier batches response malformed: {error}")))?;
+    let wire: Vec<AtelierBatchWire> =
+        serde_json::from_value(get_json(client, account, url, &[]).await?).map_err(|error| {
+            AppError::Parse(format!("atelier batches response malformed: {error}"))
+        })?;
     let rows: Vec<AtelierBatchRow> = wire
         .into_iter()
         .enumerate()
@@ -11323,10 +11516,11 @@ struct AtelierCorpusWire {
 /// `GET {url}` and parse the `Vec<CommandCorpusEntryResponse>` into [`AtelierCorpusRow`]s.
 async fn fetch_atelier_corpus(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<Vec<AtelierCorpusRow>, AppError> {
-    let wire: Vec<AtelierCorpusWire> = serde_json::from_value(get_json(client, url, &[]).await?)
-        .map_err(|error| {
+    let wire: Vec<AtelierCorpusWire> =
+        serde_json::from_value(get_json(client, account, url, &[]).await?).map_err(|error| {
             AppError::Parse(format!(
                 "atelier command-corpus response malformed: {error}"
             ))
@@ -11388,9 +11582,10 @@ struct AtelierItemWire {
 /// `GET {url}` and parse the `IntakeBatchItemsResponse.items[]` into [`AtelierItemRow`]s.
 async fn fetch_atelier_items(
     client: &reqwest::Client,
+    account: AccountContext,
     url: &str,
 ) -> Result<Vec<AtelierItemRow>, AppError> {
-    parse_atelier_items(get_json(client, url, &[]).await?)
+    parse_atelier_items(get_json(client, account, url, &[]).await?)
 }
 
 fn parse_atelier_items(value: serde_json::Value) -> Result<Vec<AtelierItemRow>, AppError> {
@@ -11813,7 +12008,8 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
-        let client = SourceControlClient::new(base, rt.handle().clone());
+        let client = SourceControlClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: ScmReceiptCell = Arc::new(Mutex::new(None));
         // Drive the REAL spawn path (the same call apply_source_control_event makes).
         client.stage_paths(ScmWriteOp::Stage, "/repo", "src/x.rs", cell.clone());
@@ -11900,7 +12096,8 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
-        let client = DrawerDataClient::new(base, rt.handle().clone());
+        let client = DrawerDataClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: DrawerDataCell = Arc::new(Mutex::new(None));
         client.fetch_count("ws1", DrawerDataKind::Notes, cell.clone());
 
@@ -12031,7 +12228,8 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
-        let client = DrawerActionClient::new(base, rt.handle().clone());
+        let client = DrawerActionClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: DrawerActionCell = Arc::new(Mutex::new(None));
         client.discard("ws1", "b3", cell.clone());
 
@@ -12068,7 +12266,8 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
-        let client = DrawerActionClient::new(base, rt.handle().clone());
+        let client = DrawerActionClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: DrawerActionCell = Arc::new(Mutex::new(None));
         client.stow("ws1", "b3", cell.clone());
 
@@ -12114,7 +12313,8 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
-        let client = DrawerDataClient::new(base, rt.handle().clone());
+        let client = DrawerDataClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: DrawerDataCell = Arc::new(Mutex::new(None));
         client.fetch_count("ws1", DrawerDataKind::Lists, cell.clone());
 
@@ -12157,7 +12357,8 @@ mod tests {
             "http://{}",
             listener.local_addr().expect("listener address")
         );
-        let client = LoomFolderClient::new(base, rt.handle().clone());
+        let client = LoomFolderClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: FolderListCell = Arc::new(Mutex::new(VecDeque::new()));
         client.fetch_folders("ws-malformed", 7, 11, Arc::clone(&cell));
         let _ = capture_one_request_reply(listener, r#"{"folders":[]}"#);
@@ -12196,7 +12397,8 @@ mod tests {
             "http://{}",
             listener.local_addr().expect("listener address")
         );
-        let client = LoomFolderClient::new(base, rt.handle().clone());
+        let client = LoomFolderClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: FolderListCell = Arc::new(Mutex::new(VecDeque::new()));
         client.fetch_folders("ws-malformed", 8, 12, Arc::clone(&cell));
         let _ = capture_one_request_reply(listener, r#"[{"folder_id":"", "name":"empty id"}]"#);
@@ -12247,7 +12449,8 @@ mod tests {
             "http://{}",
             listener.local_addr().expect("listener address")
         );
-        let client = LoomFolderClient::new(base, rt.handle().clone());
+        let client = LoomFolderClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: FolderChildrenCell = Arc::new(Mutex::new(None));
         client.fetch_folder_blocks("ws-paged", "folder-paged", 3, 7, Arc::clone(&cell));
 
@@ -12300,7 +12503,8 @@ mod tests {
             "http://{}",
             listener.local_addr().expect("listener address")
         );
-        let client = LoomFolderClient::new(base, rt.handle().clone());
+        let client = LoomFolderClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: FolderChildrenCell = Arc::new(Mutex::new(None));
         client.fetch_folder_blocks("ws-malformed", "folder-1", 9, 13, Arc::clone(&cell));
         let _ = capture_one_request_reply(listener, r#"[{"title":"missing id"}]"#);
@@ -12857,7 +13061,8 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
-        let client = LoomGraphClient::new(base, rt.handle().clone());
+        let client = LoomGraphClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: LoomGraphCell = Arc::new(Mutex::new(VecDeque::new()));
         client.fetch_global("ws1", 41, cell.clone());
 
@@ -12925,7 +13130,8 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
-        let client = LoomGraphClient::new(base, rt.handle().clone());
+        let client = LoomGraphClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
         let cell: LoomGraphCell = Arc::new(Mutex::new(VecDeque::new()));
         client.fetch_global("ws1", 42, cell.clone());
 
@@ -13097,6 +13303,7 @@ mod tests {
         let tags = rt
             .block_on(fetch_all_tag_entries(
                 &client,
+                Some(crate::local_account::mock_account_context(&base)),
                 &format!("{base}/workspaces/ws1/loom/tags"),
             ))
             .expect("all tag pages parse");
@@ -13869,7 +14076,10 @@ mod tests {
             loop {
                 let mut chunk = [0_u8; 512];
                 let count = stream.read(&mut chunk).unwrap();
-                assert!(count > 0, "client closed before completing HTTP request headers");
+                assert!(
+                    count > 0,
+                    "client closed before completing HTTP request headers"
+                );
                 request.extend_from_slice(&chunk[..count]);
                 assert!(
                     request.len() <= 4096,
@@ -13919,7 +14129,10 @@ mod tests {
             release_result.is_ok(),
             "delayed body release channel must remain available"
         );
-        assert!(server_result.is_ok(), "delayed-body server must terminate cleanly");
+        assert!(
+            server_result.is_ok(),
+            "delayed-body server must terminate cleanly"
+        );
         assert!(matches!(
             result,
             Err(message)

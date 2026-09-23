@@ -60,7 +60,9 @@ fn record_key(record: RecordId, expected_table: &'static str) -> StorageResult<S
 
 fn map_err(error: SurrealStorageError) -> StorageError {
     let message = error.to_string();
-    if message.contains("HSK-BLOCK-VIEW-NOT-FOUND") {
+    if super::loom_store::is_protected_denial(&message) {
+        super::loom_store::protected_denial()
+    } else if message.contains("HSK-BLOCK-VIEW-NOT-FOUND") {
         StorageError::NotFound("loom_block")
     } else if message.contains("HSK-BLOCK-VIEW-CONFLICT") {
         StorageError::Conflict("loom_block_view_id")
@@ -334,15 +336,20 @@ struct MutationRow {
     block_id: String,
 }
 
+// MT-154 silent-deny ruling: every record-user write below THROWs the constant denial when
+// SurrealDB silently drops it, so a partial view bundle never commits. Result index 9 is the guard
+// returning the receipt-linked block (BEGIN=0, writes 1..7, link LET=8, guard/RETURN=9, COMMIT=10);
+// the RETURN is the last statement before COMMIT (a RETURN skips later non-COMMIT statements).
 const CREATE_TRANSACTION: &str = "BEGIN TRANSACTION; \
-    CREATE $block CONTENT $content RETURN AFTER; \
-    UPSERT $search SET block_id = $block, workspace_id = $workspace, content_type = 'view_def', search_text = $search_text, indexed_at = time::now(); \
-    CREATE $bridge_event.record CONTENT { event_id: $bridge_event.event_id, event_version: $bridge_event.event_version, kernel_task_run_id: $bridge_event.kernel_task_run_id, session_run_id: $bridge_event.session_run_id, aggregate_type: $bridge_event.aggregate_type, aggregate_id: $bridge_event.aggregate_id, idempotency_key: $bridge_event.idempotency_key, event_type: $bridge_event.event_type, actor_kind: $bridge_event.actor_kind, actor_id: $bridge_event.actor_id, causation_id: $bridge_event.causation_id, correlation_id: $bridge_event.correlation_id, payload_hash: $bridge_event.payload_hash, source_component: $bridge_event.source_component, payload: $bridge_event.payload, wsids: $bridge_event.wsids, authority_resource_id: $bridge_event.authority_resource_id, authority_session_id: $bridge_event.authority_session_id, authority_capability_id: $bridge_event.authority_capability_id, authority_action: $bridge_event.authority_action, created_at: $bridge_event.created_at }; \
-    CREATE $mutation_event.record CONTENT { event_id: $mutation_event.event_id, event_version: $mutation_event.event_version, kernel_task_run_id: $mutation_event.kernel_task_run_id, session_run_id: $mutation_event.session_run_id, aggregate_type: $mutation_event.aggregate_type, aggregate_id: $mutation_event.aggregate_id, idempotency_key: $mutation_event.idempotency_key, event_type: $mutation_event.event_type, actor_kind: $mutation_event.actor_kind, actor_id: $mutation_event.actor_id, causation_id: $mutation_event.causation_id, correlation_id: $mutation_event.correlation_id, payload_hash: $mutation_event.payload_hash, source_component: $mutation_event.source_component, payload: $mutation_event.payload, wsids: $mutation_event.wsids, authority_resource_id: $mutation_event.authority_resource_id, authority_session_id: $mutation_event.authority_session_id, authority_capability_id: $mutation_event.authority_capability_id, authority_action: $mutation_event.authority_action, created_at: $mutation_event.created_at }; \
-    UPSERT $entity SET entity_id = $entity_id, workspace_id = $workspace, entity_kind = 'loom_block', entity_key = record::id($block), display_name = $display_name, detection_provenance = $detection_provenance, lifecycle_state = 'active', updated_at = $content.updated_at; \
-    UPSERT $bridge SET block_id = $block, workspace_id = $workspace, entity_id = $entity, index_event_id = $bridge_event.record, updated_at = $content.updated_at; \
-    CREATE $outbox CONTENT $outbox_content; \
-    UPDATE $block SET event_ledger_event_id = $mutation_event.record RETURN AFTER; \
+    IF array::len((CREATE $block CONTENT $content RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((UPSERT $search SET block_id = $block, workspace_id = $workspace, content_type = 'view_def', search_text = $search_text, indexed_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((CREATE $bridge_event.record CONTENT { event_id: $bridge_event.event_id, event_version: $bridge_event.event_version, kernel_task_run_id: $bridge_event.kernel_task_run_id, session_run_id: $bridge_event.session_run_id, aggregate_type: $bridge_event.aggregate_type, aggregate_id: $bridge_event.aggregate_id, idempotency_key: $bridge_event.idempotency_key, event_type: $bridge_event.event_type, actor_kind: $bridge_event.actor_kind, actor_id: $bridge_event.actor_id, causation_id: $bridge_event.causation_id, correlation_id: $bridge_event.correlation_id, payload_hash: $bridge_event.payload_hash, source_component: $bridge_event.source_component, payload: $bridge_event.payload, wsids: $bridge_event.wsids, authority_resource_id: $bridge_event.authority_resource_id, authority_session_id: $bridge_event.authority_session_id, authority_capability_id: $bridge_event.authority_capability_id, authority_action: $bridge_event.authority_action, created_at: $bridge_event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((CREATE $mutation_event.record CONTENT { event_id: $mutation_event.event_id, event_version: $mutation_event.event_version, kernel_task_run_id: $mutation_event.kernel_task_run_id, session_run_id: $mutation_event.session_run_id, aggregate_type: $mutation_event.aggregate_type, aggregate_id: $mutation_event.aggregate_id, idempotency_key: $mutation_event.idempotency_key, event_type: $mutation_event.event_type, actor_kind: $mutation_event.actor_kind, actor_id: $mutation_event.actor_id, causation_id: $mutation_event.causation_id, correlation_id: $mutation_event.correlation_id, payload_hash: $mutation_event.payload_hash, source_component: $mutation_event.source_component, payload: $mutation_event.payload, wsids: $mutation_event.wsids, authority_resource_id: $mutation_event.authority_resource_id, authority_session_id: $mutation_event.authority_session_id, authority_capability_id: $mutation_event.authority_capability_id, authority_action: $mutation_event.authority_action, created_at: $mutation_event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((UPSERT $entity SET entity_id = $entity_id, workspace_id = $workspace, entity_kind = 'loom_block', entity_key = record::id($block), display_name = $display_name, detection_provenance = $detection_provenance, lifecycle_state = 'active', updated_at = $content.updated_at RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((UPSERT $bridge SET block_id = $block, workspace_id = $workspace, entity_id = $entity, index_event_id = $bridge_event.record, updated_at = $content.updated_at RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len((CREATE $outbox CONTENT $outbox_content RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    LET $linked = (UPDATE $block SET event_ledger_event_id = $mutation_event.record RETURN AFTER); \
+    IF array::len($linked) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $linked; }; \
     COMMIT TRANSACTION;";
 
 #[cfg(any(test, feature = "surreal-test-support"))]
@@ -589,7 +596,7 @@ pub(crate) async fn create_block_view(
                     created_at: Datetime::from(flight_event.timestamp),
                 },
             },
-            8,
+            9,
         )
         .await
         .map_err(map_err)?;
@@ -653,11 +660,14 @@ struct UpdateBindings {
     outbox_content: OutboxContent,
 }
 
+// MT-154 silent-deny ruling: result index 5 is the guard returning the updated view block
+// (BEGIN=0, view guard=1, receipt=2, UPDATE LET=3, outbox guard=4, guard/RETURN=5, COMMIT=6).
 const UPDATE_TRANSACTION: &str = "BEGIN TRANSACTION; \
     IF (SELECT VALUE id FROM $block WHERE workspace_id = $workspace AND content_type = 'view_def' LIMIT 1)[0] = NONE { THROW 'HSK-BLOCK-VIEW-NOT-FOUND'; }; \
-    IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $mutation_event.idempotency_key LIMIT 1)[0] = NONE { CREATE $mutation_event.record CONTENT { event_id: $mutation_event.event_id, event_version: $mutation_event.event_version, kernel_task_run_id: $mutation_event.kernel_task_run_id, session_run_id: $mutation_event.session_run_id, aggregate_type: $mutation_event.aggregate_type, aggregate_id: $mutation_event.aggregate_id, idempotency_key: $mutation_event.idempotency_key, event_type: $mutation_event.event_type, actor_kind: $mutation_event.actor_kind, actor_id: $mutation_event.actor_id, causation_id: $mutation_event.causation_id, correlation_id: $mutation_event.correlation_id, payload_hash: $mutation_event.payload_hash, source_component: $mutation_event.source_component, payload: $mutation_event.payload, wsids: $mutation_event.wsids, authority_resource_id: $mutation_event.authority_resource_id, authority_session_id: $mutation_event.authority_session_id, authority_capability_id: $mutation_event.authority_capability_id, authority_action: $mutation_event.authority_action, created_at: $mutation_event.created_at }; }; \
-    UPDATE $block SET view_definition_json = $definition_json, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id, updated_at = $updated_at, event_ledger_event_id = $mutation_event.record RETURN AFTER; \
-    CREATE $outbox CONTENT $outbox_content; \
+    IF (SELECT VALUE id FROM kernel_event_ledger WHERE idempotency_key = $mutation_event.idempotency_key LIMIT 1)[0] = NONE { IF array::len((CREATE $mutation_event.record CONTENT { event_id: $mutation_event.event_id, event_version: $mutation_event.event_version, kernel_task_run_id: $mutation_event.kernel_task_run_id, session_run_id: $mutation_event.session_run_id, aggregate_type: $mutation_event.aggregate_type, aggregate_id: $mutation_event.aggregate_id, idempotency_key: $mutation_event.idempotency_key, event_type: $mutation_event.event_type, actor_kind: $mutation_event.actor_kind, actor_id: $mutation_event.actor_id, causation_id: $mutation_event.causation_id, correlation_id: $mutation_event.correlation_id, payload_hash: $mutation_event.payload_hash, source_component: $mutation_event.source_component, payload: $mutation_event.payload, wsids: $mutation_event.wsids, authority_resource_id: $mutation_event.authority_resource_id, authority_session_id: $mutation_event.authority_session_id, authority_capability_id: $mutation_event.authority_capability_id, authority_action: $mutation_event.authority_action, created_at: $mutation_event.created_at } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
+    LET $updated = (UPDATE $block SET view_definition_json = $definition_json, last_actor_kind = $actor_kind, last_actor_id = $actor_id, last_job_id = $job_id, last_workflow_id = $workflow_id, edit_event_id = $edit_event_id, updated_at = $updated_at, event_ledger_event_id = $mutation_event.record RETURN AFTER); \
+    IF array::len($updated) != 1 OR array::len((CREATE $outbox CONTENT $outbox_content RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+    IF array::len($updated) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; } ELSE { RETURN $updated; }; \
     COMMIT TRANSACTION;";
 
 pub(crate) async fn update_block_view_definition(
@@ -708,7 +718,7 @@ pub(crate) async fn update_block_view_definition(
                     created_at: Datetime::from(flight_event.timestamp),
                 },
             },
-            3,
+            5,
         )
         .await
         .map_err(map_err)?;

@@ -5938,9 +5938,17 @@ impl SurrealDatabase {
         .await?;
         rows.into_iter()
             .next()
-            .ok_or(StorageError::Database(
-                "knowledge wiki page upsert returned no record".to_owned(),
-            ))
+            .ok_or_else(|| {
+                // spec_ruling_c3_silent_deny: a record user's UPSERT dropped by the
+                // knowledge_wiki_projections permissions returns no row.
+                if super::current_record_user_scope().is_some() {
+                    StorageError::Guard("HSK-403-PROTECTED-RESOURCE")
+                } else {
+                    StorageError::Database(
+                        "knowledge wiki page upsert returned no record".to_owned(),
+                    )
+                }
+            })
             .and_then(projection_to_domain)
     }
 

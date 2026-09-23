@@ -2023,7 +2023,8 @@ fn ac10_live_surrealdb_populated_graph_accesskit_round_trip() {
         .enable_all()
         .build()
         .expect("build MT-042 live graph runtime");
-    let graph_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone());
+    let graph_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(live.account());
 
     // Empty is a real backend state, not a fabricated Vec: global fetch returns zero canonical rows,
     // while the mounted AccessKit surface retains its stable global controls and health canary.
@@ -2194,7 +2195,8 @@ fn ac10_live_surrealdb_populated_graph_accesskit_round_trip() {
         serde_json::json!({"source_id":alpha_id.clone(),"target_id":gamma_id.clone()}).to_string();
     host.event(click_event(add.node_id, Some(&add_payload)));
     host.run_steps(1);
-    let fresh_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone());
+    let fresh_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone())
+        .with_authenticated_context(live.account());
     let add_deadline = Instant::now() + Duration::from_secs(5);
     let after_add = loop {
         host.run_steps(1);
@@ -2563,6 +2565,19 @@ fn ac10_live_surrealdb_populated_graph_accesskit_round_trip() {
     let down_client = LoomGraphClient::new("http://127.0.0.1:9", rt.handle().clone());
     let down = await_graph(&down_client, &workspace_id, 6)
         .expect_err("unreachable backend must never fabricate a graph");
+    // MT-154: the same unreachable backend with an account bound to that origin keeps the transport
+    // failure path covered (the unbound client stops at "Account login required").
+    #[cfg(feature = "integration")]
+    {
+        let bound_down_client = LoomGraphClient::new("http://127.0.0.1:9", rt.handle().clone())
+            .with_authenticated_context(live.account_for_origin("http://127.0.0.1:9"));
+        let bound_down = await_graph(&bound_down_client, &workspace_id, 7)
+            .expect_err("an authenticated unreachable backend must never fabricate a graph");
+        assert!(
+            !bound_down.contains("Account login required"),
+            "the bound variant reaches the transport failure: {bound_down}"
+        );
+    }
     let registry = Arc::new(Mutex::new(KnowledgeActionRegistry::new()));
     let mut down_view = LoomGraphView::global(&workspace_id);
     down_view.error = Some(down);

@@ -518,6 +518,10 @@ pub type LoomResult<T> = Result<T, LoomError>;
 pub struct LoomClient {
     client: reqwest::Client,
     base_url: String,
+    /// MT-153 C3: every `/workspaces/:ws/loom/*` route runs as the account record user and returns the
+    /// constant 403 without the account session headers. `None` fails every call with
+    /// "Account login required" before any socket is opened.
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl Default for LoomClient {
@@ -543,6 +547,7 @@ impl LoomClient {
         Self {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
+            authenticated_context: None,
         }
     }
 
@@ -553,7 +558,18 @@ impl LoomClient {
         Self {
             client,
             base_url: base_url.into(),
+            authenticated_context: None,
         }
+    }
+
+    /// MT-153 C3: bind the immutable account context every Loom request carries (both the session and
+    /// channel-binding headers, via the canonical [`crate::local_account::AuthenticatedRequest`]).
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// Build a full URL. `workspace_id` and path ids are interpolated as path SEGMENTS; reqwest
@@ -1242,17 +1258,30 @@ impl LoomClient {
         &self,
         builder: reqwest::RequestBuilder,
     ) -> LoomResult<T> {
-        let resp = builder
-            .timeout(REQUEST_TIMEOUT)
-            .send()
-            .await
-            .map_err(|e| LoomError::Transport(e.to_string()))?;
+        let context = self
+            .authenticated_context
+            .clone()
+            .ok_or_else(|| LoomError::Transport("Account login required".to_owned()))?;
+        let resp = crate::local_account::AuthenticatedRequest::new(
+            self.client.clone(),
+            Some(context.clone()),
+            builder.timeout(REQUEST_TIMEOUT),
+        )
+        .send()
+        .await
+        .map_err(LoomError::Transport)?;
         let status = resp.status();
         if status.is_success() {
-            return resp
+            let value = resp
                 .json::<T>()
                 .await
-                .map_err(|e| LoomError::Parse(e.to_string()));
+                .map_err(|e| LoomError::Parse(e.to_string()))?;
+            if !context.is_active() {
+                return Err(LoomError::Transport(
+                    "Account session is no longer active".to_owned(),
+                ));
+            }
+            return Ok(value);
         }
         let code = status.as_u16();
         let body = resp.text().await.unwrap_or_default();

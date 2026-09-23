@@ -858,6 +858,16 @@ impl RichEditorState {
             return;
         }
         self.authenticated_context = context.clone();
+        // MT-154: asset/collection embed reads run as the account record user. Rebind the production
+        // fetcher to the new session; an injected test double (no account transport) is left as-is.
+        if let Some(fetcher) =
+            crate::rich_editor::embeds::asset_resolver::AssetMetadataFetcher::rebind_authenticated_context(
+                &*self.embeds.fetcher,
+                context.clone(),
+            )
+        {
+            self.embeds.fetcher = fetcher;
+        }
         self.properties_runtime.backend = std::sync::Arc::new(
             crate::rich_editor::properties::metadata_client::ReqwestMetadataBackend::new(base_url)
                 .with_authenticated_context(context),

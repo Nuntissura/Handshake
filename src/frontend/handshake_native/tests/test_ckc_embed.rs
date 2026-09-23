@@ -2429,7 +2429,8 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
     });
 
     for generation in [1_u64, 2] {
-        let client = AtelierClient::new(base.clone(), rt.handle().clone());
+        let client = AtelierClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(managed_backend.account());
         let cell: AtelierSidePanelCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
         client.fetch_side_panel(generation, Arc::clone(&cell));
         let data = (0..50)
@@ -2458,7 +2459,8 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
     }
 
     for generation in [3_u64, 4] {
-        let client = AtelierClient::new(base.clone(), rt.handle().clone());
+        let client = AtelierClient::new(base.clone(), rt.handle().clone())
+            .with_authenticated_context(managed_backend.account());
         let items_cell: AtelierItemsCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
         client.fetch_items(generation, &batch_id, Arc::clone(&items_cell));
         let items = (0..50)

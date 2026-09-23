@@ -1468,7 +1468,8 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         .enable_all()
         .build()
         .expect("managed MT-028 runtime");
-    let client = LoomSearchV2Client::new(live.base.clone(), runtime.handle().clone());
+    let client = LoomSearchV2Client::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(live.account());
     let direct_cell: handshake_native::backend_client::LoomSearchCell = Arc::new(Mutex::new(None));
     client.search(
         &workspace_id,
@@ -1579,6 +1580,20 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         recovery.error.is_some(),
         "backend refusal is visible and bounded"
     );
+    // MT-154: the same refusal with an account bound to the refused origin exercises the transport
+    // failure path (the unbound client above stops at "Account login required").
+    let unavailable_bound = LoomSearchV2Client::new("http://127.0.0.1:9", runtime.handle().clone())
+        .with_authenticated_context(live.account_for_origin("http://127.0.0.1:9"));
+    recovery.run_search(&unavailable_bound, Some(&workspace_id));
+    wait_panel_idle(&mut recovery);
+    assert!(
+        recovery
+            .error
+            .as_deref()
+            .is_some_and(|error| !error.contains("Account login required")),
+        "an authenticated refused backend surfaces the transport failure: {:?}",
+        recovery.error
+    );
     recovery.run_search(&client, Some(&workspace_id));
     wait_panel_idle(&mut recovery);
     assert!(recovery.error.is_none());
@@ -1613,6 +1628,11 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
             },
         ),
     );
+    // MT-154: the mounted Loom search client carries the fixture's real session, re-bound to the
+    // proxy origin the proof routes through (the proxy forwards the session headers upstream).
+    live.bind_app_account(&mut app);
+    app.rebind_account_origin_for_test(&rebind_proxy.base)
+        .expect("rebind the mounted account to the managed proxy origin");
     app.set_backend_base_url_for_test(&rebind_proxy.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     assert!(app.dispatch_palette_action_for_test(
@@ -2205,6 +2225,11 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     // Canonical mounted backend-error/recovery state. Rebind the concrete factory to a refused
     // loopback port, prove a bounded visible terminal error, then restore the managed proxy and
     // recover the same mounted pane through the same stable Search action.
+    // MT-154: follow the refused origin so the mounted error is the real transport failure.
+    harness
+        .state_mut()
+        .rebind_account_origin_for_test("http://127.0.0.1:9")
+        .expect("rebind the mounted account to the refused origin");
     harness
         .state_mut()
         .set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
@@ -2257,6 +2282,10 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         "mt028-backend-error",
     ));
 
+    harness
+        .state_mut()
+        .rebind_account_origin_for_test(&rebind_proxy.base)
+        .expect("rebind the mounted account back to the managed proxy origin");
     harness
         .state_mut()
         .set_backend_base_url_for_test(&rebind_proxy.base, runtime.handle().clone());

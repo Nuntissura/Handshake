@@ -82,7 +82,11 @@ fn collect_author_ids(value: &serde_json::Value, out: &mut Vec<String>) {
 
 /// A live, runtime-injected shell with `pane-a` re-typed to the Folders pane so the mounted folder-tree
 /// factory renders in the split. The runtime is returned so it outlives the harness.
-fn folders_shell(base: &str, workspace_id: &str) -> (HandshakeApp, tokio::runtime::Runtime) {
+fn folders_shell(
+    base: &str,
+    workspace_id: &str,
+    account: Option<std::sync::Arc<handshake_native::local_account::AuthenticatedContext>>,
+) -> (HandshakeApp, tokio::runtime::Runtime) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -94,6 +98,11 @@ fn folders_shell(base: &str, workspace_id: &str) -> (HandshakeApp, tokio::runtim
         migration_version: Some(1),
     }));
     app.set_runtime_handle(runtime.handle().clone());
+    // MT-153 C3: the mounted Loom folder client carries the account session when one is supplied.
+    if let Some(account) = account {
+        app.bind_initial_account(account)
+            .expect("bind the fixture's authenticated proof account");
+    }
     app.set_folder_backend_base_url_for_test(base);
     app.bind_active_project_for_integration_test(workspace_id.to_owned());
     retype_pane_a_to_folders(&mut app);
@@ -239,7 +248,7 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
         &serde_json::json!({ "sort_order": 0 }),
     );
 
-    let (app, _rt) = folders_shell(&live.base, &workspace_id);
+    let (app, _rt) = folders_shell(&live.base, &workspace_id, live.account());
     let mounted_tree = app.mounted_folder_tree_for_test();
 
     let mut harness = Harness::builder()
@@ -407,7 +416,7 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
 fn mt022_mounted_folder_tree_empty_state_canonical_argus() {
     // AC7: with no folders, the mounted panel renders + inspects through canonical Argus with no folder
     // nodes and no panic.
-    let (app, _rt) = folders_shell("http://127.0.0.1:1", "mt022-empty");
+    let (app, _rt) = folders_shell("http://127.0.0.1:1", "mt022-empty", None);
     // Leave the mounted folder tree empty (no set_folders).
 
     let mut harness = Harness::builder()

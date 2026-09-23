@@ -1685,7 +1685,7 @@ async fn list_loom_wiki_pages(
                 .map_err(map_wiki_error)?;
             let served: Vec<serde_json::Value> = pages
                 .into_iter()
-                .zip(verdicts.into_iter())
+                .zip(verdicts)
                 .map(|(page, verdict)| {
                     let mut value = serde_json::to_value(&page).unwrap_or_else(|_| json!({}));
                     value["staleness_verdict"] = serde_json::to_value(&verdict).unwrap_or_default();
@@ -1741,35 +1741,35 @@ async fn bootstrap_project_wiki(
                 .await
                 .map_err(map_wiki_error)?;
 
-    let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(db);
-    let verdicts = checker
-        .evaluate_pages(&workspace_id, &outcome.pages)
-        .await
-        .map_err(map_wiki_error)?;
-    let pages: Vec<serde_json::Value> = outcome
-        .pages
-        .iter()
-        .zip(verdicts.into_iter())
-        .map(|(page, verdict)| {
-            let mut value = serde_json::to_value(page).unwrap_or_else(|_| json!({}));
-            value["staleness_verdict"] = serde_json::to_value(&verdict).unwrap_or_default();
-            value
-        })
-        .collect();
+            let checker = crate::knowledge_wiki::drift::WikiDriftChecker::new(db);
+            let verdicts = checker
+                .evaluate_pages(&workspace_id, &outcome.pages)
+                .await
+                .map_err(map_wiki_error)?;
+            let pages: Vec<serde_json::Value> = outcome
+                .pages
+                .iter()
+                .zip(verdicts)
+                .map(|(page, verdict)| {
+                    let mut value = serde_json::to_value(page).unwrap_or_else(|_| json!({}));
+                    value["staleness_verdict"] = serde_json::to_value(&verdict).unwrap_or_default();
+                    value
+                })
+                .collect();
 
-    let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomProjectionRebuilt,
-        FlightRecorderActor::Human,
-        Uuid::now_v7(),
-        json!({
-            "type": "loom_projection_rebuilt",
-            "workspace_id": workspace_id,
-            "operation": "wiki_bootstrap",
-            "pages": pages.len(),
-        }),
-    )
-    .with_wsids(vec![workspace_id.clone()]);
-    let _ = state.flight_recorder.record_event(event).await;
+            let event = FlightRecorderEvent::new(
+                FlightRecorderEventType::LoomProjectionRebuilt,
+                FlightRecorderActor::Human,
+                Uuid::now_v7(),
+                json!({
+                    "type": "loom_projection_rebuilt",
+                    "workspace_id": workspace_id,
+                    "operation": "wiki_bootstrap",
+                    "pages": pages.len(),
+                }),
+            )
+            .with_wsids(vec![workspace_id.clone()]);
+            let _ = state.flight_recorder.record_event(event).await;
 
             Ok(Json(json!({
                 "workspace_id": workspace_id,
@@ -3249,20 +3249,20 @@ async fn delete_loom_edge(
                 .await
                 .map_err(map_storage_error)?;
 
-    let edge_event = json!({
-        "type": "loom_edge_deleted",
-        "edge_id": edge.edge_id.clone(),
-        "edge_type": edge.edge_type.as_str(),
-        "deleted_by": "user",
-    });
-    let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomEdgeDeleted,
-        FlightRecorderActor::Human,
-        Uuid::now_v7(),
-        edge_event,
-    )
-    .with_wsids(vec![workspace_id]);
-    let _ = state.flight_recorder.record_event(event).await;
+            let edge_event = json!({
+                "type": "loom_edge_deleted",
+                "edge_id": edge.edge_id.clone(),
+                "edge_type": edge.edge_type.as_str(),
+                "deleted_by": "user",
+            });
+            let event = FlightRecorderEvent::new(
+                FlightRecorderEventType::LoomEdgeDeleted,
+                FlightRecorderActor::Human,
+                Uuid::now_v7(),
+                edge_event,
+            )
+            .with_wsids(vec![workspace_id]);
+            let _ = state.flight_recorder.record_event(event).await;
 
             Ok(Json(edge))
         })
@@ -3295,9 +3295,9 @@ fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(h.finalize())
 }
 
-/// MT-109 C3: the asset, blob and owned file block are written as the account's record user
-/// under the workspace create grant; the preview job is enqueued afterwards on the kernel job
-/// queue (`ai_jobs` is kernel infrastructure without a record-user model).
+/// MT-109 C3 + MT-153 C4: the asset, blob and owned file block are written as the account's record
+/// user under the workspace create grant, and the preview job is enqueued and run under the same
+/// account authority (Master Spec 02-system-architecture.md:2773: no root job start for a user).
 async fn import_loom_asset_authenticated(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
@@ -3321,7 +3321,13 @@ async fn import_loom_asset_authenticated(
         )
         .await?;
     if let Some(job_inputs) = preview_job {
-        enqueue_loom_preview_job(&state, job_inputs).await?;
+        account
+            .run(
+                &state,
+                &loom_workspace,
+                enqueue_loom_preview_job(&state, job_inputs),
+            )
+            .await?;
     }
     Ok(Json(result))
 }
@@ -3366,7 +3372,12 @@ async fn enqueue_loom_preview_job(
         Vec::new(),
     )
     .await
-    .map_err(internal_error)?;
+    .map_err(|error| match error {
+        crate::jobs::JobError::Storage(StorageError::Guard("HSK-403-PROTECTED-RESOURCE")) => {
+            loom_denied()
+        }
+        other => internal_error(other),
+    })?;
     let _ = crate::workflows::start_workflow_for_job(state, job).await;
     Ok(())
 }
@@ -3771,33 +3782,33 @@ async fn get_asset_thumbnail(
         .run(&state, &loom_workspace, async {
             ensure_workspace_exists(&state, &workspace_id).await?;
 
-    let Some(block) = state
-        .storage
-        .find_loom_block_by_asset_id(&workspace_id, &asset_id)
-        .await
-        .map_err(map_storage_error)?
-    else {
-        return Err(not_found("loom_block_not_found"));
-    };
+            let Some(block) = state
+                .storage
+                .find_loom_block_by_asset_id(&workspace_id, &asset_id)
+                .await
+                .map_err(map_storage_error)?
+            else {
+                return Err(not_found("loom_block_not_found"));
+            };
 
-    let Some(thumbnail_asset_id) = block.derived.thumbnail_asset_id else {
-        return Err(not_found("thumbnail_not_available"));
-    };
+            let Some(thumbnail_asset_id) = block.derived.thumbnail_asset_id else {
+                return Err(not_found("thumbnail_not_available"));
+            };
 
-    let thumb = state
-        .storage
-        .get_asset(&workspace_id, &thumbnail_asset_id)
-        .await
-        .map_err(map_storage_error)?;
+            let thumb = state
+                .storage
+                .get_asset(&workspace_id, &thumbnail_asset_id)
+                .await
+                .map_err(map_storage_error)?;
 
-    let handshake_root = resolve_handshake_root().map_err(internal_error)?;
-    let path = loom_asset_blob_path(
-        &handshake_root,
-        &workspace_id,
-        &thumb.kind,
-        &thumb.content_hash,
-    );
-    let bytes = std::fs::read(&path).map_err(internal_error)?;
+            let handshake_root = resolve_handshake_root().map_err(internal_error)?;
+            let path = loom_asset_blob_path(
+                &handshake_root,
+                &workspace_id,
+                &thumb.kind,
+                &thumb.content_hash,
+            );
+            let bytes = std::fs::read(&path).map_err(internal_error)?;
 
             let mut response = Response::new(axum::body::Body::from(bytes));
             *response.status_mut() = StatusCode::OK;
@@ -3929,18 +3940,24 @@ async fn retry_asset_tier(
         })
         .await?;
 
-    // Requeue the real background generation job (same protocol as import).
-    enqueue_loom_preview_job(
-        &state,
-        json!({
-            "workspace_id": workspace_id.clone(),
-            "block_id": block_id,
-            "asset_id": asset_id.clone(),
-            "requested_tier": 1,
-            "retry": true,
-        }),
-    )
-    .await?;
+    // Requeue the real background generation job (same protocol as import) under the same account
+    // authority (MT-153 C4: never a root job start on behalf of a user).
+    account
+        .run(
+            &state,
+            &loom_workspace,
+            enqueue_loom_preview_job(
+                &state,
+                json!({
+                    "workspace_id": workspace_id.clone(),
+                    "block_id": block_id,
+                    "asset_id": asset_id.clone(),
+                    "requested_tier": 1,
+                    "retry": true,
+                }),
+            ),
+        )
+        .await?;
 
     Ok(Json(RetryTierResponse {
         tier: updated.tier.as_str().to_string(),
@@ -4190,44 +4207,44 @@ async fn run_loom_ai_job(
             }
             let actor = job_model_actor(&headers)?;
 
-    // Resolve every block (a missing block fails the whole job — no silent skip).
-    let mut blocks = Vec::with_capacity(payload.block_ids.len());
-    for block_id in &payload.block_ids {
-        let block = state
-            .storage
-            .get_loom_block(&workspace_id, block_id)
-            .await
-            .map_err(map_storage_error)?;
-        blocks.push(block);
-    }
+            // Resolve every block (a missing block fails the whole job — no silent skip).
+            let mut blocks = Vec::with_capacity(payload.block_ids.len());
+            for block_id in &payload.block_ids {
+                let block = state
+                    .storage
+                    .get_loom_block(&workspace_id, block_id)
+                    .await
+                    .map_err(map_storage_error)?;
+                blocks.push(block);
+            }
 
-    let req = LoomAiJobRequest {
-        workspace_id: workspace_id.clone(),
-        kind: payload.kind,
-        blocks,
-        tag_candidates: payload.tag_candidates,
-        session_id: loom_ai_session(&headers),
-        correlation_id: loom_ai_correlation(&headers),
-        actor,
-    };
-    let result = run_loom_ai_job_flow(
-        state.storage.as_ref(),
-        &state.surreal,
-        state.llm_client.as_ref(),
-        req,
-    )
-    .await
-    .map_err(|err| match err {
-        // No model configured / provider declined -> typed 409, zero rows.
-        LoomAiJobError::NoModel { .. } => (
-            StatusCode::CONFLICT,
-            Json(ErrorResponse {
-                error: "HSK-409-LOOM-AI-NO-MODEL",
-            }),
-        ),
-        LoomAiJobError::Storage(inner) => map_storage_error(inner),
-        LoomAiJobError::Internal(_) => internal_error(err),
-    })?;
+            let req = LoomAiJobRequest {
+                workspace_id: workspace_id.clone(),
+                kind: payload.kind,
+                blocks,
+                tag_candidates: payload.tag_candidates,
+                session_id: loom_ai_session(&headers),
+                correlation_id: loom_ai_correlation(&headers),
+                actor,
+            };
+            let result = run_loom_ai_job_flow(
+                state.storage.as_ref(),
+                &state.surreal,
+                state.llm_client.as_ref(),
+                req,
+            )
+            .await
+            .map_err(|err| match err {
+                // No model configured / provider declined -> typed 409, zero rows.
+                LoomAiJobError::NoModel { .. } => (
+                    StatusCode::CONFLICT,
+                    Json(ErrorResponse {
+                        error: "HSK-409-LOOM-AI-NO-MODEL",
+                    }),
+                ),
+                LoomAiJobError::Storage(inner) => map_storage_error(inner),
+                LoomAiJobError::Internal(_) => internal_error(err),
+            })?;
 
             Ok(Json(LoomAiJobResponse {
                 job_id: result.job_id,
@@ -5809,31 +5826,39 @@ async fn create_canvas_card(
         // branch requires the account session with the canvas edit grant and the workspace
         // create grant before anything is written.
         let board = authorize_canvas_visual_edge_write(&state, &headers, &block_id).await?;
-        loom_workspace_account(&state, &headers, &workspace_id, ResourceAction::Create).await?;
+        let workspace =
+            loom_workspace_account(&state, &headers, &workspace_id, ResourceAction::Create).await?;
         let ctx = loom_create_write_context(&board)?;
-        ensure_workspace_exists(&state, &workspace_id).await?;
-        let card = state
-            .storage
-            .create_stage_canvas_card(
-                &ctx,
-                NewLoomCanvasStageCard {
-                    canvas_block_id: block_id,
-                    workspace_id,
-                    title: payload.title,
-                    markdown: payload.body.unwrap_or_default(),
-                    stage_provenance_key,
-                    stage_provenance: payload
-                        .stage_provenance
-                        .expect("validated Stage provenance is present"),
-                    x: payload.x,
-                    y: payload.y,
-                    w: payload.w,
-                    h: payload.h,
-                    z_index: payload.z_index.unwrap_or(0),
-                },
-            )
-            .await
-            .map_err(map_storage_error)?;
+        // MT-153 AC-153-7 (Master Spec 02-system-architecture.md:2773/2776): the Stage card's
+        // authority read, replay lookup and create transaction run as the account's record user in
+        // the workspace Create scope (receipts carry the session principal), through the shared
+        // storage wrapper so the advisory lock domain and replay key are unchanged. The storage
+        // layer mints the RichDocument's protected resource + creator grant in the same transaction.
+        let new_card = NewLoomCanvasStageCard {
+            canvas_block_id: block_id,
+            workspace_id: workspace_id.clone(),
+            title: payload.title,
+            markdown: payload.body.unwrap_or_default(),
+            stage_provenance_key,
+            stage_provenance: payload
+                .stage_provenance
+                .expect("validated Stage provenance is present"),
+            x: payload.x,
+            y: payload.y,
+            w: payload.w,
+            h: payload.h,
+            z_index: payload.z_index.unwrap_or(0),
+        };
+        let card = workspace
+            .run(&state, &workspace_id, async {
+                ensure_workspace_exists(&state, &workspace_id).await?;
+                state
+                    .storage
+                    .create_stage_canvas_card(&ctx, new_card)
+                    .await
+                    .map_err(map_storage_error)
+            })
+            .await?;
         return Ok(Json(CreateCanvasCardResponse {
             block: card.block,
             rich_document_id: card.rich_document_id,
@@ -5992,8 +6017,18 @@ async fn compensate_stage_canvas_card(
     // MT-109 C3: compensation deletes rows, so it requires the account session with the canvas
     // edit grant (deny by default, Master Spec 02-system-architecture.md:2758).
     let board = authorize_canvas_visual_edge_write(&state, &headers, &block_id).await?;
+    // MT-153 AC-153-7: compensation hard-deletes the card's RichDocument tuple, so it also requires
+    // the workspace delete grant (LM-RLS-001 "admin deletes") and runs as the record user in that
+    // scope; the RichDocument/bridge/entity deletes additionally require the RichDocument's own
+    // delete grant (schema predicates) and the receipt carries the session principal.
+    let workspace = loom_workspace_account(
+        &state,
+        &headers,
+        &workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Delete,
+    )
+    .await?;
     let ctx = loom_create_write_context(&board)?;
-    ensure_workspace_exists(&state, &workspace_id).await?;
     let stage_provenance_key = {
         if payload.stage_provenance.schema_id != LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA {
             return Err(bad_request("invalid_canvas_stage_provenance"));
@@ -6003,21 +6038,24 @@ async fn compensate_stage_canvas_card(
         hasher.update(canonical);
         format!("{:x}", hasher.finalize())
     };
-    let compensated = state
-        .storage
-        .compensate_stage_canvas_card(
-            &ctx,
-            CompensateLoomCanvasStageCard {
-                canvas_block_id: block_id,
-                workspace_id,
-                placement_id,
-                placed_block_id: payload.placed_block_id,
-                stage_provenance_key,
-                stage_provenance: payload.stage_provenance,
-            },
-        )
-        .await
-        .map_err(map_storage_error)?;
+    let receipt = CompensateLoomCanvasStageCard {
+        canvas_block_id: block_id,
+        workspace_id: workspace_id.clone(),
+        placement_id,
+        placed_block_id: payload.placed_block_id,
+        stage_provenance_key,
+        stage_provenance: payload.stage_provenance,
+    };
+    let compensated = workspace
+        .run(&state, &workspace_id, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            state
+                .storage
+                .compensate_stage_canvas_card(&ctx, receipt)
+                .await
+                .map_err(map_storage_error)
+        })
+        .await?;
     Ok(Json(CompensateCanvasStageCardResponse {
         removed_by_request: compensated.removed_by_request,
     }))
@@ -6532,30 +6570,30 @@ async fn query_block_view_results(
                 .await
                 .map_err(map_storage_error)?;
 
-    let limit = payload.limit.unwrap_or(100).min(500);
-    let offset = payload.offset.unwrap_or(0);
+            let limit = payload.limit.unwrap_or(100).min(500);
+            let offset = payload.offset.unwrap_or(0);
 
-    let results = state
-        .storage
-        .query_block_view_results(&workspace_id, &record.definition, limit, offset)
-        .await
-        .map_err(map_storage_error)?;
+            let results = state
+                .storage
+                .query_block_view_results(&workspace_id, &record.definition, limit, offset)
+                .await
+                .map_err(map_storage_error)?;
 
-    let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomViewQueried,
-        FlightRecorderActor::Human,
-        Uuid::now_v7(),
-        json!({
-            "type": "loom_block_view_queried",
-            "workspace_id": workspace_id,
-            "block_id": block_id,
-            "view_kind": results.kind.as_str(),
-            "result_count": results.total_returned,
-            "lane_count": results.groups.len(),
-        }),
-    )
-    .with_wsids(vec![workspace_id.clone()]);
-    let _ = state.flight_recorder.record_event(event).await;
+            let event = FlightRecorderEvent::new(
+                FlightRecorderEventType::LoomViewQueried,
+                FlightRecorderActor::Human,
+                Uuid::now_v7(),
+                json!({
+                    "type": "loom_block_view_queried",
+                    "workspace_id": workspace_id,
+                    "block_id": block_id,
+                    "view_kind": results.kind.as_str(),
+                    "result_count": results.total_returned,
+                    "lane_count": results.groups.len(),
+                }),
+            )
+            .with_wsids(vec![workspace_id.clone()]);
+            let _ = state.flight_recorder.record_event(event).await;
 
             Ok(Json(results))
         })
@@ -10902,6 +10940,1498 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(left.take::<Option<i64>>(0).unwrap(), Some(0));
+    }
+
+    // ---- MT-153 route-family authority matrix (AC-153-2, AC-153-4..AC-153-7) -----------------
+    // Master Spec 02-system-architecture.md:2758 ("Authorization is deny-by-default and evaluated on
+    // every executable backend boundary"), :2773 (privileged sessions MUST NOT execute ordinary
+    // protected-resource flows), :2776 (record-user permissions plus ResourceBroker are the
+    // non-bypassable data boundary), LM-RLS-001 (a viewer reads but cannot create/edit) and
+    // LM-RLS-002 (every grant explicit). Every family is driven through the real mounted router as
+    // the owner, an anonymous caller, a second account and a same-account read-only viewer. A denied
+    // record-user write is silent in SurrealDB 3.2.0, so each denial is followed by a re-read of the
+    // family's canonical rows and of the workspace receipts: "constant 403 and nothing changed".
+
+    #[cfg(feature = "os-keychain")]
+    const MT153_DENIAL: &str = "HSK-403-PROTECTED-RESOURCE";
+
+    #[cfg(feature = "os-keychain")]
+    struct Mt153Matrix {
+        state: AppState,
+        router: Router,
+        ws: String,
+        principal: String,
+        owner: HeaderMap,
+        anonymous: HeaderMap,
+        other: HeaderMap,
+        viewer: HeaderMap,
+    }
+
+    /// Escapes the few characters a kernel aggregate id may carry that would break a path segment.
+    #[cfg(feature = "os-keychain")]
+    fn mt153_segment(raw: &str) -> String {
+        raw.chars()
+            .map(|c| match c {
+                '%' => "%25".to_owned(),
+                '/' => "%2F".to_owned(),
+                ' ' => "%20".to_owned(),
+                '#' => "%23".to_owned(),
+                '?' => "%3F".to_owned(),
+                other => other.to_string(),
+            })
+            .collect()
+    }
+
+    /// A second principal in the owner's account and access space holding only `read` x `fs.read`
+    /// on the owner's workspace resource (LM-RLS-001 viewer).
+    #[cfg(feature = "os-keychain")]
+    async fn mt153_viewer(
+        state: &AppState,
+        binding: &LoomCreateBinding,
+        principal: &str,
+        ws: &str,
+    ) -> HeaderMap {
+        use crate::storage::surreal::resource_authority::{
+            ResourceAction, ResourceGrantSpec, ResourceKind,
+        };
+        let mut lookup = state
+            .surreal
+            .test_admin_query_bound(
+                "RETURN {account_id: (SELECT VALUE record::id(account_id) FROM principals WHERE record::id(id) = $principal)[0], account_key: (SELECT VALUE account_id.account_key FROM principals WHERE record::id(id) = $principal)[0], resource_id: (SELECT VALUE record::id(id) FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $ws)[0], space_id: (SELECT VALUE record::id(access_space_id) FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $ws)[0], space_key: (SELECT VALUE access_space_id.space_key FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $ws)[0]};".to_owned(),
+                json!({"principal": principal, "ws": ws, "kind": ResourceKind::Workspace.as_str()}),
+            )
+            .await
+            .expect("owner account and workspace resource lookup");
+        let owner: Value = lookup
+            .take::<Option<Value>>(0)
+            .expect("owner account row")
+            .expect("owner account row present");
+        let text = |key: &str| -> String {
+            owner[key]
+                .as_str()
+                .unwrap_or_else(|| panic!("owner {key} missing: {owner}"))
+                .to_owned()
+        };
+        let viewer_key = format!("mt153-viewer-{}", Uuid::now_v7());
+        let capabilities = vec!["fs.read".to_owned()];
+        let viewer = state
+            .surreal
+            .provision_principal(
+                &text("account_key"),
+                &viewer_key,
+                "human_account",
+                &viewer_key,
+                "Operator",
+                &capabilities,
+                &text("space_key"),
+                Some(&sha256_hex(binding.channel.as_bytes())),
+                std::time::Duration::from_secs(3600),
+            )
+            .await
+            .expect("same-account viewer principal");
+        assert_eq!(
+            viewer.identity.account_id,
+            text("account_id"),
+            "the viewer belongs to the owner's account"
+        );
+        assert_eq!(
+            viewer.identity.access_space_id,
+            text("space_id"),
+            "the viewer belongs to the owner's access space"
+        );
+        state
+            .surreal
+            .grant_resource(
+                &text("account_id"),
+                &text("space_id"),
+                ResourceGrantSpec {
+                    principal_id: viewer.identity.principal_id.clone(),
+                    resource_id: text("resource_id"),
+                    actions: vec![ResourceAction::Read],
+                    capability_ids: capabilities,
+                    expires_at: None,
+                    delegation_chain: Vec::new(),
+                },
+            )
+            .await
+            .expect("viewer read grant on the owner's workspace resource");
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-hsk-channel-binding-token",
+            binding.channel.parse().unwrap(),
+        );
+        headers.insert("x-hsk-session-token", viewer.session.token.parse().unwrap());
+        headers
+    }
+
+    #[cfg(feature = "os-keychain")]
+    impl Mt153Matrix {
+        fn uri(&self, path: &str) -> String {
+            format!("/workspaces/{}{path}", self.ws)
+        }
+
+        async fn call(
+            &self,
+            headers: &HeaderMap,
+            method: &str,
+            uri: &str,
+            body: Value,
+        ) -> (StatusCode, Value) {
+            loom_create_request(&self.router, method, uri, headers, body).await
+        }
+
+        /// (a) owner positive: the route returns its success status.
+        async fn owner_ok(&self, family: &str, method: &str, path: &str, body: Value) -> Value {
+            let uri = self.uri(path);
+            let (status, response) = self.call(&self.owner, method, &uri, body).await;
+            assert!(
+                status.is_success(),
+                "[{family}] owner {method} {uri} -> {status}: {response}"
+            );
+            response
+        }
+
+        /// Admin re-read of canonical rows (verification only; never a product flow).
+        async fn row(&self, query: &str, bindings: Value) -> Value {
+            let mut response = self
+                .state
+                .surreal
+                .test_admin_query_bound(query.to_owned(), bindings)
+                .await
+                .unwrap_or_else(|error| panic!("canonical re-read {query}: {error}"));
+            response
+                .take::<Option<Value>>(0)
+                .unwrap_or_else(|error| panic!("canonical re-read {query}: {error}"))
+                .unwrap_or(Value::Null)
+        }
+
+        async fn ws_row(&self, query: &str) -> Value {
+            self.row(query, json!({"ws": self.ws})).await
+        }
+
+        async fn ledger_sequence(&self) -> i64 {
+            let mut response = self
+                .state
+                .surreal
+                .test_admin_query(
+                    "SELECT VALUE event_sequence FROM kernel_event_ledger;".to_owned(),
+                )
+                .await
+                .expect("ledger sequence read");
+            response
+                .take::<Vec<Value>>(0)
+                .expect("ledger sequences")
+                .iter()
+                .filter_map(Value::as_i64)
+                .max()
+                .unwrap_or(0)
+        }
+
+        async fn receipts_since(&self, since: i64) -> Vec<Value> {
+            let mut response = self
+                .state
+                .surreal
+                .test_admin_query_bound(
+                    "SELECT event_sequence, event_id, event_type, aggregate_type, aggregate_id, actor_kind, actor_id FROM kernel_event_ledger WHERE event_sequence > $since AND (wsids CONTAINS $ws OR payload.workspace_id = $ws) ORDER BY event_sequence;".to_owned(),
+                    json!({"since": since, "ws": self.ws}),
+                )
+                .await
+                .expect("workspace receipts read");
+            response.take::<Vec<Value>>(0).expect("workspace receipts")
+        }
+
+        /// AC-153-4: every workspace receipt the family's scoped writes appended carries the session
+        /// principal; the owner reads it through GET /kernel/events/aggregates/:type/:id, the second
+        /// account reads none of it and an anonymous caller is denied.
+        async fn assert_receipts(&self, family: &str, since: i64, required: bool) {
+            let receipts = self.receipts_since(since).await;
+            if required {
+                assert!(
+                    !receipts.is_empty(),
+                    "[{family}] the owner's scoped write appended no workspace receipt"
+                );
+            }
+            let mut checked = std::collections::BTreeSet::new();
+            for receipt in &receipts {
+                assert_eq!(
+                    receipt["actor_kind"], "operator",
+                    "[{family}] receipt actor kind (never System/header): {receipt}"
+                );
+                assert_eq!(
+                    receipt["actor_id"],
+                    self.principal.as_str(),
+                    "[{family}] receipt actor is the session principal: {receipt}"
+                );
+                let aggregate_type = receipt["aggregate_type"].as_str().unwrap_or_default();
+                let aggregate_id = receipt["aggregate_id"].as_str().unwrap_or_default();
+                if !checked.insert((aggregate_type.to_owned(), aggregate_id.to_owned())) {
+                    continue;
+                }
+                let uri = format!(
+                    "/kernel/events/aggregates/{}/{}",
+                    mt153_segment(aggregate_type),
+                    mt153_segment(aggregate_id)
+                );
+                let (status, events) = self.call(&self.owner, "GET", &uri, Value::Null).await;
+                assert_eq!(status, StatusCode::OK, "[{family}] owner {uri}: {events}");
+                assert!(
+                    events.as_array().is_some_and(|rows| rows
+                        .iter()
+                        .any(|row| row["event_id"] == receipt["event_id"])),
+                    "[{family}] the owner reads receipt {receipt} through {uri}: {events}"
+                );
+                let (status, foreign) = self.call(&self.other, "GET", &uri, Value::Null).await;
+                assert_eq!(
+                    status,
+                    StatusCode::OK,
+                    "[{family}] second account {uri}: {foreign}"
+                );
+                assert_eq!(
+                    foreign.as_array().map(Vec::len),
+                    Some(0),
+                    "[{family}] the second account reads 0 of the owner's receipts via {uri}: {foreign}"
+                );
+                let (status, _) = self.call(&self.anonymous, "GET", &uri, Value::Null).await;
+                assert_eq!(status, StatusCode::FORBIDDEN, "[{family}] anonymous {uri}");
+            }
+        }
+
+        async fn assert_write_denied(
+            &self,
+            family: &str,
+            method: &str,
+            path: &str,
+            body: Value,
+            snapshot: &str,
+        ) {
+            self.assert_write_denied_with(
+                family,
+                method,
+                path,
+                body,
+                snapshot,
+                StatusCode::FORBIDDEN,
+                MT153_DENIAL,
+            )
+            .await
+        }
+
+        /// (b)(c)(d): anonymous, second account and same-account viewer are denied the write with
+        /// the constant body; the family's canonical rows (`snapshot`, bound to `$ws`) and the
+        /// workspace receipts are unchanged afterwards.
+        #[allow(clippy::too_many_arguments)]
+        async fn assert_write_denied_with(
+            &self,
+            family: &str,
+            method: &str,
+            path: &str,
+            body: Value,
+            snapshot: &str,
+            anonymous_status: StatusCode,
+            anonymous_error: &str,
+        ) {
+            let uri = self.uri(path);
+            let before = self.ws_row(snapshot).await;
+            let since = self.ledger_sequence().await;
+            for (who, headers, status, error) in [
+                (
+                    "anonymous",
+                    &self.anonymous,
+                    anonymous_status,
+                    anonymous_error,
+                ),
+                (
+                    "second account",
+                    &self.other,
+                    StatusCode::FORBIDDEN,
+                    MT153_DENIAL,
+                ),
+                (
+                    "same-account viewer",
+                    &self.viewer,
+                    StatusCode::FORBIDDEN,
+                    MT153_DENIAL,
+                ),
+            ] {
+                let (actual, denial) = self.call(headers, method, &uri, body.clone()).await;
+                assert_eq!(
+                    actual, status,
+                    "[{family}] {who} {method} {uri} must be denied: {denial}"
+                );
+                assert_eq!(
+                    denial["error"], error,
+                    "[{family}] {who} {method} {uri} denial body: {denial}"
+                );
+            }
+            let after = self.ws_row(snapshot).await;
+            assert_eq!(
+                before, after,
+                "[{family}] denied {method} {uri} changed the canonical rows"
+            );
+            let leaked = self.receipts_since(since).await;
+            assert!(
+                leaked.is_empty(),
+                "[{family}] denied {method} {uri} appended receipts: {leaked:?}"
+            );
+        }
+
+        /// (b)(c) for reads: anonymous gets the constant denial; the second account gets the
+        /// constant denial or an empty list, never the owner's rows.
+        async fn assert_read_denied(&self, family: &str, method: &str, path: &str, body: Value) {
+            let uri = self.uri(path);
+            let (status, denial) = self.call(&self.anonymous, method, &uri, body.clone()).await;
+            assert_eq!(
+                status,
+                StatusCode::FORBIDDEN,
+                "[{family}] anonymous {method} {uri}: {denial}"
+            );
+            assert_eq!(
+                denial["error"], MT153_DENIAL,
+                "[{family}] anonymous {method} {uri}"
+            );
+            let (status, response) = self.call(&self.other, method, &uri, body).await;
+            let constant = status == StatusCode::FORBIDDEN && response["error"] == MT153_DENIAL;
+            let empty = status == StatusCode::OK && response.as_array().is_some_and(Vec::is_empty);
+            assert!(
+                constant || empty,
+                "[{family}] second account {method} {uri} must get the constant denial or an empty list, got {status}: {response}"
+            );
+        }
+    }
+
+    #[cfg(feature = "os-keychain")]
+    #[tokio::test]
+    async fn mt153_loom_route_family_authority_matrix() {
+        use base64::Engine as _;
+        let binding = LoomCreateBinding::new();
+        let (state, _store) = setup_state().await.unwrap();
+        let (router, owner, ws) = owned_loom_session(&state, &binding).await;
+        let router = router.merge(crate::api::kernel::routes(state.clone()));
+        let principal = owner["x-hsk-actor-id"].to_str().unwrap().to_owned();
+        let other = c3_other_account(&state, &binding).await;
+        let viewer = mt153_viewer(&state, &binding, &principal, &ws).await;
+        let mut anonymous = HeaderMap::new();
+        anonymous.insert(
+            "x-hsk-channel-binding-token",
+            binding.channel.parse().unwrap(),
+        );
+        let m = Mt153Matrix {
+            state: state.clone(),
+            router,
+            ws: ws.clone(),
+            principal,
+            owner,
+            anonymous,
+            other,
+            viewer,
+        };
+        let block_row = "RETURN (SELECT * FROM loom_blocks WHERE record::id(id) = $id)[0];";
+        let ws_blocks = "RETURN (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id);";
+
+        // ---- blocks + pins + metrics ------------------------------------------------------
+        let family = "blocks+pins+metrics";
+        let note = c3_block(&m.router, &m.owner, &ws, "note", "MT153 Zephyrine note").await;
+        let loose = c3_block(&m.router, &m.owner, &ws, "note", "MT153 loose note").await;
+        let since = m.ledger_sequence().await;
+        let renamed = m
+            .owner_ok(
+                family,
+                "PATCH",
+                &format!("/loom/blocks/{note}"),
+                json!({"title": "MT153 Zephyrine renamed"}),
+            )
+            .await;
+        assert_eq!(renamed["title"], "MT153 Zephyrine renamed", "[{family}]");
+        let row = m.row(block_row, json!({"id": note})).await;
+        assert_eq!(
+            row["title"], "MT153 Zephyrine renamed",
+            "[{family}] the canonical block row carries the rename: {row}"
+        );
+        let pinned = m
+            .owner_ok(
+                family,
+                "PUT",
+                &format!("/loom/blocks/{note}/pin-order"),
+                json!({"pin_order": 3}),
+            )
+            .await;
+        assert_eq!(pinned["pin_order"], 3, "[{family}] pin order: {pinned}");
+        assert_eq!(
+            m.row(block_row, json!({"id": note})).await["pin_order"],
+            3,
+            "[{family}] the canonical block row carries the pin order"
+        );
+        m.owner_ok(
+            family,
+            "POST",
+            &format!("/loom/blocks/{note}/remove-pin"),
+            Value::Null,
+        )
+        .await;
+        assert!(
+            m.row(block_row, json!({"id": note})).await["pin_order"].is_null(),
+            "[{family}] remove-pin cleared the canonical pin order"
+        );
+        m.owner_ok(
+            family,
+            "POST",
+            &format!("/loom/blocks/{note}/metrics/recompute"),
+            Value::Null,
+        )
+        .await;
+        m.assert_receipts(family, since, true).await;
+        m.owner_ok(
+            family,
+            "PUT",
+            &format!("/loom/blocks/{note}/pin-order"),
+            json!({"pin_order": 5}),
+        )
+        .await;
+        let one_block =
+            format!("RETURN (SELECT * FROM loom_blocks WHERE record::id(id) = '{note}')[0];");
+        for (method, path, body) in [
+            (
+                "POST",
+                "/loom/blocks".to_owned(),
+                json!({"content_type": "note", "title": "intruder"}),
+            ),
+            (
+                "PATCH",
+                format!("/loom/blocks/{note}"),
+                json!({"title": "intruder"}),
+            ),
+            (
+                "PUT",
+                format!("/loom/blocks/{note}/pin-order"),
+                json!({"pin_order": 9}),
+            ),
+            (
+                "POST",
+                format!("/loom/blocks/{note}/remove-pin"),
+                Value::Null,
+            ),
+            (
+                "POST",
+                format!("/loom/blocks/{note}/metrics/recompute"),
+                Value::Null,
+            ),
+            ("DELETE", format!("/loom/blocks/{note}"), Value::Null),
+        ] {
+            let snapshot = if path == "/loom/blocks" {
+                ws_blocks
+            } else {
+                one_block.as_str()
+            };
+            m.assert_write_denied(family, method, &path, body, snapshot)
+                .await;
+        }
+        for path in [
+            format!("/loom/blocks/{note}"),
+            format!("/loom/blocks/{note}/breadcrumbs"),
+            format!("/loom/blocks/{note}/backlinks"),
+            format!("/loom/blocks/{note}/unlinked-mentions"),
+        ] {
+            m.assert_read_denied(family, "GET", &path, Value::Null)
+                .await;
+        }
+        let doomed = c3_block(&m.router, &m.owner, &ws, "note", "MT153 doomed note").await;
+        m.owner_ok(
+            family,
+            "DELETE",
+            &format!("/loom/blocks/{doomed}"),
+            Value::Null,
+        )
+        .await;
+        assert!(
+            m.row(block_row, json!({"id": doomed})).await.is_null(),
+            "[{family}] the owner's delete removed the canonical block row"
+        );
+
+        // ---- folders ------------------------------------------------------------------------
+        let family = "folders";
+        let since = m.ledger_sequence().await;
+        let folder = m
+            .owner_ok(
+                family,
+                "POST",
+                "/loom/folders",
+                json!({"name": "MT153 folder"}),
+            )
+            .await;
+        let folder_id = folder["folder_id"].as_str().unwrap().to_owned();
+        m.owner_ok(
+            family,
+            "PUT",
+            &format!("/loom/folders/{folder_id}/blocks/{note}"),
+            json!({}),
+        )
+        .await;
+        m.owner_ok(
+            family,
+            "PATCH",
+            &format!("/loom/folders/{folder_id}"),
+            json!({"name": "MT153 folder renamed"}),
+        )
+        .await;
+        m.assert_receipts(family, since, true).await;
+        let read_back = m
+            .owner_ok(
+                family,
+                "GET",
+                &format!("/loom/folders/{folder_id}"),
+                Value::Null,
+            )
+            .await;
+        assert_eq!(
+            read_back["name"], "MT153 folder renamed",
+            "[{family}] {read_back}"
+        );
+        let folder_rows = "RETURN {folders: (SELECT * FROM loom_folders WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id), members: (SELECT * FROM loom_folder_members ORDER BY id)};";
+        let rows = m.ws_row(folder_rows).await;
+        assert_eq!(
+            rows["folders"].as_array().map(Vec::len),
+            Some(1),
+            "[{family}] canonical folder row: {rows}"
+        );
+        assert_eq!(
+            rows["members"].as_array().map(Vec::len),
+            Some(1),
+            "[{family}] canonical folder member row: {rows}"
+        );
+        for (method, path, body) in [
+            (
+                "POST",
+                "/loom/folders".to_owned(),
+                json!({"name": "intruder"}),
+            ),
+            (
+                "PATCH",
+                format!("/loom/folders/{folder_id}"),
+                json!({"name": "intruder"}),
+            ),
+            (
+                "PUT",
+                format!("/loom/folders/{folder_id}/blocks/{loose}"),
+                json!({}),
+            ),
+            (
+                "DELETE",
+                format!("/loom/folders/{folder_id}/blocks/{note}"),
+                Value::Null,
+            ),
+            ("DELETE", format!("/loom/folders/{folder_id}"), Value::Null),
+        ] {
+            m.assert_write_denied(family, method, &path, body, folder_rows)
+                .await;
+        }
+        for path in [
+            "/loom/folders".to_owned(),
+            format!("/loom/folders/{folder_id}"),
+            format!("/loom/folders/{folder_id}/blocks"),
+        ] {
+            m.assert_read_denied(family, "GET", &path, Value::Null)
+                .await;
+        }
+        m.owner_ok(
+            family,
+            "DELETE",
+            &format!("/loom/folders/{folder_id}/blocks/{note}"),
+            Value::Null,
+        )
+        .await;
+        m.owner_ok(
+            family,
+            "DELETE",
+            &format!("/loom/folders/{folder_id}"),
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            m.ws_row(folder_rows).await["folders"]
+                .as_array()
+                .map(Vec::len),
+            Some(0),
+            "[{family}] the owner's delete removed the canonical folder row"
+        );
+
+        // ---- wiki + overlays + bootstrap/drift/fanout --------------------------------------
+        let family = "wiki+overlays";
+        let page = m
+            .owner_ok(
+                family,
+                "POST",
+                "/loom/wiki",
+                json!({"title": "MT153 wiki", "block_ids": [note]}),
+            )
+            .await;
+        let projection_id = page["projection_id"].as_str().unwrap().to_owned();
+        m.owner_ok(
+            family,
+            "GET",
+            &format!("/loom/wiki/{projection_id}"),
+            Value::Null,
+        )
+        .await;
+        let since = m.ledger_sequence().await;
+        let overlay = m
+            .owner_ok(
+                family,
+                "POST",
+                &format!("/loom/wiki/{projection_id}/overlays"),
+                json!({"annotation": "MT153 overlay"}),
+            )
+            .await;
+        let overlay_id = overlay["overlay_id"].as_str().unwrap().to_owned();
+        m.assert_receipts(family, since, true).await;
+        let since = m.ledger_sequence().await;
+        m.owner_ok(
+            family,
+            "POST",
+            "/loom/wiki/drift-check",
+            json!({"persist": false}),
+        )
+        .await;
+        m.assert_receipts(family, since, false).await;
+        let wiki_rows = "RETURN {pages: (SELECT * FROM knowledge_wiki_projections WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id), overlays: (SELECT * FROM loom_wiki_overlays WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id)};";
+        let rows = m.ws_row(wiki_rows).await;
+        assert!(
+            rows["pages"]
+                .as_array()
+                .is_some_and(|pages| !pages.is_empty()),
+            "[{family}] canonical wiki projection row: {rows}"
+        );
+        assert_eq!(
+            rows["overlays"].as_array().map(Vec::len),
+            Some(1),
+            "[{family}] canonical overlay row: {rows}"
+        );
+        for (method, path, body) in [
+            (
+                "POST",
+                "/loom/wiki".to_owned(),
+                json!({"title": "intruder", "block_ids": [note]}),
+            ),
+            (
+                "POST",
+                format!("/loom/wiki/{projection_id}/overlays"),
+                json!({"annotation": "intruder"}),
+            ),
+            (
+                "POST",
+                format!("/loom/wiki/{projection_id}/regenerate"),
+                Value::Null,
+            ),
+            (
+                "DELETE",
+                format!("/loom/wiki-overlays/{overlay_id}"),
+                Value::Null,
+            ),
+            ("DELETE", format!("/loom/wiki/{projection_id}"), Value::Null),
+            ("POST", "/loom/wiki/bootstrap".to_owned(), json!({})),
+            ("POST", "/loom/wiki/drift-check".to_owned(), json!({})),
+            (
+                "POST",
+                "/loom/wiki/fanout".to_owned(),
+                json!({"source_kind": "loom_block", "source_id": note}),
+            ),
+        ] {
+            m.assert_write_denied(family, method, &path, body, wiki_rows)
+                .await;
+        }
+        for path in [
+            "/loom/wiki".to_owned(),
+            format!("/loom/wiki/{projection_id}"),
+            format!("/loom/wiki/{projection_id}/stale"),
+            format!("/loom/wiki/{projection_id}/overlays"),
+        ] {
+            m.assert_read_denied(family, "GET", &path, Value::Null)
+                .await;
+        }
+
+        // ---- markdown import + asset import -------------------------------------------------
+        let family = "markdown import + asset import";
+        let since = m.ledger_sequence().await;
+        let imported = m
+            .owner_ok(
+                family,
+                "POST",
+                "/loom/import/markdown",
+                json!({"title": "MT153 markdown", "markdown": "# MT153\n\nImported body"}),
+            )
+            .await;
+        let document = imported["rich_document_id"].as_str().unwrap().to_owned();
+        assert!(
+            !m.row(block_row, json!({"id": document})).await.is_null(),
+            "[{family}] the markdown import's canonical block row exists"
+        );
+        let asset = m
+            .owner_ok(
+                family,
+                "POST",
+                "/loom/import",
+                json!({"bytes_b64": STANDARD.encode(b"mt153 asset bytes"), "original_filename": "mt153.txt", "mime": "text/plain"}),
+            )
+            .await;
+        let asset_id = asset["asset_id"].as_str().unwrap().to_owned();
+        let file_block = asset["block_id"].as_str().unwrap().to_owned();
+        let file = m
+            .owner_ok(
+                family,
+                "GET",
+                &format!("/loom/blocks/{file_block}"),
+                Value::Null,
+            )
+            .await;
+        assert_eq!(file["content_type"], "file", "[{family}] {file}");
+        m.assert_receipts(family, since, false).await;
+        let import_rows = "RETURN {blocks: array::len(SELECT id FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws)), assets: (SELECT * FROM assets WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id), documents: array::len(SELECT id FROM knowledge_rich_documents)};";
+        assert_eq!(
+            m.ws_row(import_rows).await["assets"]
+                .as_array()
+                .map(Vec::len),
+            Some(1),
+            "[{family}] canonical asset row"
+        );
+        m.assert_write_denied(
+            family,
+            "POST",
+            "/loom/import/markdown",
+            json!({"title": "intruder", "markdown": "x"}),
+            import_rows,
+        )
+        .await;
+        m.assert_write_denied(
+            family,
+            "POST",
+            "/loom/import",
+            json!({"bytes_b64": STANDARD.encode(b"mt153 intruder bytes"), "original_filename": "intruder.txt", "mime": "text/plain"}),
+            import_rows,
+        )
+        .await;
+
+        // ---- AC-153-6: every LoomBlockContentType through the scoped create route ----------
+        let family = "content types";
+        for (kind, body) in [
+            (
+                "note",
+                json!({"content_type": "note", "title": "MT153 note type"}),
+            ),
+            (
+                "file",
+                json!({"content_type": "file", "title": "MT153 file type", "asset_id": asset_id}),
+            ),
+            (
+                "annotated_file",
+                json!({"content_type": "annotated_file", "title": "MT153 annotated type", "asset_id": asset_id}),
+            ),
+            (
+                "tag_hub",
+                json!({"content_type": "tag_hub", "title": "mt153-type-hub"}),
+            ),
+            (
+                "journal",
+                json!({"content_type": "journal", "title": "MT153 journal type", "journal_date": "2026-09-21"}),
+            ),
+        ] {
+            let created = m.owner_ok(family, "POST", "/loom/blocks", body).await;
+            assert_eq!(
+                created["content_type"], kind,
+                "[{family}] {kind}: {created}"
+            );
+            let id = created["block_id"].as_str().unwrap().to_owned();
+            assert_eq!(
+                m.row(block_row, json!({"id": id})).await["content_type"],
+                kind,
+                "[{family}] canonical {kind} block row"
+            );
+            let read = m
+                .owner_ok(family, "GET", &format!("/loom/blocks/{id}"), Value::Null)
+                .await;
+            assert_eq!(
+                read["content_type"], kind,
+                "[{family}] {kind} re-read: {read}"
+            );
+        }
+
+        // ---- tags + edges -------------------------------------------------------------------
+        let family = "tags+edges";
+        let hub = c3_block(&m.router, &m.owner, &ws, "tag_hub", "mt153-hub").await;
+        let spare_hub = c3_block(&m.router, &m.owner, &ws, "tag_hub", "mt153-spare").await;
+        let since = m.ledger_sequence().await;
+        let edge = m
+            .owner_ok(
+                family,
+                "POST",
+                "/loom/edges",
+                json!({"source_block_id": note, "target_block_id": hub, "edge_type": "tag", "created_by": "user"}),
+            )
+            .await;
+        let edge_id = edge["edge_id"].as_str().unwrap().to_owned();
+        m.assert_receipts(family, since, true).await;
+        let tagged = m
+            .owner_ok(
+                family,
+                "GET",
+                &format!("/loom/tags/{hub}/blocks"),
+                Value::Null,
+            )
+            .await;
+        assert!(
+            tagged
+                .as_array()
+                .is_some_and(|blocks| blocks.iter().any(|b| b["block_id"] == note)),
+            "[{family}] the owner's tag edge is visible: {tagged}"
+        );
+        let edge_row = "RETURN (SELECT * FROM loom_edges WHERE edge_id = $id)[0];";
+        assert!(
+            !m.row(edge_row, json!({"id": edge_id})).await.is_null(),
+            "[{family}] canonical edge row"
+        );
+        let edge_rows = "RETURN (SELECT * FROM loom_edges WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id);";
+        m.assert_write_denied(
+            family,
+            "POST",
+            "/loom/edges",
+            json!({"source_block_id": note, "target_block_id": spare_hub, "edge_type": "tag", "created_by": "user"}),
+            edge_rows,
+        )
+        .await;
+        m.assert_write_denied(
+            family,
+            "DELETE",
+            &format!("/loom/edges/{edge_id}"),
+            Value::Null,
+            edge_rows,
+        )
+        .await;
+        for path in [
+            "/loom/tags".to_owned(),
+            format!("/loom/tags/{hub}"),
+            format!("/loom/tags/{hub}/blocks"),
+        ] {
+            m.assert_read_denied(family, "GET", &path, Value::Null)
+                .await;
+        }
+        m.owner_ok(
+            family,
+            "DELETE",
+            &format!("/loom/edges/{edge_id}"),
+            Value::Null,
+        )
+        .await;
+        assert!(
+            m.row(edge_row, json!({"id": edge_id})).await.is_null(),
+            "[{family}] the owner's delete removed the canonical edge row"
+        );
+
+        // ---- assets + tiers -----------------------------------------------------------------
+        let family = "assets+tiers";
+        m.owner_ok(family, "GET", &format!("/assets/{asset_id}"), Value::Null)
+            .await;
+        let (status, bytes) = c3_raw_request(
+            &m.router,
+            "GET",
+            &m.uri(&format!("/assets/{asset_id}/content")),
+            &m.owner,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "[{family}] owner asset content");
+        assert_eq!(
+            bytes,
+            b"mt153 asset bytes".to_vec(),
+            "[{family}] canonical asset bytes"
+        );
+        m.owner_ok(
+            family,
+            "GET",
+            &format!("/assets/{asset_id}/tiers"),
+            Value::Null,
+        )
+        .await;
+        m.assert_write_denied(
+            family,
+            "POST",
+            &format!("/assets/{asset_id}/tiers/poster/retry"),
+            Value::Null,
+            "RETURN {tiers: (SELECT * FROM media_asset_tiers ORDER BY id), jobs: array::len(SELECT id FROM ai_jobs)};",
+        )
+        .await;
+        for path in [
+            format!("/assets/{asset_id}"),
+            format!("/assets/{asset_id}/content"),
+            format!("/assets/{asset_id}/thumbnail"),
+            format!("/assets/{asset_id}/tiers"),
+        ] {
+            m.assert_read_denied(family, "GET", &path, Value::Null)
+                .await;
+        }
+
+        // ---- collections --------------------------------------------------------------------
+        let family = "collections";
+        let since = m.ledger_sequence().await;
+        let collection = m
+            .owner_ok(
+                family,
+                "POST",
+                "/loom/collections",
+                json!({"title": "MT153 album", "asset_ids": [asset_id]}),
+            )
+            .await;
+        let collection_id = collection["collection_id"].as_str().unwrap().to_owned();
+        m.owner_ok(
+            family,
+            "PUT",
+            &format!("/loom/collections/{collection_id}/order"),
+            json!({"asset_ids": [asset_id]}),
+        )
+        .await;
+        m.assert_receipts(family, since, false).await;
+        let read_back = m
+            .owner_ok(
+                family,
+                "GET",
+                &format!("/loom/collections/{collection_id}"),
+                Value::Null,
+            )
+            .await;
+        assert_eq!(
+            read_back["members"],
+            json!([asset_id]),
+            "[{family}] {read_back}"
+        );
+        let collection_rows = "RETURN {collections: (SELECT * FROM loom_collections WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id), members: (SELECT * FROM loom_collection_members ORDER BY id)};";
+        assert_eq!(
+            m.ws_row(collection_rows).await["collections"]
+                .as_array()
+                .map(Vec::len),
+            Some(1),
+            "[{family}] canonical collection row"
+        );
+        m.assert_write_denied(
+            family,
+            "POST",
+            "/loom/collections",
+            json!({"title": "intruder", "asset_ids": [asset_id]}),
+            collection_rows,
+        )
+        .await;
+        m.assert_write_denied(
+            family,
+            "PUT",
+            &format!("/loom/collections/{collection_id}/order"),
+            json!({"asset_ids": []}),
+            collection_rows,
+        )
+        .await;
+        m.assert_read_denied(
+            family,
+            "GET",
+            &format!("/loom/collections/{collection_id}"),
+            Value::Null,
+        )
+        .await;
+
+        // ---- views + graph + search + visual-debug ------------------------------------------
+        let family = "views+graph+search";
+        let since = m.ledger_sequence().await;
+        let reads = [
+            ("GET", "/loom/views/all".to_owned(), Value::Null),
+            (
+                "GET",
+                format!("/loom/graph/traverse?start_block_id={note}"),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/loom/graph/local?start_block_id={note}"),
+                Value::Null,
+            ),
+            ("GET", "/loom/graph/global".to_owned(), Value::Null),
+            (
+                "GET",
+                "/loom/graph-search?q=Zephyrine".to_owned(),
+                Value::Null,
+            ),
+            (
+                "GET",
+                format!("/loom/visual-debug?start_block_id={note}&q=Zephyrine"),
+                Value::Null,
+            ),
+            (
+                "POST",
+                "/loom/search-v2".to_owned(),
+                json!({"query": "Zephyrine"}),
+            ),
+        ];
+        for (method, path, body) in reads.clone() {
+            m.owner_ok(family, method, &path, body).await;
+        }
+        let found = m
+            .owner_ok(family, "GET", "/loom/search?q=Zephyrine", Value::Null)
+            .await;
+        assert!(
+            found.as_array().is_some_and(|rows| rows
+                .iter()
+                .any(|r| r["block"]["block_id"] == note || r["block_id"] == note)),
+            "[{family}] record-user search sees the owner's note: {found}"
+        );
+        m.owner_ok(family, "POST", "/loom/metrics/recompute", Value::Null)
+            .await;
+        m.assert_receipts(family, since, false).await;
+        m.assert_write_denied(
+            family,
+            "POST",
+            "/loom/metrics/recompute",
+            Value::Null,
+            ws_blocks,
+        )
+        .await;
+        for (method, path, body) in reads {
+            m.assert_read_denied(family, method, &path, body).await;
+        }
+        m.assert_read_denied(family, "GET", "/loom/search?q=Zephyrine", Value::Null)
+            .await;
+
+        // ---- quick-switcher -----------------------------------------------------------------
+        let family = "quick-switcher";
+        let since = m.ledger_sequence().await;
+        m.owner_ok(
+            family,
+            "POST",
+            "/loom/quick-switcher/recents",
+            json!({"result_kind": "loom_block", "source_kind": "loom_block", "ref_id": note, "title": "MT153 Zephyrine renamed"}),
+        )
+        .await;
+        m.assert_receipts(family, since, true).await;
+        let recents = m
+            .owner_ok(family, "GET", "/loom/quick-switcher/recents", Value::Null)
+            .await;
+        assert_eq!(
+            recents.as_array().map(Vec::len),
+            Some(1),
+            "[{family}] {recents}"
+        );
+        let recent_rows = "RETURN (SELECT * FROM knowledge_quick_switcher_recents WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id);";
+        assert_eq!(
+            m.ws_row(recent_rows).await.as_array().map(Vec::len),
+            Some(1),
+            "[{family}] canonical recent row"
+        );
+        m.assert_write_denied(
+            family,
+            "POST",
+            "/loom/quick-switcher/recents",
+            json!({"result_kind": "loom_block", "source_kind": "loom_block", "ref_id": hub, "title": "intruder"}),
+            recent_rows,
+        )
+        .await;
+        m.assert_read_denied(family, "GET", "/loom/quick-switcher/recents", Value::Null)
+            .await;
+
+        // ---- AI jobs + suggestions ----------------------------------------------------------
+        let family = "AI jobs+suggestions";
+        let since = m.ledger_sequence().await;
+        let job = m
+            .owner_ok(
+                family,
+                "POST",
+                "/loom/ai-jobs",
+                json!({"kind": "auto_tag", "block_ids": [note]}),
+            )
+            .await;
+        m.assert_receipts(family, since, true).await;
+        let job_id = job["job_id"].as_str().unwrap().to_owned();
+        let suggestion = job["suggestions"][0]["suggestion_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let listed = m
+            .owner_ok(family, "GET", "/loom/ai-suggestions", Value::Null)
+            .await;
+        assert!(
+            listed
+                .as_array()
+                .is_some_and(|rows| rows.iter().any(|s| s["suggestion_id"] == suggestion)),
+            "[{family}] {listed}"
+        );
+        let suggestion_rows = "RETURN {suggestions: (SELECT * FROM loom_ai_suggestions WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id), edges: array::len(SELECT id FROM loom_edges)};";
+        assert!(
+            m.ws_row(suggestion_rows).await["suggestions"]
+                .as_array()
+                .is_some_and(|rows| !rows.is_empty()),
+            "[{family}] canonical suggestion rows"
+        );
+        for (method, path) in [
+            ("POST", format!("/loom/ai-suggestions/{suggestion}/accept")),
+            ("POST", format!("/loom/ai-suggestions/{suggestion}/reject")),
+            ("POST", format!("/loom/ai-jobs/{job_id}/accept-all")),
+        ] {
+            m.assert_write_denied(family, method, &path, Value::Null, suggestion_rows)
+                .await;
+        }
+        m.assert_write_denied(
+            family,
+            "POST",
+            "/loom/ai-jobs",
+            json!({"kind": "auto_tag", "block_ids": [note]}),
+            suggestion_rows,
+        )
+        .await;
+        m.assert_read_denied(family, "GET", "/loom/ai-suggestions", Value::Null)
+            .await;
+        let accepted = m
+            .owner_ok(
+                family,
+                "POST",
+                &format!("/loom/ai-suggestions/{suggestion}/accept"),
+                Value::Null,
+            )
+            .await;
+        assert_eq!(
+            accepted["review_state"], "promoted",
+            "[{family}] {accepted}"
+        );
+
+        // ---- canvas viewport / cards / stage-cards / placements / visual-edges ------------
+        let family = "canvas";
+        let canvas = m
+            .owner_ok(
+                family,
+                "POST",
+                "/loom/canvas-boards",
+                json!({"title": "MT153 canvas"}),
+            )
+            .await;
+        let canvas_id = canvas["block_id"].as_str().unwrap().to_owned();
+        assert_eq!(
+            m.row(block_row, json!({"id": canvas_id})).await["content_type"],
+            "canvas",
+            "[{family}] AC-153-6 canonical canvas block row"
+        );
+        let mut placements = Vec::new();
+        for placed in [&note, &loose] {
+            let placement = m
+                .owner_ok(
+                    family,
+                    "POST",
+                    &format!("/loom/canvas-boards/{canvas_id}/placements"),
+                    json!({"placed_block_id": placed, "x": 10.0, "y": 10.0, "w": 200.0, "h": 120.0}),
+                )
+                .await;
+            placements.push(placement["placement_id"].as_str().unwrap().to_owned());
+        }
+        let moved = m
+            .owner_ok(
+                family,
+                "PATCH",
+                &format!("/loom/canvas-placements/{}", placements[0]),
+                json!({"x": 321.0}),
+            )
+            .await;
+        assert_eq!(moved["x"], 321.0, "[{family}] {moved}");
+        let visual = m
+            .owner_ok(
+                family,
+                "POST",
+                &format!("/loom/canvas-boards/{canvas_id}/visual-edges"),
+                json!({"from_placement_id": placements[0], "to_placement_id": placements[1]}),
+            )
+            .await;
+        let visual_id = visual["visual_edge_id"].as_str().unwrap().to_owned();
+        let board = m
+            .owner_ok(
+                family,
+                "GET",
+                &format!("/loom/canvas-boards/{canvas_id}"),
+                Value::Null,
+            )
+            .await;
+        let since = m.ledger_sequence().await;
+        let viewport = m
+            .owner_ok(
+                family,
+                "PUT",
+                &format!("/loom/canvas-boards/{canvas_id}/viewport"),
+                json!({"board_state": {"schema_id": crate::storage::LOOM_CANVAS_BOARD_SCHEMA_ID, "pan_x": 5.0, "pan_y": 6.0, "zoom": 1.5}, "expected_event_ledger_event_id": board["board"]["event_ledger_event_id"]}),
+            )
+            .await;
+        assert_eq!(
+            viewport["board_state"]["zoom"], 1.5,
+            "[{family}] {viewport}"
+        );
+        m.assert_receipts(family, since, true).await;
+        let card = m
+            .owner_ok(
+                family,
+                "POST",
+                &format!("/loom/canvas-boards/{canvas_id}/cards"),
+                json!({"title": "MT153 text card", "body": "card body", "x": 40.0, "y": 40.0, "w": 200.0, "h": 120.0}),
+            )
+            .await;
+        let text_placement = card["placement"]["placement_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        // AC-153-7: the Stage path runs under the account session and record-user scope.
+        let stage_provenance = |artifact: &str| {
+            json!({
+                "schema_id": LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
+                "artifact_id": artifact,
+                "sha256": "a".repeat(64),
+                "manifest_ref": format!("mt153-manifest-{artifact}"),
+                "causal_action_id": format!("mt153-action-{artifact}"),
+            })
+        };
+        let stage_card = |artifact: &str| {
+            let provenance = stage_provenance(artifact);
+            json!({
+                "title": format!("Stage capture {artifact}"),
+                "body": provenance.to_string(),
+                "x": 60.0, "y": 60.0, "w": 200.0, "h": 120.0,
+                "stage_provenance": provenance,
+            })
+        };
+        let since = m.ledger_sequence().await;
+        let staged = m
+            .owner_ok(
+                family,
+                "POST",
+                &format!("/loom/canvas-boards/{canvas_id}/cards"),
+                stage_card("mt153-artifact"),
+            )
+            .await;
+        m.assert_receipts(family, since, false).await;
+        let stage_placement = staged["placement"]["placement_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let stage_block = staged["block"]["block_id"].as_str().unwrap().to_owned();
+        let board = m
+            .owner_ok(
+                family,
+                "GET",
+                &format!("/loom/canvas-boards/{canvas_id}"),
+                Value::Null,
+            )
+            .await;
+        let placement_row =
+            "RETURN (SELECT * FROM loom_canvas_placements WHERE placement_id = $id)[0];";
+        for id in [&placements[0], &text_placement, &stage_placement] {
+            assert!(
+                !m.row(placement_row, json!({"id": id})).await.is_null(),
+                "[{family}] canonical placement row {id}"
+            );
+        }
+        let canvas_rows = "RETURN {boards: (SELECT * FROM loom_canvas_boards WHERE workspace_id = type::record('workspaces', $ws) ORDER BY id), placements: (SELECT * FROM loom_canvas_placements ORDER BY id), visual: (SELECT * FROM loom_canvas_visual_edges ORDER BY id), blocks: array::len(SELECT id FROM loom_blocks), documents: array::len(SELECT id FROM knowledge_rich_documents)};";
+        for (method, path, body) in [
+            (
+                "POST",
+                "/loom/canvas-boards".to_owned(),
+                json!({"title": "intruder"}),
+            ),
+            (
+                "PUT",
+                format!("/loom/canvas-boards/{canvas_id}/viewport"),
+                json!({"board_state": {"schema_id": crate::storage::LOOM_CANVAS_BOARD_SCHEMA_ID, "pan_x": 9.0, "pan_y": 9.0, "zoom": 2.0}, "expected_event_ledger_event_id": board["board"]["event_ledger_event_id"]}),
+            ),
+            (
+                "POST",
+                format!("/loom/canvas-boards/{canvas_id}/placements"),
+                json!({"placed_block_id": note, "x": 1.0, "y": 1.0, "w": 10.0, "h": 10.0}),
+            ),
+            (
+                "PATCH",
+                format!("/loom/canvas-placements/{}", placements[0]),
+                json!({"x": 1.0}),
+            ),
+            (
+                "DELETE",
+                format!("/loom/canvas-placements/{}", placements[1]),
+                Value::Null,
+            ),
+            (
+                "POST",
+                format!("/loom/canvas-boards/{canvas_id}/visual-edges"),
+                json!({"from_placement_id": placements[1], "to_placement_id": placements[0]}),
+            ),
+            (
+                "DELETE",
+                format!("/loom/canvas-visual-edges/{visual_id}"),
+                Value::Null,
+            ),
+            (
+                "POST",
+                format!("/loom/canvas-boards/{canvas_id}/cards"),
+                json!({"title": "intruder", "body": "x", "x": 1.0, "y": 1.0, "w": 10.0, "h": 10.0}),
+            ),
+            (
+                "POST",
+                format!("/loom/canvas-boards/{canvas_id}/cards"),
+                stage_card("mt153-intruder"),
+            ),
+            (
+                "POST",
+                format!("/loom/canvas-boards/{canvas_id}/stage-cards/{stage_placement}/compensate"),
+                json!({"placed_block_id": stage_block, "stage_provenance": stage_provenance("mt153-artifact")}),
+            ),
+        ] {
+            m.assert_write_denied(family, method, &path, body, canvas_rows)
+                .await;
+        }
+        m.assert_read_denied(
+            family,
+            "GET",
+            &format!("/loom/canvas-boards/{canvas_id}"),
+            Value::Null,
+        )
+        .await;
+        let compensated = m
+            .owner_ok(
+                family,
+                "POST",
+                &format!("/loom/canvas-boards/{canvas_id}/stage-cards/{stage_placement}/compensate"),
+                json!({"placed_block_id": stage_block, "stage_provenance": stage_provenance("mt153-artifact")}),
+            )
+            .await;
+        assert_eq!(
+            compensated["removed_by_request"], true,
+            "[{family}] Stage compensation: {compensated}"
+        );
+        assert!(
+            m.row(placement_row, json!({"id": stage_placement}))
+                .await
+                .is_null(),
+            "[{family}] the owner's compensation removed the Stage placement"
+        );
+        m.owner_ok(
+            family,
+            "DELETE",
+            &format!("/loom/canvas-visual-edges/{visual_id}"),
+            Value::Null,
+        )
+        .await;
+        m.owner_ok(
+            family,
+            "DELETE",
+            &format!("/loom/canvas-placements/{text_placement}"),
+            Value::Null,
+        )
+        .await;
+        assert!(
+            m.row(placement_row, json!({"id": text_placement}))
+                .await
+                .is_null(),
+            "[{family}] the owner's delete removed the text-card placement"
+        );
+
+        // ---- block-view definitions + results -----------------------------------------------
+        let family = "block-view definitions";
+        let view_id = Uuid::now_v7().to_string();
+        let definition = serde_json::to_value(mt027_view_definition()).unwrap();
+        let since = m.ledger_sequence().await;
+        m.owner_ok(
+            family,
+            "POST",
+            "/loom/views/definitions",
+            json!({"block_id": view_id, "title": "MT153 view", "definition": definition}),
+        )
+        .await;
+        m.assert_receipts(family, since, true).await;
+        assert_eq!(
+            m.row(block_row, json!({"id": view_id})).await["content_type"],
+            "view_def",
+            "[{family}] AC-153-6 canonical view_def block row"
+        );
+        m.owner_ok(
+            family,
+            "GET",
+            &format!("/loom/views/definitions/{view_id}"),
+            Value::Null,
+        )
+        .await;
+        m.owner_ok(
+            family,
+            "PATCH",
+            &format!("/loom/views/definitions/{view_id}"),
+            json!({"definition": definition}),
+        )
+        .await;
+        m.owner_ok(
+            family,
+            "POST",
+            &format!("/loom/views/definitions/{view_id}/results"),
+            json!({}),
+        )
+        .await;
+        let view_rows = "RETURN {views: (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) AND content_type = 'view_def' ORDER BY id), outbox: array::len(SELECT id FROM loom_block_view_fr_outbox)};";
+        m.assert_write_denied(
+            family,
+            "POST",
+            "/loom/views/definitions",
+            json!({"block_id": Uuid::now_v7().to_string(), "title": "intruder", "definition": definition}),
+            view_rows,
+        )
+        .await;
+        m.assert_write_denied(
+            family,
+            "PATCH",
+            &format!("/loom/views/definitions/{view_id}"),
+            json!({"definition": definition}),
+            view_rows,
+        )
+        .await;
+        m.assert_read_denied(
+            family,
+            "GET",
+            &format!("/loom/views/definitions/{view_id}"),
+            Value::Null,
+        )
+        .await;
+        m.assert_read_denied(
+            family,
+            "POST",
+            &format!("/loom/views/definitions/{view_id}/results"),
+            json!({}),
+        )
+        .await;
+
+        // ---- daily journal (MT-111 status split: no session 401, other account 403) ---------
+        let family = "daily journal";
+        let since = m.ledger_sequence().await;
+        let journal = m
+            .owner_ok(family, "PUT", "/loom/journals/2026-09-23", Value::Null)
+            .await;
+        m.assert_receipts(family, since, false).await;
+        assert_eq!(journal["content_type"], "journal", "[{family}] {journal}");
+        let journal_id = journal["block_id"].as_str().unwrap().to_owned();
+        let journal_row = m.row(block_row, json!({"id": journal_id})).await;
+        assert_eq!(
+            journal_row["journal_date"], "2026-09-23",
+            "[{family}] canonical journal row: {journal_row}"
+        );
+        m.assert_write_denied_with(
+            family,
+            "PUT",
+            "/loom/journals/2026-09-25",
+            Value::Null,
+            "RETURN (SELECT * FROM loom_blocks WHERE workspace_id = type::record('workspaces', $ws) AND content_type = 'journal' ORDER BY id);",
+            StatusCode::UNAUTHORIZED,
+            "HSK-401-LOOM-SESSION",
+        )
+        .await;
+        let (status, _) = m
+            .call(
+                &m.other,
+                "PUT",
+                &m.uri("/loom/journals/2026-09-23"),
+                Value::Null,
+            )
+            .await;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "[{family}] second account cannot open the owner's existing journal"
+        );
     }
 }
 

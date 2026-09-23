@@ -278,6 +278,8 @@ fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
         migration_version: None,
     }));
     app.set_runtime_handle(runtime.handle().clone());
+    // MT-153 C3: the mounted Loom wiki client carries the fixture's real account session.
+    live.bind_app_account(&mut app);
     app.set_wiki_backend_base_url_for_test(live.base.clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     retype_pane_a_to_wiki(&mut app, &projection_id);

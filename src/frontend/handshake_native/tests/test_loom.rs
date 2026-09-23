@@ -258,6 +258,25 @@ fn rt() -> tokio::runtime::Runtime {
         .expect("tokio runtime")
 }
 
+/// MT-153 C3: Loom routes require the account session. Explicit identity for this file's isolated mock
+/// HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> std::sync::Arc<handshake_native::local_account::AuthenticatedContext> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    )
+}
+
 /// The loom routes require NO identity headers; assert the client sent none of them.
 fn assert_no_identity_headers(headers: &std::collections::HashMap<String, String>) {
     for forbidden in [
@@ -278,7 +297,8 @@ fn assert_no_identity_headers(headers: &std::collections::HashMap<String, String
 #[test]
 fn ac_get_loom_block_deserializes_real_backend_shape() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", block_response_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     let resp = rt().block_on(async { client.get_loom_block("WS-1", "BLK-1").await });
     let exchange = server.join().unwrap();
@@ -310,7 +330,8 @@ fn ac_get_loom_block_deserializes_real_backend_shape() {
 #[test]
 fn ac_create_block_roundtrips_typed_loom_block() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", block_response_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let body = CreateLoomBlockRequest {
         block_id: None,
         content_type: LoomBlockContentType::Note,
@@ -346,7 +367,8 @@ fn ac_create_block_roundtrips_typed_loom_block() {
 #[test]
 fn ac_delete_block_roundtrips_status_ack() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", json!({ "status": "deleted" }));
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     let resp = rt().block_on(async { client.delete_loom_block("WS-1", "BLK-1").await });
     let exchange = server.join().unwrap();
@@ -367,7 +389,8 @@ fn ac_delete_block_roundtrips_status_ack() {
 #[test]
 fn ac_create_edge_roundtrips_typed_loom_edge() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", edge_response_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let body = CreateLoomEdgeRequest {
         edge_id: None,
         source_block_id: "BLK-1".into(),
@@ -406,7 +429,8 @@ fn ac_create_edge_roundtrips_typed_loom_edge() {
 #[test]
 fn ac_delete_edge_roundtrips_typed_loom_edge() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", edge_response_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     let resp = rt().block_on(async { client.delete_loom_edge("WS-1", "EDGE-1").await });
     let exchange = server.join().unwrap();
@@ -427,7 +451,8 @@ fn ac_delete_edge_roundtrips_typed_loom_edge() {
 #[test]
 fn ac_patch_block_sends_tags_as_block_ids() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", block_response_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let patch = LoomBlockPatchRequest {
         add_tags: vec!["BLK-tag-hub-A".into()],
         remove_tags: vec!["BLK-tag-hub-B".into()],
@@ -459,7 +484,8 @@ fn ac_patch_block_sends_tags_as_block_ids() {
 #[test]
 fn ac_transclusion_unresolved_is_first_class_ok() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", transclusion_unresolved_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     let resp = rt().block_on(async { client.get_loom_block_transclusion("WS-1", "BLK-1").await });
     let exchange = server.join().unwrap();
@@ -493,7 +519,8 @@ fn ac_transclusion_unresolved_is_first_class_ok() {
 #[test]
 fn ac_search_v2_parses_non_empty_results_and_sends_no_embedding() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", search_v2_response_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let body = LoomSearchV2Request {
         query: "design".into(),
         ..Default::default()
@@ -550,7 +577,8 @@ fn ac_search_v2_parses_non_empty_results_and_sends_no_embedding() {
 #[test]
 fn ac_open_daily_journal_roundtrips_journal_block() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", journal_block_response_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     let resp = rt().block_on(async { client.open_daily_journal("WS-1", "2026-06-23").await });
     let exchange = server.join().unwrap();
@@ -570,7 +598,8 @@ fn ac_open_daily_journal_roundtrips_journal_block() {
 #[test]
 fn ac_open_daily_journal_malformed_date_is_typed_bad_request() {
     let (base_url, server) = spawn_mock("HTTP/1.1 400 Bad Request", journal_date_400_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     let resp = rt().block_on(async { client.open_daily_journal("WS-1", "not-a-date").await });
     let _ = server.join().unwrap();
@@ -591,7 +620,8 @@ fn ac_open_daily_journal_malformed_date_is_typed_bad_request() {
 #[test]
 fn ac_import_markdown_returns_typed_authority_block() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", markdown_import_body());
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let body = ImportMarkdownRequest {
         title: "Imported".into(),
         markdown: "# Heading\n\nbody".into(),
@@ -627,7 +657,8 @@ fn ac_import_markdown_returns_typed_authority_block() {
 #[test]
 fn ac_missing_block_is_typed_not_found() {
     let (base_url, server) = spawn_mock("HTTP/1.1 404 Not Found", json!({ "error": "not_found" }));
-    let client = LoomClient::with_base_url(base_url);
+    let client = LoomClient::with_base_url(base_url.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     let resp = rt().block_on(async { client.get_loom_block("WS-1", "BLK-missing").await });
     let _ = server.join().unwrap();

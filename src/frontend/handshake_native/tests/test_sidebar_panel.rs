@@ -925,7 +925,8 @@ fn sidebar_live_surrealdb_self_seeds_mounted_round_trip() {
         .enable_all()
         .build()
         .expect("sidebar live runtime");
-    let client = LoomSidebarClient::new(live.base.clone(), runtime.handle().clone());
+    let client = LoomSidebarClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(live.account());
 
     // The isolated workspace is a real, observable empty state before fixture creation.
     let empty_pins: SidebarBlockListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
@@ -1215,7 +1216,8 @@ fn sidebar_live_surrealdb_self_seeds_mounted_round_trip() {
         .error_section
         .contains_key(&SectionKind::Pins));
 
-    let fresh = LoomSidebarClient::new(live.base.clone(), runtime.handle().clone());
+    let fresh = LoomSidebarClient::new(live.base.clone(), runtime.handle().clone())
+        .with_authenticated_context(live.account());
     let fresh_pins: SidebarBlockListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     let fresh_favorites: SidebarBlockListCell =
         Arc::new(Mutex::new(std::collections::VecDeque::new()));
@@ -1254,6 +1256,19 @@ fn sidebar_live_surrealdb_self_seeds_mounted_round_trip() {
     let loss_cell: SidebarBlockListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
     loss.fetch_pins("mt024-backend-loss", Arc::clone(&loss_cell));
     assert!(await_sidebar_blocks(&loss_cell, "mt024-backend-loss").is_err());
+    // MT-154: the same backend loss with an account bound to that origin keeps the transport-failure
+    // path covered (the unbound client above stops at "Account login required").
+    let bound_loss = LoomSidebarClient::new("http://127.0.0.1:0", runtime.handle().clone())
+        .with_authenticated_context(live.account_for_origin("http://127.0.0.1:0"));
+    let bound_loss_cell: SidebarBlockListCell =
+        Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    bound_loss.fetch_pins("mt024-backend-loss", Arc::clone(&bound_loss_cell));
+    let bound_loss_error = await_sidebar_blocks(&bound_loss_cell, "mt024-backend-loss")
+        .expect_err("an authenticated backend loss is a typed Err");
+    assert!(
+        !bound_loss_error.contains("Account login required"),
+        "the bound variant reaches the transport failure: {bound_loss_error}"
+    );
 
     cleanup.assert_cleaned();
     assert_no_local_artifact_dir();
