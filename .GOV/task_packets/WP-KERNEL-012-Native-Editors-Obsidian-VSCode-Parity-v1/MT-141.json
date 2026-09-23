@@ -30,7 +30,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "FAIL_V5",
     "depends_on": [
       "MT-136",
       "MT-137",
@@ -38,7 +38,7 @@
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": "FAIL_V5",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260909-212427",
     "origin": "Created 2026-08-18 by KERNEL_BUILDER-20260818-130753. MT-137's progress notes already flagged that tests asserting deleted PostgreSQL DDL constants 'cannot survive the pivot and need their own microtask' (naming process_ledger_tests.rs, process_ledger_reclaim_tests.rs, focus_audit_tests.rs, hbr_e2e_smoke_test.rs). A census on 2026-08-18 measured the true surface: ~190 files under src/backend/handshake_core/tests/ carry sqlx usage, PostgreSQL DSNs, psql spawns, apply_migration() calls, or PG language — the whole backend test tree was authored against the deleted PostgreSQL storage layer. The Operator directive forbids PostgreSQL/SQLite dependency and language in tests and checks.",
@@ -764,8 +764,8 @@
       "waived_by": "WP-KERNEL-012-KB-READY-RECEIPT-WAIVER-20260910",
       "waived_at_utc": "2026-09-10T01:45:58.115Z"
     },
-    "validated_by": "WP_VALIDATOR-B3-20260916-113023",
-    "validated_at_utc": "2026-09-17T00:47:33.057Z",
+    "validated_by": "WP_VALIDATOR-D1V-20260923-2240",
+    "validated_at_utc": "2026-09-23T22:35:48.342Z",
     "next_actor": "KERNEL_BUILDER",
     "validation_history": [
       {
@@ -1068,7 +1068,7 @@
       ]
     }
   },
-  "updated_at_utc": "2026-09-23T06:14:41.580Z",
+  "updated_at_utc": "2026-09-23T22:35:48.342Z",
   "implementation_result_2026_09_06": {
     "schema_id": "hsk.mt_implementation_result@1",
     "session": "KERNEL_BUILDER-20260905-213403",
@@ -15531,5 +15531,62 @@
       ]
     },
     "recorded_at_utc": "2026-09-23T06:14:41.580Z"
+  },
+  "validation_v5": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-D1V-20260923-2240",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "timestamp_utc": "2026-09-23T22:35:48.342Z",
+    "env": {
+      "lane": "D: (wpv-d1)",
+      "target": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+      "HANDSHAKE_TEST_SURREAL_SYNC": "never"
+    },
+    "proof_records": [
+      {
+        "id": "PR-MT141-grep-tests-sqlx",
+        "executor_role": "WP_VALIDATOR",
+        "command": "grep -rn --include=*.rs -E \"^s*uses+(sqlx|postgres|rusqlite|sqlite)|sqlx::|rusqlite::|(postgres|postgresql|sqlite)://\" src/backend/handshake_core/tests/",
+        "log": "../../MT-158/wpv-d1/logs/17-mt141-grep1.log",
+        "result_line": "8 matches; all inside string literals in model_registry_tests.rs:240 and security_portability_validation_tests.rs / wp009_integration_validator_evidence_pack_tests.rs fixture data (pattern-detection test fixtures, not live sqlx usage) - not independently confirmed as intentional by this validator, reported verbatim",
+        "covers": [
+          "MT-141"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      },
+      {
+        "id": "PR-MT141-grep-cargo-toml",
+        "executor_role": "WP_VALIDATOR",
+        "command": "grep -n -i -E \"sqlx|postgres|sqlite|rusqlite|diesel|tokio-postgres\" src/backend/handshake_core/Cargo.toml",
+        "log": "../../MT-158/wpv-d1/logs/18-mt141-grep2.log",
+        "result_line": "0 matches (Cargo.toml has no sqlx/postgres/sqlite dependency)",
+        "covers": [
+          "MT-141"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      },
+      {
+        "id": "PR-MT141-knowledge-docs-mt120",
+        "executor_role": "WP_VALIDATOR",
+        "command": "knowledge_documents_api_tests-c37fd5a90071c20c.exe mt120 --test-threads=2",
+        "exe": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target/debug/deps/knowledge_documents_api_tests-c37fd5a90071c20c.exe",
+        "log": "../../MT-158/wpv-d1/logs/19-mt141-knowledge-docs-mt120.log",
+        "result_line": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 25 filtered out; finished in 80.81s",
+        "failing_assertion": "testsknowledge_documents_api_tests.rs:3646:5 assertion `left == right` failed: left: \"route-harness-owner-01a0d067-bdca-7f12-956b-5521756b3ede\", right: \"mt120-agent-a\" (test mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id)",
+        "covers": [
+          "MT-141"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      }
+    ],
+    "assertion_failure": "mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id: knowledge_documents_api_tests.rs:3646 - derived principal not stamped as expected (actor_id shows route-harness-owner UUID instead of the expected mt120-agent-a derived principal)",
+    "verdict": "FAIL_V5"
+  },
+  "validation_v5_transition": {
+    "from_status": "FAIL_V4",
+    "to_status": "FAIL_V5",
+    "reason": "MT-141's own proof command (knowledge_documents_api_tests mt120 filter) failed 1/3 at candidate 8f60313b",
+    "at_utc": "2026-09-23T22:35:48.342Z",
+    "by": "WP_VALIDATOR-D1V-20260923-2240"
   }
 }
