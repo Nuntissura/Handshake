@@ -14,7 +14,7 @@
   "title": "E3-MT023-TagsTagHubs",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T02:45:56.642Z",
+  "updated_at_utc": "2026-09-23T04:07:17.531Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -1251,5 +1251,112 @@
       "NOT-RUN-MASKED"
     ],
     "reason": "FAIL by class: C1V-NATIVE-AUTH-LOGIN, NOT-RUN-MASKED"
+  },
+  "remediation_v7": {
+    "session": "KERNEL_BUILDER-C1",
+    "round": 3,
+    "candidate_sha": "c1060bca3be3490de44f4fbe33a750dc4db95a67",
+    "base_sha": "c792b8a28f0e21b6e7ecb6b2c917643c98cfa200",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1",
+    "commits": [
+      "c1060bca fix(MT-131): inspect the prompt frame's AccessKit update directly",
+      "9d97f5f4 fix(MT-070): bind accounts for the app-host create-note drain proofs",
+      "ce04d0d5 fix(MT-088): follow the authenticated code-nav helper and bind layout accounts",
+      "d81ab342 fix(MT-027): bind native proof fixtures to their own binding and account session",
+      "bb901766 fix(MT-033): authorize rich-document Loom block reads by their document grant",
+      "64ca7c82 fix(MT-120): scope the workspace reconciliation event to record-user creates"
+    ],
+    "failure_classes": {
+      "C1V-WS-CREATE-403": {
+        "status": "EVENT_FIXED_HARNESS_AUTH_OPEN",
+        "root_cause": "456dc63a added DEFINE EVENT mt109_workspace_reconciliation_queue ON workspaces WHEN CREATE, whose first statement throws unless fn::mt120_workspace_create($after.created_in_session_id) — i.e. every privileged/system workspace create (storage create_workspace with no record-user session: backend integration harnesses, mt249 fixture binary) threw HSK-403. Not caused by the round-2 board delete change (git diff ce1e8769..c792b8a2 touches only loom_canvas_boards permissions).",
+        "fix": "schema.surql: WHEN $event = 'CREATE' AND $auth != NONE (record-user creates keep the full owner/service-queue enforcement; privileged creates no longer throw). Pins re-measured in place at rev 160: GENERATED 01a3f606.., EXPECTED_SCHEMA_INFO d06f44fd.. (run 54), MT109 loom catalog 2a5a35f7.. (run 54); run 56: all 4 pin tests pass.",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/57-knowledge-docs-mt120.log: the 3 MT-120 tests now pass workspace creation (old failure knowledge_ingestion_support/mod.rs:40 gone) and fail later at knowledge_documents_api_tests.rs:264 'operator create must succeed' 403 -> new class C1V-BACKEND-HARNESS-AUTH."
+      },
+      "C1V-BACKEND-HARNESS-AUTH": {
+        "status": "OPEN_NEW_CLASS",
+        "root_cause": "Backend integration harnesses written before the 456dc63a account-session authority call document/Loom routes with identity headers only (no x-hsk-session-token account session + x-hsk-channel-binding-token) and create workspaces as root: tests/knowledge_documents_api_tests.rs (create_doc/headers_with_kind, ~28 tests), and likely wp_kernel_012_native_editor_routes_tests and atelier_loom_projection_api_tests (UNVERIFIED until rerun at the new candidate). Every document route now returns the constant 403 for them.",
+        "fix_needed": "Shared harness migration: provision an Owner principal/session bound to the test binding (SurrealStorage::provision_principal + handshake_core::api::stage::current_process_native_session_binding, as api/workspaces.rs tests do), create workspaces through POST /workspaces as that owner, and send session + channel headers on every route call. Not done in round 3 (whole-file migration; run budget)."
+      },
+      "C1V-NATIVE-AUTH-OWNER": {
+        "status": "FIXED_STATIC",
+        "root_cause": "The fixture published its native-MCP binding under HANDSHAKE_TEST_STAGE_BINDING_ROOT while the spawned backend read a different binding file (HANDSHAKE_STAGE_BINDING_FILE / %LOCALAPPDATA% redirected by the test or by a parallel CanonicalArgusDriver::bind), so owner setup's channel check failed ('Account authentication denied' at backend_proof_support/mod.rs:643).",
+        "fix": "backend_proof_support/mod.rs: the fixture reads token + binding path once from its own published binding and passes that exact file to the child as HANDSHAKE_STAGE_BINDING_FILE (also in restart_owned).",
+        "representative": "native test_block_collection_view::block_collection_views_live_surrealdb_self_seed_full_round_trip"
+      },
+      "C1V-NATIVE-AUTH-LOGIN": {
+        "status": "FIXED_STATIC",
+        "fix": "LiveBackend::account() / bind_app_account(&mut app) / typed_test_double_account(base) shared helpers; applied in test_canvas_board, test_author_id_budget, test_app_host_mount_secondary, test_canvas_board_argus, test_graph_view_argus, test_interconnect_note_code_crossref, test_interconnect_loom_backlink_search, test_memory_proposal_argus, test_sidebar_panel(_argus), test_code_note_cross_ref, test_locus_interop, test_other_pillar_interop_proofs, test_undo_scope. UNVERIFIED: app.rs LoomSearchV2Client/LoomTagClient/LoomSidebarClient/BlockViewClient are built without an account (app.rs ~20004/27439/28087/20319) — if those routes require a session they need the account context.",
+        "representative": "native test_canvas_board::canvas_board_live_surrealdb_self_seeds_mounted_round_trip"
+      },
+      "C1V-LOOM-READ-403": {
+        "status": "PARTIAL",
+        "root_cause": "(1) api/loom.rs get_loom_block authorized only ResourceKind::LoomBlock, but a rich document's same-id Loom projection is protected by the rich_document resource (test_ckc_embed.rs:2746). (2) api/loom.rs open_daily_journal is unauthenticated (WriteContext::human(None)), so the journal block has no account-owned loom_block resource and the follow-up GET (backend_proof_support/mod.rs:2028) and workspace delete are denied.",
+        "fix": "(1) get_loom_block falls back to the exact RichDocument fs.read Read grant for the same id (constant 403 otherwise). (2) NOT fixed: needs a record-user get-or-create journal path (create_record_user_loom_block supports journal_date but the route must keep get-or-create idempotency) — open.",
+        "representative": "native test_ckc_embed::ac2_ac3_ckc_embed_and_canvas_round_trip_live_backend (site 1); test_calendar_interop::open_or_create_daily_note_is_idempotent_against_real_backend_live (site 2, expected still red)"
+      },
+      "C1V-APPHOST-CREATE-NOTE-DRAIN": {
+        "status": "FIXED_STATIC_UNPROVEN",
+        "root_cause": "Create-note dispatch fails instantly with 'Account login required' when no account is bound (knowledge_documents.rs:1028 client side), and the host delivers the result in the dispatch frame, clearing the in-flight flag before the test observes it; the managed test's replacement create backend had no account context.",
+        "fix": "test_app_host_mount.rs: in-process test uses a never-accepting loopback listener + mock account; managed test binds backend.account_context and .with_authenticated_context on its create backend; richer failure message (status + resolver readiness).",
+        "representative": "native test_app_host_mount::code_pane_create_note_from_link_routes_through_host_drain, ::managed_surrealdb_code_create_note_opens_exact_durable_rich_document"
+      },
+      "C1V-088-GUARD-STALE": {
+        "status": "FIXED_STATIC",
+        "root_cause": "1236078e made code_nav_get a wrapper over code_nav_get_authenticated (backend_client.rs:7468/7482); the source-scanning guard at test_backend_down_responsive.rs:2260 and the raw-client inventory went stale. :4357 'Stalled ops: 1' = no account bound, not a worker leak.",
+        "fix": "Guard follows the authenticated helper (shared pool, no bare client), inventory updated; mock accounts bound for the peer origin; app.rs test seam set_backend_endpoints_with_layout_account_for_test (existing seam delegates unchanged).",
+        "representative": "native test_backend_down_responsive::reqwest_clients_carry_connect_and_request_timeouts"
+      },
+      "C1V-SLASH-A11Y-UPDATE": {
+        "status": "FIXED_STATIC",
+        "root_cause": "egui_kittest 0.33.3 _step() consumes platform_output.accesskit_update each frame, so harness.output() never carries it; the AC-131-4 block always read None.",
+        "fix": "test_slash_commands.rs: after harness.step(), run the prompt frame once on harness.ctx and inspect that frame's AccessKit update; all AC-131-4 assertions unchanged.",
+        "representative": "native test_slash_commands::embed_prompt_modal_opens_in_live_tree"
+      },
+      "C1V-QUIET-LEAK": {
+        "status": "FIXED_STATIC",
+        "root_cause": "start_product_backend moved the child out of its kill-on-drop PendingChild before owner setup/login; a panic there (e.g. the :643 AUTH-OWNER failure) dropped a bare std Child, which is not killed. Matches orphan PIDs 125984/143284/107268 in wpv-c1.",
+        "fix": "backend_proof_support/mod.rs keeps the child inside PendingChild until LiveBackend exists. Residual: process abort/external kill would need a Windows Job Object (Cargo.toml change) — not done."
+      },
+      "C1-FDELETE-CANVAS": {
+        "status": "OPEN_PROBE_CONTEXT_INVALID",
+        "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/56-core-pins-probe2-confirm.log (probe2 source ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/c1-fdelete-probe2.rs)",
+        "finding": "Probe 2 (all sub-conditions of fn::mt109_has_workspace_access): the admin view shows the owner's workspace grant fully valid (active, actions incl. delete, capability fs.write, chain == session chain, policy_version 1 == resource 1 == session 1, creator enabled, owner/space match); the plain record-user signin sees NO grants. Cause of the empty view: protected_resources.external_resource_id is FOR select NONE (schema.surql, protected_resources fields), so a plain record-user signin can never satisfy `resource_id.external_resource_id = $external` — yet the FEMS-only workspace delete passes the same guard in production code. Therefore the product's with_record_user_scope execution context differs from a plain signin and BOTH probes (runs 46, 56) evaluated the guard in the wrong context; clause-1 is not proven to be the failing clause in the real delete.",
+        "next_step": "Re-run the numbered-clause probe INSIDE state.surreal.with_record_user_scope(<owner Delete scope>, ...) via the same storage path delete_account_workspace uses (not a plain signin). Budget for this class used (probe + confirm)."
+      },
+      "REPRESENTATIVE_RUNS": {
+        "C1V-088-GUARD-STALE": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/67-rep-088.log: PASS (reqwest_clients_carry_connect_and_request_timeouts)",
+        "C1V-SLASH-A11Y-UPDATE": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/68-rep-slash.log: PASS (embed_prompt_modal_opens_in_live_tree)",
+        "C1V-QUIET-LEAK": "0 handshake_core processes left after 6 representative runs incl. 4 failures (structural fix; abort/kill needs a Job Object)",
+        "C1V-NATIVE-AUTH-OWNER": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/69-rep-owner.log: owner setup + login now PASS (old :643 gone); fails later at backend_proof_support/mod.rs:2102 POST .../loom/blocks 400 HSK-400-LOOM-VALIDATION -> new class C1V-LOOM-CONTENT-TYPES",
+        "C1V-NATIVE-AUTH-LOGIN": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/70-rep-login.log: Canvas now loads through the real client (old :1895 gone); fails at test_canvas_board.rs:1791 'host create text card' timeout -> new class C1V-LEGACY-ROOT-CREATE-ROUTES",
+        "C1V-LOOM-READ-403": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/71-rep-loomread.log: site-1 read (test_ckc_embed.rs:2746) now PASS; fails later at :2918 'fresh GET must observe the saved CKC hsLink' (backend log shows an fs.read denial right after document create; NOT_DIAGNOSED) and cleanup DELETE 403 (C1-FDELETE)",
+        "C1V-APPHOST-CREATE-NOTE-DRAIN": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/72-rep-apphost.log: still status=None at test_app_host_mount.rs:797 after account binding (run 1 of 2); agent hypothesis: resolver readiness gates the create action (panel.rs:9471, app.rs:26383) - UNVERIFIED",
+        "C1V-WS-CREATE-403": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/57-knowledge-docs-mt120.log: workspace create PASS; next failure C1V-BACKEND-HARNESS-AUTH"
+      },
+      "C1V-LOOM-CONTENT-TYPES": {
+        "status": "OPEN_OPERATOR_DECISION",
+        "finding": "Record-user Loom creation (storage/surreal/loom_canvas_store.rs create_record_user_loom_bundle ~1182 + loom_blocks create permission content_type IN ['note','canvas']) rejects every other content type, so account users cannot create tag_hub (MT-023/027) or other block kinds; native live proofs seeding tag hubs fail with 400 HSK-400-LOOM-VALIDATION. Decision needed: which content types record users may create (then schema permission + store + pins)."
+      },
+      "C1V-LEGACY-ROOT-CREATE-ROUTES": {
+        "status": "OPEN",
+        "finding": "Loom routes that still write as root without account authority create rows with no account-owned protected resource, invisible to account-scoped reads and blocking owner workspace delete: api/loom.rs create_canvas_card (WriteContext::human(None); text cards) and open_daily_journal (daily notes). Fix: authorize the board/workspace and create through the record-user paths (create_record_user_loom_bundle + place_record_user_canvas_block; journal get-or-create idempotency on the record-user path). Not done in round 3."
+      }
+    },
+    "gates": {
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/58-native-clippy.log",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/59-native-clippy-default.log",
+      "core_clippy_changed_lines": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/60-core-clippy.log (0 errors on changed lines)",
+      "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/61-check-setA.log",
+      "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/62-check-setB.log",
+      "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/63-check-setC.log",
+      "check_native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/64-check-native.log"
+    },
+    "validator_env_note": "Backend lib/integration tests: runtime/TMP/workspace on D: (kb-c1/runtime-lib, tmp, workspace); C:-rooted store hangs (C1-FRLIB-HANG). test_ckc_embed.rs:366-371 asserts the running exe is inside CARGO_TARGET_DIR: run exes from the target named by CARGO_TARGET_DIR.",
+    "lifecycle_note": "KERNEL_BUILDER issues no verdict; READY only where every listed class for the MT has a complete fix (static).",
+    "status": "CLASSES_FIXED_STATIC_NEW_CLASSES_OPEN",
+    "note": "This MT's validated classes have round-3 fixes (see failure_classes/REPRESENTATIVE_RUNS); live representatives now fail in newly exposed classes C1V-LOOM-CONTENT-TYPES / C1V-LEGACY-ROOT-CREATE-ROUTES / C1V-BACKEND-HARNESS-AUTH, so not READY.",
+    "recorded_at_utc": "2026-09-23T04:07:17.531Z"
   }
 }
