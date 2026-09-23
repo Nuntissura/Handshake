@@ -4728,7 +4728,18 @@ async fn create_canvas_card(
     if title.is_empty() {
         return Err(bad_request("HSK-400-LOOM-VALIDATION"));
     }
+    // MT-109 C2 (diagnosis d): per-step timing of the record-user text-card chain.
+    let started = std::time::Instant::now();
+    let step = |name: &str| {
+        tracing::info!(
+            target: "handshake_core",
+            elapsed_ms = started.elapsed().as_millis(),
+            step = name,
+            "canvas text card"
+        );
+    };
     let board_authority = authorize_canvas_visual_edge_write(&state, &headers, &block_id).await?;
+    step("board_authorized");
     let workspace_authority = crate::api::authority::authorize_request(
         &state,
         &headers,
@@ -4739,6 +4750,7 @@ async fn create_canvas_card(
     )
     .await
     .map_err(|_| denied())?;
+    step("workspace_authorized");
     let ctx = loom_create_write_context(&board_authority)?;
     let imported = crate::knowledge_document::import::import_snippet(
         payload.body.as_deref().unwrap_or(""),
@@ -4771,6 +4783,7 @@ async fn create_canvas_card(
         )
         .await
         .map_err(map_storage_error)?;
+    step("document_created");
     let rich_document_id = document.rich_document_id.clone();
     let source_authority = crate::api::authority::authorize_request(
         &state,
@@ -4808,6 +4821,7 @@ async fn create_canvas_card(
         )
         .await
         .map_err(map_storage_error)?;
+    step("placement_recorded");
     let block = state
         .surreal
         .with_record_user_scope(
@@ -4816,6 +4830,7 @@ async fn create_canvas_card(
         )
         .await
         .map_err(map_storage_error)?;
+    step("block_read");
 
     Ok(Json(CreateCanvasCardResponse {
         block,
@@ -4983,7 +4998,9 @@ async fn remove_canvas_placement(
             }),
         )
     })?;
-    let source_authority = crate::api::authority::authorize_request(
+    // MT-109 C2: a text card places its RichDocument's same-id projection, whose protected
+    // resource is the rich_document (the create path authorizes it the same way).
+    let source_authority = match crate::api::authority::authorize_request(
         &state,
         &headers,
         "fs.read",
@@ -4992,6 +5009,20 @@ async fn remove_canvas_placement(
         ResourceAction::Read,
     )
     .await
+    {
+        Ok(authority) => Ok(authority),
+        Err(_) => {
+            crate::api::authority::authorize_request(
+                &state,
+                &headers,
+                "fs.read",
+                ResourceKind::RichDocument,
+                &placed_block_id,
+                ResourceAction::Read,
+            )
+            .await
+        }
+    }
     .map_err(|_| {
         (
             StatusCode::FORBIDDEN,
