@@ -1462,5 +1462,22 @@
       "native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/101-rep-r1-tag.log: tag_hub seeding now passes (old backend_proof_support/mod.rs:2102 400/500 gone); fails later at test_block_collection_view.rs:1743 PATCH block-view mutation 403 (legacy block-view route authority; new class C1V-BLOCKVIEW-PATCH-403)"
     },
     "recorded_at_utc": "2026-09-23T06:14:41.580Z"
+  },
+  "remediation_v9": {
+    "session": "KERNEL_BUILDER-C2",
+    "batch_owner": "MT-109",
+    "covered_mts": [
+      "MT-109",
+      "MT-023",
+      "MT-027",
+      "MT-067",
+      "MT-070",
+      "MT-120"
+    ],
+    "pointer": "MT-109.json remediation_v24",
+    "candidate_sha": "ab618f46fa03635dcb6848e42e3599f906c520a4",
+    "fixed_here": "item 2 standalone Loom block rename (KNOWLEDGE_LOOM_BLOCK_MUTATED receipt, session actor, search-index update)",
+    "status_change": "none (other open classes remain)",
+    "recorded_at_utc": "2026-09-23T08:35:42.548Z"
   }
 }

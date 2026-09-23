@@ -13385,5 +13385,194 @@
       "probe_toggle": "HSK_C1_FDELETE_PROBE=1 (test builds only)"
     },
     "recorded_at_utc": "2026-09-23T06:14:41.580Z"
+  },
+  "remediation_v24": {
+    "session": "KERNEL_BUILDER-C2",
+    "round": 5,
+    "status": "ROUND5_CANDIDATE",
+    "base_sha": "2f49f2a66a7b742347e289b83a58926dea76d912",
+    "batch_owner": "MT-109",
+    "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2",
+    "attempt_diagnoses": {
+      "C1V-APPHOST-CREATE-NOTE-DRAIN": {
+        "failing_assertion": "tests/test_app_host_mount.rs:571 code_pane_create_note_from_link_routes_through_host_drain: create not in flight, status=None",
+        "attempts": [
+          "kb-c1 run 92 (pre 2f49f2a6): status=None",
+          "kb-c2 run 12 (at 2f49f2a6 + probe fields): status=None, pending_create_note_link=None, account(context_active=Some(true), error=None, private_state=true)"
+        ],
+        "root_cause_hypothesis": "Not the account gate (context active, nothing left staged). Either the menu confirm never reached CodeEditorPanel::stage_create_note_from_link (code_editor/panel.rs:9200) or it ran with unresolved_wikilink_under_cursor() == None (panel.rs:9390: caret moved by the secondary click, or the panel resolver index not yet bound) so nothing was staged.",
+        "intended_fix": "Probe with confirm/staged counters and caret link state (panel.rs create_note_confirm_counts); if confirms>0 and staged==0, capture the unresolved link when the menu opens and stage that on confirm; if confirms==0, fix the test click delivery.",
+        "next_runs": "1 probe (kb-c2 run 15) + 1 confirm"
+      },
+      "C1V-CANVAS-TEXT-CARD-SEND": {
+        "failing_assertion": "tests/test_canvas_board.rs:1791 host create text card: error sending request",
+        "attempts": [
+          "kb-c1 run 102: 'error sending request' (kind lost)",
+          "kb-c2 run 13 (deciding): kind=timeout (reqwest TimedOut at the 5 s per-request timeout); backend log reached step workspace_authorized at 97 ms and never logged document_created before the client dropped the request"
+        ],
+        "root_cause_hypothesis": "record-user create_knowledge_rich_document + index step exceed the native 5 s request timeout (backend_client.rs send_canvas_created_placement).",
+        "intended_fix": "CANVAS_CREATE_REQUEST_TIMEOUT = 30 s for the created-placement/card POST; the probe run reads the backend step timings.",
+        "next_runs": "1 probe (kb-c2 run 16) + 1 confirm"
+      }
+    },
+    "recorded_at_utc": "2026-09-23T07:39:52.266Z",
+    "candidate_sha": "ab618f46fa03635dcb6848e42e3599f906c520a4",
+    "candidate_tree": "cb3f42e6a9d55dbdf2ca0fc96efe0e7c5875e7eb",
+    "covered_mts": [
+      "MT-109",
+      "MT-023",
+      "MT-027",
+      "MT-067",
+      "MT-070",
+      "MT-120"
+    ],
+    "commits": [
+      "ec34c88e fix(MT-109): let the owner's record-user writes pass the workspace-delete, Loom-update, memory and backlink predicates",
+      "0cbd7fe5 fix(MT-109): authenticate the EventLedger aggregate, debug-session and source-control routes",
+      "18d626b5 fix(MT-067): time the Canvas text-card chain and authorize text-card placement removal",
+      "bfb5196f fix(MT-027): send block-view and source-control requests with the account session",
+      "43182a3f test(MT-109): prove memory provisioning, rename receipts, link kinds and route authentication",
+      "07bad4ab test(MT-120): migrate the remaining backend harnesses to account sessions",
+      "ab618f46 test(MT-070): bind account sessions for live block-view clients and probe the create-note drain"
+    ],
+    "spec_basis": [
+      {
+        "clause": "Master Spec 02-system-architecture.md:2758 (deny by default)",
+        "use": "debug-session, source-control and EventLedger aggregate routes require an authenticated account session"
+      },
+      {
+        "clause": "Master Spec 02-system-architecture.md:2773 (no privileged sessions in ordinary protected flows)",
+        "use": "aggregate read runs as the record user; Loom update receipts carry the session principal"
+      },
+      {
+        "clause": "Master Spec 02-system-architecture.md:2776 (record-user permissions + ResourceBroker are the non-bypassable boundary)",
+        "use": "all fixes are table/function predicates plus ResourceBroker authorization; memory resources provisioned in the production workspace create"
+      },
+      {
+        "clause": "LM-RLS-001/002 (11-shared-dev-platform-and-oss-foundations.md:580-582)",
+        "use": "owner grants for memory review/commit; privacy proofs run as record users (harness migration)"
+      },
+      {
+        "clause": "LoomBlockContentType (11-shared-dev-platform-and-oss-foundations.md:242-247)",
+        "use": "standalone block update receipt/search-index branches"
+      },
+      {
+        "clause": "Operator decision 2026-09-22",
+        "use": "owner/admin workspace delete cascades docs, versions and Canvas boards with an audit event (now incl. account Loom entities, visual edges, Atelier projections, memory surfaces)"
+      }
+    ],
+    "items": {
+      "1_C1-FDELETE-CANVAS": {
+        "status": "FIXED_PROVEN_LIB",
+        "files": [
+          "storage/surreal/schema.surql",
+          "storage/surreal/schema.rs"
+        ],
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/20-core-final-confirm.log owned_workspace_delete_cascades_documents_versions_and_canvas_with_audit ok (also native: backend log shows 'workspace deleted' during runs 16/22/24)",
+        "pins": {
+          "GENERATED": "dcb91130af87c675f199db0afa9483fbbc60dc40b925870dfd0bcf1b340e1049",
+          "EXPECTED_SCHEMA_INFO": "13be68fc1edba9476e4cdd2db98f51b02ee33190683472fca3bb4cf57ee7225c",
+          "MT109_LOOM_CATALOG": "98a5b3cfbb8587edb966577e19c6ed133ae5defadccae100966748ccf8805ccd",
+          "ATELIER_CATALOG": "f8909f93910491ac4c95bb8f4b567dd2c572b6e08b5ca899fb0b223dbb2ca411"
+        }
+      },
+      "2_rename_PATCH_500": {
+        "status": "FIXED_PROVEN_LIB",
+        "files": [
+          "storage/surreal/schema.surql (fn::mt120_loom_receipt KNOWLEDGE_LOOM_BLOCK_MUTATED branch, loom_block_search_index standalone update)",
+          "storage/surreal/loom_store.rs (session actor + block workspace on the receipt)"
+        ],
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/09-core-c2-items-confirm.log mt109_c2_* ok: owner PATCH title 200 and the receipt (actor kind operator) is visible to the owner, invisible to another account"
+      },
+      "3_blockview_PATCH_403": {
+        "status": "FIXED_403_NEXT_FAILURE_RECORDED",
+        "files": [
+          "handshake_native/src/backend_client.rs (BlockViewClient account context)",
+          "handshake_native/src/app.rs",
+          "tests/test_block_collection_view.rs, test_e7_knowledge_accesskit*.rs"
+        ],
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/14-rep-blockview.log: the 403 is gone; the Kanban card-move PATCH (add_tags) now times out at 5 s",
+        "next_failure": "record-user tag-edge create/delete (loom_edges predicates admit only SYSTEM mention edges, no TAG_MUTATED receipt branch) — Loom routes, C3 scope per authority_matrix diagnosis c"
+      },
+      "4_text_card_error_sending_request": {
+        "status": "FIXED_CREATE_NEXT_FAILURE_RECORDED",
+        "files": [
+          "handshake_native/src/local_account.rs (error kind + source chain)",
+          "api/loom.rs (per-step elapsed_ms)",
+          "handshake_native/src/backend_client.rs (CANVAS_CREATE_REQUEST_TIMEOUT 30 s)",
+          "schema (placement receipts accept a same-id rich-document projection)",
+          "api/loom.rs (placement DELETE rich_document fallback)"
+        ],
+        "deciding_run": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/13-rep-canvas-card.log kind=timeout; backend reached workspace_authorized at 97 ms, document create ~7 s",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/22-confirm-canvas-card.log host create text card passes (chain 10.2 s)",
+        "still_red": {
+          "assertion": "tests/test_canvas_board.rs:1791 'host undo removes original text-card placement': DELETE placement 403",
+          "runs": [
+            "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/22-confirm-canvas-card.log",
+            "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/24-rep-canvas-undo.log (after the route rich_document fallback)"
+          ],
+          "diagnosis": "route authority now resolves (backend log: loom_block denial then fallback); the 403 comes from remove_record_user_canvas_placement's transaction (placement delete predicate or removal receipt for a rich-document projection). Not further run (budget).",
+          "next_step": "probe the removal transaction statement index on the text-card placement"
+        }
+      },
+      "5_apphost_create_note_drain": {
+        "status": "DIAGNOSED_STILL_RED",
+        "deciding_run": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/12-rep-apphost-drain.log: pending_create_note_link=None, account context active, private_state=true",
+        "probe": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/15-probe-apphost-drain.log: create_note(confirms, staged)=(0, 0) with link_under_cursor=unresolved_under_cursor=Some(\"Design Notes\")",
+        "diagnosis": "Not the account gate. The confirmed menu entry never reaches CodeEditorPanel::stage_create_note_from_link (panel.rs B::CreateNoteFromLink arm): ContextMenu::show_on (context_menu.rs:236) does not return the create-note id for the AccessKit click in this app-host frame sequence, although the item advertises Click and the link is live and unresolved.",
+        "next_step": "instrument the confirmed id returned by show_on in the code panel render, or compare with the passing component proof's click sequence"
+      },
+      "6_memory_routes": {
+        "status": "FIXED_PROVEN_LIB",
+        "files": [
+          "storage/surreal/workspaces.rs (production workspace create provisions memory_pack/proposal/commit_report/item/item_count resources + owner grants)",
+          "schema (resource_create/creator_grant memory kinds; workspace grant memory.review/commit)"
+        ],
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/09-core-c2-items-confirm.log owner authorized for MemoryPack/Proposal/CommitReport/ItemCount, other account denied, GET memory/proposals not 403; workspace delete still passes with memory children (run 20)"
+      },
+      "7_knowledge_document_GAP": {
+        "status": "FIXED_PROVEN_LIB",
+        "files": [
+          "schema (knowledge_document_backlinks predicates accept non-document link kinds/unresolved targets; knowledge_sources rich_document kind)"
+        ],
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/09-core-c2-items-confirm.log record-user create with '[[C2 Missing Target]] #ops' succeeds"
+      },
+      "8_SECURITY_routes": {
+        "status": "FIXED_PROVEN_LIB",
+        "files": [
+          "api/kernel.rs + storage/surreal/event_ledger.rs (record-user aggregate read)",
+          "api/debug_adapter.rs, api/source_control.rs, api/authority.rs (require_authenticated_session)",
+          "handshake_native SourceControlClient account context"
+        ],
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/09-core-c2-items-confirm.log anonymous aggregate/debug launch/source-control status 403; owner aggregate 200; another account reads 0 of the owner's receipts",
+        "out_of_scope": "/kernel/product_screenshot_capture/execute untouched (follow-up)",
+        "risk": "native proofs that read root-written aggregates (e.g. preference_record) now see only receipts readable by the account until those writers are scoped (C4)"
+      },
+      "9_harness_migration": {
+        "status": "DONE_COMPILE_PROVEN",
+        "files": [
+          "16 of 18 listed tests migrated; loom_ai_suggestions_api_tests.rs and loom_visual_debug_views_tests.rs have no HTTP routes (storage-level only)",
+          "5 stale assertions updated (knowledge_documents_api_tests.rs x4, wp_kernel_012_native_editor_routes_tests.rs x1)"
+        ],
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/25-check-setA.log, ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/26-check-setB.log, ../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/27-check-setC.log",
+        "root_seeds_left": "loom_transclusion (legacy documents anchor), loom_media_tiers (asset/tier/block), project_wiki_drift (derived.full_text_index block), knowledge_crdt_bridge mt075 draft, parallel_swarm mt223; knowledge_memory/retrieval workspaces from shared MemoryFixture"
+      }
+    },
+    "gates": {
+      "native_clippy_integration": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/29-native-clippy-int.log exit 0",
+      "native_clippy_default": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/30-native-clippy-def.log exit 0",
+      "core_clippy": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/31-core-clippy.log exit 101: 395 pre-existing diagnostics, 0 on changed lines",
+      "check_setA": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/25-check-setA.log exit 0",
+      "check_setB": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/26-check-setB.log exit 0",
+      "check_setC": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/27-check-setC.log exit 0",
+      "check_native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c2/logs/28-check-native.log exit 0"
+    },
+    "observations": {
+      "predecessor_lineage_tests": "standalone_loom_revision_159_* and canvas_receipt_revision_158_* fail their reconstructed-predecessor sha (run 03); scripts/strip_check.js shows the C2 deltas revert exactly to HEAD's schema.surql, so the mismatch predates C2 (pins unchanged since 456dc63a while later commits changed the schema).",
+      "loom_transclusion_rich_document": "api::loom::tests::mounted_record_user_loom_creates_* fails at loom.rs:5815: GET transclusion of a rich-document projection authorizes ResourceKind::LoomBlock only (403) — Loom routes, C3."
+    },
+    "ready_for_validation": "none: every covered MT keeps open classes outside this round (e.g. C1V-QUIET-LEAK, C1V-LOOM-READ-403, Loom tag edges)",
+    "c_free_gb_final": 272,
+    "completed_at_utc": "2026-09-23T08:35:42.548Z"
   }
 }

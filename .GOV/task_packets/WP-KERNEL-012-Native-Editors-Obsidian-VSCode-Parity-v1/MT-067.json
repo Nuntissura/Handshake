@@ -1374,5 +1374,22 @@
       "native": "../Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c1/logs/102-rep-r2-card.log: still times out at test_canvas_board.rs:1791; board.error = 'http: error sending request for url .../canvas-boards/:id/cards'; backend logs no card error. Hypothesis UNVERIFIED: native send_canvas_mutation 5 s timeout (backend_client.rs ~4143) vs the longer record-user card path (markdown import + RichDocument create + placement). 2 native runs used."
     },
     "recorded_at_utc": "2026-09-23T06:14:41.580Z"
+  },
+  "remediation_v9": {
+    "session": "KERNEL_BUILDER-C2",
+    "batch_owner": "MT-109",
+    "covered_mts": [
+      "MT-109",
+      "MT-023",
+      "MT-027",
+      "MT-067",
+      "MT-070",
+      "MT-120"
+    ],
+    "pointer": "MT-109.json remediation_v24",
+    "candidate_sha": "ab618f46fa03635dcb6848e42e3599f906c520a4",
+    "fixed_here": "item 4 Canvas text card create (timeout kind, 30 s budget, rich-document placement receipts); undo DELETE still 403",
+    "status_change": "none (other open classes remain)",
+    "recorded_at_utc": "2026-09-23T08:35:42.548Z"
   }
 }
