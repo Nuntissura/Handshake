@@ -25,7 +25,7 @@
   "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T14:10:13.277Z",
+  "updated_at_utc": "2026-09-23T16:38:01.974Z",
   "identity": {
     "mt_id": "MT-155",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -523,7 +523,7 @@
       "efe3a1a6 fix(MT-155)"
     ],
     "note": "Recorded at claim per KB-OUT-001 before proof.",
-    "updated_at_utc": "2026-09-23T14:10:13.277Z",
+    "updated_at_utc": "2026-09-23T16:38:01.974Z",
     "candidate_history": [
       "bea9496d70670ade7abc97dfd06515795275c546 (compiling batch, pins not re-measured)",
       "888229743b8f8decb01e305367182c44ad79f058 (partial re-pin + test(MT-088))",
@@ -686,6 +686,241 @@
         "mt138_full_schema_atelier_noop_matches_bounded_projection (validator failure list; fix prepared from source pending)"
       ],
       "worktree_rule": "no session-worktree / model-session-scheduler / native-mt101 test families run by builder; wt-check unchanged before/after every builder test run"
+    },
+    "round2_candidate": {
+      "candidate_sha": "0caf1c102c48f88b68027f4fcfe18e16f8168cbb",
+      "note": "Batch candidate after the MT-154/MT-158 round (schema re-pin + bootstrap index split); compile gates below.",
+      "gates": {
+        "at_72498260": [
+          {
+            "proof_id": "KB-C4-83-core-check-setB",
+            "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features app-runtime,surreal-test-support,test-utils",
+            "cwd": "src/backend/handshake_core",
+            "commit": "51d9f40f24f900be803c08f59eaefb32020041df",
+            "tree_clean": false,
+            "dirty_file_count": 8,
+            "executor_role": "KERNEL_BUILDER",
+            "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+            "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+            "started_utc": "2026-09-23T16:07:13Z",
+            "finished_utc": "2026-09-23T16:10:19.777Z",
+            "exit_code": 0,
+            "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3m 02s",
+            "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/83-core-check-setB.log",
+            "features": null,
+            "env_knobs": {
+              "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+            },
+            "covers": [
+              "MT-153",
+              "MT-154",
+              "MT-155",
+              "MT-156",
+              "MT-157",
+              "MT-158"
+            ]
+          },
+          {
+            "proof_id": "KB-C4-84-core-check-setA",
+            "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features surreal-test-support,test-utils",
+            "cwd": "src/backend/handshake_core",
+            "commit": "51d9f40f24f900be803c08f59eaefb32020041df",
+            "tree_clean": false,
+            "dirty_file_count": 8,
+            "executor_role": "KERNEL_BUILDER",
+            "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+            "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+            "started_utc": "2026-09-23T16:10:22Z",
+            "finished_utc": "2026-09-23T16:14:36.532Z",
+            "exit_code": 0,
+            "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4m 07s",
+            "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/84-core-check-setA.log",
+            "features": null,
+            "env_knobs": {
+              "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+            },
+            "covers": [
+              "MT-153",
+              "MT-154",
+              "MT-155",
+              "MT-156",
+              "MT-157",
+              "MT-158"
+            ]
+          },
+          {
+            "proof_id": "KB-C4-85-core-check-setC",
+            "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features inspector,surreal-test-support,test-utils",
+            "cwd": "src/backend/handshake_core",
+            "commit": "7249826096063f8e0f70800438411d90ba5aa682",
+            "tree_clean": true,
+            "dirty_file_count": 0,
+            "executor_role": "KERNEL_BUILDER",
+            "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+            "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+            "started_utc": "2026-09-23T16:14:41Z",
+            "finished_utc": "2026-09-23T16:18:40.895Z",
+            "exit_code": 0,
+            "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3m 56s",
+            "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/85-core-check-setC.log",
+            "features": null,
+            "env_knobs": {
+              "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+            },
+            "covers": [
+              "MT-153",
+              "MT-154",
+              "MT-155",
+              "MT-156",
+              "MT-157",
+              "MT-158"
+            ]
+          },
+          {
+            "proof_id": "KB-C4-86-core-clippy",
+            "command": "timeout 3600s cargo clippy --locked --keep-going -j 6 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+            "cwd": "src/backend/handshake_core",
+            "commit": "7249826096063f8e0f70800438411d90ba5aa682",
+            "tree_clean": true,
+            "dirty_file_count": 0,
+            "executor_role": "KERNEL_BUILDER",
+            "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+            "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+            "started_utc": "2026-09-23T16:18:44Z",
+            "finished_utc": "2026-09-23T16:22:49.998Z",
+            "exit_code": 101,
+            "result_line": "error: could not compile `handshake_core` (lib test) due to 358 previous errors",
+            "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/86-core-clippy.log",
+            "features": null,
+            "env_knobs": {
+              "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+            },
+            "covers": [
+              "MT-153",
+              "MT-154",
+              "MT-155",
+              "MT-156",
+              "MT-157",
+              "MT-158"
+            ]
+          }
+        ],
+        "at_0caf1c10": [
+          {
+            "proof_id": "KB-C4-87-core-check-setB",
+            "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features app-runtime,surreal-test-support,test-utils",
+            "cwd": "src/backend/handshake_core",
+            "commit": "7249826096063f8e0f70800438411d90ba5aa682",
+            "tree_clean": false,
+            "dirty_file_count": 1,
+            "executor_role": "KERNEL_BUILDER",
+            "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+            "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+            "started_utc": "2026-09-23T16:23:08Z",
+            "finished_utc": "2026-09-23T16:25:46.150Z",
+            "exit_code": 0,
+            "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 35s",
+            "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/87-core-check-setB.log",
+            "features": null,
+            "env_knobs": {
+              "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+            },
+            "covers": [
+              "MT-153",
+              "MT-154",
+              "MT-155",
+              "MT-156",
+              "MT-157",
+              "MT-158"
+            ]
+          },
+          {
+            "proof_id": "KB-C4-88-core-check-setA",
+            "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features surreal-test-support,test-utils",
+            "cwd": "src/backend/handshake_core",
+            "commit": "7249826096063f8e0f70800438411d90ba5aa682",
+            "tree_clean": false,
+            "dirty_file_count": 1,
+            "executor_role": "KERNEL_BUILDER",
+            "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+            "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+            "started_utc": "2026-09-23T16:25:48Z",
+            "finished_utc": "2026-09-23T16:28:17.343Z",
+            "exit_code": 0,
+            "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 26s",
+            "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/88-core-check-setA.log",
+            "features": null,
+            "env_knobs": {
+              "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+            },
+            "covers": [
+              "MT-153",
+              "MT-154",
+              "MT-155",
+              "MT-156",
+              "MT-157",
+              "MT-158"
+            ]
+          },
+          {
+            "proof_id": "KB-C4-89-core-check-setC",
+            "command": "timeout 3600s cargo check --locked --keep-going -j 6 --tests --features inspector,surreal-test-support,test-utils",
+            "cwd": "src/backend/handshake_core",
+            "commit": "7249826096063f8e0f70800438411d90ba5aa682",
+            "tree_clean": false,
+            "dirty_file_count": 1,
+            "executor_role": "KERNEL_BUILDER",
+            "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+            "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+            "started_utc": "2026-09-23T16:28:20Z",
+            "finished_utc": "2026-09-23T16:31:07.922Z",
+            "exit_code": 0,
+            "result_line": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 45s",
+            "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/89-core-check-setC.log",
+            "features": null,
+            "env_knobs": {
+              "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+            },
+            "covers": [
+              "MT-153",
+              "MT-154",
+              "MT-155",
+              "MT-156",
+              "MT-157",
+              "MT-158"
+            ]
+          },
+          {
+            "proof_id": "KB-C4-90-core-clippy",
+            "command": "timeout 3600s cargo clippy --locked --keep-going -j 6 -p handshake_core --all-targets --features app-runtime,surreal-test-support,test-utils --message-format=short -- -D warnings",
+            "cwd": "src/backend/handshake_core",
+            "commit": "7249826096063f8e0f70800438411d90ba5aa682",
+            "tree_clean": false,
+            "dirty_file_count": 1,
+            "executor_role": "KERNEL_BUILDER",
+            "executor_session": "KERNEL_BUILDER-C4-20260923-100258",
+            "target_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+            "started_utc": "2026-09-23T16:31:09Z",
+            "finished_utc": "2026-09-23T16:35:27.800Z",
+            "exit_code": 101,
+            "result_line": "error: could not compile `handshake_core` (lib test) due to 358 previous errors",
+            "log_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4/logs/90-core-clippy.log",
+            "features": null,
+            "env_knobs": {
+              "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+            },
+            "covers": [
+              "MT-153",
+              "MT-154",
+              "MT-155",
+              "MT-156",
+              "MT-157",
+              "MT-158"
+            ]
+          }
+        ],
+        "clippy_changed_lines": "runs 86 and 90: 0 errors on lines changed since 0cfbff64 (396 pre-existing unique errors elsewhere; exit 101 is from those)"
+      }
     }
   }
 }
