@@ -9,7 +9,7 @@
 
 ## Use
 
-Use this brief after `just classic-orchestrator-startup`. It is operational memory for the manual relay lane.
+Use this brief after startup: read the Codex, the Classic Orchestrator protocol and the assigned WP. It is operational memory for the manual relay lane.
 
 ## Action Cards
 
@@ -18,9 +18,9 @@ Use this brief after `just classic-orchestrator-startup`. It is operational memo
 - ACTION: MECHANICAL_INTERVENTION
 - TRIGGER: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked
 - FAILURE_PATTERN: spending manual-relay turns on transcript reconstruction instead of classifying route and artifact drift mechanically
-- DO: classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read, repair, or typed helper before relaying content
-- DO_NOT: manually broker ordinary role content when an existing manual-relay helper, packet artifact, receipt, or runtime status can prove the next action
-- VERIFY: the chosen relay or repair cites the cause class, helper output, and current packet/runtime authority
+- DO: classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or repair before relaying content
+- DO_NOT: manually broker ordinary role content when a packet artifact, receipt, or runtime status can prove the next action
+- VERIFY: the chosen relay or repair cites the cause class and current packet/runtime authority
 - SOURCE: CX-218K, CLASSIC_ORCHESTRATOR_PROTOCOL
 
 ### RAM-CLASSIC_ORCHESTRATOR-LANE-001
@@ -28,7 +28,7 @@ Use this brief after `just classic-orchestrator-startup`. It is operational memo
 - ACTION: LANE_BOUNDARY
 - TRIGGER: operator deliberately chooses `MANUAL_RELAY`
 - FAILURE_PATTERN: continuing under orchestrator-managed ACP assumptions after manual relay was selected
-- DO: keep the Operator as active relay and use `just manual-relay-next` / `just manual-relay-dispatch` for explicit brokered hops
+- DO: keep the Operator as active relay for explicit brokered hops
 - DO_NOT: convert the lane into autonomous ORCHESTRATOR_MANAGED control
 - VERIFY: startup and relay output identify `WORKFLOW_LANE=MANUAL_RELAY`
 - SOURCE: CLASSIC_ORCHESTRATOR_PROTOCOL
@@ -45,10 +45,4 @@ Use this brief after `just classic-orchestrator-startup`. It is operational memo
 
 ### RAM-CLASSIC_ORCHESTRATOR-MEMORY_PROPOSAL_REVIEW-001
 
-- ACTION: MEMORY_PROPOSAL_REVIEW
-- TRIGGER: Memory Manager emits `MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`, or an Actionable Failure Candidate that affects `MANUAL_RELAY`
-- FAILURE_PATTERN: applying Memory Manager suggestions as if they bypass manual-relay authority, or ignoring repeated-memory proposals because no ACP Orchestrator lane is active
-- DO: review the typed receipt and backup proposal, decide whether to update startup brief guidance, create a governance refactor item, or make a manual-lane governance edit as Classic Orchestrator
-- DO_NOT: let Memory Manager or Activation Manager become a parallel manual-lane authority for protocol, task-board, packet, or validator-truth changes
-- VERIFY: accepted changes are made or queued by Classic Orchestrator, and rejected/deferred proposals record a reason
-- SOURCE: STARTUP_BRIEF_SCHEMA, MEMORY_MANAGER_PROTOCOL, CLASSIC_ORCHESTRATOR_PROTOCOL
+Retired with the governance harness on 2026-09-23.

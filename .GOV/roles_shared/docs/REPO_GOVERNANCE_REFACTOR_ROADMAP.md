@@ -31,9 +31,6 @@ This refactor must stay inside the existing governance kernel structure. Do not 
 
 - Shared docs go in `.GOV/roles_shared/docs/`
 - Shared records and ledgers go in `.GOV/roles_shared/records/`
-- Shared schemas go in `.GOV/roles_shared/schemas/`
-- Shared scripts and libraries go in `.GOV/roles_shared/scripts/`
-- Shared checks go in `.GOV/roles_shared/checks/`
 - Role-specific wrappers stay under the owning role directory only when the logic is genuinely role-local
 
 ## Design Rules
@@ -67,8 +64,8 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
 
 | ID | Workstream | Why First | Primary Surfaces |
 |---|---|---|---|
-| RGR-01 | Workflow Truth and Startup Gate | Prevent false-ready state before any more governance or product execution | `roles_shared/checks`, `roles/orchestrator/scripts`, runtime ledgers |
-| RGR-02 | Transactional Prepare and Status Sync | Stop partial packet/runtime/task-board writes | `roles/orchestrator/scripts`, `roles_shared/scripts/lib`, records/runtime |
+| RGR-01 | Workflow Truth and Startup Gate | Prevent false-ready state before any more governance or product execution | runtime ledgers |
+| RGR-02 | Transactional Prepare and Status Sync | Stop partial packet/runtime/task-board writes | records/runtime |
 | RGR-03 | Direct Review Boundary Enforcement | Remove manual routing and prove coder-validator exchange | WP communication helpers, notification routing, communication checks |
 | RGR-04 | Scope and Tool Spill Enforcement | Block vibecoding-style broad edits and formatter spill | coder/validator checks, packet helpers, scope ledgers |
 | RGR-05 | Computed Policy and Evidence Gate | Make final closure computed rather than narrated | shared schemas, records, policy checks, validator structure checks |
@@ -93,8 +90,6 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
 
 - Consolidate startup truth checks behind a shared readiness check instead of scattering partial truth decisions across multiple helpers.
 - Require these predicates at minimum:
-  - `just gov-check` clean
-  - `just orchestrator-startup` clean
   - packet/refinement/spec pointer hashes current where applicable
   - PREPARE target exists on disk where applicable
   - packet-declared worktree/runtime paths exist and match live topology
@@ -104,9 +99,6 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
 
 **Primary target surfaces**
 
-- `.GOV/roles_shared/checks/`
-- `.GOV/roles/orchestrator/scripts/`
-- `.GOV/roles_shared/runtime/`
 - `.GOV/roles_shared/records/`
 
 **Done when**
@@ -123,7 +115,6 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
 
 **Feature scope**
 
-- Make `orchestrator-prepare-and-packet` transactional in practice.
 - Update packet state, micro-task state, task-board state, traceability state, runtime state, and declared communication state together or fail without partial truth drift.
 - Record workflow-state change receipts when execution mode changes materially.
 
@@ -142,11 +133,7 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
 
 **Primary target surfaces**
 
-- `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
-- `.GOV/roles/orchestrator/scripts/`
-- `.GOV/roles_shared/scripts/lib/`
 - `.GOV/roles_shared/records/`
-- `.GOV/roles_shared/runtime/`
 
 **Done when**
 
@@ -173,15 +160,11 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
   - coder handoff
   - validator review response
   - integration-validator review pair where the packet format requires it
-- Tighten `wp-communication-health-check` so it verifies the required pairs, actor routing, and acknowledgment behavior at each stop point.
 - Project `next_expected_actor`, `waiting_on`, and review wake state from governed receipts instead of manual narrative steering.
 - Treat unacknowledged required review notifications as boundary health defects when they cross the configured threshold.
 
 **Primary target surfaces**
 
-- `.GOV/roles_shared/scripts/`
-- `.GOV/roles_shared/checks/`
-- `.GOV/roles_shared/tests/`
 - `../gov_runtime/roles_shared/` runtime ledgers and communication projections
 
 **Done when**
@@ -214,11 +197,7 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
 
 **Primary target surfaces**
 
-- `.GOV/roles/coder/checks/`
-- `.GOV/roles/validator/checks/`
 - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
-- `.GOV/roles_shared/checks/`
-- `.GOV/roles_shared/schemas/`
 
 **Done when**
 
@@ -267,10 +246,6 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
 **Primary target surfaces**
 
 - `.GOV/roles_shared/records/`
-- `.GOV/roles_shared/schemas/`
-- `.GOV/roles_shared/scripts/`
-- `.GOV/roles_shared/checks/`
-- `.GOV/roles/validator/checks/`
 - `.GOV/roles/validator/docs/`
 
 **Done when**
@@ -313,9 +288,6 @@ This is not a Work Packet board and does not replace `.GOV/roles_shared/records/
 
 - `.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md`
 - `.GOV/roles_shared/records/`
-- `.GOV/roles_shared/scripts/audit/`
-- `.GOV/roles_shared/scripts/session/`
-- `.GOV/roles_shared/checks/`
 
 **Done when**
 

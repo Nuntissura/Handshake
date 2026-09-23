@@ -51,7 +51,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - UserManual duty: every implementation MT is subject to HBR-MAN by default unless the MT is pure repo governance and records a concrete `NOT_APPLICABLE` reason. Whole-WP PASS requires the final candidate to include same-change internal UserManual updates for every product-behavior MT, `MANUAL_VERSION` handling when applicable, code-truth self-consistency evidence, a no-context/manual operation or inspection test, and HBR-INT-009 diagnostic-posture linkage. Missing, stale, untested, uninspected, or code-untruthful manual content blocks PASS. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
 - Role-relevant sub-agent duty: Integration Validator may use read-only sub-agents as independent review lenses for whole-WP questions such as Master Spec coverage, Argus evidence, UserManual evidence, HBR closure, anti-scaffold runtime proof, and merge-risk review. Sub-agents must not edit files, issue the verdict, merge, push, advance task-board truth, or replace the Integration Validator's own final judgment.
 - Quiet/process duty: final evidence must show tests, agent activity, sandboxes, and background processes are non-intrusive, attributable, and reclaimed.
-- Final-verdict duty: before PASS/merge readiness, run or review `hbr-matrix-check`, HandoffGate evidence, validator-scan HBR evidence, and packet acceptance closure. Any required HBR row left `PENDING`, `STEER`, or `BLOCKED` is a hard blocker.
+- Final-verdict duty: before PASS/merge readiness, review HBR rows (checked by reading the artifact; check script deleted 2026-09-23), HandoffGate evidence, validator-scan HBR evidence, and packet acceptance closure. Any required HBR row left `PENDING`, `STEER`, or `BLOCKED` is a hard blocker.
 
 ## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
 
@@ -77,13 +77,13 @@ Write sequence:
 - Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
 - Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
 - Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
-- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
+- Verify by reading the new `SPEC_CURRENT.md`, manifest, `INDEX.json`, and changelog (check scripts deleted 2026-09-23).
 
 ## Why This Role Exists
 
 - Previously, integration validation was conflated with mechanical closeout (running scripts, fixing SHAs, retrying checks). This caused 7+ retry loops at 7-8M tokens per round-trip.
 - The Integration Validator now focuses purely on judgment: does the work satisfy the spec?
-- Mechanical closeout prep is the Orchestrator's responsibility (direct script execution).
+- Mechanical closeout prep is the Orchestrator's responsibility.
 - Fresh context prevents the 256M token bloat that accumulated when sessions persisted across the full WP lifecycle.
 
 ## Adult Production Boundary (When Applicable) [CX-123]
@@ -134,9 +134,8 @@ Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate sch
 
 When the Integration Validator launches, the Orchestrator has already:
 1. Verified all MTs are complete (WP_VALIDATOR PASS on each)
-2. Run `just closeout-repair WP-{ID}` to fix all mechanical closeout issues
-3. Verified the final handoff commits are pushed (base/head/range) for the candidate under review
-4. Prepared the signed scope artifact and compatibility truth that can be finalized during terminal closeout
+2. Verified the final handoff commits are pushed (base/head/range) for the candidate under review
+3. Prepared the signed scope artifact and compatibility truth that can be finalized during terminal closeout
 
 The Integration Validator receives:
 - The resolved current Master Spec (`SPEC_CURRENT` JSON -> active indexed bundle manifest/modules; sections 1-6, 9-11 are the sole definition of "Done")
@@ -218,8 +217,7 @@ After judgment, write the verdict:
 - [IV-ART-005] Legacy root-hygiene helpers do not establish WP/MT hierarchy compliance. Apply newer Operator path-shape precedence in [CX-984-010], retain other HBR obligations, and report helper/HBR drift with verified scoped overrides.
 
 Before merge, verify no build/test/tool artifacts have leaked into the repo:
-- Run `just artifact-root-preflight WP-{ID}`. If it fails, classify the result as `ENVIRONMENT_BLOCKER`, preserve product proof, and do not route coder revalidation unless the blocker proves an actual product boundary violation.
-- Run `just validator-git-hygiene` â€” FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
+- Tracked build outputs are checked by reading the artifact (check script deleted 2026-09-23) â€” FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
 - All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-205F], not inside the repo tree.
 - Run a worktree-bound artifact-location check for the assigned WP before merge: runtime/build output inside the worktree or outside its required external WP/MT/owner directory is a blocking hygiene failure. Preserve product proof and classify/remediate the placement defect.
 - If artifact contamination is found: do NOT merge. Record the violation with the failure class. `PRODUCT_BLOCKER` requires product remediation/revalidation; `ENVIRONMENT_BLOCKER` routes to artifact-root repair; `GOVERNANCE_BLOCKER` routes to Orchestrator closeout repair.
@@ -230,8 +228,8 @@ After PASS verdict, artifact hygiene check, and closeout truth sync:
 - Perform the merge/containment of the approved commit range into local `main`
 - Verify the merge is clean (no conflicts, no unrelated changes)
 - Record `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>` in the typed closeout record (`TERMINAL_CLOSEOUT_RECORD.json`)
-- Run `just sync-gov-to-main` to synchronize governance kernel to main branch [CX-212D]
-- Push to `origin/main` after sync-gov-to-main succeeds
+- Synchronize governance kernel to main branch (sync script deleted 2026-09-23; sync by hand with explicit paths) [CX-212D]
+- Push to `origin/main` after the sync succeeds
 - This is the Integration Validator's default responsibility. The Orchestrator MAY execute this mechanical sync/push path only when explicitly instructed by the Operator.
 
 ### 7. Evaluate and Improve (Post-Mortem)
@@ -296,7 +294,7 @@ After verdict and merge:
 
 - Same rules as VALIDATOR_PROTOCOL: no destructive commands without explicit operator authorization.
 - Before merge operations, verify current `main` HEAD and create a safety stash or backup branch.
-- Use `just backup-snapshot` before any broad topology changes.
+- Make an out-of-repo backup copy first before any broad topology changes.
 
 ## Memory
 
@@ -304,10 +302,7 @@ After verdict and merge:
 
 ## Governance Surface Reduction Discipline
 
-- Integration validation should stay centered on the canonical verdict/closeout boundary, not a growing set of closeout-adjacent public scripts.
-- When deterministic whole-WP validation or closeout checks usually run together for the same boundary, consolidate them behind the canonical phase-owned bundle and one debug artifact instead of preserving extra leaf commands.
-- Keep separate public Integration Validator surfaces only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or independently useful operator action materially differs.
-- If a new live integration-validation governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is being retired or intentionally kept distinct.
+Removed 2026-09-23: the command surface was deleted with the governance harness.
 
 ## Relationship to Classic Validator
 
@@ -320,7 +315,7 @@ After verdict and merge:
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` as the canonical checkpoint bundle surface before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`.
+Retired with the governance harness on 2026-09-23.
 
 ## Spec-Realism Gate (mandatory enforcement before COMPLETED)
 

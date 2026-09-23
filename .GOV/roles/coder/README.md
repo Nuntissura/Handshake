@@ -13,42 +13,20 @@ Authoritative folder-placement law for the Coder bundle lives in `.GOV/codex/Han
 - `docs/` is non-authoritative support material and may lag current workflow law
 - `docs/CODER_RUBRIC_V2.md` is the current deep-quality support rubric for coder self-review
 
-## Role-Owned Checks / Scripts
-
-- `scripts/coder-next.mjs`
-- `checks/pre-work-check.mjs`
-- `checks/post-work-check.mjs`
-- `checks/coder-skeleton-checkpoint.mjs`
-
 ## Role Layout
 
 - `runtime/`
   - coder-owned machine state only; new role-owned state belongs here
-- `scripts/`
-  - coder-owned entrypoints
-- `scripts/lib/`
-  - coder-only helper libraries
-- `checks/`
-  - coder-owned enforcement/gate entrypoints
-- `tests/`
-  - governance tests for coder scripts/checks
-- `fixtures/`
-  - coder-local test data and golden inputs
 
 ## Shared Dependencies To Know
 
-- `.GOV/roles_shared/checks/README.md`
-- `.GOV/roles_shared/scripts/README.md`
 - `.GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md`
 - external repo-governance `roles_shared/WP_COMMUNICATIONS/`
 
 ## Key Commands
 
-- `just coder-startup`
-- `just coder-next [WP-{ID}]`
-- `just coder-skeleton-checkpoint WP-{ID}`
-- `just spec-debt-open WP-{ID} "<clause>" "<notes>" <YES|NO>`
-- `just spec-debt-sync WP-{ID}`
+- read the Codex, this protocol and the assigned MT, then continue from the MT JSON status
+- record spec debt rows in `.GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md` by hand
 
 ## Packet Sections To Watch
 

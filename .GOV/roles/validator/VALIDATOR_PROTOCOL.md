@@ -2,13 +2,13 @@
 ## Deterministic Atomic Governance Files [CX-908]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
-- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- Roles MUST consume typed JSON, JSONL, or declared contract fields before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
 - When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## Governance Kernel Product-Governance Testbed [CX-911]
 - The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
-- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
-- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
+- External apps/tools and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, and runtime artifacts.
+- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, and generated projection hashes/provenance instead of waiting for Operator input.
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
@@ -21,7 +21,6 @@
 ## Multi-Provider Model Awareness
 
 - The system supports multiple model providers. The packet-declared `WP_VALIDATOR_MODEL_PROFILE` and `INTEGRATION_VALIDATOR_MODEL_PROFILE` are authoritative.
-- The ACP broker is a mechanical session-control relay, not a model. All validator sessions dispatch through the broker regardless of provider.
 
 ## Why Governance Correctness Matters
 
@@ -69,12 +68,11 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
 - `user_ilja` and `gov_kernel` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
-- `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through `just sync-gov-to-main` (Integration Validator default responsibility; Orchestrator may execute only under explicit Operator instruction) [CX-212D, CX-113].
+- `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through a governance sync (sync script deleted 2026-09-23; sync by hand with explicit paths) (Integration Validator default responsibility; Orchestrator may execute only under explicit Operator instruction) [CX-212D, CX-113].
 - Matching backup pushes are allowed safety operations. For Validator work this means pushing the assigned WP backup branch when preserving committed state before destructive local operations.
 - The packet-declared WP backup branch is the shared remote WP backup branch for Coder, WP Validator, and Integration Validator. Any validator form may push that packet-declared branch when preserving WP-scoped committed state, but validators must not improvise separate validator-only remote WP backup branches.
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
-- Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
-- Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before validation proceeds. This is safety context only, not a bypass for destructive-op approvals.
+- Before deleting local branches/worktrees or performing broad topology cleanup, make an out-of-repo backup copy first.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact actions + exact targets, and ask for approval on that presented list.
 - For clearer language going forward, use these exact terms:
   - `local branch`: a branch ref in a local checkout on disk, for example `main` or `gov_kernel`
@@ -83,18 +81,10 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
   - `canonical branch`: always `main`
   - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/gov_kernel`
 - Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Present a deterministic list of exact actions + exact targets first. For that most recently presented list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
-- Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
-- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented. Never use direct filesystem deletion on worktree paths.
-- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** NEVER run `git worktree remove` directly. Non-main worktrees use a `.GOV/` directory junction pointing to `wt-gov-kernel/.GOV/`. Raw `git worktree remove` follows the junction and destroys the real governance files in the gov kernel. Always use `just delete-local-worktree`.
-- If `just delete-local-worktree` fails, STOP immediately. Do not continue with manual cleanup (`rm -rf`, `Remove-Item`, `del`) inside the shared worktree root.
-- For orchestrator-managed WP cleanup after merge, do not improvise deletion commands. Use the Orchestrator-generated single-target cleanup script for the exact CODER or WP_VALIDATOR worktree:
-  - `just generate-worktree-cleanup-script WP-{ID} CODER`
-  - `just generate-worktree-cleanup-script WP-{ID} WP_VALIDATOR`
-  - The generated script is hard-bound to one exact local worktree, consumes the baked Operator approval text plus the matching worktree cleanup token, and may only remove that local worktree via `git worktree remove`.
-  - Cleanup script generation is blocked unless the target worktree is clean and still matches the recorded branch/HEAD.
-  - Generated cleanup scripts do not delete remote WP backup branches.
-- Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when they are clean. It is not the reseed path for `wt-ilja`.
-- Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` when a permanent non-main role/user worktree must be refreshed from local `main`. This helper safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
+- Assistant-driven worktree deletion requires `approved` or `proceed` after the list has been presented (deletion helper deleted 2026-09-23). Never use direct filesystem deletion on worktree paths.
+- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** NEVER run `git worktree remove` directly. Non-main worktrees use a `.GOV/` directory junction pointing to `wt-gov-kernel/.GOV/`. Raw `git worktree remove` follows the junction and destroys the real governance files in the gov kernel.
+- Do not continue with manual cleanup (`rm -rf`, `Remove-Item`, `del`) inside the shared worktree root.
+- For orchestrator-managed WP cleanup after merge, do not improvise deletion commands (cleanup-script generator deleted 2026-09-23).
 
 ## Repo Boundary Rules (HARD)
 
@@ -106,16 +96,16 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`, and `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (append-only shared tooling memory).
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. Root-level repo control files are separate from that kernel flow: `AGENTS.md` and the root `justfile` are authored only in `handshake_main` on local `main`, never from a role worktree or WP worktree. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The Integration Validator is the default owner for syncing governance to main (sync script deleted 2026-09-23; sync by hand with explicit paths) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. Root-level repo control files are separate from that kernel flow: `AGENTS.md` and the root `justfile` are authored only in `handshake_main` on local `main`, never from a role worktree or WP worktree. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Validator-Executed Proof [VPX] (HARD)
 
 - [VPX-001] (amended 2026-09-12, operator reuse clarification) A PASS at any level (per-MT `MT_VERDICT` PASS, `READY_FOR_VALIDATION -> COMPLETED`, whole-WP PASS, merge readiness) is legal only when every required proof command for that level was executed by the validator's own governed session, at the packet/MT `validate_at_commit` commit (or the reviewed range head), on a clean tree (`git status` clean for the product paths in scope; a dirty tree is recorded in the proof record and blocks PASS). What must be the validator's own is the test EXECUTION and the captured result (exit code, result line, log); build-cache reuse is allowed and encouraged, including a shared warm `CARGO_TARGET_DIR` under `${HANDSHAKE_ARTIFACTS_ROOT}` that the implementer also used, because cargo fingerprints rebuild anything whose inputs changed. The proof record's `target_dir` records which target was used.
 - [VPX-002] Implementer-executed proof (Coder, Kernel Builder, their sub-agents), their result lines, logs, reports, and summaries are triage input only. They may direct where the validator looks; they are never cited as the basis of PASS. Reading them is not verification.
-- [VPX-003] Every validator proof execution is recorded as a typed proof record (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict receipt cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
+- [VPX-003] Every validator proof execution is recorded as a typed proof record (schema file `PROOF_RECORD.schema.json` deleted 2026-09-23) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict receipt cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
 - [VPX-004] Reuse: the validator may reuse its OWN proof record for a later verdict only when commit, clean-tree state, command, features, and environment knobs are identical. Cross-role reuse (validator citing implementer records, or vice versa) is forbidden. For validator verdicts this supersedes the reuse clause of [WPV-ART-003] / [IV-ART-003] and [CX-503I1]; those IDs stay in place.
 - [VPX-005] (amended 2026-09-12) Cost is managed by build caching ([VPX-001], [VPX-008]) and test bundling ([VPX-007]) plus focused-then-broad sequencing, never by skipping execution or citing implementer runs. The validator executes the focused proof for each MT itself (bundled across MTs at the same commit where possible); the validator executes the broad suite at each declared batch/final boundary. `FULL_CARGO_SUITE=DEFERRED_TO_SESSION_MT_BATCH` remains a valid intermediate state only for the BROAD suite and only until that boundary.
-- [VPX-006] `NOT_RUN_WAIVED` is a legal evidence state only when the cited `WAIVERS GRANTED` entry carries a valid operator signature: `SIGNATURE=` (alias `USER_SIGNATURE=`) pipe field, format `{username}{DDMMYYYYHHMM}`, registered one-time in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (ledger entry `status=ACTIVE`, `signatureValid=true` per `parsePolicyWaiverLedger`). The verdict must cite the waiver id AND the signature. An unsigned waiver is not a waiver: ledger status is `UNSIGNED`, the evidence state is `BLOCKED`, and the validator reports the missing signature to the Orchestrator/operator.
+- [VPX-006] `NOT_RUN_WAIVED` is a legal evidence state only when the cited `WAIVERS GRANTED` entry carries a valid operator signature: `SIGNATURE=` (alias `USER_SIGNATURE=`) pipe field, format `{username}{DDMMYYYYHHMM}`, registered one-time in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (ledger entry `status=ACTIVE`, `signatureValid=true`). The verdict must cite the waiver id AND the signature. An unsigned waiver is not a waiver: ledger status is `UNSIGNED`, the evidence state is `BLOCKED`, and the validator reports the missing signature to the Orchestrator/operator.
 - [VPX-007] Bundling: the validator SHOULD validate a batch of READY MTs that share one `validate_at_commit` (or a contiguous range whose head is validated) with ONE build and ONE bundled test invocation (multiple `--test` targets / name filters in one cargo run; `RUST_TEST_THREADS` as the packet requires). One proof record may cover many MTs via `covers[]`; each covered MT's verdict cites that record. Focused per-MT reruns are for findings, not the default.
 - [VPX-008] Build once per commit: never rebuild for a second MT at the same commit and feature set; reuse the validator's own build artifacts and proof records per [VPX-004]. A rebuild is triggered only by a commit change, a feature/env-knob change, or a dirty tree.
 
@@ -125,9 +115,9 @@ Validator output (review verdicts, concerns, gate decisions, closeout judgments)
 
 ## Mechanical Intervention Discipline [CX-218K]
 
-- Before declaring a manual-relay validation stall, missing handoff, or closeout drift, classify 3-5 plausible causes: relay-envelope drift, packet/runtime mismatch, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
-- Choose the cheapest deterministic read, repair, or typed helper first: packet/runtime checks, validator-next output, notification cursors, typed validator report fields, governed receipts, and the manual-relay envelope.
-- Do not manually relay ordinary validation content when typed validator fields, governed receipts, packet checks, or manual-relay envelopes can carry or prove the state transition.
+- Before declaring a manual-relay validation stall, missing handoff, or closeout drift, classify 3-5 plausible causes: relay-envelope drift, packet/runtime mismatch, session drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
+- Choose the cheapest deterministic read or repair first: packet/MT JSON reads, typed validator report fields, governed receipts, and the manual-relay envelope.
+- Do not manually relay ordinary validation content when typed validator fields, governed receipts, or manual-relay envelopes can carry or prove the state transition.
 - If the failure is deterministic governance tooling or relay protocol drift rather than product correctness, report the exact blocker to Classic Orchestrator/Orchestrator as applicable; do not bury it inside a product verdict.
 - Do not use split `WP_VALIDATOR` / `INTEGRATION_VALIDATOR` authority unless the packet/lane explicitly selects the orchestrator-managed split.
 
@@ -135,9 +125,9 @@ Validator output (review verdicts, concerns, gate decisions, closeout judgments)
 
 - Validator stabilizes governance paperwork by actively striving to make brittle validation, closeout, relay-envelope, and report-template transitions more mechanical, starting with refusal of false PASS states when packet, evidence, Task Board, closeout, relay envelope, or report-template truth is incomplete or contradictory.
 - If a workflow defect hides uncertainty, report it as governance/workflow invalidity or a typed blocker with the exact artifact/helper mismatch. Do not bury deterministic relay or paperwork drift inside a product-code verdict.
-- When Validator owns the manual-relay closure path, update the required status/projection surfaces through the governed helpers instead of relying on Orchestrator or Operator babysitting to reconcile them later.
+- When Validator owns the manual-relay closure path, update the required status/projection surfaces by hand instead of relying on Orchestrator or Operator babysitting to reconcile them later.
 - Declare Validator-owned governance refactor or validation-surface repair work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
-- Coder remains focused on product implementation and evidence. If validation exposes governance-paperwork drift, route that repair to Classic Orchestrator, Orchestrator, Validator-owned closeout, or Memory Manager proposal surfaces as applicable.
+- Coder remains focused on product implementation and evidence. If validation exposes governance-paperwork drift, route that repair to Classic Orchestrator, Orchestrator, or Validator-owned closeout as applicable.
 
 ## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
 
@@ -163,16 +153,15 @@ Write sequence:
 - Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
 - Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
 - Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
-- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
+- Verify the new bundle: checked by reading the artifact (check script deleted 2026-09-23).
 
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - The Integration Validator, or the Orchestrator when explicitly instructed to perform the `origin/main` push, MUST verify `../Handshake_Artifacts/` is clean of stale artifacts before pushing to `origin/main`.
-- **Integration Validator Artifact Hygiene Gate [CX-503H] (HARD):** Before merging WP product code to `main`, the Integration Validator MUST: (1) run `just artifact-hygiene-check` to verify no repo-local `target/` directories exist, (2) grep for wrongly-placed `Handshake_Artifacts/` directories inside `src/`, `app/`, or `tests/`, (3) verify `../Handshake_Artifacts/` does not contain stale WP-specific build residue. Merge is blocked until all artifact hygiene checks pass.
-- Repo-local `target/` directories are invalid. Treat them as hygiene failures, not as normal residue, and clear them through `just artifact-cleanup` or the governed closeout path.
+- **Integration Validator Artifact Hygiene Gate [CX-503H] (HARD):** Before merging WP product code to `main`, the Integration Validator MUST: (1) verify no repo-local `target/` directories exist, (2) grep for wrongly-placed `Handshake_Artifacts/` directories inside `src/`, `app/`, or `tests/`, (3) verify `../Handshake_Artifacts/` does not contain stale WP-specific build residue. Merge is blocked until all artifact hygiene checks pass.
+- Repo-local `target/` directories are invalid. Treat them as hygiene failures, not as normal residue, and clear them by hand.
 - For terminal non-PASS closeout, active-topology artifact hygiene drift does not erase a real validator verdict of record by itself; it must be recorded and repaired as settlement debt unless it proves an actual product-correctness boundary failure.
-- Governed artifact cleanup and integration-validator closeout now write a retention manifest under `../Handshake_Artifacts/handshake-tool/artifact-retention/`; review that manifest when cleanup scope matters for audit or recovery.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the WP is explicitly remediating them.
@@ -183,23 +172,16 @@ Write sequence:
 
 - Validator work currently has three governance forms:
   - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from `handshake_main` on branch `main`. This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
-  - `WP Validator` = orchestrator-managed, WP-scoped technical steering validator sharing the coder worktree (`wtc-*` on `feat/WP-{ID}`, `/.GOV/` junction to kernel) [CX-503G]. The per-MT stop pattern ensures only one role is active at a time. This form judges BOOTSTRAP, SKELETON, and completed micro tasks early, challenges vibe-coding/spec drift, and steers the coder through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
-  - `Integration Validator` = orchestrator-managed final validator operating from `handshake_main` on branch `main` (no WP-specific worktree). This form owns final technical verdict, merge-to-`main` authority, and the default `sync-gov-to-main` responsibility for orchestrator-managed WPs unless the packet explicitly overrides it.
+  - `WP Validator` = orchestrator-managed, WP-scoped technical steering validator sharing the coder worktree (`wtc-*` on `feat/WP-{ID}`, `/.GOV/` junction to kernel) [CX-503G]. The per-MT stop pattern ensures only one role is active at a time. This form judges BOOTSTRAP, SKELETON, and completed micro tasks early, challenges vibe-coding/spec drift, and steers the coder through packet communications, but it is not the final merge authority.
+  - `Integration Validator` = orchestrator-managed final validator operating from `handshake_main` on branch `main` (no WP-specific worktree). This form owns final technical verdict, merge-to-`main` authority, and the default governance sync-to-main responsibility for orchestrator-managed WPs unless the packet explicitly overrides it.
 - `Integration Validator` runtime is product-rooted in `handshake_main`, but live governance authority is kernel-rooted. Governed launch/control must inject `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and validator closeout is invalid if the session resolves authority from `handshake_main/.GOV` instead of the kernel.
-- `handshake_main/.GOV` is a synced mirror for main-branch backup/visibility only. Even after `just sync-gov-to-main`, it is not the authoritative live governance surface for orchestrator-managed integration validation.
-- `just sync-gov-to-main` is only valid from committed kernel governance truth. If `wt-gov-kernel/.GOV` has uncommitted changes, commit `gov_kernel` before mirroring to `handshake_main`.
+- `handshake_main/.GOV` is a synced mirror for main-branch backup/visibility only. Even after a governance sync to main, it is not the authoritative live governance surface for orchestrator-managed integration validation.
+- Governance sync to main (sync script deleted 2026-09-23; sync by hand with explicit paths) is only valid from committed kernel governance truth. If `wt-gov-kernel/.GOV` has uncommitted changes, commit `gov_kernel` before mirroring to `handshake_main`.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
-- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults are `OPENAI_GPT_5_5_XHIGH` primary and `OPENAI_GPT_5_4_XHIGH` fallback, which map to `gpt-5.5` primary, `gpt-5.4` fallback, and `model_reasoning_effort=xhigh`; `OPENAI_GPT_5_2_XHIGH` remains a supported legacy fallback. `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH` and `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` are supported runtime profiles; `OLLAMA_QWEN_CODER_7B` and `OLLAMA_QWEN_CODER_14B` are local model profiles (coder-only). All profiles dispatch through the ACP broker. Do not rely on ambient editor defaults.
+- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults are `OPENAI_GPT_5_5_XHIGH` primary and `OPENAI_GPT_5_4_XHIGH` fallback, which map to `gpt-5.5` primary, `gpt-5.4` fallback, and `model_reasoning_effort=xhigh`; `OPENAI_GPT_5_2_XHIGH` remains a supported legacy fallback. `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH` and `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` are supported runtime profiles; `OLLAMA_QWEN_CODER_7B` and `OLLAMA_QWEN_CODER_14B` are local model profiles (coder-only). Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is headless/direct ACP launch via the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
-- The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`).
-- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
-- The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
-- Governed system-terminal repair launches are hidden registry-owned surfaces. Closeout now attempts deterministic reclaim automatically; if a hidden repair process survives, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing windows manually.
-- Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
-- CLI escalation is hidden-process repair only. `CURRENT` and `VSCODE_PLUGIN` are disabled for governed role launches because they can focus or capture Operator input.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
 ## Classical Validator Parity For MANUAL_RELAY
@@ -208,7 +190,7 @@ When the active workflow is `WORKFLOW_LANE=MANUAL_RELAY`, the `VALIDATOR` role i
 
 - It combines WP Validator early-review duties and Integration Validator final-verdict duties.
 - The Operator remains the relay. The Validator must not assume autonomous Orchestrator-managed steering or bypass the structured manual relay envelope.
-- Startup/resume is `just validator-startup VALIDATOR` followed by `just validator-next VALIDATOR WP-{ID}` and `just external-validator-brief WP-{ID}` when a packet is active.
+- Startup/resume: read the Codex, this protocol and the assigned MT, then continue from the MT JSON status.
 - `VALIDATOR` may own final validation closure and merge-to-`main` authority only for manual/non-orchestrator-managed work. It must not stand in for `INTEGRATION_VALIDATOR` on split orchestrator-managed WPs.
 - Manual-relay role-to-role content must remain in typed receipts/envelopes. Operator narrative is explanation, not the routing wire.
 - The same anti-gaming, spec evidence, negative proof, heuristic-risk, strategy-escalation, validator gates, and merge-safety rules apply to the combined classical role.
@@ -223,12 +205,7 @@ For manual relay, the classic `VALIDATOR` performs the authoritative post-implem
 
 ## Self-Prime And Predecessor Summary (RGF-249)
 
-- `VALIDATOR`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` are all eligible for deterministic self-prime.
-- For classical manual validation, after startup, compaction, or fresh recovery, run:
-  - `just role-self-prime VALIDATOR WP-{ID} --session-id VALIDATOR:WP-{ID}`
-- Self-prime assembles packet/runtime/task-board/memory context and includes a same-role predecessor summary when available.
-- Predecessor summaries are context only. They do not override packet truth, runtime projection, receipts, task-board state, validator reports, or explicit Operator instruction.
-- If self-prime and `just validator-next VALIDATOR WP-{ID}` disagree, reconcile against packet/runtime/receipts before validating or merging.
+- For classical manual validation, after startup, compaction, or fresh recovery: read the Codex, this protocol and the assigned MT, then continue from the MT JSON status.
 
 ## Final Validator Authority (Current Law)
 
@@ -236,7 +213,7 @@ For manual relay, the classic `VALIDATOR` performs the authoritative post-implem
 - For orchestrator-managed WPs, `INTEGRATION_VALIDATOR` owns the final merge-ready technical verdict and merge-to-`main` authority unless the packet explicitly overrides that split.
 - `CLASSICAL_VALIDATOR` owns final closure only when the repo is intentionally using the classical / non-orchestrator-managed validator lane.
 - `WP_VALIDATOR` may inspect live coder progress, block weak proof, request repair, and append review evidence, but it must not stand in for `INTEGRATION_VALIDATOR` when final merge-ready authority is required.
-- Final merge-ready authority must be attributable to both validator role and governed session identity. If a gate artifact is role-blind or session-blind, do not treat that artifact alone as sufficient final-authority proof; reconcile it against the session registry, packet receipts, and packet runtime truth.
+- Final merge-ready authority must be attributable to both validator role and governed session identity. If a gate artifact is role-blind or session-blind, do not treat that artifact alone as sufficient final-authority proof; reconcile it against packet receipts and packet runtime truth.
 - If any wrapper, gate, or runtime projection appears to let `WP_VALIDATOR` exercise final merge-ready authority for an orchestrator-managed WP, treat that as a governance defect and STOP.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
@@ -261,15 +238,11 @@ For manual relay, the classic `VALIDATOR` performs the authoritative post-implem
 
 ## Governance Surface Reduction Discipline
 
-- Prefer canonical validator and phase-owned surfaces such as `phase-check`, packet truth, and governed validator artifacts over adding new operator-facing validator helpers or duplicate public checks.
+- Prefer canonical validator surfaces such as packet truth and governed validator artifacts over adding new operator-facing validator helpers or duplicate public checks.
 - If validator logic needs to grow, extend existing validator or shared libraries/surfaces first; do not normalize thin wrappers, compatibility aliases, or duplicate public entrypoints as the default pattern.
 - Surface proliferation is governance debt because it creates command drift, split proof paths, and parallel-run debugging overhead.
-- For scripts and recipes specifically, prefer one canonical public validator/phase script per boundary. If the same owner, inputs, primary artifact/debug surface, and usual invocation path already exist, extend that script instead of adding a sibling that normally runs with it.
-- When validator-side deterministic checks usually run as one boundary proof, consolidate them into the canonical phase-owned bundle and primary debug artifact instead of preserving extra leaf validator scripts.
-- Bias toward fewer larger canonical validator governance scripts over multiple small public wrappers.
-- Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
-- **Fail capture wiring (HARD â€” CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
+- **Fail capture wiring (CX-205N):** Retired with the governance harness on 2026-09-23.
 
 ## Governance Folder Structure (Authoritative Placement Rules)
 
@@ -279,19 +252,11 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - Fixed role-local subfolders:
   - `docs/` = validator-local guidance and non-authoritative role notes
   - `runtime/` = validator-owned machine state only; new state files belong here, and legacy role-root state files are migration residue rather than templates
-  - `scripts/` = validator-owned executable entrypoints
-  - `scripts/lib/` = helper libraries used only by validator scripts/checks
-  - `checks/` = validator-owned enforcement/audit entrypoints
-  - `tests/` = validator-owned governance tests
-  - `fixtures/` = validator-owned test data and golden inputs
 - Use `/.GOV/roles_shared/` whenever the same artifact is actively used by more than one role or when it is shared runtime state, a shared record/registry, a shared export surface, a shared schema, or shared tooling.
 - `/.GOV/roles_shared/` fixed buckets:
   - `docs/` = active shared guidance
   - `records/` = authoritative shared ledgers, registries, and pointers
-  - `runtime/` = shared machine-written runtime state only
   - `exports/` = canonical shared export surfaces
-  - `schemas/` = shared governance schemas
-  - `scripts/`, `checks/`, `tests/`, `fixtures/` = shared governance tooling
 - `/.GOV/docs_repo/` is for repo-level governance docs and running governance logs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
 - `/.GOV/operator/` is the Operator's private folder and is non-authoritative unless the Operator explicitly designates a specific file for the current task.
 
@@ -309,31 +274,29 @@ Use this governance-maintenance record flow:
   - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
   - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - audits: use stable `AUDIT_ID` values and add `SMOKETEST_REVIEW_ID` for smoketest or workflow-proof reviews
-- **Durable run notes:** During WP validation, capture notable findings (dead code, cross-surface gaps, spec misalignments, verdict reasoning, tooling failures) with `just repomem insight|decision|error|concern ... --wp WP-{ID}`. The Workflow Dossier receives a terminal WP-bound memory snapshot at closeout; import debt is diagnostic only, so do not duplicate the same narrative in live dossier sections.
 - Operator-facing scope split rule:
   - In chat, always separate `Handshake (Product)` from `Repo Governance`.
   - If the review target touches product code or the Master Spec, classify it as `Handshake (Product)` even when the requirement is governance-shaped, workflow-shaped, or contract-shaped.
-  - Reserve `Repo Governance` for `/.GOV/**`, ACP/session/runtime ledgers, governance records, protocols, and root control-file maintenance only.
+  - Reserve `Repo Governance` for `/.GOV/**`, session/runtime ledgers, governance records, protocols, and root control-file maintenance only.
   - If only one lane applies, still name both lanes and state `NONE` for the other lane.
   - Lead with the actual finding, risk, or conclusion in plain language. File:line citations remain mandatory evidence, but they should support the explanation rather than replace it.
   - Do not dump naked citations or raw command output without stating what they mean, unless the user explicitly asks for raw output or exact locations only.
 
 Do not create a WP for pure repo-governance maintenance. If the planned diff touches current Master Spec content (active versioned indexed bundle modules/manifest/changelog, legacy `.GOV/spec/indexed_spec/**` compatibility content, or `SPEC_CURRENT` authority metadata for product-spec evolution) or product code, stop and use the normal refinement plus WP path instead.
 
-Minimum verification for governance-only changes: `just gov-check`.
+Minimum verification for governance-only changes: checked by reading the artifact (check script deleted 2026-09-23).
 
 ## Pre-Flight (Blocking)
 - [CX-GATE-001] BINARY PHASE GATE (HARD INVARIANT): Workflow MUST follow the sequence: BOOTSTRAP -> SKELETON -> IMPLEMENTATION -> HYGIENE -> VALIDATION.
-- Interface-first checkpoint (ANTI-VIBECODE): for `MANUAL_RELAY` lanes only, before any product code changes (`src/`, `app/`, `tests/`), a docs-only skeleton checkpoint commit MUST exist on the WP branch (recommended: `just coder-skeleton-checkpoint WP-{ID}`).
-- Skeleton approval hard gate: for `MANUAL_RELAY` lanes only, before validating/accepting any implementation changes, confirm the WP branch contains `docs: skeleton approved [WP-{ID}]` (created by Operator/Validator via `just skeleton-approved WP-{ID}`).
+- Interface-first checkpoint (ANTI-VIBECODE): for `MANUAL_RELAY` lanes only, before any product code changes (`src/`, `app/`, `tests/`), a docs-only skeleton checkpoint commit MUST exist on the WP branch.
+- Skeleton approval hard gate: for `MANUAL_RELAY` lanes only, before validating/accepting any implementation changes, confirm the WP branch contains `docs: skeleton approved [WP-{ID}]` (created by Operator/Validator by hand).
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, those checkpoint commands are invalid; do not invoke or require them. If they are attempted, treat that as a `WORKFLOW_INVALIDITY` condition rather than a missing prerequisite.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` after signature/prepare, do not ask the Operator for routine approval, "proceed", or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`.
-- If the Operator has to restate that rule mid-run, do not continue as if nothing happened; the Orchestrator must record `just wp-operator-rule-restatement ...`, and the lane is reset-required until fresh direction is issued.
+- If the Operator has to restate that rule mid-run, do not continue as if nothing happened; the Orchestrator must record the restatement, and the lane is reset-required until fresh direction is issued.
 - Refinement completeness (HARD): If the WP requires a non-trivial technical approach choice (new primitives/techniques, new dependencies, security-sensitive patterns, or UI-visible behavior), the Validator MUST confirm a `LANDSCAPE_SCAN` exists in the official refinement path for the WP (logical resolver: `.GOV/work_packets/WP-{ID}/refinement.md`; current physical storage: `.GOV/task_packets/WP-{ID}/refinement.md`; legacy compatibility: `.GOV/refinements/WP-{ID}.md`) or was pasted in-chat, with ADOPT/ADAPT/REJECT decisions. Missing scan = FAIL unless the Operator explicitly waives it for the WP. For cross-cutting WPs, also confirm `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` exist and any required Spec Appendix 12 (index/matrices) updates are either in-scope or tracked as explicit stubs.
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
   - Source of truth: `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`.
-  - Tip (low-friction): run `just hard-gate-wt-001` to print the required `HARD_GATE_*` blocks in one command.
   - **Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS`.
     - If the hard-gate output clearly matches the assignment and `OPERATOR_ACTION: NONE`, proceed automatically (see Auto-Continue [CX-GATE-AUTO-VAL-001]); do not wait for the Operator to type "proceed".
   - Template:
@@ -348,7 +311,7 @@ Minimum verification for governance-only changes: `just gov-check`.
     - If this matches the assignment: continue.
     - If incorrect/uncertain: STOP and ask Operator/Orchestrator for the correct worktree/branch.
     ```
-  - If the required worktree/branch does not exist: STOP and request explicit Operator authorization to create it (Codex [CX-108]); only after Operator authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+  - If the required worktree/branch does not exist: STOP and request explicit Operator authorization to create it (Codex [CX-108]); only after Operator authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or plain `git worktree add` (WP worktrees).
   - **Validator worktree creation rule:** Validators MUST NOT create or switch to any new worktree unless explicit Operator authorization is present in the current turn.
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
     - Locate the WP worktree/branch via `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
@@ -358,7 +321,6 @@ Minimum verification for governance-only changes: `just gov-check`.
       - If more than one match for the same WP_ID: fail as `WP_WORKTREE_SPLIT`, report it, and stop.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
-    - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" phase-check STARTUP <WP_ID> CODER`; do not trust the role worktree copy if it disagrees.
     - If the work packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
 - Inputs required: work packet (STATUS not empty), `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON), resolved indexed manifest/module slices, current diff.
@@ -385,7 +347,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
-When you run any gate command (including: `just phase-check`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
+When you run any gate command (any deterministic checker that blocks progress), you MUST in the SAME TURN:
 
 1) Paste the literal output as:
 ```text
@@ -422,69 +384,27 @@ STOP is only required when at least one is true:
 
 ### Condensed validator session preflight (recommended)
 
-Instead of running session-start checks as separate commands, you MAY run:
-- `just validator-preflight`
-
-This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression).
-
-Optional (recommended on session start to reduce babysitting):
-- `just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR` (prints PROTOCOL_ACK lines + runs `just validator-preflight`).
+Removed 2026-09-23: the command surface was deleted with the governance harness.
 
 ### Context resume (recommended; anti-babysit)
 
-If the session resets, context compacts, or you inherit a half-finished WP, use:
-- `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}] [--debug]`
-- For diagnostic tracing of cross-role resume/routing state, also use `just orchestrator-next [WP-{ID}] --debug`.
-
-This prints the inferred WP stage + the minimal next commands based on:
-- current git branch/worktree context
-- `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
-- resolved Work Packet path (`.GOV/work_packets/WP-*/packet.md` logical; current physical `.GOV/task_packets/WP-*/packet.md`) or legacy flat `.GOV/task_packets/WP-*.md`
-- `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json` (when present)
+If the session resets, context compacts, or you inherit a half-finished WP: read the Codex, this protocol and the assigned MT, then continue from the MT JSON status.
 
 Resume rule (hard, anti-babysit):
-- After `just validator-startup <ROLE>` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
-- Immediately run `just validator-next <ROLE> [--debug]` (or `just validator-next <ROLE> WP-{ID} [--debug]` when the WP is known).
-- If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
-- STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
-- `just validator-startup <ROLE>` remains the universal validator startup command family. It is necessary but not sufficient for independent external revalidation of an orchestrator-managed WP; that audit mode requires `just external-validator-brief WP-{ID}` immediately after startup and before any verdict work.
-- Legacy remediation rule (hard): if `just validator-next <ROLE>` or the computed policy gate reports `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, treat the packet as a failed historical closure. Do not reopen validator gates, present PASS, merge, or sync it in place. Request a new remediation WP variant instead.
+- Legacy remediation rule (hard): if the packet reports `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, treat the packet as a failed historical closure. Do not reopen validator gates, present PASS, merge, or sync it in place. Request a new remediation WP variant instead.
 
 ### Fail log + context [CX-503K1]
 
-Your startup prompt includes a `FAIL LOG` + `CONTEXT` block â€” **procedural fix patterns** (the fail log) plus **semantic governance facts** (context). This is supplementary, not a source of truth:
-- **What you get:** Fix recipes and error-fix pairs (procedural) plus distilled governance facts and positive controls (semantic). Scoped to your WP. No episodic events â€” those go to the orchestrator.
-- **Don't trust it blindly.** Memory may be stale. Always verify against the current code, packet, and diff. "No assumptions from memory" still applies â€” but injected memory gives you pointers worth checking.
-- **Your work feeds memory automatically.** SMOKE-FIND and SMOKE-CONTROL entries in smoketest reviews are extracted. Validation receipts feed event-driven extraction. Check failures from `validator-scan`, `phase-check HANDOFF`, and `phase-check CLOSEOUT` are auto-captured as procedural memories.
-- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section â€” high-signal context captures taken before governance decisions (e.g. PRE_CLOSEOUT before this WP entered final validation, PRE_WP_DELEGATION before your session was launched). Use them to understand what was planned; verify against the packet and current state.
-- **Intent snapshots (SHOULD).** Before starting a complex validation (deep multi-file review, cross-surface regression analysis), record your plan: `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR> --reason "<why>"`. Judgment-based â€” no gate enforces it.
-- **Conversation memory (MUST â€” `just repomem`):** Cross-session conversational memory captures what was reviewed, decided, and discovered â€” context that receipts and verdict records do not carry. **This is mandatory, not optional.** The following rules are **HARD**:
-  - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about, why, continuing from what>" --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR> --wp WP-{ID}`. Blocked from mutation commands until done. Minimum 80 characters.
-  - **PRE_TASK before governed verdict (SHOULD):** Before a material verdict action â€” issuing PASS/FAIL, opening a steer/remediation request, or syncing closeout truth â€” run `just repomem pre "<what you are about to do and why>" --wp WP-{ID}` unless the command already captures a context checkpoint mechanically.
-  - **INSIGHT after discoveries (MUST):** When validation reveals a non-obvious regression, spec gap, scope drift, contract gap, or systemic pattern, capture with `just repomem insight "<what was found and why it matters>"` before moving on. Minimum 80 characters.
-  - **DECISION when choosing between alternatives (SHOULD):** When you make a deliberate verdict-shaping choice â€” which evidence to weight, what to defer to a follow-on packet, whether to fail closed or steer back â€” record it: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. This is the only record of *why* a verdict took the shape it did. Minimum 80 characters.
-  - **ERROR when something goes wrong (SHOULD):** When a validation tool fails, a check returns unexpected results, a session doesn't launch, or any unexpected state is encountered: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) â€” write immediately, don't wait.
-  - **ABANDON when dropping an approach (SHOULD):** When you abandon a verification path, partial verdict draft, or workaround â€” whether due to failure, scope discovery, or a better alternative: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Minimum 80 characters.
-  - **CONCERN when flagging a risk (SHOULD):** When you identify a risk, a potential regression, a scope issue, or anything that could affect the WP, downstream WPs, or future closeout: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout. Minimum 80 characters.
-  - **ESCALATION when escalating to operator/orchestrator (SHOULD):** When you escalate a decision, blocker, or ambiguity to the Operator, Orchestrator, or another role: `just repomem escalation "<what was escalated and to whom>" --wp WP-{ID}`. Fast capture (min 40 chars).
-  - **SESSION_CLOSE (MUST):** Before session ends, run `just repomem close "<what happened this session>" --decisions "<key findings and verdict>"`. Both content and decisions are required.
-  - **repomem log for continuity:** Use `just repomem log --session last` to review prior session context. Use `just repomem log --week` for recent history. Use `just repomem log --search "<topic>"` for subject retrieval.
-- **Capture insights.** For ad-hoc findings: `just memory-capture semantic "description" --scope "file.rs" --wp WP-{ID}`.
-- **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR>`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions. Examples: validation check false positives, spec anchor drift, smoketest parser limitations.
-- To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
-- **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` and then inspect every surfaced governance file, updating applicable drift across protocols, command surface, architecture, quickref, and codex before you call the refactor done.
-- Canonical memory references: `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` for command syntax and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` for memory-system operation.
+Removed 2026-09-23: the command surface was deleted with the governance harness.
+
+- **Governance doc consistency:** When validating governance refactor work, inspect the governance files for drift across protocols, command surface, architecture, quickref, and codex, and update them before you call the refactor done.
 
 ## WP Communication Folder (when the packet defines it)
 
 - If the packet under review defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a validator-local worktree as a competing inbox.
-- Prefer the governed headless ACP lane for ordinary validator sessions. Use visible terminals only when the Orchestrator intentionally selects a repair/compatibility host.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. Launch and claim validator sessions so they match the packet-declared validator role profile and its required reasoning strength.
 - Validator sessions are started by the Orchestrator. Do not self-start a fresh repo-governed validator session.
-- Use the external repo-governance `ROLE_SESSION_REGISTRY.json` projection to inspect launch/runtime state when session startup looks stale or ambiguous.
-- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers.
-- Use the external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger plus the matching `SESSION_CONTROL_OUTPUTS/` directory when the Operator/Orchestrator is diagnosing governed steering, cancel evidence, or stale-control repairs.
 - Use `THREAD.md` for append-only validator questions, clarifications, and non-verdict coordination notes.
 - Use `RUNTIME_STATUS.json` for liveness state only:
   - `runtime_status`
@@ -494,7 +414,6 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block â€” **procedura
   - next expected actor
 - Use `RECEIPTS.jsonl` for deterministic validation-start, validation-query, status-sync, repair, and handoff receipts.
 - When the declared `WP_RUNTIME_STATUS_FILE` contains `execution_state.authority`, treat that canonical runtime publication view as the first closeout/context truth for packet status, task-board status, and containment state. Packet prose and task-board artifacts are fallback projections when canonical runtime authority is absent, not competing truth.
-- The shared execution-state library now owns closeout mode normalization (`MERGE_PENDING`, `CONTAINED_IN_MAIN`, `FAIL`, `OUTDATED_ONLY`, `ABANDONED`) and terminal publication verdict inference. Final-lane helpers must consume that shared projection instead of carrying private packet-status mapping tables.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` packets with `PACKET_FORMAT_VERSION >= 2026-03-21`, the required direct-review contract is:
   - `VALIDATOR_KICKOFF` from `WP_VALIDATOR -> CODER`
   - `CODER_INTENT` from `CODER -> WP_VALIDATOR`, correlated to kickoff
@@ -505,54 +424,19 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block â€” **procedura
   - `VALIDATOR_REVIEW` from `WP_VALIDATOR -> CODER`, correlated to handoff
   - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` also requires one direct coder <-> integration-validator review pair recorded in receipts with matching `correlation_id` / `ack_for`.
 - In orchestrator-managed lanes, the `VALIDATOR_KICKOFF -> CODER_INTENT -> VALIDATOR_RESPONSE|SPEC_GAP|VALIDATOR_QUERY` exchange is the normal bootstrap/skeleton review loop. Do not wait for final handoff if the bootstrap, skeleton, or data-shape plan is already weak.
-- `CODER_HANDOFF` is illegal until route truth returns to `waiting_on=CODER_HANDOFF` (or `CODER_REPAIR_HANDOFF` on a later repair loop). The governed handoff helper now fails closed if the lane is still waiting on `WP_VALIDATOR_INTENT_CHECKPOINT`, if any blocking open review item exists, or if unresolved overlap microtask reviews still remain.
-- Review-tracked receipt appends now auto-write notifications for the explicit target role and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Use the governed helpers; do not hand-edit around this routing.
-- `just wp-thread-append` remains valid for soft coordination only. It does not satisfy the required direct-review contract by itself.
-- Before taking a coder handoff as review-ready on those packets, `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` must pass.
-- Before PASS commit clearance on those packets, `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR` must pass.
+- `CODER_HANDOFF` is illegal until route truth returns to `waiting_on=CODER_HANDOFF` (or `CODER_REPAIR_HANDOFF` on a later repair loop).
 - Validator authority is layered:
   - `Classical Validator` = manual-relay / non-orchestrator-managed closure authority when the repo is using the classical validator lane
-  - `WP Validator` = WP-scoped technical steering reviewer for the WP; may inspect current coder work, judge bootstrap/skeleton/micro-task quality early, and request steering through packet communications plus Orchestrator-owned ACP controls
+  - `WP Validator` = WP-scoped technical steering reviewer for the WP; may inspect current coder work, judge bootstrap/skeleton/micro-task quality early, and request steering through packet communications
   - `Integration Validator` = final technical and merge authority for orchestrator-managed WPs
   - only the `Classical Validator` or `Integration Validator` may own the final merge-ready verdict unless the packet explicitly says otherwise
   - a role-blind gate row is not enough by itself to prove final authority; use validator role plus governed session identity
 - Do not poll continuously. The Validator should wake on explicit packet assignment, `ready_for_validation=true`, `validator_trigger != NONE`, a validation handoff receipt, or an explicit operator/orchestrator instruction.
 - Update runtime status and append a receipt on validation start, validation query, blocker, verdict-ready handoff, completion, and every packet heartbeat interval only while actively validating.
-- `just wp-heartbeat ...` is liveness-only. The `next_actor`, `waiting_on`, and session-route parameters must match current runtime truth; use receipts/notifications or closeout-sync helpers to change workflow routing, not heartbeat.
-- Prefer `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID}` when context or routing feels fragmented instead of rereading packet/runtime/session truth separately.
-- Prefer deterministic helpers over hand-editing these files:
-  - `just wp-thread-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
-  - `just wp-heartbeat WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
-  - `just wp-receipt-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
-  - `just wp-validator-kickoff WP-{ID} <session> <coder_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
-  - `just wp-validator-review WP-{ID} <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
-  - `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
-  - `just wp-review-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
-  - `just wp-spec-gap WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
-  - `just wp-spec-confirmation WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
-  - For structured microtask steering, the direct-review helpers also accept an optional final `microtask_json` argument carrying `scope_ref`, `file_targets`, `proof_commands`, `risk_focus`, `expected_receipt_kind`, `review_mode`, `phase_gate`, and `review_outcome`.
-  - Use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` on the kickoff/intent checkpoint when you are explicitly judging early structure.
-  - For rolling microtask review on orchestrator-managed lanes with declared MT files, the coder must open one `REVIEW_REQUEST` to `WP_VALIDATOR` with `review_mode=OVERLAP` after each completed MT. Treat those requests as the normal direct per-MT review lane, keep the queue bounded to 1 unresolved overlap item while coder advances one next MT, and drain it before full handoff.
-  - If you disapprove a previously completed MT while the coder is already inside the next MT, that failed MT becomes queued loop-back repair work to be serviced immediately after the coder closes the current active MT. Do not rely on Orchestrator relay for ordinary MT review traffic.
-  - For the bootstrap/skeleton checkpoint, prefer `wp-validator-response` to clear the plan and `wp-spec-gap` / `VALIDATOR_QUERY` when signed surfaces, proof commands, or implementation quality signals are still weak.
-  - `just phase-check STARTUP WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>`
-  - `just phase-check HANDOFF WP-{ID} [WP_VALIDATOR]`
-  - `just phase-check VERDICT WP-{ID} [WP_VALIDATOR|INTEGRATION_VALIDATOR]`
-  - `just phase-check CLOSEOUT WP-{ID}`
-  - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
-  - `just session-registry-status [WP-{ID}]`
-  - `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID} [--json]`
-  - `just check-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR` (check pending messages from coders/orchestrator)
-  - `just ack-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>` (acknowledge pending notifications after reading)
-  - `just operator-viewport` (canonical operator viewport for ACP-aware session/control/thread/receipt/artifact visibility; `just operator-monitor` remains a compatibility alias)
-- Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
-- `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` (operates from the shared coder/WP-validator worktree; the governed launcher reuses that declared worktree if missing)
-- `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
-- `AUTO` is the ordinary headless/direct ACP launch path; `SYSTEM_TERMINAL` is hidden-process repair only; `CURRENT` and `VSCODE_PLUGIN` are disabled
-  - `just session-start WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID} [PRIMARY|FALLBACK]`
-  - `just session-send WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-  - `just session-cancel WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID}`
-  - role-specific validator session recipes remain compatibility aliases for the canonical `session-*` controls
+- Use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` on the kickoff/intent checkpoint when you are explicitly judging early structure.
+- For rolling microtask review on orchestrator-managed lanes with declared MT files, the coder must open one `REVIEW_REQUEST` to `WP_VALIDATOR` with `review_mode=OVERLAP` after each completed MT. Treat those requests as the normal direct per-MT review lane, keep the queue bounded to 1 unresolved overlap item while coder advances one next MT, and drain it before full handoff.
+- If you disapprove a previously completed MT while the coder is already inside the next MT, that failed MT becomes queued loop-back repair work to be serviced immediately after the coder closes the current active MT. Do not rely on Orchestrator relay for ordinary MT review traffic.
+- For the bootstrap/skeleton checkpoint, prefer a `VALIDATOR_RESPONSE` to clear the plan and `SPEC_GAP` / `VALIDATOR_QUERY` when signed surfaces, proof commands, or implementation quality signals are still weak.
 - Hard rule: packet truth still wins. Validation authority remains in the packet, especially `## VALIDATION`, `## EVIDENCE`, and `## VALIDATION_REPORTS`.
 - Do not treat `THREAD.md` or `RUNTIME_STATUS.json` as authority for scope, verdict, or PREPARE assignment.
 
@@ -579,56 +463,35 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 1. Coder updates the work packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`) through the junction. The orchestrator commits these changes on `gov_kernel`.
 2. Coder sends the Validator: `WP_ID`, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
 3. Validator reads the work packet directly (via junction) to verify claim fields are filled and status is In Progress.
-4. Validator updates `.GOV/roles_shared/records/TASK_BOARD.md` (via junction, committed on `gov_kernel` or synced to main via `sync-gov-to-main`):
+4. Validator updates `.GOV/roles_shared/records/TASK_BOARD.md` (via junction, committed on `gov_kernel` or synced to main (sync script deleted 2026-09-23; sync by hand with explicit paths)):
    - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
    - Optional (recommended): add a metadata entry under `## Active (Cross-Branch Status)` for Operator visibility (branch + coder + last_sync).
 5. Announce status sync in chat (no verdict implied).
 
 **Rule:** Status sync commits are not validation verdicts. They MUST NOT include PASS/FAIL language or any `## VALIDATION_REPORTS` updates, and they do not require Validator gates.
 
-**Closure rule:** Only after `verdict: PASS` may the Validator set the work packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, sync `.GOV/roles_shared/records/BUILD_ORDER.md` (via `just build-order-sync`), and reconcile any remaining activation-state drift for the Base WP before merge.
+**Closure rule:** Only after `verdict: PASS` may the Validator set the work packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, sync `.GOV/roles_shared/records/BUILD_ORDER.md` by hand, and reconcile any remaining activation-state drift for the Base WP before merge.
 
 **PASS closure visibility rule (MANDATORY):**
 - After a WP receives `verdict: PASS`, the Validator MUST update `.GOV/roles_shared/records/TASK_BOARD.md` before merging the WP to `main`.
-- Required command before merge containment exists: `just task-board-set WP-{ID} DONE_MERGE_PENDING`
-- Required command after merge containment is verified: `just task-board-set WP-{ID} DONE_VALIDATED`
+- Before merge containment exists: edit the task board row by hand to `DONE_MERGE_PENDING`.
+- After merge containment is verified: edit the task board row by hand to `DONE_VALIDATED`.
 - The Task Board update MUST be carried in the same WP branch closure flow as the PASS report append / packet `**Status:** Done` update, so merge truth stays `[MERGE_PENDING]` until local `main` actually contains the approved closure commit.
 - If the WP packet says `Done`/`PASS` but the Task Board still shows `READY_FOR_DEV` or `IN_PROGRESS`, closure is incomplete and the Validator MUST fix the Task Board before merge.
 - Activation-state reconciliation is part of PASS closure, not an optional cleanup:
   - If the resolved official packet path (`.GOV/work_packets/{WP_ID}/packet.md` logical; current physical `.GOV/task_packets/{WP_ID}/packet.md`) or legacy `.GOV/task_packets/{WP_ID}.md` is an official packet, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
   - `.GOV/roles_shared/records/TASK_BOARD.md` MUST NOT keep that Active Packet under `## Stub Backlog (Not Activated)`.
-  - `.GOV/roles_shared/records/BUILD_ORDER.md` MUST be regenerated from the reconciled Task Board + traceability state via `just build-order-sync`.
-- Required final verification before merge/push of `main`: `just gov-check`
-- If `just gov-check` fails because of activation traceability drift (`wp-activation-traceability-check`) or any related governance mismatch, the Validator MUST STOP, fix the governance surfaces on the WP branch, and re-run the check before merge.
+  - `.GOV/roles_shared/records/BUILD_ORDER.md` MUST be updated by hand from the reconciled Task Board + traceability state.
+- Required final verification before merge/push of `main`: checked by reading the artifact (check script deleted 2026-09-23).
+- If activation traceability drift or any related governance mismatch is found, the Validator MUST STOP, fix the governance surfaces on the WP branch, and re-check before merge.
 
 ## Deterministic Manifest Gate (current workflow, COR-701 discipline)
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
-- Require evidence that `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` ran and passed before final Integration Validator steering or PASS commit clearance. This composite gate includes packet completeness, committed PREPARE-source handoff validation, and the governed handoff communication proof. If absent or failing, verdict = FAIL until fixed.
-- Require evidence that `just phase-check CLOSEOUT WP-{ID}` ran and passed before PASS commit clearance after the final review/verdict response exists. This composite gate includes packet completeness, the final review communication proof, the integration-validator context bundle, and the governed closeout preflight. If absent or failing, verdict = FAIL until fixed.
 - For packets with `PACKET_ACCEPTANCE_MATRIX`, require every required acceptance row to be `PROVED`, `CONFIRMED`, or `NOT_APPLICABLE` with concrete evidence/reason before PASS. `PENDING`, `STEER`, or `BLOCKED` rows mean `NOT_PROVEN` / FAIL until resolved.
-- `integration-validator-context-brief`, `integration-validator-closeout-check`, and `phase-check CLOSEOUT` now honor canonical `execution_state.authority` first during final-lane closeout. Do not waive a stale packet/task-board mismatch by hand if runtime authority already proves the effective terminal state or containment mode.
-- Those closeout surfaces now also distinguish `product_outcome_blockers` from `governance_debt`. Only `product_outcome_blockers` may block product outcome once the Integration Validator has established a verdict of record; `governance_debt` must remain visible for settlement/repair but does not reopen judgment on its own.
-- When `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` is used to write terminal truth, it also makes a best-effort append of the closeout trace plus terminal WP-bound repomem snapshot into the active Workflow Dossier. Dossier import or formatting debt is diagnostic only and must not block product outcome; append the human post-mortem/review and closeout rubric after terminal truth is recorded.
-- After the closeout preflight is green, prefer the same phase-owned surface for governed truth sync:
-  - PASS before local-main containment: `just phase-check CLOSEOUT WP-{ID} --sync-mode MERGE_PENDING --context "<why this closeout truth is being recorded, >=40 chars>"`
-  - PASS after local-main containment is real: `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`
-- For contained-main promotion, the candidate target must still match the signed artifact exactly, but the contained local-`main` commit may differ when conflict resolution or main-harmonization was required. That closure remains legal only when the resulting contained commit stays entirely within the signed file surface and still passes the governed closeout proof/tripwire checks.
-- Successful closeout sync must also leave machine-readable provenance: a validator gate-state closeout event, a closeout `STATUS` receipt naming the governed Integration Validator lane, and the per-WP `TERMINAL_CLOSEOUT_RECORD.json` with the monotonic terminal state, mode, verdict, projection debt, and settlement debt that were recorded.
-- Successful closeout sync must also stamp the typed governed action `INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`; `integration-validator-context-brief` and `validator-gate-status` should prefer that governed action summary when reading the last terminal sync instead of reducing the event back to plain mode/status prose.
+- For contained-main promotion, the candidate target must still match the signed artifact exactly, but the contained local-`main` commit may differ when conflict resolution or main-harmonization was required. That closure remains legal only when the resulting contained commit stays entirely within the signed file surface.
 - If closeout is attempted from the wrong role/lane, from a kernel/orchestrator surface, or with live governance still resolving from `handshake_main/.GOV`, record `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and halt before packet/runtime/TASK_BOARD truth is promoted.
-- For governed non-PASS terminal closure, use the same phase-owned surface instead of manual packet/runtime/TASK_BOARD edits:
-  - `just phase-check CLOSEOUT WP-{ID} --sync-mode FAIL --context "<why FAIL truth is being recorded, >=40 chars>"`
-  - `just phase-check CLOSEOUT WP-{ID} --sync-mode OUTDATED_ONLY --context "<why OUTDATED_ONLY truth is being recorded, >=40 chars>"`
-  - `just phase-check CLOSEOUT WP-{ID} --sync-mode ABANDONED --context "<why ABANDONED truth is being recorded, >=40 chars>"`
 - After a non-PASS terminal sync is real, do not relaunch validation purely because support surfaces still show route residue, dossier lag, repomem gaps, provenance formatting debt, or active-topology artifact hygiene debt. Repair the named settlement debt and preserve the verdict of record.
-- Require evidence that `just phase-check HANDOFF WP-{ID} CODER` ran and passed for the validated committed target (typically surfaced through the same deterministic range/rev captured in committed handoff validation). If absent or failing, verdict = FAIL until fixed.
-- Coder handoff sequencing note (echo from CODER_PROTOCOL): `just phase-check HANDOFF ... CODER` validates staged/working changes when present, and on a clean tree validates a deterministic range:
-  - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
-  - Else if `merge-base(main, HEAD)` differs from `HEAD`: `merge-base(main, HEAD)..HEAD`
-  - Else: the last commit (`HEAD^..HEAD`)
-  It can also validate a specific commit via `--rev <sha>`.
-  Require the Coder's PASS `GATE_OUTPUT` plus the validated commit SHA/range shown in that output.
 - Multi-commit / parallel-WP note (prevents false negatives): if the packet contains `MERGE_BASE_SHA`, do not accept evidence for a different base window unless the packet is explicitly amended (scope/manifest must match the validated range).
 
 ## Cross-Boundary + Audit/Provenance Verification (Conditional, BLOCKING when applicable)
@@ -657,13 +520,13 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - Check the implementation against the clause and the master spec
   - Set `VALIDATOR STATUS: CONFIRMED` if the evidence is sufficient
   - Set `VALIDATOR STATUS: NEEDS_REVISION` with `DIRECTION` guidance if the evidence is insufficient or the implementation misses the clause
-  - Write a `REVIEW_RESPONSE` receipt via `just wp-receipt-append` targeting the Coder
+  - Write a `REVIEW_RESPONSE` receipt by hand targeting the Coder
 - This early review catches spec drift and shallow implementations before the coder claims the WP as done.
 - **Per-Microtask Inspection [RGF-89] (HARD for orchestrator-managed lanes):** When the coder sends a `REVIEW_REQUEST` for a completed MT, the WP Validator MUST inspect that MT before the coder proceeds to the next one. Do not defer all inspection to end-of-WP handoff. Per-MT review catches issues early and prevents compounding errors across MTs.
-- After inspecting each MT, send a governed review response: `just wp-review-response WP-{ID} WP_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id>`
+- After inspecting each MT, send a governed review response (a `REVIEW_RESPONSE` receipt) to the coder.
 - If the MT has issues, include specific fix instructions in the response so the coder can fix before starting the next MT.
 - **Adversarial Review [CX-503J]:** After confirming the code compiles and tests pass, actively try to break it. Look for race conditions, input validation gaps, error handling omissions, capability escalation paths, and spec requirements the coder missed. Your job is not to confirm the code works â€” it is to find where it does not. "Never trust subagent self-reports." [RGF-99]
-- **Tool-Call Boundary [CX-503H / RGF-105]:** The validator MUST NOT edit product code under `src/`, `app/`, or `tests/`. You may read any file but writing is reserved for governance surfaces (`.GOV/`, reports, receipts). If you find code that needs fixing, send fix instructions to the coder via `wp-review-response`, do not fix it yourself.
+- **Tool-Call Boundary [CX-503H / RGF-105]:** The validator MUST NOT edit product code under `src/`, `app/`, or `tests/`. You may read any file but writing is reserved for governance surfaces (`.GOV/`, reports, receipts). If you find code that needs fixing, send fix instructions to the coder via a review response, do not fix it yourself.
 - When ALL MTs are `VALIDATOR STATUS: CONFIRMED`, proceed to the Final WP Review below.
 - **WP Validator shares the coder worktree** (`wtc-*` on `feat/WP-{ID}`) per [CX-503G]. No separate `wtv-*` worktree. The per-MT stop ensures only one role is active at a time.
 
@@ -675,10 +538,10 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 2. **Validator rubric check**: Apply the governed validator report profile (SPLIT_DIFF_SCOPED_RIGOR_V3/V4). All rubric sections must be filled with concrete evidence.
 3. **Red team assessment**: Check for security failure modes, capability escalation paths, race conditions, and input validation gaps across the full diff.
 4. **Master Spec alignment (wide scope)**: Verify the implementation against the spec anchors from the refinement. Check that the implementation satisfies the spec's MUST/SHOULD clauses, not just the packet's acceptance criteria.
-5. **Artifact hygiene**: Run `just artifact-root-preflight WP-{ID}` or confirm the phase-check artifact already ran it, then use `just artifact-hygiene-check` for deeper cleanup diagnosis. Flag repo-local runtime/build artifacts as `ENVIRONMENT_BLOCKER` unless they prove a product boundary failure.
+5. **Artifact hygiene**: checked by reading the worktree and artifact root (check script deleted 2026-09-23). Flag repo-local runtime/build artifacts as `ENVIRONMENT_BLOCKER` unless they prove a product boundary failure.
    - WP-validating contexts must reject build, test, and tool outputs under the WP worktree root (`src/`, `app/`, `tests/`, or any WP-scoped path in that worktree) when they belong under the repo-relative sibling artifact root `../Handshake_Artifacts/`.
-6. **Write validation verdict**: If all checks pass, write `Verdict: PASS` in the validation report. If any check fails, write `Verdict: FAIL` with specific remediation instructions and send them to the coder via `just wp-review-response`.
-7. **If PASS**: Notify the orchestrator (via `wp-notification` with target ORCHESTRATOR) that the WP is ready for integration validation and merge.
+6. **Write validation verdict**: If all checks pass, write `Verdict: PASS` in the validation report. If any check fails, write `Verdict: FAIL` with specific remediation instructions and send them to the coder via a review response.
+7. **If PASS**: Notify the orchestrator that the WP is ready for integration validation and merge.
 
 0B) Handoff Quality Gate
 - Before treating a coder handoff as review-ready, inspect `## STATUS_HANDOFF` rather than trusting a chat summary alone.
@@ -721,7 +584,6 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - For each clause, record one explicit bullet under `CLAUSES_REVIEWED` with the clause identifier/text fragment plus file:line evidence.
 - If any clause is only partially proven, blocked by environment, or inferred indirectly, do not hide that in prose; record it under `NOT_PROVEN` and downgrade `SPEC_ALIGNMENT_VERDICT` accordingly.
 - `SPEC_ALIGNMENT_VERDICT=PASS` is legal only when every diff-scoped clause claimed by DONE_MEANS + SPEC_ANCHOR is listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
-- Automation gates (`phase-check STARTUP`, `phase-check HANDOFF`, `phase-check CLOSEOUT`, `gov-check`) prove workflow legality and hygiene. They do not, by themselves, prove spec completeness.
 
 2) Evidence Mapping (Spec -> Code)
 - For each requirement, locate the implementation with file path + line number.
@@ -799,22 +661,18 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
     - **Strict:** "Dirty" git status (uncommitted changes) is a FAIL for final validation unless a **User Waiver** [CX-573F] is explicitly recorded in the Work Packet.
     - **Artifacts:** FAIL if *ignored* build artifacts (e.g., `target/`, `node_modules/`) are tracked or committed.
     - **Scope:** Ensure changes are restricted to the WP's `IN_SCOPE_PATHS`.
-    - **Committed-handoff rule (preferred for orchestrator-managed WPs):** Run `just phase-check HANDOFF {WP_ID} WP_VALIDATOR --range <base>..<head>`. This wraps packet completeness, PREPARE worktree source-of-truth validation, and the governed handoff communication proof into one boundary gate before Integration Validator steering and before `validator-gate-commit`.
-    - **Final-lane closeout rule (orchestrator-managed PASS only):** Run `just phase-check CLOSEOUT {WP_ID}` after final review/verdict response and before `validator-gate-commit`. This must prove verdict-route health, context bundling, topology safety, WP-scoped settled session-control truth, and current-`main` signed-scope compatibility; otherwise terminal closeout is not ready.
-    - **Local mirror sanity only:** You may still run `just phase-check HANDOFF {WP_ID} CODER` in the shared WP worktree for local diagnosis, but it does not replace committed handoff validation against the PREPARE worktree.
 
 
 7.1) Git & Build Hygiene Audit (execute when any build artifacts/.gitignore risk is suspected)
 - Check .gitignore coverage for: target/, node_modules/, *.pdb, *.dSYM, .DS_Store, Thumbs.db. Missing entries = FAIL until added.
 - Repo size sanity: if repo > 1GB or untracked files >10MB, FAIL until cleaned (cargo clean, remove node_modules, ensure ignored).
 - Committed artifacts: fail if git ls-files surfaces target/, node_modules, *.pdb, *.dSYM.
-- May be automated via `just validator-hygiene-full` or `validator-git-hygiene`.
 
 ## Waiver Protocol [CX-573F]
 - When waivers are needed: justified unwrap/Value exceptions, unavoidable platform-specific code, deferred non-critical hygiene. SurrealDB-exclusive authority and the PostgreSQL/SQLite prohibition under CX-DBP-VAL-014 are not waivable by a portability or dual-backend rationale.
 - Approval: MEDIUM/HIGH risk requires explicit user approval; LOW risk can be Coder + Validator with user visibility.
 - Recording (in work packet under "WAIVERS GRANTED"): waiver ID/date, check waived, scope (per WP), justification, approver, expiry (e.g., Phase 1 completion or specific WP).
-- [CX-573F-SIG] Signature: every `WAIVERS GRANTED` entry MUST carry `SIGNATURE=` (alias `USER_SIGNATURE=`), a one-time operator signature `{username}{DDMMYYYYHHMM}` registered in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`. `parsePolicyWaiverLedger` marks an entry without a valid registered signature `UNSIGNED`; it never counts as ACTIVE and `NOT_RUN_WAIVED` is illegal on it ([VPX-006]).
+- [CX-573F-SIG] Signature: every `WAIVERS GRANTED` entry MUST carry `SIGNATURE=` (alias `USER_SIGNATURE=`), a one-time operator signature `{username}{DDMMYYYYHHMM}` registered in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`. An entry without a valid registered signature is `UNSIGNED`; it never counts as ACTIVE and `NOT_RUN_WAIVED` is illegal on it ([VPX-006]).
 - Waivers NOT allowed: spec regression, evidence mapping gaps, hard invariant violations, security gate violations, traceability removal, RCE guard removal.
 - Absent waiver for a required check = FAIL. Expired waivers at phase boundary must be revalidated or removed.
 
@@ -825,29 +683,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - Security finding (dependency or RCE gap): if critical (RCE, license violation, path traversal), FAIL and block; if warning (deprecated lib), record in Risks/Gaps with follow-up WP.
 
 ## Standard Command Set (run when applicable)
-- `just cargo-clean` (cleans external Cargo target dir at `../Handshake_Artifacts/handshake-cargo-target` before validation/commit; fail validation if skipped)
-  - Superseded for verdict purposes by [VPX-008]: do not clean or rebuild for a second MT at the same commit and feature set; clean only when a rebuild trigger exists (commit change, feature/env-knob change, dirty tree) or the packet names a clean-build artifact as an acceptance target. Bundle READY MTs at one commit into one build + one test invocation per [VPX-007].
-- `just artifact-root-preflight [WP-{ID}]` (environment preflight; reports `ENVIRONMENT_BLOCKER` without invalidating product proof)
-- `just artifact-hygiene-check` (deeper artifact placement cleanup diagnosis; fails if repo-local `target/` exists or blocking non-canonical external artifact residue remains)
-- `just artifact-cleanup [--dry-run]` (mechanically removes reclaimable stale external artifact folders plus repo-local `target/` residue)
-- `just external-validator-brief WP-{ID}` (prints the canonical external/classical validator target contract: code target, governance target, committed handoff command, split report fields, and legal verdict vocabulary)
-- `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` (preferred required boundary gate before PASS commit clearance for orchestrator-managed WPs; validates packet completeness, committed PREPARE handoff state, and governed handoff routing in one pass)
-- `just integration-validator-context-brief WP-{ID}` (canonical final-lane authority/path/context bundle for orchestrator-managed Integration Validator work; use this instead of rereading protocols or rediscovering branch/worktree/session/main-compatibility truth)
-- `just phase-check CLOSEOUT WP-{ID} [--sync-mode <MODE> --context "<context>" --merged-main-sha <SHA>]` (preferred required final-lane boundary gate before PASS commit clearance for orchestrator-managed WPs; wraps verdict proof, context bundle, closeout preflight, optional governed truth sync, and final memory refresh)
-- `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` (manual repair helper for any still-open registry-owned governed system-terminal windows after closeout; default current-batch targeting is the safe path)
-- `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
-- `just validator-gate-*` write commands now reject unbound/wrong-lane orchestrator-managed usage early; if the current checkout is not a governed validator lane, use `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID}`, `just integration-validator-context-brief WP-{ID}`, or `just external-validator-brief WP-{ID}` instead of forcing gate writes from the wrong surface
-- `just validator-next [ROLE] WP-{ID}` now projects a typed `VALIDATOR_GATE_{APPROVE|DEFER|SKIP}_RESUME` governed-action envelope from runtime route truth before falling back to packet markers; treat that as the canonical resume decision surface instead of reconstructing next work from transcript prose
-- `just validator-gate-*` mutations now also stamp typed governed gate actions into the validator gate ledger; `validator-gate-status`, `validator-next`, and audit readers should prefer that governed gate action history over the legacy raw `status` mirror when both are present
-- `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
-- `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: SurrealDB SDK boundary, SurrealQL binding and record-user permissions, typed storage boundary, SurrealKit rollout hygiene, and SurrealDB-exclusive authority)
-- `just validator-spec-regression` (`SPEC_CURRENT` resolves to the active indexed spec bundle; required anchors like A2.3.12 present)
-- `just spec-eof-appendices-check` (Spec Section 12 end-of-file appendix blocks exist + are parseable/valid)
-- `just validator-phase-gate Phase-1` (ensure no Ready-for-Dev items remain before phase progression; depends on validator scans)
-- `just validator-error-codes` (stringly errors/determinism/HSK-#### enforcement)
-- `just validator-coverage-gaps` (sanity check that tests exist/guard the change)
-- `just validator-traceability` (trace_id/job_id presence in governed mutation paths)
-- `just validator-git-hygiene` or `just validator-hygiene-full` (artifact and .gitignore checks)
+- Cargo clean: superseded for verdict purposes by [VPX-008]: do not clean or rebuild for a second MT at the same commit and feature set; clean only when a rebuild trigger exists (commit change, feature/env-knob change, dirty tree) or the packet names a clean-build artifact as an acceptance target. Bundle READY MTs at one commit into one build + one test invocation per [VPX-007].
 - TEST_PLAN commands from the work packet (must be run or explicitly waived by the user)
 - If applicable: run or verify at least one targeted test that would fail if the new logic is removed; note command/output.
 - If a required check cannot be satisfied, obtain explicit user waiver and record it in the work packet and report; absent waiver = FAIL.
@@ -878,41 +714,23 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 ## Validation Modes
 - `Classical / Manual-Relay Validation`
   - This is the closure lane for non-orchestrator-managed work where the validator is operating from the regular validator checkout and owns governed validation end-to-end.
-  - It may run `validator-gate-*`, append the canonical packet validation report, update closure state, and merge only when the full governed gate sequence authorizes it.
+  - It may append the canonical packet validation report, update closure state, and merge only when the full governed gate sequence authorizes it.
 - `Governed Validation`
   - This is the orchestrator-managed validator lane.
   - `WP Validator` is advisory only in this lane. It may inspect code/spec drift, challenge weak reasoning, append receipts/thread guidance, and hand off or block, but it does not own final merge-to-`main` authority.
-  - `Integration Validator` is the governed closure authority in this lane. It may run `validator-gate-*`, append the canonical packet validation report, update closure state, and merge only when the full governed gate sequence authorizes it.
-  - After merge-to-main succeeds, the Integration Validator may execute an Orchestrator-generated single-target cleanup script for the merged CODER or WP_VALIDATOR local worktree only when:
-    - the WP merge is already complete
-    - the exact Operator approval text is supplied
-    - the matching cleanup token from the target worktree is supplied
+  - `Integration Validator` is the governed closure authority in this lane. It may append the canonical packet validation report, update closure state, and merge only when the full governed gate sequence authorizes it.
   - Manual filesystem deletion remains forbidden.
 - `External / Independent Revalidation (orchestrator-managed WPs only)`
   - This is an audit mode, not a second validator workflow and not the classical/manual-relay closure lane.
-  - Required start sequence:
-    - `just validator-startup VALIDATOR`
-    - `just external-validator-brief WP-{ID}`
-  - `just validator-startup VALIDATOR` alone is insufficient for this mode.
+  - Required start sequence: read the Codex, this protocol and the assigned MT, then continue from the MT JSON status.
   - This mode may audit code, governance, and environment, but it MUST NOT:
     - run `validator-gate-*`
     - mutate closure state
     - append normal governed-lane closure artifacts
     - merge or authorize merge in place of the Classical Validator or Integration Validator
   - Default write target for this mode is a chat report or a clearly labeled external revalidation report, not the normal governed-lane closure path.
-  - ACP runtime note for orchestrator-managed WPs:
-    - `wt-gov-kernel` is the live Orchestrator governance surface. ACP/session/topology/WP-communication projections should stay external under the repo-governance runtime root instead of dirtying the kernel checkout.
-    - Dirty files limited to these surfaces are runtime-state evidence first, not automatic proof of governance failure:
-      - `../gov_runtime/roles_shared/validator_gates/WP-{ID}.json`
-    - Before treating `wt-gov-kernel` dirt as a governance defect, inspect ACP state with:
-      - `just handshake-acp-broker-status`
-      - `just session-registry-status WP-{ID}`
-      - `just external-validator-brief WP-{ID}`
-    - If those commands show expected runtime churn and the governed handoff path still passes, classify the dirt as runtime-state context, not packet-scope implementation drift.
 
 ## External Validator Split Report Contract
-- Before an external/classical validator starts on an orchestrator-managed WP, generate the target contract with `just external-validator-brief WP-{ID}`.
-- Before the governed Integration Validator resumes final-lane work on an orchestrator-managed WP, open the canonical context bundle with `just integration-validator-context-brief WP-{ID}` instead of rebuilding branch/worktree/authority/main-compatibility truth manually.
 - Governance target selection is derived from the packet-declared governance authority and workflow lane, not by assuming every case is a retired `role_orchestrator` surface.
 - External/classical validator reports for orchestrator-managed WPs MUST use these top fields:
   - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`
@@ -1021,7 +839,6 @@ Verdict: PASS
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
 The validation process MUST halt only at Gate 3 (final report presentation). All other gates are state recording/unlocks and must still be run in order.
-State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
 (Legacy: `.GOV/reference/legacy/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
 ### Gate 1: WP APPEND (Records verdict; non-blocking)
@@ -1029,44 +846,31 @@ State is tracked per WP in `../gov_runtime/roles_shared/validator_gates/{WP_ID}.
 2. If verdict = PASS, before recording Gate 1 the Validator MUST update the WP closure state on the WP branch:
    - set work packet `**Status:** Done`
    - update `.GOV/roles_shared/records/TASK_BOARD.md` to `## Done` / `[MERGE_PENDING]` before merge, then `[VALIDATED]` only after main containment is verified
-   - sync `.GOV/roles_shared/records/BUILD_ORDER.md` via `just build-order-sync`
+   - sync `.GOV/roles_shared/records/BUILD_ORDER.md` by hand
 3. Validator appends the VALIDATION REPORT to the active official packet path (logical: `.GOV/work_packets/{WP_ID}/packet.md`; current physical: `.GOV/task_packets/{WP_ID}/packet.md`; legacy flat: `.GOV/task_packets/{WP_ID}.md`) (APPEND-ONLY per [CX-WP-001]).
-4. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}`
-5. Validator does **not** paste the full report to chat yet.
+4. Validator does **not** paste the full report to chat yet.
 
 ### Gate 2: COMMIT CLEARANCE (PASS only)
-1. Only if verdict = PASS, Validator runs: `just validator-gate-commit {WP_ID}`
-   - Mandatory precondition: `just phase-check CLOSEOUT {WP_ID}` must already pass.
-2. Validator performs `git commit` on the WP branch and records the commit SHA.
+1. Only if verdict = PASS, Validator performs `git commit` on the WP branch and records the commit SHA.
    - PASS requirement: this commit MUST include the appended report plus the Task Board / packet / build-order closure updates and any required Base-WP activation-state fixes (`WP_TRACEABILITY_REGISTRY`, removal of stale STUB state) so the later merge + fast-forward exposes the validated WP state in every active worktree.
-   - PASS requirement: run `just gov-check` after those closure updates and before merge; a PASS commit without a passing governance check is incomplete.
+   - PASS requirement: after those closure updates and before merge, governance consistency is checked by reading the artifact (check script deleted 2026-09-23).
 
 ### Gate 3: FINAL REPORT PRESENTATION (Blocking; the only mechanical pause)
 1. If verdict = FAIL or ABANDONED: run immediately after Gate 1, **before any remediation/discard begins**.
 2. If verdict = PASS: run after Gate 2 and after the validation report append is committed (**right before merge to `main` / push of `main`**).
 3. Validator **outputs the entire report to chat** using the Report Template.
-4. Validator runs: `just validator-gate-present {WP_ID}`
-5. **HALT.** Validator MUST NOT merge to `main` / push `main` (PASS) or authorize remediation/discard kickoff (FAIL/ABANDONED) until the user acknowledges.
+4. **HALT.** Validator MUST NOT merge to `main` / push `main` (PASS) or authorize remediation/discard kickoff (FAIL/ABANDONED) until the user acknowledges.
 
 ### Gate 4: USER ACKNOWLEDGMENT (Unlock)
 1. User explicitly acknowledges the report (e.g., "proceed", "approved", "continue").
 2. If user requests changes or disputes findings -> return to validation, re-run checks, regenerate report.
-3. Validator runs: `just validator-gate-acknowledge {WP_ID}`
-4. PASS: Validator may merge the validated WP into `main`. Canonical integration push remains `main` only; backup pushes are allowed only to the matching backup branch for the current role or WP when preserving state.
-5. FAIL: WP remains open for remediation (no merge/commit).
+3. PASS: Validator may merge the validated WP into `main`. Canonical integration push remains `main` only; backup pushes are allowed only to the matching backup branch for the current role or WP when preserving state.
+4. FAIL: WP remains open for remediation (no merge/commit).
 
 ### Gate Commands
-```
-just validator-gate-append {WP_ID} {PASS|FAIL|ABANDONED}   # Gate 1: Record WP append + verdict
-just phase-check CLOSEOUT {WP_ID} # Canonical final-lane verdict/context/closeout bundle; add --sync-mode ... --context ... to record closeout truth through the same phase surface
-just validator-gate-commit {WP_ID}                # Gate 2: Unlock commit (PASS only)
-just validator-gate-present {WP_ID} [PASS|FAIL|ABANDONED]   # Gate 3: Record report shown (HALT)
-just validator-gate-acknowledge {WP_ID}           # Gate 4: Record user ack (unlock)
-just validator-gate-status {WP_ID}                # Check current gate state
-just validator-gate-reset {WP_ID} --confirm       # Reset gates (archives old session)
-```
+Removed 2026-09-23: the command surface was deleted with the governance harness.
 
-**Violations:** Skipping Gate 1, committing without a PASS Gate 2, or merging to `main` / pushing `main` (PASS) / starting remediation or discard (FAIL/ABANDONED) without Gate 3+4 = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL]. Gate commands will fail if the sequence is violated.
+**Violations:** Skipping Gate 1, committing without a PASS Gate 2, or merging to `main` / pushing `main` (PASS) / starting remediation or discard (FAIL/ABANDONED) without Gate 3+4 = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL].
 
 ```
 FLOW DIAGRAM:
@@ -1109,7 +913,7 @@ FLOW DIAGRAM:
   - merge the validated WP branch into `main`
   - commit any required closure-sync or conflict-resolution edits on `main`
   - ensure the canonical closed `[VALIDATED]` state lives on `main`
-- Pre-merge governance gate (MANDATORY): before merging the WP branch into `main`, the Validator MUST confirm `just gov-check` passes on the closure branch. Treat any activation-state drift (`WP_TRACEABILITY_REGISTRY`, Task Board STUB residue, stale build-order snapshot) as a merge-blocking failure, not post-merge cleanup.
+- Pre-merge governance gate (MANDATORY): before merging the WP branch into `main`, the Validator MUST confirm governance consistency on the closure branch (checked by reading the artifact; check script deleted 2026-09-23). Treat any activation-state drift (`WP_TRACEABILITY_REGISTRY`, Task Board STUB residue, stale build-order snapshot) as a merge-blocking failure, not post-merge cleanup.
 - Coders must not merge their own work.
 - Canonical push rule: only `main` is a canonical integration push target. Backup pushes to matching backup branches are allowed as safety copies, but they are not integration events.
 - If a remote integration push is authorized, the Validator pushes `main` only after the merge is complete and `main` contains the final validated closure state.
@@ -1117,8 +921,7 @@ FLOW DIAGRAM:
 ## Post-Merge Cleanup (reduces branch confusion)
 - Do NOT delete local WP branches or remote WP backup branches as routine cleanup.
 - Any local or remote WP branch deletion requires explicit Operator approval naming the exact target(s).
-- When deletion is approved for a presented exact action/target list, use the deterministic helper with `approved` or `proceed`:
-  - `just close-wp-branch WP-{ID} "--remote" "approved"`
+- When deletion is approved (`approved` or `proceed`) for a presented exact action/target list, delete exactly those targets with plain `git branch -d` / `git push origin --delete`.
 
 ## Report Template
 ```
@@ -1126,7 +929,7 @@ VALIDATION REPORT - {WP_ID}
 Verdict: PASS | FAIL | NOT_PROVEN | OUTDATED_ONLY | ABANDONED | BLOCKED
 
 Validation Claims (do not collapse into a single PASS):
-- GATES_PASS (deterministic manifest gate on the committed handoff state, typically via `just phase-check HANDOFF {WP_ID} WP_VALIDATOR`; not tests): PASS | FAIL
+- GATES_PASS (deterministic manifest gate on the committed handoff state; not tests): PASS | FAIL
 - TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS | FAIL | NOT_RUN
 - VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH
 - GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
@@ -1237,13 +1040,13 @@ Split-Verdict Rules:
 Work Packet Update (APPEND-ONLY):
 - [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL/ABANDONED) MUST be APPENDED to the end of the active official packet file (logical: `.GOV/work_packets/{WP_ID}/packet.md`; current physical: `.GOV/task_packets/{WP_ID}/packet.md`; legacy flat: `.GOV/task_packets/{WP_ID}.md`). OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
-- STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL/ABANDONED using the template below, but only after `verdict: PASS` may the Validator set work packet `**Status:** Done`, move TASK_BOARD to Done/Merge Pending, and sync BUILD_ORDER (`just build-order-sync`). Promote to `Validated (PASS)` / `[VALIDATED]` only after main containment is real and recorded. **DO NOT OVERWRITE User Context or previous history [CX-654].**
+- STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL/ABANDONED using the template below, but only after `verdict: PASS` may the Validator set work packet `**Status:** Done`, move TASK_BOARD to Done/Merge Pending, and sync BUILD_ORDER by hand. Promote to `Validated (PASS)` / `[VALIDATED]` only after main containment is real and recorded. **DO NOT OVERWRITE User Context or previous history [CX-654].**
 - For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY|ABANDONED`, append the report but do not perform normal Done/Validated PASS closure updates on work packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the non-PASS terminal closure path.
-- TASK_BOARD update (merge-visible requirement): for PASS before merge, the Validator MUST update `.GOV/roles_shared/records/TASK_BOARD.md` on the WP branch using `just task-board-set WP-{ID} DONE_MERGE_PENDING`, and the closure commit MUST carry that update so merge truth is not overstated.
-- TASK_BOARD update (post-merge requirement): after the approved closure commit is contained in local `main`, promote the entry with `just task-board-set WP-{ID} DONE_VALIDATED`.
+- TASK_BOARD update (merge-visible requirement): for PASS before merge, the Validator MUST update `.GOV/roles_shared/records/TASK_BOARD.md` on the WP branch by editing the task board row by hand to `DONE_MERGE_PENDING`, and the closure commit MUST carry that update so merge truth is not overstated.
+- TASK_BOARD update (post-merge requirement): after the approved closure commit is contained in local `main`, promote the entry by editing the task board row by hand to `DONE_VALIDATED`.
 - TASK_BOARD update (on `main`): after merge, the canonical main-branch Task Board must already show the validated WP entry from that closure commit. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
 - Board consistency (on `main`): work packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
-- Activation consistency (merge-visible requirement): when validating an official packet, reconcile `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` and remove any stale `## Stub Backlog` entry for that Active Packet before merge; then run `just build-order-sync` and `just gov-check` so the official activation state is visible on `main` immediately after merge.
+- Activation consistency (merge-visible requirement): when validating an official packet, reconcile `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` and remove any stale `## Stub Backlog` entry for that Active Packet before merge; then update BUILD_ORDER by hand and check governance consistency by reading the artifacts so the official activation state is visible on `main` immediately after merge.
 ```
 
 ## Non-Negotiables
@@ -1258,7 +1061,7 @@ Work Packet Update (APPEND-ONLY):
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.
+If a new public governance recipe, leaf script, or standalone diagnostic is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`.
 
 ## Spec-Realism Gate (mandatory enforcement before COMPLETED)
 

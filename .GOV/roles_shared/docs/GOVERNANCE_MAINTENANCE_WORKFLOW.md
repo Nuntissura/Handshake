@@ -7,7 +7,6 @@ Use this workflow for repo-governance maintenance that does not require a Work P
 - the planned diff is strictly limited to governance surfaces:
   - `/.GOV/**`
   - `/.github/**`
-  - `/justfile`
   - `/AGENTS.md`
   - `/.GOV/codex/Handshake_Codex_v1.4.md`
 - no Handshake product code is touched under `src/`, `app/`, or `tests/`
@@ -63,14 +62,14 @@ If the planned change touches product code or the Master Spec, stop and use the 
    - Add or update the row in `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`.
    - Record dependencies, evidence IDs, primary surfaces, and the exit signal.
 4. Apply the governance change.
-   - Edit the relevant governance docs, checks, scripts, or records.
-   - If `AGENTS.md` or the canonical root `justfile` must change, do that work from `handshake_main` on local `main`; do not author those files from `wt-gov-kernel` or a WP worktree.
+   - Edit the relevant governance docs or records.
+   - If `AGENTS.md` must change, do that work from `handshake_main` on local `main`; do not author those files from `wt-gov-kernel` or a WP worktree.
 5. Record the applied changes.
    - Add a changelog entry in `REPO_GOVERNANCE_CHANGELOG.md` with a stable `CHANGESET_ID`.
 6. Sync any affected projections.
-   - If `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md` changed, run `just build-order-sync`.
+   - If `TASK_BOARD.md` or `WP_TRACEABILITY_REGISTRY.md` changed, update `BUILD_ORDER.md` by hand.
 7. Verify.
-   - Minimum required verification: `just gov-check`.
+   - Minimum required verification: checked by reading the artifact (check script deleted 2026-09-23).
 
 ## Role Expectations
 
@@ -89,4 +88,4 @@ If the planned change touches product code or the Master Spec, stop and use the 
 - No Work Packet, no USER_SIGNATURE, and no refinement for pure repo-governance maintenance.
 - No product-code edits under this workflow.
 - No Master Spec edits under this workflow.
-- `just gov-check` is mandatory before claiming completion.
+- Before claiming completion, the change is checked by reading the artifact (check script deleted 2026-09-23).

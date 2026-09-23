@@ -17,9 +17,7 @@ Authority: Master Spec section 2.3.12 (CX-DBP-011, CX-DBP-022) and Handshake Cod
 
 ## LAW: Validation Before Merge
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
-- `just validator-dal-audit` (SurrealDB-only dependency, schema, permissions, and rollout audit)
-- `just validator-hygiene-full`
-- `just phase-check HANDOFF WP-{id} CODER` for the active work packet
+- SurrealDB-only dependency, schema, permissions, and rollout audit, checked by reading the artifact (check script deleted 2026-09-23)
 
 ## Checklist for New Rollouts
 - [ ] SurrealKit rollout identifier and ordering are explicit and versioned.

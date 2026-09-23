@@ -136,17 +136,6 @@ Pattern:
 2. verify the new timestamped directory exists
 3. optionally write a simple log entry
 
-Recommended command split:
-
-- local recurring job:
-  - `just backup-snapshot autosnap`
-- NAS recurring job:
-  - `just backup-snapshot-nas daily`
-- visibility/status check:
-  - `just backup-status`
-
-The status command should be surfaced during role startup or preflight so humans and agents can see whether backup roots are configured and whether recent snapshots exist. This is safety context only; it does not authorize destructive actions by itself.
-
 ## Startup Awareness Pattern
 
 If a project uses role-based agents or strict repo workflows, make backup existence visible at startup.
@@ -262,13 +251,13 @@ Recommended implementation checklist for another project:
 3. Run it under the user account that has access to the repo and backup disks.
 4. Action:
    - `powershell.exe`
-   - arguments: `-NoLogo -NonInteractive -Command "cd '<repo-root>'; just backup-snapshot autosnap"`
+   - arguments: `-NoLogo -NonInteractive -Command "cd '<repo-root>'; <local snapshot command>"`
 5. Trigger:
    - repeat every 4 hours
 6. Create a second task for nightly NAS snapshots.
 7. Action:
    - `powershell.exe`
-   - arguments: `-NoLogo -NonInteractive -Command "cd '<repo-root>'; just backup-snapshot-nas daily"`
+   - arguments: `-NoLogo -NonInteractive -Command "cd '<repo-root>'; <NAS snapshot command>"`
 8. Create a third optional task or checklist reminder for restore testing.
 9. After creating each task, run it once manually and confirm a new timestamped snapshot exists.
 

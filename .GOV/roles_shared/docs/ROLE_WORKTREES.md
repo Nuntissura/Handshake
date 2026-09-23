@@ -22,19 +22,12 @@ Recommended structure:
     # Integration Validator operates from handshake_main on branch main [CX-212D]
 ```
 
-Preferred session host:
-- Prefer the governed headless ACP lane for ordinary repo-governed Coder, WP Validator, and Integration Validator sessions.
-- Keep one dedicated terminal tab for `just operator-viewport` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without relying on launched session windows. `just operator-monitor` remains a compatibility alias.
-- Do not rely on ambient editor defaults for model choice or reasoning strength. New repo-governed launchers explicitly target `gpt-5.5` primary, `gpt-5.4` fallback, and `model_reasoning_effort=xhigh`.
-- Ordinary launch/control state now lives primarily in the external repo-governance ACP/runtime surfaces: `ROLE_SESSION_REGISTRY.json`, `SESSION_CONTROL_REQUESTS.jsonl`, and `SESSION_CONTROL_RESULTS.jsonl`. The legacy `SESSION_LAUNCH_REQUESTS.jsonl` queue remains readable for old records only; new governed launches must not queue `VSCODE_PLUGIN`.
-- CLI escalation is repair-only. `SYSTEM_TERMINAL` repair launches are hidden owned processes and must not open or focus visible windows.
-
 If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.
 - You MUST verify you are operating from the correct worktree directory and branch for your role before any repo changes.
 - If the required worktree/branch does not exist, you MUST STOP and request the Orchestrator/Operator to create it (see "Creation commands").
 - IMPORTANT: Codex [CX-108] blocks rewrite/hide operations such as `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean` unless explicitly authorized in the same turn.
-- Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}` or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
+- Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is creating the WP worktree with `git worktree add`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
 - `main` is the canonical integrated branch. `user_ilja` and `gov_kernel` on GitHub are backup branches and may diverge from `main`.
 - Permanent non-main worktrees (`wt-ilja`, `wt-gov-kernel`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
 - Non-main worktrees that replace inherited `/.GOV/` with the live governance-kernel junction must hide `.GOV` git noise via worktree-local git metadata, not by changing the shared repo `.gitignore`: add `.GOV/` to that worktree's `info/exclude` for untracked kernel files and mark tracked `.GOV` paths `skip-worktree`.
@@ -45,7 +38,7 @@ If you are an AI assistant operating in this repo:
   - docs-only bootstrap claim checkpoint
   - docs-only skeleton checkpoint
   - skeleton approval checkpoint before implementation resumes
-- Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
+- Before deleting local branches/worktrees or performing broad topology cleanup, make an out-of-repo backup copy first.
 - Permanent protected branches/worktrees that must never be deleted by Codex: `main`, `user_ilja`, `gov_kernel`, `wt-ilja`, `wt-gov-kernel`.
 - Use `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` (`git_topology_contract`) + `.GOV/roles_shared/docs/REPO_RESILIENCE.md` as the deterministic reference for the permanent checkout layout and backup commands. `GIT_TOPOLOGY_REGISTRY.md/json` are deprecated, non-authoritative compatibility references.
 
@@ -62,13 +55,10 @@ Notes:
 - WP Validator sessions operate from the same packet-declared shared WP worktree as the coder (`wtc-*` on `feat/WP-*`) [CX-503G].
 - Integration Validator sessions operate from `handshake_main` on branch `main` [CX-212D].
 - WP Validator and Integration Validator local lanes do not mint separate GitHub WP backup branches. Coder, WP Validator, and Integration Validator reuse the single packet-declared WP backup branch on GitHub.
-- WP assignment is recorded in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
+- WP assignment is recorded in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` as a `PREPARE` entry with `branch` and `worktree_dir`.
 - Orchestrator governance work uses `wt-gov-kernel` on `gov_kernel`. Integration Validator works from `handshake_main` on `main`.
 - Legacy packets or runtime artifacts that still declare `validate/WP-*` or `wtv-*` validator topology are unsupported for live reuse and must be migrated first. Current live law and defaults use the shared `wtc-*` model only.
 - Permanent role/user branches are backup branches on GitHub. Their purpose is recoverability, not integration. They may be ahead of, equal to, or behind `main`.
-- Refreshing a permanent non-main worktree has two distinct paths:
-  - `just sync-all-role-worktrees` refreshes the local `main` branch across the permanent worktrees when all are clean.
-  - `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` resets the checked-out permanent role/user branch to local `main` after a safety push + immutable snapshot, detaches any checkout-blocking shared `.GOV` junction, then repairs the `.GOV/` junction and restores the worktree-local `.GOV` suppression layer.
 - A WP backup branch is temporary. Its URL may stop resolving after Operator-approved cleanup and that later 404 must not become a governance failure.
 
 ## Parallel Ownership Model (Current Law)
@@ -134,12 +124,7 @@ Role worktrees and manual repair flows require explicit authorization in the sam
 
 From the main repo working tree (`<HANDSHAKE_WORKTREES>/handshake_main`):
 
-- Ensure the permanent GitHub backup branches exist:
-  - `just ensure-permanent-backup-branches`
-- Sync the deterministic topology ledger:
-  - `just gov-check --sync-topology`
-- Create an immutable out-of-repo snapshot:
-  - `just backup-snapshot`
+- Make an out-of-repo backup copy first.
 
 - Create OPERATOR worktree:
   - `git worktree add -b user_ilja ../wt-ilja main`
@@ -153,29 +138,15 @@ From the main repo working tree (`<HANDSHAKE_WORKTREES>/handshake_main`):
   - `git -C ../wt-ilja push -u origin user_ilja`
 
 WP worktrees (Orchestrator action, not Coder):
-- Post-signature default: after `just record-signature WP-{ID} ...` returns PASS, create the WP worktree/branch automatically. This is deterministic setup, not a second approval boundary.
-- If the signature bundle already captured the workflow lane + execution owner, prefer `just orchestrator-prepare-and-packet WP-{ID}` as the default helper.
+- Post-signature default: after the signature is recorded, create the WP worktree/branch automatically. This is deterministic setup, not a second approval boundary.
 - If the signature was recorded without the full workflow tuple (legacy recovery), the only remaining operator decision is the missing workflow lane and/or coder lane; do not ask again for branch/worktree authorization.
 - Create a WP worktree/branch:
-  - `just worktree-add WP-{ID}`
+  - `git worktree add -b feat/WP-{ID} ../wtc-<name> <base>`
 - Validator worktrees [CX-212D/CX-503G]: WP Validator uses the same packet-declared shared WP worktree as the coder (`wtc-*` on `feat/WP-*`); Integration Validator uses `handshake_main` on `main`.
-- Launch the repo-governed CLI sessions:
-  - `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
-  - `just launch-coder-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
-  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
-  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
-  - `AUTO` is the ordinary headless/direct ACP launch path.
-  - `CURRENT` is an explicit current-shell repair surface.
-  - `SYSTEM_TERMINAL` is an explicit hidden-process repair surface and must not open or focus a visible window.
-  - `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy.
-  - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and wait for truthful `ACTIVATION_READINESS` before coder/WP-validator launch; for `MANUAL_RELAY`, use `just manual-relay-next` / `just manual-relay-dispatch` as the ordinary path instead of direct coder launch
-- View current launch state:
-  - `just session-registry-status [WP-{ID}]`
 - Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:
-  - `just backup-push feat/WP-{ID} feat/WP-{ID}`
+  - `git push -u origin feat/WP-{ID}`
 - Keep reusing that same WP backup branch at each recovery milestone so a clean restart can begin from the latest lawful WP phase boundary instead of a dirty local tree.
 - Before deleting a WP worktree or WP backup branch after approval:
-  - `just backup-snapshot`
-- Record the execution owner (writes `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`):
+  - make an out-of-repo backup copy first
+- Record the execution owner in `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` by hand:
   - Prefer repo-relative `worktree_dir` values (example: `../wt-WP-{ID}`) to avoid drive-specific paths and quoting issues.
-  - `just record-prepare WP-{ID} {Coder-A..Coder-Z} [branch] [worktree_dir]`

@@ -97,7 +97,6 @@ SEARCH_TERMS: {verify you searched all}
 - {5-20 patterns}
 
 RUN_COMMANDS: {verify you ran all}
-- just dev
 - cargo test --manifest-path ...
 - pnpm -C app test
 - {3-6 startup commands}
@@ -190,7 +189,6 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 - [ ] Document results (pass/fail, output)
 - [ ] Request manual review if RISK_TIER is MEDIUM/HIGH
 - [ ] Verify DONE_MEANS each have file:line evidence
-- [ ] Run `just phase-check HANDOFF WP-{ID} CODER` before claiming done
 - [ ] Append VALIDATION block to work packet
 
 **Validation Sequence (CRITICAL ORDER):**
@@ -200,12 +198,7 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
    If any test fails: BLOCK
    Fix code, re-run tests until all pass
 
-2. RUN HANDOFF PHASE CHECK
-   $ just phase-check HANDOFF WP-{ID} CODER
-   If PASS: Continue to step 3
-   If FAIL: Fix issues, re-run until PASS
-
-3. APPEND VALIDATION BLOCK (see template below)
+2. APPEND VALIDATION BLOCK (see template below)
 ```
 
 **VALIDATION Block Template:**
@@ -218,7 +211,6 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 - pnpm -C app test -> PASS (12 tests)
 - pnpm -C app run lint -> PASS (0 violations)
 - cargo clippy -> PASS (0 warnings)
-- just phase-check HANDOFF WP-{ID} CODER -> PASS
 
 **DONE_MEANS Verification:**
 - PASS {Criterion 1}: Verified at {file:line}
@@ -234,14 +226,12 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 - [ ] Every DONE_MEANS has file:line evidence
 - [ ] Tests passing (if any fail: BLOCK, fix code, re-test)
 - [ ] Manual review complete (validator); if BLOCK: fix and re-review
-- [ ] handoff phase check: PASS
 - [ ] VALIDATION block appended to packet
 
 **Quality Gates:**
 - PASS All validation passes -> Ready for Step 11
 - FAIL Any test fails -> BLOCK: "Test failed: {error}. Fixing code."
 - FAIL Manual review blocks -> BLOCK: "Fixing blocking issues: {list}."
-- FAIL phase-check HANDOFF fails -> BLOCK: "Fixing validation errors: {list}."
 
 **Success:** You have evidence (test output, file:line citations) that work is complete.
 
@@ -271,7 +261,6 @@ Implementation details:
 Validation:
 - PASS cargo test: {N} passed
 - PASS pnpm test: {N} passed
-- PASS just phase-check HANDOFF: PASS
 
 References:
 - WP-ID: WP-{ID}
@@ -311,7 +300,7 @@ Before requesting commit, verify ALL 13 items:
 - [ ] **4. Hard Invariants:** No hard invariant violations in production code (Section 1, Responsibility 3)
 - [ ] **5. Tests Pass:** Every TEST_PLAN command passes (Section 1, Responsibility 4)
 - [ ] **6. Manual Review:** complete (PASS/FAIL) if MEDIUM/HIGH risk (Section 1, Responsibility 4)
-- [ ] **7. Handoff Phase Check:** `just phase-check HANDOFF WP-{ID} CODER` passes (Section 1, Responsibility 4)
+- [ ] **7. Handoff Phase Check:** Retired with the governance harness on 2026-09-23.
 - [ ] **8. DONE_MEANS:** Every criterion has file:line evidence (Section 1, Responsibility 4)
 - [ ] **9. VALIDATION Block:** Appended to packet with full test results (Section 1, Responsibility 5)
 - [ ] **10. Packet Status:** Updated if needed (e.g., "In-Progress" -> "Complete") (Section 1, Responsibility 5)
@@ -336,7 +325,7 @@ Before requesting commit, verify ALL 13 items:
 | **Gate 7** | TEST_PLAN has no concrete commands | BLOCK: "TEST_PLAN has placeholders. Orchestrator fix needed." |
 | **Gate 8** | Test fails and isn't fixed | BLOCK: "Test {name} fails. Fixing code..." |
 | **Gate 9** | Manual review blocks (HIGH risk) | BLOCK: "Fixing blocking issues: {list}" |
-| **Gate 10** | HANDOFF phase check fails | BLOCK: "Fixing validation errors: {list}" |
+| **Gate 10** | Retired with the governance harness on 2026-09-23. | - |
 | **Gate 11** | DONE_MEANS missing file:line evidence | BLOCK: "Cannot claim done without evidence for {criterion}" |
 | **Gate 12** | work packet not updated with VALIDATION | BLOCK: "Update packet before commit request" |
 | **Gate 13** | Commit message missing WP-ID | BLOCK: "Commit message must reference WP-{ID}" |
@@ -364,7 +353,7 @@ Before requesting commit, verify ALL 13 items:
 
 1. FAIL **"The packet is incomplete, but I'll proceed anyway"** -> BLOCK and request fix; don't guess
 2. FAIL **"I found a bug in related code, let me fix it"** -> Out of scope; document in NOTES, don't implement
-3. FAIL **"Tests are passing, so I'm done"** -> Also run Manual review, phase-check HANDOFF, verify DONE_MEANS
+3. FAIL **"Tests are passing, so I'm done"** -> Also run Manual review, verify DONE_MEANS
 4. FAIL **"I'll update the packet after I commit"** -> Update BEFORE commit; packet is contract
 5. FAIL **"Manual review is required"** -> BLOCK means fix code and re-review
 6. FAIL **"This hard invariant is annoying, I'll skip it"** -> Non-negotiable; Validator will catch it
@@ -470,7 +459,6 @@ Work is stuck (can't proceed without help)
 - PASS **Scope respect:** 100% (no code outside IN_SCOPE_PATHS)
 - PASS **Test success:** 100% (all TEST_PLAN commands pass first time or are fixed)
 - PASS **Manual review:** 100% of MEDIUM/HIGH tasks reviewed
-- PASS **Handoff phase-check success:** 100% (just phase-check HANDOFF passes)
 - PASS **VALIDATION documentation:** 100% (all packets updated before commit)
 
 ### Personal Metrics (How you develop as Coder)
@@ -563,25 +551,7 @@ Fixing:
 
 ### Scenario 4: HANDOFF Phase Check Fails (Unexpected)
 
-**Problem:** `just phase-check HANDOFF WP-{ID} CODER` returns errors
-
-**Response:**
-```
-FAIL HANDOFF phase check FAILED
-
-Errors:
-1. {Error description}
-2. {Error description}
-
-Investigating...
-```
-
-**Recovery:**
-1. Read HANDOFF phase-check error output
-2. Fix issues (typically: missing test, incomplete migration, syntax)
-3. Re-run `just phase-check HANDOFF WP-{ID} CODER`
-4. If passes: proceed to Step 11
-5. If still fails: escalate with full output
+Removed 2026-09-23: the command surface was deleted with the governance harness.
 
 ---
 
@@ -710,7 +680,7 @@ Before requesting commit, ask yourself honestly:
 - [ ] **6. Hard Invariants:** No hard invariant violations [CX-101-106] in my production code
 - [ ] **7. Tests Pass:** Every TEST_PLAN command passes; zero test failures
 - [ ] **8. Manual Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
-- [ ] **9. Handoff Phase Check:** `just phase-check HANDOFF WP-{ID} CODER` returns PASS; no validation errors
+- [ ] **9. Handoff Phase Check:** Retired with the governance harness on 2026-09-23.
 - [ ] **10. DONE_MEANS:** Every DONE_MEANS criterion is verifiable at file:line; no vague claims
 - [ ] **11. VALIDATION Block:** I appended VALIDATION block to packet with full test results
 - [ ] **12. Packet Status:** I updated packet STATUS (if needed) and TASK_BOARD
@@ -728,7 +698,7 @@ Before requesting commit, ask yourself honestly:
 |-----------|---------------|
 | **Packet Verification** | 100% (never proceeds without complete packet) |
 | **Scope Discipline** | 100% (zero code outside IN_SCOPE_PATHS) |
-| **Validation Rigor** | 100% (all TEST_PLAN passing, Manual review clean, HANDOFF phase-check passing) |
+| **Validation Rigor** | 100% (all TEST_PLAN passing, Manual review clean) |
 | **Documentation** | 100% (VALIDATION block with file:line evidence) |
 | **Hard Invariants** | 100% (zero violations in production code) |
 | **Communication** | Clear escalation messages with specific blockers + evidence |

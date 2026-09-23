@@ -2,7 +2,7 @@
 ## Deterministic Atomic Governance Files [CX-908]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
-- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- Roles MUST consume typed JSON, JSONL, or declared contract fields before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
 - When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## 1) Authority and boundary (HARD)
@@ -48,8 +48,6 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_
 ## 4.5) Governance Surface Reduction Discipline (HARD)
 
 - Sub-agents must not invent new public governance helpers, leaf scripts, or duplicate phase commands while solving coder work.
-- If a deterministic governance step already belongs to an existing phase-owned bundle, use or extend that canonical surface instead of normalizing another leaf entrypoint.
-- If a governance-surface change is explicitly in scope, bias toward one larger canonical phase/authority script plus one primary debug artifact over several new wrappers, and make the Primary Coder justify any exception.
 
 ---
 
@@ -101,7 +99,7 @@ Sub-agents MUST:
 
 Sub-agents MUST NOT:
 - edit any governance surface: `.GOV/**` (including logical `.GOV/work_packets/**`, current physical `.GOV/task_packets/**`, `.GOV/refinements/**`, and any `## VALIDATION_REPORTS` section),
-- run workflow gates (`just phase-check STARTUP`, `just phase-check HANDOFF`, validator phase gates) as "official evidence",
+- run workflow gates or validator phase gates as "official evidence",
 - commit, merge, push, pull, fast-forward, rebase, switch branches, or otherwise modify git history/worktree state.
 
 ### 6.5 Primary Coder integration rule (HARD)

@@ -25,13 +25,9 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
   - `roles/activation_manager/`
   - `roles/coder/`
   - `roles/validator/`
-  - `roles/memory_manager/`
 - `roles_shared/`
-  - shared truth, shared startup brief schema/cards, shared runtime state, shared ledgers, shared checks, and shared scripts
-  - `roles_shared/checks/`
-  - `roles_shared/scripts/`
+  - shared truth, shared startup brief schema/cards, shared runtime state, and shared ledgers
   - `roles_shared/exports/`
-  - `roles_shared/schemas/`
 - `reference/`
   - historical, analytical, roadmap, and non-authoritative reference material
 - `task_packets/`
@@ -48,8 +44,6 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
   - `docs_repo/tmp/` for temporary or non-authoritative scratch material only
 - `adr/`
   - architecture decision records
-- `tools/`
-  - governed tool hosts and plugins
 - `operator/`
   - operator-private workspace; non-authoritative unless explicitly designated
 
@@ -75,9 +69,6 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
   - `.GOV/roles/activation_manager/README.md`
   - `.GOV/roles/coder/README.md`
   - `.GOV/roles/validator/README.md`
-- shared implementation bundles:
-  - `.GOV/roles_shared/checks/README.md`
-  - `.GOV/roles_shared/scripts/README.md`
 
 ## Deprecations
 

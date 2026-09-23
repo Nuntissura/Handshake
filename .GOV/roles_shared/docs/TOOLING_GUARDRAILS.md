@@ -1,6 +1,6 @@
 # TOOLING_GUARDRAILS
 
-Hard rules live in Codex, AGENTS, role protocols, and checks. This file is append-only shared tooling memory for recurring repo bad habits and recurring system/tool limitations.
+Hard rules live in Codex, AGENTS, and role protocols. This file is append-only shared tooling memory for recurring repo bad habits and recurring system/tool limitations.
 
 Rules:
 - Append only. Add new entries; do not rewrite or delete old ones.
@@ -12,7 +12,7 @@ Rules:
 
 ### TG-001
 - Do:
-  - Use `just delete-local-worktree <worktree_id> "<approval>"` for local worktree deletion.
+  - Use `git worktree remove <path>` for local worktree deletion.
 - Don't:
   - Do not use `Remove-Item`, `rm`, `del`, or manual fallback delete on repo/worktree paths.
 - Why:
@@ -84,14 +84,7 @@ Rules:
 - Retired under CX-AUTH-002.
 
 ### TG-008
-- Do:
-  - Route variadic governance `just` wrappers through `node-argv-proxy.mjs` when free-text flags may contain PowerShell metacharacters such as parentheses, braces, quotes, commas, or JSON.
-- Don't:
-  - Do not forward raw `*FLAGS` straight into Node for wrappers that accept arbitrary operator text.
-- Why:
-  - PowerShell can misparse the arguments before Node receives them, which makes the failure look like a downstream script bug even when the wrapper is the real problem.
-- Context:
-  - The safe pattern is `.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs`.
+- Retired with the governance harness on 2026-09-23.
 
 ### TG-009
 - Do:
@@ -117,16 +110,7 @@ Rules:
 - Retired under CX-AUTH-003.
 
 ### TG-012
-- Do:
-  - Add new functions to an existing same-domain lib when the capability reads the same data sources or extends the same pipeline.
-  - Keep CLI entry points as thin wrappers (< 30 lines) over library exports, or add flags to existing CLIs.
-- Don't:
-  - Do not create a new `.mjs` script without first ruling out the existing file that covers the same domain.
-  - Do not put business logic in CLI scripts; keep it in importable library functions.
-- Why:
-  - File sprawl makes the governance surface harder to navigate, test, and maintain. Every new file adds import paths, test files, build-order entries, and cognitive overhead.
-- Context:
-  - Recurring pattern: a new capability (metrics, idle ledger, scope classification) gets its own script when it should be an export on the existing domain lib.
+- Retired with the governance harness on 2026-09-23.
 
 ### TG-013
 - Do:
@@ -142,7 +126,7 @@ Rules:
 ### TG-014
 - Do:
   - Keep every discovered worktree `.cargo/config.toml` aligned to the canonical external artifact root from project invariants.
-  - Treat Cargo `target-dir` drift and sibling artifact-root aliases such as `../Handshake Artifacts/` as governance-blocking hygiene issues and fix them before role launch or `gov-flush`.
+  - Treat Cargo `target-dir` drift and sibling artifact-root aliases such as `../Handshake Artifacts/` as governance-blocking hygiene issues and fix them before role launch.
 - Don't:
   - Do not allow coder or validator worktrees to introduce alternate artifact roots such as spaced-path variants or repo-local `target/` fallbacks.
 - Why:
@@ -154,16 +138,7 @@ Rules:
 - Retired under CX-AUTH-003.
 
 ### TG-016
-- Do:
-  - Treat public `justfile` recipes with default arguments (`arg=""`) as user-facing command-surface entries that still require docs.
-  - After adding or changing a recipe, run `just canonise-gov` and inspect recipe coverage warnings plus the structured review brief.
-- Don't:
-  - Do not rely on regexes that only match recipes without `=` in their argument list.
-  - Do not assume a missing canonise warning proves a recipe is documented unless the parser covers default-arg recipes.
-- Why:
-  - Default-argument recipes are common for optional WP ids and flags; parser blind spots let live commands drift out of `COMMAND_SURFACE_REFERENCE.md` and `ROLE_WORKFLOW_QUICKREF.md`.
-- Context:
-  - Found when `artifact-root-preflight wp-id=""` was undocumented but did not appear in the original canonise warning set.
+- Retired with the governance harness on 2026-09-23.
 
 ### TG-017
 - Do:

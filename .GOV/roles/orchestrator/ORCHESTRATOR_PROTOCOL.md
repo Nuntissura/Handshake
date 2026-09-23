@@ -35,7 +35,6 @@ Retired under CX-AUTH-003.
 In the orchestrator-managed workflow, the Orchestrator:
 - **Launches roles** (Activation Manager, Coder, WP Validator, Integration Validator)
 - **Watches sessions** â€” mechanical stall/stuck detection reduces downtime without token cost
-- **Runs mechanical governance** — closeout-repair and deterministic checks via direct just/node calls (never through a model session)
 - **Does NOT create** refinements, worktrees, micro tasks, or packets (Activation Manager owns pre-launch)
 - **Does NOT validate or approve** MTs or WPs (WP Validator and Integration Validator do this)
 - **Does NOT actively steer** WP Validator or Coder by default (saves tokens). Active steering is operator-invoked only â€” used when operator expects drift, brittleness, or mechanical checkpoint failures
@@ -56,7 +55,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - Argus visual duty: for GUI/operator-surface, diagnostic-surface, frontend navigation, layout, style, panel, tab, button, input, or visible-state work, ensure the launch and handoff route requires Argus evidence per `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`. Unit tests alone cannot satisfy visual HBR rows. If Argus cannot inspect or steer an in-scope surface, route same-MT/WP remediation or a blocking HBR-VIS gap; do not let the workflow certify that surface.
 - Diagnostics/Flight-Recorder + Palmistry duty: ensure every observable runtime behavior in the packet has an HBR-INT-009 row requiring Flight Recorder/EventLedger evidence plus per-tier Flight Recorder/internal_diagnostics/Palmistry posture as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. Until internal_diagnostics/Palmistry ship in the target worktree, require DEFERRED-with-reason plus integration follow-up, never silent skip.
 - UserManual duty: every implementation that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path must require same-change in-product internal UserManual updates and self-consistency evidence. The launch/handoff route must preserve purpose, usage path, expected inputs/outputs, affected tools/features/primitives, failure/recovery steps, verification proof, Flight Recorder/EventLedger linkage, and the HBR-INT-009 Flight Recorder/internal_diagnostics/Palmistry posture. Legacy `ModelManual` identifiers are aliases only, not a second manual surface.
-- Handoff duty: HandoffGate (MT-004) and `hbr-matrix-check` must pass before role handoff/closeout. Do not advance a WP while any required HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
+- Handoff duty: HandoffGate (MT-004) must pass and HBR rows are checked by reading the artifact (check script deleted 2026-09-23) before role handoff/closeout. Do not advance a WP while any required HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
 - Orchestrator limitation: Orchestrator does not implement or validate product evidence. It blocks, repairs routing/readiness, or returns to Activation Manager/Classic Orchestrator when HBR applicability or evidence requirements are missing.
 
 ## Core Contract & Template Links
@@ -79,8 +78,8 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
 ## Mechanical Intervention Discipline [CX-218K]
 
 - Before every patch, steer, relay repair, or stalled-lane wake, classify 3-5 plausible causes: runtime route drift, notification/cursor drift, session drift, documentation/protocol drift, clock/staleness drift, and scope/memory/worktree drift are the default set.
-- Pick the cheapest deterministic proof or repair first: `orchestrator-next`, `wp-lane-health`, `session-registry-status`, `check-notifications`, readiness refresh, runtime inspection, or a typed `orchestrator-steer-next` nudge.
-- Do not manually broker ordinary Coder/WP Validator technical content. Use the typed direct-review helpers. Patch the durable surface when the same stall or wrong helper can recur.
+- Pick the cheapest deterministic proof or repair first: read the MT JSON status, the pushed commits, and runtime state.
+- Do not manually broker ordinary Coder/WP Validator technical content. Use the MT JSON status and verdict fields. Patch the durable surface when the same stall or wrong helper can recur.
 - For `ORCHESTRATOR_MANAGED`, own `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json` as the machine-readable lane contract. Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` only as a projection/reference.
 
 ## Governance Stabilization Duty [CX-218L]
@@ -119,12 +118,11 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
 - Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
 - `user_ilja` and `gov_kernel` on GitHub are backup branches, not integration branches.
 - Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
-- `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through `just sync-gov-to-main` [CX-212D].
-- Root-level repo control files inherited from `main`, currently `AGENTS.md` and the canonical root `justfile`, are main-only authoring surfaces. If either file needs changes, make that edit in `handshake_main` on local `main`, commit it on `main`, and then reseed/refresh the permanent non-main worktrees from `main`. Do not author or commit those files from WP worktrees. Exception: `wt-gov-kernel` may carry a kernel-local governance launcher `justfile`; it does not replace main ownership of the canonical root file.
+- `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through the gov-to-main sync (sync script deleted 2026-09-23; sync by hand with explicit paths) [CX-212D].
+- Root-level repo control files inherited from `main`, currently `AGENTS.md`, are main-only authoring surfaces. If that file needs changes, make that edit in `handshake_main` on local `main`, commit it on `main`, and then reseed/refresh the permanent non-main worktrees from `main`. Do not author or commit those files from WP worktrees.
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
 - If a role reports formatter spillover or scope cleanup after a broad formatter, treat `git restore` as a destructive/state-hiding repair. The mechanical path is: identify the exact spillover files, preserve committed state if possible, emit/record a typed blocker, and require explicit approval before any worktree rewrite.
-- Before deleting local branches or worktrees, create an immutable snapshot with `just backup-snapshot`.
-- Startup must surface `just backup-status`; this is safety context, not destruction authorization.
+- Before deleting local branches or worktrees, make an out-of-repo backup copy first.
 - Only the Operator may approve:
   - deleting local branches
   - deleting worktrees
@@ -132,12 +130,10 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
   - fast-forwarding remote backup branches
 - Broad requests like "clean up branches" are insufficient. Present a deterministic list of exact actions + exact targets first.
 - For that most recently presented action/target list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
-- Use `just enumerate-cleanup-targets` before asking for approval so the exact targets are visible.
-- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion, with `<approval>` set to `approved` or `proceed` after the list has been presented.
-- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** NEVER run `git worktree remove` directly. Non-main worktrees use a `.GOV/` directory junction pointing to `wt-gov-kernel/.GOV/`. Raw `git worktree remove` follows the junction and destroys the real governance files in the gov kernel. The governance script (`delete-local-worktree.mjs`) detaches the junction before removal. Always use `just delete-local-worktree`.
-- If `just delete-local-worktree` fails, stop. Do not fall back to manual filesystem cleanup (`rm -rf`, `Remove-Item`, `del`).
-- Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when they are clean. It is not the reseed path for `wt-ilja`.
-- Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` when the permanent Operator worktree must be refreshed from local `main`. This helper safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
+- Run `git worktree list` and `git branch -a` before asking for approval so the exact targets are visible.
+- For assistant-driven worktree deletion, after `approved` or `proceed` on the presented list, detach the `.GOV/` junction, then run `git worktree remove <path>`.
+- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** NEVER run `git worktree remove` while the worktree still holds its `.GOV/` junction. Non-main worktrees use a `.GOV/` directory junction pointing to `wt-gov-kernel/.GOV/`. Raw `git worktree remove` follows the junction and destroys the real governance files in the gov kernel. Remove the junction link itself first (never a recursive delete of its target); the deletion script was deleted 2026-09-23.
+- If worktree deletion fails, stop. Do not fall back to manual filesystem cleanup (`rm -rf`, `Remove-Item`, `del`).
 
 ## Repo Boundary Rules (HARD)
 
@@ -152,7 +148,7 @@ See also:
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 - `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` â€” append-only shared memory of recurring repo bad habits and tooling rules
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. `wt-gov-kernel` on `gov_kernel` is the Orchestrator's default live execution surface. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Root-level repo control files are different: `AGENTS.md` and the canonical root `justfile` are authored in `handshake_main` on local `main`, then propagated outward by canonical refresh/reseed. The kernel may carry a governance-only launcher `justfile` for Orchestrator use; it does not replace main ownership of the canonical root file. Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-212D]. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. `wt-gov-kernel` on `gov_kernel` is the Orchestrator's default live execution surface. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Root-level repo control files are different: `AGENTS.md` is authored in `handshake_main` on local `main`, then propagated outward by canonical refresh/reseed. Synchronizing governance to main (sync script deleted 2026-09-23; sync by hand with explicit paths) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-212D]. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
@@ -165,8 +161,7 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
 ## Product Runtime Root (Current Default)
 
 - External build, test, and tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
-- Repo-local `target/` directories are workflow-invalid residue. Run `just artifact-hygiene-check` before claiming clean governance/product state, and use `just artifact-cleanup` or the governed closeout path to remove reclaimable residue.
-- Governed artifact cleanup now writes a retention manifest under `../Handshake_Artifacts/handshake-tool/artifact-retention/`; treat that manifest as the durable proof of what was removed versus retained.
+- Repo-local `target/` directories are workflow-invalid residue; before claiming clean governance/product state this is checked by reading the artifact (check script deleted 2026-09-23).
 - Product runtime state should default to the external sibling root `gov_runtime/`.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 
@@ -174,9 +169,9 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
 
 - The Orchestrator role is one single coordinator CLI session for the active WP.
 - **The Orchestrator MUST NOT edit, write, or create product code files** (anything under `src/`, `app/`, `tests/`, or other IN_SCOPE_PATHS). Even a one-line fix to a compile error MUST be routed to the Coder. The Orchestrator steers and communicates; the Coder writes code. [RGF-88 / SMOKE-FIND-20260405-01]
-- **Mechanical Governance Principle [RGF-189] (HARD):** The Orchestrator runs all deterministic governance operations (closeout-truth-sync, packet field updates, artifact generation, SHA comparisons, scope checks) via direct `just`/node calls, never by prompting an AI session. Model sessions are reserved exclusively for work that requires model reasoning: coder implementation, WP Validator per-MT code review, and Integration Validator spec judgment. Routing mechanical work through model sessions is the dominant source of token waste and must not recur.
+- **Mechanical Governance Principle [RGF-189] (HARD):** The Orchestrator runs all deterministic governance operations (closeout-truth-sync, packet field updates, artifact generation, SHA comparisons, scope checks) directly by hand (scripts deleted 2026-09-23), never by prompting an AI session. Model sessions are reserved exclusively for work that requires model reasoning: coder implementation, WP Validator per-MT code review, and Integration Validator spec judgment. Routing mechanical work through model sessions is the dominant source of token waste and must not recur.
 - **No-Approval Boundary [RGF-189] (HARD):** The Orchestrator MUST NOT write approvals, verdicts, or PASS/FAIL judgments. The Orchestrator coordinates, steers, and runs mechanical checks. Verdict authority belongs exclusively to the INTEGRATION_VALIDATOR (for orchestrator-managed workflow) or the classic VALIDATOR (for manual relay). Only an explicit Operator waiver or new Operator-approved instruction can override this boundary.
-- Orchestrator-managed execution MUST NOT reintroduce manual skeleton checkpoint or skeleton approval commands. `just coder-skeleton-checkpoint` and `just skeleton-approved` are `MANUAL_RELAY`-only surfaces; invoking them on an orchestrator-managed WP is workflow-invalid and must be recorded as `WORKFLOW_INVALIDITY`.
+- Orchestrator-managed execution MUST NOT reintroduce manual skeleton checkpoint or skeleton approval steps; doing so on an orchestrator-managed WP is workflow-invalid and must be recorded as `WORKFLOW_INVALIDITY`.
 - For an active orchestrator-managed WP, the Orchestrator MUST NOT use helper agents/subagents to perform coding, validation, evidence review, or other in-lane work. The governed `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` sessions are the only allowed execution lanes. The classic `VALIDATOR` role remains available for `MANUAL_RELAY` workflow only.
 - If the Operator explicitly authorizes separate helper-agent use for bounded governance maintenance outside the active lane, keep that work isolated from the governed role sessions and do not let it stand in for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`.
 - Absent explicit recorded approval in the work packet (`SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`), helper agents MUST NOT write or change product code.
@@ -194,8 +189,8 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
 - The VS Code bridge launch queue is legacy/read-only for old records; new governed role launches must not queue it:
   - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 - For the governed `INTEGRATION_VALIDATOR` lane, the Orchestrator MUST preserve kernel governance authority even though execution occurs from `handshake_main`: launch/control requests must carry `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and any lane that resolves live authority from `handshake_main/.GOV` is misconfigured and must be repaired before closeout.
-- `handshake_main/.GOV` is only the synced main-branch mirror. It is not the live authority surface for orchestrator-managed integration validation, even immediately after `just sync-gov-to-main`.
-- Closeout must reclaim only the hidden repair processes the governed session batch created. Use `just scan-orphan-terminals` as the process-tree check before any reclaim.
+- `handshake_main/.GOV` is only the synced main-branch mirror. It is not the live authority surface for orchestrator-managed integration validation, even immediately after the gov-to-main sync.
+- Closeout must reclaim only the hidden repair processes the governed session batch created: inspect the process tree and stop orphaned children you launched.
 - Host-load stance: assume the machine is under heavy load. Shell/plugin timeouts are advisory symptoms, not authoritative workflow truth; inspect runtime/session artifacts before counting a timeout as a real failed attempt.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
@@ -218,24 +213,14 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
   - the active packet
   - active WP communications and notifications
   - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` when a command choice is unclear
-- **Before starting a refinement**, read the refinement check's key parsing functions once as a context investment [RGF-89]:
-  - `just generate-refinement-rubric` to get the pillar/engine rubric lines
-  - The field format examples in the refinement check's error messages (RGF-88)
-  - This one-time pre-read eliminates iterative format discovery
-- Repeated full rereads of large governance protocols, repeated command-surface rediscovery, repeated `just --list`-style inspection, and repeated path/source-of-truth checks after context is already stable are ambiguity signals, not neutral diligence.
+- **Refinement check pre-read [RGF-89]:** Retired with the governance harness on 2026-09-23.
+- Repeated full rereads of large governance protocols, repeated command-surface rediscovery, and repeated path/source-of-truth checks after context is already stable are ambiguity signals, not neutral diligence.
 - If the Orchestrator needs that repeated rereading to keep a run moving, treat it as governance debt.
 
 ## Governance Surface Reduction Discipline
 
-- The Orchestrator is the primary owner of workflow-surface reduction across governed phases.
-- Prefer extending canonical phase-owned surfaces such as `gov-check` and packet/runtime artifacts before adding a new operator-facing `just` command, standalone check, standalone script, or duplicate helper flow.
-- Thin wrappers, compatibility aliases, and duplicate public helpers are workflow debt because they increase command drift, read amplification, and repair cost across parallel WPs.
-- For scripts and recipes specifically, bias toward fewer larger canonical phase scripts over sibling public entrypoints that normally run together anyway.
-- When several deterministic checks or repairs always travel together within one phase or authority boundary, collapse them into the canonical phase-owned bundle and primary debug artifact instead of minting more leaf scripts or recipes.
-- If a candidate script shares the same phase owner, core inputs, primary artifact/debug surface, and usual invocation path as an existing canonical surface, extend that canonical script instead of adding a sibling.
-- Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
-- If a new live governance surface is genuinely required, record in the same change why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and what retirement or drift-guard plan applies to the old surface.
-- Do not retire a public governance surface until the replacement is confirmed as tracked and topology-safe in the intended worktree/branch.
+Removed 2026-09-23: the command surface was deleted with the governance harness.
+
 - **Fail capture wiring (CX-205N):** Retired under CX-AUTH-002.
 
 ## Governance Folder Structure (Authoritative Placement Rules)
@@ -245,23 +230,10 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - `/.GOV/roles/orchestrator/` is for artifacts owned and actively used only by the Orchestrator role.
 - Fixed role-local subfolders:
   - `docs/` = orchestrator-local guidance and non-authoritative notes
-  - `runtime/` = orchestrator-owned machine state only
-  - `scripts/` = orchestrator-owned executable entrypoints
-  - `scripts/lib/` = orchestrator-only helper libraries
-  - `checks/` = orchestrator-owned enforcement entrypoints
-  - `tests/` = orchestrator-owned governance tests
-  - `fixtures/` = orchestrator-owned test data
 - Use `/.GOV/roles_shared/` whenever an artifact is shared across roles or is shared runtime state, a shared record, a shared export surface, a shared schema, or shared tooling.
 - `/.GOV/roles_shared/` buckets:
   - `docs/`
   - `records/`
-  - `runtime/`
-  - `exports/`
-  - `schemas/`
-  - `scripts/`
-  - `checks/`
-  - `tests/`
-  - `fixtures/`
 
 ## Strategic Priorities [CX-600A]
 
@@ -300,7 +272,7 @@ Write sequence:
 - Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
 - Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
 - Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
-- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
+- Verify by reading the new `SPEC_CURRENT.md`, manifest, `INDEX.json`, and changelog (check scripts deleted 2026-09-23).
 
 ### Deterministic Enforcement [CX-585A/C]
 
@@ -347,8 +319,6 @@ Write sequence:
   - PASS before main containment: `MERGE_PENDING`
   - PASS after main containment: `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>`
   - explicit non-PASS terminal closure: `FAIL`, `OUTDATED_ONLY`, or `ABANDONED`
-  - canonical closeout mode resolution now lives in the shared execution-state library; orchestrator helpers should consume that projection instead of carrying local packet-status-to-closeout tables
-  - when terminal closeout sync provenance already exists, orchestrator-side readers such as `closeout-repair` should prefer the per-WP `TERMINAL_CLOSEOUT_RECORD.json` plus the shared typed closeout-governance summary (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) instead of re-deriving terminal sync intent from packet/runtime consequences or event prose alone
   - closeout dependency reporting now separates `product_outcome_blockers` from `governance_debt`; once `verdict_of_record` exists, only the former justify withholding product-outcome publication
   - for terminal non-PASS closeout, support-surface drift such as route residue, closeout provenance drift, or active-topology artifact hygiene debt must be repaired as settlement work and MUST NOT trigger a fresh product-judgment loop by themselves
   - when `execution_state.authority` disagrees with packet/task-board closeout publication, treat the packet/task-board artifact as the drift owner and repair that artifact rather than trusting stale packet prose
@@ -356,7 +326,7 @@ Write sequence:
   - contained-main harmonization is a final-lane activity owned by `INTEGRATION_VALIDATOR` (or another explicitly reassigned governed actor), and successful closeout sync must leave machine-readable provenance in `TERMINAL_CLOSEOUT_RECORD.json`
   - if final-lane closeout is attempted from a role-locked orchestrator/kernel surface, from a non-final validator lane, or with `HANDSHAKE_GOV_ROOT` still resolving to `handshake_main/.GOV`, treat that as `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and repair the lane before any packet/task-board/runtime promotion
   This keeps closeout truth synchronized and reduces orchestrator repair work.
-- **Terminal auto-cleanup [CX-503D / RGF-95]:** Reclaim only the hidden repair processes the governed session batch launched; never touch other apps or processes. `just scan-orphan-terminals` is the process-tree check.
+- **Terminal auto-cleanup [CX-503D / RGF-95]:** Reclaim only the hidden repair processes the governed session batch launched; never touch other apps or processes. Inspect the process tree and stop orphaned children you launched.
 
 ## Branching & Concurrency
 
@@ -374,8 +344,6 @@ Required verification at session start and whenever context is unclear:
 - `git status -sb`
 - `git worktree list`
 
-Tip: `just hard-gate-wt-001`
-
 Chat requirement:
 
 ```text
@@ -390,7 +358,7 @@ HARD_GATE_NEXT_ACTIONS [CX-WT-001]
 - If incorrect: stop and ask the Operator for the correct worktree or branch.
 ```
 
-If the deterministic WP worktree is missing and the next step is `just worktree-add WP-{ID}` or `just orchestrator-prepare-and-packet WP-{ID}`, create it automatically when the latest gate is PASS and `OPERATOR_ACTION: NONE`.
+If the deterministic WP worktree is missing, create it with `git worktree add` automatically when the latest gate is PASS and `OPERATOR_ACTION: NONE`.
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
@@ -412,7 +380,7 @@ NEXT_COMMANDS [CX-GATE-UX-001]
 
 Before `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` unless one explicit decision is needed.
 
-Special rule for `just record-refinement`:
+Special rule for recording a refinement:
 - show the refinement in chat before any signature request
 - either paste the full `## TECHNICAL_REFINEMENT (MASTER SPEC)` block from the refinement file or show enough current Master Spec anchors to prove the Orchestrator understands the relevant roadmap items, stubs, and WP context
 - do not summarize the refinement into a hand-wavy approval ask
@@ -429,8 +397,7 @@ At the signature step collect one approval bundle:
 - `WORKFLOW_LANE`
 - `EXECUTION_OWNER`
 
-Record it with:
-- `just record-signature WP-{ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A..Coder-Z}`
+Record it by hand in the packet or refinement JSON authored from the V2 templates.
 
 Rules:
 - do not split this into unnecessary multiple approval questions
@@ -454,7 +421,6 @@ Workflow semantics:
 - `MAJOR_TECH_UPGRADE_ADVICE` is high-bar only. Report `NONE` unless the refinement found a material implementation upgrade with clear ROI. Do not churn entrenched integrated technologies or techniques for marginal gains.
 - Only if the Orchestrator explicitly requests excerpts should Activation Manager return refinement/spec text in chat. In that fallback path, request only the needed sections or anchors and keep them bounded; safe default: 4 chunks.
 - If pre-launch truth is wrong or the governed activation lane misbehaves, the Orchestrator patches governance in `wt-gov-kernel` and may relaunch a fresh Activation Manager with bounded remediation. Do not force stale-session continuation after a material governance patch.
-- Before waking Activation Manager for a non-ready handoff, run the cheap deterministic refresh first: `just activation-manager readiness WP-{ID} --write`, then inspect `just activation-manager next WP-{ID}`. Launch or steer Activation Manager only if the refreshed `ACTIVATION_READINESS` still requires model-owned repair. This prevents stale readiness files, build-order drift, and packet projection lag from consuming model turns.
 - For large/folded bundled WPs, the Orchestrator must require enough official MT files for deterministic, restartable execution before launching Coder/WP Validator. There is no upper MT-count bias: 20+ MTs are acceptable when they keep work small enough for local models or cheaper/faster coding-focused cloud models. Reject or relaunch Activation Manager if `MICROTASK_GRANULARITY` is missing, too broad, or justified only by reduced paperwork.
 - The truthful orchestrator-managed pre-launch order is: Activation Manager refinement / enrichment -> Orchestrator review + operator approval -> Activation Manager packet / microtask / worktree / backup / health preparation -> Activation Manager self-close -> Orchestrator readiness review -> Coder + WP Validator launch.
 
@@ -465,7 +431,7 @@ Workflow semantics:
   "Follow the microtask plan in the packet. For each MT: implement, commit with `feat: MT-NNN <desc>`, push, set the MT JSON `lifecycle.status` to `READY_FOR_VALIDATION`,
   then STOP and wait for the validator's verdict in the MT JSON verdict fields before starting the next MT."
 - **Validator session MUST be started BEFORE the coder starts work.**
-- If the projected coder or WP-validator lane stalls, lags out, or stays inactive beyond the runtime projection and notification evidence, the Orchestrator may wake the currently projected lane with `just orchestrator-steer-next WP-{ID} "<context>"` or the role-specific governed steer helper. This is a wake/resume action, not a return to Orchestrator-owned technical review or relay brokering.
+- If the projected coder or WP-validator lane stalls, lags out, or stays inactive beyond the runtime projection and notification evidence, the Orchestrator may wake the currently projected lane. This is a wake/resume action, not a return to Orchestrator-owned technical review or relay brokering.
 - **Validator startup prompt MUST name the MT queue.** Template: "When an MT reaches `READY_FOR_VALIDATION`, inspect it at the pushed commit. Write the verdict and findings into the MT JSON verdict fields; the coder reads them there."
 - **After all MTs pass individually**, the validator MUST perform a Final WP Review: full product code check using the validator rubric, red team assessment, and wide-scope Master Spec alignment check. Only then write the validation verdict. If FAIL, record remediation instructions for the coder in the MT JSON verdict fields.
 - Do not send monolithic "implement everything" instructions. Each MT is a bounded unit of work that even a small local model can complete.
@@ -484,7 +450,7 @@ Workflow semantics:
 - After dispatching initial work (coder startup prompt + validator startup), the Orchestrator MUST NOT poll for results.
 - When a governed session settles into an explicit operator-required blocker (`OPERATOR_ACTION != NONE` plus a real `BLOCKER_CLASS`), the control plane must append a durable `OPERATOR` notification immediately from machine truth. Do not wait for a later manual status poll to surface that gate.
 - The Orchestrator monitors for: (1) MT JSON status changes, (2) stalls, (3) FAIL verdicts.
-- If polling is absolutely necessary, use `just session-registry-status WP-{ID}` once after a reasonable delay, not repeated sleep-and-cat loops.
+- If polling is absolutely necessary, read the MT JSON status once after a reasonable delay, not repeated sleep-and-cat loops.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
@@ -494,28 +460,22 @@ Workflow semantics:
   - an explicit decision is required
   - the next step needs a one-time user input
 
-After `just record-signature ...` returns PASS with `OPERATOR_ACTION: NONE`, continue to `just record-role-model-profiles WP-{ID}` and then `just orchestrator-prepare-and-packet WP-{ID}`.
+After the signature is recorded with `OPERATOR_ACTION: NONE`, record the role model profiles, then author the packet or refinement JSON from the V2 templates by hand.
 
 For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, treat Activation Manager as mandatory before downstream launch. Do not bypass Activation Manager-owned pre-launch work by keeping refinement, packet creation, worktree preparation, or backup-branch preparation in long-lived Orchestrator context.
 
 Before packet creation on new packet families, record the explicit per-role model bundle:
 
-- `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]`
-- This writes `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1` into the packet/stub family and makes the role-profile bundle authoritative for later claim and launch checks.
-- If omitted, the gate records deliberate defaults (`OPENAI_GPT_5_5_XHIGH` for every role, including Activation Manager).
-- Use this gate to declare mixed-provider intent, for example GPT orchestration/validation with Claude Code coding.
+- Write `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1` and the per-role profiles into the packet/stub family by hand; the role-profile bundle is authoritative for later claim and launch checks.
+- If omitted, the deliberate default is `OPENAI_GPT_5_5_XHIGH` for every role, including Activation Manager.
+- Use this bundle to declare mixed-provider intent, for example GPT orchestration/validation with Claude Code coding.
 
 ## Preflight and Resume
 
-Use:
-- `just orchestrator-preflight`
-- `just orchestrator-startup`
-- `just orchestrator-next [WP-{ID}] [--debug]`
+Read the Codex, this protocol and the assigned MT, then continue from the MT JSON status.
 
 Resume rule:
 - after reset or compaction, do not stop merely because startup re-ran
-- immediately run `just orchestrator-next [--debug]`
-- if it prints `OPERATOR_ACTION: NONE`, continue to the next commands
 - resume inference must prefer active WPs; terminal WPs are history, not implicit resume targets
 
 ## WP Communication Folder (Packet-Declared)
@@ -530,38 +490,7 @@ Resume rule:
 
 ## Deterministic Helpers
 
-- `just task-board-set WP-{ID} <STATUS> "<context>" ["reason"]`
-- `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID "<context>"`
-- `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
-- `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
-- `just wp-heartbeat ...` is liveness-only. The route fields are assertions against current runtime truth; use MT JSON status fields or closeout projection to change next-actor routing.
-- `just session-registry-status WP-{ID}` now also surfaces derived stalled-relay state plus the runtime-native `relay_escalation_policy` projection (`failure_class`, `policy_state`, `next_strategy`, strategy budget). When that state is `ESCALATED`, use `just orchestrator-steer-next WP-{ID} "<context>"` instead of waiting silently.
-- `just orchestrator-steer-next WP-{ID} "<context>"` must behave as a one-hop wakeup: if the projected target session is not running yet, start it and then immediately inject the typed route payload (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) in the same invocation. If an escalated target session is already `READY` with no pending governed control request, drain queued turn-boundary nudges into one direct safe-boundary `SEND_PROMPT` instead of adding another nudge.
-- `just wp-truth-bundle WP-{ID} [--json] [--no-write]` is the compact recovery read set for orchestrator-managed WPs. Use it before broad packet/runtime/session rereads when cost governor state is `WARN`, `RECOVERY_MODE`, or `OVERRIDE_REQUIRED`.
-- Cost governor states are authoritative workflow pressure signals: `WARN` means prefer compact truth, `RECOVERY_MODE` blocks broad explicit-target steering unless it matches the projected next legal actor, and `OVERRIDE_REQUIRED` requires `just orchestrator-steer-next ... --override-recovery=<operator reason>` before another steer. Do not use legacy token-budget waivers as continuation authority; they are diagnostic-only history.
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` is the mechanical non-LLM watcher for orchestrator-managed lanes. It may re-steer a stale projected lane when the target session is not already running, but it must not kill active runs by default; active runs are inspected conservatively and only reported as stalled. Successful automatic re-steers consume `current_relay_escalation_cycle`, healthy lanes reset it, and once `max_relay_escalation_cycles` is exhausted the lane must stay machine-visible and attention-worthy instead of silently re-waking forever. The watchdog is also responsible for persisting the runtime-native `relay_escalation_policy` object so retry limits and required strategy shifts (`QUEUED_DEFER`, `ALTERNATE_METHOD`, `ALTERNATE_MODEL`, `HUMAN_STOP`) are projected from canonical runtime truth instead of transcript inference. In `--loop` mode, per-WP evaluation failures must be surfaced without terminating the whole watcher service.
-- Direct worker interruption is a separate budgeted rung. `CANCEL_SESSION` plus re-steer consumes `current_worker_interrupt_cycle` against `max_worker_interrupt_cycles`; a healthy route or later MT status progress resets that interrupt counter back to zero.
-- `--allow-restart` remains default-off. When explicitly enabled, the watchdog may perform one bounded `CANCEL_SESSION` plus re-steer only for `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR` after all of the following are true: the lane verdict is an active stalled verdict with `workerInterruptPolicy=BOUNDED_AFTER_ROUTE_REPAIR`, the target session still claims `COMMAND_RUNNING`, the worker-interrupt budget still has remaining capacity, the last output file and session event are both older than `--restart-output-idle-seconds`, and every matching active run is already past `timeout_at`. If any guard fails, the watchdog must not restart and must stay in report/escalate mode.
-- `just operator-viewport` (`just operator-monitor` remains a compatibility alias)
-- `just wp-lane-health WP-{ID}` â€” single-command diagnostic: session states, hook status, MT progress, notification queue, stall detection
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` â€” non-LLM relay watcher and safe re-wake helper for orchestrator-managed lanes; bounded by runtime relay-cycle budget plus a stricter worker-interrupt budget and conservative default-off restart policy
-- `just wp-closeout-format WP-{ID} <MERGED_MAIN_COMMIT>` â€” automates packet status, containment fields, verdict, and clause closure matrix updates
-- `just coder-worktree-add WP-{ID}`
-- `just wp-validator-worktree-add WP-{ID}` (now reuses the coder worktree per [CX-503G]; no separate wtv-* worktree created)
-- `just integration-validator-worktree-add WP-{ID}`
-- `CURRENT` is disabled for governed role launches because it can capture Operator keyboard input
-- `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy
-- `just manual-relay-next WP-{ID} [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)
-- `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)
-- `just orchestrator-steer-next` is queue-aware as well: if it prints `queue_pending=` for the target governed session, treat that as successful duplicate suppression. The queued follow-up already exists; inspect monitor/status surfaces instead of resending another steer.
-- `just orchestrator-next` is queue-aware too: when the projected next actor already has queued governed follow-up, it must classify that as an accepted wait state and point you to status/monitor surfaces instead of recommending another relay wake command.
-- `just session-registry-status [WP-{ID}]`
-- `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
-- `just active-lane-brief ...` now also surfaces the declared microtask plan (`active` / `next`) so coder and validator lanes do not have to infer the current MT from scattered status fields.
-- `session-registry-status`, `active-lane-brief`, and `operator-viewport` must prefer the effective governed session-action view derived from typed `governed_action` history; treat raw `last_command_*` fields as compatibility mirrors only when no typed action projection exists. Apply the same rule to relay escalation: read the typed `relay_escalation_policy` runtime object instead of reconstructing retry state from counters or notification prose.
-- `just wp-token-usage WP-{ID}`
-- `just wp-timeline WP-{ID} [--json]` now emits structured control-command, token-command, review-exchange, and microtask-execution span rows in addition to the raw merged event stream.
-- `just orchestrator-prepare-and-packet WP-{ID}`
+Removed 2026-09-23: the command surface was deleted with the governance harness.
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
@@ -578,7 +507,7 @@ LIFECYCLE [CX-LIFE-001]
 
 Before any product work starts, the Orchestrator must ensure:
 - the WP branch and worktree exist
-- `just record-prepare WP-{ID} {Coder-A..Coder-Z}` has been recorded
+- the PREPARE record (`Coder-A..Coder-Z`) has been authored by hand
 - the assigned worktree contains:
   - the official packet
   - the current `SPEC_CURRENT` snapshot
@@ -633,7 +562,6 @@ Legacy flat compatibility:
   2. open or update the governance task-board item
   3. apply the governance change
   4. record the applied changeset in the changelog
-  5. run `just gov-check`
 - If the planned change touches current Master Spec content (active versioned indexed bundle modules/manifest/changelog, legacy `.GOV/spec/indexed_spec/**` compatibility content, or `SPEC_CURRENT` authority metadata for product-spec evolution) or any product path under `src/`, `app/`, or `tests/`, stop using this path and return to the normal refinement plus WP flow.
 
 ### 1. Refinement and Approval
@@ -690,7 +618,7 @@ Legacy flat compatibility:
   - terminal/tool output does NOT satisfy this requirement; the Operator does not see raw shell output in this environment
   - the Orchestrator MUST paste the refinement as assistant-authored chat text
   - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages and do not request approval or signature until the final chunk has been sent
-- `just record-refinement WP-{ID}` must pass first.
+- The refinement JSON must be authored from the V2 templates by hand first.
 - If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the indexed spec correctly (copy-first versioned bundle, module edits, manifest/changelog update, archive discipline, and `SPEC_CURRENT` JSON update when entrypoint, version, or baseline changes), and then refresh the same WP refinement/signature flow against the updated spec unless scope has materially widened enough to justify a new WP variant. Spec enrichment alone does not force `-v2`.
 
 ### 2. Signature Bundle, Prepare, and Packet Creation
@@ -699,14 +627,14 @@ Legacy flat compatibility:
 - This delay is intentional. It blocks automation momentum and forces visible spec-grounded reasoning before approval.
 - A claimed "shown in chat" refinement is invalid if it appeared only in command/tool output rather than assistant-authored chat text.
 - Workflow-invalid conditions on orchestrator-managed WPs must be recorded as typed `WORKFLOW_INVALIDITY` entries in the MT JSON status fields; they are not allowed to remain narrative-only concerns.
-- If the Operator has to restate a core orchestrator-managed lane rule mid-run, record it with `just wp-operator-rule-restatement ...` and treat the lane as `LANE_RESET_REQUIRED` until the Orchestrator reissues a clean bounded instruction.
-- Record the signature bundle with `just record-signature ...`.
-- After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
+- If the Operator has to restate a core orchestrator-managed lane rule mid-run, record it in the MT JSON status fields and treat the lane as `LANE_RESET_REQUIRED` until the Orchestrator reissues a clean bounded instruction.
+- Record the signature bundle by hand in the packet or refinement JSON.
+- After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to authoring the packet JSON from the V2 templates by hand.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, do not launch `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR` until the Activation Manager has handed back a truthful `ACTIVATION_READINESS` result and self-closed or returned for repair.
-- Treat packet-bootstrap `VALIDATOR_KICKOFF` route projections as prelaunch intent until the relevant Coder/WP Validator sessions exist. Do not use `orchestrator-steer-next` to wake a validator that has not been launched; launch Coder and WP Validator first.
+- Treat packet-bootstrap `VALIDATOR_KICKOFF` route projections as prelaunch intent until the relevant Coder/WP Validator sessions exist. Do not steer a validator that has not been launched; launch Coder and WP Validator first.
 - On orchestrator-managed lanes, expect one explicit pre-launch round-trip: Activation Manager returns refinement/spec text for review, the Orchestrator collects operator approval evidence + one-time signature + coder choice, then the Orchestrator steers that bundle back into Activation Manager so packet/worktree/backup/readiness work can continue.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, routine Operator interruption ends after signature/prepare. Do not request routine "proceed", checkpoint, or approval actions after that point.
-- If post-signature Operator action is still required on an orchestrator-managed lane, `just orchestrator-next` must print one machine-visible `BLOCKER_CLASS` rather than a freeform approval ask. The allowed post-signature classes are `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, and `ENVIRONMENT_FAILURE`; the legacy repair-only pre-launch recovery class is `LEGACY_SIGNATURE_TUPLE_REPAIR`.
+- If post-signature Operator action is still required on an orchestrator-managed lane, the Orchestrator must surface one machine-visible `BLOCKER_CLASS` rather than a freeform approval ask. The allowed post-signature classes are `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, and `ENVIRONMENT_FAILURE`; the legacy repair-only pre-launch recovery class is `LEGACY_SIGNATURE_TUPLE_REPAIR`.
 - Post-signature token budget overrun and token-ledger drift remain machine-visible in status/audit surfaces. Legacy continuation waivers are diagnostic-only history, but the cost governor may constrain Orchestrator behavior: use compact truth in `WARN`, avoid broad explicit-target steering in `RECOVERY_MODE` unless it is the projected next legal actor, and require explicit Operator override in `OVERRIDE_REQUIRED`. Cost policy still must not erase an Integration Validator product verdict by itself.
 - Use `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
 - Packets are transcription from the signed refinement plus current workflow metadata, not freehand reinterpretation.
@@ -720,26 +648,24 @@ Legacy flat compatibility:
 
 ### 3. Delegation and Monitoring
 
-- Before launching coder sessions, `just orchestrator-prepare-and-packet WP-{ID}` commits the work packet, refinement, and micro tasks on `gov_kernel` and creates a backup snapshot.
+- Before launching coder sessions, commit the work packet, refinement, and micro tasks on `gov_kernel` and make an out-of-repo backup copy first.
 - If Integration Validator returns FAIL, prefer same-WP remediation: preserve the FAIL report in the active WP artifact and route the Coder to repair those findings. Create a new remediation WP only for real scope expansion or explicit Operator choice.
 - Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
-- During the work-packet compatibility migration, scripts must resolve those packet/MT paths through `runtime-paths.mjs` rather than assuming the literal `task_packets` folder name.
 - Use only the packet-declared communication artifacts for shared session/runtime coordination.
 - The Orchestrator remains workflow authority after delegation:
   - starts governed sessions
   - steers on blockers only (not continuous polling)
   - keeps packet/runtime/thread artifacts current
-  - runs mechanical governance checks directly (closeout-repair) — never through a model session
+  - runs mechanical governance checks directly — never through a model session
 - The Orchestrator does not implement the WP and does not issue technical verdicts.
 - **Role-Split Workflow [RGF-190/191/192]:** The coder works through micro tasks in order and writes evidence per MT. WP Validator reviews completed MTs for boundary enforcement, scope containment, and code quality (bounded per-MT context). After all MTs pass WP Validator review, the Orchestrator must ensure a final whole-WP handoff exists with pushed commits for the handoff base/head/range before steering the Integration Validator. Per-MT PASS verdicts are not the Integration Validator's committed target. The Integration Validator then performs whole-WP judgment against the `SPEC_CURRENT`-resolved active Master Spec bundle, writes the final review/verdict, and runs terminal closeout/merge on PASS.
 - **Orchestrator Closeout Prep (Mechanical) [RGF-189/193]:** Before launching the Integration Validator for whole-WP judgment, the Orchestrator MUST:
   1. Verify all MTs are WP_VALIDATOR-PASS
   2. Verify the final whole-WP handoff has pushed commits (base/head/range). If it is missing, route the final handoff request to the Coder and do not run closeout sync yet.
-  3. Run `just closeout-repair WP-{ID}` only for prep classes it can repair without requiring the Integration Validator's still-missing final verdict.
-  4. Launch/steer the Integration Validator with a fresh context.
+  3. Launch/steer the Integration Validator with a fresh context.
   This eliminates the multi-retry closeout loop that previously consumed 85% of token budget.
 - **Closeout-Ready Marker:** After the final handoff commits are pushed and pre-verdict prep is clean, record `FINAL_REVIEW_READY` in the packet/MT JSON status fields. This serves as the resumable checkpoint if the orchestrator crashes between prep and IntVal launch.
-- **Closeout-Repair Failure Recovery [RGF-193/CX-218K]:** `closeout-repair` diagnoses packet/runtime/helper drift only. Before Integration Validator launch, use it only for pre-verdict prep that does not require the still-missing final verdict; the committed handoff truth is the pushed commit range. Run closeout sync only after the final review/verdict exists. If the path stalls, classify 3-5 plausible causes first: committed evidence missing, final review response missing, documentation/protocol drift, session drift, or runtime projection drift.
+- **Closeout-Repair Failure Recovery [RGF-193/CX-218K]:** The committed handoff truth is the pushed commit range. Run closeout sync only after the final review/verdict exists. If the path stalls, classify 3-5 plausible causes first: committed evidence missing, final review response missing, documentation/protocol drift, session drift, or runtime projection drift.
 - **Integration Validator Prompt Limit (HARD):** The Integration Validator should complete its judgment in 1-2 prompts (launch + optional follow-up). If the Integration Validator requires more than 3 prompts, the Orchestrator MUST stop sending prompts, close the session, and escalate to the Operator. More than 3 prompts indicates incomplete mechanical prep or a systematic issue that cannot be solved by additional prompts.
 
 ### 4. Status Sync and Closure Claims
@@ -788,7 +714,7 @@ Legacy flat compatibility:
 During active WP execution (any WP is IN_PROGRESS with live coder or validator sessions):
 
 - Issue only steering commands and status checks. Do not write audits, summaries, explanations, or postmortem reasoning until all active WPs reach a verdict boundary (PASS, FAIL, or explicit STOP).
-- Do not relay messages between coder and validator. Coders and WP validators MUST communicate directly through the MT JSON status and verdict fields. `just wp-thread-append` is for soft coordination only. The orchestrator is not a message broker.
+- Do not relay messages between coder and validator. Coders and WP validators MUST communicate directly through the MT JSON status and verdict fields. The orchestrator is not a message broker.
 - Do not narrate recovery steps. Fix blockers silently and continue steering.
 - Do not write audit prose mid-run. Audits and reviews belong after the run reaches a stable state, not while active sessions are consuming tokens.
 
@@ -796,7 +722,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## Direct Coder <-> WP Validator Communication (HARD RULE)
 
-- The orchestrator MUST instruct both coder and WP Validator to communicate directly at session start. This is already embedded in `buildStartupPrompt()`.
+- The orchestrator MUST instruct both coder and WP Validator to communicate directly at session start.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` packets with `PACKET_FORMAT_VERSION >= 2026-03-21`, the packet MUST declare `COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1` and `COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING`.
 - The coder <-> WP Validator handoff surface is the MT JSON status and verdict fields.
 - In orchestrator-managed lanes, WP Validator is the per-MT technical reviewer for boundary enforcement, scope containment, and code quality. The Orchestrator should not babysit per-MT review unless WP Validator raises a real blocker.
@@ -805,9 +731,8 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - If WP Validator disapproves a previously completed MT while the coder is already working on the next MT, the coder should finish the current active MT, then loop back to the failed MT before opening further forward progress beyond the bounded overlap queue. The Orchestrator must not relay ordinary MT review traffic; missing direct coder<->WP Validator review is workflow defect, not a reason for manual brokering.
 - **WP Validator Boundary Enforcement [RGF-190] (HARD):** WP Validator MUST reject any MT where the coder has modified `/.GOV/` files or drifted outside the signed MT scope. This is a mechanical pre-check before AI review. Product governance code (`src/backend/.../runtime_governance.rs` etc.) must not be confused with repo governance (`/.GOV/`). See `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` for the three evaluation jobs: boundary enforcement, scope containment, code review.
 - **Per-MT Fix Loop Bound [RGF-100] (HARD):** Each MT is bounded to 3 fix cycles between coder and WP Validator. After 3 fix cycles on the same MT without PASS, the WP Validator MUST escalate to the Orchestrator with a failure summary. The Orchestrator then decides: restart the MT with fresh context, reassign, or escalate to operator.
-- **Heuristic-Risk Strategy Escalation [RGF-250] (HARD):** If `just heuristic-risk-check WP-{ID}` or the microtask contract tags an MT as `HEURISTIC_RISK=YES`, repeated counterexamples require a strategy change before the generic 3-cycle cap. Treat `HEURISTIC_RISK_STRATEGY_ESCALATION` notifications as a workflow blocker: relaunch with corpus/property/negative-evidence direction, discriminator redesign, alternate model review, or human stop instead of another same-threshold repair.
+- **Heuristic-Risk Strategy Escalation [RGF-250] (HARD):** If the microtask contract tags an MT as `HEURISTIC_RISK=YES`, repeated counterexamples require a strategy change before the generic 3-cycle cap. Treat `HEURISTIC_RISK_STRATEGY_ESCALATION` as a workflow blocker: relaunch with corpus/property/negative-evidence direction, discriminator redesign, alternate model review, or human stop instead of another same-threshold repair.
 - For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` requires all MTs to carry WP_VALIDATOR PASS verdicts in MT JSON and clean mechanical truth (per the Integration Validator protocol). The Integration Validator does NOT communicate directly with the coder — it judges the complete work product against the `SPEC_CURRENT`-resolved active Master Spec bundle.
-- Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
 - The orchestrator should monitor WP communications to verify direct traffic is happening, and steer correction if it is not.
 
 ## Integration Validator Fresh-Launch Protocol [RGF-191] (HARD RULE)
@@ -816,7 +741,6 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - The Orchestrator MUST NOT launch the Integration Validator until:
   1. All MTs carry WP_VALIDATOR PASS verdicts in MT JSON
   2. The final whole-WP handoff exists with pushed commits (base/head/range)
-  3. `just closeout-repair WP-{ID}` has run for deterministic prep drift that does not require the still-missing final verdict
 - The Integration Validator receives the resolved current Master Spec (via `SPEC_CURRENT` JSON -> active indexed bundle manifest/modules) and complete work product in its launch prompt. It performs whole-WP judgment in 1-2 prompts.
 - If the Integration Validator needs more than 2 prompts, the Orchestrator should suspect incomplete mechanical prep and investigate before sending additional prompts.
 - The Integration Validator writes PASS or FAIL verdict, updates the task board on PASS, and merges to main on PASS. See `INTEGRATION_VALIDATOR_PROTOCOL.md` for full authority and workflow.
@@ -826,48 +750,39 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 - Maximum WP-specific worktrees per WP: 1 [CX-503G].
 - The Coder and WP Validator share the same worktree (`wtc-*` on `feat/WP-*`). The per-MT stop pattern is driven by MT JSON status and verdict fields: the coder sets `READY_FOR_VALIDATION`, the WP Validator writes the verdict, and the coder resumes. Governance uses the `.GOV/` junction to the kernel.
-- **Session Context Rotation:** If a Coder or WP Validator session exceeds its token budget (per `session-policy.mjs` role thresholds), the Orchestrator should close the session and start a fresh one. The new session receives the startup prompt plus current MT context â€” no need to replay prior MT history. This prevents the context bloat observed in prior runs.
+- **Session Context Rotation:** If a Coder or WP Validator session exceeds its token budget, the Orchestrator should close the session and start a fresh one. The new session receives the startup prompt plus current MT context â€” no need to replay prior MT history. This prevents the context bloat observed in prior runs.
 - The Integration Validator operates from `handshake_main` on branch `main` â€” no WP-specific worktree.
 - Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
-- All worktrees must be created under the shared worktree root so `just enumerate-cleanup-targets` can find them. Off-root worktree creation is forbidden.
-- `worktree-concurrency-check` enforces this budget as part of `gov-check`.
+- All worktrees must be created under the shared worktree root. Off-root worktree creation is forbidden.
 
 ## WP Worktree Creation Rules [CX-212D] (HARD RULE)
 
 - WP worktrees (`wtc-*`) MUST NOT retain a git-tracked `/.GOV/` directory. Legacy `wtv-*` worktrees from the old 2-per-WP model are cleanup candidates.
 - Generic pre-packet worktree creation may seed from `main`, but governed coder worktree creation or reseed after packet creation MUST honor the packet baseline (`MERGE_BASE_SHA`) instead of moving local `main`.
 - Dirty existing WP worktrees must fail closed for governed reuse or reseed; do not silently reuse a dirty worktree as the coder or validator execution surface.
-- After `git worktree add`, the creation script MUST:
+- After `git worktree add`, the creator MUST:
   1. Remove the inherited `/.GOV/` directory from the new worktree.
   2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.
 - This ensures WP worktrees always read live governance from the kernel and never have a stale `/.GOV/` copy.
-- The `worktree-add.mjs` script enforces this automatically.
 
 ## Gov-to-Main Sync Responsibility [CX-212D] (HARD RULE)
 
-- `just sync-gov-to-main` copies the governance kernel `/.GOV/` into `handshake_main` and auto-commits.
-- `just sync-gov-to-main` must sync from committed kernel truth. If `wt-gov-kernel/.GOV` is dirty, fix or commit `gov_kernel` first; do not mirror an uncommitted kernel snapshot into `main`.
+- The gov-to-main sync copies the governance kernel `/.GOV/` into `handshake_main` and commits it (sync script deleted 2026-09-23; sync by hand with explicit paths).
+- The sync must run from committed kernel truth. If `wt-gov-kernel/.GOV` is dirty, fix or commit `gov_kernel` first; do not mirror an uncommitted kernel snapshot into `main`.
 - This is the Integration Validator's default responsibility, to be run before pushing to `origin/main`.
-- The Orchestrator MAY run `just sync-gov-to-main` and push `origin/main` only when explicitly instructed by the Operator.
+- The Orchestrator MAY run the gov-to-main sync and push `origin/main` only when explicitly instructed by the Operator.
 - That Orchestrator exception is mechanical execution only. It does not grant final technical verdict authority or permission to invent a new product merge decision.
 - The `main` worktree retains a real (non-junction) `/.GOV/` copy as a stable backup.
 
 ## Notification System (HARD RULE â€” Message Delivery)
 
-- Every thread message with a `@target` or explicit `target_role` writes a notification to `NOTIFICATIONS.jsonl` in the WP communications directory.
-- Every review exchange (REVIEW_REQUEST, VALIDATOR_QUERY, SPEC_GAP, etc.) writes a notification to the target role.
-- Roles check pending notifications after startup and before each handoff/verdict using `just check-notifications {wpId} {ROLE}`.
-- `just check-notifications` now defaults to the active blocking route for that role/session; use `--history` only when you explicitly need hidden terminal or superseded residue for audit/debug work.
-- Roles acknowledge notifications after reading using `just ack-notifications {wpId} {ROLE} {session}`.
-- The orchestrator should monitor notification counts via the Operator Monitor TUI (PENDING NOTIFICATIONS in the OVERVIEW detail view) and steer correction if notifications pile up without acknowledgment.
-- Startup prompts already embed NOTIFICATIONS (MANDATORY) instructions for all three governed roles. Do not remove or weaken these instructions.
+Removed 2026-09-23: the command surface was deleted with the governance harness.
 
 ## Pre-Smoke Validation Gate (RECOMMENDED)
 
 Before launching an orchestrator-managed session with multiple parallel WPs, run:
-1. `just gov-check` â€” governance must be clean before starting
-2. Verify all required worktree base branches exist
+1. Verify all required worktree base branches exist
 
 This prevents the mid-smoke governance repair that consumed excessive context in previous smoke tests.
 
@@ -882,12 +797,12 @@ Do not:
 - relay messages between coder and WP Validator (direct communication is mandatory)
 - create ad-hoc temp worktrees outside the governed naming scheme
 - write audit prose during active WP execution
-- route mechanical governance checks through ACP sessions (run directly via just/node)
+- route mechanical governance checks through model sessions
 - write approvals or verdicts (verdict authority belongs to INTEGRATION_VALIDATOR only)
 
 Do:
 - keep refinement, packet, traceability, build-order, and Task Board aligned
-- use the current packet template and deterministic helpers
+- use the current packet template
 - keep external session/topology/WP-communication runtime state under the repo-governance runtime root and keep repo-local spec-coupled runtime state under `/.GOV/roles_shared/runtime/`
 - keep role-owned state under `/.GOV/roles/orchestrator/runtime/`
 - stop and escalate when tooling or docs conflict with active law
@@ -902,4 +817,4 @@ Do:
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` as the canonical checkpoint bundle surface before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`.
+Retired with the governance harness on 2026-09-23.

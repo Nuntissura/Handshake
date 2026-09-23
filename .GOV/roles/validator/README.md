@@ -18,30 +18,8 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 - `.GOV/reference/legacy/validator/VALIDATOR_GATES.json`
   - migrated read-only legacy archive for older sessions
 
-## Role-Owned Checks / Scripts
-
-- `scripts/validator-next.mjs`
-- `scripts/lib/validator-governance-lib.mjs` (shared packet-completeness and committed-handoff validation builders used by `phase-check`)
-- `checks/validator-report-structure-check.mjs`
-- `checks/validator_gates.mjs`
-- `checks/validator-governance-snapshot.mjs`
-- `checks/validator-scan.mjs`
-- `checks/validator-dal-audit.mjs`
-- `checks/validator-spec-regression.mjs`
-- `checks/validator-phase-gate.mjs`
-- `checks/validator-error-codes.mjs`
-- `checks/validator-coverage-gaps.mjs`
-- `checks/validator-traceability.mjs`
-- `checks/validator-git-hygiene.mjs`
-- `checks/validator-hygiene-full.mjs`
-- `checks/external-validator-brief.mjs`
-- `scripts/lib/integration-validator-context-brief-lib.mjs`
-- `scripts/lib/integration-validator-closeout-lib.mjs` (shared closeout-readiness builder used by `phase-check CLOSEOUT`)
-
 ## Shared Dependencies To Know
 
-- `.GOV/roles_shared/checks/README.md`
-- `.GOV/roles_shared/scripts/README.md`
 - external `../gov_runtime/roles_shared/validator_gates/`
 - logical `.GOV/work_packets/` (current physical storage: `.GOV/task_packets/`)
 - `.GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md`
@@ -52,26 +30,8 @@ Authoritative folder-placement law for the Validator bundle lives in `.GOV/codex
 
 - `runtime/`
   - validator-owned machine state only; new validator-owned state belongs here
-- `scripts/`
-  - validator-owned entrypoints
-- `scripts/lib/`
-  - validator-only helper libraries
-- `checks/`
-  - validator-owned enforcement/audit entrypoints
-- `tests/`
-  - governance tests for validator scripts/checks
-- `fixtures/`
-  - validator-local test data and golden inputs
 
 ## Key Commands
 
-- `just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR`
-- `just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}] [--debug]`
-- `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
-- `just integration-validator-context-brief WP-{ID}`
-- `just validator-gate-present WP-{ID}`
-- `just validator-gate-acknowledge WP-{ID}`
-- `just validator-gate-append WP-{ID}`
-- `just validator-gate-commit WP-{ID}`
-
-Low-level validator hygiene is consolidated behind `scripts/lib/validator-governance-lib.mjs`, but the governed role-facing boundary command remains `phase-check`.
+- read the Codex, this protocol and the assigned MT, then continue from the MT JSON status
+- phase gates (STARTUP, HANDOFF, VERDICT, CLOSEOUT): not available; the corresponding obligation is checked by reading the artifact

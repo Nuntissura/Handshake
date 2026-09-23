@@ -17,7 +17,7 @@ Define a governed lifecycle layout for Work Packets without forcing risky filesy
 
 ## Resolver rule
 
-Scripts must treat the logical resolver name `work_packets` as authoritative and resolve packet paths through `runtime-paths.mjs`.
+The logical resolver name `work_packets` is authoritative (resolver script deleted 2026-09-23).
 
 Resolver order:
 

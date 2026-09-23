@@ -168,7 +168,7 @@
 
 [CX-MAINT-001] Keep this Codex small. Give each durable obligation a stable ID; preserve surviving IDs and record folds/retirements without reusing an ID for unrelated law. Put detailed product gates in HBR and execution steps in the owning role protocol.
 
-[CX-MAINT-002] Authority/document-only edits require focused checks of meaning, protected text, IDs and live references. Blanket gov-check, canonise-gov, documentation lints, projection regeneration and governance-board paperwork are not mandatory for such edits. Executable changes still require the relevant behavioral checks.
+[CX-MAINT-002] Authority/document-only edits require focused checks of meaning, protected text, IDs and live references. Blanket governance checks, canonicalisation passes, documentation lints, projection regeneration and governance-board paperwork are not mandatory for such edits. Executable changes still require the relevant behavioral checks.
 
 [CX-MAINT-003] Existing files and tools outside this Codex may retain legacy requirements during the transition. Identify an actual conflict when it affects work; do not silently bypass a product/safety gate, broadly repair unrelated documentation, or reimpose retired harness obligations.
 

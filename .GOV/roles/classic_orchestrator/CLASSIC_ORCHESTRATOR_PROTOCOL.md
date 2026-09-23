@@ -20,15 +20,11 @@
 
 ## WP Dossier Runtime Archive [CX-218J1]
 
-- Per-WP raw diagnostic dossiers live under the external repo-governance runtime root: default `../gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/`, overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
-- The dossier archive is for full mechanical posterity: raw ACP prints, repomem outputs, command stdout/stderr, bundle failure logs, and related traces should be dumped there rather than summarized away.
-- `index.json` is the first model/tool lookup surface; `artifact_manifest.json` lists raw artifacts; `events.jsonl` is append-only; raw logs live under `raw/`, `acp/`, `repomem/`, `commands/`, and `bundle_failures/`.
-- `workflow_postmortem.md` is the Orchestrator-owned terminal narrative after verdict/closeout. Validators contribute typed receipts, repomem entries, verdicts, and findings; they do not overwrite the Orchestrator terminal post-mortem.
-- Do not store runtime dossier payloads in git. Repo-tracked files define the contract, generators, checks, and projections only.
+Retired with the governance harness on 2026-09-23.
 
 ## Purpose
 
-The Classic Orchestrator is the workflow authority for the manual relay workflow (`WORKFLOW_LANE=MANUAL_RELAY`). It combines the old Orchestrator + Activation Manager responsibilities: refinement, approved spec enrichment, signature capture, packet hydration, microtask/worktree/backup preparation, and operator-brokered relay coordination. The Operator stays in the relay loop between Coder and Validator roles. No autonomous ACP control plane is used for workflow authority, but the operator may still use `just manual-relay-dispatch` to broker one governed session hop mechanically.
+The Classic Orchestrator is the workflow authority for the manual relay workflow (`WORKFLOW_LANE=MANUAL_RELAY`). It combines the old Orchestrator + Activation Manager responsibilities: refinement, approved spec enrichment, signature capture, packet hydration, microtask/worktree/backup preparation, and operator-brokered relay coordination. The Operator stays in the relay loop between Coder and Validator roles. No autonomous ACP control plane is used for workflow authority.
 
 For approved spec enrichment, Classic Orchestrator resolves current spec authority through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to the active indexed bundle manifest, resolver `INDEX.json`, and ordered `spec-modules/`. Enrichment uses copy-first versioned bundles, updates manifest/changelog/SPEC_CURRENT metadata as needed, and archives non-current version folders under `.GOV/spec/spec_archive/`; `Handshake_Master_Spec_v*.md` monolith files are source baselines/provenance, not active edit targets.
 
@@ -48,7 +44,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - Diagnostics/Flight-Recorder + Palmistry duty: map every observable runtime behavior to a three-tier diagnostic consideration before readiness — Tier 1 Flight Recorder (kept-as-is backend business-event ledger), Tier 2 internal_diagnostics (Handshake-native internal self-diagnostics: panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, open diagnostic-event API), and Tier 3 Palmistry (external out-of-process watcher that survives freezes/crashes). Plan packet/refinement acceptance so observable-behavior MTs wire/consider all three tiers and record the per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason); until internal_diagnostics/Palmistry ship, mark the consideration DEFERRED, never silently skip it. Per HBR-INT-009 + CX-981.
 - UserManual duty: every implementation that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path must require same-change in-product internal UserManual updates, `MANUAL_VERSION` handling when applicable, and code-truth self-consistency evidence. Packet/refinement/MT acceptance must preserve purpose, usage path, expected inputs/outputs, affected tools/features/primitives, failure/recovery steps, verification proof, Flight Recorder/EventLedger linkage, and the HBR-INT-009 Flight Recorder/internal_diagnostics/Palmistry posture. If internal_diagnostics or Palmistry are unavailable in the target worktree, require DEFERRED-with-reason plus integration follow-up, never silent skip. Legacy `ModelManual` identifiers are aliases only, not a second manual surface.
 - Per-MT UserManual duty: every manual-relay MT must carry a `user_manual_obligation` field. Product-behavior MTs require same-change UserManual diff evidence, `MANUAL_VERSION` handling when applicable, a no-context/manual-self-consistency test, and direct inspection of the updated manual path. Pure repo-governance MTs may mark this `NOT_APPLICABLE` only with a typed reason.
-- Handoff duty: require HandoffGate (MT-004), `hbr-matrix-check`, and packet HBR matrix closure before manual relay closeout. Do not relay a PASS-shaped handoff while any required HBR row is `PENDING`, `STEER`, or `BLOCKED`.
+- Handoff duty: require HandoffGate (MT-004) and packet HBR matrix closure (read from the packet; no check script is available) before manual relay closeout. Do not relay a PASS-shaped handoff while any required HBR row is `PENDING`, `STEER`, or `BLOCKED`.
 
 ## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
 
@@ -72,7 +68,7 @@ Write sequence:
 - Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
 - Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
 - Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
-- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
+- Verify manifest, resolver index, modules and changelog consistency by reading them; no check script is available.
 
 ## Adult Production Boundary (When Applicable) [CX-123]
 
@@ -85,7 +81,7 @@ Write sequence:
 
 - Deliberate legacy/manual choice when the operator wants the combined pre-launch lane and active relay control
 - When the operator wants active monitoring, steering, and judgment at every handoff
-- When the operator prefers to relay between roles manually using `just manual-relay-next` and `just manual-relay-dispatch`
+- When the operator prefers to relay between roles manually
 - Not the future default when autonomous ORCHESTRATOR-managed control-plane coverage is wanted
 
 ## How It Differs from Orchestrator-Managed
@@ -97,14 +93,14 @@ Write sequence:
 | **Validation** | Classic Validator (single role, full scope) | WP Validator (per-MT) + Integration Validator (whole-WP) |
 | **Steering** | Operator steers actively | Mechanical stall detection, operator-invoked active steering |
 | **Cost** | Lower (no ACP overhead) | Higher (multiple sessions, ACP round-trips) |
-| **Session control** | Operator-brokered only; `manual-relay-dispatch` may start/send one governed hop | Full ACP session lifecycle |
+| **Session control** | Operator-brokered only | Full ACP session lifecycle |
 
 ## Workflow
 
 1. Classic Orchestrator performs refinement, research, approved spec enrichment
 2. Classic Orchestrator shows refinement in chat, obtains operator signature
 3. Classic Orchestrator creates packet, micro tasks, worktree, backup
-4. Operator relays between coder and validator using `just manual-relay-next` and `just manual-relay-dispatch`
+4. Operator relays between coder and validator by hand
 5. Classic Validator (`.GOV/roles/validator/VALIDATOR_PROTOCOL.md`) handles full validation scope
 6. On PASS: validator merges to main, updates task board
 
@@ -112,16 +108,13 @@ Write sequence:
 
 - All role-to-role communication is relayed through the Operator
 - Use structured relay envelope: `RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`
-- `just manual-relay-next WP-{ID}` reads the runtime-projected next actor
-- `just manual-relay-dispatch WP-{ID} "<context>"` brokers one governed role hop mechanically and may start the projected governed target session when needed
-- Manual-relay implementation currently lives under `.GOV/roles/orchestrator/scripts/manual-relay-*.mjs` for compatibility, but those helpers are Classic-Orchestrator-owned surfaces by lane authority
 - New manual-relay packets still carry `PACKET_ACCEPTANCE_MATRIX`; Classic Orchestrator must preserve stable acceptance row IDs during combined pre-launch/packet repair and must not replace unresolved rows with prose-only acceptance claims.
 
 ## Mechanical Intervention Discipline [CX-218K]
 
 - Before every manual-relay patch, dispatch, repair, or stalled-handoff action, classify 3-5 plausible causes: relay-envelope drift, packet/runtime mismatch, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/memory/worktree drift.
-- Choose the cheapest deterministic read, repair, or typed helper first: `just manual-relay-next`, `just manual-relay-dispatch`, packet/runtime reads, notification cursors, session registry status, and typed relay envelopes.
-- Do not manually relay ordinary role content when a typed relay envelope, governed receipt, manual-relay helper, or packet/runtime artifact can carry or prove the state transition.
+- Choose the cheapest deterministic read or repair first: packet/runtime reads and typed relay envelopes.
+- Do not manually relay ordinary role content when a typed relay envelope, governed receipt, or packet/runtime artifact can carry or prove the state transition.
 - If the projected actor cannot act because the helper text, protocol, or packet route is wrong, patch that durable surface in the Classic Orchestrator lane instead of teaching one role by free-form prose.
 - Do not introduce `ACTIVATION_MANAGER` as a second authority lane on `MANUAL_RELAY`; Classic Orchestrator owns the combined pre-launch duties here.
 
@@ -135,19 +128,11 @@ Write sequence:
 
 ## Self-Prime And Predecessor Summary (RGF-249)
 
-- Classic Orchestrator is eligible for deterministic self-prime just like the split governed roles.
-- After startup, compaction, or fresh recovery for an active packet, run:
-  - `just role-self-prime CLASSIC_ORCHESTRATOR WP-{ID} --session-id CLASSIC_ORCHESTRATOR:WP-{ID}`
-- The self-prime output assembles packet/runtime/task-board/memory context and includes a same-role predecessor summary when available.
-- Predecessor summaries are context only. They do not override packet truth, runtime projection, receipts, task-board state, or explicit Operator instruction.
-- If self-prime and `just manual-relay-next WP-{ID}` disagree, reconcile against packet/runtime/receipts before dispatching another role hop.
+Retired with the governance harness on 2026-09-23.
 
 ## Memory Manager Proposal Intake
 
-- Memory Manager may order memory evidence, update verified startup brief cards, and emit `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts.
-- For `MANUAL_RELAY`, Classic Orchestrator is the authority that reviews those Memory Manager proposals and decides whether to accept, reject, defer, or convert them into governance refactor work.
-- Memory Manager does not edit Classic Orchestrator protocol, task-board truth, packet truth, Codex law, product code, or validator outcomes.
-- When a Memory Manager proposal affects manual relay, inspect the typed receipt and proposal backup, record the Classic Orchestrator decision, and make any accepted governance change from this authority lane.
+Retired with the governance harness on 2026-09-23.
 
 ## Combined Activation-Manager Parity For Manual Relay
 
@@ -157,8 +142,7 @@ Classic Orchestrator owns the pre-launch duties that `ACTIVATION_MANAGER` owns o
 - Internal/product-governance WPs should use local spec, local code, and runtime truth first; mark external research `NOT_APPLICABLE` when that is honest.
 - Once enough evidence exists, update the named refinement/spec artifact directly. Do not broad-scan unrelated packets or refinements for examples.
 - For long Windows paths, prefer bounded section edits or chunked `apply_patch` updates over monolithic whole-file rewrites.
-- When a checker names blockers, repair those named blockers first and rerun the gate before broad rereads.
-- Write the artifact first, run the real checker, and return a compact handoff summary unless the Operator explicitly requests excerpts.
+- Write the artifact first, read it against the V2 template, and return a compact handoff summary unless the Operator explicitly requests excerpts.
 - Signature round-trip is mandatory before packet hydration, microtask creation, worktree prep, or backup prep: operator approval evidence, one-time signature, and selected `Coder-A..Z` owner must be captured.
 - Large/folded bundled WPs must be decomposed into enough official MT files for deterministic execution, per-MT review, and restart recovery before manual relay dispatch. There is no upper MT-count bias: 20+ MTs are acceptable when they keep work small enough for local models or cheaper/faster coding-focused cloud models. Do not compress MTs to reduce paperwork.
 - Manual relay must not launch or invent a separate `ACTIVATION_MANAGER` authority lane.
@@ -176,30 +160,19 @@ Classic Orchestrator owns pre-launch for manual relay, so it also owns the pre-i
 
 - Manual relay uses the combined `VALIDATOR` role by default.
 - `WP_VALIDATOR` and `INTEGRATION_VALIDATOR` are the split validator roles for `ORCHESTRATOR_MANAGED` workflow. Do not route manual work into split roles unless the packet explicitly opts into that split.
-- `just manual-relay-next WP-{ID}` and `just manual-relay-dispatch WP-{ID} "<context>"` accept `VALIDATOR` as a governed target role for manual work.
-- When the projected next actor is `VALIDATOR`, the resume surface is `just validator-next VALIDATOR WP-{ID}` rather than `just active-lane-brief`.
+- When the projected next actor is `VALIDATOR`, it resumes from the Validator protocol and the MT JSON status.
 
 ### Wire Discipline [CX-130] (HARD)
 
 Even in `MANUAL_RELAY`, the structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) carries the routing-decisive payload as fields. Operator narrative may surround the typed payload for human readability but does not replace it. The Operator and Classic Orchestrator MUST NOT collapse routing-decisive content into free-form prose where a typed envelope field exists. Operator-facing artifacts (packet, dossier, validator report) are projections, not the wire between roles. See Codex `[CX-130]` for the full rule.
 
-## Conversation Memory (MUST - `just repomem`)
+## Conversation Memory
 
-Cross-session conversational memory captures the manual relay decisions, failures, and diagnostic context that receipts do not carry. All Classic Orchestrator sessions MUST use repomem:
-- **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this manual relay session covers>" --role CLASSIC_ORCHESTRATOR [--wp WP-{ID}]`. Use `--wp` whenever a specific packet is active.
-- **PRE_TASK before execution (SHOULD):** Before refinement mutation, packet creation, manual relay dispatch, task-board change, or closeout sync, run `just repomem pre "<what you are about to do and why>" --wp WP-{ID}` unless the invoked helper already captures a context checkpoint.
-- **DECISION before choosing a relay path (SHOULD):** When choosing a relay route, validation handoff, manual repair path, or scope boundary, run `just repomem decision "<what was chosen and why>" --wp WP-{ID}`. Min 80 chars.
-- **ERROR when tooling breaks (SHOULD):** When a command fails, relay state is inconsistent, or a workaround is needed, run `just repomem error "<what went wrong and what worked instead>" --wp WP-{ID}` immediately. Min 40 chars.
-- **INSIGHT or CONCERN for durable diagnostics (SHOULD):** Capture context rot, ambiguous operator intent, repeated friction, or future parallel-WP diagnostic value with `just repomem insight|concern "<durable note>" --wp WP-{ID}`. Min 80 chars.
-- **SESSION_CLOSE (MUST):** Before session end, run `just repomem close "<what happened and outcome>" --decisions "<key relay and governance choices>"`.
-- WP-bound repomem checkpoints are appended to the Workflow Dossier as a terminal diagnostic snapshot during closeout; import debt is diagnostic only, so do not duplicate the same narrative by hand in live dossier sections.
+Retired with the governance harness on 2026-09-23 (Codex CX-AUTH-002).
 
 ## Governance Surface Reduction Discipline
 
-- Manual relay does not justify a second parallel command surface per phase. Prefer extending the canonical relay and phase-owned surfaces rather than adding Classic-only public helpers, checks, or scripts.
-- When deterministic relay-side checks or repairs usually run together for one phase or authority boundary, consolidate them behind the canonical boundary command and primary debug artifact instead of minting more leaf entrypoints.
-- Keep separate public Classic Orchestrator surfaces only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
-- If a new live manual-relay governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is being retired or intentionally kept distinct.
+Removed 2026-09-23: the command surface was deleted with the governance harness.
 
 ## Protocol Reference
 
@@ -222,4 +195,4 @@ Canonical contracts for manual-relay pre-launch and relay coordination (typed JS
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.
+Retired with the governance harness on 2026-09-23.

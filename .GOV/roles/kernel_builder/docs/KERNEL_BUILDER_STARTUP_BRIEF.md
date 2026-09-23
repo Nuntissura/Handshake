@@ -9,7 +9,7 @@
 
 ## Use
 
-Use this brief after `just kernel-builder-startup`. It is operational memory for the build-reset product-kernel lane.
+Use this brief after reading the Codex, this protocol and the assigned MT. It is operational memory for the build-reset product-kernel lane.
 
 ## Action Cards
 
@@ -60,17 +60,17 @@ Use this brief after `just kernel-builder-startup`. It is operational memory for
 - FAILURE_PATTERN: delegating implementation/review work without `KERNEL_BUILDER` review and acceptance of final delegated output
 - DO: use read/write sub-agents where practical when packet rules or Operator instruction explicitly permit; review and verify all sub-agent outputs before advancing any claim, state, or handoff; sub-agents must not create or switch worktrees.
 - DO_NOT: treat sub-agent output as finished truth; do not proceed to commit/state advance on unreviewed delegated changes; do not allow sub-agents to perform worktree creation
-- VERIFY: a no-context Kernel Builder can identify the delegated action, the review performed, and remaining risks in repomem, receipts, and runtime state
+- VERIFY: a no-context Kernel Builder can identify the delegated action, the review performed, and remaining risks in receipts and runtime state
 - SOURCE: KERNEL_BUILDER_PROTOCOL
 
 ### RAM-KERNEL_BUILDER-PAPERWORK-001
 
 - ACTION: FOLDED_IMPLEMENTATION_PAPERWORK
 - TRIGGER: when implementing any ready-for-dev Kernel Builder WP
-- FAILURE_PATTERN: product code advances while MT board, receipts, runtime status, repomem, packet projections, task-board/build-order truth, or validator handoff state stays stale
+- FAILURE_PATTERN: product code advances while MT board, receipts, runtime status, packet projections, task-board/build-order truth, or validator handoff state stays stale
 - DO: claim one unblocked MT, emit typed intent/claim, implement inside the declared product worktree, run proof or record blocker, update typed receipts/runtime/MT state, commit on the WP branch, push recovery checkpoints, and hand off through the packet-declared typed review surface
 - DO_NOT: rely on chat memory, Markdown-only notes, unstaged local state, or narrative handoff as the source of restart truth
-- VERIFY: a fresh no-context Kernel Builder can resume from packet JSON, MT contracts, runtime JSON, receipts JSONL, branch state, and repomem without reading this chat
+- VERIFY: a fresh no-context Kernel Builder can resume from packet JSON, MT contracts, runtime JSON, receipts JSONL, and branch state without reading this chat
 - SOURCE: KERNEL_BUILDER_PROTOCOL Product Implementation Mode
 
 ### RAM-KERNEL_BUILDER-INTEGRATION_BATCH-001

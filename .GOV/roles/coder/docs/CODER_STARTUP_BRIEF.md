@@ -9,7 +9,7 @@
 
 ## Use
 
-Use this brief after `just coder-startup`. It is operational memory for implementation lanes.
+Use this brief after startup: read the Codex, the Coder protocol and the assigned MT. It is operational memory for implementation lanes.
 
 ## Action Cards
 
@@ -20,7 +20,7 @@ Use this brief after `just coder-startup`. It is operational memory for implemen
 - FAILURE_PATTERN: treating the Operator worktree, gov kernel, or `handshake_main` as a coder worktree
 - DO: work only in the assigned WP worktree and branch from the packet/session assignment
 - DO_NOT: edit `.GOV` through the junction except for coder-owned packet/MT status/evidence fields; never commit `.GOV` from the feature branch
-- VERIFY: `just role-startup-topology-check` and `just phase-check STARTUP WP-{ID} CODER <session>` pass
+- VERIFY: run `git rev-parse --show-toplevel`, `git status -sb` and `git worktree list` and confirm the assigned worktree and branch
 - SOURCE: CODER_PROTOCOL
 
 ### RAM-CODER-BUILD_RULES_AUTHORITY-001
@@ -47,8 +47,8 @@ Use this brief after `just coder-startup`. It is operational memory for implemen
 
 - ACTION: HANDOFF
 - TRIGGER: before claiming implementation complete
-- FAILURE_PATTERN: reporting tests or summaries without phase-check handoff proof and spec evidence
-- DO: run the packet TEST_PLAN, document evidence, drain required direct-review obligations, then run `just phase-check HANDOFF WP-{ID} CODER`
+- FAILURE_PATTERN: reporting tests or summaries without handoff proof and spec evidence
+- DO: run the packet TEST_PLAN, document evidence, drain required direct-review obligations, then record the handoff in the MT JSON status
 - DO_NOT: claim done while overlap review items or handoff gate blockers remain
-- VERIFY: handoff phase check passes and `## STATUS_HANDOFF` contains required proof
+- VERIFY: `## STATUS_HANDOFF` contains required proof
 - SOURCE: CODER_PROTOCOL

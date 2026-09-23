@@ -106,7 +106,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
 RGF-247 split the per-MT transport into two tracks:
-- Mechanical track: deterministic helper `just wp-validator-mechanical-review WP-{ID} MT-NNN [range]` writes `MT_VERDICT_MECHANICAL`. It checks worktree confinement, file-list/boundary, packet scope, and compile-gate evidence.
+- Mechanical track: `MT_VERDICT_MECHANICAL` covers worktree confinement, file-list/boundary, packet scope, and compile-gate evidence, checked by reading the artifact (check script deleted 2026-09-23).
 - Judgment track: WP Validator review remains responsible for code quality, MT satisfaction, and product/repo conceptual boundary. A mechanical PASS is input evidence only; it never authorizes closeout or replaces the judgment verdict.
 
 Per-MT verdicts and concerns flow back to the Coder and Orchestrator through the MT JSON verdict fields, never free-form prose. Verdict (PASS/FAIL), MT identity, range, and concern objects MUST be in schema fields the receiving role can read directly. Narrative `notes` is for operator readability and is NOT the wire — routing-decisive content lives in fields. See Codex `[CX-130]` for the full rule.
@@ -288,13 +288,12 @@ When the last MT passes WP Validator review:
 ## Stall and Stuck Detection
 
 - WP Validator does NOT actively steer the coder (saves tokens).
-- Mechanical stall detection via `session-stall-scan` identifies stuck sessions, repeated errors, and idle timeouts.
 - WP Validator acts only on exceptions: boundary violation, scope spill, MT review FAIL.
 - Active orchestrator steering of WP Validator is operator-invoked only â€” used when the operator expects drift, governance brittleness, or mechanical checkpoint failures that could introduce downtime.
 
 ## Context Rotation
 
-- If the WP Validator session accumulates excessive context across MTs (token usage exceeds the role budget in `session-policy.mjs`), the Orchestrator should close the session and start a fresh one.
+- If the WP Validator session accumulates excessive context across MTs (token usage exceeds the role budget), the Orchestrator should close the session and start a fresh one.
 - The new session receives the startup prompt (sufficient authority context) plus the current MT handoff â€” no need to replay prior MT history.
 - This prevents the context bloat that caused 256M token_in in prior runs.
 
@@ -348,17 +347,14 @@ WP Validator does NOT communicate directly with the Integration Validator.
 
 ## Governance Surface Reduction Discipline
 
-- WP validation should stay centered on the per-MT review boundary and packet truth rather than a widening set of review-adjacent public helpers.
-- When deterministic review-side checks usually run together for the same MT boundary, consolidate them behind the canonical review bundle and primary debug artifact instead of adding more leaf commands or scripts.
-- Keep separate public WP Validator surfaces only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
-- If a new live WP-validator governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is being retired or intentionally kept distinct.
+Removed 2026-09-23: the command surface was deleted with the governance harness.
 
 
 
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` as the canonical checkpoint bundle surface before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`.
+Retired with the governance harness on 2026-09-23.
 
 ## Spec-Realism Gate (mandatory enforcement before COMPLETED)
 

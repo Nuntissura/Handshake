@@ -12,7 +12,7 @@
 
 ## Startup and assignment
 
-[KB-START-001] From the live kernel checkout, `just kernel-builder-startup` lists the authority paths and current checkout state without memory writes or acknowledgment receipts. Read the applicable authority and current assignment directly; a successful command does not prove that reading or establish product readiness.
+[KB-START-001] From the live kernel checkout, read the Codex, this protocol and the assigned MT, then continue from the MT JSON status. Reading does not establish product readiness.
 
 [KB-START-002] Verify the assigned branch/worktree and inspect dirty state before edits. Governance edits belong in the kernel; product edits belong in the WP-declared product worktree. If no assignment exists, obtain one; otherwise continue the authorized work without another startup approval.
 

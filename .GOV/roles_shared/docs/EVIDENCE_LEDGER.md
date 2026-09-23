@@ -30,18 +30,11 @@ Codex authority: [CX-657] CANONICAL_EVIDENCE_IN_PACKET (HARD).
 - Path: `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json`
 - Purpose: deterministic per-WP validator gate state (machine-owned, merge-safe).
 
-2) Role Mailbox export (optional helper)
-- Path: `/.GOV/roles_shared/exports/role_mailbox/index.json` and `/.GOV/roles_shared/exports/role_mailbox/export_manifest.json`
-- Purpose: leak-safe metadata exports of role decisions, approvals/waivers, and tooling results (no raw bodies).
-- Verified by: `just role-mailbox-export-check`
-
-The Role Mailbox stores metadata/hashes and pointers. Raw outputs stay in the work packet evidence (and/or pasted to chat when needed).
-
 ---
 
 ## Agentic minimum (required for agentic runs)
 
-For every command that can block/proceed (examples: `just phase-check STARTUP WP-{ID} CODER`, `just phase-check HANDOFF WP-{ID} CODER`, `just validator-dal-audit`, `cargo test`):
+For every command that can block/proceed (example: `cargo test`):
 
 A) In the work packet under `## EVIDENCE`, append:
 - COMMAND: (exact)
@@ -51,10 +44,8 @@ A) In the work packet under `## EVIDENCE`, append:
 - OUTPUT_SHA256: sha256 of the raw stdout/stderr bundle
 - PROOF_LINES: paste 1-10 critical lines (avoid chat truncation; keep it auditable)
 
-B) Optionally also write a matching Role Mailbox entry containing the same OUTPUT_SHA256 + metadata, but NOT the raw output body.
-
 ---
 
 ## Non-agentic (human-run)
 
-Same as above, but the Role Mailbox is optional. The work packet remains canonical evidence.
+Same as above. The work packet remains canonical evidence.

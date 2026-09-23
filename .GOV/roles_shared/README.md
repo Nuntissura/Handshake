@@ -17,16 +17,6 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
   - live launch/control/WP-communication/topology runtime must stay external under `../gov_runtime/roles_shared/`
 - `exports/`
   - canonical shared export surfaces
-- `schemas/`
-  - shared governance schemas
-- `scripts/`
-  - shared executable helpers and shared libraries
-- `checks/`
-  - cross-role/shared enforcement
-- `tests/`
-  - shared governance tests spanning multiple roles
-- `fixtures/`
-  - shared fixtures and golden inputs
 
 ## Shared Records
 
@@ -56,7 +46,7 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 - external `roles_shared/WP_COMMUNICATIONS/`
   - includes per-WP truth bundle detail artifacts under `WP_COMMUNICATIONS/<WP_ID>/truth_bundle/`
   - includes per-WP terminal closeout records under `WP_COMMUNICATIONS/<WP_ID>/TERMINAL_CLOSEOUT_RECORD.json`
-  - includes per-WP baseline compile/scope waiver ledgers written by `just wp-waiver-record`
+  - includes per-WP baseline compile/scope waiver ledgers written by hand
   - includes per-WP cost governor override ledgers when `--override-recovery=<reason>` is used
 - external `roles_shared/validator_gates/`
 - `runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json`

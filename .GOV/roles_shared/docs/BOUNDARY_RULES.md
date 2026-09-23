@@ -47,10 +47,8 @@ Handshake runtime governance state MUST live in product-owned storage, not in re
 ## 4) Governance Kernel Worktree [CX-212B/C]
 
 The governance root path is resolved at runtime via the `HANDSHAKE_GOV_ROOT` environment variable:
-- **Scripts:** Use `GOV_ROOT_REPO_REL` from `.GOV/roles_shared/scripts/lib/runtime-paths.mjs` (falls back to `.GOV/` when env var is unset).
-- **Justfile:** Uses `GOV_ROOT := env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')`.
 - **Purpose:** Enables a shared governance kernel worktree — one canonical `.GOV/` copy that all role worktrees execute from, eliminating cherry-pick ancestry contamination.
-- **Kernel contents:** Scripts, checks, protocols, schemas, templates, validator gate configs, task board, build order, spec, traceability registry.
+- **Kernel contents:** Protocols, templates, validator gate configs, task board, build order, spec, traceability registry.
 - **NOT in kernel:** WP communications, runtime session state, audits — these remain WP-local under the external repo-governance runtime root.
 - **Write access:** The orchestrator MAY write governance edits to the kernel directly. During active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Coders and WP Validators MUST NOT edit `.GOV/` directly [CX-212C].
 

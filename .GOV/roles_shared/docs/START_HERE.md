@@ -7,13 +7,13 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 ## Build Rules (HBR)
 - The active build-rule registry is `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`; Master Spec authority is the `SPEC_CURRENT.md`-resolved `spec-modules/05-security-and-observability.md#5.6`.
 - Codex law `CX-131` makes HBR build-time and handoff-time gate authority. Every WP touching product code must satisfy applicable `packet.acceptance_matrix.hbr` rows per `CX-503B1`.
-- Use `just hbr-matrix-check` for packet HBR matrix closure and `just gov-check` for the full HBR/governance bundle.
+- Packet HBR matrix closure is checked by reading the artifact (check script deleted 2026-09-23).
 
 ## Canonical sources
 - **Spec:** `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON entrypoint for the current indexed Handshake master spec).
 - **Product Reference (navigation only):** `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` — quick-ref summary of tech stack, pillars, engines, primitives, and force multipliers. **Reference only** — all decisions and implementation guidance MUST come from the Master Spec, not from this summary [CX-403].
 - **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` + `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`.
-- **Spec EOF appendices:** Master Spec Section 12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
+- **Spec EOF appendices:** Master Spec Section 12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file.
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + work packets. Handshake logger is for milestones/hard bugs when requested.
 - **Shared tooling guardrails:** `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (shared tooling memory: short append-only `Do` / `Don't` / `Why` / `Context` notes for all roles).
@@ -55,8 +55,7 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 
 **Workflow enforcement commands:**
 ```bash
-# Orchestrator: Create work packet from template
-just create-task-packet WP-{phase}-{name}
+# Orchestrator: author the packet or refinement JSON from the V2 templates by hand
 
 # For PACKET_FORMAT_VERSION >= 2026-04-01, inspect the packet law bundle immediately:
 # DATA_CONTRACT_PROFILE, CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2,
@@ -70,14 +69,11 @@ just create-task-packet WP-{phase}-{name}
 
 # Full governed workflow closure
 # run the packet TEST_PLAN product commands here
-
-# Governance-only health check (no product scan)
-just gov-check
 ```
 
 **Governance-only maintenance (no WP required) [CX-111]:**
-- Allowed scope (planned diff must be strictly limited to these governance surfaces): `/.GOV/**`, `/.github/**`, `/justfile`, `/.GOV/codex/Handshake_Codex_v1.4.md`, `/AGENTS.md`
-- Verification: `just gov-check`
+- Allowed scope (planned diff must be strictly limited to these governance surfaces): `/.GOV/**`, `/.github/**`, `/.GOV/codex/Handshake_Codex_v1.4.md`, `/AGENTS.md`
+- Verification: checked by reading the artifact (check script deleted 2026-09-23)
 - If any product path is touched (`/src/`, `/app/`, `/tests/`): STOP and require a WP (Gate 0/1)
 - Use `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md` for the no-WP recordkeeping flow.
 - Governance-maintenance records:
@@ -88,7 +84,7 @@ just gov-check
   - `.GOV/templates/REPO_GOVERNANCE_TASK_ITEM_TEMPLATE.md`
   - `.GOV/templates/REPO_GOVERNANCE_CHANGELOG_TEMPLATE.md`
 
-**Gate 0 (Startup):** work packet MUST exist and be ready (`just coder-startup`) before implementation starts. If blocked, STOP and request help.
+**Gate 0 (Startup):** work packet MUST exist and be ready before implementation starts. If blocked, STOP and request help.
 
 **Gate 1 (Handoff):** All packet `TEST_PLAN` validation MUST pass before the handoff commit is pushed; the MT JSON status field records the handoff. If blocked, fix issues and re-run.
 
@@ -98,7 +94,7 @@ just gov-check
 
 Quick reference:
 - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md` (drive-agnostic role workflow + operator UX)
-- `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` (live `just` surface by workflow family)
+- `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` (command surface deleted with the governance harness 2026-09-23)
 - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md` (end-to-end governed examples)
 
 ## Repo map (open in an editor and `rg`)
@@ -107,11 +103,7 @@ Quick reference:
 - `src/backend/handshake_core/` - Rust backend crate (API, data, logging).
 - `src/shared/` - placeholder for cross-stack types/contracts (none defined yet).
 - `tests/` - top-level test harness placeholder.
-- `.GOV/roles_shared/scripts/` - shared session, topology, WP, proof, debt, and dev-helper scripts.
-- `.GOV/roles_shared/checks/` - shared governance and repo checks.
-- `.GOV/roles/<role>/{docs,scripts,checks}/` - role-owned startup briefs, execution helpers, and role-specific checks.
-- `.GOV/roles_shared/scripts/hooks/` - git hook plumbing only.
-- `justfile` - operator-facing governance entrypoints that wrap the live role/shared scripts and checks.
+- `.GOV/roles/<role>/docs/` - role-owned startup briefs.
 - `data/` - runtime artifacts; backend logs are written to `data/logs/handshake_core.log`.
 - `.GOV/` - canonical governance/docs surface.
 - `.GOV/operator/` - operator-private notes, drafts, and diaries; non-authoritative unless the Operator explicitly designates a specific file for the current task.
@@ -121,13 +113,10 @@ Quick reference:
 - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, and `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` - AI role workflow protocols.
 
 ## How to run
-> **WARNING for AI Agents:** Commands like `pnpm -C app tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.
+> **WARNING for AI Agents:** Commands like `pnpm -C app tauri dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.
 ```bash
 # Frontend dev shell (Tauri + React)
 pnpm -C app tauri dev
-
-# With just (if installed)
-just dev
 
 # Backend tests
 cargo test --manifest-path src/backend/handshake_core/Cargo.toml
@@ -137,21 +126,11 @@ pnpm -C app test
 
 # Lint
 pnpm -C app run lint
-# or
-just lint
 
 # Product hygiene: run the explicit frontend/backend commands required by your WP TEST_PLAN
-just product-scan
 pnpm -C app run lint
 pnpm -C app test
 cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-
-# Scaffolding
-just new-react-component <ComponentName>
-just new-api-endpoint <endpoint_name>
-
-# Git hook (pre-commit checks)
-git config core.hooksPath .GOV/roles_shared/scripts/hooks
 ```
 
 ### Phase 1 prerequisite: Ollama (local model runtime)
@@ -168,7 +147,6 @@ Handshake environment (optional overrides):
 
 Troubleshooting:
 - Port conflict (11434): `netstat -ano | findstr 11434`
-- If `just dev` reports an Ollama preflight error, confirm `OLLAMA_URL` and that `ollama serve` is running.
 
 For work packets: include scope, expected behavior, in-scope paths, DONE_MEANS, BOOTSTRAP block (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP), and these commands.
 

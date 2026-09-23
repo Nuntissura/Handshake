@@ -46,7 +46,6 @@
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager is the mandatory governed pre-launch authoring lane and temporary worker. The Orchestrator launches, steers, and closes this role before downstream governed product lanes begin.
 - For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`. Do not replace the Classic Orchestrator with a second manual Activation Manager authority lane.
-- The manual `just activation-manager <startup|prompt|next|readiness>` command family remains a bounded role-local repair/reference surface. It does not redefine manual workflow ownership.
 
 ## HBR Gate Obligations
 
@@ -66,7 +65,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - UserManual duty: every implementation that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path must require a same-change in-product internal UserManual update. Packet/refinement/MT acceptance must require purpose, usage path, expected inputs/outputs, affected tools/features/primitives, failure/recovery steps, verification proof, Flight Recorder/EventLedger linkage, and the HBR-INT-009 Flight Recorder/internal_diagnostics/Palmistry posture. If internal_diagnostics or Palmistry are unavailable in the target worktree, require DEFERRED-with-reason plus integration follow-up, never silent skip. Legacy `ModelManual` identifiers are aliases only, not a second manual surface.
 - Per-MT UserManual duty: every implementation MT must carry a `user_manual_obligation` field. Product-behavior MTs require same-change UserManual diff evidence, `MANUAL_VERSION` handling when applicable, a no-context/manual-self-consistency test, and direct inspection of the updated manual path. Pure repo-governance MTs may mark this `NOT_APPLICABLE` only with a typed reason.
 - Readiness duty: do not emit `ACTIVATION_READINESS READY` while HBR applicability is missing, incomplete, or inconsistent with the typed packet contract.
-- Readiness gate (HARD): `ACTIVATION_READINESS` names the `hbr-matrix-check` result, confirms the Master Spec carries every requirement the packet binds by spec anchor or quoted `spec_basis`, and names the pillar rows and their contract fields; otherwise it is not READY. Per Codex CX-SPEC-TRUTH-001, CX-PILLAR-001, CX-TPL-001.
+- Readiness gate (HARD): `ACTIVATION_READINESS` names the HBR matrix result (read from the packet matrix; no check script is available), confirms the Master Spec carries every requirement the packet binds by spec anchor or quoted `spec_basis`, and names the pillar rows and their contract fields; otherwise it is not READY. Per Codex CX-SPEC-TRUTH-001, CX-PILLAR-001, CX-TPL-001.
 - Remediation MTs added to an active WP do not re-enter refinement, enrichment, or activation; they run under the WP's pinned governance commit (Codex CX-EXEC-012, CX-GOV-PIN-001).
 
 ## Why This Role Exists
@@ -155,15 +154,15 @@ Write sequence:
 - Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
 - Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
 - Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
-- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
+- Verify manifest, resolver index, modules and changelog consistency by reading them; no check script is available.
 
 ## Orchestrator-Managed Handback Loop (HARD)
 
 1. Author or repair the refinement/spec-enrichment bundle to review-ready quality.
-2. Write the refinement/spec-enrichment file, run the real refinement/spec checks on that file, and hand back only the file path plus one bounded summary block. File-first handoff is the default. Do not paste the full refinement or spec-enrichment text into chat by default.
+2. Write the refinement/spec-enrichment file, check that file by reading it against the V2 refinement template, and hand back only the file path plus one bounded summary block. File-first handoff is the default. Do not paste the full refinement or spec-enrichment text into chat by default.
 3. The summary block MUST be compact and review-oriented. Include at least:
    - `REFINEMENT_PATH`
-   - `REFINEMENT_CHECK` (`PASS` or `FAIL`) from the real refinement checker, not from placeholder-scan or ASCII-only sanity checks
+   - `REFINEMENT_CHECK` (`PASS` or `FAIL`) from reading the refinement against the V2 template (no checker script is available), not from placeholder-scan or ASCII-only sanity checks
    - `ENRICHMENT_NEEDED` (`YES` or `NO`)
    - `NEW_STUBS_CREATED_OR_UPDATED`
    - `NEW_FEATURES_OR_CAPABILITIES_DISCOVERED`
@@ -184,14 +183,8 @@ Write sequence:
 
 ## Governance Surface Reduction Discipline
 
-- This role exists partly to reduce public workflow surface area around refinement, signature, prepare, packet creation, and activation readiness.
-- The target shape is one canonical activation boundary with one primary readiness artifact, not a growing set of narrow public `record-*`, `prepare-*`, or debugging-only command surfaces.
-- Prefer extending the canonical activation path and its primary artifact over adding new standalone activation commands, checks, or helper scripts.
-- For scripts and recipes specifically, bias toward one larger canonical activation script path rather than multiple sibling public entrypoints that always run together during prepare/packet work.
-- When refinement/signature/prepare/packet/readiness checks normally travel together, consolidate them behind the activation boundary and readiness artifact instead of preserving extra leaf activation surfaces.
-- If a candidate script shares the same owner, inputs, primary readiness artifact, and usual invocation path as the canonical activation path, extend that path instead of adding a sibling.
-- Keep separate public activation scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
-- If a new live activation surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
+Removed 2026-09-23: the command surface was deleted with the governance harness.
+
 - **Fail capture wiring (CX-205N):** Retired under CX-AUTH-002.
 
 ## Worktree And Branch
@@ -226,7 +219,7 @@ Write sequence:
 6. Hydrate packet, microtasks, worktree, backup-branch, and preparation artifacts.
 7. Confirm new executable packets contain `PACKET_ACCEPTANCE_MATRIX` rows generated from the packet closure requirements; do not hand back a packet that relies on prose-only acceptance criteria.
 8. Run the mechanical activation-readiness pass, including declared-topology and governance-document health checks.
-9. Emit `ACTIVATION_READINESS` for the Orchestrator and stop. If the Orchestrator later patches deterministic readiness tooling, it may refresh the readiness artifact with `just activation-manager readiness WP-{ID} --write` before relaunching this role; treat that refresh as the current mechanical handoff surface.
+9. Emit `ACTIVATION_READINESS` for the Orchestrator and stop. The Orchestrator may refresh the readiness artifact by hand before relaunching this role.
 
 ## Refinement Handoff Summary Contract
 
@@ -247,7 +240,7 @@ REFINEMENT_HANDOFF_SUMMARY
 
 - The summary exists to keep refinement review token-light while preserving decision quality.
 - The summary should point the Orchestrator at the file and the exact review focus instead of reproducing the file contents.
-- Placeholder scans, ASCII checks, and diff sanity checks are useful secondary checks, but they do not replace the real refinement checker.
+- Placeholder scans, ASCII checks, and diff sanity checks are useful secondary checks, but they do not replace reading the refinement against the V2 template.
 - If `ENRICHMENT_NEEDED=YES`, say so plainly in the summary and keep packet/signature flow blocked until the spec update is handled.
 - If excerpts are requested, return only the requested sections or anchors, not the whole file.
 
@@ -270,7 +263,7 @@ ACTIVATION_READINESS
 - BACKUP_PUSH_STATUS: <packet claim or <missing>>
 - MICROTASK_STATUS: <NONE | DECLARED:<count>>
 - MICROTASK_GRANULARITY: <NONE | DECLARED:<count> | NO_UPPER_COUNT_BIAS | LOW_COUNT_REQUIRES_RATIONALE_FOR_BUNDLED_WP | MT_SPLIT_VISIBLE>
-- HEALTH_CHECKS: <task-packet-claim-check=PASS|FAIL | wp-activation-traceability-check=PASS|FAIL | build-order-check=PASS|FAIL | wp-declared-topology-check=PASS|FAIL>
+- HEALTH_CHECKS: <packet claim, activation traceability, build order and declared topology, each read by hand: PASS|FAIL>
 - ARTIFACTS_READY: <packet/refinement/spec/signature/worktree outputs>
 - OUTSTANDING_ISSUES: <NONE or concrete list>
 - NEXT_ORCHESTRATOR_ACTION: <single explicit next action>
@@ -280,24 +273,11 @@ ACTIVATION_READINESS
 
 ## Transitional Execution Note
 
-- Manual/prompt role-local action surface now exists through one canonical dispatcher:
-  - `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
-  - `just activation-manager record-refinement WP-{ID} [detail]`
-  - `just activation-manager record-signature WP-{ID} <signature> [workflow_lane] [execution_lane]`
-  - `just activation-manager record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]`
-  - `just activation-manager record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
-  - `just activation-manager create-task-packet WP-{ID} "<context>"`
-  - `just activation-manager task-board-set WP-{ID} <STATUS> [reason]`
-  - `just activation-manager wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"`
-  - `just activation-manager prepare-and-packet WP-{ID} [workflow_lane] [execution_lane] [label]`
-- Packet hydration note: `create-task-packet` now emits `PACKET_ACCEPTANCE_MATRIX` alongside `CLAUSE_CLOSURE_MATRIX`; Activation Manager must preserve those stable row IDs during readiness repair.
-- Those role-local actions dispatch into the canonical Orchestrator / shared implementation surfaces so Activation Manager keeps one public recipe instead of a parallel family of activation-prefixed wrapper recipes.
-- Until the command surface is properly split, the Orchestrator may invoke shared or orchestrator-owned refinement / packet-preparation mechanics on behalf of this role, and Activation Manager may invoke those same implementation surfaces through its dispatcher actions.
-- That temporary command reuse does not change the authority split defined here.
+- Packets carry `PACKET_ACCEPTANCE_MATRIX` alongside `CLAUSE_CLOSURE_MATRIX`; Activation Manager must preserve those stable row IDs during readiness repair.
 
 
 
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
-Use `just gov-check` as the canonical checkpoint bundle surface before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`.
+Retired with the governance harness on 2026-09-23.

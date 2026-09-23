@@ -31,7 +31,6 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 - WORK_PACKET_ARCHIVE_DIR: `.GOV/task_packets/_archive/` (reserved physical archive root during lifecycle-layout migration)
 - WORK_PACKET_SUPERSEDED_ARCHIVE_DIR: `.GOV/task_packets/_archive/superseded/`
 - WORK_PACKET_VALIDATED_CLOSED_ARCHIVE_DIR: `.GOV/task_packets/_archive/validated_closed/`
-- PACKET_RESOLVER_AUTHORITY: `.GOV/roles_shared/scripts/lib/runtime-paths.mjs`
 - PACKET_CANONICAL_LAYOUT: logical `.GOV/work_packets/WP-{ID}/packet.md`; current physical storage `.GOV/task_packets/WP-{ID}/packet.md`; `.GOV/task_packets/WP-{ID}.md` remains legacy flat compatibility
 - REFINEMENT_CANONICAL_LAYOUT: logical `.GOV/work_packets/WP-{ID}/refinement.md`; current physical storage `.GOV/task_packets/WP-{ID}/refinement.md`; `.GOV/refinements/WP-{ID}.md` remains legacy compatibility and pre-packet staging
 - REFINEMENTS_DIR: `.GOV/refinements/` (legacy compatibility / pre-packet staging)
@@ -39,7 +38,6 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 - GATES_STATE:
   - Orchestrator: `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json`
   - Validator: `../gov_runtime/roles_shared/validator_gates/{WP_ID}.json`
-- ROLE_MAILBOX_EXPORT_DIR: `.GOV/roles_shared/exports/role_mailbox/`
 
 ## 4) Compatibility bundle (repo, temporary)
 
@@ -60,7 +58,7 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 - CARGO_TARGET_DIR (external): `../Handshake_Artifacts/handshake-cargo-target`
 - BUILD_ARTIFACTS_CANONICAL_DIRS: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`
 - ARTIFACT_RETENTION_MANIFEST_DIR: `../Handshake_Artifacts/handshake-tool/artifact-retention/`
-- BUILD_ARTIFACTS_POLICY: repo-local `target/` directories are invalid and must be cleaned or blocked by governance checks
+- BUILD_ARTIFACTS_POLICY: repo-local `target/` directories are invalid and must be cleaned
 - NODE_PACKAGE_MANAGER: `pnpm` (for `app/`)
 
 ## 7) Product runtime paths (Handshake defaults)
