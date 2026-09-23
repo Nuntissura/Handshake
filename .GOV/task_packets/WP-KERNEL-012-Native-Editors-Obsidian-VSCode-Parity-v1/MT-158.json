@@ -25,7 +25,7 @@
   "title": "B18-MT-158-Locus-Job-Path-Runs-Under-The-Account-Session",
   "group": "B18",
   "created_at_utc": "2026-09-23T15:01:47.520Z",
-  "updated_at_utc": "2026-09-23T18:56:17.805Z",
+  "updated_at_utc": "2026-09-23T22:31:51.277Z",
   "identity": {
     "mt_id": "MT-158",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -49,15 +49,15 @@
     "question": "Locus job-path authority gap found by KERNEL_BUILDER-C4 (MT-154 residual): option A (new MT inside WP-KERNEL-012) vs the 012-bis refactor."
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "depends_on": [
       "MT-154"
     ],
     "blocks": [],
     "active": true,
-    "validator_verdict": null,
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
+    "validated_by": "WP_VALIDATOR-D1V-20260923-2240",
+    "validated_at_utc": "2026-09-23T22:31:51.277Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-C4-20260923-100258",
     "claimed_at_utc": "2026-09-23T15:01:47.520Z",
@@ -965,5 +965,92 @@
     },
     "reuse_note": "Proof on these 4 non-DB checks carries forward to the next SHA only if the relevant crate inputs (0cfbff64..0caf1c10 diff scope, features, toolchain) are unchanged (VPX-004); re-verify when the new candidate SHA lands.",
     "note": "lifecycle.status and validator_verdict intentionally NOT modified by this partial block; MT remains READY_FOR_VALIDATION pending DB-dependent checks and pin re-confirm."
+  },
+  "validation_v1": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-D1V-20260923-2240",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "timestamp_utc": "2026-09-23T22:31:51.277Z",
+    "env": {
+      "lane": "D: (wpv-d1)",
+      "target": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target",
+      "features": "app-runtime,surreal-test-support,test-utils",
+      "HANDSHAKE_TEST_SURREAL_SYNC": "never",
+      "test_threads": "1-4 per check per command_or_method"
+    },
+    "proof_records": [
+      {
+        "id": "PR-MT-158-check-sets-reused",
+        "executor_role": "WP_VALIDATOR",
+        "note": "Reused from MT-158.json validation_v1_partial (WP_VALIDATOR-C4V-20260923-1840): PR-nondb-check-tests, PR-nondb-clippy-changed, PR-nondb-fmt-check, PR-nondb-diff-check. CAVEAT: those records' diff_base..candidate scope was 0cfbff64..0caf1c10; candidate 8f60313b adds 4 more commits (9552ca2b, a4f5a46f, 52873427, 8f60313b) touching jobs.rs/schema.rs/schema.surql again, so this reuse exceeds the partial's own reuse_note boundary. Directed reuse per session orchestrator instruction (2026-09-23/24). MT-159 remediation_v1 gates (KB-C4-102..105, candidate 8f60313b) independently confirm cargo check exit 0 for all 3 feature sets and clippy 0 findings on changed lines vs 0cfbff64, but those are KERNEL_BUILDER-executed (implementer proof, VPX-002 triage input only, not independent).",
+        "covers": [
+          "MT-158"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      },
+      {
+        "id": "PR-MT-158-pins",
+        "executor_role": "WP_VALIDATOR",
+        "command": "handshake_core-1e9b2aa02575dd71.exe --exact --test-threads=4 storage::surreal::schema::tests::{declarative_schema_catalog_is_complete_and_content_sensitive,mt139_current_schema_info_pin_matches_fresh_mem_catalog,mt109_loom_catalog_dependencies_are_complete_and_deterministic,mt138_canonical_atelier_catalog_fingerprint_matches_compiled_pin,mt109_authority_catalog_pins_are_deterministic,schema_delta_upgrade_statements_re_emit_every_mt154_delta}",
+        "exe": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target/debug/deps/handshake_core-1e9b2aa02575dd71.exe",
+        "exe_sha256": "744e4a090c17d0b658464336d533a93c4233dcd95e06b2c063378108f2ce8a3e",
+        "log": "../../MT-158/wpv-d1/logs/10-pins.log",
+        "result_line": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2254 filtered out; finished in 29.12s",
+        "covers": [
+          "MT-158"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+        "supporting_reuse": "Corroborated by independent C-lane validator run at same candidate: D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/wpv-c3x/logs/37-pin-measure.log, 'test result: ok. 7 passed; 0 failed' (7th test mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current not in this MT's required list)."
+      },
+      {
+        "id": "PR-MT-158-isolation",
+        "executor_role": "WP_VALIDATOR",
+        "command": "mt154_non_loom_route_authority_tests-e96fa3daf77fb844.exe --exact --test-threads=1 mt158_locus_jobs_require_account_session mt158_locus_job_rows_are_private_to_the_creating_account",
+        "exe": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-012/MT-109/kb-c3/target/debug/deps/mt154_non_loom_route_authority_tests-e96fa3daf77fb844.exe",
+        "exe_sha256": "22f253dd35ede0b23d6b9051da591aec0f6b7f0f949e165250f2ea5a6d420b89",
+        "log": "../../MT-158/wpv-d1/logs/11-isolation.log",
+        "result_line": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 78.19s",
+        "covers": [
+          "MT-158",
+          "MT-159"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      },
+      {
+        "id": "PR-MT-158-regression",
+        "executor_role": "WP_VALIDATOR",
+        "commands": [
+          "micro_task_executor_tests-737b4562d6dbea87.exe --test-threads=2 -> log 14-reg-microtaskexec.log: ok. 50 passed; 0 failed",
+          "mt151_early_lock_release_race_tests-12e1e941c8055f53.exe --test-threads=2 -> log 15-reg-mt151.log: ok. 3 passed; 0 failed",
+          "wp_kernel_012_native_editor_routes_tests-b414f9c9a3d49cc3.exe route1_locus --test-threads=2 -> log 16-reg-route1locus.log: ok. 2 passed; 0 failed",
+          "handshake_core-1e9b2aa02575dd71.exe storage::surreal::mt136_database_surface_proof_c --test-threads=2 -> log 13-reg-mt136.log: FAILED (see blocker)"
+        ],
+        "covers": [
+          "MT-158"
+        ],
+        "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025"
+      }
+    ],
+    "checks_status": {
+      "CHECK-SETS": "PASS (reused, see PR note)",
+      "CLIPPY": "PASS (reused, see PR note)",
+      "PINS": "PASS (6/6, fresh D-lane run)",
+      "ISOLATION": "PASS (4/4, fresh D-lane run)",
+      "REGRESSION": "FAIL - storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state: Error: NotFound(\"workspace\"); propagation point src/storage/surreal/mt136_database_surface_proof_c.rs:1130"
+    },
+    "blocker": {
+      "id": "MT-154-WS-DELETE-INDEX",
+      "description": "Real regression from MT-154 commit 7e73eb03 (owner workspace delete query gained a statement; the trusted delete reads the wrong result index), causing NotFound(\"workspace\") in storage::surreal::mt136_database_surface_proof_c::tests::uncovered_database_methods_use_real_durable_surreal_state. Confirmed by session orchestrator via builder diagnosis. Fix pending on a new candidate SHA; MT-158/MT-159 own checks (CHECK-SETS, CLIPPY, PINS, ISOLATION, and the 3 other REGRESSION suites) all pass at 8f60313b.",
+      "diagnosed_by": "KERNEL_BUILDER (relayed by session orchestrator ORCH/IV)",
+      "re_verdict_on": "next candidate SHA fixing MT-154-WS-DELETE-INDEX"
+    },
+    "verdict": "BLOCKED_ON_DEPENDENCY"
+  },
+  "validation_v1_transition": {
+    "from_status": "READY_FOR_VALIDATION",
+    "to_status": "BLOCKED_ON_DEPENDENCY",
+    "reason": "MT-154-WS-DELETE-INDEX blocks REGRESSION proof; all MT-own checks pass",
+    "at_utc": "2026-09-23T22:31:51.277Z",
+    "by": "WP_VALIDATOR-D1V-20260923-2240"
   }
 }
