@@ -2759,6 +2759,207 @@ mod tests {
         Ok((status, value))
     }
 
+    /// MT-109 C2 items 6 and 8: the production workspace create provisions the owner's memory
+    /// surfaces (Master Spec 02:2776), and the EventLedger aggregate, debug-session and
+    /// source-control routes deny an unauthenticated caller (02:2758 deny by default).
+    #[tokio::test]
+    async fn mt109_c2_memory_surfaces_provisioned_and_process_routes_deny_by_default(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let binding = WorkspaceBindingFixture::new()?;
+        let (state, _store) = setup_state().await?;
+        let (_owner, headers) =
+            workspace_test_principal(&state, &binding, "mt109-c2-owner").await?;
+        let (_other, other_headers) =
+            workspace_test_principal(&state, &binding, "mt109-c2-other").await?;
+        let workspace = create_owned_test_workspace(&state, &headers).await?;
+        let ws = workspace.id.clone();
+        for (capability, kind, action) in [
+            (
+                "memory.read",
+                ResourceKind::MemoryPack,
+                ResourceAction::Read,
+            ),
+            (
+                "memory.read",
+                ResourceKind::MemoryProposal,
+                ResourceAction::Read,
+            ),
+            (
+                "memory.propose",
+                ResourceKind::MemoryProposal,
+                ResourceAction::Create,
+            ),
+            (
+                "memory.read",
+                ResourceKind::MemoryCommitReport,
+                ResourceAction::Read,
+            ),
+            (
+                "memory.read",
+                ResourceKind::MemoryItemCount,
+                ResourceAction::Read,
+            ),
+        ] {
+            let owner = crate::api::authority::authorize_request(
+                &state, &headers, capability, kind, &ws, action,
+            )
+            .await;
+            assert!(
+                owner.is_ok(),
+                "owner {capability} {} must be provisioned by the production workspace create",
+                kind.as_str()
+            );
+            let other = crate::api::authority::authorize_request(
+                &state,
+                &other_headers,
+                capability,
+                kind,
+                &ws,
+                action,
+            )
+            .await;
+            assert!(
+                other.is_err(),
+                "another account stays denied on {}",
+                kind.as_str()
+            );
+        }
+        let (status, body) = owned_route_json(
+            crate::api::memory::routes(state.clone()),
+            "GET",
+            &format!("/workspaces/{ws}/memory/proposals"),
+            &headers,
+            None,
+        )
+        .await?;
+        assert_ne!(
+            status,
+            StatusCode::FORBIDDEN,
+            "owner memory read route: {body}"
+        );
+
+        // Item 2 (diagnosis b): an owner rename of a standalone block commits with its
+        // KNOWLEDGE_LOOM_BLOCK_MUTATED receipt stamped with the session principal.
+        let (status, note) = owned_route_json(
+            crate::api::loom::routes(state.clone()),
+            "POST",
+            &format!("/workspaces/{ws}/loom/blocks"),
+            &headers,
+            Some(json!({"content_type": "note", "title": "C2 rename source"})),
+        )
+        .await?;
+        assert!(
+            status.is_success(),
+            "create standalone note -> {status}: {note}"
+        );
+        let note_id = note["block_id"].as_str().ok_or("note block_id")?.to_owned();
+        let (status, renamed) = owned_route_json(
+            crate::api::loom::routes(state.clone()),
+            "PATCH",
+            &format!("/workspaces/{ws}/loom/blocks/{note_id}"),
+            &headers,
+            Some(json!({"title": "C2 renamed"})),
+        )
+        .await?;
+        assert_eq!(status, StatusCode::OK, "owner rename PATCH: {renamed}");
+        assert_eq!(renamed["title"], "C2 renamed");
+
+        // Item 7: tag, mention and unresolved-wikilink backlinks no longer fail the create.
+        let (status, created) = owned_route_json(
+            crate::api::knowledge_documents::routes(state.clone()),
+            "POST",
+            "/knowledge/documents",
+            &headers,
+            Some(json!({
+                "workspace_id": ws,
+                "title": "C2 link kinds",
+                "content_json": {"type": "doc", "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "see [[C2 Missing Target]] and #ops"}
+                ]}]}
+            })),
+        )
+        .await?;
+        assert!(
+            status.is_success(),
+            "record-user document create with non-document links -> {status}: {created}"
+        );
+
+        let anonymous = HeaderMap::new();
+        let aggregate = format!("/kernel/events/aggregates/workspace/{ws}");
+        let (status, _) = owned_route_json(
+            crate::api::kernel::routes(state.clone()),
+            "GET",
+            &aggregate,
+            &anonymous,
+            None,
+        )
+        .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "anonymous aggregate read");
+        let (status, body) = owned_route_json(
+            crate::api::kernel::routes(state.clone()),
+            "GET",
+            &aggregate,
+            &headers,
+            None,
+        )
+        .await?;
+        assert_eq!(status, StatusCode::OK, "owner aggregate read: {body}");
+        let (status, events) = owned_route_json(
+            crate::api::kernel::routes(state.clone()),
+            "GET",
+            &format!("/kernel/events/aggregates/loom_block/{note_id}"),
+            &headers,
+            None,
+        )
+        .await?;
+        assert_eq!(status, StatusCode::OK, "owner block ledger read: {events}");
+        assert!(
+            events.as_array().is_some_and(|rows| rows.iter().any(|row| {
+                row["event_type"] == "KNOWLEDGE_LOOM_BLOCK_MUTATED"
+                    && row["actor"]["kind"] == "operator"
+            })),
+            "the rename receipt is visible to its owner with the session actor: {events}"
+        );
+        let (status, other_events) = owned_route_json(
+            crate::api::kernel::routes(state.clone()),
+            "GET",
+            &format!("/kernel/events/aggregates/loom_block/{note_id}"),
+            &other_headers,
+            None,
+        )
+        .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            other_events.as_array().map(Vec::len),
+            Some(0),
+            "another account reads none of the owner's receipts: {other_events}"
+        );
+        let (status, _) = owned_route_json(
+            crate::api::debug_adapter::routes(state.clone()),
+            "POST",
+            "/debug/sessions",
+            &anonymous,
+            Some(json!({})),
+        )
+        .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "anonymous debug launch");
+        let (status, _) = owned_route_json(
+            crate::api::source_control::routes(state.clone()),
+            "GET",
+            "/source-control/status?repo_path=.",
+            &anonymous,
+            None,
+        )
+        .await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "anonymous source-control read"
+        );
+        Ok(())
+    }
+
     async fn workspace_cascade_rows(
         state: &AppState,
         workspace_id: &str,
