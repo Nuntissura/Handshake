@@ -2577,8 +2577,11 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // anchor branch and fn::mt158_dependency_graph_scope (previous value
 // ba67f200ef98758d62b2b307efae4efdc220d1ef07bf6ef44551ce389d57d271); kb-c4 run 82 (equals
 // sha256 of schema.surql).
+// MT-159 re-pin: owner-scoped Locus keys (key ASSERTs, (owner_account_id, id) indexes, create
+// permission owner-key check, fn::mt159_locus_key_id / fn::mt159_locus_key_is_own) (previous
+// value 35ce1b4d6578eedd5ef6f054f3b70432f94b2728fd9ae98cd4d35dd32e8974be); kb-c4 run 101.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "35ce1b4d6578eedd5ef6f054f3b70432f94b2728fd9ae98cd4d35dd32e8974be";
+    "27528c0e71735b81fbaa798dabb9e35b3805a16166db450d86fec4baaa32c38f";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2597,8 +2600,10 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // 01e4c14cc6e3d75239c053974c5de2c4168c2ae50d76d3f418819ce7d7e993fd); kb-c3 run 04.
 // MT-154/MT-158 re-pin (same batch as GENERATED_SURREALQL_SHA256; previous
 // c6a1846bd23c9706a61feac9f267b6f32c77fb8f1b5faa2358d88b2d83a42436); kb-c4 run 82.
+// MT-159 re-pin (previous 54b282b48cf22a2f02ae0d2964b659b01c53da3177c9e95ae5d70dce358fce7c); kb-c4
+// run 101.
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "54b282b48cf22a2f02ae0d2964b659b01c53da3177c9e95ae5d70dce358fce7c";
+    "a50bd154872a5cffe14e3d1ffe8823852d70a76f4a7a2853ecd91736f461238c";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -2646,8 +2651,10 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-109 C3 re-pin (previous 13be68fc1edba9476e4cdd2db98f51b02ee33190683472fca3bb4cf57ee7225c); kb-c3 run 04.
 // MT-154/MT-158 re-pin (previous ad5ff085fc07966c351da7cd56e2e423577d8ff58240d97a25ee5107048eb363);
 // kb-c4 run 82.
+// MT-159 re-pin (previous 5cb894682f37a18549316cc96e73167171ec21fa71e381da55f6d25d507e52f3);
+// kb-c4 run 101.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "5cb894682f37a18549316cc96e73167171ec21fa71e381da55f6d25d507e52f3";
+    "33f106de7ee1f2f5caa33fe7e2de5e61ba7d563d8064c727c89248dbc43fa86c";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -7103,9 +7110,10 @@ mod tests {
     async fn open_test_storage(
         directory: &tempfile::TempDir,
     ) -> Result<SurrealStorage, SurrealStorageError> {
-        SurrealStorage::open(SurrealStorageConfig::with_path(
-            directory.path().join("store"),
-        )?)
+        SurrealStorage::open(
+            SurrealStorageConfig::with_path(directory.path().join("store"))?
+                .with_test_sync_from_env(),
+        )
         .await
     }
 

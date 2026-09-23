@@ -293,7 +293,7 @@ pub(crate) async fn locus_task_board_update_work_packet(
     let status = canonical_work_packet_status_for_storage(status)?;
     let task_board_status = canonical_task_board_status_for_storage(task_board_status)?;
     let bindings = TaskBoardUpdateBindings {
-        record: locus_record(WORK_PACKETS, &owner, &wp_id),
+        record: locus_record(WORK_PACKETS, &owner, wp_id),
         expected_version,
         status: status.to_owned(),
         task_board_status: task_board_status.to_owned(),
@@ -520,7 +520,7 @@ async fn delete_wp(
 async fn load_wp(storage: &SurrealStorage, wp_id: &str) -> StorageResult<WorkPacketRow> {
     // MT-159: owner-scoped Locus keys (see locus_owner_scope).
     let owner = locus_owner_scope(storage).await?;
-    let record = locus_record(WORK_PACKETS, &owner, &wp_id);
+    let record = locus_record(WORK_PACKETS, &owner, wp_id);
     let row: Option<WorkPacketRow> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
@@ -933,7 +933,7 @@ async fn remove_dependency(
             None,
             || {
                 let bindings = RecordBinding {
-                    record: locus_record(DEPENDENCIES, &owner, &dependency_id),
+                    record: locus_record(DEPENDENCIES, &owner, dependency_id),
                 };
                 async move {
                     database
@@ -1147,8 +1147,8 @@ async fn load_tracked_mt(
     // MT-159: owner-scoped Locus keys (see locus_owner_scope).
     let owner = locus_owner_scope(storage).await?;
     let bindings = MicroTaskBinding {
-        record: locus_record(MICRO_TASKS, &owner, &mt_id),
-        wp: locus_record(WORK_PACKETS, &owner, &wp_id),
+        record: locus_record(MICRO_TASKS, &owner, mt_id),
+        wp: locus_record(WORK_PACKETS, &owner, wp_id),
     };
     let row: Option<MicroTaskRow> = storage
         .with_data_operation(move |database| {
