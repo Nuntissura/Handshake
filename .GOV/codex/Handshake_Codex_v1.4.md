@@ -64,6 +64,8 @@
 
 [CX-SAFE-001] Do not stop, kill, restart, suspend or otherwise disrupt a process this session did not start without identifying its exact PID and consequences and receiving `PROCESS_STOP_APPROVED:<comma-separated-PIDs>` for that unchanged target list.
 
+[CX-SAFE-002] Automation must stay non-interactive and in the background: invoke only tools verified to be installed and non-interactive, and never trigger installers, app-store prompts, foreground windows or focus changes.
+
 [CX-109] Keep projects and governance relocatable: use repo-relative paths, root discovery or explicit local configuration; do not embed machine-specific roots in shared authority or code.
 
 [CX-109A] New names must use hyphens or underscores instead of spaces; preserve existing names unless the task authorizes changing them.
@@ -78,6 +80,18 @@
 
 [CX-PROOF-002] Implementers may submit READY_FOR_VALIDATION, never self-certify COMPLETED or issue independent validator verdicts. The assigned independent validator owns acceptance and integration judgment; tests and advisory sub-agent reviews remain implementation evidence.
 
+[CX-EXEC-001] Prioritize product repairs and acceptance outcomes. Builds, diagnostics, authority rereading and coordination must enable a specific next implementation or acceptance decision; activity volume and process liveness are not deliverable progress. Once a blocking defect is established, repair it within role authority or route the exact finding to its implementer; further investigation must resolve an uncertainty needed for the repair.
+
+[CX-EXEC-002] Read applicable authority once per revision and scope; reopen affected sections only for changed instructions/scope or a specific unresolved question. Use existing task state and proof references; these execution rules require no new tests, receipts, reports or tracking files.
+
+[CX-EXEC-003] After two unsuccessful attempts at the same blocker, change the technical approach on an evidence-based hypothesis or escalate concisely with the exact blocker and needed decision/dependency. Count attempts across agents, sessions and diagnostic/test retries; changing the executor does not reset the count. Do not launch another identical cycle. Preserve scope and work, continue justified unblocked work, and report the task incomplete if no justified next action remains. This standing Operator-authorized escalation qualifies persistence and HBR-STOP; it never authorizes PASS, reduced acceptance or disruption of another session's processes.
+
+[CX-EXEC-003A] Count attempts per failing check or assertion, not per hypothesis; a new explanation for the same failure does not reset the count. Before any further run on that failure, record in the existing task state the failing assertion, what each attempt changed, a root-cause hypothesis with its code location and the intended fix; then at most one probe run and one confirming run.
+
+[CX-EXEC-005] Give every test or long-running proof invocation a wall-clock timeout. Record an expiry as TIMEOUT, distinct from pass and fail; a force-stopped process is never recorded as a result.
+
+[CX-EXEC-004] Batch related repairs within approved scope before expensive validation. During implementation, run focused proof when it determines the next edit; run required acceptance proof on stable batch inputs before readiness or PASS. A rerun requires changed relevant inputs, invalid/missing evidence, or a distinct evidence-based hypothesis. A new agent/session, MT boundary or report alone does not justify a rerun; reuse valid independent evidence under the assigned validator protocol.
+
 ## Artifact isolation
 
 [CX-PATH-001] The Operator does not insert backslashes before underscores. Treat any such sequence encountered in an Operator-provided path as a text-processing artifact, never an Operator mistake or intended directory separator. Reason: formatting escapes can be mistaken by the assistant for filesystem separators, splitting one folder name into two and causing incorrect resolution or unwanted folder creation.
@@ -88,11 +102,13 @@
 
 [CX-984-001] The sole build/test/tool artifact root is `Handshake Worktrees\Handshake_Artifacts`, relative to the enclosing Handshake project folder. `Handshake_Artifacts` is one directory name. Locate that project folder from the canonical live kernel checkout that owns this Codex (resolve any `.GOV` junction to its real owner first); never resolve the path from an arbitrary working directory, WP worktree or document directory. Store portable paths in shared files; absolute paths resolved at runtime are allowed.
 
-[CX-984-012] Verify that the sole root exists and resolves to the Operator-designated directory before creating output. If missing, ambiguous or inconsistent with configured paths, stop the affected run and resolve the discrepancy; never auto-create an artifact root, search for a convenient substitute or fall back to another disk, project or sibling folder. Creating owned children is allowed only beneath the verified root.
+[CX-984-012] Verify that the sole root exists and resolves to the Operator-designated directory before creating output. If missing, ambiguous or inconsistent with configured paths, stop the affected run and resolve the discrepancy; never auto-create an artifact root, search for a convenient substitute or fall back to another disk, project or sibling folder. An explicit Operator grant under [CX-984-014] is not a fallback. Creating owned children is allowed only beneath the verified root.
 
 [CX-984-013] `HANDSHAKE_ARTIFACTS_ROOT` and the legacy `HANDSHAKE_ARTIFACT_ROOT` may convey only that same verified root; they do not authorize alternatives. Resolve the project-relative path in [CX-984-001] from the enclosing project folder; the equivalent `../Handshake_Artifacts` is valid only from the canonical kernel checkout root. Never resolve relative overrides against process working directories. Pass the verified absolute path to subprocesses and report it before launch. A root relocation requires explicit Operator instruction.
 
-[CX-984-002] Every WP must have its own `<WP_ID>/` subfolder beneath the sole root. MT work uses `<WP_ID>/<MT_ID>/<OWNER_SLUG>/`; packet-level work without an MT uses `<WP_ID>/<OWNER_SLUG>/`. Cargo targets, caches, logs, coverage, TMP and TEMP belong below that owner. Concurrent owners must not share mutable output.
+[CX-984-002] Every WP must have its own `<WP_ID>/` subfolder beneath the sole root. MT work uses `<WP_ID>/<MT_ID>/<OWNER_SLUG>/`; packet-level work without an MT uses `<WP_ID>/<OWNER_SLUG>/`. Cargo targets, caches, logs, coverage, TMP and TEMP belong below that owner. Concurrent owners must not share mutable output. Run at most one build per physical disk at a time.
+
+[CX-984-014] The Operator may grant a capped, WP-scoped build-output location on another disk. The grant covers only the build target directory (`CARGO_TARGET_DIR` or equivalent), must be recorded with its path and size cap, stays within that cap, and is cleaned when the WP closes. Test runtime stores, TMP/TEMP, workspaces, logs and evidence remain under the sole root.
 
 [CX-984-006] Routine cleanup under this rule is authorized without a separate approval. Clean no-longer-needed owned output after each run; after a WP is validated PASS, clean its remaining disposable output before integration. First verify resolved paths stay inside that WP and no active process uses the targets. Preserve required review evidence and still-needed reuse with an explicit retention reason; remove retained output when that need ends. Remove the WP folder when empty, never the artifact root or another WP's output. The parent checks delegated cleanup; another owner's active or retained output requires coordination before removal.
 

@@ -99,14 +99,15 @@ Write sequence:
 
 ## Validator-Executed Proof [VPX] (HARD)
 
-- [VPX-001] (amended 2026-09-12, operator reuse clarification) A PASS at any level (per-MT `MT_VERDICT` PASS, `READY_FOR_VALIDATION -> COMPLETED`, whole-WP PASS, merge readiness) is legal only when every required proof command for that level was executed by the validator's own governed session, at the packet/MT `validate_at_commit` commit (or the reviewed range head), on a clean tree (`git status` clean for the product paths in scope; a dirty tree is recorded in the proof record and blocks PASS). What must be the validator's own is the test EXECUTION and the captured result (exit code, result line, log); build-cache reuse is allowed and encouraged, including a shared warm `CARGO_TARGET_DIR` under `${HANDSHAKE_ARTIFACTS_ROOT}` that the implementer also used, because cargo fingerprints rebuild anything whose inputs changed. The proof record's `target_dir` records which target was used.
+- [VPX-001] A PASS requires independently executed proof for every required command at that level on the reviewed product inputs and a clean product tree. The assigned validator must execute missing or invalid proof; verified reuse under [VPX-004] satisfies this execution requirement without another run. Record dirty product state and withhold PASS. Reuse compatible warm build artifacts under Codex ownership rules; concurrent owners must not mutate the same target.
 - [VPX-002] Implementer-executed proof (Coder, Kernel Builder, their sub-agents), their result lines, logs, reports, and summaries are triage input only. They may direct where the validator looks; they are never cited as the basis of PASS. Reading them is not verification.
 - [VPX-003] Every validator proof execution is recorded as a typed proof record (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict receipt cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
-- [VPX-004] Reuse: the validator may reuse its OWN proof record for a later verdict only when commit, clean-tree state, command, features, and environment knobs are identical. Cross-role reuse (validator citing implementer records, or vice versa) is forbidden. For validator verdicts this supersedes the reuse clause of [WPV-ART-003] / [IV-ART-003] and [CX-503I1]; those IDs stay in place.
-- [VPX-005] (amended 2026-09-12) Cost is managed by build caching ([VPX-001], [VPX-008]) and test bundling ([VPX-007]) plus focused-then-broad sequencing, never by skipping execution or citing implementer runs. The validator executes the focused proof for each MT itself (bundled across MTs at the same commit where possible); the validator executes the broad suite at each declared batch/final boundary. `FULL_CARGO_SUITE=DEFERRED_TO_SESSION_MT_BATCH` remains a valid intermediate state only for the BROAD suite and only until that boundary.
+- [VPX-004] Reuse valid proof executed by an independent validator, including a prior validator session or the other validator role, after inspecting its command, exit/result, log and input provenance. Verify that relevant source/dependency inputs, binary identity where used, features/configuration, environment/resource conditions and asserted behavior match the reviewed candidate. A different commit with unchanged relevant inputs, a new agent/session or a new MT verdict alone does not invalidate proof. Missing, unverifiable or changed inputs require affected proof again. Implementer proof cannot become independent acceptance evidence through delegation or relabeling. Cite the existing proof record and its applicability in the existing verdict; no separate reuse report. This governs reuse under [WPV-ART-003], [IV-ART-003] and [CX-503I1].
+- [VPX-005] Review stable batches and execute only missing or invalid required proof, reusing valid independent evidence under [VPX-004]. Bundle focused acceptance coverage across MTs; execute required broad proof at declared batch/final boundaries when its evidence is missing or invalid. An established product defect goes directly to the implementer with the exact finding; do not keep testing that defect while awaiting repair. Apply Codex CX-EXEC-003/004 to retries and escalation. Deferral never permits PASS with missing required proof.
 - [VPX-006] `NOT_RUN_WAIVED` is a legal evidence state only when the cited `WAIVERS GRANTED` entry carries a valid operator signature: `SIGNATURE=` (alias `USER_SIGNATURE=`) pipe field, format `{username}{DDMMYYYYHHMM}`, registered one-time in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (ledger entry `status=ACTIVE`, `signatureValid=true` per `parsePolicyWaiverLedger`). The verdict must cite the waiver id AND the signature. An unsigned waiver is not a waiver: ledger status is `UNSIGNED`, the evidence state is `BLOCKED`, and the validator reports the missing signature to the Orchestrator/operator.
-- [VPX-007] Bundling: the validator SHOULD validate a batch of READY MTs that share one `validate_at_commit` (or a contiguous range whose head is validated) with ONE build and ONE bundled test invocation (multiple `--test` targets / name filters in one cargo run; `RUST_TEST_THREADS` as the packet requires). One proof record may cover many MTs via `covers[]`; each covered MT's verdict cites that record. Focused per-MT reruns are for findings, not the default.
-- [VPX-008] Build once per commit: never rebuild for a second MT at the same commit and feature set; reuse the validator's own build artifacts and proof records per [VPX-004]. A rebuild is triggered only by a commit change, a feature/env-knob change, or a dirty tree.
+- [VPX-007] Batch validation is the default: combine compatible READY MTs at one stable candidate into one build and a bundled test invocation where the runner permits. One proof record may cover multiple MTs through covers[]; each verdict cites its coverage. Separate runs require incompatible inputs/isolation or a specific finding whose result selects the next repair. Preserve every required acceptance check.
+- [VPX-008] Reuse compatible build artifacts across MTs and validators with exclusive mutable-target ownership. Rebuild only when changed build inputs or missing/invalid artifacts require it; a commit identifier change, new session, status/report edit or MT boundary alone is not a rebuild reason. Reuse proof separately under [VPX-004]; a warm build does not itself prove test execution.
+- [IV-VPX-REF-001] WP Validator protocol rules [VPX-009], [VPX-010], [WPV-DEP-001], [WPV-STATUS-001] and [WPV-ART-006] apply equally to Integration Validator proof and verdicts.
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
@@ -160,7 +161,7 @@ The primary job. Resolve `SPEC_CURRENT` to the active indexed bundle manifest/mo
 - Read each clause in the packet's `CLAUSE_CLOSURE_MATRIX`
 - Read the packet's `PACKET_ACCEPTANCE_MATRIX`; every required row must be `PROVED`, `CONFIRMED`, or `NOT_APPLICABLE` with concrete evidence or reason before PASS
 - For each clause, verify the coder's code implements the requirement
-- Check that proof commands actually exercise the claimed functionality, then execute every WP-level required proof command in the Integration Validator's own governed session and target ([VPX-001], [VPX-003]); implementer proof records, logs, and result lines are triage input only ([VPX-002])
+- Check that proof commands actually exercise the claimed functionality; inspect reusable independent evidence under [VPX-004] and execute missing or invalid WP-level proof under [VPX-001]/[VPX-003]. Implementer results remain triage input under [VPX-002].
 - Verify GUI/operator-visible behavior has Argus evidence for reachable navigation, stable `author_id` targets, inspectable state, safe steering where applicable, before/after observation, and layout/text sanity
 - Verify each implementation MT's internal UserManual update, version handling when applicable, no-context/manual self-consistency test, direct inspection evidence, and HBR-INT-009 diagnostic-posture linkage
 - Verify test coverage matches the packet's `TEST_PLAN`
@@ -216,7 +217,7 @@ After judgment, write the verdict:
 
 - [IV-ART-001] WP-associated Cargo builds, tests, and their output MUST use `../Handshake_Artifacts/<WP_ID>/<MT_ID>/`: one actual WP folder containing actual MT folders. `Handshake_Artifacts` is one directory name, never `Handshake/_Artifacts`. Resolve from the worktree root or `HANDSHAKE_ARTIFACTS_ROOT`; keep recorded paths drive-agnostic.
 - [IV-ART-002] Set `CARGO_TARGET_DIR` to `<artifact-root>/<WP_ID>/<MT_ID>/<OWNER_SLUG>/target`; route logs, test/tool outputs, caches, coverage, `TMP`, and `TEMP` below that same owner directory. Concurrent owners MUST use disjoint mutable targets. Inspect each runner/configuration and resolved paths before launch/review; root/category/owner and WP-only layouts do not satisfy the hierarchy.
-- [IV-ART-003] A batch spanning MTs MUST declare one actual owning MT and every covered MT in existing typed evidence; artifacts stay below the owning WP/MT. Reuse compatible builds and unchanged proof per [CX-503I1]; this hierarchy alone MUST NOT cause duplicate builds/tests or invalidate product proof. (Reuse clause superseded for verdict purposes by [VPX-004]: whole-WP verdicts may reuse only the Integration Validator's own proof records under identical commit, clean-tree state, command, features, and environment knobs.)
+- [IV-ART-003] A batch spanning MTs must declare one actual owning MT and every covered MT in existing typed evidence; artifacts stay below the owning WP/MT. Reuse compatible builds and valid independent proof per [VPX-004]/[VPX-008]; artifact hierarchy alone must not cause duplicate builds/tests or invalidate product proof.
 - [IV-ART-004] Clean only completed, no-longer-needed owner output below WP/MT after resolved-path and process-ownership checks; preserve compatible reuse and required review evidence. Never clean another owner, live output, the shared root, or a shared WP/MT parent. Parent agents inspect delegated cleanup; final WP cleanup follows validation before merge.
 - [IV-ART-005] Legacy root-hygiene helpers do not establish WP/MT hierarchy compliance. Apply newer Operator path-shape precedence in [CX-984-010], retain other HBR obligations, and report helper/HBR drift with verified scoped overrides.
 
@@ -252,7 +253,7 @@ After verdict and merge:
 - Run governance repair scripts (Orchestrator's job)
 - Steer the coder directly (routes through Orchestrator on FAIL)
 - Modify governance tooling scripts
-- Spawn helper agents
+- Spawn sub-agents beyond authorization: read-only review lenses are always allowed (see HBR sub-agent duty); implementer and validator agents only when the Operator assigns orchestration to this session
 - Override operator decisions
 - Write approvals without having read the actual code and spec
 
@@ -303,23 +304,9 @@ After verdict and merge:
 - Before merge operations, verify current `main` HEAD and create a safety stash or backup branch.
 - Use `just backup-snapshot` before any broad topology changes.
 
-## Conversation Memory (MUST â€” `just repomem`)
+## Memory
 
-Cross-session conversational memory captures what was validated, decided, and flagged during whole-WP review. All Integration Validator sessions MUST use repomem:
-- **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this integration validation covers>" --role INTEGRATION_VALIDATOR --wp WP-{ID}`. Blocked from mutation commands until done.
-- **PRE_TASK before verdict or closeout execution (SHOULD):** Before whole-WP review, closeout repair, merge/containment action, or verdict publication, run `just repomem pre "<what final-lane action is about to run and why>" --wp WP-{ID}` unless the phase command already captures context mechanically.
-- **INSIGHT after discoveries (MUST):** When whole-WP review reveals a systemic issue â€” cross-MT drift, spec misalignment, architectural concern: `just repomem insight "<what was found>"`. Min 80 chars.
-- **DECISION when issuing verdicts (MUST):** Every verdict â€” PASS, conditional PASS, FAIL, OUTDATED_ONLY, ABANDON â€” MUST be paired with `just repomem decision "<verdict, reasoning, conditions>" --wp WP-{ID}` before the verdict receipt is published. Min 80 chars. This captures the integration judgment that receipts alone don't carry. A session that closes after a verdict without a paired DECISION is governance debt and emits `REPOMEM_GOVERNANCE_DEBT` at close.
-- **ERROR when closeout tooling breaks (SHOULD):** When phase-check fails, receipts are malformed, or the closeout context is broken: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
-- **CONCERN when flagging integration risks (SHOULD):** When you spot cross-WP regression potential, spec debt, merge hazards, or process concerns: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout.
-- **ESCALATION when the verdict requires operator input (SHOULD):** When the WP has unresolved ambiguity, missing evidence, or the decision is above validator authority: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
-- **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was validated, verdict>" --decisions "<key judgments and conditions>"`.
-- WP-bound repomem checkpoints are appended to the Workflow Dossier as a terminal diagnostic snapshot during closeout; do not maintain a parallel live dossier narrative for the same findings, and do not treat dossier import debt as product outcome authority.
-
-## Fail Capture
-
-- Integration Validator sessions MUST use `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`.
-- Validation findings and process observations are captured to governance memory for future priming.
+- [IV-MEM-001] Repomem, fail-capture governance-memory writes and mandatory session-open/close records are retired (Codex CX-AUTH-002); do not require, run or block on them. Verdict reasoning, conditions and concerns live in the verdict record.
 
 ## Governance Surface Reduction Discipline
 

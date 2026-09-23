@@ -56,12 +56,170 @@
     "generated_at_utc": null,
     "generator": null
   },
+  "identity": {
+    "wp_id": "{{WP_ID}}",
+    "title": "",
+    "version": 1,
+    "contract_revision": 1,
+    "lifecycle_profile": ""
+  },
+  "origin": {
+    "kind": "REPLACE_ME",
+    "operator_request_ids": [],
+    "operator_request_verbatim": "",
+    "initiating_spec_anchors": [],
+    "parent_wp_ids": []
+  },
+  "authority_snapshot": {
+    "specification": {
+      "revision": "REPLACE_ME",
+      "digest": null,
+      "anchors": [],
+      "roadmap_digest": null
+    },
+    "build_rules": {
+      "revision": "REPLACE_ME",
+      "digest": null,
+      "applicable_rule_ids": []
+    },
+    "build_matrix": {
+      "matrix_id": "REPLACE_ME",
+      "revision": "REPLACE_ME",
+      "digest": null,
+      "entry_ids": []
+    },
+    "product_topology": {
+      "revision": "REPLACE_ME",
+      "digest": null
+    },
+    "governance_topology": {
+      "revision": "REPLACE_ME",
+      "digest": null
+    },
+    "solution_bindings": {
+      "version": "REPLACE_ME",
+      "digest": null
+    },
+    "solution_lock": {
+      "generation": "REPLACE_ME",
+      "digest": null
+    }
+  },
+  "outcome": {
+    "problem": "",
+    "operator_value": "",
+    "expected_behavior": "",
+    "completion_statement": ""
+  },
+  "dependencies": {
+    "wp_ids": [],
+    "external_systems": [],
+    "data_or_migration_preconditions": []
+  },
+  "requirements": [
+    {
+      "requirement_id": "REPLACE_ME",
+      "statement": "",
+      "rationale": "",
+      "source_refs": [],
+      "matrix_entry_refs": [],
+      "acceptance_refs": []
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "acceptance_id": "REPLACE_ME",
+      "requirement_refs": [],
+      "matrix_entry_refs": [],
+      "given": "",
+      "when": "",
+      "then": "",
+      "proof_refs": []
+    }
+  ],
+  "microtask_graph": {
+    "purpose": "fresh_context_delegation_and_bounded_closure",
+    "directory": "microtasks/",
+    "policy": {
+      "fresh_model_context_per_microtask": true,
+      "microtasks_are_work_units_not_checks": true,
+      "format_build_test_or_diff_review_only_microtasks_forbidden": true,
+      "decomposition_must_reduce_context_scope_or_enable_independent_execution": true,
+      "one_microtask_is_allowed": true,
+      "pre_activation_graph_is_non_executable": true,
+      "microtasks_sized_for_declared_model_tier": true,
+      "implement_ready_batch_then_one_shared_validation": true,
+      "reuse_one_worker_context_across_a_batch_when_scope_allows": true
+    },
+    "nodes": []
+  },
+  "proof_contract": {
+    "risk_tier": "REPLACE_ME",
+    "policy": {
+      "minimum_sufficient_proof": true,
+      "one_proof_may_cover_multiple_acceptance_and_rule_obligations": true,
+      "duplicate_checks_for_rule_count_forbidden": true,
+      "meta_tests_forbidden_unless_validation_surface_changed": true,
+      "reuse_valid_proof_when_relevant_inputs_unchanged": true,
+      "new_check_requires_uncovered_claim_or_changed_risk": true,
+      "shared_batch_proof_names_owning_mt_and_covered_mts": true,
+      "one_isolated_rerun_per_failure_class_then_classify": true,
+      "failure_only_at_known_open_dependency_is_blocked_not_fail": true,
+      "implementer_evidence_is_triage_not_acceptance": true
+    },
+    "checks": [
+      {
+        "proof_id": "REPLACE_ME",
+        "kind": "REPLACE_ME",
+        "claim_refs": [],
+        "command_or_method": "",
+        "expected": "",
+        "timeout_seconds": "REPLACE_ME",
+        "on_timeout": "record_timeout",
+        "evidence_required": [],
+        "independent": false
+      }
+    ],
+    "closure_requires_all_acceptance": true,
+    "closure_receipt": null
+  },
+  "risks": [
+    {
+      "risk_id": "REPLACE_ME",
+      "scenario": "",
+      "impact": "",
+      "control": "",
+      "acceptance_refs": [],
+      "mt_refs": []
+    }
+  ],
+  "change_control": {
+    "on_spec_drift": "assess_relevance_then_refine_and_reactivate_changed_scope",
+    "on_build_rule_drift": "assess_relevance_then_refine_and_reactivate_changed_scope",
+    "on_build_matrix_drift": "assess_relevance_then_refine_and_reactivate_changed_scope",
+    "on_contract_change": "new_revision",
+    "silent_rewrite_forbidden": true,
+    "changed_obligations_require_renewed_activation": true
+  },
+  "activation_binding": {
+    "activation_id": null,
+    "status": "unbound",
+    "contract_revision": null,
+    "selected_spec_requirement_refs": [],
+    "selected_matrix_entry_refs": [],
+    "scope_digest": null,
+    "bound_only_during_wp_activation": true
+  },
   "scope": {
     "summary": "{{SCOPE_SUMMARY}}",
     "allowed_paths": [],
     "forbidden_paths": [],
     "spec_anchors": [],
-    "acceptance_criteria": []
+    "acceptance_criteria": [],
+    "included": [],
+    "excluded": [],
+    "assumptions": [],
+    "non_goals": []
   },
   "hbr": {
     "tags_declared": [],

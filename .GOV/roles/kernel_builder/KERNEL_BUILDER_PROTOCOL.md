@@ -38,19 +38,21 @@
 
 ## Implementation
 
-[KB-IMPL-001] Read the current typed contracts, existing code, evidence, blockers and validation route. Select and claim one unblocked MT, or a packet-authorized grouped slice, and record ownership and intended scope once in existing task state. Declare the exact MT IDs in SESSION_MT_BATCH for the proof boundary.
+[KB-IMPL-001] Read the current typed contracts, existing code, evidence, blockers and validation route. Select and claim one unblocked MT, or a packet-authorized grouped slice, and record ownership and intended scope once in existing task state. Declare the exact MT IDs in SESSION_MT_BATCH for the proof boundary, recorded in each covered MT's remediation record as `batch_owner` (one owning MT) and `covered_mts` (all MT IDs), and in the shared proof record's `covers[]`.
 
 [KB-MRPI-001] Reuse existing Handshake code and governed dependencies before adding machinery. Implement the smallest clear solution that satisfies the approved behavior and runtime proof. Avoid speculative abstractions, parallel replacements and scaffolds; record the reason and migration/recovery path when replacement or a known limitation is necessary.
 
 [KB-IMPL-002] Implement the claimed scope, including applicable same-change GUI/Argus, UserManual, privacy, diagnostics and other HBR obligations. Produce evidence of the kind required by each applicable HBR row; record justified NOT_APPLICABLE where allowed. Use existing acceptance rows instead of another matrix or parallel report.
 
-[KB-IMPL-003] On failure, inspect the exact failure, repair its evidenced cause, rerun that case and then the affected complete test target. Keep unrelated improvements outside the implementation unless authorized or strictly required to unblock it.
+[KB-IMPL-003] On failure, inspect the exact failure and repair its evidenced cause. Batch related repairs within approved scope before expensive validation; run a focused case during implementation only when its result determines the next edit, then run affected required targets on stable batch inputs. Apply Codex CX-EXEC-001/003/003A/004/005 to investigation, retries, timeouts and escalation, and CX-SAFE-002 to tool use. Keep unrelated improvements outside the implementation unless authorized or strictly required to unblock it.
 
 [KB-STATE-001] On a meaningful scope/status/evidence/blocker/next-actor change, update the owning typed record from the authoritative governance root. Keep MT status, WP restart state and proof pointers recoverable; update Task Board/Build Order when WP-level state changes. Reuse references across records instead of retelling events or generating projections.
 
 [KB-IMPL-004] Review the scoped diff and delegated changes, record proof or blockers, then commit on the assigned product branch without governance files. Preserve required recovery checkpoints on its backup branch under Codex. Governance commits remain on the kernel branch.
 
 [KB-IMPL-005] While independent review is pending, continue disjoint unblocked work allowed by the packet. Do not use an unvalidated MT as a validated dependency. A validator failure takes priority for remediation of the affected scope; an Operator decision or unresolved authority boundary must not be crossed.
+
+[KB-IMPL-006] When work surfaces an Operator-owned product decision (for example destructive cascade behavior, an authorization gap or a scope question), stop only that item, record the open question as `operator_decision_request` in the owning MT record, and continue the batch's remaining unblocked scope. Record the answer as `operator_decision` when given.
 
 ## Proof and readiness
 
@@ -70,7 +72,7 @@
 
 [CX-503I1] Use focused proof while iterating and the required broad proof at the declared batch/final boundary. Reuse proof only while its relevant source, configuration, dependencies, resource state and asserted behavior remain unchanged; bind evidence to exact inputs and commit/tree.
 
-[KB-CAD-001] Run the cheapest relevant focused proof per MT; run the required broad/full TEST_PLAN after the last MT in SESSION_MT_BATCH or at final WP implementation, whichever comes first. If interrupted before that boundary, record DEFERRED_TO_SESSION_MT_BATCH with remaining MTs. Final WP completion requires the required broad proof on the final unchanged implementation state.
+[KB-CAD-001] Do not require a separate proof run after each MT edit. Batch related repairs in SESSION_MT_BATCH; use the cheapest focused proof during implementation when it determines the next edit. Before declaring readiness, run the focused proof for changed behavior once on stable inputs and prove every affected test target compiles (for Cargo: `cargo check --locked --tests` per required feature set; do not link every test binary). The broad/full TEST_PLAN executes once in the independent shared batch validation, not per MT and not as a duplicate implementer run. If interrupted before that boundary, record DEFERRED_TO_SESSION_MT_BATCH with remaining MTs in existing state. Final WP completion still requires the required broad proof on the final unchanged implementation state.
 
 [KB-CAD-VPX-001] Build once per compatible commit/configuration and bundle tests for covered MTs. Reuse warm owned targets across MTs under Codex's shared-batch ownership rule. Do not repeat cargo build when check/test already produces the required compilation proof; build separately only for a required artifact/profile not otherwise produced. Independent validator runs remain separate acceptance evidence.
 
@@ -78,19 +80,21 @@
 
 [KB-CARGO-SHARED-001] Identify shared compile-graph files before editing. Batch their edits at a lane-quiet boundary; an immediately blocking shared defect may be repaired sooner after notifying affected lanes. Batch schema/pin changes together. Seed only compatible caches from quiescent owned targets or safe content-addressed caches; live owners never share mutable targets.
 
-[KB-CARGO-IO-001] Limit each lane to one Cargo process or test binary at a time and bound concurrency by observed host resources. Diagnose slow work with process CPU/I/O and resource measurements; log silence alone is not a stall. Defer new competing jobs when saturated. Any pause, stop or restart must obey Codex process-ownership/approval rules, and affected lanes must be informed.
+[KB-CARGO-IO-001] Limit each lane to one Cargo process or test binary at a time and bound concurrency by observed host resources. Default proof builds to reduced debug info (`CARGO_PROFILE_DEV_DEBUG=line-tables-only`) so targets stay within the artifact disk cap; a sequential validator reuses the target only with the same setting. Diagnose slow work with process CPU/I/O and resource measurements; log silence alone is not a stall. Defer new competing jobs when saturated. Any pause, stop or restart must obey Codex process-ownership/approval rules, and affected lanes must be informed.
 
 [KB-ART-001–005] Artifact handling: [001] resolve and verify the sole root under Codex CX-984-001/012/013 + [002] use Codex WP/MT/owner placement and disjoint mutable targets + [003] bind shared batch output to its owning MT and covered MTs without redundant builds + [004] perform owned cleanup under CX-984-006, with final WP cleanup after validation and before integration + [005] inspect actual runner paths; legacy helper output is not proof of compliance.
 
 [KB-LANES-001] Use sub-agents for disjoint authorized work where useful. Keep file/resource ownership explicit, review every delegated diff and proof, and retain parent responsibility. Delegation grants no independent validation, merge, worktree-creation or process-control authority.
 
+[KB-LANES-002] Keep one builder context across a batch and resume the same agent for follow-up rounds; do not spawn a fresh agent per MT, because re-reading authority per MT scales cost with MT count.
+
 ## Sub-Agent Steering [KB-STEER-001] (mandatory while agents, builds or tests run)
 
-[KB-STEER-002] Establish a recurring monitoring tick before launching delegated work or a long-running build/test. Check at least every 60 seconds by default unless the Operator specifies another cadence. Completion notifications and tool returns supplement the tick; never rely on them alone. Missed or delayed notifications have previously left work unchecked for hours.
+[KB-STEER-002] Establish a recurring monitoring tick before launching delegated work or a long-running build/test. Size the cadence to the job unless the Operator specifies one: about 60 seconds for short probes, 20–30 minutes for multi-hour builds or test batches. Completion notifications and tool returns supplement the tick; never rely on them alone. Missed or delayed notifications have previously left work unchecked for hours.
 
 [KB-STEER-003] Launch long-running work asynchronously where supported and retain its agent/session handles, owned process IDs, scoped log paths and exit/result handles. Use bounded waits that return before the next tick; a foreground tool call, build or test must not suspend monitoring. If a tool cannot yield, use a separate monitor that continues checking during the call; report the limitation before launch if neither approach is available.
 
-[KB-STEER-004] On each tick, check every active lane/job: agent status and messages, owned process existence, CPU/I/O changes, log progress, exit status/results and reported blockers. Compare with the prior observation; use available agent status for non-process work and process evidence for builds/tests. Distinguish running, completed, blocked, failed and unobservable work. Log silence alone proves neither progress nor a stall.
+[KB-STEER-004] On each tick, make a bounded observation of every active lane/job: agent status/messages and available process, CPU/I/O, log, exit/result or blocker changes. Compare with the prior observation and distinguish running, completed, blocked, failed and unobservable work. A watcher may collect these observations without a new model analysis each tick. Process liveness is not deliverable progress; log silence proves neither progress nor a stall. Unchanged observations must not trigger repeated protocol reads, diagnostic sweeps, status requests or agent coordination.
 
 [KB-STEER-005] Use a persistent watcher for build/test logs in the verified Codex artifact root under the assigned WP/MT/owner; agent transcripts alone are insufficient build/test evidence. Emit concise changes such as started, completed with exit/result, blocked or suspected stall. Keep unchanged ticks quiet. A failed watcher or unavailable observation requires restoring visibility or reporting the monitoring gap; never assume work remains healthy.
 
@@ -121,7 +125,7 @@
 
 [KB-HANDOFF-002] Follow packet validation topology. The default for folded Kernel Builder packets is INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1: review the implemented MT batch, remediate failed MTs, then request the scoped product-vs-spec verdict after all MTs pass. Use per-MT WP Validator review only when the packet explicitly requires it.
 
-[KB-HANDOFF-003] Kernel Builder may transition CLAIMED to READY_FOR_VALIDATION only with required proof complete; claimed_by is set and completed_by remains unset. Only the assigned independent validator may issue acceptance verdicts and transition to COMPLETED. Report self-check results as implementation evidence, never independent validation.
+[KB-HANDOFF-003] Kernel Builder may transition CLAIMED to READY_FOR_VALIDATION only with required proof complete; claimed_by is set and completed_by remains unset. Only the assigned independent validator may issue acceptance verdicts and transition the MT to its verdict status (`lifecycle.status == validator_verdict`, e.g. `PASS_Vn`). Report self-check results as implementation evidence, never independent validation.
 
 [KB-HANDOFF-004] Pre-validation handoff retains required review evidence and reports blockers honestly. Post-validation disposable WP artifact cleanup belongs to closeout under Codex; its completion is not a prerequisite to requesting validation. Kernel Builder does not gain merge authority by performing cleanup.
 

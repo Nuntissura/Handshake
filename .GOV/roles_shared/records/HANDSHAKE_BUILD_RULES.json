@@ -4,7 +4,7 @@
   "version": "1.11.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-08-15T00:00:00.000Z",
+  "updated_at": "2026-09-20T13:24:08.204Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -85,7 +85,7 @@
     {
       "id": "STOP",
       "name": "Implementer Stop Discipline",
-      "intent": "An implementer stop (claim-end, MT-end, WP-end, session-end, handoff) is a high-leverage failure point. Stops justified by token budget, session capacity, throughput, multi-session reasoning, or future-cost aggregates are the upstream cause of surface-shape implementations that pass tests without satisfying the spec. STOP rules forbid the motivational frame that produces deflection-shaped diffs; they are the upstream partner to INT (interconnectivity proof) and to the Spec-Realism Gate in role protocols."
+      "intent": "Preserve requested scope and runtime proof while preventing ineffective execution loops. Persistence means justified progress toward the deliverable; incomplete escalation under Codex CX-EXEC-003 is permitted and never constitutes acceptance."
     },
     {
       "id": "PRIV",
@@ -1369,7 +1369,7 @@
           "override"
         ]
       },
-      "required_action": "Any stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate is invalid by definition. Override it and continue.",
+      "required_action": "Speculative capacity reasons do not justify dropping scope. Continue through justified actions under Codex CX-EXEC-003/004; never override the two-attempt approach-change or escalation threshold merely to keep running.",
       "evidence_kind": "absence_of_capacity_stop_reasons_in_receipts_and_lifecycle",
       "citations": [
         {
@@ -1399,8 +1399,8 @@
           "runtime_proof"
         ]
       },
-      "required_action": "Stops are only valid if work is complete AND can be proven in actual runtime.",
-      "evidence_kind": "proof_block_with_real_external_resource_touch_per_Spec_Realism_Gate_sub_rule_2",
+      "required_action": "Claim completion only when required runtime proof establishes it. An explicit Operator stop or incomplete escalation under Codex CX-EXEC-003 permits ending the current execution loop without PASS or dropping scope; preserve work and report the exact blocker and needed decision/dependency.",
+      "evidence_kind": "existing_runtime_proof_for_completion_or_existing_blocker_state_for_incomplete_escalation",
       "citations": [
         {
           "kind": "role_protocol",
@@ -1429,7 +1429,7 @@
           "dependency_handling"
         ]
       },
-      "required_action": "If work cannot be completed because of dependencies, work on the dependencies first, then return to the outstanding work.",
+      "required_action": "Perform justified dependency work within authority, then return to the outstanding work. Apply Codex CX-EXEC-003/004 to repeated failures; when no justified next action remains, report the exact dependency and preserve incomplete state instead of continuing diagnostics or builds indefinitely.",
       "evidence_kind": "receipts_show_dependency_work_then_return_to_outstanding_work",
       "citations": [
         {

@@ -21,6 +21,59 @@
   "mt_id": "{{MT_ID}}",
   "created_at_utc": "{{DATE_ISO}}T00:00:00Z",
   "updated_at_utc": null,
+  "identity": {
+    "mt_id": "{{MT_ID}}",
+    "wp_id": "{{WP_ID}}",
+    "title": "",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "",
+    "requirement_refs": [],
+    "acceptance_refs": [],
+    "materialized_acceptance": []
+  },
+  "model_routing": {
+    "model_tier": "REPLACE_ME",
+    "tier_reason": "",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis"
+  },
+  "execution": {
+    "lane": "REPLACE_ME",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [],
+    "forbidden_write_paths": [],
+    "stop_conditions": []
+  },
+  "proof": {
+    "parent_proof_refs": [],
+    "checks": [
+      {
+        "check_id": "REPLACE_ME",
+        "claim_refs": [],
+        "command_or_method": "",
+        "expected": "",
+        "timeout_seconds": "REPLACE_ME",
+        "on_timeout": "record_timeout",
+        "evidence_required": []
+      }
+    ],
+    "independent_review_required": false,
+    "duplicate_parent_proof_forbidden": true
+  },
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/{{WP_ID}}/MT-{{MT_ID}}.json",
     "microtask_projection": ".GOV/task_packets/{{WP_ID}}/MT-{{MT_ID}}.md",
@@ -106,7 +159,16 @@
     "coder_session": null,
     "wp_validator_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": null
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked"
   },
   "red_team": {
     "required": true,
