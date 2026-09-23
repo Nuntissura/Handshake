@@ -772,6 +772,32 @@ fn page_permissions_and_safety() -> NewUserManualPage {
             ),
             section_with_json(
                 "safety",
+                "Locus jobs run as the requesting account (MT-158)",
+                "`POST /jobs` with `job_kind` `locus_operation` (create, update, gate, close, \
+                 delete work packets; register, start and complete microtasks; dependencies) \
+                 requires the account session:\n\n\
+                 - The request names its workspace (`workspace_id`, or `job_inputs.workspace_id` \
+                 / `job_inputs.wsid`) and the caller must hold that workspace's `fs.write` grant. \
+                 Anonymous requests, requests without a workspace and requests on another \
+                 account's workspace get the constant 403 and create no job.\n\
+                 - The job, its child Locus jobs and every Locus row they write run as that \
+                 account's record user. Work packets, microtasks, microtask iterations and \
+                 dependencies belong to the creating account and are invisible to every other \
+                 account (the Locus resolve routes answer 404, exactly like a missing id). No \
+                 dependency can link two accounts' work packets.\n\
+                 - The dependency graph is versioned per account.\n\
+                 - `POST /jobs/:id/resume` of a Locus job re-checks the job's workspace grant.\n\
+                 - Other job kinds are unchanged.",
+                json!({
+                    "routes": ["POST /jobs (job_kind locus_operation)", "POST /jobs/:id/resume (Locus job)"],
+                    "authority": ["Workspace", "Create/Update", "fs.write"],
+                    "denial": {"status": 403, "body": {"error": "HSK-403-PROTECTED-RESOURCE"}},
+                    "account_owned_tables": ["work_packets", "micro_tasks", "mt_iterations", "dependencies", "storage_graph_anchors (work_packet_dependencies)"],
+                    "proof_tests": "tests/mt154_non_loom_route_authority_tests.rs (mt158_*)"
+                }),
+            ),
+            section_with_json(
+                "safety",
                 "Debugger breakpoints per document (MT-157)",
                 "Debugger breakpoints are stored per rich document in the local embedded store \
                  (`knowledge_debug_breakpoints`) and survive a backend restart. \

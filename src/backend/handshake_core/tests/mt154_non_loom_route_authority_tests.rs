@@ -2474,3 +2474,169 @@ async fn mt154_flight_recorder_runtime_chat_receipt_is_session_attributed() {
         "an own-workspace FR read never returns the owner's workspace events: {body}"
     );
 }
+
+// ---------------------------------------------------------------------------------------------
+// MT-158: the Locus job path (POST /jobs -> run_job -> locus_store) runs under the account session
+// ---------------------------------------------------------------------------------------------
+
+fn mt158_create_wp_request(workspace_id: Option<&str>, wp_id: &str) -> Value {
+    use handshake_core::workflows::locus::types as locus_types;
+    let inputs = serde_json::to_value(locus_types::LocusCreateWpParams {
+        wp_id: wp_id.to_owned(),
+        title: format!("MT-158 {wp_id}"),
+        description: "Created through POST /jobs by an account session.".to_owned(),
+        priority: 1,
+        kind: locus_types::WorkPacketType::Test,
+        phase: locus_types::WorkPacketPhase::Phase1,
+        routing: locus_types::RoutingPolicy::GovStandard,
+        task_packet_path: None,
+        assignee: None,
+        labels: None,
+        spec_session_id: None,
+        reporter: "mt158-locus-job-test".to_owned(),
+    })
+    .expect("serialize Locus create params");
+    let mut request = json!({
+        "job_kind": "locus_operation",
+        "protocol_id": "locus_create_wp_v1",
+        "job_inputs": inputs,
+    });
+    if let Some(workspace_id) = workspace_id {
+        request["workspace_id"] = json!(workspace_id);
+    }
+    request
+}
+
+async fn mt158_ai_job_rows(m: &Matrix) -> u64 {
+    let inspector = m.store.storage.test_inspector();
+    let table = inspector
+        .table_selector("ai_jobs")
+        .await
+        .expect("select ai_jobs table");
+    inspector
+        .row_count(&table, handshake_core::storage::surreal::RowFilter::All)
+        .await
+        .expect("count ai_jobs rows")
+}
+
+/// AC-158-1 (02:2758): POST /jobs for a Locus job needs a live account session holding the named
+/// workspace's write grant, checked before any table access. Anonymous, workspace-less and
+/// other-account requests get the constant denial and leave no ai_jobs row.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt158_locus_jobs_require_account_session() {
+    let m = Matrix::start().await;
+    let ws = m.workspace_id.clone();
+    let before = mt158_ai_job_rows(&m).await;
+    for (what, client, body) in [
+        (
+            "anonymous Locus job",
+            anonymous(),
+            mt158_create_wp_request(Some(&ws), "WP-MT158-ANON"),
+        ),
+        (
+            "owner Locus job without a workspace",
+            m.owner.client(),
+            mt158_create_wp_request(None, "WP-MT158-NOWS"),
+        ),
+        (
+            "other account's Locus job on the owner's workspace",
+            m.other.client(),
+            mt158_create_wp_request(Some(&ws), "WP-MT158-OTHER"),
+        ),
+    ] {
+        let (status, body) = status_and_json(
+            client
+                .post(m.url("/jobs"))
+                .json(&body)
+                .send()
+                .await
+                .expect(what),
+        )
+        .await;
+        assert_constant_denial(status, &body, what);
+    }
+    assert_eq!(
+        mt158_ai_job_rows(&m).await,
+        before,
+        "a denied Locus job request must not create an ai_jobs row"
+    );
+}
+
+/// AC-158-2..4 (02:2773/:2776, LM-RLS-001, D-154-3 extension): a Locus job created by account A runs
+/// as A's record user, so the work packet is owned by A. A reads it through the Locus route; account
+/// B on B's own workspace gets the same 404 as a missing id.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mt158_locus_job_rows_are_private_to_the_creating_account() {
+    let m = Matrix::start().await;
+    let ws = m.workspace_id.clone();
+    let other_ws = m.other.create_workspace(&m.state).await;
+    let owner = m.owner.client();
+    let other = m.other.client();
+
+    let (status, run) = status_and_json(
+        owner
+            .post(m.url("/jobs"))
+            .json(&mt158_create_wp_request(Some(&ws), "WP-MT158-OWNED"))
+            .send()
+            .await
+            .expect("owner Locus job"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "owner Locus job accepted: {run}");
+    let job_id = run["job_id"]
+        .as_str()
+        .expect("workflow run names its job")
+        .to_owned();
+
+    let wp_url = |ws: &str| {
+        m.url(&format!(
+            "/workspaces/{ws}/locus/work-packets/WP-MT158-OWNED"
+        ))
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
+    let body = loop {
+        let (status, body) = status_and_json(
+            owner
+                .get(wp_url(&ws))
+                .send()
+                .await
+                .expect("owner reads its work packet"),
+        )
+        .await;
+        if status == StatusCode::OK {
+            break body;
+        }
+        if std::time::Instant::now() > deadline {
+            // Diagnostic only (root read of the job row; not proof).
+            let job = m.state.storage.get_ai_job(&job_id).await;
+            panic!("owner never saw its Locus work packet: last {status} {body}; job {job:?}");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    };
+    assert_eq!(body["title"], "MT-158 WP-MT158-OWNED", "{body}");
+
+    let (status, missing) = status_and_json(
+        other
+            .get(m.url(&format!(
+                "/workspaces/{other_ws}/locus/work-packets/WP-MT158-MISSING"
+            )))
+            .send()
+            .await
+            .expect("other reads a missing id"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, foreign) = status_and_json(
+        other
+            .get(wp_url(&other_ws))
+            .send()
+            .await
+            .expect("other reads the owner's work packet through its own workspace"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{foreign}");
+    assert_eq!(
+        foreign, missing,
+        "another account's work packet is indistinguishable from a missing id"
+    );
+}

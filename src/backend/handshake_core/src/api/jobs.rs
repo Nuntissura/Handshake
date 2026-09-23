@@ -7,7 +7,8 @@ use crate::{
 };
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -157,6 +158,100 @@ pub struct CreateJobRequest {
     pub doc_id: Option<String>,
     #[serde(default)]
     pub job_inputs: Option<Value>,
+    /// MT-158: the workspace a Locus job is authorized against (falls back to
+    /// `job_inputs.workspace_id` / `job_inputs.wsid`).
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+}
+
+/// MT-158 (Master Spec 02-system-architecture.md:2758/:2773; Operator decision 2026-09-23, option A):
+/// the constant denial for every Locus job request that is anonymous, names no workspace, or is not
+/// authorized on the named workspace.
+fn locus_job_denied() -> JobRouteError {
+    JobRouteError::Denied
+}
+
+/// Error of the job-creation routes. `Message` keeps the previous plain-text body shape of the
+/// non-Locus paths; `Denied` is the MT-158 constant denial.
+#[derive(Debug)]
+pub enum JobRouteError {
+    Message(String),
+    Denied,
+}
+
+impl std::fmt::Display for JobRouteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JobRouteError::Message(message) => f.write_str(message),
+            JobRouteError::Denied => f.write_str("HSK-403-PROTECTED-RESOURCE"),
+        }
+    }
+}
+
+impl std::error::Error for JobRouteError {}
+
+impl IntoResponse for JobRouteError {
+    fn into_response(self) -> Response {
+        match self {
+            JobRouteError::Message(message) => message.into_response(),
+            JobRouteError::Denied => crate::api::authority::constant_denial().into_response(),
+        }
+    }
+}
+
+fn locus_request_workspace(payload: &CreateJobRequest) -> Option<String> {
+    payload
+        .workspace_id
+        .clone()
+        .or_else(|| {
+            payload.job_inputs.as_ref().and_then(|inputs| {
+                inputs
+                    .get("workspace_id")
+                    .or_else(|| inputs.get("wsid"))
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+        })
+        .map(|workspace| workspace.trim().to_owned())
+        .filter(|workspace| !workspace.is_empty())
+}
+
+/// Authorizes a Locus job on its workspace (fs.write) BEFORE any table access and returns the
+/// workspace id plus the account's record-user scope the job must be created and run under.
+async fn locus_job_authority(
+    state: &AppState,
+    headers: &HeaderMap,
+    workspace_id: Option<String>,
+    action: crate::storage::surreal::resource_authority::ResourceAction,
+) -> Result<
+    (
+        String,
+        crate::storage::surreal::resource_authority::RecordUserScope,
+    ),
+    JobRouteError,
+> {
+    let workspace_id = workspace_id.ok_or_else(locus_job_denied)?;
+    let authority = crate::api::authority::authorize_request(
+        state,
+        headers,
+        "fs.write",
+        crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+        &workspace_id,
+        action,
+    )
+    .await
+    .map_err(|_| locus_job_denied())?;
+    Ok((workspace_id, authority.record_user_scope))
+}
+
+fn locus_job_workspace(job: &AiJob) -> Option<String> {
+    let mut workspaces = job
+        .entity_refs
+        .iter()
+        .filter(|entity| entity.entity_kind == "workspace")
+        .map(|entity| entity.entity_id.clone());
+    let workspace = workspaces.next()?;
+    workspaces.next().is_none().then_some(workspace)
 }
 
 #[derive(Deserialize)]
@@ -205,10 +300,28 @@ pub fn routes(state: AppState) -> Router {
 /// workflows modules, and returns a response.
 async fn create_new_job(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<CreateJobRequest>,
-) -> Result<Json<WorkflowRun>, String> {
+) -> Result<Json<WorkflowRun>, JobRouteError> {
+    // Non-Locus error bodies keep their previous shape (a plain-text `String` response).
     let job_kind = parse_job_kind_request(payload.job_kind.as_str(), payload.protocol_id.as_str())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| JobRouteError::Message(e.to_string()))?;
+
+    // MT-158: a Locus job requires the account session and the workspace's write grant, checked
+    // before any table access; the job is then created and run as that account's record user.
+    let locus_authority = if matches!(job_kind, JobKind::LocusOperation) {
+        Some(
+            locus_job_authority(
+                &state,
+                &headers,
+                locus_request_workspace(&payload),
+                crate::storage::surreal::resource_authority::ResourceAction::Create,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
 
     let capability_job_kind = if matches!(job_kind, JobKind::ModelRun) {
         JobKind::WorkflowRun
@@ -219,7 +332,7 @@ async fn create_new_job(
     let capability_profile_id = state
         .capability_registry
         .profile_for_job_request(capability_job_kind.as_str(), payload.protocol_id.as_str())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| JobRouteError::Message(e.to_string()))?;
 
     let job_inputs = payload
         .job_inputs
@@ -227,12 +340,45 @@ async fn create_new_job(
         .or_else(|| payload.doc_id.as_ref().map(|id| json!({ "doc_id": id })));
 
     let mut entity_refs: Vec<EntityRef> = Vec::new();
+    if let Some((workspace_id, record_user_scope)) = locus_authority {
+        // MT-158: the job carries its authorized workspace (fn::mt154_job_access), and both the
+        // job row and its run are written by the account record user; the spawned run re-enters
+        // the captured account authority (workflows.rs start_workflow_for_job).
+        entity_refs.push(EntityRef {
+            entity_id: workspace_id,
+            entity_kind: "workspace".to_string(),
+        });
+        let workflow_run = state
+            .surreal
+            .with_record_user_scope(record_user_scope, async {
+                let job = create_job(
+                    &state,
+                    job_kind,
+                    &payload.protocol_id,
+                    capability_profile_id.id.as_str(),
+                    job_inputs,
+                    entity_refs,
+                )
+                .await
+                .map_err(|error| match error {
+                    JobError::Storage(crate::storage::StorageError::Guard(
+                        "HSK-403-PROTECTED-RESOURCE",
+                    )) => locus_job_denied(),
+                    other => JobRouteError::Message(other.to_string()),
+                })?;
+                start_workflow_for_job(&state, job)
+                    .await
+                    .map_err(|e| JobRouteError::Message(e.to_string()))
+            })
+            .await?;
+        return Ok(Json(workflow_run));
+    }
     if let Some(doc_id) = payload.doc_id.as_deref() {
         let doc = state
             .storage
             .get_document(doc_id)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| JobRouteError::Message(e.to_string()))?;
         entity_refs.push(EntityRef {
             entity_id: doc.workspace_id,
             entity_kind: "workspace".to_string(),
@@ -253,11 +399,11 @@ async fn create_new_job(
         entity_refs,
     )
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| JobRouteError::Message(e.to_string()))?;
 
     let workflow_run = start_workflow_for_job(&state, job)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| JobRouteError::Message(e.to_string()))?;
 
     Ok(Json(workflow_run))
 }
@@ -277,9 +423,31 @@ async fn get_job(
 
 async fn resume_job(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Path(id): Path<String>,
-) -> ApiResult<Json<WorkflowRun>> {
-    let job = state.storage.get_ai_job(&id).await.map_err(storage_error)?;
+) -> Result<Json<WorkflowRun>, Response> {
+    let job = state
+        .storage
+        .get_ai_job(&id)
+        .await
+        .map_err(|error| storage_error(error).into_response())?;
+    // MT-158: a Locus job resumes only for a session holding its workspace write grant, and runs
+    // as that account record user (never as root).
+    let locus_scope = if matches!(job.job_kind, JobKind::LocusOperation) {
+        Some(
+            locus_job_authority(
+                &state,
+                &headers,
+                locus_job_workspace(&job),
+                crate::storage::surreal::resource_authority::ResourceAction::Update,
+            )
+            .await
+            .map_err(IntoResponse::into_response)?
+            .1,
+        )
+    } else {
+        None
+    };
 
     match job.state {
         JobState::AwaitingUser | JobState::Stalled => {}
@@ -290,13 +458,20 @@ async fn resume_job(
                 state = job.state.as_str(),
                 "job_not_resumable"
             );
-            return Err(job_not_resumable());
+            return Err(job_not_resumable().into_response());
         }
     }
 
-    let workflow_run = start_workflow_for_job(&state, job)
-        .await
-        .map_err(workflow_error)?;
+    let workflow_run = match locus_scope {
+        Some(record_user_scope) => {
+            state
+                .surreal
+                .with_record_user_scope(record_user_scope, start_workflow_for_job(&state, job))
+                .await
+        }
+        None => start_workflow_for_job(&state, job).await,
+    }
+    .map_err(|error| workflow_error(error).into_response())?;
     Ok(Json(workflow_run))
 }
 
@@ -483,9 +658,10 @@ mod tests {
             protocol_id: "protocol-default".to_string(),
             doc_id: None,
             job_inputs: None,
+            workspace_id: None,
         };
 
-        let result = create_new_job(State(state), Json(request)).await;
+        let result = create_new_job(State(state), HeaderMap::new(), Json(request)).await;
         assert!(result.is_err(), "expected unknown job_kind to be rejected");
         Ok(())
     }
@@ -501,9 +677,11 @@ mod tests {
             protocol_id: "protocol-default".to_string(),
             doc_id: None,
             job_inputs: Some(json!({ "program": program, "args": args })),
+            workspace_id: None,
         };
 
-        let response = create_new_job(State(state.clone()), Json(request)).await?;
+        let response =
+            create_new_job(State(state.clone()), HeaderMap::new(), Json(request)).await?;
         let workflow_run = response.0;
 
         let job = state
@@ -636,12 +814,13 @@ mod tests {
                 "session_messages": [],
                 "simulate_duration_ms": 0
             })),
+            workspace_id: None,
         };
 
         eprintln!("MT-101 local runtime proof: create_new_job begin");
         let response = timeout(
             Duration::from_secs(30),
-            create_new_job(State(state.clone()), Json(request)),
+            create_new_job(State(state.clone()), HeaderMap::new(), Json(request)),
         )
         .await
         .map_err(|_| "MT-101 local model_run proof timed out before create_new_job returned")??;
@@ -731,12 +910,13 @@ mod tests {
                 "memory_policy": "EPHEMERAL",
                 "session_messages": []
             })),
+            workspace_id: None,
         };
 
         eprintln!("MT-101 cloud runtime proof: create_new_job begin");
         let response = timeout(
             Duration::from_secs(30),
-            create_new_job(State(state.clone()), Json(request)),
+            create_new_job(State(state.clone()), HeaderMap::new(), Json(request)),
         )
         .await
         .map_err(|_| "MT-101 cloud model_run proof timed out before create_new_job returned")??;
@@ -782,9 +962,11 @@ mod tests {
                 "memory_policy": "EPHEMERAL",
                 "memory_ids": ["mem_001"]
             })),
+            workspace_id: None,
         };
 
-        let response = create_new_job(State(state.clone()), Json(request)).await?;
+        let response =
+            create_new_job(State(state.clone()), HeaderMap::new(), Json(request)).await?;
         let job = state
             .storage
             .get_ai_job(&response.0.job_id.to_string())
@@ -803,9 +985,10 @@ mod tests {
             protocol_id: "memory_forget_v0.1".to_string(),
             doc_id: None,
             job_inputs: Some(json!({ "memory_ids": ["mem_001"] })),
+            workspace_id: None,
         };
 
-        let result = create_new_job(State(state), Json(request)).await;
+        let result = create_new_job(State(state), HeaderMap::new(), Json(request)).await;
         assert!(
             result.is_err(),
             "expected mismatched FEMS alias/protocol to be rejected"

@@ -5018,7 +5018,19 @@ async fn run_child_locus_operation(
             capability_profile_id: "Coder".to_string(),
             access_mode: parent_job.access_mode.clone(),
             safety_mode: parent_job.safety_mode.clone(),
-            entity_refs: Vec::new(),
+            // MT-158: under an account session the child is written by the record user, so it
+            // carries the parent's authorized workspace (fn::mt154_job_access); root/system runs
+            // keep the previous unbound child.
+            entity_refs: if crate::storage::surreal::current_record_user_scope().is_some() {
+                parent_job
+                    .entity_refs
+                    .iter()
+                    .filter(|entity| entity.entity_kind == "workspace")
+                    .cloned()
+                    .collect()
+            } else {
+                Vec::new()
+            },
             planned_operations: Vec::new(),
             status_reason: "queued".to_string(),
             metrics: crate::storage::JobMetrics::zero(),

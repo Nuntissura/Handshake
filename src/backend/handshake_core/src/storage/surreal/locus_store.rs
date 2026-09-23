@@ -38,35 +38,35 @@ const DEPENDENCIES: &str = "dependencies";
 
 const GRAPH_ANCHORS_TABLE: &str = "storage_graph_anchors";
 const DEPENDENCY_GRAPH_KIND: &str = "work_packet_dependencies";
-/// The dependency graph is not workspace-scoped (`dependencies` rows carry none), so one
-/// anchor covers the whole graph.
-const DEPENDENCY_GRAPH_SCOPE: &str = "global";
+/// The dependency graph is not workspace-scoped (`dependencies` rows carry none). MT-158 (D-154-3
+/// extension): it is versioned per owning account. The anchor scope is computed database-side by
+/// `fn::mt158_dependency_graph_scope()` (`account:<id>` for a record user, `global` for root/system
+/// callers), so every account compare-and-sets only its own anchor row. This process-local lock key
+/// stays graph-wide (coarser, never weaker).
+const DEPENDENCY_GRAPH_LOCK_SCOPE: &str = "global";
 const DEPENDENCY_GRAPH_STALE: &str = "HSK-LOCUS-DEPENDENCY-GRAPH-STALE";
 
 fn dependency_graph_anchor_id() -> String {
-    format!("{DEPENDENCY_GRAPH_KIND}|{DEPENDENCY_GRAPH_SCOPE}")
-}
-
-fn dependency_graph_anchor() -> RecordId {
-    RecordId::new(GRAPH_ANCHORS_TABLE, dependency_graph_anchor_id())
+    format!("{DEPENDENCY_GRAPH_KIND}|{DEPENDENCY_GRAPH_LOCK_SCOPE}")
 }
 
 #[derive(SurrealValue)]
 struct AnchorVersionBinding {
-    anchor: RecordId,
+    graph_kind: String,
 }
 
-/// Current dependency-graph anchor version, `0` before its first bump. Read BEFORE
-/// `load_dependencies` so any commit after this read is caught by the in-transaction CAS.
+/// Current dependency-graph anchor version of the caller's graph, `0` before its first bump. Read
+/// BEFORE `load_dependencies` so any commit after this read is caught by the in-transaction CAS.
 async fn read_dependency_graph_version(storage: &SurrealStorage) -> StorageResult<i64> {
     let versions = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
                 database
                     .query_values::<i64, _>(
-                        "SELECT VALUE version FROM $anchor;",
+                        "SELECT VALUE version FROM type::record('storage_graph_anchors', \
+                         $graph_kind + '|' + fn::mt158_dependency_graph_scope());",
                         AnchorVersionBinding {
-                            anchor: dependency_graph_anchor(),
+                            graph_kind: DEPENDENCY_GRAPH_KIND.to_owned(),
                         },
                     )
                     .await
@@ -238,11 +238,9 @@ struct DependencyWrite {
     dependency_type: String,
     created_at: String,
     vector_clock: String,
-    /// MT-151: the graph anchor and the version the cycle check was decided against.
-    anchor: RecordId,
-    anchor_key: String,
+    /// MT-151: the graph kind and the anchor version the cycle check was decided against. MT-158:
+    /// the anchor row itself is derived in SurrealQL from `fn::mt158_dependency_graph_scope()`.
     graph_kind: String,
-    scope_key: String,
     expected_anchor_version: i64,
 }
 
@@ -844,10 +842,7 @@ async fn add_dependency_attempt(
         dependency_type: dependency_type_str(params.kind).to_owned(),
         created_at: now.clone(),
         vector_clock: serde_json::to_string(&json!({"local": 1}))?,
-        anchor: dependency_graph_anchor(),
-        anchor_key: format!("{DEPENDENCY_GRAPH_KIND}|{DEPENDENCY_GRAPH_SCOPE}"),
         graph_kind: DEPENDENCY_GRAPH_KIND.to_owned(),
-        scope_key: DEPENDENCY_GRAPH_SCOPE.to_owned(),
         expected_anchor_version,
     };
     let result = storage
@@ -863,12 +858,16 @@ async fn add_dependency_attempt(
                            from_wp_id: $from_wp_id, to_wp_id: $to_wp_id, \
                            dependency_type: $dependency_type, created_at: $created_at, \
                            vector_clock: $vector_clock } RETURN AFTER; \
+                         LET $graph_scope = fn::mt158_dependency_graph_scope(); \
+                         LET $anchor_key = $graph_kind + '|' + $graph_scope; \
+                         LET $anchor = type::record('storage_graph_anchors', $anchor_key); \
                          LET $anchor_version = (SELECT VALUE version FROM $anchor)[0] ?? 0; \
                          IF $anchor_version != $expected_anchor_version \
                            { THROW 'HSK-LOCUS-DEPENDENCY-GRAPH-STALE'; }; \
-                         UPSERT $anchor SET anchor_key = $anchor_key, graph_kind = $graph_kind, \
-                           scope_key = $scope_key, version = $anchor_version + 1, \
-                           updated_at = time::now(); \
+                         IF array::len(UPSERT $anchor SET anchor_key = $anchor_key, \
+                           graph_kind = $graph_kind, scope_key = $graph_scope, \
+                           version = $anchor_version + 1, updated_at = time::now() \
+                           RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
                          COMMIT TRANSACTION;",
                         bindings,
                         3,
