@@ -4,10 +4,14 @@
 //! * `GET  /debug/adapters` — the listable adapters (Node only; honesty gate),
 //! * `GET  /debug/documents/:rich_document_id/breakpoints` — durable breakpoints,
 //! * `PUT  /debug/documents/:rich_document_id/breakpoints` — replace the set
-//!   (durable store + EventLedger authority, receipt per write; the durable
-//!   breakpoint half is still pending the SurrealDB port, WP-KERNEL-012
-//!   MT-136 — the `Database` trait has no implementor for it today and the
-//!   default body fails closed with `NotImplemented`),
+//!   (durable SurrealDB store `knowledge_debug_breakpoints` + EventLedger
+//!   receipt per write, implemented by `SurrealDatabase` since WP-KERNEL-012
+//!   MT-136). Since MT-157 both routes require the caller's account session
+//!   and the exact RichDocument grant (GET: Read + `fs.read`; PUT: Update +
+//!   `fs.write`), run as that account's record user so the table permissions
+//!   apply, stamp the PUT receipt with the session principal, and answer the
+//!   constant 403 on any denial, including a write the database silently
+//!   dropped,
 //! * `POST   /debug/sessions` — launch a REAL debuggee (Node today),
 //! * `POST   /debug/sessions/:id/breakpoints` — bind breakpoints on the live session,
 //! * `GET    /debug/sessions/:id/stack` — the paused call stack,
@@ -33,7 +37,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
     Json, Router,
 };
@@ -44,12 +48,15 @@ use tokio::{
     task::JoinSet,
 };
 
+use crate::api::authority::AuthorizedResourceContext;
 use crate::debug_adapter::node_inspector::NodeInspectorSession;
 use crate::debug_adapter::registry::listable_adapters;
 use crate::debug_adapter::{
     launch, AdapterKind, DebugAdapter, DebugAdapterError, DebugEvent, LaunchRequest,
     SourceBreakpoint, StepKind,
 };
+use crate::kernel::KernelActor;
+use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
 use crate::storage::{Database, DebugBreakpointInput, StorageError};
 use crate::AppState;
 
@@ -204,6 +211,16 @@ fn bad_request(detail: impl Into<String>) -> ApiError {
 
 fn storage_error(err: StorageError) -> ApiError {
     match err {
+        // MT-157: a record-user write the database dropped (silent deny) or an account session
+        // that no longer authenticates is the constant denial, never a 200/400/500.
+        StorageError::Guard("HSK-403-PROTECTED-RESOURCE")
+        | StorageError::Validation("authentication denied") => {
+            crate::api::authority::constant_denial()
+        }
+        StorageError::Conflict(code) => (
+            StatusCode::CONFLICT,
+            Json(json!({"error": "conflict", "detail": code})),
+        ),
         StorageError::Validation(detail) => bad_request(detail),
         StorageError::NotFound(what) => (
             StatusCode::NOT_FOUND,
@@ -273,15 +290,56 @@ struct BreakpointReq {
     verified: bool,
 }
 
-/// `GET /debug/documents/:rich_document_id/breakpoints` — durable breakpoints.
+/// MT-157: the exact RichDocument grant of the caller's account session (Read + `fs.read` for GET,
+/// Update + `fs.write` for PUT). Any failure is the constant 403 (Master Spec
+/// 02-system-architecture.md:2758 deny by default).
+async fn breakpoint_authority(
+    state: &AppState,
+    headers: &HeaderMap,
+    rich_document_id: &str,
+    action: ResourceAction,
+) -> Result<AuthorizedResourceContext, ApiError> {
+    let capability = if matches!(action, ResourceAction::Read) {
+        "fs.read"
+    } else {
+        "fs.write"
+    };
+    crate::api::authority::authorize_request(
+        state,
+        headers,
+        capability,
+        ResourceKind::RichDocument,
+        rich_document_id,
+        action,
+    )
+    .await
+    .map_err(|_| crate::api::authority::constant_denial())
+}
+
+/// The session principal the breakpoint receipt carries (never a header-supplied actor).
+fn breakpoint_session_actor(authority: &AuthorizedResourceContext) -> KernelActor {
+    match authority.actor_kind.as_str() {
+        "system" => KernelActor::System(authority.actor_id.clone()),
+        _ => KernelActor::Operator(authority.actor_id.clone()),
+    }
+}
+
+/// `GET /debug/documents/:rich_document_id/breakpoints` — durable breakpoints, read as the
+/// authenticated account record user (MT-157).
 async fn get_breakpoints(
     State(state): State<AppState>,
     Path(rich_document_id): Path<String>,
     Query(_query): Query<BreakpointQuery>,
+    headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
+    let authority =
+        breakpoint_authority(&state, &headers, &rich_document_id, ResourceAction::Read).await?;
     let breakpoints = state
-        .storage
-        .list_debug_breakpoints(&rich_document_id)
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state.storage.list_debug_breakpoints(&rich_document_id),
+        )
         .await
         .map_err(storage_error)?;
     Ok(Json(json!({
@@ -290,12 +348,16 @@ async fn get_breakpoints(
     })))
 }
 
-/// `PUT /debug/documents/:rich_document_id/breakpoints` — replace the full set.
+/// `PUT /debug/documents/:rich_document_id/breakpoints` — replace the full set as the
+/// authenticated account record user; the receipt carries the session principal (MT-157).
 async fn put_breakpoints(
     State(state): State<AppState>,
     Path(rich_document_id): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<PutBreakpointsBody>,
 ) -> Result<Json<Value>, ApiError> {
+    let authority =
+        breakpoint_authority(&state, &headers, &rich_document_id, ResourceAction::Update).await?;
     if body.workspace_id.trim().is_empty() {
         return Err(bad_request("workspace_id is required"));
     }
@@ -310,8 +372,17 @@ async fn put_breakpoints(
         })
         .collect();
     let stored = state
-        .storage
-        .set_debug_breakpoints(&rich_document_id, &body.workspace_id, inputs)
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            crate::storage::surreal::event_ledger::with_loom_session_receipt(
+                breakpoint_session_actor(&authority),
+                body.workspace_id.clone(),
+                state
+                    .storage
+                    .set_debug_breakpoints(&rich_document_id, &body.workspace_id, inputs),
+            ),
+        )
         .await
         .map_err(storage_error)?;
     Ok(Json(json!({

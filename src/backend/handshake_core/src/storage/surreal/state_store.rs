@@ -181,13 +181,26 @@ async fn build_event(
     mut payload: Value,
 ) -> StorageResult<event_ledger::LedgerWrite> {
     let (session_run_id, actor) = if let Some(scope) = super::current_record_user_scope() {
-        let channel = scope.channel_binding_hash.as_deref().ok_or(StorageError::Validation("authentication denied"))?;
-        let context = storage.authenticate_local_session(&scope.session_token, channel).await
+        let channel = scope
+            .channel_binding_hash
+            .as_deref()
+            .ok_or(StorageError::Validation("authentication denied"))?;
+        let context = storage
+            .authenticate_local_session(&scope.session_token, channel)
+            .await
             .map_err(|_| StorageError::Validation("authentication denied"))?;
-        let fields = payload.as_object_mut().ok_or(StorageError::Validation("invalid state receipt"))?;
-        fields.insert("minted_by_principal".into(), json!(context.identity.principal_id));
+        let fields = payload
+            .as_object_mut()
+            .ok_or(StorageError::Validation("invalid state receipt"))?;
+        fields.insert(
+            "minted_by_principal".into(),
+            json!(context.identity.principal_id),
+        );
         fields.insert("account_id".into(), json!(context.identity.account_id));
-        fields.insert("access_space_id".into(), json!(context.identity.access_space_id));
+        fields.insert(
+            "access_space_id".into(),
+            json!(context.identity.access_space_id),
+        );
         fields.insert("policy_version".into(), json!(context.policy_version));
         fields.insert("delegation_chain".into(), json!(context.delegation_chain));
         fields.insert("producer_actor_id".into(), json!(actor_id));
@@ -195,20 +208,15 @@ async fn build_event(
     } else {
         (run_id.clone(), KernelActor::System(actor_id.to_owned()))
     };
-    let event = NewKernelEvent::builder(
-        run_id.clone(),
-        session_run_id,
-        event_type,
-        actor,
-    )
-    .aggregate(aggregate_type, aggregate_id)
-    .source_component(source_component)
-    .payload(payload)
-    .build()
-    .map_err(|error| {
-        tracing::error!(target: "handshake_core", %error, "state_store_event_build_failed");
-        StorageError::Validation("loom bridge EventLedger receipt build failed")
-    })?;
+    let event = NewKernelEvent::builder(run_id.clone(), session_run_id, event_type, actor)
+        .aggregate(aggregate_type, aggregate_id)
+        .source_component(source_component)
+        .payload(payload)
+        .build()
+        .map_err(|error| {
+            tracing::error!(target: "handshake_core", %error, "state_store_event_build_failed");
+            StorageError::Validation("loom bridge EventLedger receipt build failed")
+        })?;
     event_ledger::prepare_event(event).map(|(_, write)| write)
 }
 
@@ -316,7 +324,8 @@ pub(crate) async fn record_quick_switcher_recent(
             "title": title.clone(),
             "metadata": metadata.clone(),
         }),
-    ).await?;
+    )
+    .await?;
     let bindings = QuickRecentBindings {
         recent: RecordId::new(QUICK_RECENTS, quick_recent_key(workspace_id, &hit_key)),
         workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
@@ -452,7 +461,8 @@ pub(crate) async fn save_workbench_layout_state(
             "workspace_id": workspace_id,
             "layout_state": input.layout_state.clone(),
         }),
-    ).await?;
+    )
+    .await?;
     let rows: Vec<WorkbenchLayoutRow> = storage
         .with_data_operation({
             let workspace = RecordId::new(WORKSPACES, workspace_id.to_owned());
@@ -546,7 +556,8 @@ pub(crate) async fn save_workspace_settings_state(
             "workspace_id": workspace_id,
             "settings_state": input.settings_state.clone(),
         }),
-    ).await?;
+    )
+    .await?;
     let rows: Vec<WorkspaceSettingsRow> = storage
         .with_data_operation({
             let workspace = RecordId::new(WORKSPACES, workspace_id.to_owned());
@@ -641,7 +652,8 @@ pub(crate) async fn save_workspace_search_bookmark_state(
             "workspace_id": workspace_id,
             "bookmark_state": input.bookmark_state.clone(),
         }),
-    ).await?;
+    )
+    .await?;
     let rows: Vec<SearchBookmarkRow> = storage
         .with_data_operation({
             let workspace = RecordId::new(WORKSPACES, workspace_id.to_owned());
@@ -721,6 +733,11 @@ pub(crate) async fn set_debug_breakpoints(
             ));
         }
     }
+    let requested = breakpoints.len();
+    // MT-157: under an account route the record-user scope makes `build_event` stamp the session
+    // principal as the receipt actor (and the route's `with_loom_session_receipt` binds it to the
+    // document's workspace); `debug-breakpoints-ui` survives only as `payload.producer_actor_id`.
+    // Outside any account scope (internal/root callers) it remains the System producer actor.
     let event = build_event(
         storage,
         format!("DEBUG-BREAKPOINTS-{rich_document_id}"),
@@ -735,7 +752,8 @@ pub(crate) async fn set_debug_breakpoints(
             "workspace_id": workspace_id,
             "breakpoint_count": breakpoints.len(),
         }),
-    ).await?;
+    )
+    .await?;
     let bindings = BreakpointSetBindings {
         document: RecordId::new(RICH_DOCUMENTS, rich_document_id.to_owned()),
         workspace: RecordId::new(WORKSPACES, workspace_id.to_owned()),
@@ -755,36 +773,84 @@ pub(crate) async fn set_debug_breakpoints(
         .with_data_operation(move |database| {
             Box::pin(async move {
                 database
-                    .query_values_at(
-                        atomic_with_event!(
-                            "IF (SELECT VALUE id FROM $document WHERE workspace_id = $workspace)[0] = NONE { \
-                               THROW 'HSK-DEBUG-BREAKPOINT-DOCUMENT-WORKSPACE'; \
-                             }; \
-                             DELETE knowledge_debug_breakpoints \
-                               WHERE rich_document_id = $document AND workspace_id = $workspace; \
-                             FOR $breakpoint IN $breakpoints { \
-                               CREATE $breakpoint.record SET breakpoint_id = record::id($breakpoint.record), \
-                                 rich_document_id = $document, workspace_id = $workspace, \
-                                 source_url = $breakpoint.source_url, line = $breakpoint.line, \
-                                 condition = $breakpoint.condition, verified = $breakpoint.verified, \
-                                 created_at = time::now(), updated_at = time::now(), \
-                                 event_ledger_event_id = $event.record; \
-                             };",
-                            "SELECT breakpoint_id, rich_document_id, workspace_id, source_url, line, \
-                               condition, verified, updated_at, event_ledger_event_id \
-                             FROM knowledge_debug_breakpoints WHERE rich_document_id = $document \
-                             ORDER BY source_url ASC, line ASC;"
-                        ),
-                        bindings,
-                        6,
-                    )
+                    .query_values_at(DEBUG_BREAKPOINT_SET_QUERY, bindings, 7)
                     .await
             })
         })
         .await
-        .map_err(StorageError::from)?;
+        .map_err(|error| {
+            let rendered = error.to_string();
+            if rendered.contains("HSK-DEBUG-BREAKPOINT-DOCUMENT-WORKSPACE") {
+                StorageError::Validation(
+                    "debug breakpoint workspace_id must be the rich document's workspace",
+                )
+            } else if rendered.contains(DEBUG_BREAKPOINT_DENIAL) {
+                StorageError::Guard(DEBUG_BREAKPOINT_DENIAL)
+            } else if rendered.contains("uq_knowledge_debug_breakpoints_doc_src_line") {
+                StorageError::Conflict("HSK-409-DEBUG-BREAKPOINT-DUPLICATE")
+            } else {
+                StorageError::from(error)
+            }
+        })?;
+    // MT-157 / spec_ruling_c3_silent_deny (Master Spec 02-system-architecture.md:2758): a record
+    // user's write that the table predicates dropped returns fewer rows than requested; that is a
+    // denial, never a partial success.
+    if rows.len() != requested {
+        return Err(if super::current_record_user_scope().is_some() {
+            StorageError::Guard(DEBUG_BREAKPOINT_DENIAL)
+        } else {
+            StorageError::Database(format!(
+                "debug breakpoint write returned {} of {requested} rows",
+                rows.len()
+            ))
+        });
+    }
     rows.into_iter().map(map_debug_breakpoint).collect()
 }
+
+const DEBUG_BREAKPOINT_DENIAL: &str = "HSK-403-PROTECTED-RESOURCE";
+
+/// MT-157: replace-all breakpoint write. Every statement that a record user's table predicates
+/// could silently drop (the receipt CREATE, the DELETE of the old set, each breakpoint CREATE) is
+/// checked inside the transaction and THROWs the constant denial, so a dropped write rolls the
+/// whole replace back instead of leaving a partial set (Master Spec 02-system-architecture.md:2758,
+/// LM-RLS-002). Statement 7 is the committed projection.
+const DEBUG_BREAKPOINT_SET_QUERY: &str = "BEGIN TRANSACTION; \
+     IF (SELECT VALUE id FROM $document WHERE workspace_id = $workspace)[0] = NONE { \
+       THROW 'HSK-DEBUG-BREAKPOINT-DOCUMENT-WORKSPACE'; \
+     }; \
+     IF array::len((CREATE $event.record CONTENT { \
+       event_id: $event.event_id, event_version: $event.event_version, \
+       kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id, \
+       aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id, \
+       idempotency_key: $event.idempotency_key, event_type: $event.event_type, \
+       actor_kind: $event.actor_kind, actor_id: $event.actor_id, \
+       causation_id: $event.causation_id, correlation_id: $event.correlation_id, \
+       payload_hash: $event.payload_hash, source_component: $event.source_component, \
+       payload: $event.payload, wsids: $event.wsids, authority_resource_id: $event.authority_resource_id, \
+       authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id, \
+       authority_action: $event.authority_action, created_at: $event.created_at \
+     } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+     DELETE knowledge_debug_breakpoints \
+       WHERE rich_document_id = $document AND workspace_id = $workspace; \
+     IF array::len((SELECT VALUE id FROM knowledge_debug_breakpoints WHERE rich_document_id = $document)) != 0 { \
+       THROW 'HSK-403-PROTECTED-RESOURCE'; \
+     }; \
+     FOR $breakpoint IN $breakpoints { \
+       IF array::len((CREATE $breakpoint.record SET breakpoint_id = record::id($breakpoint.record), \
+         rich_document_id = $document, workspace_id = $workspace, \
+         source_url = $breakpoint.source_url, line = $breakpoint.line, \
+         condition = $breakpoint.condition, verified = $breakpoint.verified, \
+         created_at = time::now(), updated_at = time::now(), \
+         event_ledger_event_id = $event.record RETURN VALUE id)) != 1 { \
+         THROW 'HSK-403-PROTECTED-RESOURCE'; \
+       }; \
+     }; \
+     COMMIT TRANSACTION; \
+     SELECT breakpoint_id, rich_document_id, workspace_id, source_url, line, \
+       condition, verified, updated_at, event_ledger_event_id \
+     FROM knowledge_debug_breakpoints WHERE rich_document_id = $document \
+     ORDER BY source_url ASC, line ASC;";
 
 const WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR: &str =
     "workspace search bookmark_state must match hsk.workspace_search_bookmark_state@1 shape";

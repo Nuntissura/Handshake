@@ -2520,6 +2520,10 @@ pub trait Database: Send + Sync {
     }
 
     /// MT-254 DebugAdapterCore: list the durable breakpoints for a RichDocument.
+    ///
+    /// MT-157: the SurrealDB implementation is the product path; the route calls it inside the
+    /// caller's record-user scope, so only rows the account may read (RichDocument read + fs.read)
+    /// are returned. This default body is for backends without breakpoint storage.
     async fn list_debug_breakpoints(
         &self,
         _rich_document_id: &str,
@@ -2529,6 +2533,10 @@ pub trait Database: Send + Sync {
 
     /// MT-254 DebugAdapterCore: replace the full breakpoint set for a
     /// RichDocument (PUT semantics), each write leaving an EventLedger receipt.
+    ///
+    /// MT-157: under a record-user scope the write needs RichDocument update + fs.write, the
+    /// receipt carries the session principal, and a write the table predicates silently dropped
+    /// returns `StorageError::Guard("HSK-403-PROTECTED-RESOURCE")` with nothing changed.
     async fn set_debug_breakpoints(
         &self,
         _rich_document_id: &str,
