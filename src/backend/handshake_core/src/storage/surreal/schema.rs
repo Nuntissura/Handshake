@@ -2142,6 +2142,9 @@ const MT154_SCHEMA_DELTAS: &[(&str, &str)] = &[
     ("-- MT-154: canvas children inherit their canvas's workspace authority. Replacing a canvas graph is an edit\n-- of the canvas (PUT /canvases/:id authorizes update), so child rows are removable by update or delete.\nDEFINE TABLE OVERWRITE canvas_nodes SCHEMAFULL\n    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'read', 'fs.read')\n                FOR create WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')\n                FOR update WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')\n                FOR delete WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')\n                    OR fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'delete', 'fs.write')\n                    OR fn::mt120_workspace_delete(record::id(canvas_id.workspace_id));\n", "DEFINE TABLE OVERWRITE canvas_nodes SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE canvas_edges SCHEMAFULL\n    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'read', 'fs.read')\n                FOR create WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')\n                FOR update WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')\n                FOR delete WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')\n                    OR fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'delete', 'fs.write')\n                    OR fn::mt120_workspace_delete(record::id(canvas_id.workspace_id));\n", "DEFINE TABLE OVERWRITE canvas_edges SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE ai_jobs SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(entity_refs, job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(entity_refs, job_inputs, 'read', 'fr.read') FOR create WHERE fn::mt154_job_access(entity_refs, job_inputs, 'create', 'fs.write') OR (job_kind = 'debug_bundle_export' AND fn::mt154_job_access(entity_refs, job_inputs, 'read', 'fr.read')) FOR update WHERE fn::mt154_job_access(entity_refs, job_inputs, 'update', 'fs.write') OR (job_kind = 'debug_bundle_export' AND fn::mt154_job_access(entity_refs, job_inputs, 'read', 'fr.read')) FOR delete NONE;\n", "DEFINE TABLE OVERWRITE ai_jobs SCHEMAFULL PERMISSIONS NONE;\n"),
+    ("-- MT-159 (02-system-architecture.md:2773; every job kind under the account session): a job-bound model\n-- session and its checkpoints/messages follow the job workspace grant (fn::mt154_job_access, as\n-- workflow_runs); unbound (job_id NONE) sessions stay root-only.\nDEFINE TABLE OVERWRITE model_sessions SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'update', 'fs.write') FOR delete NONE;\n", "DEFINE TABLE OVERWRITE model_sessions SCHEMAFULL PERMISSIONS NONE;\n"),
+    ("DEFINE TABLE OVERWRITE model_session_checkpoints SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'update', 'fs.write') FOR delete NONE;\n", "DEFINE TABLE OVERWRITE model_session_checkpoints SCHEMAFULL PERMISSIONS NONE;\n"),
+    ("DEFINE TABLE OVERWRITE model_session_messages SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'update', 'fs.write') FOR delete NONE;\n", "DEFINE TABLE OVERWRITE model_session_messages SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE workflow_runs SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'update', 'fs.write') OR (job_id.job_kind = 'debug_bundle_export' AND fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fr.read')) FOR delete NONE;\n", "DEFINE TABLE OVERWRITE workflow_runs SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE workflow_node_executions SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(workflow_run_id.job_id.entity_refs, workflow_run_id.job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(workflow_run_id.job_id.entity_refs, workflow_run_id.job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(workflow_run_id.job_id.entity_refs, workflow_run_id.job_id.job_inputs, 'update', 'fs.write') OR (workflow_run_id.job_id.job_kind = 'debug_bundle_export' AND fn::mt154_job_access(workflow_run_id.job_id.entity_refs, workflow_run_id.job_id.job_inputs, 'read', 'fr.read')) FOR delete NONE;\n", "DEFINE TABLE OVERWRITE workflow_node_executions SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE FIELD OVERWRITE block_id ON TABLE loom_blocks TYPE string ASSERT $value = record::id($this.id) AND ($before = NONE OR fn::mt153_loom_identity_unchanged($this));\n", "DEFINE FIELD OVERWRITE block_id ON TABLE loom_blocks TYPE string ASSERT $value = record::id($this.id);\n"),
@@ -2580,8 +2583,12 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-159 re-pin: owner-scoped Locus keys (key ASSERTs, (owner_account_id, id) indexes, create
 // permission owner-key check, fn::mt159_locus_key_id / fn::mt159_locus_key_is_own) (previous
 // value 35ce1b4d6578eedd5ef6f054f3b70432f94b2728fd9ae98cd4d35dd32e8974be); kb-c4 run 101.
+// MT-159 re-pin: job-scoped record-user permissions on model_sessions / model_session_checkpoints /
+// model_session_messages (previous value
+// 27528c0e71735b81fbaa798dabb9e35b3805a16166db450d86fec4baaa32c38f); kb-c5 run 05 (equals sha256 of
+// schema.surql). DECLARATIVE_SCHEMA_CATALOG_SHA256 is unchanged by this batch (kb-c5 run 05).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "27528c0e71735b81fbaa798dabb9e35b3805a16166db450d86fec4baaa32c38f";
+    "9107f275abdf5b69a8d6e393daa3abfe87cabd69e213324f832707d71ef3d644";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2653,8 +2660,10 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // kb-c4 run 82.
 // MT-159 re-pin (previous 5cb894682f37a18549316cc96e73167171ec21fa71e381da55f6d25d507e52f3);
 // kb-c4 run 101.
+// MT-159 re-pin: model_session* job-scoped permissions (previous
+// 33f106de7ee1f2f5caa33fe7e2de5e61ba7d563d8064c727c89248dbc43fa86c); kb-c5 run 05.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "33f106de7ee1f2f5caa33fe7e2de5e61ba7d563d8064c727c89248dbc43fa86c";
+    "0c59fb082fac2c52b79fc530c571794b8c933fde9305303ef11511093690a53a";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -3386,7 +3395,19 @@ async fn inspect_catalog_fingerprint(
             ),
             (
                 "functions",
-                authority_catalog_names("function"),
+                {
+                    // The exact bounded Loom catalog also carries the table-called functions
+                    // (LOOM_RECEIPT_TEST_TABLE_FUNCTIONS) its DDL defines beside the authority core.
+                    let mut names = authority_catalog_names("function");
+                    if matches!(scope, CatalogInspectionScope::ExactDatabase) {
+                        names.extend(
+                            LOOM_RECEIPT_TEST_TABLE_FUNCTIONS
+                                .iter()
+                                .map(|name| (*name).to_owned()),
+                        );
+                    }
+                    names
+                },
                 &mut function_definitions,
             ),
         ] {
@@ -3521,8 +3542,11 @@ pub async fn bootstrap_loom_receipt_test_schema(
     // dc04737a586a4b743e727a2ff215a97e09ab7553df2ef33bc4d045f6a59b1676, the MT-109 pin; kb-v2
     // run 30, HANDSHAKE_LOOM_RECEIPT_TEST_SCHEMA_FINGERPRINT_MISMATCH / MT109_LOOM_CATALOG_SHA256
     // observed).
+    // SEVENTH pin (MT-153, kb-c5 run 05): the bounded DDL now also defines
+    // fn::mt153_loom_identity_unchanged, which the loom_blocks.block_id ASSERT calls (previous
+    // value 8adc1dddc98f2fce6119e38f1689a617a84c6602e8909dd01be60641a8b49164).
     const EXPECTED_CATALOG_SHA256: &str =
-        "8adc1dddc98f2fce6119e38f1689a617a84c6602e8909dd01be60641a8b49164";
+        "efc3ecc6ceea3e2a2cb0b1deb717c48a3d79fe8ff7668a17b06fc8f2f10e61b7";
     let ddl = loom_receipt_test_schema_ddl();
     let expected_tables = loom_receipt_test_tables()
         .iter()
@@ -3594,6 +3618,22 @@ fn loom_receipt_test_tables() -> &'static [&'static str] {
         "resource_grants",
         "authorization_audit_events",
     ]
+}
+
+/// Non-authority-core functions the Loom receipt-test tables call; part of that bounded catalog.
+const LOOM_RECEIPT_TEST_TABLE_FUNCTIONS: [&str; 1] = ["mt153_loom_identity_unchanged"];
+
+/// The whole `DEFINE FUNCTION OVERWRITE fn::<name>(` statement from the compiled SCHEMA.
+#[cfg(test)]
+fn schema_function_statement(name: &str) -> &'static str {
+    let start = SCHEMA
+        .find(&format!("DEFINE FUNCTION OVERWRITE fn::{name}("))
+        .expect("canonical schema defines the Loom table function");
+    let end = SCHEMA[start..]
+        .find("\n};")
+        .map(|offset| start + offset + "\n};".len())
+        .expect("canonical schema function terminates");
+    &SCHEMA[start..end]
 }
 
 #[cfg(test)]
@@ -3687,6 +3727,11 @@ fn loom_receipt_test_schema_ddl() -> String {
         }
     }
     ddl.extend(selected_update_guard_events);
+    // Functions outside the authority core that a selected table definition calls (MT-153:
+    // `loom_blocks.block_id` ASSERT -> fn::mt153_loom_identity_unchanged), copied whole from SCHEMA.
+    for name in LOOM_RECEIPT_TEST_TABLE_FUNCTIONS {
+        ddl.push(schema_function_statement(name).to_owned());
+    }
     let mut ddl = ddl.join("\n");
     ddl.push('\n');
     ddl
@@ -8121,7 +8166,7 @@ mod tests {
         eprintln!("MT109_LOOM_CATALOG_SHA256={}", fingerprints[0]);
         assert_eq!(
             fingerprints[0],
-            "8adc1dddc98f2fce6119e38f1689a617a84c6602e8909dd01be60641a8b49164"
+            "efc3ecc6ceea3e2a2cb0b1deb717c48a3d79fe8ff7668a17b06fc8f2f10e61b7"
         );
     }
 

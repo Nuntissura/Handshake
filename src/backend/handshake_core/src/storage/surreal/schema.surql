@@ -244,7 +244,10 @@ DEFINE INDEX OVERWRITE idx_ai_jobs_gc ON TABLE ai_jobs FIELDS status, created_at
 -- runtime rather than through a numbered migration. They are part of the same
 -- durable control-plane contract and therefore live in the generated Surreal
 -- schema instead of being created lazily by method calls.
-DEFINE TABLE OVERWRITE model_sessions SCHEMAFULL PERMISSIONS NONE;
+-- MT-159 (02-system-architecture.md:2773; every job kind under the account session): a job-bound model
+-- session and its checkpoints/messages follow the job workspace grant (fn::mt154_job_access, as
+-- workflow_runs); unbound (job_id NONE) sessions stay root-only.
+DEFINE TABLE OVERWRITE model_sessions SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'update', 'fs.write') FOR delete NONE;
 DEFINE FIELD OVERWRITE parent_session_id ON TABLE model_sessions TYPE option<record<model_sessions>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE spawn_depth ON TABLE model_sessions TYPE int ASSERT $value >= 0;
 DEFINE FIELD OVERWRITE state ON TABLE model_sessions TYPE 'CREATED' | 'ACTIVE' | 'PAUSED' | 'BLOCKED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
@@ -276,7 +279,7 @@ DEFINE FIELD OVERWRITE updated_at ON TABLE model_sessions TYPE datetime DEFAULT 
 DEFINE INDEX OVERWRITE idx_model_sessions_job ON TABLE model_sessions FIELDS job_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_model_sessions_parent ON TABLE model_sessions FIELDS parent_session_id;
 
-DEFINE TABLE OVERWRITE model_session_checkpoints SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE model_session_checkpoints SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'update', 'fs.write') FOR delete NONE;
 DEFINE FIELD OVERWRITE session_id ON TABLE model_session_checkpoints TYPE record<model_sessions> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE timestamp ON TABLE model_session_checkpoints TYPE datetime;
 DEFINE FIELD OVERWRITE session_state_json ON TABLE model_session_checkpoints TYPE string;
@@ -285,7 +288,7 @@ DEFINE FIELD OVERWRITE pending_tool_calls_json ON TABLE model_session_checkpoint
 DEFINE FIELD OVERWRITE checkpoint_artifact_id ON TABLE model_session_checkpoints TYPE string;
 DEFINE INDEX OVERWRITE idx_model_session_checkpoints_latest ON TABLE model_session_checkpoints FIELDS session_id, timestamp;
 
-DEFINE TABLE OVERWRITE model_session_messages SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE model_session_messages SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(session_id.job_id.entity_refs, session_id.job_id.job_inputs, 'update', 'fs.write') FOR delete NONE;
 DEFINE FIELD OVERWRITE session_id ON TABLE model_session_messages TYPE record<model_sessions> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE role ON TABLE model_session_messages TYPE 'SYSTEM' | 'USER' | 'ASSISTANT' | 'TOOL_CALL' | 'TOOL_RESULT';
 DEFINE FIELD OVERWRITE content_hash ON TABLE model_session_messages TYPE string;
