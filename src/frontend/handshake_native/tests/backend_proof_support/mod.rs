@@ -4243,7 +4243,20 @@ pub fn publish_mt045_evidence_bytes(
     }))
 }
 
+/// The WP-scoped external artifact directory, created on first use so a caller that opens a file
+/// directly under it (e.g. the managed-backend fixture lock) never races an absent directory.
 pub fn external_artifact_root() -> PathBuf {
+    let root = external_artifact_root_path();
+    std::fs::create_dir_all(&root).unwrap_or_else(|error| {
+        panic!(
+            "create WP-scoped external artifact root {}: {error}",
+            root.display()
+        )
+    });
+    root
+}
+
+fn external_artifact_root_path() -> PathBuf {
     if let Some(root) = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT") {
         let configured_root = PathBuf::from(root);
         let canonical_configured_root = std::fs::canonicalize(&configured_root).unwrap_or_else(|error| {
