@@ -14,7 +14,7 @@
   "title": "E5-MT-033-CkcEmbedsDragInRouteToStage",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-09-23T06:14:41.580Z",
+  "updated_at_utc": "2026-09-23T22:56:46.674Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-033.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V6",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -36,10 +36,10 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "FAIL_V6",
+    "validator_verdict": "BLOCKED_ON_DEPENDENCY",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "WP_VALIDATOR-N1B-20260916-113023",
-    "validated_at_utc": "2026-09-16T23:19:48.951Z",
+    "validated_by": "WP_VALIDATOR-D1V-20260923-2240",
+    "validated_at_utc": "2026-09-23T22:56:36.060Z",
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-29T23:05:48.0444200Z",
     "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: exercise the real CKC embed drag-in and Route-to-Stage interop with persistence/receipt readback and typed unavailable/error behavior; then prove the mounted Atelier panel and route controls through canonical Argus stable-target inspection, safe steering, fresh post-action observation, screenshot/tree evidence, and the canonical UserManual path. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
@@ -1462,5 +1462,26 @@
     },
     "note": "ckc save 500 root cause fixed (writer projection branch)",
     "recorded_at_utc": "2026-09-23T06:14:41.580Z"
+  },
+  "validation_v7": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "session": "WP_VALIDATOR-D1V-20260923-2240",
+    "candidate_sha": "8f60313bfd3e72a3a9bdbafbce7a9daf049c5025",
+    "timestamp_utc": "2026-09-23T22:56:36.060Z",
+    "verdict": "BLOCKED_ON_DEPENDENCY",
+    "blocker": {
+      "id": "TEST-SYNC-SWITCH-COVERAGE",
+      "description": "HANDSHAKE_TEST_SURREAL_SYNC=never switch does not cover the store opener used by tests/atelier_surreal_support/mod.rs:190; builder extending the switch to every test opener in the next push.",
+      "re_verdict_on": "next candidate SHA extending TEST-SYNC-SWITCH-COVERAGE"
+    },
+    "correction_note": "Orchestrator (session IV) identified the BootstrapStalled as Hang-A class: tests/atelier_surreal_support/mod.rs:190 opens its store outside the HANDSHAKE_TEST_SURREAL_SYNC-covered openers, so it still fsyncs every commit; watchdog correctly turned the stall into a typed error. Not a MT-033 product failure. Corrected from initial FAIL_V7 in the same session."
+  },
+  "validation_v7_transition": {
+    "from_status": "FAIL_V6",
+    "to_status": "BLOCKED_ON_DEPENDENCY",
+    "at_utc": "2026-09-23T22:56:36.060Z",
+    "by": "WP_VALIDATOR-D1V-20260923-2240",
+    "reason": "TEST-SYNC-SWITCH-COVERAGE gap (Hang-A class), not a product defect",
+    "corrected_at_utc": "2026-09-23T22:56:46.674Z"
   }
 }
