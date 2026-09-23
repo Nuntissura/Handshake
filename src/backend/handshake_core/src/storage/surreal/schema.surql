@@ -735,7 +735,8 @@ DEFINE INDEX OVERWRITE idx_wp_status ON TABLE work_packets FIELDS status;
 DEFINE INDEX OVERWRITE idx_wp_priority ON TABLE work_packets FIELDS priority;
 DEFINE INDEX OVERWRITE idx_wp_task_board_status ON TABLE work_packets FIELDS task_board_status;
 
-DEFINE TABLE OVERWRITE dependencies SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE dependencies SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND from_wp_id.owner_account_id = owner_account_id AND to_wp_id.owner_account_id = owner_account_id FOR delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE dependencies TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE dependency_id ON TABLE dependencies TYPE string ASSERT $value = record::id($this.id) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE from_wp_id ON TABLE dependencies TYPE record<work_packets> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE to_wp_id ON TABLE dependencies TYPE record<work_packets> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -758,7 +759,8 @@ DEFINE FIELD OVERWRITE escalation_level ON TABLE micro_tasks TYPE option<int>;
 DEFINE FIELD OVERWRITE metadata ON TABLE micro_tasks TYPE string;
 DEFINE INDEX OVERWRITE pk_micro_tasks ON TABLE micro_tasks FIELDS mt_id UNIQUE;
 
-DEFINE TABLE OVERWRITE mt_iterations SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE mt_iterations SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND mt_id.owner_account_id = owner_account_id FOR delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE mt_iterations TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE iteration_id ON TABLE mt_iterations TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE mt_id ON TABLE mt_iterations TYPE record<micro_tasks> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE iteration ON TABLE mt_iterations TYPE int ASSERT $value >= 1;
@@ -957,7 +959,7 @@ DEFINE INDEX OVERWRITE idx_kernel_session_queue_state_available ON TABLE kernel_
 DEFINE INDEX OVERWRITE idx_kernel_session_queue_lease ON TABLE kernel_session_queue FIELDS lease_expires_at;
 
 -- 0020_kernel_crdt_storage
-DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_document_access(document_id, workspace_id, 'read', 'fs.read') FOR create WHERE fn::mt120_document_access(document_id, workspace_id, 'update', 'fs.write') AND event_ledger_event_id.authority_session_id = $auth.id AND event_ledger_event_id.wsids = [workspace_id] FOR update, delete NONE;
+DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_document_access(document_id, workspace_id, 'read', 'fs.read') FOR create WHERE fn::mt120_document_access(document_id, workspace_id, 'update', 'fs.write') AND event_ledger_event_id.authority_session_id = $auth.id AND event_ledger_event_id.wsids = [workspace_id] FOR update NONE FOR delete WHERE fn::mt109_has_workspace_access(workspace_id, 'delete', 'fs.write');
 DEFINE FIELD OVERWRITE schema_id ON TABLE kernel_crdt_updates TYPE string;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE kernel_crdt_updates TYPE string;
 DEFINE FIELD OVERWRITE document_id ON TABLE kernel_crdt_updates TYPE string;
@@ -4542,7 +4544,7 @@ DEFINE INDEX OVERWRITE idx_loom_folder_members_event ON TABLE loom_folder_member
 -- it inside the committing transaction (THROW on mismatch, UPSERT to bump), so a
 -- decision against a stale graph fails closed and two writers that overlap in the
 -- engine collide on this one key at commit. A serialization device, not domain data.
-DEFINE TABLE OVERWRITE storage_graph_anchors SCHEMAFULL PERMISSIONS FOR select WHERE graph_kind = 'loom_folder_tree' AND anchor_key = 'loom_folder_tree|' + scope_key AND record::id(id) = anchor_key AND fn::mt109_has_workspace_access(scope_key, 'read', 'fs.read') FOR create, update WHERE graph_kind = 'loom_folder_tree' AND anchor_key = 'loom_folder_tree|' + scope_key AND record::id(id) = anchor_key AND fn::mt109_has_workspace_access(scope_key, 'update', 'fs.write') FOR delete NONE;
+DEFINE TABLE OVERWRITE storage_graph_anchors SCHEMAFULL PERMISSIONS FOR select WHERE (graph_kind = 'loom_folder_tree' AND anchor_key = 'loom_folder_tree|' + scope_key AND record::id(id) = anchor_key AND fn::mt109_has_workspace_access(scope_key, 'read', 'fs.read')) OR (graph_kind = 'work_packet_dependencies' AND scope_key != 'global' AND scope_key = fn::mt158_dependency_graph_scope() AND anchor_key = 'work_packet_dependencies|' + scope_key AND record::id(id) = anchor_key AND fn::mt154_account_row($auth.account_id, 'fs.read')) FOR create, update WHERE (graph_kind = 'loom_folder_tree' AND anchor_key = 'loom_folder_tree|' + scope_key AND record::id(id) = anchor_key AND fn::mt109_has_workspace_access(scope_key, 'update', 'fs.write')) OR (graph_kind = 'work_packet_dependencies' AND scope_key != 'global' AND scope_key = fn::mt158_dependency_graph_scope() AND anchor_key = 'work_packet_dependencies|' + scope_key AND record::id(id) = anchor_key AND fn::mt154_account_row($auth.account_id, 'fs.write')) FOR delete NONE;
 DEFINE FIELD OVERWRITE anchor_key ON TABLE storage_graph_anchors TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE graph_kind ON TABLE storage_graph_anchors TYPE 'loom_folder_tree' | 'work_packet_dependencies';
 DEFINE FIELD OVERWRITE scope_key ON TABLE storage_graph_anchors TYPE string ASSERT string::trim($value) != '';
@@ -7362,5 +7364,11 @@ DEFINE FUNCTION OVERWRITE fn::mt157_breakpoint_receipt($resource: option<record<
     RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
             AND fn::mt120_document_access($aggregate_id, $wsids[0], 'update', 'fs.write'))
         OR (!$write AND fn::mt120_document_access($aggregate_id, $wsids[0], 'read', 'fs.read'));
+};
+-- MT-158 (D-154-3 extension, Operator decision 2026-09-23 option A): the Locus dependency graph is
+-- versioned per owning account. A record user's anchor scope is its own account; root/system callers
+-- keep the single 'global' anchor. Master Spec 02-system-architecture.md:2740 (owner_account_id).
+DEFINE FUNCTION OVERWRITE fn::mt158_dependency_graph_scope() {
+    RETURN IF $auth = NONE OR $auth.account_id = NONE { 'global' } ELSE { 'account:' + <string> record::id($auth.account_id) };
 };
 -- MT154_AUTHORITY_END

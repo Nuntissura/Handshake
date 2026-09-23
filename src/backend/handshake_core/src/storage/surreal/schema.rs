@@ -2148,9 +2148,11 @@ const MT154_SCHEMA_DELTAS: &[(&str, &str)] = &[
     ("-- MT-154 (02-system-architecture.md:2758/2773/2776, LM-RLS-001/002): calendar rows are workspace-scoped;\n-- viewers read, members create/edit, admins delete; an owner's workspace delete may remove them.\nDEFINE TABLE OVERWRITE calendar_sources SCHEMAFULL\n    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')\n                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')\n                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')\n                FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write')\n                    OR fn::mt120_workspace_delete(record::id(workspace_id));\n", "DEFINE TABLE OVERWRITE calendar_sources SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE calendar_events SCHEMAFULL\n    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')\n                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')\n                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')\n                FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write')\n                    OR fn::mt120_workspace_delete(record::id(workspace_id));\n", "DEFINE TABLE OVERWRITE calendar_events SCHEMAFULL PERMISSIONS NONE;\n"),
     ("-- MT-154 (D-154-3): account-owned; owner_account_id stamped from $auth at create (NONE for root/system\n-- writers, which a record user never sees).\nDEFINE TABLE OVERWRITE work_packets SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');\nDEFINE FIELD OVERWRITE owner_account_id ON TABLE work_packets TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;\n", "DEFINE TABLE OVERWRITE work_packets SCHEMAFULL PERMISSIONS NONE;\n"),
+    ("DEFINE TABLE OVERWRITE dependencies SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND from_wp_id.owner_account_id = owner_account_id AND to_wp_id.owner_account_id = owner_account_id FOR delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');\nDEFINE FIELD OVERWRITE owner_account_id ON TABLE dependencies TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;\n", "DEFINE TABLE OVERWRITE dependencies SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE micro_tasks SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');\nDEFINE FIELD OVERWRITE owner_account_id ON TABLE micro_tasks TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;\n", "DEFINE TABLE OVERWRITE micro_tasks SCHEMAFULL PERMISSIONS NONE;\n"),
+    ("DEFINE TABLE OVERWRITE mt_iterations SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND mt_id.owner_account_id = owner_account_id FOR delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');\nDEFINE FIELD OVERWRITE owner_account_id ON TABLE mt_iterations TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;\n", "DEFINE TABLE OVERWRITE mt_iterations SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL\n    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)\n                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)\n                FOR update, delete NONE;\n", "DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL\n    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)\n                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)\n                FOR update, delete NONE;\n"),
-    ("DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_document_access(document_id, workspace_id, 'read', 'fs.read') FOR create WHERE fn::mt120_document_access(document_id, workspace_id, 'update', 'fs.write') AND event_ledger_event_id.authority_session_id = $auth.id AND event_ledger_event_id.wsids = [workspace_id] FOR update, delete NONE;\n", "DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS NONE;\n"),
+    ("DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_document_access(document_id, workspace_id, 'read', 'fs.read') FOR create WHERE fn::mt120_document_access(document_id, workspace_id, 'update', 'fs.write') AND event_ledger_event_id.authority_session_id = $auth.id AND event_ledger_event_id.wsids = [workspace_id] FOR update NONE FOR delete WHERE fn::mt109_has_workspace_access(workspace_id, 'delete', 'fs.write');\n", "DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS NONE;\n"),
     ("-- MT-154 (D-154-3; Master Spec 02-system-architecture.md:2740/:2751): every atelier_* row is an\n-- account-owned ProtectedResource. owner_account_id is stamped from $auth at create (NONE for root/system\n-- writers, which no record user can see) and is READONLY; fn::mt154_account_row gates every operation.\nDEFINE TABLE OVERWRITE atelier_character SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');\nDEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_character TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;\n", "DEFINE TABLE OVERWRITE atelier_character SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE atelier_sheet_version SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');\nDEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_sheet_version TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;\n", "DEFINE TABLE OVERWRITE atelier_sheet_version SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE atelier_media_asset SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');\nDEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_asset TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;\n", "DEFINE TABLE OVERWRITE atelier_media_asset SCHEMAFULL PERMISSIONS NONE;\n"),
@@ -2291,6 +2293,7 @@ const MT154_SCHEMA_DELTAS: &[(&str, &str)] = &[
     ("DEFINE TABLE OVERWRITE knowledge_memory_facts SCHEMAFULL PERMISSIONS FOR select WHERE claim_id.workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;\n", "DEFINE TABLE OVERWRITE knowledge_memory_facts SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE knowledge_semantic_catalog_entries SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;\n", "DEFINE TABLE OVERWRITE knowledge_semantic_catalog_entries SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE loom_block_knowledge_bridge SCHEMAFULL\n    PERMISSIONS FOR select WHERE fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'read', 'fs.read') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')) OR (block_id.source_rich_document_id != NONE AND record::id(block_id.source_rich_document_id) = record::id(block_id) AND block_id.workspace_id = workspace_id AND fn::mt120_document_access(record::id(block_id), record::id(workspace_id), 'read', 'fs.read'))\n                FOR create WHERE block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')) OR (block_id.source_rich_document_id != NONE AND record::id(block_id.source_rich_document_id) = record::id(block_id) AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_document_access(record::id(block_id), record::id(workspace_id), 'update', 'fs.write'))\n                FOR update NONE FOR delete WHERE block_id.source_rich_document_id != NONE AND record::id(block_id.source_rich_document_id) = record::id(block_id) AND fn::mt154_stage_card_projection_delete(record::id(block_id), record::id(workspace_id)) AND fn::mt154_stage_compensation(record::id(block_id), record::id(workspace_id)).entity_id = record::id(entity_id);\n", "DEFINE TABLE OVERWRITE loom_block_knowledge_bridge SCHEMAFULL\n    PERMISSIONS FOR select WHERE fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'read', 'fs.read') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read'))\n                FOR create WHERE block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write'))\n                FOR update NONE FOR delete NONE;\n"),
+    ("DEFINE TABLE OVERWRITE storage_graph_anchors SCHEMAFULL PERMISSIONS FOR select WHERE (graph_kind = 'loom_folder_tree' AND anchor_key = 'loom_folder_tree|' + scope_key AND record::id(id) = anchor_key AND fn::mt109_has_workspace_access(scope_key, 'read', 'fs.read')) OR (graph_kind = 'work_packet_dependencies' AND scope_key != 'global' AND scope_key = fn::mt158_dependency_graph_scope() AND anchor_key = 'work_packet_dependencies|' + scope_key AND record::id(id) = anchor_key AND fn::mt154_account_row($auth.account_id, 'fs.read')) FOR create, update WHERE (graph_kind = 'loom_folder_tree' AND anchor_key = 'loom_folder_tree|' + scope_key AND record::id(id) = anchor_key AND fn::mt109_has_workspace_access(scope_key, 'update', 'fs.write')) OR (graph_kind = 'work_packet_dependencies' AND scope_key != 'global' AND scope_key = fn::mt158_dependency_graph_scope() AND anchor_key = 'work_packet_dependencies|' + scope_key AND record::id(id) = anchor_key AND fn::mt154_account_row($auth.account_id, 'fs.write')) FOR delete NONE;\n", "DEFINE TABLE OVERWRITE storage_graph_anchors SCHEMAFULL PERMISSIONS FOR select WHERE graph_kind = 'loom_folder_tree' AND anchor_key = 'loom_folder_tree|' + scope_key AND record::id(id) = anchor_key AND fn::mt109_has_workspace_access(scope_key, 'read', 'fs.read') FOR create, update WHERE graph_kind = 'loom_folder_tree' AND anchor_key = 'loom_folder_tree|' + scope_key AND record::id(id) = anchor_key AND fn::mt109_has_workspace_access(scope_key, 'update', 'fs.write') FOR delete NONE;\n"),
     ("-- MT-157 (Master Spec 02-system-architecture.md:2758/2773/2776, LM-RLS-002): record users read with the exact\n-- RichDocument read + fs.read grant; the replace-all PUT (DELETE + CREATE) needs update + fs.write; rows are never\n-- updated in place. Workspace/document deletes cascade through the REFERENCE fields below.\nDEFINE TABLE OVERWRITE knowledge_debug_breakpoints SCHEMAFULL\n    PERMISSIONS FOR select WHERE fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'read', 'fs.read')\n                FOR create WHERE fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'update', 'fs.write')\n                FOR update NONE\n                FOR delete WHERE fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_workspace_delete(record::id(workspace_id));\n", "DEFINE TABLE OVERWRITE knowledge_debug_breakpoints SCHEMAFULL PERMISSIONS NONE;\n"),
     ("DEFINE TABLE OVERWRITE loom_canvas_placements SCHEMAFULL\n    PERMISSIONS FOR select WHERE (fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'read', 'fs.read') OR fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write')) AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))\n                FOR create WHERE fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))\n                FOR update WHERE fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))\n                FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id)) OR (fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read'))) AND fn::mt154_stage_placement_delete(placement_id, record::id(placed_block_id), record::id(workspace_id), stage_provenance_key));\n", "DEFINE TABLE OVERWRITE loom_canvas_placements SCHEMAFULL\n    PERMISSIONS FOR select WHERE (fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'read', 'fs.read') OR fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write')) AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))\n                FOR create WHERE fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))\n                FOR update WHERE fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))\n                FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id)) OR (fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read'))));\n"),
     ("-- MT-154: activity spans are workspace-scoped like the calendar rows they annotate.\nDEFINE TABLE OVERWRITE calendar_activity_spans SCHEMAFULL\n    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')\n                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')\n                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')\n                    OR fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')\n                FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write')\n                    OR fn::mt120_workspace_delete(record::id(workspace_id));\n", "DEFINE TABLE OVERWRITE calendar_activity_spans SCHEMAFULL PERMISSIONS NONE;\n"),
@@ -2565,8 +2568,13 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // non-Loom surfaces, owner_account_id on account-global tables, job/workflow predicates, the Loom
 // identity guard and the MT154_AUTHORITY block (previous value
 // 41bbb694d0b7c45a5fcd95eb71f0010d1b28ca09440b9593f6f769bac8b55121); kb-c4 runs 26/28.
+// MT-154/MT-158 re-pin: kernel_crdt_updates owner-delete permission (workspace delete cascade),
+// mt_iterations/dependencies owner_account_id + permissions, the per-account dependency-graph
+// anchor branch and fn::mt158_dependency_graph_scope (previous value
+// ba67f200ef98758d62b2b307efae4efdc220d1ef07bf6ef44551ce389d57d271); kb-c4 run 82 (equals
+// sha256 of schema.surql).
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "ba67f200ef98758d62b2b307efae4efdc220d1ef07bf6ef44551ce389d57d271";
+    "35ce1b4d6578eedd5ef6f054f3b70432f94b2728fd9ae98cd4d35dd32e8974be";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -2583,8 +2591,10 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // MT-141 R9 pin); observed by `declarative_schema_catalog_is_complete_and_content_sensitive`.
 // MT-109 C3 re-pin: Loom record-user permissions and fn::mt120_loom_endpoint_access (previous
 // 01e4c14cc6e3d75239c053974c5de2c4168c2ae50d76d3f418819ce7d7e993fd); kb-c3 run 04.
+// MT-154/MT-158 re-pin (same batch as GENERATED_SURREALQL_SHA256; previous
+// c6a1846bd23c9706a61feac9f267b6f32c77fb8f1b5faa2358d88b2d83a42436); kb-c4 run 82.
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "c6a1846bd23c9706a61feac9f267b6f32c77fb8f1b5faa2358d88b2d83a42436";
+    "54b282b48cf22a2f02ae0d2964b659b01c53da3177c9e95ae5d70dce358fce7c";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -2630,8 +2640,10 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // kb-c1 run 76.
 // MT-109 C2 re-pin (previous a99410f0c48491e110068e2d10d3ab0fc526073b6af749ce17afb85fe7e549f6); kb-c2 runs 03/18.
 // MT-109 C3 re-pin (previous 13be68fc1edba9476e4cdd2db98f51b02ee33190683472fca3bb4cf57ee7225c); kb-c3 run 04.
+// MT-154/MT-158 re-pin (previous ad5ff085fc07966c351da7cd56e2e423577d8ff58240d97a25ee5107048eb363);
+// kb-c4 run 82.
 pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "ad5ff085fc07966c351da7cd56e2e423577d8ff58240d97a25ee5107048eb363";
+    "5cb894682f37a18549316cc96e73167171ec21fa71e381da55f6d25d507e52f3";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -3011,7 +3023,9 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 const TABLE_DEFINITION_COUNT: usize = 294;
 // MT-141 V2-R2 re-pin: +2 fields (knowledge_crdt_ai_edit_proposals.applied_update_id /
 // applied_update_sha256); pin_order and the quick-switcher kind unions changed in place.
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3356;
+// MT-158 re-pin: +2 fields (mt_iterations.owner_account_id, dependencies.owner_account_id; D-154-3
+// extension).
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3358;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 239;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 175;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -3031,7 +3045,8 @@ const EVENT_DEFINITION_COUNT: usize = 42;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
 const ACCESS_DEFINITION_COUNT: usize = 1;
-const FUNCTION_DEFINITION_COUNT: usize = 52;
+// MT-158 re-pin: +1 function (fn::mt158_dependency_graph_scope).
+const FUNCTION_DEFINITION_COUNT: usize = 53;
 const SOURCE_TABLE_COUNT: usize = 291;
 const SOURCE_VIEW_COUNT: usize = 2;
 const SOURCE_NAMED_INDEX_COUNT: usize = 555;
@@ -4490,14 +4505,124 @@ async fn ensure_knowledge_schema_registry(
     Ok(())
 }
 
+/// The fresh-bootstrap execution plan of [`SCHEMA`], split into two queries.
+struct FreshBootstrapScript {
+    /// `BEGIN` ... every table, field, event, function and access definition ... `COMMIT`.
+    definitions: String,
+    /// `BEGIN` ... every `DEFINE INDEX` of the first transaction, then the `schema_applied`
+    /// receipt ... `COMMIT`, followed by the statements [`SCHEMA`] already runs after its
+    /// transaction.
+    indexes_and_rest: String,
+}
+
+/// Splits the compiled [`SCHEMA`] for a fresh bootstrap (IV 2026-09-23, second zero-CPU hang root
+/// cause): SurrealDB 3.2.0 runs an index builder per `DEFINE INDEX`
+/// (surrealdb-core-3.2.0 `expr/statements/define/index.rs:229-235`), and the builder retries a
+/// retryable transaction conflict every 100 ms without a bound (`kvs/index/builder.rs:822-832`)
+/// while ~4,500 other definitions share its transaction. Every index therefore runs in a second
+/// transaction right after the definitions transaction, on the same still-empty tables (blocking,
+/// no `CONCURRENTLY`). The `schema_applied` receipt moves into that second transaction, so it only
+/// commits together with every index. The compiled text, its hash and the declarative catalog are
+/// unchanged; only execution is split. Statements are moved whole (continuation lines until `;`)
+/// and in source order.
+fn fresh_bootstrap_script(schema: &str) -> Result<FreshBootstrapScript, String> {
+    const RECEIPT_START: &str = "UPSERT handshake_schema_state:primary SET";
+    let lines = schema.lines().collect::<Vec<_>>();
+    let begin = lines
+        .iter()
+        .position(|line| *line == "BEGIN TRANSACTION;")
+        .ok_or("schema has no BEGIN TRANSACTION")?;
+    let commit = lines
+        .iter()
+        .position(|line| *line == "COMMIT TRANSACTION;")
+        .ok_or("schema has no COMMIT TRANSACTION")?;
+    if commit <= begin {
+        return Err("COMMIT precedes BEGIN".to_owned());
+    }
+    let mut definitions = lines[..commit]
+        .iter()
+        .map(|line| (*line).to_owned())
+        .collect::<Vec<_>>();
+    let mut kept = Vec::with_capacity(definitions.len());
+    let mut indexes = Vec::new();
+    let mut receipt = Vec::new();
+    let mut continuation: Option<bool> = None; // Some(true) = index, Some(false) = receipt
+    for (offset, line) in definitions.drain(..).enumerate() {
+        let inside = offset > begin;
+        let trimmed = line.trim_end();
+        let target = match continuation {
+            Some(kind) => Some(kind),
+            None if inside && line.starts_with("DEFINE INDEX ") => Some(true),
+            None if inside && line.starts_with(RECEIPT_START) => Some(false),
+            None => None,
+        };
+        match target {
+            Some(true) => indexes.push(line.clone()),
+            Some(false) => receipt.push(line.clone()),
+            None => kept.push(line.clone()),
+        }
+        continuation = match target {
+            Some(kind) if !trimmed.ends_with(';') => Some(kind),
+            _ => None,
+        };
+    }
+    if continuation.is_some() {
+        return Err("unterminated moved statement before COMMIT".to_owned());
+    }
+    if indexes.is_empty() || receipt.is_empty() {
+        return Err(format!(
+            "expected indexes and the schema_applied receipt inside the transaction (indexes={}, receipt_lines={})",
+            indexes.len(),
+            receipt.len()
+        ));
+    }
+    let mut definitions = kept.join("\n");
+    definitions.push_str("\nCOMMIT TRANSACTION;\n");
+    let mut indexes_and_rest = String::from("BEGIN TRANSACTION;\n");
+    indexes_and_rest.push_str(&indexes.join("\n"));
+    indexes_and_rest.push('\n');
+    indexes_and_rest.push_str(&receipt.join("\n"));
+    indexes_and_rest.push_str("\nCOMMIT TRANSACTION;\n");
+    indexes_and_rest.push_str(&lines[commit + 1..].join("\n"));
+    indexes_and_rest.push('\n');
+    Ok(FreshBootstrapScript {
+        definitions,
+        indexes_and_rest,
+    })
+}
+
+/// True only for the interrupted fresh bootstrap: the live table set is exactly the compiled
+/// [`TABLE_NAMES`] and the bootstrap receipt row does not exist. Any other state (empty, current,
+/// predecessor, foreign) is left to [`read_context_and_state`], which fails closed as before.
+async fn definitions_committed_without_receipt(
+    database: &SurrealAdminContext<'_>,
+) -> Result<bool, SurrealStorageError> {
+    let mut response = database.query("INFO FOR DB STRUCTURE;").await?;
+    let database_info: SurrealValueData = response.take(0)?;
+    let Ok(tables) = parse_named_array(&database_info, "tables") else {
+        return Ok(false);
+    };
+    let live = tables.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    let compiled = TABLE_NAMES.iter().copied().collect::<BTreeSet<_>>();
+    if live != compiled {
+        return Ok(false);
+    }
+    let mut receipt = database
+        .query(format!("SELECT VALUE id FROM {BOOTSTRAP_STATE_TABLE};"))
+        .await?;
+    let rows: Vec<RecordId> = receipt.take(0)?;
+    Ok(rows.is_empty())
+}
+
 /// Installs the sole declarative Surreal schema or verifies an exact-current schema.
 ///
 /// V1 fails closed for every lower, divergent, or unknown lineage. One exact allowlisted
 /// predecessor is upgraded transactionally from its retired registry field to the declarative
 /// `schema_source` field; no deleted migration file is read or executed. The sole resumable
 /// incomplete state is the exact-current `schema_applied` receipt written after committed DDL or
-/// predecessor upgrade. It is finalized only after complete live INFO matches the compiled
-/// fingerprint. A process-wide mutex serializes callers; each transaction rechecks durable state
+/// predecessor upgrade (on a fresh store it commits with the index transaction; an interrupted
+/// fresh bootstrap resumes through [`definitions_committed_without_receipt`]). It is finalized
+/// only after complete live INFO matches the compiled fingerprint. A process-wide mutex serializes callers; each transaction rechecks durable state
 /// before mutation. Exact-current restarts return before executing any `OVERWRITE` statement.
 pub async fn bootstrap_schema(
     storage: &SurrealStorage,
@@ -4507,24 +4632,40 @@ pub async fn bootstrap_schema(
         .with_admin_operation(|database| {
             Box::pin(async move {
                 verify_compiled_manifest(&database).await?;
+                let bindings = || BootstrapBindings {
+                    schema_version: SCHEMA_VERSION.to_owned(),
+                    schema_revision: SCHEMA_REVISION,
+                    namespace: DEFAULT_NAMESPACE.to_owned(),
+                    database: DEFAULT_DATABASE.to_owned(),
+                    source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                    generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                };
+                let script = fresh_bootstrap_script(SCHEMA).map_err(|reason| {
+                    SurrealStorageError::TransactionWorker(format!(
+                        "HANDSHAKE_SURREAL_BOOTSTRAP_SCRIPT_INVALID: {reason}"
+                    ))
+                })?;
+                // A crash after the definitions transaction committed but before the index
+                // transaction did leaves the exact compiled table set with no receipt row. Only
+                // that state resumes: the index transaction and the post-transaction statements
+                // (all OVERWRITE) re-run, then the schema_applied resume path below verifies the
+                // complete live INFO fingerprint before finalizing.
+                if definitions_committed_without_receipt(&database).await? {
+                    database
+                        .query_bound(script.indexes_and_rest.clone(), bindings())
+                        .await?;
+                }
                 let existing = read_context_and_state(&database).await?;
                 let mut verified_observed = None;
                 let outcome = match existing {
                     None => {
+                        // The table/field/function transaction must commit before any index is
+                        // defined: a failed first transaction (e.g. the not-empty guard) never
+                        // reaches the index transaction.
                         database
-                            .query_bound(
-                                SCHEMA,
-                                BootstrapBindings {
-                                    schema_version: SCHEMA_VERSION.to_owned(),
-                                    schema_revision: SCHEMA_REVISION,
-                                    namespace: DEFAULT_NAMESPACE.to_owned(),
-                                    database: DEFAULT_DATABASE.to_owned(),
-                                    source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
-                                    generated_surql_sha256:
-                                        GENERATED_SURREALQL_SHA256.to_owned(),
-                                },
-                            )
+                            .query_bound(script.definitions, bindings())
                             .await?;
+                        database.query_bound(script.indexes_and_rest, bindings()).await?;
                         let applied_state = match read_context_and_state(&database).await? {
                             Some(state) if state.is_schema_applied_current() => state,
                             Some(state) => {
@@ -9472,6 +9613,81 @@ mod tests {
             .shutdown()
             .await
             .expect("close restarted Canvas receipt store");
+    }
+
+    /// The fresh bootstrap runs every `DEFINE INDEX` of the schema transaction in a second
+    /// transaction after the definitions commit, with the `schema_applied` receipt last; no line is
+    /// lost, duplicated or reordered within its group.
+    #[test]
+    fn fresh_bootstrap_script_moves_every_index_into_a_second_transaction() {
+        let script = fresh_bootstrap_script(SCHEMA).expect("split compiled schema");
+        assert!(
+            !script.definitions.contains("\nDEFINE INDEX "),
+            "the definitions transaction holds no index"
+        );
+        assert!(!script
+            .definitions
+            .contains("handshake_schema_state:primary"));
+        assert_eq!(
+            script.definitions.matches("COMMIT TRANSACTION;").count(),
+            1,
+            "the definitions query is exactly one transaction"
+        );
+        let (index_transaction, rest) = script
+            .indexes_and_rest
+            .split_once("COMMIT TRANSACTION;\n")
+            .expect("second transaction commits");
+        assert!(index_transaction.starts_with("BEGIN TRANSACTION;\n"));
+        assert_eq!(
+            index_transaction.matches("\nDEFINE INDEX ").count(),
+            INDEX_DEFINITION_COUNT,
+            "every index moves into the second transaction"
+        );
+        let receipt = index_transaction
+            .find("UPSERT handshake_schema_state:primary SET")
+            .expect("receipt in the index transaction");
+        assert!(
+            index_transaction[..receipt]
+                .rfind("DEFINE INDEX ")
+                .is_some()
+                && !index_transaction[receipt..].contains("DEFINE INDEX "),
+            "the receipt commits after every index"
+        );
+        let original_rest = SCHEMA
+            .split_once("\nCOMMIT TRANSACTION;\n")
+            .expect("schema transaction")
+            .1;
+        assert_eq!(rest.trim_end(), original_rest.trim_end());
+        let mut before = SCHEMA.lines().collect::<Vec<_>>();
+        let mut after = script
+            .definitions
+            .lines()
+            .chain(script.indexes_and_rest.lines())
+            .collect::<Vec<_>>();
+        after.remove(
+            after
+                .iter()
+                .position(|line| *line == "BEGIN TRANSACTION;")
+                .and_then(|first| {
+                    after[first + 1..]
+                        .iter()
+                        .position(|line| *line == "BEGIN TRANSACTION;")
+                        .map(|second| first + 1 + second)
+                })
+                .expect("second BEGIN"),
+        );
+        after.remove(
+            after
+                .iter()
+                .position(|line| *line == "COMMIT TRANSACTION;")
+                .expect("added COMMIT"),
+        );
+        before.sort_unstable();
+        after.sort_unstable();
+        assert_eq!(
+            before, after,
+            "the split moves lines, it never adds or drops one"
+        );
     }
 
     /// Every MT-154 delta pair is re-emitted on upgrade as its complete enclosing OVERWRITE
