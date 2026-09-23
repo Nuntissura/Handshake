@@ -279,8 +279,10 @@ async fn record_conflict_receipt(
     .idempotency_key(idempotency_key.clone())
     .correlation_id(envelope.trace_id.clone())
     .source_component("knowledge_crdt_save_semantics")
+    // MT-154: the receipt names its workspace (`fn::mt154_workspace_receipt`).
     .payload(json!({
         "schema_id": KNOWLEDGE_SAVE_DECISION_SCHEMA_ID,
+        "workspace_id": envelope.workspace_id,
         "decision": decision,
         "denied_update_id": envelope.update_id,
         "denied_actor_id": envelope.actor_id,

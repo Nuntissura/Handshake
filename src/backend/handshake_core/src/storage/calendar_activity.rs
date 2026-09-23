@@ -155,9 +155,9 @@ impl CalendarActivityStore {
 
         match result {
             Ok(Some(row)) => map_span_row(row),
-            Ok(None) => Err(StorageError::Database(
-                "calendar activity span upsert returned no row".to_owned(),
-            )),
+            // MT-154 (spec_ruling_c3_silent_deny): SurrealDB 3.2.0 silently drops a record-user
+            // write the table permissions deny; an empty result is that denial, never success.
+            Ok(None) => Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE")),
             Err(error) => {
                 let rendered = error.to_string();
                 if rendered.contains("HSK-CALENDAR-EVENT-NOT-FOUND") {
@@ -211,6 +211,13 @@ impl CalendarActivityStore {
         workspace_id: &str,
         journal_date: &str,
     ) -> Result<Option<String>, StorageError> {
+        // MT-154 AC-154-3: the daily-note lookup reads `loom_blocks` only as the account record
+        // user authorized for exactly this workspace, so it can never surface another account's
+        // (or another workspace's) blocks. Without that scope it refuses to run as root.
+        match super::surreal::current_record_user_scope() {
+            Some(scope) if scope.workspace_id.as_deref() == Some(workspace_id) => {}
+            _ => return Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE")),
+        }
         let bindings = DailyNoteBindings {
             workspace: RecordId::new(WORKSPACES_TABLE, workspace_id),
             journal_date: journal_date.to_owned(),

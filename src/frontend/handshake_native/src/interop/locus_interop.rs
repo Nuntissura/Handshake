@@ -445,6 +445,9 @@ pub struct LocusInteropService {
     reverse_lookup: Arc<dyn FindNotesSearch>,
     /// The session run id on the read identity headers (so swarm/operator co-work is attributable).
     session_run_id: String,
+    /// MT-154: `/workspaces/:ws/locus/*` requires the account session. `None` fails every read with
+    /// "Account login required" before any socket is opened.
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl LocusInteropService {
@@ -458,6 +461,7 @@ impl LocusInteropService {
             workspace_id: workspace_id.into(),
             reverse_lookup: Arc::new(FindNotesHttp::production()),
             session_run_id: "native-editor-session".to_owned(),
+            authenticated_context: None,
         }
     }
 
@@ -475,7 +479,17 @@ impl LocusInteropService {
             workspace_id: workspace_id.into(),
             reverse_lookup,
             session_run_id: "native-editor-session".to_owned(),
+            authenticated_context: None,
         }
+    }
+
+    /// MT-154: bind the immutable account context every Locus read carries.
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// Override the session run id on the read identity headers (builder-style).
@@ -523,7 +537,11 @@ impl LocusInteropService {
         }
         let path = Self::resolve_path(&self.workspace_id, r);
         let url = self.url(&path);
-        let resp = self
+        let context = self
+            .authenticated_context
+            .clone()
+            .ok_or_else(|| LocusInteropError::Transport("Account login required".to_owned()))?;
+        let request = self
             .http
             .get(&url)
             .timeout(REQUEST_TIMEOUT)
@@ -533,10 +551,15 @@ impl LocusInteropService {
                 HSK_HEADER_KERNEL_TASK_RUN_ID,
                 format!("native-editor-locus-{}", self.workspace_id),
             )
-            .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id)
-            .send()
-            .await
-            .map_err(|e| LocusInteropError::Transport(e.to_string()))?;
+            .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id);
+        let resp = crate::local_account::AuthenticatedRequest::new(
+            self.http.clone(),
+            Some(context),
+            request,
+        )
+        .send()
+        .await
+        .map_err(LocusInteropError::Transport)?;
         let status = resp.status();
         let body = resp
             .bytes()

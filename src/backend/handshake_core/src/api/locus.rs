@@ -18,7 +18,7 @@ use crate::models::ErrorResponse;
 use crate::AppState;
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::get,
     Json, Router,
 };
@@ -42,12 +42,35 @@ fn internal_error(err: impl std::fmt::Display) -> ApiError {
     )
 }
 
-async fn ensure_workspace_exists(state: &AppState, workspace_id: &str) -> ApiResult<()> {
-    match state.storage.get_workspace(workspace_id).await {
-        Ok(Some(_)) => Ok(()),
-        Ok(None) => Err(not_found("workspace_not_found")),
-        Err(err) => Err(internal_error(err)),
-    }
+fn protected_denial() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-PROTECTED-RESOURCE",
+        }),
+    )
+}
+
+/// MT-154 (Master Spec 02-system-architecture.md:2758/:2773/:2776; D-154-3): the path workspace is
+/// authorized through the ResourceBroker (Read + `fs.read`), replacing the former root
+/// `get_workspace` existence probe; the lookup then runs as the account record user, so the
+/// `work_packets` / `micro_tasks` `owner_account_id = $auth.account_id` row permissions decide
+/// visibility (another account's record is indistinguishable from a missing one).
+async fn locus_reader(
+    state: &AppState,
+    headers: &HeaderMap,
+    workspace_id: &str,
+) -> ApiResult<crate::api::authority::AuthorizedResourceContext> {
+    crate::api::authority::authorize_request(
+        state,
+        headers,
+        "fs.read",
+        crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+        workspace_id,
+        crate::storage::surreal::resource_authority::ResourceAction::Read,
+    )
+    .await
+    .map_err(|_| protected_denial())
 }
 
 pub fn routes(state: AppState) -> Router {
@@ -60,6 +83,11 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/locus/microtasks/:record_id",
             get(resolve_micro_task),
         )
+        // MT-154 AC-154-2: deny by default before any table is touched.
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::api::authority::require_authenticated_session,
+        ))
         .with_state(state)
 }
 
@@ -96,21 +124,25 @@ struct MicroTaskLocusRow {
 async fn resolve_work_packet(
     State(state): State<AppState>,
     Path((workspace_id, record_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<LocusRecordWire>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    let authority = locus_reader(&state, &headers, &workspace_id).await?;
     let row: Option<WorkPacketLocusRow> = state
         .surreal
-        .with_data_operation(move |database| {
-            Box::pin(async move {
-                database
-                    .query_first(
-                        "SELECT title, description, status FROM work_packets \
-                         WHERE wp_id = $record_id LIMIT 1;",
-                        LocusIdBindings { record_id },
-                    )
-                    .await
-            })
-        })
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state.surreal.with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first(
+                            "SELECT title, description, status FROM work_packets \
+                             WHERE wp_id = $record_id LIMIT 1;",
+                            LocusIdBindings { record_id },
+                        )
+                        .await
+                })
+            }),
+        )
         .await
         .map_err(internal_error)?;
     match row {
@@ -126,23 +158,27 @@ async fn resolve_work_packet(
 async fn resolve_micro_task(
     State(state): State<AppState>,
     Path((workspace_id, record_id)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> ApiResult<Json<LocusRecordWire>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    let authority = locus_reader(&state, &headers, &workspace_id).await?;
     // `micro_tasks` carries `name` + `status` (no dedicated description column;
     // richer detail lives in `metadata`). Title = name; summary is left None.
     let row: Option<MicroTaskLocusRow> = state
         .surreal
-        .with_data_operation(move |database| {
-            Box::pin(async move {
-                database
-                    .query_first(
-                        "SELECT name, status FROM micro_tasks \
-                         WHERE mt_id = $record_id LIMIT 1;",
-                        LocusIdBindings { record_id },
-                    )
-                    .await
-            })
-        })
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state.surreal.with_data_operation(move |database| {
+                Box::pin(async move {
+                    database
+                        .query_first(
+                            "SELECT name, status FROM micro_tasks \
+                             WHERE mt_id = $record_id LIMIT 1;",
+                            LocusIdBindings { record_id },
+                        )
+                        .await
+                })
+            }),
+        )
         .await
         .map_err(internal_error)?;
     match row {

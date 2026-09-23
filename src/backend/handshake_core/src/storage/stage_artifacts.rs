@@ -388,7 +388,7 @@ impl StageArtifactStore {
             .with_data_operation(move |database| {
                 Box::pin(async move {
                     database
-                        .query_values_at(INSERT_TRANSACTION, bindings, 4)
+                        .query_values_at(INSERT_TRANSACTION, bindings, INSERT_RESULT_INDEX)
                         .await
                 })
             })
@@ -410,6 +410,11 @@ impl StageArtifactStore {
                     {
                         return Ok(replayed);
                     }
+                }
+                // A record-user CREATE the table permissions dropped (SurrealDB 3.2 silent deny)
+                // is detected in the transaction and surfaces as the constant denial.
+                if error.to_string().contains(PROTECTED_RESOURCE_DENIAL) {
+                    return Err(StorageError::Guard(PROTECTED_RESOURCE_DENIAL));
                 }
                 return Err(StorageError::from(error));
             }
@@ -488,16 +493,28 @@ idempotency_key, request_hash, actor_kind, actor_id, correlation_id, approval_id
 event_ledger_event_id, created_at, updated_at FROM stage_capture_artifacts \
 WHERE workspace_id = $workspace AND idempotency_key = $value LIMIT 1;";
 
+const PROTECTED_RESOURCE_DENIAL: &str = "HSK-403-PROTECTED-RESOURCE";
+
+/// Statement index of the trailing `RETURN $created_artifact` (BEGIN = 0).
+const INSERT_RESULT_INDEX: usize = 7;
+
+/// MT-154 (spec_ruling_c3_silent_deny; Master Spec 02-system-architecture.md:2776): the capture runs
+/// as the account's record user, and SurrealDB 3.2 silently ignores a CREATE its table permissions
+/// deny. Every CREATE is therefore checked for exactly one returned row and a dropped write THROWs
+/// the constant denial, rolling the whole capture back. The same statements run unchanged under a
+/// root/system session (storage-level proofs), where every CREATE returns its row.
+/// Statements: BEGIN(0) job(1) decision receipt(2) stored receipt(3) artifact LET(4) artifact
+/// check(5) COMMIT(6) RETURN(7).
 const INSERT_TRANSACTION: &str = r#"
 BEGIN TRANSACTION;
-CREATE $job_record CONTENT {
+IF array::len((CREATE $job_record CONTENT {
     trace_id: $trace_id, workflow_run_id: NONE, job_kind: 'workflow_run', status: 'completed',
     status_reason: 'stage_capture_stored', protocol_id: 'hsk.stage.capture@1', profile_id: 'default',
     capability_profile_id: 'stage.jobs.enqueue', access_mode: 'apply_scoped', safety_mode: 'strict',
     entity_refs: $entity_refs, planned_operations: [], metrics: {}, job_inputs: $job_inputs,
     job_outputs: $job_outputs, created_at: $now, updated_at: $now
-};
-CREATE $decision.record CONTENT {
+} RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len((CREATE $decision.record CONTENT {
     event_id: $decision.event_id, event_version: $decision.event_version,
     kernel_task_run_id: $decision.kernel_task_run_id, session_run_id: $decision.session_run_id,
     aggregate_type: $decision.aggregate_type, aggregate_id: $decision.aggregate_id,
@@ -506,8 +523,8 @@ CREATE $decision.record CONTENT {
     causation_id: $decision.causation_id, correlation_id: $decision.correlation_id,
     payload_hash: $decision.payload_hash, source_component: $decision.source_component,
     payload: $decision.payload, wsids: $decision.wsids, authority_resource_id: $decision.authority_resource_id, authority_session_id: $decision.authority_session_id, authority_capability_id: $decision.authority_capability_id, authority_action: $decision.authority_action, created_at: $decision.created_at
-};
-CREATE $receipt.record CONTENT {
+} RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len((CREATE $receipt.record CONTENT {
     event_id: $receipt.event_id, event_version: $receipt.event_version,
     kernel_task_run_id: $receipt.kernel_task_run_id, session_run_id: $receipt.session_run_id,
     aggregate_type: $receipt.aggregate_type, aggregate_id: $receipt.aggregate_id,
@@ -516,8 +533,8 @@ CREATE $receipt.record CONTENT {
     causation_id: $receipt.causation_id, correlation_id: $receipt.correlation_id,
     payload_hash: $receipt.payload_hash, source_component: $receipt.source_component,
     payload: $receipt.payload, wsids: $receipt.wsids, authority_resource_id: $receipt.authority_resource_id, authority_session_id: $receipt.authority_session_id, authority_capability_id: $receipt.authority_capability_id, authority_action: $receipt.authority_action, created_at: $receipt.created_at
-};
-CREATE $artifact_record CONTENT {
+} RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+LET $created_artifact = (CREATE $artifact_record CONTENT {
     artifact_id: $artifact_id, workspace_id: $workspace, content_kind: $content_kind,
     label: $label, content_type: $content_type, content_json: $content_json,
     content_bytes: $content_bytes, size_bytes: $size_bytes, content_sha256: $content_sha256,
@@ -526,8 +543,10 @@ CREATE $artifact_record CONTENT {
     actor_kind: $actor_kind, actor_id: $actor_id, correlation_id: $correlation_id,
     approval_id: $approval_id, job_id: $job_id, event_ledger_event_id: $receipt.record,
     created_at: $now, updated_at: $now
-};
+} RETURN AFTER);
+IF array::len($created_artifact) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
 COMMIT TRANSACTION;
+RETURN $created_artifact;
 "#;
 
 fn validate_input(input: &NewStageCaptureArtifact) -> Result<(), StorageError> {

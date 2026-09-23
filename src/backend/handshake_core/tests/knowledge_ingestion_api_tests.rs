@@ -257,7 +257,7 @@ async fn mt095_routes_cover_register_run_inspect_and_repair_with_ledger_receipts
         http.post(format!("{base_url}/knowledge/ingestion/runs")),
         "run",
     )
-    .json(&json!({"root_id": root_id, "fs_anchor": fs_anchor}))
+    .json(&json!({"workspace_id": workspace_id, "root_id": root_id, "fs_anchor": fs_anchor}))
     .send()
     .await
     .expect("trigger run");
@@ -282,7 +282,7 @@ async fn mt095_routes_cover_register_run_inspect_and_repair_with_ledger_receipts
     // 5. List sources for the root.
     let sources: Value = http
         .get(format!(
-            "{base_url}/knowledge/ingestion/roots/{root_id}/sources"
+            "{base_url}/knowledge/ingestion/roots/{root_id}/sources?workspace_id={workspace_id}"
         ))
         .send()
         .await
@@ -295,7 +295,7 @@ async fn mt095_routes_cover_register_run_inspect_and_repair_with_ledger_receipts
     // 6. Receipts for the failing source.
     let receipts: Value = http
         .get(format!(
-            "{base_url}/knowledge/ingestion/sources/{broken_source_id}/receipts"
+            "{base_url}/knowledge/ingestion/sources/{broken_source_id}/receipts?workspace_id={workspace_id}"
         ))
         .send()
         .await
@@ -334,7 +334,7 @@ async fn mt095_routes_cover_register_run_inspect_and_repair_with_ledger_receipts
         )),
         "retry",
     )
-    .json(&json!({"fs_anchor": fs_anchor}))
+    .json(&json!({"workspace_id": workspace_id, "fs_anchor": fs_anchor}))
     .send()
     .await
     .expect("retry repair");
@@ -350,7 +350,7 @@ async fn mt095_routes_cover_register_run_inspect_and_repair_with_ledger_receipts
         )),
         "retry-missing",
     )
-    .json(&json!({"fs_anchor": fs_anchor}))
+    .json(&json!({"workspace_id": workspace_id, "fs_anchor": fs_anchor}))
     .send()
     .await
     .expect("retry unknown repair");

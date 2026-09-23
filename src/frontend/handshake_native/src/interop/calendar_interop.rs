@@ -517,6 +517,9 @@ pub struct CalendarInteropService {
     /// IANA timezone selected by the Calendar view. Date windows are converted
     /// to UTC with tzdb before the query is sent.
     view_tzid: String,
+    /// MT-154: `/workspaces/:ws/calendar/*` requires the account session. `None` fails every read with
+    /// "Account login required" before any socket is opened.
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
 }
 
 impl CalendarInteropService {
@@ -534,6 +537,7 @@ impl CalendarInteropService {
             journal_backend,
             session_run_id: "native-editor-session".to_owned(),
             view_tzid: system_view_tzid(),
+            authenticated_context: None,
         }
     }
 
@@ -552,12 +556,22 @@ impl CalendarInteropService {
             journal_backend,
             session_run_id: "native-editor-session".to_owned(),
             view_tzid: system_view_tzid(),
+            authenticated_context: None,
         }
     }
 
     /// Override the session run id on the read identity headers (builder-style).
     pub fn with_session_run_id(mut self, session_run_id: impl Into<String>) -> Self {
         self.session_run_id = session_run_id.into();
+        self
+    }
+
+    /// MT-154: bind the immutable account context every Calendar read carries.
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
         self
     }
 
@@ -607,7 +621,11 @@ impl CalendarInteropService {
     /// never a write verb (RISK-5/MC-5).
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> InteropResult<T> {
         let url = self.url(path);
-        let resp = self
+        let context = self
+            .authenticated_context
+            .clone()
+            .ok_or_else(|| InteropError::Transport("Account login required".to_owned()))?;
+        let request = self
             .http
             .get(&url)
             .timeout(REQUEST_TIMEOUT)
@@ -617,10 +635,15 @@ impl CalendarInteropService {
                 HSK_HEADER_KERNEL_TASK_RUN_ID,
                 format!("native-editor-calendar-{}", self.workspace_id),
             )
-            .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id)
-            .send()
-            .await
-            .map_err(|e| InteropError::Transport(e.to_string()))?;
+            .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id);
+        let resp = crate::local_account::AuthenticatedRequest::new(
+            self.http.clone(),
+            Some(context),
+            request,
+        )
+        .send()
+        .await
+        .map_err(InteropError::Transport)?;
         let status = resp.status();
 
         // THE TYPED BLOCKER (BROAD detection — RISK-3/MC-3): 404 (unavailable) OR 501 (not implemented)

@@ -149,15 +149,89 @@ fn nav_headers(client: reqwest::RequestBuilder, label: &str) -> reqwest::Request
         .header("x-hsk-correlation-id", format!("CORR-MEM-{label}"))
 }
 
+/// WP-KERNEL-012 MT-154: the [`MemoryFixture`] seed (root -> source -> span), but inside a
+/// workspace the Owner created through the real `POST /workspaces` route, so the account's
+/// workspace grant covers the seeded evidence. The seed rows are test setup written through root
+/// storage; every assertion below goes through the account-scoped routes as the record user.
+async fn account_memory_fixture() -> Option<(MemoryFixture, AccountFixture)> {
+    use handshake_core::storage::knowledge::{
+        KnowledgeIndexingEligibility, KnowledgePermissionScope, KnowledgeRedactionState,
+        KnowledgeRootKind, KnowledgeSourceKind, KnowledgeSpanKind, NewKnowledgeSource,
+        NewKnowledgeSourceRoot, NewKnowledgeSpan,
+    };
+    let store = knowledge_memory_fixtures::open_embedded_store().await?;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = account
+        .create_workspace(&app_state_for(&store.storage).await)
+        .await;
+    let root = store
+        .db
+        .create_knowledge_source_root(NewKnowledgeSourceRoot {
+            workspace_id: workspace_id.clone(),
+            display_name: "core".to_string(),
+            root_kind: KnowledgeRootKind::ProjectRepo,
+            repo_relative_path: format!("src/{}", uuid::Uuid::now_v7().simple()),
+            allowlist_policy: json!({"include": ["**/*"], "exclude": []}),
+            indexing_eligibility: KnowledgeIndexingEligibility::Eligible,
+        })
+        .await
+        .expect("root");
+    let source = store
+        .db
+        .upsert_knowledge_source(NewKnowledgeSource {
+            workspace_id: workspace_id.clone(),
+            root_id: Some(root.root_id),
+            source_kind: KnowledgeSourceKind::File,
+            relative_path: Some("memory/graph.rs".to_string()),
+            asset_id: None,
+            loom_block_id: None,
+            document_id: None,
+            content_hash: "a".repeat(64),
+            size_bytes: Some(2048),
+            provenance: json!({"discovered_by": "memory_fixture"}),
+            permission_scope: KnowledgePermissionScope::Workspace,
+            redaction_state: KnowledgeRedactionState::None,
+            source_modified_at: None,
+        })
+        .await
+        .expect("source");
+    let span = store
+        .db
+        .create_knowledge_span(NewKnowledgeSpan {
+            source_id: source.source_id.clone(),
+            span_kind: KnowledgeSpanKind::Text,
+            range_start: 0,
+            range_end: 200,
+            line_start: Some(1),
+            line_end: Some(5),
+            section_path: None,
+            content_sha256: "b".repeat(64),
+            parser_version: "text_v1".to_string(),
+            extraction_receipt_event_id: None,
+            index_run_id: None,
+            display_snippet: Some("memory graph fixture span".to_string()),
+        })
+        .await
+        .expect("span");
+    Some((
+        MemoryFixture {
+            workspace_id,
+            source_id: source.source_id,
+            span_id: span.span_id,
+            store,
+        },
+        account,
+    ))
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_receipts() {
-    let Some(fx) = MemoryFixture::setup().await else {
+    // MT-154: the memory graph is seeded (root test setup) inside a workspace the Owner created
+    // through POST /workspaces; every route below authorizes that workspace as the record user.
+    let Some((fx, account)) = account_memory_fixture().await else {
         eprintln!("SKIP mt126_memory_api: embedded store unavailable");
         return;
     };
-    // MT-109 C2: root seed kept: `MemoryFixture::setup` (shared fixture) creates the workspace,
-    // source root and claims through root storage, so the workspace carries no account grant.
-    let account = AccountFixture::install(&fx.store.storage).await;
     let pool = pool_for(&fx.store).await;
     let db = SurrealDatabase::new(pool.clone());
 
@@ -205,6 +279,7 @@ async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_rece
             "{base}/knowledge/memory/claims/{}",
             claim_a.claim_id
         ))
+        .query(&[("workspace_id", fx.workspace_id.as_str())])
         .send()
         .await
         .expect("send no-header");
@@ -215,7 +290,8 @@ async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_rece
         http.get(format!(
             "{base}/knowledge/memory/claims/{}",
             claim_a.claim_id
-        )),
+        ))
+        .query(&[("workspace_id", fx.workspace_id.as_str())]),
         "claim",
     )
     .send()
@@ -260,7 +336,8 @@ async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_rece
 
     // --- Fact trace ----------------------------------------------------------
     let fact_resp = nav_headers(
-        http.get(format!("{base}/knowledge/memory/facts/{}", fact_a.fact_id)),
+        http.get(format!("{base}/knowledge/memory/facts/{}", fact_a.fact_id))
+            .query(&[("workspace_id", fx.workspace_id.as_str())]),
         "fact",
     )
     .send()
@@ -277,7 +354,8 @@ async fn mt126_memory_api_claim_conflict_fact_neighborhood_visualdebug_with_rece
     let nbhd_resp = nav_headers(
         http.get(format!(
             "{base}/knowledge/memory/entities/{subject}/neighborhood"
-        )),
+        ))
+        .query(&[("workspace_id", fx.workspace_id.as_str())]),
         "nbhd",
     )
     .send()

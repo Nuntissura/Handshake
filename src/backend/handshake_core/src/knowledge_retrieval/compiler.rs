@@ -194,7 +194,9 @@ impl<'a> ContextBundleCompilerV2<'a> {
                 .idempotency_key(format!(
                     "knowledge-context-bundle:{bundle_id}:{bundle_context_hash}"
                 ))
+                // MT-154: the receipt names its workspace (`fn::mt154_workspace_receipt`).
                 .payload(json!({
+                    "workspace_id": workspace_id,
                     "bundle_id": bundle_id,
                     "context_hash": bundle_context_hash,
                     "query_plan_id": plan.plan_id,

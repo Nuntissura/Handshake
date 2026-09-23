@@ -329,13 +329,19 @@ fn page_core_workflows() -> NewUserManualPage {
             section(
                 "workflows",
                 "Index a project",
-                "1. Register/inspect roots: `GET /knowledge/ingestion/roots`.\n\
-                 2. Start a run: `POST /knowledge/ingestion/runs` (identity headers required) — \
+                "Every ingestion route requires an authenticated account session bound to the live \
+                 native channel and names its workspace (`workspace_id` query or body); anything \
+                 else is the constant `HSK-403-PROTECTED-RESOURCE` denial.\n\
+                 1. Register/inspect roots: `GET /knowledge/ingestion/roots?workspace_id=`.\n\
+                 2. Start a run: `POST /knowledge/ingestion/runs` with \
+                 `{workspace_id, root_id, fs_anchor}` (identity headers required; `fs_anchor` is an \
+                 absolute existing directory the root must resolve inside) — \
                  emits `KNOWLEDGE_INDEX_RUN_STARTED/COMPLETED/FAILED` receipts.\n\
                  3. Inspect extraction receipts per source: \
-                 `GET /knowledge/ingestion/sources/:source_id/receipts`.\n\
-                 4. Failed/partial extractions queue in `GET /knowledge/ingestion/repairs`; \
-                 retry one with `POST /knowledge/ingestion/repairs/:repair_id/retry`.",
+                 `GET /knowledge/ingestion/sources/:source_id/receipts?workspace_id=`.\n\
+                 4. Failed/partial extractions queue in `GET /knowledge/ingestion/repairs?workspace_id=`; \
+                 retry one with `POST /knowledge/ingestion/repairs/:repair_id/retry` \
+                 (`{workspace_id, fs_anchor}`).",
             ),
             section(
                 "workflows",
@@ -527,7 +533,10 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
                  - `/knowledge/documents/*` — rich document authority\n\
                  - `/knowledge/retrieval/*` — context bundles + staleness + repair\n\
                  - `/knowledge/memory/*` — claims, facts, conflicts, neighborhood\n\
-                 - `/knowledge/crdt/*` — draft sync (push/pull/conflict state)\n\
+                 - `/knowledge/crdt/*` — draft sync (push/pull/conflict state) for an owned RichDocument\n\
+                 The `/knowledge/ingestion|retrieval|memory|crdt/*` routes require an authenticated \
+                 account session on the live native channel and a `workspace_id`; they read and write \
+                 as that account and attribute receipts to its session principal.\n\
                  - `/workspaces/:ws/loom/*` + `/workspaces/:ws/assets/*` — Notes/Loom\n\
                  - `/usermanual/*` — this manual\n\n\
                  Everything is also mounted under `/api/...`. The complete machine-readable \
@@ -554,6 +563,11 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
         },
     }
 }
+
+/// MT-155: title of the product-screenshot-capture route section (pinned by
+/// `mt155_manual_screenshot_capture_route_pins_code`).
+const MT155_SCREENSHOT_SECTION_TITLE: &str =
+    "Product screenshot capture route: session, capability, timeout";
 
 fn page_permissions_and_safety() -> NewUserManualPage {
     NewUserManualPage {
@@ -613,6 +627,182 @@ fn page_permissions_and_safety() -> NewUserManualPage {
                  an unprivileged caller.\n\
                  - List reads are bounded (caps around 500 rows); pagination is explicit \
                  (`limit`/`offset`) — never assume a list is the whole canonical set.",
+            ),
+            section_with_json(
+                "safety",
+                MT155_SCREENSHOT_SECTION_TITLE,
+                "`POST /kernel/product_screenshot_capture/execute` starts local processes (`node \
+                 --version`, then the Playwright capture adapter), so it is authorized before \
+                 anything runs (MT-155):\n\n\
+                 - No account session, or a session token without the live native channel \
+                 binding: HTTP 401 `{\"error\":\"HSK-401-SESSION-REQUIRED\"}`. This status is \
+                 local to this route; every other protected route keeps the constant 403.\n\
+                 - An authenticated session whose delegated capabilities do not contain exactly \
+                 `kernel.product_screenshot_capture.execute`: HTTP 403 \
+                 `{\"error\":\"HSK-403-PROTECTED-RESOURCE\"}`. The capability is granted to no \
+                 account by default (not in the Owner setup list); `*` and prefix patterns are \
+                 not accepted.\n\
+                 - Denied requests spawn nothing and parse no body.\n\
+                 - The executable (`node`, resolved by the server) and the adapter script \
+                 (`app/scripts/handshake-screenshot-capture.mjs`) are chosen by the server. A \
+                 body `node_binary` or `adapter_script_path` other than those defaults is \
+                 rejected with 400 `kernel_product_screenshot_capture_caller_path_rejected`.\n\
+                 - Each child process runs off the async executor with a 120 s wall-clock bound \
+                 and no console window. On expiry it is killed and reaped and the route answers \
+                 504 `kernel_product_screenshot_capture_timeout`; a dropped request kills the \
+                 child too.\n\
+                 - An authorized run keeps the response shape; `receipt.initiated_by` and \
+                 `proof.initiated_by` (and the durable receipt file) name the session principal \
+                 (`actor_id`, `session_id`).\n\
+                 - Artifacts go under `<HANDSHAKE_ARTIFACTS_ROOT>/handshake-product/screenshots` \
+                 when that variable is absolute.\n\n\
+                 Recovery: 401 -> sign in (account session + channel binding); 403 -> have the \
+                 Operator provision a principal with the capability; 504 -> check the adapter \
+                 and the page under capture, then retry; 400 with `AdapterDependencyMissing` -> \
+                 install Node 20+ / run `pnpm install` in `app/`.",
+                json!({
+                    "route": "POST /kernel/product_screenshot_capture/execute",
+                    "handler": "api/kernel.rs execute_product_screenshot_capture_api",
+                    "capability": "kernel.product_screenshot_capture.execute",
+                    "default_grant": "none",
+                    "wildcard_accepted": false,
+                    "anonymous": {"status": 401, "body": {"error": "HSK-401-SESSION-REQUIRED"}},
+                    "missing_capability": {"status": 403, "body": {"error": "HSK-403-PROTECTED-RESOURCE"}},
+                    "caller_path_rejection": {"status": 400, "code": "kernel_product_screenshot_capture_caller_path_rejected"},
+                    "timeout": {"seconds": 120, "status": 504, "code": "kernel_product_screenshot_capture_timeout", "error_variant": "AdapterTimedOut"},
+                    "server_defaults": {"node_binary": "node", "adapter_script_path": "app/scripts/handshake-screenshot-capture.mjs"},
+                    "attribution_fields": ["receipt.initiated_by.actor_id", "receipt.initiated_by.session_id", "proof.initiated_by.actor_id", "proof.initiated_by.session_id"],
+                    "proof_tests": "tests/mt155_product_screenshot_capture_route_auth_tests.rs"
+                }),
+            ),
+            section_with_json(
+                "safety",
+                "Loom account-session authority (MT-153)",
+                "Every Loom route (`/workspaces/:workspace_id/loom/*`: blocks, pins, folders, wiki, \
+                 tags and edges, assets and media tiers, collections, views, graph, search, \
+                 quick switcher, AI suggestions, Canvas boards/cards/placements/visual edges, block \
+                 views, daily journal, markdown and asset import) runs as the signed-in account's \
+                 record user:\n\n\
+                 - Reads need the workspace (or exact block / rich document) grant with `fs.read`; \
+                 creates and edits need `fs.write` (Create / Update); deletes need Delete + \
+                 `fs.write`. A viewer (Read-only grant) can read but not write.\n\
+                 - Every LoomBlock content type (note, file, annotated_file, tag_hub, journal) plus \
+                 canvas and view definitions can be created by a member through these routes.\n\
+                 - Anonymous callers and other accounts get the constant 403 \
+                 `{\"error\":\"HSK-403-PROTECTED-RESOURCE\"}` (lists come back empty for another \
+                 account); nothing is written.\n\
+                 - A write the database refuses (including moving a standalone block to another \
+                 workspace, binding it to a rich document or changing its content type) is \
+                 reported as that constant 403, never as success.\n\
+                 - Receipts of Loom writes name the signed-in principal; Stage cards on a Canvas, \
+                 asset import previews and media-tier retries also run as that account, including \
+                 the background preview job.\n\n\
+                 Recovery: 403 -> sign in, or ask the workspace owner for the needed grant.",
+                json!({
+                    "route_prefix": "/workspaces/:workspace_id/loom/",
+                    "grants": {"read": ["Read", "fs.read"], "create": ["Create", "fs.write"], "update": ["Update", "fs.write"], "delete": ["Delete", "fs.write"]},
+                    "content_types": ["note", "file", "annotated_file", "tag_hub", "journal", "canvas", "view_def"],
+                    "denial": {"status": 403, "body": {"error": "HSK-403-PROTECTED-RESOURCE"}},
+                    "proof_tests": "api::loom::tests::mt153_loom_route_family_authority_matrix"
+                }),
+            ),
+            section_with_json(
+                "safety",
+                "Account session on workspace surfaces (MT-154)",
+                "Calendar, Stage, legacy Canvases, Preferences, Locus, Atelier, knowledge \
+                 CRDT/ingestion/memory/retrieval, the kernel trace projection and runtime-chat \
+                 ingestion run as the signed-in account (the account's record user), never as the \
+                 database root:\n\n\
+                 - No account session + live native channel binding: the constant 403 \
+                 `{\"error\":\"HSK-403-PROTECTED-RESOURCE\"}` before any table, file, DuckDB store or \
+                 process is touched.\n\
+                 - Workspace surfaces need the workspace grant: reads Read + `fs.read`, creates \
+                 Create + `fs.write`, edits Update + `fs.write`, deletes Delete + `fs.write` \
+                 (Flight Recorder reads `fr.read`). A viewer (Read-only grant) can read but every \
+                 write is refused.\n\
+                 - Another account's rows are never returned: lists come back empty and single \
+                 rows answer the constant 403 (existence is not disclosed).\n\
+                 - A write the database silently refuses is reported as the constant 403, never as \
+                 a success.\n\
+                 - Receipts these routes write name the signed-in principal as actor; the owner \
+                 reads them through `GET /kernel/events/aggregates/:type/:id`, another account \
+                 reads none.\n\
+                 - Account-global surfaces (Atelier, Locus work packets/micro tasks, global and \
+                 surface preferences) are private to the owning account.\n\
+                 - `POST/GET /workspaces/:workspace_id/documents` is retired; use \
+                 `/knowledge/documents`.\n\
+                 - Workspace delete (owner, Delete + `fs.write`) also removes the workspace's \
+                 calendar sources/events/activity spans, Stage captures, Canvases (nodes, edges), \
+                 Loom folders, wiki projections/overlays, collections, AI suggestions, \
+                 quick-switcher recents, media tiers, assets and debugger breakpoints.\n\n\
+                 Recovery: 403 -> sign in, or ask the workspace owner for the needed grant.",
+                json!({
+                    "denial": {"status": 403, "body": {"error": "HSK-403-PROTECTED-RESOURCE"}},
+                    "grants": {"read": ["Read", "fs.read"], "create": ["Create", "fs.write"], "update": ["Update", "fs.write"], "delete": ["Delete", "fs.write"], "flight_recorder_read": ["Read", "fr.read"]},
+                    "retired_routes": ["POST /workspaces/:workspace_id/documents", "GET /workspaces/:workspace_id/documents"],
+                    "receipt_read_route": "GET /kernel/events/aggregates/:aggregate_type/:aggregate_id",
+                    "proof_tests": "tests/mt154_non_loom_route_authority_tests.rs"
+                }),
+            ),
+            section_with_json(
+                "safety",
+                "Debug bundle export and download (MT-156)",
+                "`/api/bundles/debug/*` (export, exportable, status, validate, download) requires \
+                 the account session:\n\n\
+                 - An export must resolve to exactly one workspace the caller reads with \
+                 `fr.read`: `scope.wsid`, or the workspace of the named job. A time-window or \
+                 problem scope without `wsid`, or a job of another account, is refused with the \
+                 constant 403 and no job is created.\n\
+                 - The export job records the requesting account and runs as that account's \
+                 record user.\n\
+                 - Status, validate and download answer only the account that requested the \
+                 bundle and still reads its workspace; anything else (including an unknown id) is \
+                 the constant 403. A bundle id must be a canonical UUID (400 otherwise), so no \
+                 path is built from caller text.\n\
+                 - The exportable inventory needs `?wsid=` for a workspace the caller reads.\n\
+                 - Bundles are written under `<HANDSHAKE_WORKSPACE_ROOT>/data/bundles` when that \
+                 variable is set.",
+                json!({
+                    "routes": ["POST /api/bundles/debug/export", "GET /api/bundles/debug/exportable", "GET /api/bundles/debug/:bundle_id", "POST /api/bundles/debug/:bundle_id/validate", "GET /api/bundles/debug/:bundle_id/download"],
+                    "authority": ["Workspace", "Read", "fr.read"],
+                    "denial": {"status": 403, "body": {"error": "HSK-403-PROTECTED-RESOURCE"}},
+                    "invalid_bundle_id": {"status": 400},
+                    "proof_tests": "tests/mt156_debug_bundle_authority_tests.rs"
+                }),
+            ),
+            section_with_json(
+                "safety",
+                "Debugger breakpoints per document (MT-157)",
+                "Debugger breakpoints are stored per rich document in the local embedded store \
+                 (`knowledge_debug_breakpoints`) and survive a backend restart. \
+                 `GET /debug/documents/:rich_document_id/breakpoints` and \
+                 `PUT /debug/documents/:rich_document_id/breakpoints` require the account session:\n\n\
+                 - GET needs the document's Read + `fs.read` grant and returns the set ordered by \
+                 `source_url`, then `line`, with `condition` and `verified` preserved. Only \
+                 accounts that can read the document see its breakpoints.\n\
+                 - PUT needs the document's Update + `fs.write` grant. Its body \
+                 `{\"workspace_id\", \"breakpoints\": [{\"source_url\", \"line\", \"condition\", \
+                 \"verified\"}]}` replaces the whole set; `workspace_id` must be the document's \
+                 workspace (400 otherwise). A repeated (`source_url`, `line`) pair is refused \
+                 with 409 and nothing changes.\n\
+                 - Each PUT appends one EventLedger receipt whose actor is the session principal; \
+                 read it with `GET /kernel/events/aggregates/debug_breakpoints/:rich_document_id` \
+                 (other accounts read an empty list).\n\
+                 - A missing session, another account, a read-only principal's PUT, or a write the \
+                 database refused answers the constant 403 and leaves the stored set unchanged.\n\
+                 - Deleting the document or its workspace removes its breakpoints.",
+                json!({
+                    "routes": ["GET /debug/documents/:rich_document_id/breakpoints", "PUT /debug/documents/:rich_document_id/breakpoints"],
+                    "grants": {"get": ["RichDocument", "Read", "fs.read"], "put": ["RichDocument", "Update", "fs.write"]},
+                    "table": "knowledge_debug_breakpoints",
+                    "order": ["source_url", "line"],
+                    "denial": {"status": 403, "body": {"error": "HSK-403-PROTECTED-RESOURCE"}},
+                    "workspace_mismatch": {"status": 400},
+                    "duplicate_source_line": {"status": 409},
+                    "receipt_read_route": "GET /kernel/events/aggregates/debug_breakpoints/:rich_document_id",
+                    "survives_restart": true,
+                    "proof_tests": "tests/mt157_debug_breakpoints_authority_tests.rs"
+                }),
             ),
         ],
         anchors: vec![
@@ -4442,6 +4632,88 @@ mod tests {
                 "swarm test sources neither print nor write documented marker {marker}; sources: {files:?}"
             );
         }
+    }
+
+    /// MT-155: the screenshot-capture route section states code facts (status codes, bodies,
+    /// capability id, server defaults, timeout), so each is pinned to the source that owns it.
+    #[test]
+    fn mt155_manual_screenshot_capture_route_pins_code() {
+        use crate::kernel::product_screenshot_capture::{
+            PRODUCT_SCREENSHOT_ADAPTER_TIMEOUT, PRODUCT_SCREENSHOT_CAPTURE_EXECUTE_CAPABILITY,
+            PRODUCT_SCREENSHOT_DEFAULT_ADAPTER_SCRIPT_PATH, PRODUCT_SCREENSHOT_DEFAULT_NODE_BINARY,
+        };
+        let page = seed_corpus()
+            .pages
+            .into_iter()
+            .find(|page| page.slug == "permissions-and-safety")
+            .expect("permissions-and-safety page");
+        let section = page
+            .sections
+            .iter()
+            .find(|section| section.title == MT155_SCREENSHOT_SECTION_TITLE)
+            .expect("MT-155 screenshot capture section");
+        let facts = section
+            .body_json
+            .as_ref()
+            .expect("MT-155 section body_json");
+        let body = &section.body_md;
+
+        assert_eq!(
+            facts["capability"],
+            PRODUCT_SCREENSHOT_CAPTURE_EXECUTE_CAPABILITY
+        );
+        assert!(body.contains(PRODUCT_SCREENSHOT_CAPTURE_EXECUTE_CAPABILITY));
+        assert_eq!(
+            facts["timeout"]["seconds"],
+            PRODUCT_SCREENSHOT_ADAPTER_TIMEOUT.as_secs()
+        );
+        assert!(body.contains(&format!(
+            "{} s wall-clock bound",
+            PRODUCT_SCREENSHOT_ADAPTER_TIMEOUT.as_secs()
+        )));
+        assert_eq!(
+            facts["server_defaults"]["node_binary"],
+            PRODUCT_SCREENSHOT_DEFAULT_NODE_BINARY
+        );
+        assert_eq!(
+            facts["server_defaults"]["adapter_script_path"],
+            PRODUCT_SCREENSHOT_DEFAULT_ADAPTER_SCRIPT_PATH
+        );
+        assert!(body.contains(PRODUCT_SCREENSHOT_DEFAULT_ADAPTER_SCRIPT_PATH));
+
+        let crate_root = mt142_crate_root();
+        let kernel_api = mt142_read(&crate_root.join("src/api/kernel.rs"));
+        let authority = mt142_read(&crate_root.join("src/api/authority.rs"));
+        let capture = mt142_read(&crate_root.join("src/kernel/product_screenshot_capture.rs"));
+        let anonymous_error = facts["anonymous"]["body"]["error"]
+            .as_str()
+            .expect("anonymous error");
+        assert!(kernel_api.contains(&format!("\"{anonymous_error}\"")));
+        assert!(kernel_api.contains("StatusCode::UNAUTHORIZED"));
+        assert!(authority.contains(
+            facts["missing_capability"]["body"]["error"]
+                .as_str()
+                .expect("denial error")
+        ));
+        for code in [
+            facts["caller_path_rejection"]["code"]
+                .as_str()
+                .expect("code"),
+            facts["timeout"]["code"].as_str().expect("code"),
+        ] {
+            assert!(
+                kernel_api.contains(&format!("\"{code}\"")),
+                "api/kernel.rs lacks {code}"
+            );
+            assert!(body.contains(code), "section text lacks {code}");
+        }
+        assert!(kernel_api.contains("StatusCode::GATEWAY_TIMEOUT"));
+        assert!(capture.contains(facts["timeout"]["error_variant"].as_str().expect("variant")));
+        assert!(authority.contains("fn session_holds_capability("));
+        assert!(authority.contains("capability_id != \"*\""));
+        assert!(crate_root
+            .join(facts["proof_tests"].as_str().expect("proof tests"))
+            .is_file());
     }
 
     /// MT-152 AC-152-5: the lock-migration section states code facts, so the

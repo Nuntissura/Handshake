@@ -476,8 +476,28 @@ COMMIT TRANSACTION;
                     "workspace delete grant missing",
                 ))?,
         );
-        let delete_body = WORKSPACE_DELETE_BODY.lines().skip(2).collect::<Vec<_>>().join("\n")
+        // MT-154 AC-154-6(b): keep the fems_workspace_write_anchors race guard (the anchor UPSERT puts
+        // the workspace key in this transaction's write set so a concurrent FEMS write conflicts)
+        // instead of slicing it off by line count; each record-user write here is silent-deny checked.
+        let anchor = workspace_write_anchor(workspace_id);
+        let delete_body = WORKSPACE_DELETE_BODY
+            .replacen(
+                "UPSERT type::record('fems_workspace_write_anchors', $anchor.key)",
+                "IF array::len(UPSERT type::record('fems_workspace_write_anchors', $anchor.key)",
+                1,
+            )
+            .replacen(
+                "updated_at = time::now() RETURN NONE;\nDELETE type::record('fems_workspace_write_anchors', $anchor.key) RETURN NONE;",
+                "updated_at = time::now() RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };\nIF array::len(DELETE type::record('fems_workspace_write_anchors', $anchor.key) RETURN BEFORE) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };",
+                1,
+            )
             .replace("DELETE $workspace RETURN BEFORE;", "IF array::len(DELETE $workspace RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };");
+        debug_assert!(
+            delete_body
+                .starts_with("IF array::len(UPSERT type::record('fems_workspace_write_anchors'")
+                && delete_body.contains("RETURN BEFORE) != 1"),
+            "workspace delete keeps the checked FEMS write-anchor race guard"
+        );
         self.with_record_user_scope(scope.clone(), self.with_data_operation(move |database| Box::pin(async move {
             let broker = database.client;
             let query = r#"
@@ -510,7 +530,7 @@ COMMIT TRANSACTION;
             let probe_external = external.clone();
             let mut result = broker.query(query).bind(("account_session", session)).bind(("account", account)).bind(("principal", principal))
                 .bind(("space", space)).bind(("resource", resource)).bind(("workspace", workspace)).bind(("external", external))
-                .bind(("grant", grant)).await?;
+                .bind(("grant", grant)).bind(("anchor", anchor)).await?;
             let mut errors = result.take_errors().into_iter().collect::<Vec<_>>();
             errors.sort_by_key(|(statement_index, _)| *statement_index);
             if !errors.is_empty() {

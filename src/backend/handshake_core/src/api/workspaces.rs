@@ -23,8 +23,8 @@ use crate::{
         DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
     },
     models::{
-        BlockResponse, CreateDocumentRequest, CreateWorkspaceRequest, DocumentResponse,
-        DocumentWithBlocksResponse, ErrorResponse, UpsertBlocksRequest, WorkspaceResponse,
+        BlockResponse, CreateWorkspaceRequest, DocumentResponse, DocumentWithBlocksResponse,
+        ErrorResponse, UpsertBlocksRequest, WorkspaceResponse,
     },
     storage::{
         Block, JobKind, JobState, NewBlock, NewDocument, NewWorkspace, StorageError,
@@ -37,10 +37,9 @@ use crate::{
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/workspaces", post(create_workspace).get(list_workspaces))
-        .route(
-            "/workspaces/:workspace_id/documents",
-            post(create_document).get(list_documents),
-        )
+        // MT-154 D-154-1 (Master Spec 02-system-architecture.md:2680-2705): the legacy
+        // POST/GET /workspaces/:workspace_id/documents route is retired; RichDocument
+        // (/knowledge/documents) is the canonical document surface.
         .route(
             "/documents/:document_id",
             get(get_document).delete(delete_document),
@@ -991,97 +990,6 @@ async fn save_workspace_search_bookmarks(
         updated_at: Some(record.updated_at),
         event_ledger_event_id: Some(record.event_ledger_event_id),
     }))
-}
-
-async fn create_document(
-    State(state): State<AppState>,
-    Path(workspace_id): Path<String>,
-    headers: HeaderMap,
-    Json(payload): Json<CreateDocumentRequest>,
-) -> Result<(StatusCode, Json<DocumentResponse>), (StatusCode, Json<ErrorResponse>)> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = match write_context_from_headers(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                Some(&workspace_id),
-                None,
-                &err,
-                "/workspaces/:workspace_id/documents",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
-
-    let document = match state
-        .storage
-        .create_document(
-            &ctx,
-            NewDocument {
-                workspace_id: workspace_id.clone(),
-                title: payload.title.clone(),
-            },
-        )
-        .await
-    {
-        Ok(document) => document,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                Some(&workspace_id),
-                Some(&ctx),
-                &err,
-                "/workspaces/:workspace_id/documents",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
-
-    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/documents", status = "created", workspace_id = %workspace_id, document_id = %document.id, "document created");
-
-    Ok((
-        StatusCode::CREATED,
-        Json(DocumentResponse {
-            id: document.id,
-            workspace_id: document.workspace_id,
-            title: document.title,
-            created_at: document.created_at,
-            updated_at: document.updated_at,
-        }),
-    ))
-}
-
-async fn list_documents(
-    State(state): State<AppState>,
-    Path(workspace_id): Path<String>,
-) -> Result<Json<Vec<DocumentResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-
-    let rows = state
-        .storage
-        .list_documents(&workspace_id)
-        .await
-        .map_err(map_storage_error)?;
-
-    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/documents", status = "ok", workspace_id = %workspace_id, count = rows.len(), "list documents");
-
-    let docs = rows
-        .into_iter()
-        .map(|row| DocumentResponse {
-            id: row.id,
-            workspace_id: row.workspace_id,
-            title: row.title,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-        })
-        .collect();
-
-    Ok(Json(docs))
 }
 
 async fn get_document(
@@ -3207,6 +3115,130 @@ mod tests {
                 .count(),
             1,
             "exactly one workspace-delete audit event survives the purge"
+        );
+        Ok(())
+    }
+
+    /// MT-154 AC-154-6 / MT-153 AC-153-8 (Operator decision 2026-09-22 extended as C2 did): an owner's
+    /// DELETE /workspaces/:id succeeds when the workspace holds calendar, Stage, Canvas and Loom folder
+    /// rows created through the account-scoped routes, and removes every one of them; a non-owner delete
+    /// is denied and leaves them intact.
+    #[tokio::test]
+    async fn mt154_owner_workspace_delete_removes_calendar_stage_canvas_rows(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use base64::Engine as _;
+        let binding = WorkspaceBindingFixture::new()?;
+        let (state, _store) = setup_state().await?;
+        let (_owner, headers) =
+            workspace_test_principal(&state, &binding, "mt154-delete-owner").await?;
+        let (_other, other_headers) =
+            workspace_test_principal(&state, &binding, "mt154-delete-other").await?;
+        let workspace = create_owned_test_workspace(&state, &headers).await?;
+        let ws = workspace.id.clone();
+
+        let (status, source) = owned_route_json(
+            crate::api::calendar::routes(state.clone()),
+            "PUT",
+            &format!("/workspaces/{ws}/calendar/sources/mt154-delete-src"),
+            &headers,
+            Some(json!({
+                "display_name": "MT-154 delete calendar",
+                "provider_type": "local",
+                "write_policy": "read_only_import",
+                "default_tzid": "UTC",
+            })),
+        )
+        .await?;
+        assert!(status.is_success(), "calendar source -> {status}: {source}");
+        let (status, canvas) = owned_route_json(
+            crate::api::canvases::routes(state.clone()),
+            "POST",
+            &format!("/workspaces/{ws}/canvases"),
+            &headers,
+            Some(json!({"title": "MT-154 delete canvas"})),
+        )
+        .await?;
+        assert!(status.is_success(), "canvas -> {status}: {canvas}");
+        let (status, artifact) = owned_route_json(
+            crate::api::stage::routes(state.clone()),
+            "POST",
+            &format!("/workspaces/{ws}/stage/artifacts"),
+            &headers,
+            Some(json!({
+                "schema_version": crate::api::stage::STAGE_CAPTURE_SCHEMA,
+                "idempotency_key": format!("mt154-delete-{}", Uuid::now_v7()),
+                "correlation_id": format!("mt154-delete-corr-{}", Uuid::now_v7()),
+                "content_kind": "selection",
+                "label": "MT-154 delete capture",
+                "content_type": "text/plain",
+                "content_base64": base64::engine::general_purpose::STANDARD.encode(b"mt154 capture"),
+            })),
+        )
+        .await?;
+        assert!(
+            status.is_success(),
+            "stage artifact -> {status}: {artifact}"
+        );
+        let (status, folder) = owned_route_json(
+            crate::api::loom::routes(state.clone()),
+            "POST",
+            &format!("/workspaces/{ws}/loom/folders"),
+            &headers,
+            Some(json!({"name": "MT-154 delete folder"})),
+        )
+        .await?;
+        assert!(status.is_success(), "loom folder -> {status}: {folder}");
+
+        let rows = |state: AppState, ws: String| async move {
+            let mut result = state
+                .surreal
+                .test_admin_query_bound(
+                    "LET $ws = type::record('workspaces', $workspace_id); \
+                     RETURN { \
+                       workspace: array::len(SELECT VALUE id FROM $ws), \
+                       calendar_sources: array::len(SELECT VALUE id FROM calendar_sources WHERE workspace_id = $ws), \
+                       canvases: array::len(SELECT VALUE id FROM canvases WHERE workspace_id = $ws), \
+                       stage_artifacts: array::len(SELECT VALUE id FROM stage_capture_artifacts WHERE workspace_id = $ws), \
+                       loom_folders: array::len(SELECT VALUE id FROM loom_folders WHERE workspace_id = $ws) \
+                     };"
+                    .to_owned(),
+                    json!({"workspace_id": ws}),
+                )
+                .await?
+                .check()?;
+            result
+                .take::<Option<Value>>(1)?
+                .ok_or_else(|| "MT-154 delete row snapshot missing".into())
+        };
+        let before: Value = rows(state.clone(), ws.clone())
+            .await
+            .map_err(|error: Box<dyn std::error::Error>| error.to_string())?;
+        assert_eq!(
+            before,
+            json!({"workspace": 1, "calendar_sources": 1, "canvases": 1, "stage_artifacts": 1, "loom_folders": 1}),
+            "every scoped surface wrote its row: {before}"
+        );
+
+        let denied = delete_workspace(State(state.clone()), Path(ws.clone()), other_headers)
+            .await
+            .expect_err("non-owner cannot delete");
+        assert_eq!(denied.0, StatusCode::FORBIDDEN);
+        let unchanged: Value = rows(state.clone(), ws.clone())
+            .await
+            .map_err(|error: Box<dyn std::error::Error>| error.to_string())?;
+        assert_eq!(unchanged, before, "a denied delete leaves every row intact");
+
+        let status = delete_workspace(State(state.clone()), Path(ws.clone()), headers.clone())
+            .await
+            .map_err(|(status, Json(body))| format!("owner delete: {status} {}", body.error))?;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        let after: Value = rows(state.clone(), ws.clone())
+            .await
+            .map_err(|error: Box<dyn std::error::Error>| error.to_string())?;
+        assert_eq!(
+            after,
+            json!({"workspace": 0, "calendar_sources": 0, "canvases": 0, "stage_artifacts": 0, "loom_folders": 0}),
+            "the owner's workspace delete removes calendar, Stage, Canvas and Loom folder rows"
         );
         Ok(())
     }

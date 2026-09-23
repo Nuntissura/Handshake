@@ -1664,7 +1664,8 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         Arc::new(
             ReqwestJournalBackend::new(be.base.clone()).with_authenticated_context(be.account()),
         ),
-    );
+    )
+    .with_authenticated_context(be.account());
     let binding = rt()
         .block_on(journal.open_or_create_daily_note(today))
         .expect("OP-04 daily note");
@@ -3369,7 +3370,8 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
     let backend = Arc::new(
         ReqwestJournalBackend::new(be.base.clone()).with_authenticated_context(be.account()),
     );
-    let service = CalendarInteropService::with_base_url(be.base.clone(), ws.clone(), backend);
+    let service = CalendarInteropService::with_base_url(be.base.clone(), ws.clone(), backend)
+        .with_authenticated_context(be.account());
     let binding = rt()
         .block_on(service.open_or_create_daily_note(date))
         .expect("OP-02: production Calendar service creates the persisted daily note");
@@ -3738,7 +3740,8 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
         be.base.clone(),
         ws.clone(),
         Arc::new(FindNotesHttp::new(be.base.clone()).with_authenticated_context(be.account())),
-    );
+    )
+    .with_authenticated_context(be.account());
     let reference = parse_locus_ref(&locus_uri).unwrap();
     let (record, documents) = rt().block_on(async {
         (

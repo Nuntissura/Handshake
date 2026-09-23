@@ -290,12 +290,17 @@ pub async fn insert_denial_receipt(
         })
         .await
         .map_err(map_err)?;
-    rows.into_iter()
-        .next()
-        .ok_or(StorageError::NotFound(
+    match rows.into_iter().next() {
+        Some(row) => row.into_row(),
+        // MT-154 F3: a record user's denied CREATE is silently dropped; surface it as the
+        // protected-resource denial instead of a lost-row NotFound.
+        None if crate::storage::surreal::current_record_user_scope().is_some() => {
+            Err(StorageError::Validation("HSK-403-PROTECTED-RESOURCE"))
+        }
+        None => Err(StorageError::NotFound(
             "knowledge CRDT denial receipt after insert",
-        ))?
-        .into_row()
+        )),
+    }
 }
 
 pub async fn get_denial_receipt_by_idempotency_key(

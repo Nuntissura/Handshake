@@ -381,13 +381,15 @@ struct ArchiveTargetsBindings {
 /// reason/requester/timestamp exactly like the former conflict update.
 const ARCHIVE_TARGETS_STATEMENT: &str = "RETURN { \
        FOR $m IN $markers { \
-         UPSERT type::record('atelier_trash_marker', $m.marker_id) SET \
+         IF array::len((UPSERT type::record('atelier_trash_marker', $m.marker_id) SET \
            marker_id = $m.marker_id, \
            target_type = $m.target_type, \
            target_id = $m.target_id, \
            reason = $reason, \
            requested_by = $requested_by, \
-           created_at_utc = time::now(); \
+           created_at_utc = time::now() RETURN VALUE id)) != 1 { \
+           THROW 'HSK-403-PROTECTED-RESOURCE'; \
+         }; \
        }; \
        RETURN array::len($markers); };";
 
@@ -401,7 +403,8 @@ struct RestoreTargetsBindings {
 const RESTORE_TARGETS_STATEMENT: &str = "RETURN { \
        LET $existing = count(SELECT id FROM atelier_trash_marker \
                              WHERE marker_id IN $marker_ids); \
-       DELETE atelier_trash_marker WHERE marker_id IN $marker_ids; \
+       LET $deleted = (DELETE atelier_trash_marker WHERE marker_id IN $marker_ids RETURN BEFORE); \
+       IF array::len($deleted) != $existing { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
        RETURN $existing; };";
 
 #[derive(SurrealValue)]

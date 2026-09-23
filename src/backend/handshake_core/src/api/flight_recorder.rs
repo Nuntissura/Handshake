@@ -159,6 +159,7 @@ fn event_conflict() -> ApiError {
 fn map_native_editor_ledger_error(error: crate::storage::StorageError) -> ApiError {
     match error {
         crate::storage::StorageError::Validation(_) => event_conflict(),
+        crate::storage::StorageError::Guard("HSK-403-PROTECTED-RESOURCE") => capability_denied(),
         crate::storage::StorageError::Conflict(code)
         | crate::storage::StorageError::ConflictDetails { code, .. }
             if code.starts_with(
@@ -588,12 +589,13 @@ async fn record_runtime_chat_event(
     )
     .with_actor_id("runtime_chat");
 
-    if let Some(job_id) = event.job_id {
+    if let Some(job_id) = event.job_id.clone() {
         fr_event = fr_event.with_job_id(job_id);
     }
-    if let Some(wsid) = event.wsid {
+    if let Some(wsid) = event.wsid.clone() {
         fr_event = fr_event.with_wsids(vec![wsid]);
     }
+    let fr_event_id = fr_event.event_id.to_string();
 
     state
         .flight_recorder
@@ -604,7 +606,46 @@ async fn record_runtime_chat_event(
             other => db_error(other),
         })?;
 
-    Ok(Json(json!({ "ok": true })))
+    // MT-154 AC-154-5 (Master Spec 02-system-architecture.md:2773/2774): the DuckDB Flight Recorder
+    // row is a diagnostic projection (D-154-2); the durable, session-attributed authority record of
+    // this ingestion is a kernel_event_ledger receipt written by the account record user (the
+    // middleware scope) with the session principal as actor, never the `runtime_chat` system lane.
+    let receipt = NewKernelEvent::builder(
+        workspace_id.clone(),
+        event.session_id.trim().to_owned(),
+        KernelEventType::FlightRecorderMirrorRecorded,
+        authority.ctx.actor.clone(),
+    )
+    .aggregate("runtime_chat_event", fr_event_id.clone())
+    .idempotency_key(format!(
+        "runtime-chat-fr-recorded:{workspace_id}:{}",
+        event.event_id.trim()
+    ))
+    .source_component("runtime_chat_fr_ingestion")
+    .correlation_id(trace_id.to_string())
+    .payload(json!({
+        "receipt_kind": "runtime_chat_flight_recorder_recorded",
+        "workspace_id": workspace_id,
+        "event_id": event.event_id.trim(),
+        "fr_event_id": fr_event_id,
+        "event_type": serde_json::to_value(&event.event_type).map_err(db_error)?,
+    }))
+    .build()
+    .map_err(db_error)?;
+    let appended = state
+        .storage
+        .append_kernel_event(receipt)
+        .await
+        .map_err(map_native_editor_ledger_error)?;
+    if appended.actor.actor_id() != authority.ctx.actor_id {
+        return Err(event_conflict());
+    }
+
+    Ok(Json(json!({
+        "ok": true,
+        "fr_event_id": fr_event_id,
+        "receipt_event_id": appended.event_id,
+    })))
 }
 
 /// The native-editor event schema version this ingestion endpoint accepts. Matches the

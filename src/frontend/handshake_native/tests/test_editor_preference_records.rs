@@ -32,9 +32,7 @@ use handshake_native::preference_client::{
     EDITOR_PREFERENCE_IDS,
 };
 use handshake_native::rich_editor::formatting::FormattingCommand;
-use handshake_native::workspace_settings::{
-    RenderWhitespaceMode, SyntaxPaletteMode, WordWrapMode,
-};
+use handshake_native::workspace_settings::{RenderWhitespaceMode, SyntaxPaletteMode, WordWrapMode};
 
 const FONT_SIZE: &str = "view-defaults.editor.font-size";
 const TAB_SIZE: &str = "view-defaults.editor.tab-size";
@@ -236,7 +234,10 @@ fn authoritative_matrix() -> Vec<(&'static str, Value)> {
 
 /// A fresh production preference client bound to the live fixture backend — the exact transport a
 /// reopened Handshake client uses. Returned with the runtime it bridges onto (which must outlive it).
-fn fresh_production_client(base: &str) -> (PreferenceClient, tokio::runtime::Runtime) {
+fn fresh_production_client(
+    base: &str,
+    account: Option<std::sync::Arc<handshake_native::local_account::AuthenticatedContext>>,
+) -> (PreferenceClient, tokio::runtime::Runtime) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -246,7 +247,9 @@ fn fresh_production_client(base: &str) -> (PreferenceClient, tokio::runtime::Run
         base.to_owned(),
         "wp-kernel-012-mt-072-fresh-client",
         runtime.handle().clone(),
-    );
+    )
+    // MT-154: preference routes require the fixture's real account session.
+    .with_authenticated_context(account);
     (client, runtime)
 }
 
@@ -333,7 +336,10 @@ fn every_editor_preference_persists_reopens_resets_and_histories_on_live_surreal
         assert_eq!(set["record"]["source"], "operator", "{id}");
         assert_eq!(set["record"]["revision"], 1, "{id} first set is revision 1");
         let receipt = &set["receipt"];
-        assert_eq!(receipt["schema_id"], "hsk.preference_change_receipt@1", "{id}");
+        assert_eq!(
+            receipt["schema_id"], "hsk.preference_change_receipt@1",
+            "{id}"
+        );
         assert_eq!(receipt["before_revision"], json!(null), "{id}");
         assert_eq!(receipt["after_revision"], 1, "{id}");
         assert_eq!(receipt["old_value"], json!(null), "{id}");
@@ -346,12 +352,15 @@ fn every_editor_preference_persists_reopens_resets_and_histories_on_live_surreal
         // SET-EVT-003: the durable EventLedger row the receipt points at is readable and correlates.
         let event = backend.poll_preference_event(id, 1);
         assert_eq!(event["event_id"], event_id, "{id} EventLedger correlation");
-        assert_eq!(event["payload"]["type"], "preference_record_changed", "{id}");
+        assert_eq!(
+            event["payload"]["type"], "preference_record_changed",
+            "{id}"
+        );
         assert_eq!(event["payload"]["revision"], 1, "{id}");
     }
 
     // ── (3) FRESH CLIENT REOPEN through the PRODUCTION transport (no stub): every value is durable. ─
-    let (client, _client_runtime) = fresh_production_client(&backend.base);
+    let (client, _client_runtime) = fresh_production_client(&backend.base, backend.account());
     let reopened = client
         .list(&wsid)
         .expect("the production preference client lists the live projection");
@@ -454,7 +463,11 @@ fn every_editor_preference_persists_reopens_resets_and_histories_on_live_surreal
             "palette mode {mode} revision"
         );
         let reread = backend.get_json(&format!("{base}/{palette_id}"));
-        assert_eq!(reread["record"]["value"], json!(mode), "palette {mode} durable");
+        assert_eq!(
+            reread["record"]["value"],
+            json!(mode),
+            "palette {mode} durable"
+        );
         let hydrated = hydrated_app(
             &client
                 .list(&wsid)
@@ -479,7 +492,10 @@ fn every_editor_preference_persists_reopens_resets_and_histories_on_live_surreal
             reset["record"]["value"], default_value,
             "{id} reset restores the registry default"
         );
-        assert_eq!(reset["record"]["source"], "operator", "{id} reset provenance");
+        assert_eq!(
+            reset["record"]["source"], "operator",
+            "{id} reset provenance"
+        );
         assert_eq!(
             reset["record"]["revision"],
             json!(before + 1),
@@ -533,7 +549,11 @@ fn every_editor_preference_persists_reopens_resets_and_histories_on_live_surreal
         assert_eq!(prefs.editor_font_size, 13.0, "reset font size default");
         assert_eq!(prefs.tab_size, 4, "reset tab size default");
         assert!(prefs.insert_spaces, "reset insert spaces default");
-        assert_eq!(prefs.word_wrap, WordWrapMode::Off, "reset word wrap default");
+        assert_eq!(
+            prefs.word_wrap,
+            WordWrapMode::Off,
+            "reset word wrap default"
+        );
         assert_eq!(
             prefs.render_whitespace,
             RenderWhitespaceMode::None,
@@ -582,7 +602,7 @@ fn editor_preference_adversarial_cases_on_live_surrealdb() {
     let mut backend = backend_proof_support::require_live_backend();
     let wsid = backend.workspace_id.clone();
     let base = format!("/workspaces/{wsid}/preferences");
-    let (client, _client_runtime) = fresh_production_client(&backend.base);
+    let (client, _client_runtime) = fresh_production_client(&backend.base, backend.account());
 
     // Seed a known-good authoritative state so "unchanged after rejection" is a meaningful assertion.
     backend.put_json(&format!("{base}/{FONT_SIZE}"), &json!({ "value": 20.0 }));
@@ -592,7 +612,6 @@ fn editor_preference_adversarial_cases_on_live_surrealdb() {
         &json!({ "value": { "rich.toggle_bold": "Mod+Alt+B" } }),
     );
 
-
     // Every rejected write, with the exact structured code the registry must produce.
     let rejections: Vec<(&str, Value, &str)> = vec![
         // Numeric bounds (both edges, both directions).
@@ -600,8 +619,16 @@ fn editor_preference_adversarial_cases_on_live_surrealdb() {
         (FONT_SIZE, json!(48.1), "out_of_range"),
         (TAB_SIZE, json!(0), "out_of_range"),
         (TAB_SIZE, json!(17), "out_of_range"),
-        ("view-defaults.editor.line-height", json!(0.9), "out_of_range"),
-        ("view-defaults.editor.line-height", json!(2.1), "out_of_range"),
+        (
+            "view-defaults.editor.line-height",
+            json!(0.9),
+            "out_of_range",
+        ),
+        (
+            "view-defaults.editor.line-height",
+            json!(2.1),
+            "out_of_range",
+        ),
         (
             "view-defaults.editor.word-wrap-column",
             json!(19),
@@ -701,7 +728,9 @@ fn editor_preference_adversarial_cases_on_live_surrealdb() {
     // The rejected writes never reached a mounted editor either: a freshly hydrated app still shows the
     // seeded authoritative state, not any rejected candidate.
     {
-        let rows = client.list(&wsid).expect("fresh client lists after rejections");
+        let rows = client
+            .list(&wsid)
+            .expect("fresh client lists after rejections");
         let app = hydrated_app(&rows);
         assert_eq!(
             app.workspace_settings().editor_prefs.editor_font_size,
@@ -766,7 +795,7 @@ fn editor_preference_adversarial_cases_on_live_surrealdb() {
     // The route carries no optimistic-concurrency token, so the honest contract is last-writer-wins with
     // a monotonic, gap-free revision and a complete history — an in-memory stale revision held by one
     // client can never silently drop another client's write.
-    let (client_b, _client_b_runtime) = fresh_production_client(&backend.base);
+    let (client_b, _client_b_runtime) = fresh_production_client(&backend.base, backend.account());
     let stale_revision = backend.get_json(&format!("{base}/{FONT_SIZE}"))["record"]["revision"]
         .as_i64()
         .expect("client A reads a numeric current revision");
@@ -806,11 +835,13 @@ fn editor_preference_adversarial_cases_on_live_surrealdb() {
     let first_reset = backend.post_json(&format!("{base}/{FONT_SIZE}/reset"), &json!({}));
     let second_reset = backend.post_json(&format!("{base}/{FONT_SIZE}/reset"), &json!({}));
     assert_eq!(
-        first_reset["record"]["value"], json!(13.0),
+        first_reset["record"]["value"],
+        json!(13.0),
         "first reset restores the default"
     );
     assert_eq!(
-        second_reset["record"]["value"], json!(13.0),
+        second_reset["record"]["value"],
+        json!(13.0),
         "item 7: a repeated reset is value-idempotent"
     );
     assert_eq!(
@@ -905,7 +936,10 @@ fn editor_preference_adversarial_cases_on_live_surrealdb() {
         .expect("second workspace has an id")
         .to_owned();
     let other_base = format!("/workspaces/{other_id}/preferences");
-    backend.put_json(&format!("{other_base}/{FONT_SIZE}"), &json!({ "value": 42.0 }));
+    backend.put_json(
+        &format!("{other_base}/{FONT_SIZE}"),
+        &json!({ "value": 42.0 }),
+    );
     assert_eq!(
         backend.get_json(&format!("{other_base}/{FONT_SIZE}"))["record"]["value"],
         json!(42.0),
@@ -997,7 +1031,7 @@ fn editor_preference_adversarial_cases_on_live_surrealdb() {
         after_loss["revision"], before_loss["revision"],
         "item 7: the revision survived the backend loss unchanged"
     );
-    let (retry_client, _retry_runtime) = fresh_production_client(&backend.base);
+    let (retry_client, _retry_runtime) = fresh_production_client(&backend.base, backend.account());
     let retried = retry_client
         .set(&wsid, TAB_SIZE, json!(6))
         .expect("item 7: a retried write succeeds against the restarted backend");

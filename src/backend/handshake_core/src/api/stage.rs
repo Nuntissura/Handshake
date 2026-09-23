@@ -90,8 +90,17 @@ fn internal_error(err: impl std::fmt::Display) -> ApiError {
     api_error(StatusCode::INTERNAL_SERVER_ERROR, "HSK-500-STAGE")
 }
 
+/// MT-154 AC-154-2/3 (Master Spec 02-system-architecture.md:2758 deny by default): the constant
+/// protected-resource denial, byte-identical to `crate::api::authority::constant_denial()`.
+fn protected_denial() -> ApiError {
+    api_error(StatusCode::FORBIDDEN, "HSK-403-PROTECTED-RESOURCE")
+}
+
 fn map_storage_error(err: StorageError) -> ApiError {
     match err {
+        // A record-user write the table permissions dropped (SurrealDB silent deny) or a scope
+        // mismatch is the constant denial, never a 200 or a 500 (MT-154 silent-deny ruling).
+        StorageError::Guard("HSK-403-PROTECTED-RESOURCE") => protected_denial(),
         StorageError::NotFound(code) => not_found(code),
         StorageError::Validation(_) => bad_request("HSK-400-STAGE"),
         StorageError::Conflict(_) | StorageError::ConflictDetails { .. } => {
@@ -189,26 +198,12 @@ pub(crate) enum CaptureContextFailure {
 }
 
 impl CaptureContextFailure {
-    fn records_denial(self) -> bool {
-        match self {
-            Self::InvalidSession | Self::StaleBinding | Self::CapabilityDenied => true,
-        }
-    }
-
     fn into_api_error(self) -> ApiError {
         match self {
             Self::InvalidSession | Self::StaleBinding => {
                 api_error(StatusCode::UNAUTHORIZED, "HSK-401-STAGE-SESSION")
             }
             Self::CapabilityDenied => api_error(StatusCode::FORBIDDEN, "HSK-403-STAGE-CAPABILITY"),
-        }
-    }
-
-    fn denial_reason(self) -> &'static str {
-        match self {
-            Self::InvalidSession => "invalid_session",
-            Self::StaleBinding => "stale_binding",
-            Self::CapabilityDenied => "capability_denied",
         }
     }
 }
@@ -525,37 +520,80 @@ fn capture_context_for_token(presented: &str) -> Result<CaptureContext, CaptureC
     })
 }
 
-/// Resolve the caller's capture context for a Stage/Atelier request.
+/// The authenticated account authority of one Stage request (MT-154 AC-154-2/3/5).
 ///
-/// A request presenting the account-session channel header (`x-hsk-channel-binding-token`) is the
-/// MT-109/MT-111 authority model: `x-hsk-session-token` is a persisted account session and the channel
-/// header is the live native-MCP binding. Both must authenticate (`authenticated_session_credentials`:
-/// valid, unrevoked, unexpired session of an enabled account/principal/space, bound to the live
-/// channel); there is no fallback to the binding-only form once the channel header is present. A
-/// request without that header keeps the pre-existing binding-token-only authentication unchanged.
-pub(crate) async fn capture_request_context(
+/// Master Spec 02-system-architecture.md:2758 (deny by default on every executable boundary),
+/// :2773 (root/privileged sessions MUST NOT execute ordinary protected-resource flows) and :2776
+/// (record-user permissions are the non-bypassable data boundary): a Stage artifact is created or
+/// read only by an account session bound to the live channel that holds the workspace grant
+/// (`fs.write`/Create for a capture, `fs.read`/Read for a read), and every protected read or write
+/// then runs as that account's record user. A binding-only caller (native MCP token without an
+/// account session) has no record user and is refused with the constant denial.
+struct StageAccount {
+    authority: crate::api::authority::AuthorizedResourceContext,
+    ctx: CaptureContext,
+}
+
+async fn stage_account(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<CaptureContext, CaptureContextFailure> {
-    let Some(channel_token) = header_str(headers, HSK_HEADER_CHANNEL_BINDING_TOKEN) else {
-        return capture_context(headers);
+    workspace_id: &str,
+    capability_id: &'static str,
+    action: crate::storage::surreal::resource_authority::ResourceAction,
+) -> Result<StageAccount, ApiError> {
+    let authority = crate::api::authority::authorize_request(
+        state,
+        headers,
+        capability_id,
+        crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+        workspace_id,
+        action,
+    )
+    .await
+    .map_err(|_| protected_denial())?;
+    let actor = match authority.actor_kind.as_str() {
+        "operator" => KernelActor::Operator(authority.actor_id.clone()),
+        "system" => KernelActor::System(authority.actor_id.clone()),
+        _ => return Err(protected_denial()),
     };
-    let channel_token = channel_token.to_owned();
-    let session = crate::api::authority::authenticated_session_credentials(state, headers)
-        .await
-        .map_err(|_| CaptureContextFailure::InvalidSession)?;
-    let context = session.context;
-    Ok(CaptureContext {
-        actor_kind: "operator".to_owned(),
-        actor: KernelActor::Operator(context.actor_id.clone()),
-        kernel_task_run_id: format!("account-session-task:{}", context.session_id),
-        actor_id: context.actor_id,
-        limiter_principal: context.identity.principal_id,
-        session_run_id: context.session_id,
-        // Validated against the live binding by `authenticated_session_credentials`; it keys the
-        // per-caller Stage approval HMAC exactly as the binding-only form does.
-        binding_token: channel_token,
-    })
+    // `authorize_request` validated this header against the live binding; it keys the per-caller
+    // Stage approval HMAC exactly as before.
+    let binding_token = header_str(headers, HSK_HEADER_CHANNEL_BINDING_TOKEN)
+        .ok_or_else(protected_denial)?
+        .to_owned();
+    let ctx = CaptureContext {
+        actor_kind: authority.actor_kind.clone(),
+        actor_id: authority.actor_id.clone(),
+        limiter_principal: authority.principal_id.clone(),
+        actor,
+        kernel_task_run_id: format!("account-session-task:{}", authority.session_id),
+        session_run_id: authority.session_id.clone(),
+        binding_token,
+    };
+    Ok(StageAccount { authority, ctx })
+}
+
+impl StageAccount {
+    /// Runs `operation` as the account's record user; every EventLedger receipt prepared inside
+    /// carries the session principal as actor and `workspace_id` as its single wsid.
+    async fn run<T>(
+        &self,
+        state: &AppState,
+        workspace_id: &str,
+        operation: impl std::future::Future<Output = ApiResult<T>>,
+    ) -> ApiResult<T> {
+        state
+            .surreal
+            .with_record_user_scope(
+                self.authority.record_user_scope.clone(),
+                crate::storage::surreal::event_ledger::with_loom_session_receipt(
+                    self.ctx.actor.clone(),
+                    workspace_id.to_owned(),
+                    operation,
+                ),
+            )
+            .await
+    }
 }
 
 pub fn authenticate_native_session_token(
@@ -1104,20 +1142,26 @@ async fn create_stage_artifact(
     headers: HeaderMap,
     raw: Bytes,
 ) -> ApiResult<(StatusCode, Json<StageArtifactRefWire>)> {
-    let ctx = match capture_request_context(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(failure) => {
-            record_pre_workspace_denial(
-                &state,
-                &headers,
-                &workspace_id,
-                &raw,
-                failure.denial_reason(),
-            )
-            .await;
-            return Err(failure.into_api_error());
+    use crate::storage::surreal::resource_authority::ResourceAction;
+    let account = match stage_account(
+        &state,
+        &headers,
+        &workspace_id,
+        "fs.write",
+        ResourceAction::Create,
+    )
+    .await
+    {
+        Ok(account) => account,
+        Err(denied) => {
+            // Audit of a refused request (no protected resource is touched): the existing redacted,
+            // rate-bounded Flight Recorder receipt, unchanged.
+            record_pre_workspace_denial(&state, &headers, &workspace_id, &raw, "invalid_session")
+                .await;
+            return Err(denied);
         }
     };
+    let ctx = account.ctx.clone();
     let principal_workspace_key = authority_key(&ctx, &workspace_id);
     if !check_rate(&principal_workspace_key) {
         record_stage_denial(
@@ -1208,7 +1252,6 @@ async fn create_stage_artifact(
             return Err(error);
         }
     };
-    ensure_workspace_exists(&state, &workspace_id).await?;
     let approval_id = ctx.approval_id(&workspace_id, &body);
 
     let request_hash = crate::kernel::context_bundle::sha256_hex(
@@ -1260,26 +1303,34 @@ async fn create_stage_artifact(
         "content_base64": body.content_base64,
         "size_bytes": content_bytes.len(),
     });
-    let inserted = StageArtifactStore::new(state.surreal.clone())
-        .insert_stage_artifact(NewStageCaptureArtifact {
-            workspace_id: workspace_id.clone(),
-            content_kind: body.content_kind.as_str().to_owned(),
-            label: body.label,
-            content_type: body.content_type,
-            content_json,
-            content_bytes,
-            source_ref: body.source_ref,
-            idempotency_key: body.idempotency_key,
-            request_hash,
-            actor_kind: ctx.actor_kind.clone(),
-            actor_id: ctx.actor_id.clone(),
-            correlation_id: body.correlation_id,
-            approval_id,
-            decision_receipt,
-            receipt,
+    // The replay lookup, the Job History row, both EventLedger receipts and the artifact row are
+    // one record-user transaction (receipt actor = session principal, wsids = [workspace]).
+    let new_artifact = NewStageCaptureArtifact {
+        workspace_id: workspace_id.clone(),
+        content_kind: body.content_kind.as_str().to_owned(),
+        label: body.label,
+        content_type: body.content_type,
+        content_json,
+        content_bytes,
+        source_ref: body.source_ref,
+        idempotency_key: body.idempotency_key,
+        request_hash,
+        actor_kind: ctx.actor_kind.clone(),
+        actor_id: ctx.actor_id.clone(),
+        correlation_id: body.correlation_id,
+        approval_id,
+        decision_receipt,
+        receipt,
+    };
+    let inserted = account
+        .run(&state, &workspace_id, async {
+            ensure_workspace_exists(&state, &workspace_id).await?;
+            StageArtifactStore::new(state.surreal.clone())
+                .insert_stage_artifact(new_artifact)
+                .await
+                .map_err(map_storage_error)
         })
-        .await
-        .map_err(map_storage_error)?;
+        .await?;
     if let Err(error) =
         record_stage_flight_event(&state, &inserted.artifact, inserted.replayed).await
     {
@@ -1308,22 +1359,8 @@ async fn get_stage_artifact(
     Path((workspace_id, artifact_id)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> ApiResult<Json<StageArtifactRefWire>> {
-    let ctx = match capture_request_context(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(failure) => {
-            if failure.records_denial() {
-                record_pre_workspace_denial(
-                    &state,
-                    &headers,
-                    &workspace_id,
-                    artifact_id.as_bytes(),
-                    "invalid_session_read",
-                )
-                .await;
-            }
-            return Err(failure.into_api_error());
-        }
-    };
+    let (account, ctx) =
+        authorize_stage_read(&state, &headers, &workspace_id, &artifact_id).await?;
     if !crate::capabilities::CapabilityRegistry::new()
         .profile_can("Operator", STAGE_CAPTURE_CAPABILITY)
         .unwrap_or(false)
@@ -1346,13 +1383,62 @@ async fn get_stage_artifact(
     if !valid_stage_artifact_id(&artifact_id) {
         return Err(bad_request("HSK-400-STAGE-ARTIFACT-ID"));
     }
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let artifact = StageArtifactStore::new(state.surreal.clone())
-        .get_stage_artifact(&workspace_id, &artifact_id)
-        .await
-        .map_err(map_storage_error)?
-        .ok_or_else(|| not_found("stage_artifact_not_found"))?;
+    let artifact = read_stage_artifact(&state, &account, &workspace_id, &artifact_id).await?;
     Ok(Json(artifact_to_wire(artifact, false)))
+}
+
+/// Authorizes a Stage read (workspace `fs.read`/Read) and keeps the existing redacted denial audit.
+async fn authorize_stage_read(
+    state: &AppState,
+    headers: &HeaderMap,
+    workspace_id: &str,
+    artifact_id: &str,
+) -> ApiResult<(StageAccount, CaptureContext)> {
+    use crate::storage::surreal::resource_authority::ResourceAction;
+    match stage_account(
+        state,
+        headers,
+        workspace_id,
+        "fs.read",
+        ResourceAction::Read,
+    )
+    .await
+    {
+        Ok(account) => {
+            let ctx = account.ctx.clone();
+            Ok((account, ctx))
+        }
+        Err(denied) => {
+            record_pre_workspace_denial(
+                state,
+                headers,
+                workspace_id,
+                artifact_id.as_bytes(),
+                "invalid_session_read",
+            )
+            .await;
+            Err(denied)
+        }
+    }
+}
+
+/// Reads one artifact as the account's record user (`stage_capture_artifacts` select predicate).
+async fn read_stage_artifact(
+    state: &AppState,
+    account: &StageAccount,
+    workspace_id: &str,
+    artifact_id: &str,
+) -> ApiResult<StageCaptureArtifact> {
+    account
+        .run(state, workspace_id, async {
+            ensure_workspace_exists(state, workspace_id).await?;
+            StageArtifactStore::new(state.surreal.clone())
+                .get_stage_artifact(workspace_id, artifact_id)
+                .await
+                .map_err(map_storage_error)?
+                .ok_or_else(|| not_found("stage_artifact_not_found"))
+        })
+        .await
 }
 
 async fn get_stage_artifact_content(
@@ -1360,22 +1446,8 @@ async fn get_stage_artifact_content(
     Path((workspace_id, artifact_id)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> ApiResult<Response> {
-    let ctx = match capture_request_context(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(failure) => {
-            if failure.records_denial() {
-                record_pre_workspace_denial(
-                    &state,
-                    &headers,
-                    &workspace_id,
-                    artifact_id.as_bytes(),
-                    "invalid_session_read",
-                )
-                .await;
-            }
-            return Err(failure.into_api_error());
-        }
-    };
+    let (account, ctx) =
+        authorize_stage_read(&state, &headers, &workspace_id, &artifact_id).await?;
     if !crate::capabilities::CapabilityRegistry::new()
         .profile_can("Operator", STAGE_CAPTURE_CAPABILITY)
         .unwrap_or(false)
@@ -1398,12 +1470,7 @@ async fn get_stage_artifact_content(
     if !valid_stage_artifact_id(&artifact_id) {
         return Err(bad_request("HSK-400-STAGE-ARTIFACT-ID"));
     }
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let artifact = StageArtifactStore::new(state.surreal.clone())
-        .get_stage_artifact(&workspace_id, &artifact_id)
-        .await
-        .map_err(map_storage_error)?
-        .ok_or_else(|| not_found("stage_artifact_not_found"))?;
+    let artifact = read_stage_artifact(&state, &account, &workspace_id, &artifact_id).await?;
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_TYPE,

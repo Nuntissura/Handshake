@@ -20,7 +20,6 @@ use std::{collections::BTreeSet, sync::Arc};
 
 use account_session_support::AccountFixture;
 use base64::Engine;
-use handshake_core::api::knowledge_crdt::{router_with_state, KnowledgeCrdtApiState};
 use handshake_core::kernel::crdt::actor_site::{
     derive_knowledge_site_id, KnowledgeActorIdV1, KnowledgeActorKind,
 };
@@ -32,7 +31,6 @@ use handshake_core::kernel::crdt::yjs_bridge::{
 };
 use handshake_core::kernel::KernelEventType;
 use handshake_core::storage::knowledge_crdt::list_denial_receipts_for_document;
-use handshake_core::storage::surreal::SurrealStorage;
 use handshake_core::storage::Database;
 use serde_json::{json, Value};
 use tokio::sync::Barrier;
@@ -78,8 +76,12 @@ fn envelope(
     }
 }
 
-async fn serve_knowledge_crdt(db: Arc<dyn Database>, pool: SurrealStorage) -> String {
-    let app = router_with_state(KnowledgeCrdtApiState { db, pool });
+/// Serve the knowledge CRDT router plus the RichDocument routes (the draft log belongs to an owned
+/// RichDocument). MT-154: every CRDT route authorizes the exact RichDocument and its workspace for
+/// the calling account session.
+async fn serve_knowledge_crdt(state: handshake_core::AppState) -> String {
+    let app = handshake_core::api::knowledge_crdt::routes(state.clone())
+        .merge(handshake_core::api::knowledge_documents::routes(state));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback CRDT fixture listener");
@@ -90,6 +92,31 @@ async fn serve_knowledge_crdt(db: Arc<dyn Database>, pool: SurrealStorage) -> St
             .expect("serve CRDT fixture router");
     });
     format!("http://{addr}")
+}
+
+/// A RichDocument the account owns in `workspace_id`, created through POST /knowledge/documents.
+async fn owned_document(client: &reqwest::Client, base_url: &str, workspace_id: &str) -> String {
+    let response = client
+        .post(format!("{base_url}/knowledge/documents"))
+        .header("x-hsk-actor-id", "mt237-doc")
+        .header("x-hsk-kernel-task-run-id", "KTR-MT237-doc")
+        .header("x-hsk-session-run-id", "SR-MT237-doc")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&json!({"workspace_id": workspace_id, "title": "mt237 parallel write"}))
+        .send()
+        .await
+        .expect("create rich document");
+    let status = response.status();
+    let body: Value = response.json().await.expect("create document body");
+    assert_eq!(
+        status,
+        reqwest::StatusCode::OK,
+        "owner document create: {body}"
+    );
+    body["document"]["rich_document_id"]
+        .as_str()
+        .expect("created rich document id")
+        .to_owned()
 }
 
 async fn push_update_http(
@@ -206,7 +233,8 @@ async fn mt237_parallel_model_validator_conflicts_leave_repairable_state() {
     };
     let pool = embedded.storage.clone();
     let db: Arc<dyn Database> = embedded.database();
-    let base_url = serve_knowledge_crdt(db.clone(), pool.clone()).await;
+    let base_url =
+        serve_knowledge_crdt(user_manual_support::app_state_for(&embedded.db).await).await;
     let account = AccountFixture::install(&embedded.storage).await;
     let client = account.client();
 
@@ -214,7 +242,7 @@ async fn mt237_parallel_model_validator_conflicts_leave_repairable_state() {
     let workspace_id = account
         .create_workspace(&user_manual_support::app_state_for(&embedded.db).await)
         .await;
-    let document_id = format!("doc-mt237-{suffix}");
+    let document_id = owned_document(&client, &base_url, &workspace_id).await;
     let crdt_document_id = format!("crdt-mt237-{suffix}");
     let operator =
         KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "mt237-op").expect("operator");
@@ -637,7 +665,13 @@ async fn mt237_parallel_model_validator_conflicts_leave_repairable_state() {
         );
         assert_eq!(event.aggregate_type, "knowledge_crdt_document");
         assert_eq!(event.aggregate_id, crdt_document_id);
-        assert_eq!(event.actor.actor_id(), receipt.actor_id.as_str());
+        // MT-154 (AC-154-5): the ledger receipt is attributed to the authenticated session
+        // principal; the denied CRDT site actor stays on the denial receipt and in the payload.
+        assert_eq!(event.actor.actor_id(), account.actor_id.as_str());
+        assert_eq!(
+            event.payload["denied_actor_id"].as_str(),
+            Some(receipt.actor_id.as_str())
+        );
         assert_eq!(
             event.correlation_id.as_deref(),
             Some(receipt.correlation_id.as_str())

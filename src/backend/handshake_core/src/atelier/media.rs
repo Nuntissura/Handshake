@@ -1414,9 +1414,12 @@ impl AtelierStore {
         if let Some(row) = row {
             return Ok(row.into());
         }
-        let existing = self.get_media_asset_by_hash(&content_hash).await?.ok_or_else(|| {
-            AtelierError::Internal("materializing a media asset returned no row".to_owned())
-        })?;
+        let existing = self
+            .get_media_asset_by_hash(&content_hash)
+            .await?
+            .ok_or_else(|| {
+                AtelierError::Internal("materializing a media asset returned no row".to_owned())
+            })?;
         self.repair_media_asset_manifest_if_needed(existing).await
     }
 

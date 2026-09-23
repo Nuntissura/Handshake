@@ -315,9 +315,11 @@ pub(crate) async fn upsert_source(
                 StorageError::from(error)
             }
         })?;
+    // MT-154 (spec_ruling_c3_silent_deny): a record-user UPSERT the table permissions deny is
+    // silently dropped (no row, no error); that empty result is the constant denial, never success.
     row.map(map_source)
         .transpose()?
-        .ok_or_else(|| StorageError::Database("calendar source upsert returned no row".to_owned()))
+        .ok_or(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
 }
 
 pub(crate) async fn list_sources(
@@ -710,6 +712,10 @@ async fn run_event_transaction(
             created_at: row.created_at.clone(),
             updated_at: row.updated_at.clone(),
         }),
+        // A record-user UPSERT dropped by the table permissions returns no row (silent deny).
+        [] if super::current_record_user_scope().is_some() => {
+            Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
+        }
         _ => Err(StorageError::Database(
             "calendar transaction did not return exactly one event row".to_owned(),
         )),
@@ -811,10 +817,17 @@ pub(crate) async fn delete_source(
         })
         .await
         .map_err(StorageError::from)?;
-    if rows.is_empty() {
-        Err(StorageError::NotFound("calendar_source"))
+    if !rows.is_empty() {
+        return Ok(());
+    }
+    // A still-visible source that was not deleted is a silently denied record-user DELETE.
+    if get_source(storage, workspace_id, source_id)
+        .await?
+        .is_some()
+    {
+        Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
     } else {
-        Ok(())
+        Err(StorageError::NotFound("calendar_source"))
     }
 }
 

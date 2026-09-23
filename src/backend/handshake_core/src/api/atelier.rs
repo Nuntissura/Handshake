@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use surrealdb::types::{RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
+use crate::api::authority::{authorize_account_session, AccountSessionAuthority};
 use crate::atelier::intake::{
     IntakeBatchMode, IntakeItemLoomProjection, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
     NewIntakeItem,
@@ -35,6 +36,7 @@ use crate::atelier::{
     DeletionImpactPreview, DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef,
     ImageImportRecord, UrlImageImportRequest,
 };
+use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
 use crate::AppState;
 
 pub fn routes(state: AppState) -> Router {
@@ -97,6 +99,12 @@ pub fn routes(state: AppState) -> Router {
             "/atelier/stealth/windows/:window_ref_id/refs/:ref_id",
             get(resolve_stealth_ref),
         )
+        // MT-154 AC-154-2 (Master Spec 02-system-architecture.md:2758): deny by default before any
+        // extractor, table, filesystem path or recorder is touched.
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::api::authority::require_authenticated_session,
+        ))
         .with_state(state)
 }
 
@@ -200,23 +208,64 @@ fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
         .filter(|value| !value.is_empty())
 }
 
-/// Authenticated calling actor for an Atelier request (account session + live channel binding when
-/// the channel header is present; see [`super::stage::capture_request_context`]).
-async fn request_actor(
+type ApiError = (StatusCode, Json<ErrorResponse>);
+
+/// The constant protected-resource denial (same body as `api::authority::constant_denial`).
+fn protected_denial() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-PROTECTED-RESOURCE",
+        }),
+    )
+}
+
+/// MT-154 (D-154-3): the Atelier library is an account-owned ProtectedResource without a workspace.
+/// Reads need `fs.read`, writes `fs.write`, rechecked against the live account session; the request
+/// then runs as that account's record user (`owner_account_id = $auth.account_id` row permissions).
+async fn atelier_account(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
-    super::stage::capture_request_context(state, headers)
+    action: ResourceAction,
+) -> Result<AccountSessionAuthority, ApiError> {
+    let capability = if matches!(action, ResourceAction::Read) {
+        "fs.read"
+    } else {
+        "fs.write"
+    };
+    authorize_account_session(state, headers, capability, action)
         .await
-        .map(|context| context.actor_id)
-        .map_err(|_| {
-            (
-                StatusCode::UNAUTHORIZED,
-                Json(ErrorResponse {
-                    error: "invalid_session",
-                }),
-            )
-        })
+        .map_err(|_| protected_denial())
+}
+
+/// MT-154 (D-154-3): runs an Atelier storage operation as the account record user that `headers`
+/// authenticate (the same `fs.write` account authority the Atelier write routes use), so Atelier
+/// rows produced outside a route handler (native host commands, route harnesses) are owned by that
+/// account and their receipts carry its session principal. Never elevates: an invalid session is
+/// the constant denial and the operation is not run.
+pub async fn with_account_session<T>(
+    state: &AppState,
+    headers: &HeaderMap,
+    operation: impl std::future::Future<Output = T>,
+) -> Result<T, (StatusCode, Json<serde_json::Value>)> {
+    let account =
+        authorize_account_session(state, headers, "fs.write", ResourceAction::Update).await?;
+    Ok(as_account(state, &account, operation).await)
+}
+
+/// Runs `operation` as the account record user with Atelier receipts stamped with the session
+/// principal (never `System("atelier")` or a header-supplied actor).
+async fn as_account<T>(
+    state: &AppState,
+    account: &AccountSessionAuthority,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    account
+        .run(
+            state,
+            crate::atelier::with_atelier_session_actor(account.session_actor(), operation),
+        )
+        .await
 }
 
 #[cfg(test)]
@@ -240,6 +289,12 @@ fn calling_actor(headers: &HeaderMap) -> Result<String, (StatusCode, Json<ErrorR
 /// runs.) The body never leaks internals — it is a fixed `&'static str` code.
 fn atelier_error(err: crate::atelier::AtelierError) -> (StatusCode, Json<ErrorResponse>) {
     use crate::atelier::AtelierError;
+    // MT-154 silent-deny ruling: a record-user write the table permissions dropped surfaces as the
+    // guard THROW and is answered with the constant 403, never 200/500.
+    if err.to_string().contains("HSK-403-PROTECTED-RESOURCE") {
+        tracing::warn!(target: "handshake_core::atelier", "protected_resource_write_denied");
+        return protected_denial();
+    }
     match err {
         AtelierError::NotFound(detail) => {
             tracing::warn!(target: "handshake_core::atelier", %detail, "not_found");
@@ -299,8 +354,17 @@ struct EventFamilyCountRow {
 /// per-family atelier event counts.
 async fn overview(
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<OverviewResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let store = atelier_store(&state);
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
+    as_account(&state, &account, overview_as_account(&state)).await
+}
+
+/// Counts only the rows the account's record user can select (no cross-account count channel).
+async fn overview_as_account(
+    state: &AppState,
+) -> Result<Json<OverviewResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(state);
 
     let mut tables = Vec::with_capacity(OVERVIEW_TABLES.len());
     for name in OVERVIEW_TABLES {
@@ -383,10 +447,11 @@ fn intake_batch_response(batch: crate::atelier::intake::IntakeBatch) -> IntakeBa
 /// GET /atelier/intake/batches — newest first, capped.
 async fn list_intake_batches(
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<Vec<IntakeBatchResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
     let store = atelier_store(&state);
-    let batches = store
-        .list_intake_batches(None, LIST_CAP)
+    let batches = as_account(&state, &account, store.list_intake_batches(None, LIST_CAP))
         .await
         .map_err(atelier_error)?;
 
@@ -413,8 +478,10 @@ struct CreateIntakeBatchRequest {
 /// POST /atelier/intake/batches — open (idempotently) an intake batch.
 async fn create_intake_batch(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<CreateIntakeBatchRequest>,
 ) -> Result<(StatusCode, Json<IntakeBatchResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let account = atelier_account(&state, &headers, ResourceAction::Create).await?;
     let store = atelier_store(&state);
     let mode = match payload.mode.as_deref().unwrap_or("manual") {
         "manual" => IntakeBatchMode::Manual,
@@ -441,19 +508,19 @@ async fn create_intake_batch(
             ));
         }
     };
-    let batch = store
-        .open_intake_batch(&NewIntakeBatch {
-            idempotency_key: payload.idempotency_key,
-            source_label: payload.source_label,
-            source_ref: payload.source_ref,
-            mode,
-            profile_mode,
-            character_internal_id: payload.target_character_id,
-            target_character_id: payload.target_character_id,
-            target_sheet_version_id: payload.target_sheet_version_id,
-            target_collection_id: payload.target_collection_id,
-            resume_cursor: payload.resume_cursor,
-        })
+    let new_batch = NewIntakeBatch {
+        idempotency_key: payload.idempotency_key,
+        source_label: payload.source_label,
+        source_ref: payload.source_ref,
+        mode,
+        profile_mode,
+        character_internal_id: payload.target_character_id,
+        target_character_id: payload.target_character_id,
+        target_sheet_version_id: payload.target_sheet_version_id,
+        target_collection_id: payload.target_collection_id,
+        resume_cursor: payload.resume_cursor,
+    };
+    let batch = as_account(&state, &account, store.open_intake_batch(&new_batch))
         .await
         .map_err(atelier_error)?;
 
@@ -475,15 +542,20 @@ async fn run_filesystem_health_check(
     (StatusCode, Json<crate::atelier::FilesystemHealthReport>),
     (StatusCode, Json<ErrorResponse>),
 > {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Create).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let report = store
-        .run_filesystem_health_check(&crate::atelier::FilesystemHealthCheckRequest {
-            requested_by: actor.clone(),
-            scope_label: payload.scope_label,
-        })
-        .await
-        .map_err(atelier_error)?;
+    let request = crate::atelier::FilesystemHealthCheckRequest {
+        requested_by: actor.clone(),
+        scope_label: payload.scope_label,
+    };
+    let report = as_account(
+        &state,
+        &account,
+        store.run_filesystem_health_check(&request),
+    )
+    .await
+    .map_err(atelier_error)?;
 
     tracing::info!(
         target: "handshake_core::atelier",
@@ -500,12 +572,17 @@ async fn run_filesystem_health_check(
 async fn list_filesystem_health_findings(
     State(state): State<AppState>,
     Path(check_id): Path<Uuid>,
+    headers: HeaderMap,
 ) -> Result<Json<Vec<crate::atelier::FilesystemHealthFinding>>, (StatusCode, Json<ErrorResponse>)> {
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
     let store = atelier_store(&state);
-    let findings = store
-        .list_filesystem_health_findings(check_id)
-        .await
-        .map_err(atelier_error)?;
+    let findings = as_account(
+        &state,
+        &account,
+        store.list_filesystem_health_findings(check_id),
+    )
+    .await
+    .map_err(atelier_error)?;
 
     tracing::info!(
         target: "handshake_core::atelier",
@@ -529,14 +606,15 @@ async fn preview_deletion_impact(
     headers: HeaderMap,
     Json(payload): Json<DeletionControlsRequest>,
 ) -> Result<Json<DeletionImpactPreview>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let preview = store
-        .preview_deletion_impact(&DeletionImpactPreviewRequest {
-            targets: payload.targets,
-            requested_by: actor.clone(),
-            reason: payload.reason,
-        })
+    let request = DeletionImpactPreviewRequest {
+        targets: payload.targets,
+        requested_by: actor.clone(),
+        reason: payload.reason,
+    };
+    let preview = as_account(&state, &account, store.preview_deletion_impact(&request))
         .await
         .map_err(atelier_error)?;
 
@@ -557,14 +635,15 @@ async fn archive_deletion_targets(
     headers: HeaderMap,
     Json(payload): Json<DeletionControlsRequest>,
 ) -> Result<(StatusCode, Json<BulkOperationReceipt>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Update).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let receipt = store
-        .archive_deletion_targets(&DeletionArchiveRequest {
-            targets: payload.targets,
-            requested_by: actor.clone(),
-            reason: payload.reason,
-        })
+    let request = DeletionArchiveRequest {
+        targets: payload.targets,
+        requested_by: actor.clone(),
+        reason: payload.reason,
+    };
+    let receipt = as_account(&state, &account, store.archive_deletion_targets(&request))
         .await
         .map_err(atelier_error)?;
 
@@ -585,14 +664,15 @@ async fn restore_deletion_targets(
     headers: HeaderMap,
     Json(payload): Json<DeletionControlsRequest>,
 ) -> Result<(StatusCode, Json<BulkOperationReceipt>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Update).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let receipt = store
-        .restore_deletion_targets(&DeletionRestoreRequest {
-            targets: payload.targets,
-            requested_by: actor.clone(),
-            reason: payload.reason,
-        })
+    let request = DeletionRestoreRequest {
+        targets: payload.targets,
+        requested_by: actor.clone(),
+        reason: payload.reason,
+    };
+    let receipt = as_account(&state, &account, store.restore_deletion_targets(&request))
         .await
         .map_err(atelier_error)?;
 
@@ -634,18 +714,19 @@ async fn import_clipboard_image(
     headers: HeaderMap,
     Json(payload): Json<ClipboardImageImportApiRequest>,
 ) -> Result<(StatusCode, Json<ImageImportRecord>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Create).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let record = store
-        .import_clipboard_image(&ClipboardImageImportRequest {
-            idempotency_key: payload.idempotency_key,
-            mime: payload.mime,
-            content_hash: payload.content_hash,
-            byte_len: payload.byte_len,
-            artifact_ref: payload.artifact_ref,
-            source_application: payload.source_application,
-            requested_by: actor.clone(),
-        })
+    let request = ClipboardImageImportRequest {
+        idempotency_key: payload.idempotency_key,
+        mime: payload.mime,
+        content_hash: payload.content_hash,
+        byte_len: payload.byte_len,
+        artifact_ref: payload.artifact_ref,
+        source_application: payload.source_application,
+        requested_by: actor.clone(),
+    };
+    let record = as_account(&state, &account, store.import_clipboard_image(&request))
         .await
         .map_err(atelier_error)?;
 
@@ -666,18 +747,19 @@ async fn record_url_image_import(
     headers: HeaderMap,
     Json(payload): Json<UrlImageImportApiRequest>,
 ) -> Result<(StatusCode, Json<ImageImportRecord>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Create).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let record = store
-        .record_url_image_import(&UrlImageImportRequest {
-            idempotency_key: payload.idempotency_key,
-            source_url: payload.source_url,
-            expected_mime: payload.expected_mime,
-            source_label: payload.source_label,
-            capability_profile_id: payload.capability_profile_id,
-            capability_grant_ref: payload.capability_grant_ref,
-            requested_by: actor.clone(),
-        })
+    let request = UrlImageImportRequest {
+        idempotency_key: payload.idempotency_key,
+        source_url: payload.source_url,
+        expected_mime: payload.expected_mime,
+        source_label: payload.source_label,
+        capability_profile_id: payload.capability_profile_id,
+        capability_grant_ref: payload.capability_grant_ref,
+        requested_by: actor.clone(),
+    };
+    let record = as_account(&state, &account, store.record_url_image_import(&request))
         .await
         .map_err(atelier_error)?;
 
@@ -749,17 +831,16 @@ async fn create_intake_item(
     headers: HeaderMap,
     Json(payload): Json<CreateIntakeItemRequest>,
 ) -> Result<(StatusCode, Json<IntakeItemResponse>), (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
-    let item = atelier_store(&state)
-        .add_intake_item(
-            batch_id,
-            &NewIntakeItem {
-                source_path: payload.source_path,
-                file_name: payload.file_name,
-                byte_len: payload.byte_len,
-                content_hash: payload.content_hash,
-            },
-        )
+    let account = atelier_account(&state, &headers, ResourceAction::Create).await?;
+    let actor = account.actor_id.clone();
+    let store = atelier_store(&state);
+    let new_item = NewIntakeItem {
+        source_path: payload.source_path,
+        file_name: payload.file_name,
+        byte_len: payload.byte_len,
+        content_hash: payload.content_hash,
+    };
+    let item = as_account(&state, &account, store.add_intake_item(batch_id, &new_item))
         .await
         .map_err(atelier_error)?;
     let response = IntakeItemResponse {
@@ -800,8 +881,22 @@ struct IntakeProjectionRow {
 async fn list_intake_batch_items(
     State(state): State<AppState>,
     Path(batch_id): Path<Uuid>,
+    headers: HeaderMap,
 ) -> Result<Json<IntakeBatchItemsResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let store = atelier_store(&state);
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
+    as_account(
+        &state,
+        &account,
+        list_intake_batch_items_as_account(&state, batch_id),
+    )
+    .await
+}
+
+async fn list_intake_batch_items_as_account(
+    state: &AppState,
+    batch_id: Uuid,
+) -> Result<Json<IntakeBatchItemsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(state);
 
     let lane_counts = store
         .intake_lane_counts(batch_id)
@@ -872,11 +967,44 @@ async fn link_intake_item_loom_projection(
     headers: HeaderMap,
     Json(payload): Json<LinkIntakeItemLoomProjectionRequest>,
 ) -> Result<Json<IntakeItemLoomProjection>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
-    let projection = atelier_store(&state)
-        .link_intake_item_loom_projection(item_id, &payload.loom_block_id, &actor)
+    let account = atelier_account(&state, &headers, ResourceAction::Update).await?;
+    // MT-154 AC-154-4: the link pins the target block (REFERENCE ON DELETE REJECT), so the caller
+    // must hold read on that exact block: its own `loom_block` resource or, for a RichDocument's
+    // same-id Loom projection, the `rich_document` resource. Otherwise the constant denial.
+    let block_authorized = match crate::api::authority::authorize_request(
+        &state,
+        &headers,
+        "fs.read",
+        ResourceKind::LoomBlock,
+        &payload.loom_block_id,
+        ResourceAction::Read,
+    )
+    .await
+    {
+        Ok(_) => true,
+        Err(_) => crate::api::authority::authorize_request(
+            &state,
+            &headers,
+            "fs.read",
+            ResourceKind::RichDocument,
+            &payload.loom_block_id,
+            ResourceAction::Read,
+        )
         .await
-        .map_err(atelier_error)?;
+        .is_ok(),
+    };
+    if !block_authorized {
+        return Err(protected_denial());
+    }
+    let actor = account.actor_id.clone();
+    let store = atelier_store(&state);
+    let projection = as_account(
+        &state,
+        &account,
+        store.link_intake_item_loom_projection(item_id, &payload.loom_block_id, &actor),
+    )
+    .await
+    .map_err(atelier_error)?;
 
     tracing::info!(
         target: "handshake_core::atelier",
@@ -902,21 +1030,27 @@ struct CommandCorpusEntryResponse {
 /// GET /atelier/command-corpus — catalog descriptors ordered by action_id, capped.
 async fn list_command_corpus(
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<Vec<CommandCorpusEntryResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    let out = atelier_store(&state)
-        .list_command_corpus_entries_limited(None, LIST_CAP)
-        .await
-        .map_err(atelier_error)?
-        .into_iter()
-        .map(|entry| CommandCorpusEntryResponse {
-            entry_id: entry.entry_id,
-            action_id: entry.action_id,
-            owner: entry.owner,
-            execution_class: entry.execution_class.as_token().to_owned(),
-            foreground_flag: entry.foreground_flag,
-            manual_anchor: entry.manual_anchor,
-        })
-        .collect();
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
+    let store = atelier_store(&state);
+    let out = as_account(
+        &state,
+        &account,
+        store.list_command_corpus_entries_limited(None, LIST_CAP),
+    )
+    .await
+    .map_err(atelier_error)?
+    .into_iter()
+    .map(|entry| CommandCorpusEntryResponse {
+        entry_id: entry.entry_id,
+        action_id: entry.action_id,
+        owner: entry.owner,
+        execution_class: entry.execution_class.as_token().to_owned(),
+        foreground_flag: entry.foreground_flag,
+        manual_anchor: entry.manual_anchor,
+    })
+    .collect();
 
     tracing::info!(target: "handshake_core::atelier", route = "/atelier/command-corpus", status = "ok", "list command corpus");
 
@@ -987,21 +1121,27 @@ fn ai_tag_suggestion_response(suggestion: AiTagSuggestion) -> AiTagSuggestionRes
 
 async fn record_ai_tag_suggestion(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<RecordAiTagSuggestionRequest>,
 ) -> Result<(StatusCode, Json<AiTagSuggestionResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let account = atelier_account(&state, &headers, ResourceAction::Create).await?;
     let store = atelier_store(&state);
-    let suggestion = store
-        .record_ai_tag_suggestion(&NewAiTagSuggestion {
-            character_internal_id: payload.character_internal_id,
-            asset_id: payload.asset_id,
-            tag_text: payload.tag_text,
-            confidence: payload.confidence,
-            model_receipt_ref: payload.model_receipt_ref,
-            tool_receipt_ref: payload.tool_receipt_ref,
-            suggested_by: payload.suggested_by,
-        })
-        .await
-        .map_err(atelier_error)?;
+    let suggestion = NewAiTagSuggestion {
+        character_internal_id: payload.character_internal_id,
+        asset_id: payload.asset_id,
+        tag_text: payload.tag_text,
+        confidence: payload.confidence,
+        model_receipt_ref: payload.model_receipt_ref,
+        tool_receipt_ref: payload.tool_receipt_ref,
+        suggested_by: payload.suggested_by,
+    };
+    let suggestion = as_account(
+        &state,
+        &account,
+        store.record_ai_tag_suggestion(&suggestion),
+    )
+    .await
+    .map_err(atelier_error)?;
 
     tracing::info!(
         target: "handshake_core::atelier",
@@ -1020,12 +1160,17 @@ async fn record_ai_tag_suggestion(
 async fn list_ai_tag_suggestions_for_character(
     State(state): State<AppState>,
     Path(character_internal_id): Path<Uuid>,
+    headers: HeaderMap,
 ) -> Result<Json<Vec<AiTagSuggestionResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
     let store = atelier_store(&state);
-    let suggestions = store
-        .list_ai_tag_suggestions_for_character(character_internal_id)
-        .await
-        .map_err(atelier_error)?;
+    let suggestions = as_account(
+        &state,
+        &account,
+        store.list_ai_tag_suggestions_for_character(character_internal_id),
+    )
+    .await
+    .map_err(atelier_error)?;
 
     tracing::info!(
         target: "handshake_core::atelier",
@@ -1049,14 +1194,15 @@ async fn accept_ai_tag_suggestion(
     Path(suggestion_id): Path<Uuid>,
     Json(payload): Json<AiTagSuggestionDecisionRequest>,
 ) -> Result<Json<AiTagSuggestionResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Update).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let suggestion = store
-        .accept_ai_tag_suggestion(&AiTagSuggestionDecision {
-            suggestion_id,
-            decided_by: actor.clone(),
-            reason: payload.reason,
-        })
+    let decision = AiTagSuggestionDecision {
+        suggestion_id,
+        decided_by: actor.clone(),
+        reason: payload.reason,
+    };
+    let suggestion = as_account(&state, &account, store.accept_ai_tag_suggestion(&decision))
         .await
         .map_err(atelier_error)?;
 
@@ -1078,14 +1224,15 @@ async fn reject_ai_tag_suggestion(
     Path(suggestion_id): Path<Uuid>,
     Json(payload): Json<AiTagSuggestionDecisionRequest>,
 ) -> Result<Json<AiTagSuggestionResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Update).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let suggestion = store
-        .reject_ai_tag_suggestion(&AiTagSuggestionDecision {
-            suggestion_id,
-            decided_by: actor.clone(),
-            reason: payload.reason,
-        })
+    let decision = AiTagSuggestionDecision {
+        suggestion_id,
+        decided_by: actor.clone(),
+        reason: payload.reason,
+    };
+    let suggestion = as_account(&state, &account, store.reject_ai_tag_suggestion(&decision))
         .await
         .map_err(atelier_error)?;
 
@@ -1106,12 +1253,16 @@ async fn apply_ai_tag_suggestion(
     headers: HeaderMap,
     Path(suggestion_id): Path<Uuid>,
 ) -> Result<Json<AiTagSuggestionResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Update).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let suggestion = store
-        .apply_ai_tag_suggestion(suggestion_id, &actor)
-        .await
-        .map_err(atelier_error)?;
+    let suggestion = as_account(
+        &state,
+        &account,
+        store.apply_ai_tag_suggestion(suggestion_id, &actor),
+    )
+    .await
+    .map_err(atelier_error)?;
 
     tracing::info!(
         target: "handshake_core::atelier",
@@ -1141,12 +1292,16 @@ async fn list_stealth_windows(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<StealthWindowResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let windows = store
-        .list_stealth_windows(&actor, None, LIST_CAP)
-        .await
-        .map_err(atelier_error)?;
+    let windows = as_account(
+        &state,
+        &account,
+        store.list_stealth_windows(&actor, None, LIST_CAP),
+    )
+    .await
+    .map_err(atelier_error)?;
 
     let out = windows
         .into_iter()
@@ -1179,10 +1334,10 @@ async fn resolve_stealth_ref(
     Path((window_ref_id, ref_id)): Path<(Uuid, Uuid)>,
     headers: HeaderMap,
 ) -> Result<Json<ResolvedContentRef>, (StatusCode, Json<ErrorResponse>)> {
-    let actor = request_actor(&state, &headers).await?;
+    let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
+    let actor = account.actor_id.clone();
     let store = atelier_store(&state);
-    let window = store
-        .get_stealth_window(window_ref_id)
+    let window = as_account(&state, &account, store.get_stealth_window(window_ref_id))
         .await
         .map_err(atelier_error)?;
     if window.owner_actor != actor {
@@ -1191,10 +1346,13 @@ async fn resolve_stealth_ref(
             Json(ErrorResponse { error: "not_found" }),
         ));
     }
-    let resolved = store
-        .resolve_stealth_ref(window_ref_id, ref_id)
-        .await
-        .map_err(atelier_error)?;
+    let resolved = as_account(
+        &state,
+        &account,
+        store.resolve_stealth_ref(window_ref_id, ref_id),
+    )
+    .await
+    .map_err(atelier_error)?;
 
     tracing::info!(
         target: "handshake_core::atelier",

@@ -1,3 +1,7 @@
+// MT-154 AC-154-2: the trace-projection route requires the account session.
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
 use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
@@ -401,8 +405,9 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
         .await
         .expect("bind test API listener");
     let addr = listener.local_addr().expect("test API listener addr");
-    let app =
-        handshake_core::api::kernel::routes(test_app_state(db, backend.storage.clone()).await);
+    let app = handshake_core::api::kernel::routes(
+        test_app_state(db.clone(), backend.storage.clone()).await,
+    );
     let server = tokio::spawn(async move {
         axum::serve(listener, app)
             .await
@@ -413,20 +418,53 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
         "http://{addr}/kernel/trace_projection?kernel_task_run_id={}&session_run_id={}",
         result.kernel_task_run_id, result.session_run_id
     );
-    let projection = reqwest::get(url)
+    // MT-154 AC-154-2 (Master Spec 02-system-architecture.md:2758/2773/2774): the EventLedger is a
+    // protected resource, so the route denies an anonymous caller with the constant denial, and an
+    // authenticated account reads only receipts its record user may read. This proof run's receipts
+    // are system-actor kernel receipts no account holds a grant for, so the route discloses nothing
+    // about them (constant denial, not an empty or partial projection). The projection content of the
+    // same run is proven directly by `kernel_trace_inspector` above.
+    let anonymous = reqwest::get(url.clone())
         .await
-        .expect("trace projection response")
-        .error_for_status()
-        .expect("successful trace projection status")
-        .json::<TraceProjection>()
-        .await
-        .expect("trace projection JSON");
+        .expect("anonymous trace projection response");
+    assert_eq!(anonymous.status(), reqwest::StatusCode::FORBIDDEN);
+    assert_eq!(
+        anonymous
+            .json::<serde_json::Value>()
+            .await
+            .expect("anonymous denial JSON"),
+        json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+    );
+    {
+        let _lock = account_session_support::NATIVE_BINDING_ENV_LOCK
+            .lock()
+            .await;
+        let binding = account_session_support::NativeBindingEnv::install();
+        let owner =
+            account_session_support::OwnerSession::provision(&backend.storage, binding.token())
+                .await;
+        let account = owner
+            .apply(reqwest::Client::new().get(url.clone()))
+            .send()
+            .await
+            .expect("account trace projection response");
+        assert_eq!(account.status(), reqwest::StatusCode::FORBIDDEN);
+        assert_eq!(
+            account
+                .json::<serde_json::Value>()
+                .await
+                .expect("account denial JSON"),
+            json!({"error": "HSK-403-PROTECTED-RESOURCE"})
+        );
+    }
     server.abort();
 
-    assert_eq!(projection.kernel_task_run_id, result.kernel_task_run_id);
-    assert_eq!(projection.session_run_id, result.session_run_id);
-    assert_eq!(projection.authority_source, "surreal_event_ledger");
-    assert!(projection.contains_event_type(KernelEventType::PromotionDecided));
+    let inspected = KernelTraceInspector::new(db)
+        .inspect_session(&result.kernel_task_run_id, &result.session_run_id)
+        .await
+        .expect("the system trace itself remains intact and inspectable by the kernel");
+    assert_eq!(inspected.authority_source, "surreal_event_ledger");
+    assert!(inspected.contains_event_type(KernelEventType::PromotionDecided));
 }
 
 #[tokio::test]

@@ -18,7 +18,6 @@ use std::sync::Arc;
 use account_session_support::OwnerSession;
 use async_trait::async_trait;
 use atelier_surreal_support::AtelierSurrealHarness;
-use handshake_core::api::atelier as atelier_api;
 use handshake_core::atelier::intake::intake_event_family;
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
@@ -27,10 +26,6 @@ use handshake_core::flight_recorder::{
 };
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
-};
-use handshake_core::storage::surreal::SurrealDatabase;
-use handshake_core::storage::{
-    Database, LoomBlockContentType, LoomBlockDerived, NewDocument, NewLoomBlock, WriteContext,
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
@@ -183,52 +178,56 @@ async fn app_state(harness: &AtelierSurrealHarness) -> AppState {
     }
 }
 
-async fn serve(state: AppState) -> (String, reqwest::Client, tokio::task::JoinHandle<()>) {
+/// MT-154: the full product router (Atelier + Loom routes); every request carries the Owner's
+/// account session, because every Atelier route is deny-by-default (AC-154-2).
+async fn serve(state: AppState) -> (String, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback listener");
     let addr = listener.local_addr().expect("listener address");
     let server = tokio::spawn(async move {
-        axum::serve(listener, atelier_api::routes(state))
+        axum::serve(listener, handshake_core::api::routes(state))
             .await
             .expect("Atelier API server");
     });
-    (format!("http://{addr}"), reqwest::Client::new(), server)
+    (format!("http://{addr}"), server)
 }
 
-async fn source_backed_block(storage: &dyn Database, workspace_id: &str, title: &str) -> String {
-    let ctx = WriteContext::human(None);
-    let document = storage
-        .create_document(
-            &ctx,
-            NewDocument {
-                workspace_id: workspace_id.to_string(),
-                title: title.to_string(),
-            },
-        )
+/// A source-backed (asset) Loom block the Owner holds a `loom_block` grant on, created through the
+/// real record-user Loom import route. MT-154 AC-154-4: the projection link authorizes read on the
+/// exact target block, so a root-created block (no account grant) can no longer be linked.
+async fn source_backed_block(
+    http: &reqwest::Client,
+    base: &str,
+    workspace_id: &str,
+    title: &str,
+) -> String {
+    use base64::Engine as _;
+    let response = http
+        .post(format!("{base}/workspaces/{workspace_id}/loom/import"))
+        .json(&json!({
+            "bytes_b64": base64::engine::general_purpose::STANDARD
+                .encode(format!("MT-154 source for {title} {}", Uuid::new_v4())),
+            "original_filename": format!("{title}.txt"),
+            "mime": "text/plain",
+        }))
+        .send()
         .await
-        .expect("create source document");
-    storage
-        .create_loom_block(
-            &ctx,
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: workspace_id.to_string(),
-                content_type: LoomBlockContentType::Note,
-                document_id: Some(document.id),
-                asset_id: None,
-                title: Some(title.to_string()),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
-        .await
-        .expect("create source-backed Loom block")
-        .block_id
+        .expect("import a source-backed Loom block as the Owner");
+    assert_eq!(
+        response.status(),
+        reqwest::StatusCode::OK,
+        "Owner Loom import"
+    );
+    let imported: Value = response.json().await.expect("import response JSON");
+    assert!(
+        imported["asset_id"].is_string(),
+        "imported block is asset-backed"
+    );
+    imported["block_id"]
+        .as_str()
+        .expect("import returns block_id")
+        .to_owned()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -238,13 +237,19 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     let harness = AtelierSurrealHarness::create().await;
     let state = app_state(&harness).await;
     let store = harness.atelier.clone();
-    let storage = SurrealDatabase::new(harness.storage.clone());
+    // The Loom import writes the asset blob under the workspace root; keep it in a temp dir.
+    let workspace_root = tempfile::tempdir().expect("Loom import workspace root");
+    let previous_workspace_root = std::env::var_os("HANDSHAKE_WORKSPACE_ROOT");
+    std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", workspace_root.path());
     // The lock is already held: the Owner is bound to THIS test's native binding, and the
     // workspace is created through the real `POST /workspaces` route as that Owner.
     let owner = OwnerSession::provision(&harness.storage, &binding.token).await;
     let workspace_id = owner.create_workspace(&state).await;
 
-    let (base, http, server) = serve(state).await;
+    let (base, server) = serve(state).await;
+    // MT-154 AC-154-2: every Atelier route requires the account session; the batch and every
+    // row below are owned by this Owner's account (D-154-3).
+    let http = owner.client();
     let batch_response = http
         .post(format!("{base}/atelier/intake/batches"))
         .json(&json!({
@@ -328,7 +333,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
         .expect("unknown-batch request");
     assert_eq!(missing.status(), reqwest::StatusCode::NOT_FOUND);
 
-    let no_actor = http
+    let no_actor = reqwest::Client::new()
         .post(&item_url)
         .json(&json!({
             "source_path": "source://mt140/no-actor.png",
@@ -339,12 +344,14 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
         .send()
         .await
         .expect("missing-actor request");
-    // MT-141 R15: the route authenticates the session before reading the body
-    // (`api::stage::capture_context`), so an unauthenticated request is rejected with
-    // 401 `invalid_session`; the proof intent (rejected, never created) is unchanged.
-    assert_eq!(no_actor.status(), reqwest::StatusCode::UNAUTHORIZED);
+    // MT-141 R15 / MT-154 AC-154-2: an unauthenticated request is rejected before the body is
+    // read or any table is touched, now with the constant protected-resource denial (403); the
+    // proof intent (rejected, never created) is unchanged.
+    assert_eq!(no_actor.status(), reqwest::StatusCode::FORBIDDEN);
+    let no_actor: Value = no_actor.json().await.expect("constant denial body");
+    assert_eq!(no_actor["error"], "HSK-403-PROTECTED-RESOURCE");
 
-    let block_id = source_backed_block(&storage, &workspace_id, "MT-033 canonical block").await;
+    let block_id = source_backed_block(&http, &base, &workspace_id, "MT-033 canonical block").await;
     let link_url = format!("{base}/atelier/intake/items/{}/loom-projection", item_id);
     let linked = http
         .put(&link_url)
@@ -398,7 +405,7 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     );
 
     let different_block =
-        source_backed_block(&storage, &workspace_id, "MT-033 conflicting block").await;
+        source_backed_block(&http, &base, &workspace_id, "MT-033 conflicting block").await;
     let conflict = http
         .put(&link_url)
         .headers(owner.headers())
@@ -412,4 +419,10 @@ async fn real_atelier_endpoint_returns_durable_canonical_loom_identity() {
     server.abort();
     let _ = server.await;
     harness.shutdown().await;
+    if let Some(previous) = previous_workspace_root {
+        std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", previous);
+    } else {
+        std::env::remove_var("HANDSHAKE_WORKSPACE_ROOT");
+    }
+    drop(workspace_root);
 }

@@ -291,6 +291,19 @@ async fn start_atelier_api_server(
     Ok((format!("http://{addr}"), server))
 }
 
+/// MT-154 (D-154-3): Atelier rows are account-owned ProtectedResources, so a route proof seeds the
+/// rows its Owner reads through the routes as that Owner's record user (a root-seeded row has no
+/// owning account and is invisible to every account session).
+async fn as_owner<T>(
+    state: &AppState,
+    owner: &OwnerSession,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    atelier_api::with_account_session(state, &owner.headers(), operation)
+        .await
+        .expect("the Owner's account session seeds Atelier rows")
+}
+
 /// Build a run-unique `NewStealthWindow` with default (all-ON) quiet flags and
 /// the non-intrusive off-screen-only visibility.
 fn fresh_window_input() -> NewStealthWindow {
@@ -366,8 +379,7 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor(
     let foreign_input = fresh_window_input();
     let foreign_actor = foreign_input.owner_actor.clone();
 
-    let caller_window = store
-        .create_stealth_window(&caller_input)
+    let caller_window = as_owner(&state, &owner, store.create_stealth_window(&caller_input))
         .await
         .expect("create caller window");
     let foreign_window = store
@@ -421,17 +433,30 @@ async fn atelier_filesystem_health_api_records_read_only_check(
     };
     let store = AtelierStore::new(state.surreal.clone());
     let owner = OwnerSession::provision(&state.surreal, &binding.token).await;
-    let parent = fresh_api_media_asset(&store, "health-parent").await;
-    let sidecar = fresh_api_media_asset(&store, "health-sidecar").await;
-    let sidecar_relation = store
-        .record_media_sidecar_relation(&NewMediaSidecarRelation {
+    let parent = as_owner(
+        &state,
+        &owner,
+        fresh_api_media_asset(&store, "health-parent"),
+    )
+    .await;
+    let sidecar = as_owner(
+        &state,
+        &owner,
+        fresh_api_media_asset(&store, "health-sidecar"),
+    )
+    .await;
+    let sidecar_relation = as_owner(
+        &state,
+        &owner,
+        store.record_media_sidecar_relation(&NewMediaSidecarRelation {
             parent_asset_id: parent,
             sidecar_asset_id: sidecar,
             relation_kind: MediaSidecarRelationKind::OpenPoseJson,
             created_by: "operator-health".to_string(),
-        })
-        .await
-        .expect("record sidecar relation for API health drift proof");
+        }),
+    )
+    .await
+    .expect("record sidecar relation for API health drift proof");
     let (base_url, server) = start_atelier_api_server(state).await?;
     let client = owner.client();
 
@@ -529,23 +554,34 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
     };
     let store = AtelierStore::new(state.surreal.clone());
     let owner = OwnerSession::provision(&state.surreal, &binding.token).await;
-    let character = store
-        .create_character(&NewCharacter {
+    let character = as_owner(
+        &state,
+        &owner,
+        store.create_character(&NewCharacter {
             public_id: format!("api-delete-{}", Uuid::new_v4()),
             display_name: "API Delete Subject".to_string(),
-        })
-        .await
-        .expect("create API deletion character");
-    let sheet = store
-        .append_sheet_version(&NewSheetVersion {
+        }),
+    )
+    .await
+    .expect("create API deletion character");
+    let sheet = as_owner(
+        &state,
+        &owner,
+        store.append_sheet_version(&NewSheetVersion {
             character_internal_id: character.internal_id,
             raw_text: "API delete sheet".to_string(),
             author: "api-delete-test".to_string(),
             tool: Some("api-delete-test".to_string()),
-        })
-        .await
-        .expect("append API deletion sheet");
-    let asset_id = fresh_api_media_asset(&store, "deletion-controls").await;
+        }),
+    )
+    .await
+    .expect("append API deletion sheet");
+    let asset_id = as_owner(
+        &state,
+        &owner,
+        fresh_api_media_asset(&store, "deletion-controls"),
+    )
+    .await;
     let targets = serde_json::json!([
         { "target_type": "media_asset", "target_id": asset_id },
         { "target_type": "sheet_version", "target_id": sheet.version_id },
@@ -813,13 +849,16 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
     let store = AtelierStore::new(state.surreal.clone());
     let owner = OwnerSession::provision(&state.surreal, &binding.token).await;
     let count_storage = state.surreal.clone();
-    let character = store
-        .create_character(&NewCharacter {
+    let character = as_owner(
+        &state,
+        &owner,
+        store.create_character(&NewCharacter {
             public_id: format!("api-ai-suggest-{}", Uuid::new_v4()),
             display_name: "API AI Suggestion Subject".to_string(),
-        })
-        .await
-        .expect("create character for API AI tag suggestion");
+        }),
+    )
+    .await
+    .expect("create character for API AI tag suggestion");
 
     let (base_url, server) = start_atelier_api_server(state).await?;
     let client = owner.client();

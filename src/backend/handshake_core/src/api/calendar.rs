@@ -40,13 +40,23 @@
 //! when a daily journal LoomBlock exists for that date (discoverable via
 //! `loom_blocks(content_type = 'journal', journal_date)` — the MT-019 / MT-257
 //! daily journal). Absent a journal for the date, it stays `null`.
+//!
+//! AUTHORITY (MT-154; Master Spec 02-system-architecture.md:2758/2773/2776, LM-RLS-001/002):
+//! every route requires an authenticated account session bound to the live native channel, then
+//! authorizes the path workspace through the ResourceBroker (Read+fs.read for reads,
+//! Create/Update+fs.write for writes) before any table access. Every calendar read or write runs
+//! as the account's record user (`with_record_user_scope`), the write actor is the session
+//! principal (never a header-supplied actor), and a write the table permissions silently drop is
+//! answered with the constant denial.
 
+use crate::api::authority::AuthorizedResourceContext;
 use crate::models::ErrorResponse;
+use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
 use crate::storage::{
     calendar_date_start_utc, CalendarActivitySpan, CalendarActivityStore, CalendarEvent,
     CalendarEventWindowQuery, CalendarNormalizationNote, CalendarSource,
     CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
-    CalendarSourceWritePolicy, NewCalendarActivitySpan, StorageError, WriteActorKind, WriteContext,
+    CalendarSourceWritePolicy, NewCalendarActivitySpan, StorageError, WriteContext,
 };
 use crate::AppState;
 use axum::{
@@ -58,11 +68,6 @@ use axum::{
 use chrono::{DateTime, NaiveDate, Utc};
 use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
-
-const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
-const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
-const HSK_HEADER_JOB_ID: &str = "x-hsk-job-id";
-const HSK_HEADER_WORKFLOW_ID: &str = "x-hsk-workflow-id";
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
 type ApiResult<T> = Result<T, ApiError>;
@@ -93,69 +98,55 @@ fn map_storage_error(err: StorageError) -> ApiError {
     match err {
         StorageError::NotFound(code) => not_found(code),
         StorageError::Conflict(code) | StorageError::ConflictDetails { code, .. } => conflict(code),
-        StorageError::Guard(code) => (
-            StatusCode::FORBIDDEN,
-            Json(ErrorResponse { error: code }),
-        ),
+        StorageError::Guard(code) => (StatusCode::FORBIDDEN, Json(ErrorResponse { error: code })),
         StorageError::Validation(_) => bad_request("HSK-400-CALENDAR"),
         other => internal_error(other),
     }
 }
 
-fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
+/// The constant protected-resource denial (same body as `api::authority::constant_denial`).
+fn protected_denial() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-PROTECTED-RESOURCE",
+        }),
+    )
 }
 
-fn parse_actor_kind(raw: Option<&str>) -> Result<WriteActorKind, StorageError> {
-    match raw.map(str::trim).map(str::to_ascii_uppercase).as_deref() {
-        None | Some("HUMAN") | Some("OPERATOR") => Ok(WriteActorKind::Human),
-        Some("AI") => Ok(WriteActorKind::Ai),
-        Some("SYSTEM") => Ok(WriteActorKind::System),
-        Some(_) => Err(StorageError::Validation("invalid_actor_kind")),
-    }
-}
-
-fn parse_uuid(raw: Option<&str>) -> Option<uuid::Uuid> {
-    raw.and_then(|value| uuid::Uuid::parse_str(value).ok())
-}
-
-async fn write_context_from_headers(
+/// Authorizes `action` on the path workspace through the ResourceBroker before any table access.
+/// Reads use `fs.read`; create/update/delete use `fs.write` (LM-RLS-001). A missing, foreign or
+/// unauthorized workspace is indistinguishable: every failure is the constant denial.
+async fn calendar_authority(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<WriteContext, StorageError> {
-    let actor_kind = parse_actor_kind(header_str(headers, HSK_HEADER_ACTOR_KIND))?;
-    let actor_id = header_str(headers, HSK_HEADER_ACTOR_ID).map(ToOwned::to_owned);
-    match actor_kind {
-        WriteActorKind::Human => Ok(WriteContext::human(actor_id)),
-        WriteActorKind::System => Ok(WriteContext::system(actor_id)),
-        WriteActorKind::Ai => {
-            let job_id = parse_uuid(header_str(headers, HSK_HEADER_JOB_ID));
-            let workflow_id = parse_uuid(header_str(headers, HSK_HEADER_WORKFLOW_ID));
-            let (Some(job_id), Some(workflow_id)) = (job_id, workflow_id) else {
-                return Ok(WriteContext::ai(actor_id, job_id, workflow_id));
-            };
-            let job = state.storage.get_ai_job(&job_id.to_string()).await?;
-            if job.workflow_run_id != Some(workflow_id) {
-                return Err(StorageError::Guard("HSK-403-SILENT-EDIT"));
-            }
-            Ok(WriteContext::ai(
-                actor_id,
-                Some(job_id),
-                Some(workflow_id),
-            ))
-        }
-    }
+    workspace_id: &str,
+    action: ResourceAction,
+) -> ApiResult<AuthorizedResourceContext> {
+    let capability = if matches!(action, ResourceAction::Read) {
+        "fs.read"
+    } else {
+        "fs.write"
+    };
+    crate::api::authority::authorize_request(
+        state,
+        headers,
+        capability,
+        ResourceKind::Workspace,
+        workspace_id,
+        action,
+    )
+    .await
+    .map_err(|_| protected_denial())
 }
 
-async fn ensure_workspace_exists(state: &AppState, workspace_id: &str) -> ApiResult<()> {
-    match state.storage.get_workspace(workspace_id).await {
-        Ok(Some(_)) => Ok(()),
-        Ok(None) => Err(not_found("workspace_not_found")),
-        Err(err) => Err(map_storage_error(err)),
+/// The write actor is the authenticated session principal, never a header-supplied identity.
+fn session_write_context(authority: &AuthorizedResourceContext) -> ApiResult<WriteContext> {
+    let actor_id = Some(authority.actor_id.clone());
+    match authority.actor_kind.as_str() {
+        "operator" => Ok(WriteContext::human(actor_id)),
+        "system" => Ok(WriteContext::system(actor_id)),
+        _ => Err(protected_denial()),
     }
 }
 
@@ -173,6 +164,11 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/calendar/activity-spans",
             get(list_activity_spans).post(create_activity_span),
         )
+        // Deny by default before any extractor, body parse or table access (AC-154-2).
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::api::authority::require_authenticated_session,
+        ))
         .with_state(state)
 }
 
@@ -236,41 +232,45 @@ async fn upsert_calendar_source(
     headers: HeaderMap,
     Json(body): Json<UpsertCalendarSourceBody>,
 ) -> ApiResult<Json<CalendarSourceWire>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    let authority =
+        calendar_authority(&state, &headers, &workspace_id, ResourceAction::Update).await?;
     if source_id.trim().is_empty() {
         return Err(bad_request("HSK-400-CALENDAR-SOURCE-ID"));
     }
-    let sync_state = state
-        .storage
-        .get_calendar_source(&workspace_id, &source_id)
-        .await
-        .map_err(map_storage_error)?
-        .map(|source| source.sync_state)
-        .unwrap_or_else(CalendarSourceSyncState::default);
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
-    let source = state
-        .storage
-        .upsert_calendar_source(
-            &ctx,
-            CalendarSourceUpsert {
-                id: source_id,
-                workspace_id,
-                display_name: body.display_name,
-                provider_type: body.provider_type,
-                write_policy: body.write_policy,
-                default_tzid: body.default_tzid,
-                auto_export: body.auto_export,
-                credentials_ref: body.credentials_ref,
-                provider_calendar_id: body.provider_calendar_id,
-                capability_profile_id: body.capability_profile_id,
-                config: body.config,
-                sync_state,
-            },
-        )
-        .await
-        .map_err(map_storage_error)?;
+    let ctx = session_write_context(&authority)?;
+    let surreal = state.surreal.clone();
+    let source = surreal
+        .with_record_user_scope(authority.record_user_scope.clone(), async move {
+            let sync_state = state
+                .storage
+                .get_calendar_source(&workspace_id, &source_id)
+                .await
+                .map_err(map_storage_error)?
+                .map(|source| source.sync_state)
+                .unwrap_or_else(CalendarSourceSyncState::default);
+            state
+                .storage
+                .upsert_calendar_source(
+                    &ctx,
+                    CalendarSourceUpsert {
+                        id: source_id,
+                        workspace_id,
+                        display_name: body.display_name,
+                        provider_type: body.provider_type,
+                        write_policy: body.write_policy,
+                        default_tzid: body.default_tzid,
+                        auto_export: body.auto_export,
+                        credentials_ref: body.credentials_ref,
+                        provider_calendar_id: body.provider_calendar_id,
+                        capability_profile_id: body.capability_profile_id,
+                        config: body.config,
+                        sync_state,
+                    },
+                )
+                .await
+                .map_err(map_storage_error)
+        })
+        .await?;
     Ok(Json(source.into()))
 }
 
@@ -363,9 +363,27 @@ fn temporal_wire(event: &CalendarEvent) -> CalendarEventTemporalWire {
 async fn list_calendar_events(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(query): Query<EventsQuery>,
 ) -> ApiResult<Json<Vec<CalendarEventWire>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    let authority =
+        calendar_authority(&state, &headers, &workspace_id, ResourceAction::Read).await?;
+    let surreal = state.surreal.clone();
+    surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            list_calendar_events_scoped(state, workspace_id, query),
+        )
+        .await
+}
+
+/// Runs as the account's record user: `calendar_events` and the daily-note `loom_blocks` lookup
+/// return only rows of the authorized workspace that this account may read (AC-154-3).
+async fn list_calendar_events_scoped(
+    state: AppState,
+    workspace_id: String,
+    query: EventsQuery,
+) -> ApiResult<Json<Vec<CalendarEventWire>>> {
     let view_tz: Tz = query
         .view_tzid
         .parse()
@@ -475,16 +493,22 @@ struct ActivitySpansQuery {
 async fn list_activity_spans(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Query(query): Query<ActivitySpansQuery>,
 ) -> ApiResult<Json<Vec<ActivitySpanWire>>> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let event_id = query.event_id.trim();
+    let authority =
+        calendar_authority(&state, &headers, &workspace_id, ResourceAction::Read).await?;
+    let event_id = query.event_id.trim().to_owned();
     if event_id.is_empty() {
         return Err(bad_request("HSK-400-CALENDAR-EVENT-ID"));
     }
     let store = CalendarActivityStore::new(state.surreal.clone());
-    let spans = store
-        .query_activity_spans_by_event(&workspace_id, event_id)
+    let spans = state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            store.query_activity_spans_by_event(&workspace_id, &event_id),
+        )
         .await
         .map_err(map_storage_error)?;
     Ok(Json(spans.into_iter().map(span_to_wire).collect()))
@@ -509,9 +533,11 @@ struct CreateActivitySpanBody {
 async fn create_activity_span(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<CreateActivitySpanBody>,
 ) -> ApiResult<(StatusCode, Json<ActivitySpanWire>)> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
+    let authority =
+        calendar_authority(&state, &headers, &workspace_id, ResourceAction::Create).await?;
     let calendar_event_id = body.calendar_event_id.trim().to_string();
     if calendar_event_id.is_empty() {
         return Err(bad_request("HSK-400-CALENDAR-EVENT-ID"));
@@ -521,15 +547,19 @@ async fn create_activity_span(
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| format!("CAS-{}", uuid::Uuid::now_v7().simple()));
     let store = CalendarActivityStore::new(state.surreal.clone());
-    let span = store
-        .upsert_activity_span(NewCalendarActivitySpan {
-            span_id,
-            workspace_id: workspace_id.clone(),
-            calendar_event_id,
-            started_utc: body.started_utc,
-            ended_utc: body.ended_utc,
-            edited_doc_ids: body.edited_doc_ids,
-        })
+    let span = state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            store.upsert_activity_span(NewCalendarActivitySpan {
+                span_id,
+                workspace_id: workspace_id.clone(),
+                calendar_event_id,
+                started_utc: body.started_utc,
+                ended_utc: body.ended_utc,
+                edited_doc_ids: body.edited_doc_ids,
+            }),
+        )
         .await
         .map_err(map_storage_error)?;
     Ok((StatusCode::CREATED, Json(span_to_wire(span))))

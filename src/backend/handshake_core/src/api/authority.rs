@@ -1022,6 +1022,21 @@ pub(crate) async fn require_authenticated_session(
     }
 }
 
+/// MT-155 (Master Spec 02-system-architecture:2758 deny by default, :2776 capability checks): true
+/// only when the authenticated session's delegated capabilities contain exactly `capability_id`.
+/// An empty list, an empty id and the `*` wildcard never pass.
+pub(crate) fn session_holds_capability(
+    context: &crate::storage::surreal::local_accounts::LocalSessionContext,
+    capability_id: &str,
+) -> bool {
+    !capability_id.is_empty()
+        && capability_id != "*"
+        && context
+            .delegated_capabilities
+            .iter()
+            .any(|held| held == capability_id)
+}
+
 pub(crate) struct AuthenticatedLocalSession {
     pub context: crate::storage::surreal::local_accounts::LocalSessionContext,
     pub session_token: String,
@@ -1048,6 +1063,71 @@ pub(crate) async fn authenticated_session_credentials(
         context,
         session_token: token.to_owned(),
         channel_binding_hash: channel.binding_hash,
+    })
+}
+
+/// MT-154 (D-154-3; Master Spec 02-system-architecture.md:2740/:2751/:2758/:2773/:2776): authority
+/// for account-owned surfaces that have no workspace and no protected-resource row (Atelier,
+/// account-global/surface preferences). The live account session is authenticated through the
+/// record access method, the capability is rechecked against the session's delegated capabilities,
+/// and the request then runs as the account's record user, so the per-row
+/// `owner_account_id = $auth.account_id` table permissions are the data boundary. The scope has no
+/// workspace: receipts written inside it carry `wsids = []` and are accepted only by
+/// `fn::mt154_account_receipt`.
+#[derive(Clone, Debug)]
+pub(crate) struct AccountSessionAuthority {
+    pub(crate) account_id: String,
+    pub(crate) actor_id: String,
+    pub(crate) record_user_scope: RecordUserScope,
+}
+
+impl AccountSessionAuthority {
+    /// The session principal every receipt written by this request carries.
+    pub(crate) fn session_actor(&self) -> KernelActor {
+        KernelActor::Operator(self.actor_id.clone())
+    }
+
+    /// Runs `operation` as the account's record user (table permissions apply).
+    pub(crate) async fn run<T>(
+        &self,
+        state: &AppState,
+        operation: impl std::future::Future<Output = T>,
+    ) -> T {
+        state
+            .surreal
+            .with_record_user_scope(self.record_user_scope.clone(), operation)
+            .await
+    }
+}
+
+/// MT-154: authenticates the account session and rechecks `capability_id` for an account-owned
+/// surface. Every failure is the constant denial and happens before any product table is touched.
+pub(crate) async fn authorize_account_session(
+    state: &AppState,
+    headers: &HeaderMap,
+    capability_id: &'static str,
+    action: ResourceAction,
+) -> Result<AccountSessionAuthority, (StatusCode, Json<Value>)> {
+    let session = authenticated_session_credentials(state, headers).await?;
+    if !session_holds_capability(&session.context, capability_id) {
+        return Err(constant_denial());
+    }
+    let record_user_scope = RecordUserScope {
+        grant_id: None,
+        workspace_id: None,
+        // No protected-resource row exists for an account-owned surface; the receipt authority
+        // anchor is the owning account (checked by `fn::mt154_account_receipt`).
+        resource_id: session.context.identity.account_id.clone(),
+        session_id: session.context.session_id.clone(),
+        session_token: session.session_token,
+        channel_binding_hash: Some(session.channel_binding_hash),
+        capability_id: capability_id.to_owned(),
+        action,
+    };
+    Ok(AccountSessionAuthority {
+        account_id: session.context.identity.account_id,
+        actor_id: session.context.actor_id,
+        record_user_scope,
     })
 }
 

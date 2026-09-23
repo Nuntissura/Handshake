@@ -131,7 +131,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/ingestion/roots",
         "List registered ingestion source roots with allowlist policy state.",
-        "Identity headers; optional workspace_id query.",
+        "Account session + live channel binding (Read+memory.read on the workspace); required workspace_id query.",
         "JSON array of source-root rows (root_id, root_kind, policy)."
     ),
     surface!(
@@ -140,7 +140,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/ingestion/roots/:root_id/sources",
         "List sources under a root with hashes and extraction status.",
-        "Identity headers; root_id path param.",
+        "Account session + live channel binding (Read+memory.read); root_id path param; required workspace_id query.",
         "JSON array of source rows (source_id, path, content hash, status)."
     ),
     surface!(
@@ -149,7 +149,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "POST",
         "/knowledge/ingestion/runs",
         "Start an ingestion/index run over configured roots; emits KNOWLEDGE_INDEX_RUN_* receipts.",
-        "Identity headers; JSON body naming workspace and roots.",
+        "Account session + live channel binding (Create+memory.propose); identity headers; JSON {workspace_id, root_id, fs_anchor (absolute existing directory)}.",
         "JSON run row (run_id, state) plus EventLedger receipt id."
     ),
     surface!(
@@ -158,7 +158,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/ingestion/sources/:source_id/receipts",
         "List extraction receipts for one source (success, partial, failed).",
-        "Identity headers; source_id path param.",
+        "Account session + live channel binding (Read+memory.read); source_id path param; required workspace_id query.",
         "JSON array of extraction receipts with error classes."
     ),
     surface!(
@@ -167,7 +167,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/ingestion/repairs",
         "The ingestion repair queue: failed/partial extractions awaiting retry.",
-        "Identity headers.",
+        "Account session + live channel binding (Read+memory.read); required workspace_id query.",
         "JSON array of repair rows (repair_id, source, error_class, state)."
     ),
     surface!(
@@ -176,7 +176,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "POST",
         "/knowledge/ingestion/repairs/:repair_id/retry",
         "Retry one failed ingestion repair; never silent-skips.",
-        "Identity headers; repair_id path param.",
+        "Account session + live channel binding (Create+memory.propose); identity headers; repair_id path param; JSON {workspace_id, fs_anchor}.",
         "JSON updated repair row + receipt id."
     ),
     // -- knowledge_code_nav (api/knowledge_code_nav.rs; closes the MT-112
@@ -396,7 +396,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/retrieval/bundles/:bundle_id",
         "Load a compiled context bundle with per-item retrieval decisions and citations.",
-        "Identity headers; bundle_id (CTX-...) path param.",
+        "Account session + live channel binding (Read+fs.read); identity headers; bundle_id (CTX-...) path param; required workspace_id query.",
         "JSON bundle + items (ref_kind, decision, citation, tokens)."
     ),
     surface!(
@@ -405,7 +405,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/retrieval/bundles/:bundle_id/export",
         "AI-ready evidence export manifest reconstructed from bundle + trace rows.",
-        "Identity headers; bundle_id path param.",
+        "Account session + live channel binding (Read+fs.read); identity headers; bundle_id path param; required workspace_id query.",
         "JSON ai_ready_evidence_export@1 manifest."
     ),
     surface!(
@@ -414,7 +414,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/retrieval/bundles/:bundle_id/staleness",
         "Explicit staleness verdict for a bundle (source hash drift per item).",
-        "Identity headers; bundle_id path param.",
+        "Account session + live channel binding (Read+fs.read); identity headers; bundle_id path param; required workspace_id query.",
         "JSON staleness verdict rows (current/stale per cited source)."
     ),
     surface!(
@@ -423,7 +423,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "POST",
         "/knowledge/retrieval/bundles/:bundle_id/repair",
         "Recompile a stale bundle against current sources; new bundle + trace.",
-        "Identity headers; bundle_id path param.",
+        "Account session + live channel binding (Create+fs.write); identity headers; bundle_id path param; required workspace_id query.",
         "JSON {old_bundle_id, new_bundle_id, trace_id} + receipt id."
     ),
     surface!(
@@ -432,7 +432,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/retrieval/catalog",
         "The semantic retrieval catalog: addressable retrieval modes and scopes.",
-        "Identity headers.",
+        "Account session + live channel binding (Read+fs.read); identity headers; required workspace_id query.",
         "JSON catalog rows."
     ),
     // -- knowledge_memory (api/knowledge_memory.rs) ------------------------
@@ -442,7 +442,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/memory/claims/:claim_id",
         "One memory claim with lifecycle state and evidence spans.",
-        "Identity headers; claim_id path param.",
+        "Account session + live channel binding (Read+fs.read); identity headers; claim_id path param; required workspace_id query.",
         "JSON claim row (probationary/stable/rejected/superseded/conflicted)."
     ),
     surface!(
@@ -451,7 +451,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/memory/conflicts",
         "Open memory conflicts awaiting resolution.",
-        "Identity headers; optional workspace filter.",
+        "Account session + live channel binding (Read+fs.read); identity headers; required workspace_id query; optional open_only/limit.",
         "JSON conflict rows with contradicting claim ids."
     ),
     surface!(
@@ -460,7 +460,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/memory/facts/:fact_id",
         "One memory fact with provenance.",
-        "Identity headers; fact_id path param.",
+        "Account session + live channel binding (Read+fs.read); identity headers; fact_id path param; required workspace_id query.",
         "JSON fact row."
     ),
     surface!(
@@ -469,7 +469,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/memory/entities/:entity_id/neighborhood",
         "Graph neighborhood of an entity (bridge edges, bounded traversal).",
-        "Identity headers; entity_id path param.",
+        "Account session + live channel binding (Read+fs.read); identity headers; entity_id path param; required workspace_id query.",
         "JSON neighborhood (entities + edges)."
     ),
     surface!(
@@ -478,7 +478,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/memory/visual-debug",
         "Visual-debug projection of memory state for the diagnostics surface.",
-        "Identity headers.",
+        "Account session + live channel binding (Read+fs.read); identity headers; required workspace_id query.",
         "JSON visual-debug payload (stable selectors)."
     ),
     // -- knowledge_crdt (api/knowledge_crdt.rs) ----------------------------
@@ -488,7 +488,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "POST",
         "/knowledge/crdt/updates/push",
         "Push a Yjs-compatible CRDT update for a document draft; KNOWLEDGE_CRDT_UPDATE_RECORDED receipt.",
-        "Identity headers; JSON {document_id, update (base64), state_vector}.",
+        "Account session + live channel binding (Update+fs.write on the RichDocument and its workspace); JSON {envelope: {workspace_id, document_id (an owned RichDocument), crdt_document_id, update_b64, state vectors, actor/session/trace ids}}.",
         "JSON applied-update receipt; 409 on conflicting head."
     ),
     surface!(
@@ -497,7 +497,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/crdt/updates/pull",
         "Pull CRDT updates since a state vector for draft sync.",
-        "Identity headers; document_id + state_vector query params.",
+        "Account session + live channel binding (Read+fs.read on the RichDocument and its workspace); workspace_id, document_id, crdt_document_id, since_update_seq, document_schema_id + actor/session/correlation ids query params.",
         "JSON update batch (base64) + head state."
     ),
     surface!(
@@ -506,7 +506,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "GET",
         "/knowledge/crdt/conflict_state",
         "Current CRDT conflict/lease state for a document draft.",
-        "Identity headers; document_id query param.",
+        "Account session + live channel binding (Read+fs.read on the RichDocument and its workspace); workspace_id, document_id, crdt_document_id + actor/session/correlation ids query params.",
         "JSON conflict state (head, leases, pending conflicts)."
     ),
     // -- Notes/Loom (api/loom.rs; operator surface name is 'Notes',

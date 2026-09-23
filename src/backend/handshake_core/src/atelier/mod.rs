@@ -779,6 +779,11 @@ struct AggregateCountBindings {
 /// the re-read expresses it here. `event_sequence` is deliberately not set by
 /// this fragment - the schema defaults it from the `kernel_event_sequence`
 /// SEQUENCE, which is what keeps ledger ordering monotonic and gap-free.
+///
+/// MT-154 (silent-deny ruling): under an account record-user scope SurrealDB 3.2.0 silently drops
+/// a denied CREATE. The fragment therefore THROWs `HSK-403-PROTECTED-RESOURCE` when the ledger row
+/// or the atelier event row did not land, which [`AtelierError`] callers surface as the constant
+/// 403. Root writes always land, so the guard never fires for them.
 macro_rules! atelier_event_sql {
     () => {
         "LET $existing_ledger_event = (SELECT VALUE id FROM kernel_event_ledger \
@@ -810,7 +815,8 @@ macro_rules! atelier_event_sql {
          }; \
          LET $ledger_row = (SELECT event_id, event_sequence FROM kernel_event_ledger \
            WHERE idempotency_key = $idempotency_key LIMIT 1)[0]; \
-         CREATE $atelier_id CONTENT { \
+         IF $ledger_row IS NONE { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+         IF array::len((CREATE $atelier_id CONTENT { \
            event_id: $atelier_event_uuid, \
            event_family: $event_family, \
            aggregate_type: $kernel_aggregate_type, \
@@ -818,7 +824,7 @@ macro_rules! atelier_event_sql {
            kernel_event_id: $ledger_row.event_id, \
            kernel_event_sequence: $ledger_row.event_sequence, \
            payload: $atelier_payload \
-         };"
+         } RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };"
     };
 }
 
@@ -827,6 +833,23 @@ pub(crate) use atelier_event_sql;
 /// Record an atelier event and nothing else.
 const RECORD_EVENT_STATEMENT: &str =
     concat!("RETURN { ", atelier_event_sql!(), " RETURN $ledger_row; };");
+
+tokio::task_local! {
+    /// MT-154: the authenticated session principal of an account-scoped Atelier request. Every
+    /// EventLedger receipt prepared inside such a request carries it as actor instead of the
+    /// `System("atelier")` actor (Master Spec 02-system-architecture.md:2773;
+    /// `fn::mt154_account_receipt` requires the session principal).
+    static ATELIER_SESSION_ACTOR: KernelActor;
+}
+
+/// Runs `operation` so that its Atelier EventLedger receipts carry the session principal `actor`
+/// (MT-154). Callers also run it inside the account record-user scope.
+pub(crate) async fn with_atelier_session_actor<T>(
+    actor: KernelActor,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    ATELIER_SESSION_ACTOR.scope(actor, operation).await
+}
 
 /// Atelier data store.
 ///
@@ -1192,8 +1215,13 @@ impl AtelierStore {
     {
         let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
         let bindings = prepared.bindings.clone().with_domain(domain).into_value();
+        // MT-154 (engine fact F5): `with_transaction` runs its callback on a spawned root task, so
+        // an account-scoped request never takes it; its single statement is atomic on its own and
+        // the Flight Recorder mirror follows the committed write below.
         #[cfg(feature = "runtime-full")]
-        if self.flight_recorder.is_some() {
+        if self.flight_recorder.is_some()
+            && crate::storage::surreal::current_record_user_scope().is_none()
+        {
             let mut failed_attempt = 0;
             loop {
                 let store = self.clone();
@@ -1314,11 +1342,14 @@ impl AtelierStore {
             "aggregate_id": aggregate_id,
             "atelier_payload": safe_payload.clone(),
         });
+        let actor = ATELIER_SESSION_ACTOR
+            .try_with(Clone::clone)
+            .unwrap_or_else(|_| KernelActor::System("atelier".to_string()));
         let event = NewKernelEvent::builder(
             run_id.clone(),
             run_id,
             KernelEventType::AtelierDomainEventRecorded,
-            KernelActor::System("atelier".to_string()),
+            actor,
         )
         .aggregate(aggregate_type, aggregate_id)
         .idempotency_key(format!("atelier-event:{atelier_event_id}"))

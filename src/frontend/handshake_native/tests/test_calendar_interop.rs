@@ -1478,7 +1478,8 @@ fn open_or_create_daily_note_is_idempotent_against_real_backend_live() {
             .with_authenticated_context(Some(live.account_context.clone())),
     );
     let svc =
-        CalendarInteropService::with_base_url(live.base.clone(), &workspace_id, journal_backend);
+        CalendarInteropService::with_base_url(live.base.clone(), &workspace_id, journal_backend)
+            .with_authenticated_context(Some(live.account_context.clone()));
     // Call the SAME production open_or_create_daily_note twice for one date against the REAL route.
     let (a, b) = rt().block_on(async {
         let a = svc.open_or_create_daily_note(date).await.expect(
@@ -3195,7 +3196,8 @@ fn activity_spans_404_is_typed_blocker_and_panel_stays_alive() {
         "HTTP/1.1 404 Not Found",
         serde_json::json!({"error": "not found"}),
     );
-    let svc = CalendarInteropService::with_base_url(base_url, "WS-1", backend.clone());
+    let svc = CalendarInteropService::with_base_url(base_url.clone(), "WS-1", backend.clone())
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
 
     let result = rt().block_on(async { svc.activity_spans_for_event("E-1").await });
     let req_line = server.join().unwrap();
@@ -3301,7 +3303,8 @@ fn events_404_is_typed_blocker() {
     let backend = Arc::new(CountingJournalBackend::new(Some("DOC-X")));
     for status in ["HTTP/1.1 404 Not Found", "HTTP/1.1 501 Not Implemented"] {
         let (base_url, server) = spawn_mock(status, serde_json::json!({"error": "absent"}));
-        let svc = CalendarInteropService::with_base_url(base_url, "WS-1", backend.clone());
+        let svc = CalendarInteropService::with_base_url(base_url.clone(), "WS-1", backend.clone())
+            .with_authenticated_context(Some(mock_account_context(&base_url)));
         let result =
             rt().block_on(async { svc.resolve_event_for_daily_note(d(2026, 6, 21)).await });
         let _ = server.join();
@@ -3320,7 +3323,8 @@ fn events_503_is_retryable_http_failure_on_wire() {
         "HTTP/1.1 503 Service Unavailable",
         serde_json::json!({"error": "transient"}),
     );
-    let svc = CalendarInteropService::with_base_url(base_url, "WS-503", backend);
+    let svc = CalendarInteropService::with_base_url(base_url.clone(), "WS-503", backend)
+        .with_authenticated_context(Some(mock_account_context(&base_url)));
     let result =
         rt().block_on(async { svc.events_for_range(d(2026, 7, 29), d(2026, 7, 29)).await });
     server

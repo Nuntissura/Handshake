@@ -981,10 +981,18 @@ impl Drop for UnpublishedStageBindingFile {
     }
 }
 
+/// A file-local live native-MCP binding plus (MT-154 AC-154-2/3) the account session bound to it.
+///
+/// Stage routes now authorize ONLY an authenticated account session on the live channel
+/// (Master Spec 02-system-architecture.md:2758/2773/2776): [`StageBindingEnv::headers`] sends the
+/// account session token (`x-hsk-session-token`) and the channel binding token
+/// (`x-hsk-channel-binding-token`); [`StageBindingEnv::binding_only_headers`] keeps the former
+/// binding-only credential form, which the routes must now refuse with the constant 403.
 struct StageBindingEnv {
     paths: Vec<std::path::PathBuf>,
     previous: Option<std::ffi::OsString>,
     token: String,
+    account_session_token: Option<String>,
 }
 
 impl StageBindingEnv {
@@ -1033,10 +1041,35 @@ impl StageBindingEnv {
             paths: vec![path],
             previous,
             token,
+            account_session_token: None,
         }
     }
 
+    /// Install a live binding and provision an Owner account session bound to it. The caller
+    /// must already hold `WPK012_STAGE_BINDING_LOCK`.
+    async fn install_with_account(
+        storage: &handshake_core::storage::surreal::SurrealStorage,
+    ) -> (Self, OwnerSession) {
+        let mut binding = Self::install();
+        let owner = OwnerSession::provision(storage, &binding.token).await;
+        binding.account_session_token = Some(owner.session_token.clone());
+        (binding, owner)
+    }
+
+    /// The account-session credential form every Stage route requires.
     fn headers(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        request
+            .header(
+                "x-hsk-session-token",
+                self.account_session_token
+                    .as_deref()
+                    .expect("Stage binding carries an account session (install_with_account)"),
+            )
+            .header("x-hsk-channel-binding-token", &self.token)
+    }
+
+    /// The former binding-only credential form (native MCP token, no account session).
+    fn binding_only_headers(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         request.header("x-hsk-session-token", &self.token)
     }
 
@@ -1164,10 +1197,12 @@ fn stage_binding_owned_subprocess_helper() {
     }
 }
 
-/// Obtain the SERVER-DERIVED native principal as an INDEPENDENT ground truth: authenticate an
-/// unrelated `stage::capture_context`-gated route with the same binding and read back the actor id
-/// it attributed the request to. Deliberately not a local recomputation of the digest: the point is
-/// that another route derives the SAME principal, and only a value produced by that code path proves it.
+/// Obtain the SERVER-DERIVED Stage principal as an INDEPENDENT ground truth: authenticate the
+/// unrelated Stage route with the same account session + binding and read back the actor id it
+/// attributed the request to. Deliberately not a local recomputation: the point is that another
+/// route derives the SAME principal, and only a value produced by that code path proves it.
+/// MT-154 AC-154-2/5: the Stage route now attributes to the account session principal (it no longer
+/// derives a binding-only `handshake-native:` principal), and refuses the binding-only form.
 async fn derived_native_principal_from_stage_route(
     base: &str,
     http: &reqwest::Client,
@@ -1175,6 +1210,27 @@ async fn derived_native_principal_from_stage_route(
     recorder: &CollectingRecorder,
     workspace_id: &str,
 ) -> String {
+    let binding_only = binding
+        .binding_only_headers(
+            http.post(format!("{base}/workspaces/{workspace_id}/stage/artifacts")),
+        )
+        .header(reqwest::header::CONTENT_TYPE, "text/plain")
+        .body("wpk012-derived-principal-binding-only-probe")
+        .send()
+        .await
+        .expect("binding-only stage probe");
+    assert_eq!(
+        binding_only.status(),
+        403,
+        "a binding-only caller has no record user and gets the constant denial"
+    );
+    assert_eq!(
+        binding_only
+            .json::<Value>()
+            .await
+            .expect("binding-only denial JSON")["error"],
+        "HSK-403-PROTECTED-RESOURCE"
+    );
     let denial = binding
         .headers(http.post(format!("{base}/workspaces/{workspace_id}/stage/artifacts")))
         .header(reqwest::header::CONTENT_TYPE, "text/plain")
@@ -1190,9 +1246,13 @@ async fn derived_native_principal_from_stage_route(
     let events = recorder.events.lock().unwrap();
     let actor = events
         .iter()
+        .filter(|event| {
+            event.payload["capability_id"] == "stage.jobs.enqueue"
+                && event.payload["decision_outcome"] == "deny"
+        })
         .map(|event| event.actor_id.clone())
-        .find(|actor| actor.starts_with("handshake-native:"))
-        .expect("an authenticated stage request records the server-derived native actor");
+        .find(|actor| actor != "unauthenticated")
+        .expect("an authenticated stage request records the server-derived actor");
     drop(events);
     actor
 }
@@ -1209,9 +1269,8 @@ async fn stage_capture_rejects_crash_stale_binding_without_residue() {
         .expect("crash-stale Stage binding proof requires an isolated embedded store");
     let recorder = Arc::new(CollectingRecorder::default());
     let state = test_state(&store, recorder.clone()).await;
-    let mut stage_binding = StageBindingEnv::install();
     // The lock is already held: the Owner is bound to THIS test's Stage binding.
-    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let (mut stage_binding, owner) = StageBindingEnv::install_with_account(&store.storage).await;
     let workspace_id = owned_workspace(&store, &owner).await;
     let mut crashed_native_process = OwnedBindingProcess::spawn();
     let crashed_pid = crashed_native_process.pid();
@@ -1240,17 +1299,19 @@ async fn stage_capture_rejects_crash_stale_binding_without_residue() {
         .send()
         .await
         .expect("crash-stale Stage capture request");
+    // MT-154 AC-154-2 (Master Spec 02-system-architecture.md:2758): a stale channel binding fails
+    // account authorization, which answers the constant protected-resource denial.
     assert_eq!(
         response.status(),
-        401,
-        "a token from killed owned PID {crashed_pid} must be unauthorized"
+        403,
+        "a token from killed owned PID {crashed_pid} must be refused"
     );
     assert_eq!(
         response
             .json::<Value>()
             .await
             .expect("crash-stale denial JSON")["error"],
-        "HSK-401-STAGE-SESSION"
+        "HSK-403-PROTECTED-RESOURCE"
     );
 
     // Deterministic PID-reuse counterfactual: the numeric PID is live, but the binding carries a
@@ -1280,19 +1341,19 @@ async fn stage_capture_rejects_crash_stale_binding_without_residue() {
         .expect("PID-reuse Stage capture counterfactual");
     assert_eq!(
         reuse_response.status(),
-        401,
-        "live PID {reused_pid} with a stale birth identity must be unauthorized"
+        403,
+        "live PID {reused_pid} with a stale birth identity must be refused"
     );
     assert_eq!(
         reuse_response
             .json::<Value>()
             .await
             .expect("PID-reuse denial JSON")["error"],
-        "HSK-401-STAGE-SESSION"
+        "HSK-403-PROTECTED-RESOURCE"
     );
 
-    // Residue proof over the isolated embedded store: `capture_context` failed on both attempts,
-    // so `create_stage_artifact` never reaches the insert transaction and `record_stage_denial`
+    // Residue proof over the isolated embedded store: account authorization failed on both
+    // attempts, so `create_stage_artifact` never reaches the insert transaction and `record_stage_denial`
     // (the only path that writes `kernel_event_ledger` under `source_component = stage_capture_api`)
     // never runs either -- both denials take the pre-workspace, Flight-Recorder-only path.
     assert_eq!(
@@ -1361,15 +1422,14 @@ async fn document_save_authenticates_same_native_principal_as_independent_stage_
         .expect("cross-route native principal proof requires an isolated embedded store");
     let recorder = Arc::new(CollectingRecorder::default());
     let state = test_state(&store, recorder.clone()).await;
-    let stage_binding = StageBindingEnv::install();
     // The lock is already held: the Owner is bound to THIS test's Stage binding.
-    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let (stage_binding, owner) = StageBindingEnv::install_with_account(&store.storage).await;
     let workspace_id = owned_workspace(&store, &owner).await;
     let (base, http, server) =
         route_server(docs_api::routes(state.clone()).merge(stage_api::routes(state.clone()))).await;
 
-    // Document routes require the Owner's account session; the Stage probe below keeps the bare
-    // client and the binding-only credential form it is proving.
+    // Document routes require the Owner's account session; the Stage probe below sends the same
+    // account-session credentials explicitly (and proves the binding-only form is refused).
     let owner_http = owner.client();
     let created = create_doc(
         &base,
@@ -1433,9 +1493,20 @@ async fn document_save_authenticates_same_native_principal_as_independent_stage_
         minted_by_principal, owner.principal_id,
         "the document-save route must stamp the authenticated account principal"
     );
+    // MT-154 AC-154-5 (Master Spec 02-system-architecture.md:2773): the independent Stage route
+    // attributes the same request to the SAME account session principal (its actor id), never a
+    // binding-derived `handshake-native:` principal.
+    assert_eq!(
+        derived_from_stage_route, owner.actor_id,
+        "the Stage route derives the account session principal's actor"
+    );
+    assert!(
+        !derived_from_stage_route.starts_with("handshake-native:"),
+        "the Stage route no longer derives a binding-only principal"
+    );
     assert_ne!(
         minted_by_principal, derived_from_stage_route,
-        "the account principal is not the binding-only Stage-route principal"
+        "the principal record id is not the actor id the Stage denial is attributed to"
     );
     assert_ne!(
         minted_by_principal, agent_actor,
@@ -1533,7 +1604,9 @@ async fn activity_span_write_is_event_and_workspace_scoped() {
             .expect("seed activity-span calendar event");
     }
 
-    let (base, http, server) = route_server(calendar_api::routes(state)).await;
+    // MT-154 AC-154-2/3: calendar routes run only for the authenticated account session.
+    let (base, http, server) =
+        route_server_with_client(calendar_api::routes(state), account.client()).await;
     let path_a = format!("{base}/workspaces/{workspace_a}/calendar/activity-spans");
     let path_b = format!("{base}/workspaces/{workspace_b}/calendar/activity-spans");
 
@@ -1643,9 +1716,34 @@ async fn route1_locus_work_packet_resolve() {
     let state = default_test_state(&store).await;
     let account = AccountFixture::install(&store.storage).await;
     let workspace_id = owned_workspace(&store, &account).await;
-    seed_ready_work_packet(&store, "WP-KERNEL-999", "Native Editors WP").await;
+    // MT-154 D-154-3 (Master Spec 02-system-architecture.md:2740/:2751): a work packet is owned by the
+    // account that created it; seed it as the account so the route's record-user read can see it.
+    handshake_core::api::atelier::with_account_session(
+        &state,
+        &account.headers(),
+        seed_ready_work_packet(&store, "WP-KERNEL-999", "Native Editors WP"),
+    )
+    .await
+    .expect("seed the work packet as the account");
 
-    let (base, http, server) = route_server(locus_api::routes(state)).await;
+    let (anonymous_base, anonymous_http, anonymous_server) =
+        route_server(locus_api::routes(state.clone())).await;
+    let anonymous = anonymous_http
+        .get(format!(
+            "{anonymous_base}/workspaces/{workspace_id}/locus/work-packets/WP-KERNEL-999"
+        ))
+        .send()
+        .await
+        .expect("anonymous wp resolve request");
+    assert_eq!(
+        anonymous.status(),
+        403,
+        "an anonymous Locus read is the constant denial (MT-154 AC-154-2)"
+    );
+    anonymous_server.shutdown().await;
+
+    let (base, http, server) =
+        route_server_with_client(locus_api::routes(state), account.client()).await;
     let resp = http
         .get(format!(
             "{base}/workspaces/{workspace_id}/locus/work-packets/WP-KERNEL-999"
@@ -1691,9 +1789,17 @@ async fn route1_locus_micro_task_resolve() {
     let state = default_test_state(&store).await;
     let account = AccountFixture::install(&store.storage).await;
     let workspace_id = owned_workspace(&store, &account).await;
-    seed_running_micro_task(&store, "WP-KERNEL-998", "MT-777", "Wire calendar route").await;
+    // MT-154 D-154-3: seeded as the account so the owning account's record user can read it.
+    handshake_core::api::atelier::with_account_session(
+        &state,
+        &account.headers(),
+        seed_running_micro_task(&store, "WP-KERNEL-998", "MT-777", "Wire calendar route"),
+    )
+    .await
+    .expect("seed the micro task as the account");
 
-    let (base, http, server) = route_server(locus_api::routes(state)).await;
+    let (base, http, server) =
+        route_server_with_client(locus_api::routes(state), account.client()).await;
     let resp = http
         .get(format!(
             "{base}/workspaces/{workspace_id}/locus/microtasks/MT-777"
@@ -1726,9 +1832,8 @@ async fn route2_stage_artifact_create_and_resolve() {
         .await
         .expect("stage artifact create/resolve proof requires an isolated embedded store");
     let state = default_test_state(&store).await;
-    let mut stage_binding = StageBindingEnv::install();
     // The lock is already held: the Owner is bound to THIS test's Stage binding.
-    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let (mut stage_binding, owner) = StageBindingEnv::install_with_account(&store.storage).await;
     let workspace_id = owned_workspace(&store, &owner).await;
 
     let (base, http, server) = route_server(stage_api::routes(state.clone())).await;
@@ -1758,7 +1863,31 @@ async fn route2_stage_artifact_create_and_resolve() {
         .send()
         .await
         .expect("denied stage capture request");
-    assert_eq!(denied.status(), 401);
+    // MT-154 AC-154-2: every unauthenticated Stage request gets the constant denial.
+    assert_eq!(denied.status(), 403);
+    let binding_only_create = stage_binding
+        .binding_only_headers(http.post(&path))
+        .json(&request)
+        .send()
+        .await
+        .expect("binding-only stage capture request");
+    assert_eq!(
+        binding_only_create.status(),
+        403,
+        "a binding-only caller (no account session) can no longer create Stage artifacts"
+    );
+    assert_eq!(
+        binding_only_create
+            .json::<Value>()
+            .await
+            .expect("binding-only denial JSON")["error"],
+        "HSK-403-PROTECTED-RESOURCE"
+    );
+    assert_eq!(
+        row_count(&store, "stage_capture_artifacts", RowFilter::All).await,
+        0,
+        "denied Stage creates leave no artifact"
+    );
     let forged_system = http
         .post(format!(
             "{base}/workspaces/definitely-absent/stage/artifacts"
@@ -1771,7 +1900,7 @@ async fn route2_stage_artifact_create_and_resolve() {
         .expect("forged system Stage request");
     assert_eq!(
         forged_system.status(),
-        401,
+        403,
         "invalid authentication is rejected before workspace existence can be observed"
     );
 
@@ -1835,7 +1964,7 @@ async fn route2_stage_artifact_create_and_resolve() {
         .send()
         .await
         .expect("unauthenticated Stage read");
-    assert_eq!(unauthenticated_read.status(), 401);
+    assert_eq!(unauthenticated_read.status(), 403);
     let unauthenticated_invalid_read = http
         .get(format!(
             "{base}/workspaces/{workspace_id}/stage/artifacts/ART-00000000000000000000000000000000"
@@ -1843,14 +1972,36 @@ async fn route2_stage_artifact_create_and_resolve() {
         .send()
         .await
         .expect("unauthenticated invalid-id Stage read");
-    assert_eq!(unauthenticated_invalid_read.status(), 401);
+    assert_eq!(unauthenticated_invalid_read.status(), 403);
     assert_eq!(
         unauthenticated_invalid_read
             .json::<Value>()
             .await
             .expect("unauthenticated invalid-id JSON")["error"],
-        "HSK-401-STAGE-SESSION"
+        "HSK-403-PROTECTED-RESOURCE"
     );
+    for binding_only_path in [
+        format!("{base}/workspaces/{workspace_id}/stage/artifacts/{artifact_id}"),
+        format!("{base}/workspaces/{workspace_id}/stage/artifacts/{artifact_id}/content"),
+    ] {
+        let binding_only_read = stage_binding
+            .binding_only_headers(http.get(&binding_only_path))
+            .send()
+            .await
+            .expect("binding-only Stage read");
+        assert_eq!(
+            binding_only_read.status(),
+            403,
+            "a binding-only caller can no longer read Stage artifacts: {binding_only_path}"
+        );
+        assert_eq!(
+            binding_only_read
+                .json::<Value>()
+                .await
+                .expect("binding-only read JSON")["error"],
+            "HSK-403-PROTECTED-RESOURCE"
+        );
+    }
     let resp = stage_binding
         .headers(http.get(format!(
             "{base}/workspaces/{workspace_id}/stage/artifacts/{artifact_id}"
@@ -1940,8 +2091,8 @@ async fn route2_stage_artifact_create_and_resolve() {
     assert_eq!(replay["event_ledger_event_id"], event_id);
     assert_eq!(replay["replayed"], true);
 
-    // Process restarts change the server-derived actor id but not the semantic capture request.
-    // The replay must preserve the first actor and return the same durable artifact.
+    // A native process restart re-publishes the binding (same token, new PID/birth); the account
+    // session stays bound to it and the replay must return the same durable artifact and actor.
     let _restarted_native_process = OwnedBindingProcess::spawn();
     stage_binding.set_pid(_restarted_native_process.pid());
     let restarted_replay = stage_binding
@@ -1962,11 +2113,15 @@ async fn route2_stage_artifact_create_and_resolve() {
         .await
         .expect("re-read persisted stage artifact")
         .expect("persisted stage artifact still exists");
+    // MT-154 AC-154-5 (Master Spec 02-system-architecture.md:2773): the persisted Stage actor is
+    // the authenticated account session principal, never a binding-derived principal.
+    assert_eq!(
+        stored_again.actor_id, owner.actor_id,
+        "persisted Stage actor is the account session principal"
+    );
     assert!(
-        stored_again
-            .actor_id
-            .starts_with(&format!("handshake-native:{}:", std::process::id())),
-        "persisted Stage actor includes the validated process birth fingerprint"
+        !stored_again.actor_id.starts_with("handshake-native:"),
+        "persisted Stage actor is never the binding-derived native principal"
     );
 
     let mut concurrent_request = request.clone();
@@ -2092,9 +2247,8 @@ async fn stage_flight_projection_failure_returns_500_and_retry_heals_once() {
         .expect("Stage flight-projection heal proof requires an isolated embedded store");
     let recorder = Arc::new(FailSecondRecordOnceRecorder::default());
     let state = test_state(&store, recorder.clone()).await;
-    let mut stage_binding = StageBindingEnv::install();
     // The lock is already held: the Owner is bound to THIS test's Stage binding.
-    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let (mut stage_binding, owner) = StageBindingEnv::install_with_account(&store.storage).await;
     let workspace_id = owned_workspace(&store, &owner).await;
     let (base, http, server) = route_server(stage_api::routes(state.clone())).await;
     let path = format!("{base}/workspaces/{workspace_id}/stage/artifacts");
@@ -2150,9 +2304,15 @@ async fn stage_flight_projection_failure_returns_500_and_retry_heals_once() {
         .as_str()
         .expect("committed Stage artifact has ArtifactStored ledger id before retry")
         .to_string();
+    // MT-154 AC-154-5 (Master Spec 02-system-architecture.md:2773): the persisted actor is the
+    // authenticated account session principal, never a binding-derived principal.
+    assert_eq!(
+        original_actor, owner.actor_id,
+        "persisted actor is the account session principal"
+    );
     assert!(
-        original_actor.starts_with(&format!("handshake-native:{}:", std::process::id())),
-        "persisted actor is bound to the validated process birth identity"
+        !original_actor.starts_with("handshake-native:"),
+        "persisted actor is never the binding-derived native principal"
     );
 
     let artifact_events = kernel_events_for(&state, "stage_capture_artifact", &artifact_id).await;
@@ -2285,18 +2445,32 @@ async fn mt067_calendar_event_populates_daily_note_doc_id() {
     let start = Utc.with_ymd_and_hms(2026, 7, 4, 9, 0, 0).unwrap();
     seed_calendar_event(&state, &workspace_id, "cal-evt-dn", start).await;
 
-    let ctx = WriteContext::human(None);
-    let block = state
-        .storage
-        .get_or_create_daily_journal_block(&ctx, &workspace_id, "2026-07-04")
+    // MT-154 AC-154-3: the calendar read runs as the account's record user, so the daily note it
+    // links must be an account-owned Loom block: open it through the account-scoped Loom route
+    // (PUT /workspaces/:ws/loom/journals/:date) instead of a root storage seed.
+    let (loom_base, loom_http, loom_server) = route_server_with_client(
+        handshake_core::api::loom::routes(state.clone()),
+        account.client(),
+    )
+    .await;
+    let journal = loom_http
+        .put(format!(
+            "{loom_base}/workspaces/{workspace_id}/loom/journals/2026-07-04"
+        ))
+        .send()
         .await
-        .expect("seed daily journal block");
-    let expected = block
-        .document_id
-        .clone()
-        .unwrap_or_else(|| block.block_id.clone());
+        .expect("open daily journal through the account-scoped Loom route");
+    assert_eq!(journal.status(), 200, "owner opens the daily journal block");
+    let block: Value = journal.json().await.expect("daily journal block JSON");
+    loom_server.shutdown().await;
+    let expected = block["document_id"]
+        .as_str()
+        .or_else(|| block["block_id"].as_str())
+        .expect("daily journal block id")
+        .to_owned();
 
-    let (base, http, server) = route_server(calendar_api::routes(state)).await;
+    let (base, http, server) =
+        route_server_with_client(calendar_api::routes(state), account.client()).await;
     let resp = http
         .get(format!(
             "{base}/workspaces/{workspace_id}/calendar/events?from_date=2026-07-04&to_date_exclusive=2026-07-05&from_utc=2026-07-04T00:00:00Z&to_utc=2026-07-05T00:00:00Z&view_tzid=UTC"
@@ -2331,7 +2505,9 @@ async fn mt067_activity_span_create_and_query_round_trip() {
     let start = Utc.with_ymd_and_hms(2026, 7, 3, 9, 0, 0).unwrap();
     seed_calendar_event(&state, &workspace_id, "cal-evt-mt067", start).await;
 
-    let (base, http, server) = route_server(calendar_api::routes(state)).await;
+    // MT-154 AC-154-2/3: calendar routes run only for the authenticated account session.
+    let (base, http, server) =
+        route_server_with_client(calendar_api::routes(state), account.client()).await;
 
     let created: Value = http
         .post(format!(
@@ -2602,9 +2778,8 @@ async fn stage_denial_limits_and_attribution_apply_at_the_authentication_boundar
         .expect("Stage denial-boundary proof requires an isolated embedded store");
     let recorder = Arc::new(CollectingRecorder::default());
     let state = test_state(&store, recorder.clone()).await;
-    let stage_binding = StageBindingEnv::install();
     // The lock is already held: the Owner is bound to THIS test's Stage binding.
-    let owner = OwnerSession::provision(&store.storage, &stage_binding.token).await;
+    let (stage_binding, owner) = StageBindingEnv::install_with_account(&store.storage).await;
     let workspace_id = owned_workspace(&store, &owner).await;
     let (base, http, server) = route_server(stage_api::routes(state.clone())).await;
 
@@ -2625,7 +2800,8 @@ async fn stage_denial_limits_and_attribution_apply_at_the_authentication_boundar
                 .send()
                 .await
                 .expect("bounded invalid-token Stage request");
-            assert_eq!(response.status(), 401);
+            // MT-154 AC-154-2: the constant protected-resource denial.
+            assert_eq!(response.status(), 403);
         }
     }
     let pre_auth_events = recorder.events.lock().unwrap().clone();
@@ -2653,7 +2829,8 @@ async fn stage_denial_limits_and_attribution_apply_at_the_authentication_boundar
         );
     }
 
-    let authenticated_actor_prefix = format!("handshake-native:{}:", std::process::id());
+    // MT-154 AC-154-5: authenticated denials are attributed to the account session principal.
+    let authenticated_actor = owner.actor_id.clone();
     let content_type_denial = stage_binding
         .headers(http.post(format!("{base}/workspaces/{workspace_id}/stage/artifacts")))
         .header(reqwest::header::CONTENT_TYPE, "text/plain")
@@ -2699,7 +2876,11 @@ async fn stage_denial_limits_and_attribution_apply_at_the_authentication_boundar
         "content_type": "text/plain",
         "content_base64": BASE64.encode(b"bounded"),
     });
-    for attempt in 0..=30 {
+    // MT-154 AC-154-2 (Master Spec 02-system-architecture.md:2758): a workspace the session holds no
+    // grant on (here: one that does not exist) is refused by account authorization BEFORE the rate
+    // limiter, the DTO checks or any workspace lookup, so no attempt is observable as 404 or 429.
+    let pre_missing_events = recorder.events.lock().unwrap().len();
+    for _attempt in 0..=30 {
         let response = stage_binding
             .headers(http.post(format!(
                 "{base}/workspaces/{missing_workspace}/stage/artifacts"
@@ -2708,29 +2889,66 @@ async fn stage_denial_limits_and_attribution_apply_at_the_authentication_boundar
             .send()
             .await
             .expect("valid-token missing-workspace Stage request");
-        if attempt < 30 {
+        assert_eq!(
+            response.status(),
+            403,
+            "an ungranted workspace is refused before workspace lookup and the limiter"
+        );
+        assert_eq!(
+            response
+                .json::<Value>()
+                .await
+                .expect("ungranted-workspace denial JSON")["error"],
+            "HSK-403-PROTECTED-RESOURCE"
+        );
+    }
+    {
+        let events = recorder.events.lock().unwrap();
+        assert!(
+            events[pre_missing_events..]
+                .iter()
+                .all(|event| event.actor_id == "unauthenticated"),
+            "refused requests only reach the redacted pre-authorization receipt path"
+        );
+    }
+    // The authenticated limiter still runs before DTO validation on the granted workspace: the
+    // content-type, malformed-JSON and base64 denials above consumed 3 of the 30 per-minute slots,
+    // so 27 more malformed requests are DTO denials and the 31st request is rate limited.
+    for attempt in 0..=27 {
+        let response = stage_binding
+            .headers(http.post(format!("{base}/workspaces/{workspace_id}/stage/artifacts")))
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body("{")
+            .send()
+            .await
+            .expect("authenticated rate-limit Stage request");
+        if attempt < 27 {
             assert_eq!(
                 response.status(),
-                404,
-                "requests below the authenticated rate limit reach workspace lookup"
+                400,
+                "requests below the authenticated rate limit reach DTO validation"
             );
         } else {
             assert_eq!(
                 response.status(),
                 429,
-                "the limiter executes before workspace lookup for a valid binding"
+                "the limiter executes before DTO validation for an authorized session"
             );
         }
     }
 
     let all_events = recorder.events.lock().unwrap();
-    let authenticated_events = &all_events[pre_auth_events.len()..];
+    let authenticated_events: Vec<_> = all_events[pre_auth_events.len()..]
+        .iter()
+        .filter(|event| event.actor_id != "unauthenticated")
+        .cloned()
+        .collect();
     assert!(authenticated_events.len() >= 4);
     assert!(
         authenticated_events
             .iter()
-            .all(|event| event.actor_id.starts_with(&authenticated_actor_prefix)),
-        "post-binding DTO, base64, and rate denials retain the native actor identity"
+            .all(|event| event.actor_id == authenticated_actor),
+        "post-authorization DTO, base64, and rate denials retain the session principal"
     );
     assert!(authenticated_events
         .iter()
@@ -2744,10 +2962,7 @@ async fn stage_denial_limits_and_attribution_apply_at_the_authentication_boundar
     let authenticated_denial_count = authenticated_denials
         .iter()
         .filter(|event| {
-            event
-                .actor
-                .actor_id()
-                .starts_with(&authenticated_actor_prefix)
+            event.actor.actor_id() == authenticated_actor
                 && event.event_type == KernelEventType::ToolDecisionRecorded
                 && event.payload["decision_outcome"] == "deny"
         })
@@ -2920,7 +3135,9 @@ async fn route3_calendar_events_returns_events_in_window() {
         .await
         .expect("seed explicit legacy temporal row via the test mutator");
 
-    let (base, http, server) = route_server(calendar_api::routes(state)).await;
+    // MT-154 AC-154-2/3: calendar routes run only for the authenticated account session.
+    let (base, http, server) =
+        route_server_with_client(calendar_api::routes(state), account.client()).await;
     let resp = http
         .get(format!(
             "{base}/workspaces/{workspace_id}/calendar/events?from_date=2026-07-01&to_date_exclusive=2026-07-02&from_utc=2026-07-01T00:00:00Z&to_utc=2026-07-02T00:00:00Z&view_tzid=UTC"

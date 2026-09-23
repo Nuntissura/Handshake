@@ -260,6 +260,25 @@ pub struct PreferenceClient {
     base_url: String,
     actor_id: String,
     runtime: tokio::runtime::Handle,
+    /// MT-154: `/workspaces/:ws/preferences*` requires the account session. `None` fails every call
+    /// with "Account login required" before any socket is opened.
+    authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+}
+
+/// Send one preference request through the canonical authenticated transport (session +
+/// channel-binding headers, origin check). No bound account fails closed before any socket.
+async fn send_authenticated(
+    client: &reqwest::Client,
+    account: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    request: reqwest::RequestBuilder,
+) -> Result<reqwest::Response, PreferenceTransportError> {
+    let context = account.ok_or_else(|| {
+        PreferenceTransportError::Unavailable("Account login required".to_owned())
+    })?;
+    crate::local_account::AuthenticatedRequest::new(client.clone(), Some(context), request)
+        .send()
+        .await
+        .map_err(PreferenceTransportError::Unavailable)
 }
 
 impl PreferenceClient {
@@ -274,7 +293,17 @@ impl PreferenceClient {
             base_url: base_url.into(),
             actor_id: actor_id.into(),
             runtime,
+            authenticated_context: None,
         }
+    }
+
+    /// MT-154: bind the immutable account context every preference request carries.
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     /// The production client: the hardcoded backend base URL, `operator` actor, on the app's runtime.
@@ -312,13 +341,11 @@ impl PreferenceTransport for PreferenceClient {
     ) -> Result<Vec<PreferenceProjectionRow>, PreferenceTransportError> {
         let url = self.base(workspace_id);
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = client
-                .get(&url)
-                .timeout(REQUEST_TIMEOUT)
-                .send()
-                .await
-                .map_err(|e| PreferenceTransportError::Unavailable(e.to_string()))?;
+            let resp =
+                send_authenticated(&client, account, client.get(&url).timeout(REQUEST_TIMEOUT))
+                    .await?;
             if !resp.status().is_success() {
                 return Err(PreferenceTransportError::Unavailable(format!(
                     "GET preferences non-success status {}",
@@ -354,15 +381,18 @@ impl PreferenceTransport for PreferenceClient {
         let client = self.client.clone();
         let actor = self.actor_id.clone();
         let body = json!({ "value": value });
+        let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = client
-                .put(&url)
-                .header(HSK_HEADER_ACTOR_ID, actor)
-                .timeout(REQUEST_TIMEOUT)
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| PreferenceTransportError::Unavailable(e.to_string()))?;
+            let resp = send_authenticated(
+                &client,
+                account,
+                client
+                    .put(&url)
+                    .header(HSK_HEADER_ACTOR_ID, actor)
+                    .timeout(REQUEST_TIMEOUT)
+                    .json(&body),
+            )
+            .await?;
             parse_record_response(resp).await
         })
     }
@@ -379,15 +409,18 @@ impl PreferenceTransport for PreferenceClient {
         );
         let client = self.client.clone();
         let actor = self.actor_id.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = client
-                .post(&url)
-                .header(HSK_HEADER_ACTOR_ID, actor)
-                .timeout(REQUEST_TIMEOUT)
-                .json(&json!({}))
-                .send()
-                .await
-                .map_err(|e| PreferenceTransportError::Unavailable(e.to_string()))?;
+            let resp = send_authenticated(
+                &client,
+                account,
+                client
+                    .post(&url)
+                    .header(HSK_HEADER_ACTOR_ID, actor)
+                    .timeout(REQUEST_TIMEOUT)
+                    .json(&json!({})),
+            )
+            .await?;
             parse_record_response(resp).await
         })
     }
@@ -403,13 +436,11 @@ impl PreferenceTransport for PreferenceClient {
             urlencode(preference_id)
         );
         let client = self.client.clone();
+        let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = client
-                .get(&url)
-                .timeout(REQUEST_TIMEOUT)
-                .send()
-                .await
-                .map_err(|e| PreferenceTransportError::Unavailable(e.to_string()))?;
+            let resp =
+                send_authenticated(&client, account, client.get(&url).timeout(REQUEST_TIMEOUT))
+                    .await?;
             if !resp.status().is_success() {
                 return Err(PreferenceTransportError::Unavailable(format!(
                     "GET history non-success status {}",

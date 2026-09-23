@@ -596,7 +596,10 @@ pub async fn push_yjs_update(
     ))
     .correlation_id(envelope.trace_id.clone())
     .source_component("knowledge_crdt_yjs_bridge")
+    // MT-154: the receipt names its workspace so an account-scoped push appends it as a record
+    // user (`fn::mt154_workspace_receipt` binds payload.workspace_id to the receipt wsids).
     .payload(serde_json::json!({
+        "workspace_id": envelope.workspace_id,
         "update_id": envelope.update_id,
         "update_seq": attempted_seq,
         "actor_id": envelope.actor_id,

@@ -13,6 +13,8 @@ const CANVASES: &str = "canvases";
 const CANVAS_NODES: &str = "canvas_nodes";
 const CANVAS_EDGES: &str = "canvas_edges";
 const WORKSPACES: &str = "workspaces";
+/// MT-154: the constant denial code for a record-user write the table permissions dropped.
+const PROTECTED_DENIAL: &str = "HSK-403-PROTECTED-RESOURCE";
 
 #[derive(SurrealValue)]
 struct CanvasRow {
@@ -168,9 +170,11 @@ pub(crate) async fn create(
         })
         .await
         .map_err(StorageError::from)?;
+    // MT-154 (spec_ruling_c3_silent_deny): a record-user CREATE the table permissions deny is
+    // silently dropped (no row, no error); that empty result is the constant denial.
     row.map(map_canvas)
         .transpose()?
-        .ok_or_else(|| StorageError::Database("canvas create returned no row".to_owned()))
+        .ok_or(StorageError::Guard(PROTECTED_DENIAL))
 }
 
 pub(crate) async fn list(
@@ -299,10 +303,14 @@ pub(crate) async fn rename(
     if let Some(row) = row {
         return map_canvas(row);
     }
-    if get_canvas(storage, canvas_id).await?.is_some() && guarded {
-        Err(StorageError::Conflict("canvas_updated_at_conflict"))
-    } else {
-        Err(StorageError::NotFound("canvas"))
+    match get_canvas(storage, canvas_id).await? {
+        Some(current) if guarded && Some(current.updated_at) != expected_updated_at => {
+            Err(StorageError::Conflict("canvas_updated_at_conflict"))
+        }
+        // MT-154 silent-deny detection: the canvas is visible and the optimistic guard (if any)
+        // matched, so an unchanged row means the record-user UPDATE was dropped by permissions.
+        Some(_) => Err(StorageError::Guard(PROTECTED_DENIAL)),
+        None => Err(StorageError::NotFound("canvas")),
     }
 }
 
@@ -391,35 +399,53 @@ pub(crate) async fn update_graph(
         .with_data_operation(move |database| {
             Box::pin(async move {
                 database
+                    // MT-154 (spec_ruling_c3_silent_deny): a record-user DELETE/CREATE/UPDATE the
+                    // table permissions deny is silently dropped, so every step is re-checked and a
+                    // dropped step THROWs the constant denial, rolling the whole replacement back.
                     .query_values_at::<surrealdb::types::Value, _>(
                         "BEGIN TRANSACTION; \
                          IF (SELECT VALUE id FROM $canvas LIMIT 1)[0] = NONE { THROW 'HSK-CANVAS-NOT-FOUND'; }; \
                          DELETE canvas_edges WHERE canvas_id = $canvas; \
                          DELETE canvas_nodes WHERE canvas_id = $canvas; \
-                         FOR $node IN $nodes { CREATE $node.record CONTENT { canvas_id: $canvas, kind: $node.kind, \
+                         IF array::len(SELECT VALUE id FROM canvas_edges WHERE canvas_id = $canvas) > 0 \
+                             OR array::len(SELECT VALUE id FROM canvas_nodes WHERE canvas_id = $canvas) > 0 { \
+                             THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+                         FOR $node IN $nodes { LET $made = CREATE $node.record CONTENT { canvas_id: $canvas, kind: $node.kind, \
                              position_x: $node.position_x, position_y: $node.position_y, data: $node.data, \
                              last_actor_kind: $node.actor_kind, last_actor_id: $node.actor_id, \
                              last_job_id: $node.job_id, last_workflow_id: $node.workflow_id, \
-                             edit_event_id: $node.edit_event_id, created_at: $now, updated_at: $now }; }; \
-                         FOR $edge IN $edges { CREATE $edge.record CONTENT { canvas_id: $canvas, \
+                             edit_event_id: $node.edit_event_id, created_at: $now, updated_at: $now } RETURN id; \
+                             IF array::len($made) = 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
+                         FOR $edge IN $edges { LET $made = CREATE $edge.record CONTENT { canvas_id: $canvas, \
                              from_node_id: $edge.from_node, to_node_id: $edge.to_node, kind: $edge.kind, \
                              last_actor_kind: $edge.actor_kind, last_actor_id: $edge.actor_id, \
                              last_job_id: $edge.job_id, last_workflow_id: $edge.workflow_id, \
-                             edit_event_id: $edge.edit_event_id, created_at: $now, updated_at: $now }; }; \
+                             edit_event_id: $edge.edit_event_id, created_at: $now, updated_at: $now } RETURN id; \
+                             IF array::len($made) = 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; }; \
                          UPDATE $canvas SET last_actor_kind = $actor_kind, last_actor_id = $actor_id, \
                              last_job_id = $job_id, last_workflow_id = $workflow_id, \
                              edit_event_id = $edit_event_id, updated_at = $now RETURN AFTER; \
+                         IF array::len(SELECT VALUE id FROM $canvas WHERE edit_event_id = $edit_event_id) = 0 { \
+                             THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
                          COMMIT TRANSACTION;",
                         bindings,
-                        6,
+                        7,
                     )
                     .await
             })
         })
         .await
         .map_err(|error| {
-            if error.to_string().contains("HSK-CANVAS-NOT-FOUND") {
+            let rendered = error.to_string();
+            if rendered.contains("HSK-CANVAS-NOT-FOUND") {
                 StorageError::NotFound("canvas")
+            } else if rendered.contains(PROTECTED_DENIAL)
+                || (super::current_record_user_scope().is_some()
+                    && rendered.contains("already exists"))
+            {
+                // A caller-supplied node/edge id that already names a row this account cannot
+                // replace is denied without disclosing where that row lives.
+                StorageError::Guard(PROTECTED_DENIAL)
             } else {
                 StorageError::from(error)
             }
@@ -445,7 +471,15 @@ pub(crate) async fn delete(
         })
         .await
         .map_err(StorageError::from)?;
-    deleted.map(|_| ()).ok_or(StorageError::NotFound("canvas"))
+    if deleted.is_some() {
+        return Ok(());
+    }
+    // MT-154 silent-deny detection: a still-visible canvas was not deleted by the record user.
+    if get_canvas(storage, canvas_id).await?.is_some() {
+        Err(StorageError::Guard(PROTECTED_DENIAL))
+    } else {
+        Err(StorageError::NotFound("canvas"))
+    }
 }
 
 async fn get_canvas(storage: &SurrealStorage, canvas_id: &str) -> StorageResult<Option<Canvas>> {

@@ -165,7 +165,10 @@ pub async fn record_retrieval_trace(
         "knowledge-retrieval-trace:{}",
         stored_trace.trace_id
     ))
+    // MT-154: the receipt names its workspace so an account-scoped retrieval can append it as a
+    // record user (`fn::mt154_workspace_receipt` binds payload.workspace_id to the receipt wsids).
     .payload(serde_json::json!({
+        "workspace_id": workspace_id,
         "trace_id": stored_trace.trace_id.clone(),
         "bundle_id": bundle.bundle_id,
         "query_plan_id": plan.plan_id,
@@ -196,6 +199,10 @@ pub async fn record_retrieval_trace(
         .await
         .map_err(map_err)?;
     if affected != 1 {
+        // MT-154 F3: a record user's denied UPDATE is silently dropped.
+        if super::surreal::current_record_user_scope().is_some() {
+            return Err(StorageError::Validation("HSK-403-PROTECTED-RESOURCE"));
+        }
         return Err(StorageError::NotFound("knowledge retrieval trace"));
     }
 

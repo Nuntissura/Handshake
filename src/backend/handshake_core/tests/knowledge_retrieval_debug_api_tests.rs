@@ -113,16 +113,11 @@ impl LlmClient for NoopLlmClient {
     }
 }
 
-/// The client carries `owner`'s account-session credentials on every request.
-async fn retrieval_server(
-    storage: SurrealStorage,
-    owner: &OwnerSession,
-) -> (String, reqwest::Client) {
-    let storage_facade = SurrealDatabase::new(storage.clone());
+async fn app_state_for(storage: &SurrealStorage) -> AppState {
     let recorder = Arc::new(NoopRecorder);
-    let state = AppState {
-        storage: Arc::new(storage_facade),
-        surreal: storage,
+    AppState {
+        storage: Arc::new(SurrealDatabase::new(storage.clone())),
+        surreal: storage.clone(),
         flight_recorder: recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(NoopLlmClient {
@@ -130,7 +125,15 @@ async fn retrieval_server(
         }),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-    };
+    }
+}
+
+/// The client carries `owner`'s account-session credentials on every request.
+async fn retrieval_server(
+    storage: SurrealStorage,
+    owner: &OwnerSession,
+) -> (String, reqwest::Client) {
+    let state = app_state_for(&storage).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback listener");
@@ -154,15 +157,90 @@ fn nav_headers(req: reqwest::RequestBuilder, label: &str) -> reqwest::RequestBui
 /// Adversarial-v2 MT-143: the staleness surface reports per-item evidence
 /// state explicitly, and the repair action re-executes the recorded query
 /// into a FRESH bundle bound to current index state.
+/// WP-KERNEL-012 MT-154: the [`MemoryFixture`] seed (root -> source -> span), but inside a
+/// workspace the Owner created through the real `POST /workspaces` route, so the account's
+/// workspace grant covers the seeded evidence. The seed rows are test setup written through root
+/// storage; every assertion below goes through the account-scoped routes as the record user.
+async fn account_memory_fixture() -> Option<(MemoryFixture, AccountFixture)> {
+    use handshake_core::storage::knowledge::{
+        KnowledgeIndexingEligibility, KnowledgePermissionScope, KnowledgeRedactionState,
+        KnowledgeRootKind, KnowledgeSourceKind, KnowledgeSpanKind, NewKnowledgeSource,
+        NewKnowledgeSourceRoot, NewKnowledgeSpan,
+    };
+    let store = knowledge_memory_fixtures::open_embedded_store().await?;
+    let account = AccountFixture::install(&store.storage).await;
+    let workspace_id = account
+        .create_workspace(&app_state_for(&store.storage).await)
+        .await;
+    let root = store
+        .db
+        .create_knowledge_source_root(NewKnowledgeSourceRoot {
+            workspace_id: workspace_id.clone(),
+            display_name: "core".to_string(),
+            root_kind: KnowledgeRootKind::ProjectRepo,
+            repo_relative_path: format!("src/{}", uuid::Uuid::now_v7().simple()),
+            allowlist_policy: json!({"include": ["**/*"], "exclude": []}),
+            indexing_eligibility: KnowledgeIndexingEligibility::Eligible,
+        })
+        .await
+        .expect("root");
+    let source = store
+        .db
+        .upsert_knowledge_source(NewKnowledgeSource {
+            workspace_id: workspace_id.clone(),
+            root_id: Some(root.root_id),
+            source_kind: KnowledgeSourceKind::File,
+            relative_path: Some("memory/graph.rs".to_string()),
+            asset_id: None,
+            loom_block_id: None,
+            document_id: None,
+            content_hash: "a".repeat(64),
+            size_bytes: Some(2048),
+            provenance: json!({"discovered_by": "memory_fixture"}),
+            permission_scope: KnowledgePermissionScope::Workspace,
+            redaction_state: KnowledgeRedactionState::None,
+            source_modified_at: None,
+        })
+        .await
+        .expect("source");
+    let span = store
+        .db
+        .create_knowledge_span(NewKnowledgeSpan {
+            source_id: source.source_id.clone(),
+            span_kind: KnowledgeSpanKind::Text,
+            range_start: 0,
+            range_end: 200,
+            line_start: Some(1),
+            line_end: Some(5),
+            section_path: None,
+            content_sha256: "b".repeat(64),
+            parser_version: "text_v1".to_string(),
+            extraction_receipt_event_id: None,
+            index_run_id: None,
+            display_snippet: Some("memory graph fixture span".to_string()),
+        })
+        .await
+        .expect("span");
+    Some((
+        MemoryFixture {
+            workspace_id,
+            source_id: source.source_id,
+            span_id: span.span_id,
+            store,
+        },
+        account,
+    ))
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt143_staleness_surface_and_repair_action() {
-    let Some(fx) = MemoryFixture::setup().await else {
+    // MT-154: the evidence is seeded (root test setup) inside a workspace the Owner created through
+    // POST /workspaces; every route below authorizes that workspace as the record user.
+    let Some((fx, account)) = account_memory_fixture().await else {
         eprintln!("SKIP mt143_staleness_surface_and_repair_action: embedded storage unavailable");
         return;
     };
-    // MT-109 C2: root seed kept: `MemoryFixture::setup` (shared fixture) creates the workspace
-    // and evidence through root storage, so the workspace carries no account grant.
-    let account = AccountFixture::install(&fx.store.storage).await;
+    let ws = [("workspace_id", fx.workspace_id.clone())];
     let pool = pool_for(&fx.store).await;
 
     // A span-backed passage; the executed pipeline (no edges) falls back to it
@@ -210,7 +288,8 @@ async fn mt143_staleness_surface_and_repair_action() {
     let resp = nav_headers(
         http.get(format!(
             "{base}/knowledge/retrieval/bundles/{bundle_id}/staleness"
-        )),
+        ))
+        .query(&ws),
         "fresh",
     )
     .send()
@@ -242,7 +321,8 @@ async fn mt143_staleness_surface_and_repair_action() {
     let resp = nav_headers(
         http.get(format!(
             "{base}/knowledge/retrieval/bundles/{bundle_id}/staleness"
-        )),
+        ))
+        .query(&ws),
         "missing",
     )
     .send()
@@ -260,7 +340,8 @@ async fn mt143_staleness_surface_and_repair_action() {
     let resp = nav_headers(
         http.post(format!(
             "{base}/knowledge/retrieval/bundles/{bundle_id}/repair"
-        )),
+        ))
+        .query(&ws),
         "repair",
     )
     .send()
@@ -298,6 +379,7 @@ async fn mt143_staleness_surface_and_repair_action() {
         .get(format!(
             "{base}/knowledge/retrieval/bundles/{bundle_id}/staleness"
         ))
+        .query(&ws)
         .send()
         .await
         .expect("send");
@@ -305,7 +387,8 @@ async fn mt143_staleness_surface_and_repair_action() {
     let resp = nav_headers(
         http.get(format!(
             "{base}/knowledge/retrieval/bundles/CTX-ffffffffffffffff/staleness"
-        )),
+        ))
+        .query(&ws),
         "ghost",
     )
     .send()

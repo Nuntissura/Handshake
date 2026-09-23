@@ -9,8 +9,8 @@ use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::preferences::{
     preference_changed_event_payload, value_hash_ref, PreferenceChangeReceipt,
     PreferenceProjectionRow, PreferenceRecord, PreferenceSchemaEntry, PreferenceScope,
-    PreferenceSource, PreferenceValueType, RedactionClass, PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID,
-    PREFERENCE_RECORD_SCHEMA_ID,
+    PreferenceScopeKind, PreferenceSource, PreferenceValueType, RedactionClass,
+    PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID, PREFERENCE_RECORD_SCHEMA_ID,
 };
 use crate::storage::{StorageError, StorageResult, WriteContext};
 
@@ -237,7 +237,7 @@ IF $before = NONE AND $expected_before_revision != NONE {
 IF $before != NONE AND ($expected_before_revision = NONE OR $before.revision != $expected_before_revision) {
     THROW 'HSK-PREFERENCE-REVISION-CONFLICT';
 };
-CREATE ONLY $event_record SET
+IF array::len((CREATE $event_record SET
     event_id = $event_id,
     event_version = $event_version,
     kernel_task_run_id = $kernel_task_run_id,
@@ -257,8 +257,11 @@ CREATE ONLY $event_record SET
     authority_resource_id = $authority_resource_id,
     authority_session_id = $authority_session_id,
     authority_capability_id = $authority_capability_id,
-    authority_action = $authority_action;
-UPSERT ONLY $preference_record SET
+    authority_action = $authority_action
+    RETURN VALUE id)) != 1 {
+    THROW 'HSK-403-PROTECTED-RESOURCE';
+};
+IF array::len((UPSERT $preference_record SET
     preference_id = $preference_id,
     scope_kind = $scope_kind,
     scope_ref = $scope_ref,
@@ -271,8 +274,11 @@ UPSERT ONLY $preference_record SET
     revision = $after_revision,
     updated_at = $updated_at,
     updated_by = $actor,
-    event_ledger_event_id = $event_record;
-CREATE ONLY $receipt_record SET
+    event_ledger_event_id = $event_record
+    RETURN VALUE id)) != 1 {
+    THROW 'HSK-403-PROTECTED-RESOURCE';
+};
+IF array::len((CREATE $receipt_record SET
     preference_id = $preference_id,
     scope_kind = $scope_kind,
     scope_ref = $scope_ref,
@@ -285,7 +291,10 @@ CREATE ONLY $receipt_record SET
     actor = $actor,
     redaction_class = $redaction_class,
     event_ledger_event_id = $event_record,
-    created_at = $updated_at;
+    created_at = $updated_at
+    RETURN VALUE id)) != 1 {
+    THROW 'HSK-403-PROTECTED-RESOURCE';
+};
 COMMIT TRANSACTION;
 "#;
 
@@ -311,11 +320,21 @@ COMMIT TRANSACTION;
                 event_ledger_event_id: event_id.clone(),
                 created_at: Utc::now().to_rfc3339(),
             };
-            let payload = preference_changed_event_payload(
+            let mut payload = preference_changed_event_payload(
                 &event_receipt,
                 entry.redaction_class,
                 entry.value_type(),
             );
+            // MT-154 AC-154-5: a workspace-scope receipt names its workspace so
+            // `fn::mt154_workspace_receipt` can bind it to `wsids[0]` and the workspace grant.
+            if scope.kind == PreferenceScopeKind::Workspace {
+                if let Some(object) = payload.as_object_mut() {
+                    object.insert(
+                        "workspace_id".to_owned(),
+                        Value::String(scope.scope_ref.clone()),
+                    );
+                }
+            }
             let event = NewKernelEvent::builder(
                 run_id.clone(),
                 run_id.clone(),
@@ -554,5 +573,199 @@ fn non_empty_actor(actor: &str) -> Option<String> {
 }
 
 fn map_storage_error(error: SurrealStorageError) -> StorageError {
-    StorageError::Database(error.to_string())
+    let rendered = error.to_string();
+    // MT-154 silent-deny ruling: a record-user write the table permissions dropped THROWs the
+    // protected-resource code inside the write transaction; surface it as the constant denial.
+    if rendered.contains("HSK-403-PROTECTED-RESOURCE") {
+        return StorageError::Guard("HSK-403-PROTECTED-RESOURCE");
+    }
+    StorageError::Database(rendered)
+}
+
+#[cfg(test)]
+mod mt154_account_preference_tests {
+    //! MT-154 (D-154-3; Master Spec 02-system-architecture.md:2740/:2751/:2773): a global preference
+    //! record is an account-owned ProtectedResource. Written as account A's record user it is stamped
+    //! with A's owner_account_id, its PREFERENCE_RECORD_CHANGED account receipt carries A's session
+    //! principal, and account B can neither read the row, its history or its receipt, nor overwrite it.
+    use super::super::resource_authority::{ProvisionedPrincipal, RecordUserScope, ResourceAction};
+    use super::SurrealStorage;
+    use crate::preferences::{
+        lookup_editor_preference, PreferenceScope, PreferenceScopeKind, PreferenceSource,
+        PREF_EDITOR_TAB_SIZE,
+    };
+    use crate::storage::StorageError;
+    use serde_json::json;
+
+    const BINDING: &str = "mt154-global-preference-binding";
+
+    async fn principal(storage: &SurrealStorage, key: &str) -> ProvisionedPrincipal {
+        storage
+            .provision_principal(
+                &format!("mt154-pref-account-{key}"),
+                &format!("mt154-pref-principal-{key}"),
+                "human_account",
+                &format!("mt154-pref-actor-{key}"),
+                "Operator",
+                &["fs.read".to_owned(), "fs.write".to_owned()],
+                &format!("mt154-pref-space-{key}"),
+                Some(BINDING),
+                std::time::Duration::from_secs(3600),
+            )
+            .await
+            .expect("provision MT-154 preference principal")
+    }
+
+    /// The account-global record-user scope the account routes build
+    /// (`api::authority::authorize_account_session`).
+    fn account_scope(principal: &ProvisionedPrincipal) -> RecordUserScope {
+        RecordUserScope {
+            grant_id: None,
+            workspace_id: None,
+            session_token: principal.session.token.clone(),
+            channel_binding_hash: Some(BINDING.to_owned()),
+            resource_id: principal.identity.account_id.clone(),
+            session_id: principal.session.session_id.clone(),
+            capability_id: "fs.write".to_owned(),
+            action: ResourceAction::Update,
+        }
+    }
+
+    async fn body(storage: &SurrealStorage) {
+        let a = principal(storage, "a").await;
+        let b = principal(storage, "b").await;
+        assert_ne!(a.identity.account_id, b.identity.account_id);
+        let entry = lookup_editor_preference(PREF_EDITOR_TAB_SIZE).expect("tab-size entry");
+        let global = PreferenceScope {
+            kind: PreferenceScopeKind::Global,
+            scope_ref: String::new(),
+        };
+
+        // Owner positive: A writes the global preference as its record user.
+        let (record, receipt) = storage
+            .with_record_user_scope(
+                account_scope(&a),
+                storage.preference_set(
+                    &global,
+                    &entry,
+                    json!(2),
+                    PreferenceSource::Operator,
+                    "mt154-pref-actor-a",
+                ),
+            )
+            .await
+            .expect("account A writes its global preference");
+        assert_eq!(record.value, json!(2));
+        assert_eq!(record.scope, "global");
+        assert_eq!(receipt.actor, "mt154-pref-actor-a");
+
+        // Canonical re-read as A, plus the stamped owner read at the storage boundary.
+        let reread = storage
+            .with_record_user_scope(account_scope(&a), storage.preference_get(&global, &entry))
+            .await
+            .expect("A re-reads its global preference");
+        assert_eq!(reread.value, json!(2));
+        assert_eq!(reread.revision, 1);
+        let owners: Vec<String> = storage
+            .with_data_operation(|ctx| {
+                Box::pin(async move {
+                    ctx.query_values::<String, ()>(
+                        "RETURN (SELECT VALUE record::id(owner_account_id) FROM preference_records \
+                         WHERE scope_kind = 'global');",
+                        (),
+                    )
+                    .await
+                })
+            })
+            .await
+            .expect("inspect the stamped owner");
+        assert_eq!(owners, vec![a.identity.account_id.clone()]);
+
+        // The account receipt: A reads it, B reads 0 receipts.
+        let aggregate_id = format!("global::{PREF_EDITOR_TAB_SIZE}");
+        let a_events = storage
+            .list_account_kernel_events_for_aggregate(
+                &a.session.token,
+                BINDING,
+                "preference_record",
+                &aggregate_id,
+            )
+            .await
+            .expect("A lists its preference receipts");
+        assert_eq!(a_events.len(), 1, "owner sees its account receipt");
+        assert_eq!(a_events[0].event_id, receipt.event_ledger_event_id);
+        assert_eq!(
+            a_events[0].actor,
+            crate::kernel::KernelActor::Operator("mt154-pref-actor-a".to_owned())
+        );
+        let b_events = storage
+            .list_account_kernel_events_for_aggregate(
+                &b.session.token,
+                BINDING,
+                "preference_record",
+                &aggregate_id,
+            )
+            .await
+            .expect("B lists preference receipts");
+        assert!(b_events.is_empty(), "another account reads 0 receipts");
+
+        // Cross-account: B sees the registry default and an empty history, never A's value.
+        let b_view = storage
+            .with_record_user_scope(account_scope(&b), storage.preference_get(&global, &entry))
+            .await
+            .expect("B reads the global preference");
+        assert_eq!(b_view.value, entry.default_value);
+        assert_eq!(b_view.revision, 0);
+        let b_history = storage
+            .with_record_user_scope(
+                account_scope(&b),
+                storage.preference_history(&global, PREF_EDITOR_TAB_SIZE),
+            )
+            .await
+            .expect("B reads the global preference history");
+        assert!(b_history.is_empty(), "B sees none of A's receipts");
+
+        // B cannot overwrite A's row: the dropped write is the constant denial, never a silent 200.
+        let b_write = storage
+            .with_record_user_scope(
+                account_scope(&b),
+                storage.preference_set(
+                    &global,
+                    &entry,
+                    json!(8),
+                    PreferenceSource::Operator,
+                    "mt154-pref-actor-b",
+                ),
+            )
+            .await;
+        assert!(
+            matches!(
+                b_write,
+                Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"))
+            ),
+            "cross-account overwrite must be the constant denial, got {b_write:?}"
+        );
+        let after = storage
+            .with_record_user_scope(account_scope(&a), storage.preference_get(&global, &entry))
+            .await
+            .expect("A re-reads after B's denied write");
+        assert_eq!(after.value, json!(2));
+        assert_eq!(after.revision, 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mt154_global_preference_is_private_to_the_owning_account() {
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .expect("MT-154 global preference proof requires an isolated embedded store");
+        let storage = backend.storage.clone();
+        let outcome = tokio::spawn(async move { body(&storage).await }).await;
+        backend
+            .close_and_remove()
+            .await
+            .expect("remove the MT-154 global preference store");
+        if let Err(panic) = outcome {
+            std::panic::resume_unwind(panic.into_panic());
+        }
+    }
 }

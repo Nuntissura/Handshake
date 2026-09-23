@@ -470,11 +470,21 @@ fn name_menu_node(
 ) {
     let author_id = author_id.to_owned();
     let label = label.to_owned();
+    // MT-154 AC-154-7: a freshly opened popup's first LIVE frame is egui's invisible sizing pass. Its
+    // widgets are registered disabled (UiBuilder::invisible) at provisional geometry, and the next
+    // frame hit-tests pointer input against exactly those disabled rects, so a click aimed at them is
+    // swallowed and `show_on` never confirms the item. Advertising Click there told steering callers
+    // the item was actionable one frame too early. A snapshot-capture pass renders on a fresh context
+    // (pass 0) whose single sizing pass IS the published tree, so it keeps the typed availability.
+    let provisional = ui.is_sizing_pass() && ui.ctx().cumulative_pass_nr() > 0;
     ui.ctx().accesskit_node_builder(widget_id, move |node| {
         node.set_role(accesskit::Role::MenuItem);
         node.set_author_id(author_id);
         node.set_label(label);
-        if enabled {
+        if enabled && provisional {
+            node.set_disabled();
+            node.remove_action(accesskit::Action::Click);
+        } else if enabled {
             // Snapshot capture may render an inactive source pane under an egui disabled parent even
             // though the retained typed menu entry is actionable in its originating pane. The menu
             // model is the authority for leaf availability, so preserve that truth in AccessKit.

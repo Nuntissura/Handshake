@@ -113,6 +113,17 @@ impl OwnerSession {
     /// Provision an Owner principal/session bound to `channel_binding_token`, which MUST be the
     /// token of the binding currently installed in `HANDSHAKE_STAGE_BINDING_FILE`.
     pub async fn provision(storage: &SurrealStorage, channel_binding_token: &str) -> Self {
+        Self::provision_with_capabilities(storage, channel_binding_token, &[]).await
+    }
+
+    /// [`OwnerSession::provision`] whose principal (and therefore session) is additionally
+    /// delegated `extra` capabilities, for routes that require a capability no Owner holds by
+    /// default (MT-155: `kernel.product_screenshot_capture.execute`).
+    pub async fn provision_with_capabilities(
+        storage: &SurrealStorage,
+        channel_binding_token: &str,
+        extra: &[&str],
+    ) -> Self {
         if !storage
             .reconciliation_principal_is_provisioned()
             .await
@@ -124,7 +135,8 @@ impl OwnerSession {
                 .expect("provision reconciliation service principal");
         }
         let key = format!("route-harness-owner-{}", uuid::Uuid::now_v7());
-        let capabilities = OWNER_CAPABILITIES.map(str::to_owned).to_vec();
+        let mut capabilities = OWNER_CAPABILITIES.map(str::to_owned).to_vec();
+        capabilities.extend(extra.iter().map(|capability| (*capability).to_owned()));
         let principal = storage
             .provision_principal(
                 &key,

@@ -25,14 +25,22 @@
 //! handlers over `AppState`, JSON errors with typed `error` codes, reads bounded
 //! by `LIST_CAP`.
 //!
+//! MT-154 authority (Master Spec 02-system-architecture.md:2758/2773/2776,
+//! LM-RLS-001/002): every route names its workspace (`workspace_id` query),
+//! authorizes Read+fs.read on it through the ResourceBroker BEFORE any table
+//! access, reads as the account's record user, and appends its receipt inside
+//! that scope attributed to the session principal (never a header actor). A
+//! record outside the authorized workspace is a 404; every authority failure,
+//! including a silently dropped receipt write, is the constant denial.
+//!
 //! Routes (all read-only; each leaves a retrieval receipt):
-//! * `GET /knowledge/memory/claims/:claim_id` — a claim, its evidence span ids,
+//! * `GET /knowledge/memory/claims/:claim_id?workspace_id=` — a claim, its evidence span ids,
 //!   its conflicts, and the memory fact it backs (if any)
 //! * `GET /knowledge/memory/conflicts?workspace_id=&open_only=&limit=` — the
 //!   conflict review / repair queue for a workspace
-//! * `GET /knowledge/memory/facts/:fact_id` — a fact (S/P/O, label) + its
+//! * `GET /knowledge/memory/facts/:fact_id?workspace_id=` — a fact (S/P/O, label) + its
 //!   backing claim id (evidence trace entry point)
-//! * `GET /knowledge/memory/entities/:entity_id/neighborhood` — the edges
+//! * `GET /knowledge/memory/entities/:entity_id/neighborhood?workspace_id=` — the edges
 //!   touching an entity (graph neighborhood), with evidence span ids
 //! * `GET /knowledge/memory/visual-debug?workspace_id=&trusted_only=&limit=` —
 //!   the MT-127 memory-graph visual-debug payload
@@ -47,10 +55,12 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 
+use super::knowledge_crdt::{is_record_user_denial, KnowledgeAccount};
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::knowledge_memory::visual_debug::build_memory_graph_visual_debug;
 use crate::storage::knowledge::KnowledgeStore;
 use crate::storage::knowledge_memory::{get_memory_fact, get_memory_fact_by_claim};
+use crate::storage::surreal::resource_authority::ResourceAction;
 use crate::storage::surreal::SurrealDatabase;
 use crate::storage::{Database, StorageError};
 use crate::AppState;
@@ -110,6 +120,9 @@ fn not_found(detail: impl Into<String>) -> ApiError {
 }
 
 fn storage_error(err: StorageError) -> ApiError {
+    if is_record_user_denial(&err.to_string()) {
+        return crate::api::authority::constant_denial();
+    }
     match err {
         StorageError::NotFound(what) => not_found(what),
         StorageError::Validation(detail) => bad_request(detail),
@@ -171,10 +184,38 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
     })
 }
 
-/// Append the memory-graph navigation retrieval-trace receipt (spec 2.3.13.11).
+/// Authorize the named workspace (Read+fs.read) BEFORE any table access, then build the
+/// navigation identity attributed to the session principal (the header actor is ignored).
+async fn memory_account(
+    state: &AppState,
+    headers: &HeaderMap,
+    workspace_id: &str,
+) -> Result<(KnowledgeAccount, NavContext), ApiError> {
+    let account = KnowledgeAccount::workspace(
+        state,
+        headers,
+        workspace_id,
+        ResourceAction::Read,
+        "fs.read",
+    )
+    .await?;
+    let mut ctx = nav_context(headers)?;
+    ctx.actor = account.session_actor();
+    Ok((account, ctx))
+}
+
+#[derive(Debug, Deserialize)]
+struct WorkspaceParams {
+    workspace_id: String,
+}
+
+/// Append the memory-graph navigation retrieval-trace receipt (spec 2.3.13.11). Must run inside
+/// [`KnowledgeAccount::run`]: the receipt is a record-user write bound to the authorized workspace
+/// (`fn::mt154_knowledge_event`); a dropped write is the constant denial.
 async fn record_nav_receipt(
     db: &dyn Database,
     ctx: &NavContext,
+    workspace_id: &str,
     query_kind: &str,
     query: Value,
 ) -> Result<String, ApiError> {
@@ -188,6 +229,7 @@ async fn record_nav_receipt(
     .source_component("knowledge_memory_api")
     .payload(json!({
         "kind": "memory_graph_query",
+        "workspace_id": workspace_id,
         "query_kind": query_kind,
         "query": query,
     }));
@@ -234,47 +276,56 @@ fn clamp_limit(requested: Option<i64>) -> i64 {
 // Handlers.
 // ---------------------------------------------------------------------------
 
-/// GET /knowledge/memory/claims/:claim_id
+//// GET /knowledge/memory/claims/:claim_id?workspace_id=
 async fn get_claim_with_evidence(
     State(state): State<AppState>,
     Path(claim_id): Path<String>,
+    Query(params): Query<WorkspaceParams>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    let ctx = nav_context(&headers)?;
+    let (account, ctx) = memory_account(&state, &headers, &params.workspace_id).await?;
     let db = db_for(&state);
+    let workspace_id = params.workspace_id.clone();
 
-    let claim = db
-        .get_knowledge_claim(&claim_id)
-        .await
-        .map_err(storage_error)?
-        .ok_or_else(|| not_found("knowledge claim"))?;
-    let span_ids = db
-        .list_knowledge_claim_span_ids(&claim_id)
-        .await
-        .map_err(storage_error)?;
-    let conflicts = db
-        .list_knowledge_claim_conflicts(&claim_id)
-        .await
-        .map_err(storage_error)?;
-    let fact = get_memory_fact_by_claim(&state.surreal, &claim_id)
-        .await
-        .map_err(storage_error)?;
+    account
+        .run(&state, async {
+            let claim = db
+                .get_knowledge_claim(&claim_id)
+                .await
+                .map_err(storage_error)?
+                .filter(|claim| claim.workspace_id == workspace_id)
+                .ok_or_else(|| not_found("knowledge claim"))?;
+            let span_ids = db
+                .list_knowledge_claim_span_ids(&claim_id)
+                .await
+                .map_err(storage_error)?;
+            let conflicts = db
+                .list_knowledge_claim_conflicts(&claim_id)
+                .await
+                .map_err(storage_error)?;
+            let fact = get_memory_fact_by_claim(&state.surreal, &claim_id)
+                .await
+                .map_err(storage_error)?
+                .filter(|fact| fact.workspace_id == workspace_id);
 
-    let receipt = record_nav_receipt(
-        state.storage.as_ref(),
-        &ctx,
-        "claim_with_evidence",
-        json!({"claim_id": claim_id}),
-    )
-    .await?;
+            let receipt = record_nav_receipt(
+                state.storage.as_ref(),
+                &ctx,
+                &workspace_id,
+                "claim_with_evidence",
+                json!({"claim_id": claim_id}),
+            )
+            .await?;
 
-    Ok(Json(json!({
-        "claim": claim,
-        "evidence_span_ids": span_ids,
-        "conflicts": conflicts,
-        "backing_fact": fact,
-        "retrieval_receipt_event_id": receipt,
-    })))
+            Ok::<_, ApiError>(Json(json!({
+                "claim": claim,
+                "evidence_span_ids": span_ids,
+                "conflicts": conflicts,
+                "backing_fact": fact,
+                "retrieval_receipt_event_id": receipt,
+            })))
+        })
+        .await
 }
 
 /// GET /knowledge/memory/conflicts?workspace_id=&open_only=&limit=
@@ -283,59 +334,65 @@ async fn list_conflicts(
     Query(params): Query<ConflictsParams>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    let ctx = nav_context(&headers)?;
+    let (account, ctx) = memory_account(&state, &headers, &params.workspace_id).await?;
     let open_only = params.open_only.unwrap_or(true);
     let limit = clamp_limit(params.limit);
 
-    // Claim links are real Surreal record links, so workspace scoping traverses
-    // `claim_id.workspace_id` directly instead of recreating a relational join.
-    let rows: Vec<ConflictRecord> = state
-        .surreal
-        .with_data_operation({
-            let workspace_id = params.workspace_id.clone();
-            move |database| {
-                Box::pin(async move {
-                    database
-                        .query_values(
-                            "SELECT conflict_id, claim_id, conflicting_claim_id, conflict_reason, \
-                             resolution_receipt_event_id, detected_at, resolved_at \
-                             FROM knowledge_claim_conflicts \
-                             WHERE claim_id.workspace_id = $workspace \
-                               AND ($open_only = false OR resolved_at = NONE) \
-                             ORDER BY detected_at DESC, conflict_id DESC LIMIT $limit;",
-                            ConflictListBindings {
-                                workspace: RecordId::new("workspaces", workspace_id),
-                                open_only,
-                                limit,
-                            },
-                        )
-                        .await
+    account
+        .run(&state, async {
+            // Claim links are real Surreal record links, so workspace scoping traverses
+            // `claim_id.workspace_id` directly instead of recreating a relational join. The
+            // record user's table permissions further restrict rows to readable workspaces.
+            let rows: Vec<ConflictRecord> = state
+                .surreal
+                .with_data_operation({
+                    let workspace_id = params.workspace_id.clone();
+                    move |database| {
+                        Box::pin(async move {
+                            database
+                                .query_values(
+                                    "SELECT conflict_id, claim_id, conflicting_claim_id, conflict_reason, \
+                                     resolution_receipt_event_id, detected_at, resolved_at \
+                                     FROM knowledge_claim_conflicts \
+                                     WHERE claim_id.workspace_id = $workspace \
+                                       AND ($open_only = false OR resolved_at = NONE) \
+                                     ORDER BY detected_at DESC, conflict_id DESC LIMIT $limit;",
+                                    ConflictListBindings {
+                                        workspace: RecordId::new("workspaces", workspace_id),
+                                        open_only,
+                                        limit,
+                                    },
+                                )
+                                .await
+                        })
+                    }
                 })
-            }
+                .await
+                .map_err(|err| storage_error(StorageError::from(err)))?;
+            let rows = rows
+                .into_iter()
+                .map(ConflictRow::try_from)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(storage_error)?;
+
+            let receipt = record_nav_receipt(
+                state.storage.as_ref(),
+                &ctx,
+                &params.workspace_id,
+                "conflict_review",
+                json!({"workspace_id": params.workspace_id, "open_only": open_only}),
+            )
+            .await?;
+
+            Ok::<_, ApiError>(Json(json!({
+                "workspace_id": params.workspace_id,
+                "open_only": open_only,
+                "conflicts": rows,
+                "count": rows.len(),
+                "retrieval_receipt_event_id": receipt,
+            })))
         })
         .await
-        .map_err(|err| storage_error(StorageError::from(err)))?;
-    let rows = rows
-        .into_iter()
-        .map(ConflictRow::try_from)
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(storage_error)?;
-
-    let receipt = record_nav_receipt(
-        state.storage.as_ref(),
-        &ctx,
-        "conflict_review",
-        json!({"workspace_id": params.workspace_id, "open_only": open_only}),
-    )
-    .await?;
-
-    Ok(Json(json!({
-        "workspace_id": params.workspace_id,
-        "open_only": open_only,
-        "conflicts": rows,
-        "count": rows.len(),
-        "retrieval_receipt_event_id": receipt,
-    })))
 }
 
 #[derive(SurrealValue)]
@@ -398,75 +455,92 @@ fn record_key(record: RecordId, context: &'static str) -> Result<String, Storage
     }
 }
 
-/// GET /knowledge/memory/facts/:fact_id
+//// GET /knowledge/memory/facts/:fact_id?workspace_id=
 async fn get_fact(
     State(state): State<AppState>,
     Path(fact_id): Path<String>,
+    Query(params): Query<WorkspaceParams>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    let ctx = nav_context(&headers)?;
+    let (account, ctx) = memory_account(&state, &headers, &params.workspace_id).await?;
 
-    let fact = get_memory_fact(&state.surreal, &fact_id)
+    account
+        .run(&state, async {
+            let fact = get_memory_fact(&state.surreal, &fact_id)
+                .await
+                .map_err(storage_error)?
+                .filter(|fact| fact.workspace_id == params.workspace_id)
+                .ok_or_else(|| not_found("memory fact"))?;
+
+            let receipt = record_nav_receipt(
+                state.storage.as_ref(),
+                &ctx,
+                &params.workspace_id,
+                "fact_trace",
+                json!({"fact_id": fact_id}),
+            )
+            .await?;
+
+            Ok::<_, ApiError>(Json(json!({
+                "fact": fact,
+                "backing_claim_id": fact.claim_id,
+                "retrieval_receipt_event_id": receipt,
+            })))
+        })
         .await
-        .map_err(storage_error)?
-        .ok_or_else(|| not_found("memory fact"))?;
-
-    let receipt = record_nav_receipt(
-        state.storage.as_ref(),
-        &ctx,
-        "fact_trace",
-        json!({"fact_id": fact_id}),
-    )
-    .await?;
-
-    Ok(Json(json!({
-        "fact": fact,
-        "backing_claim_id": fact.claim_id,
-        "retrieval_receipt_event_id": receipt,
-    })))
 }
 
-/// GET /knowledge/memory/entities/:entity_id/neighborhood
+/// GET /knowledge/memory/entities/:entity_id/neighborhood?workspace_id=
 async fn entity_neighborhood(
     State(state): State<AppState>,
     Path(entity_id): Path<String>,
+    Query(params): Query<WorkspaceParams>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    let ctx = nav_context(&headers)?;
+    let (account, ctx) = memory_account(&state, &headers, &params.workspace_id).await?;
     let db = db_for(&state);
 
-    let edges = db
-        .list_knowledge_edges_for_entity(&entity_id)
+    account
+        .run(&state, async {
+            // Only edges of the authorized workspace that the record user can read.
+            let edges = db
+                .list_knowledge_edges_for_entity(&entity_id)
+                .await
+                .map_err(storage_error)?
+                .into_iter()
+                .filter(|edge| edge.workspace_id == params.workspace_id)
+                .collect::<Vec<_>>();
+
+            // Attach the evidence span ids for each edge (citations).
+            let mut edge_views = Vec::with_capacity(edges.len());
+            for edge in &edges {
+                let span_ids = db
+                    .list_knowledge_edge_span_ids(&edge.edge_id)
+                    .await
+                    .map_err(storage_error)?;
+                edge_views.push(json!({
+                    "edge": edge,
+                    "evidence_span_ids": span_ids,
+                }));
+            }
+
+            let receipt = record_nav_receipt(
+                state.storage.as_ref(),
+                &ctx,
+                &params.workspace_id,
+                "entity_neighborhood",
+                json!({"entity_id": entity_id}),
+            )
+            .await?;
+
+            Ok::<_, ApiError>(Json(json!({
+                "entity_id": entity_id,
+                "edges": edge_views,
+                "count": edge_views.len(),
+                "retrieval_receipt_event_id": receipt,
+            })))
+        })
         .await
-        .map_err(storage_error)?;
-
-    // Attach the evidence span ids for each edge (citations).
-    let mut edge_views = Vec::with_capacity(edges.len());
-    for edge in &edges {
-        let span_ids = db
-            .list_knowledge_edge_span_ids(&edge.edge_id)
-            .await
-            .map_err(storage_error)?;
-        edge_views.push(json!({
-            "edge": edge,
-            "evidence_span_ids": span_ids,
-        }));
-    }
-
-    let receipt = record_nav_receipt(
-        state.storage.as_ref(),
-        &ctx,
-        "entity_neighborhood",
-        json!({"entity_id": entity_id}),
-    )
-    .await?;
-
-    Ok(Json(json!({
-        "entity_id": entity_id,
-        "edges": edge_views,
-        "count": edge_views.len(),
-        "retrieval_receipt_event_id": receipt,
-    })))
 }
 
 /// GET /knowledge/memory/visual-debug?workspace_id=&trusted_only=&limit=
@@ -475,25 +549,31 @@ async fn visual_debug(
     Query(params): Query<VisualDebugParams>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
-    let ctx = nav_context(&headers)?;
+    let (account, ctx) = memory_account(&state, &headers, &params.workspace_id).await?;
     let db = db_for(&state);
     let trusted_only = params.trusted_only.unwrap_or(false);
     let limit = clamp_limit(params.limit);
 
-    let payload = build_memory_graph_visual_debug(&db, &params.workspace_id, trusted_only, limit)
+    account
+        .run(&state, async {
+            let payload =
+                build_memory_graph_visual_debug(&db, &params.workspace_id, trusted_only, limit)
+                    .await
+                    .map_err(storage_error)?;
+
+            let receipt = record_nav_receipt(
+                state.storage.as_ref(),
+                &ctx,
+                &params.workspace_id,
+                "visual_debug",
+                json!({"workspace_id": params.workspace_id, "trusted_only": trusted_only}),
+            )
+            .await?;
+
+            Ok::<_, ApiError>(Json(json!({
+                "payload": payload,
+                "retrieval_receipt_event_id": receipt,
+            })))
+        })
         .await
-        .map_err(storage_error)?;
-
-    let receipt = record_nav_receipt(
-        state.storage.as_ref(),
-        &ctx,
-        "visual_debug",
-        json!({"workspace_id": params.workspace_id, "trusted_only": trusted_only}),
-    )
-    .await?;
-
-    Ok(Json(json!({
-        "payload": payload,
-        "retrieval_receipt_event_id": receipt,
-    })))
 }

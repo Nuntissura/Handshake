@@ -504,6 +504,25 @@ fn hit(
     }
 }
 
+// MT-154: `/workspaces/:ws/locus/*` requires the account session. Explicit identity for this file's
+// isolated mock HTTP servers only.
+fn mock_account_context(
+    base: &str,
+) -> Option<std::sync::Arc<handshake_native::local_account::AuthenticatedContext>> {
+    let context: handshake_native::local_account::AuthenticatedContext =
+        serde_json::from_value(serde_json::json!({
+            "account_id": "mock-account", "principal_id": "mock-principal",
+            "session_id": "mock-session", "access_space_id": "mock-space",
+            "session_token": "a".repeat(64)
+        }))
+        .expect("mock identity");
+    Some(std::sync::Arc::new(
+        context
+            .bind(base, "b".repeat(64))
+            .expect("mock origin and channel"),
+    ))
+}
+
 /// Spin up a one-shot mock server that replies with `status_line` + `body` to the FIRST request and
 /// captures that request's line. Returns (base_url, join handle delivering the request line). The PROVEN
 /// MT-066/MT-067 TcpListener pattern — no new dependency.
@@ -877,7 +896,8 @@ fn ac002_resolve_locus_ref_route_absent_is_typed_blocker() {
         "HTTP/1.1 404 Not Found",
         serde_json::json!({"error": "absent"}),
     );
-    let svc = LocusInteropService::with_base_url(base_url, "WS-1", no_reverse_lookup());
+    let svc = LocusInteropService::with_base_url(base_url.clone(), "WS-1", no_reverse_lookup())
+        .with_authenticated_context(mock_account_context(&base_url));
     let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").unwrap();
     let result = rt().block_on(async { svc.resolve_locus_ref(&wp).await });
     let req_line = server.join().unwrap();
@@ -914,7 +934,8 @@ fn ac002_resolve_locus_ref_resolved_record_projection() {
         "status": "Ready for Dev"
     });
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
-    let svc = LocusInteropService::with_base_url(base_url, "WS-9", no_reverse_lookup());
+    let svc = LocusInteropService::with_base_url(base_url.clone(), "WS-9", no_reverse_lookup())
+        .with_authenticated_context(mock_account_context(&base_url));
     let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").unwrap();
     let record = rt()
         .block_on(async { svc.resolve_locus_ref(&wp).await })
@@ -1015,30 +1036,19 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
         !save_receipt_event_id.is_empty(),
         "AC-006 LIVE: the rich-document save returns an authentic receipt"
     );
-    // Adversarial real-boundary fixture: a valid legacy Loom alias deliberately matches both normalized
-    // Locus queries. `loom_blocks.document_id` is a SurrealDB FK to the legacy `documents` table, never
-    // to a KRD id, so seed the real anchor first. Reverse lookup must retain only the canonical native
-    // projection (`block_id == rich_document_id`), never this noncanonical search hit. The same-source
-    // full-document transclusion counterexample remains covered by
+    // Adversarial real-boundary fixture: a valid standalone Loom alias deliberately matches both
+    // normalized Locus queries. Reverse lookup must retain only the canonical native projection
+    // (`block_id == rich_document_id`), never this noncanonical search hit. MT-154 D-154-1 retired the
+    // legacy /workspaces/:ws/documents route (Master Spec 02-system-architecture.md:2680-2705), so the
+    // alias no longer carries a legacy `documents` anchor; the noncanonical-hit property is unchanged.
+    // The same-source full-document transclusion counterexample remains covered by
     // `ac004_reverse_lookup_verifies_each_document_block_pair` below.
-    let legacy_document = be.post_workspace_json(
-        &format!("/workspaces/{ws}/documents"),
-        &serde_json::json!({
-            "title": format!("MT-068 legacy alias anchor {suffix}"),
-        }),
-    );
-    let legacy_document_id = legacy_document["id"]
-        .as_str()
-        .filter(|id| !id.is_empty())
-        .expect("real backend created the legacy document anchor")
-        .to_owned();
     let alias_block_id = format!("BLK-MT068-ALIAS-{suffix}");
     let alias_block = be.post_json(
         &format!("/workspaces/{ws}/loom/blocks"),
         &serde_json::json!({
             "block_id": alias_block_id,
             "content_type": "note",
-            "document_id": legacy_document_id,
             "title": format!(
                 "plain-text alias {} {}",
                 wp_uri.to_ascii_lowercase(),
@@ -1067,7 +1077,8 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
     let reverse_lookup =
         Arc::new(FindNotesHttp::new(be.base.clone()).with_authenticated_context(be.account()));
     let svc =
-        LocusInteropService::with_base_url(be.base.clone(), ws.clone(), reverse_lookup.clone());
+        LocusInteropService::with_base_url(be.base.clone(), ws.clone(), reverse_lookup.clone())
+            .with_authenticated_context(be.account());
     let wp = parse_locus_ref(&wp_uri).unwrap();
     let mt = parse_locus_ref(&mt_uri).unwrap();
     let (wp_record, mt_record, wp_docs, mt_docs) = rt().block_on(async {
@@ -1588,9 +1599,6 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
 
     let alias_cleanup = be.delete(&format!("/workspaces/{ws}/loom/blocks/{alias_block_id}"));
     assert!(matches!(alias_cleanup, 200 | 202 | 204 | 404));
-    let legacy_document_cleanup =
-        be.delete_workspace_resource(&format!("/documents/{legacy_document_id}"));
-    assert!(matches!(legacy_document_cleanup, 200 | 202 | 204 | 404));
     let document_cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
     assert!(matches!(document_cleanup, 200 | 202 | 204 | 404));
     assert_eq!(
@@ -1664,7 +1672,6 @@ fn resolve_locus_ref_against_real_surrealdb_live() {
             },
             "reverse_lookup_alias_boundary": {
                 "source_document_id": document_id,
-                "legacy_document_id": legacy_document_id,
                 "alias_block_id": alias_block_id,
                 "real_search_candidate_seen_for_wp": true,
                 "real_search_candidate_seen_for_mt": true,
@@ -2795,7 +2802,8 @@ fn ac004_reverse_lookup_case_robust_against_real_backend_live() {
         be.base.clone(),
         ws.clone(),
         Arc::new(FindNotesHttp::new(be.base.clone()).with_authenticated_context(be.account())),
-    );
+    )
+    .with_authenticated_context(be.account());
     let mt = parse_locus_ref("locus://mt/MT-034").expect("a valid mt ref");
     assert_eq!(
         mt.normalized, "locus://mt/mt-034",

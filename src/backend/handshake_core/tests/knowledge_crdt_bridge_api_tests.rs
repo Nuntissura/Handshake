@@ -18,7 +18,6 @@ mod account_session_support;
 
 use account_session_support::{AccountFixture, OwnerSession};
 use base64::Engine;
-use handshake_core::api::knowledge_crdt::{router_with_state, KnowledgeCrdtApiState};
 use handshake_core::kernel::crdt::actor_site::{
     derive_knowledge_site_id, KnowledgeActorIdV1, KnowledgeActorKind,
 };
@@ -38,12 +37,14 @@ async fn embedded_backend_or_blocked() -> EmbeddedTestBackend {
     }
 }
 
-/// Serve the knowledge CRDT router on a loopback port; returns the base url.
+/// Serve the knowledge CRDT router (plus the RichDocument routes that create the documents the
+/// CRDT draft log belongs to) on a loopback port; returns the base url. MT-154: every CRDT route
+/// authorizes the exact RichDocument and its workspace for the calling account session.
 async fn serve_knowledge_crdt(backend: &EmbeddedTestBackend) -> String {
-    let app = router_with_state(KnowledgeCrdtApiState {
-        db: backend.database.clone(),
-        pool: backend.storage.clone(),
-    });
+    let state =
+        user_manual_support::app_state_for(&SurrealDatabase::new(backend.storage.clone())).await;
+    let app = handshake_core::api::knowledge_crdt::routes(state.clone())
+        .merge(handshake_core::api::knowledge_documents::routes(state));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind loopback listener");
@@ -60,6 +61,43 @@ async fn owned_workspace(backend: &EmbeddedTestBackend, owner: &OwnerSession) ->
     owner
         .create_workspace(&user_manual_support::app_state_for(&db).await)
         .await
+}
+
+/// A RichDocument the account owns in `workspace_id`, created through POST /knowledge/documents.
+async fn owned_document(
+    base_url: &str,
+    client: &reqwest::Client,
+    workspace_id: &str,
+    label: &str,
+) -> String {
+    let response = client
+        .post(format!("{base_url}/knowledge/documents"))
+        .header("x-hsk-actor-id", format!("crdt-{label}"))
+        .header("x-hsk-kernel-task-run-id", format!("KTR-CRDT-{label}"))
+        .header("x-hsk-session-run-id", format!("SR-CRDT-{label}"))
+        .header("x-hsk-actor-kind", "operator")
+        .json(&serde_json::json!({
+            "workspace_id": workspace_id,
+            "title": format!("crdt {label}"),
+            "content_json": {
+                "type": "doc",
+                "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "body" }] }]
+            }
+        }))
+        .send()
+        .await
+        .expect("create rich document");
+    let status = response.status();
+    let body: serde_json::Value = response.json().await.expect("create document body");
+    assert_eq!(
+        status,
+        reqwest::StatusCode::OK,
+        "owner document create: {body}"
+    );
+    body["document"]["rich_document_id"]
+        .as_str()
+        .expect("created rich document id")
+        .to_owned()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -208,7 +246,7 @@ mod mt_067_yjs_bridge {
         let client = account.client();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = owned_workspace(&backend, &account).await;
-        let doc = format!("doc-mt067-{suffix}");
+        let doc = owned_document(&base_url, &client, &ws, &format!("mt067-{suffix}")).await;
         let crdt_doc = format!("crdt-mt067-{suffix}");
         let operator =
             KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op-http").expect("actor");
@@ -398,7 +436,7 @@ mod mt_075_conflict_ui {
         let client = account.client();
         let suffix = Uuid::now_v7().simple().to_string();
         let ws = owned_workspace(&backend, &account).await;
-        let doc = format!("doc-mt075-{suffix}");
+        let doc = owned_document(&base_url, &client, &ws, &format!("mt075-{suffix}")).await;
         let crdt_doc = format!("crdt-mt075-{suffix}");
         let operator =
             KnowledgeActorIdV1::new(KnowledgeActorKind::Operator, "op-ui").expect("actor");

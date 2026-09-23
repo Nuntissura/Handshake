@@ -1,3 +1,16 @@
+//! Legacy canvas HTTP surface (`canvases`, `canvas_nodes`, `canvas_edges`).
+//!
+//! AUTHORITY (MT-154; Master Spec 02-system-architecture.md:2758/2773/2776, LM-RLS-001/002):
+//! every route requires an authenticated account session bound to the live native channel and
+//! authorizes the canvas's workspace through the ResourceBroker (Read+fs.read for reads,
+//! Create/Update+fs.write for writes, Delete+fs.write for deletes) before any protected table
+//! access. `/canvases/:canvas_id` carries no workspace, so the canvas's workspace is resolved only
+//! through the caller's record-user permissions: a canvas the caller cannot read is answered with
+//! the constant denial, never a 404 that would disclose its existence. Every read and write runs
+//! as the account's record user (`with_record_user_scope`), the write actor is the session
+//! principal (never a header-supplied actor), and a write the table permissions silently drop is
+//! answered with the constant denial.
+
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
@@ -7,22 +20,22 @@ use axum::{
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::Value;
-use uuid::Uuid;
 
 use crate::{
-    diagnostics::{
-        DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
-    },
+    api::authority::AuthorizedResourceContext,
     models::{
         CanvasEdgeResponse, CanvasNodeResponse, CanvasResponse, CanvasWithGraphResponse,
         CreateCanvasRequest, ErrorResponse,
     },
     storage::{
+        surreal::resource_authority::{RecordUserScope, ResourceAction, ResourceKind},
         CanvasEdge, CanvasGraph, CanvasNode, NewCanvas, NewCanvasEdge, NewCanvasNode, StorageError,
-        WriteActorKind, WriteContext,
+        WriteContext,
     },
     AppState,
 };
+
+type ApiError = (StatusCode, Json<ErrorResponse>);
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -37,179 +50,88 @@ pub fn routes(state: AppState) -> Router {
                 .put(update_canvas_graph)
                 .delete(delete_canvas),
         )
+        // Deny by default before any extractor, body parse or table access (AC-154-2).
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::api::authority::require_authenticated_session,
+        ))
         .with_state(state)
 }
 
-const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
-const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
-const HSK_HEADER_JOB_ID: &str = "x-hsk-job-id";
-const HSK_HEADER_WORKFLOW_ID: &str = "x-hsk-workflow-id";
-
-fn is_silent_edit(err: &StorageError) -> bool {
-    matches!(
-        err,
-        StorageError::Guard("HSK-403-SILENT-EDIT")
-            | StorageError::Validation("HSK-403-SILENT-EDIT")
+/// The constant protected-resource denial (same body as `api::authority::constant_denial`).
+fn protected_denial() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-PROTECTED-RESOURCE",
+        }),
     )
 }
 
-fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-}
-
-fn parse_actor_kind(raw: Option<&str>) -> Result<WriteActorKind, StorageError> {
-    let Some(value) = raw else {
-        return Ok(WriteActorKind::Human);
-    };
-
-    let normalized = value.trim().to_ascii_uppercase();
-    match normalized.as_str() {
-        "HUMAN" => Ok(WriteActorKind::Human),
-        "AI" => Ok(WriteActorKind::Ai),
-        "SYSTEM" => Ok(WriteActorKind::System),
-        _ => Err(StorageError::Validation("invalid_actor_kind")),
-    }
-}
-
-fn parse_uuid(raw: Option<&str>) -> Option<Uuid> {
-    raw.and_then(|value| Uuid::parse_str(value.trim()).ok())
-}
-
-async fn record_silent_edit_diagnostic(
+/// Authorizes `action` on the workspace through the ResourceBroker before any table access.
+/// Reads use `fs.read`; create/update/delete use `fs.write`. A missing, foreign or unauthorized
+/// workspace is indistinguishable: every failure is the constant denial.
+async fn workspace_authority(
     state: &AppState,
     headers: &HeaderMap,
-    wsid_hint: Option<&str>,
-    ctx_hint: Option<&WriteContext>,
-    err: &StorageError,
-    route_tag: &'static str,
-) {
-    if !is_silent_edit(err) {
-        return;
-    }
-
-    let ctx_job_id = ctx_hint.and_then(|ctx| ctx.job_id);
-    let header_job_id = parse_uuid(header_str(headers, HSK_HEADER_JOB_ID));
-    let job_id = ctx_job_id.or(header_job_id).map(|id| id.to_string());
-
-    let ctx_workflow_id = ctx_hint.and_then(|ctx| ctx.workflow_id);
-    let header_workflow_id = parse_uuid(header_str(headers, HSK_HEADER_WORKFLOW_ID));
-    let workflow_id = ctx_workflow_id.or(header_workflow_id);
-
-    let missing_context = ctx_hint.is_some_and(|ctx| {
-        ctx.actor_kind == WriteActorKind::Ai && (ctx.job_id.is_none() || ctx.workflow_id.is_none())
-    });
-
-    let failure_mode_tag = if missing_context {
-        "silent_edit:missing_context"
+    workspace_id: &str,
+    action: ResourceAction,
+) -> Result<AuthorizedResourceContext, ApiError> {
+    let capability = if matches!(action, ResourceAction::Read) {
+        "fs.read"
     } else {
-        "silent_edit:context_invalid"
+        "fs.write"
     };
-
-    let message = if missing_context {
-        "AI write rejected by StorageGuard: missing required job/workflow context."
-    } else {
-        "AI write rejected by StorageGuard: job/workflow context invalid."
-    };
-
-    let mut tags = vec![
-        "hsk:guard".to_string(),
-        "hsk:silent_edit".to_string(),
-        failure_mode_tag.to_string(),
-        format!("route:{}", route_tag),
-    ];
-    if let Some(workflow_id) = workflow_id {
-        tags.push(format!("workflow_id:{}", workflow_id));
-    }
-
-    let input = DiagnosticInput {
-        title: "No Silent Edits: StorageGuard blocked AI write".to_string(),
-        message: message.to_string(),
-        severity: DiagnosticSeverity::Error,
-        source: DiagnosticSource::Engine,
-        surface: DiagnosticSurface::System,
-        tool: Some("storage_guard".to_string()),
-        code: Some("HSK-403-SILENT-EDIT".to_string()),
-        tags: Some(tags),
-        wsid: wsid_hint.map(str::to_string),
-        job_id,
-        model_id: None,
-        actor: None,
-        capability_id: None,
-        policy_decision_id: None,
-        locations: None,
-        evidence_refs: None,
-        link_confidence: LinkConfidence::Unlinked,
-        status: None,
-        count: None,
-        first_seen: None,
-        last_seen: None,
-        timestamp: None,
-        updated_at: None,
-    };
-
-    let diagnostic = match input.into_diagnostic() {
-        Ok(diagnostic) => diagnostic,
-        Err(error) => {
-            tracing::error!(
-                target: "handshake_core",
-                route = route_tag,
-                error = %error,
-                "failed to build silent-edit diagnostic"
-            );
-            return;
-        }
-    };
-
-    if let Err(error) = state.diagnostics.record_diagnostic(diagnostic).await {
-        tracing::error!(
-            target: "handshake_core",
-            route = route_tag,
-            error = %error,
-            "failed to record silent-edit diagnostic"
-        );
-    }
+    crate::api::authority::authorize_request(
+        state,
+        headers,
+        capability,
+        ResourceKind::Workspace,
+        workspace_id,
+        action,
+    )
+    .await
+    .map_err(|_| protected_denial())
 }
 
-async fn write_context_from_headers(
+/// `/canvases/:canvas_id`: resolve the canvas's workspace ONLY through the caller's record-user
+/// permissions (the `canvases` select predicate requires workspace read), so an unreadable canvas
+/// is indistinguishable from an absent one, then authorize `action` on that workspace.
+async fn canvas_authority(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<WriteContext, StorageError> {
-    let actor_kind = parse_actor_kind(header_str(headers, HSK_HEADER_ACTOR_KIND))?;
-    let actor_id = header_str(headers, HSK_HEADER_ACTOR_ID).map(ToOwned::to_owned);
+    canvas_id: &str,
+    action: ResourceAction,
+) -> Result<AuthorizedResourceContext, ApiError> {
+    let credentials = crate::api::authority::authenticated_session_credentials(state, headers)
+        .await
+        .map_err(|_| protected_denial())?;
+    let lookup = RecordUserScope {
+        grant_id: None,
+        workspace_id: None,
+        session_token: credentials.session_token,
+        channel_binding_hash: Some(credentials.channel_binding_hash),
+        resource_id: String::new(),
+        session_id: credentials.context.session_id,
+        capability_id: "fs.read".to_owned(),
+        action: ResourceAction::Read,
+    };
+    let workspace_id = state
+        .surreal
+        .with_record_user_scope(lookup, state.storage.get_canvas_with_graph(canvas_id))
+        .await
+        .map(|graph| graph.canvas.workspace_id)
+        .map_err(|_| protected_denial())?;
+    workspace_authority(state, headers, &workspace_id, action).await
+}
 
-    match actor_kind {
-        WriteActorKind::Human => Ok(WriteContext::human(actor_id)),
-        WriteActorKind::System => Ok(WriteContext::system(actor_id)),
-        WriteActorKind::Ai => {
-            let job_id = parse_uuid(header_str(headers, HSK_HEADER_JOB_ID));
-            let workflow_id = parse_uuid(header_str(headers, HSK_HEADER_WORKFLOW_ID));
-
-            let (job_id, workflow_id) = match (job_id, workflow_id) {
-                (Some(job_id), Some(workflow_id)) => (job_id, workflow_id),
-                (job_id, workflow_id) => {
-                    return Ok(WriteContext::ai(actor_id, job_id, workflow_id))
-                }
-            };
-
-            let job = state.storage.get_ai_job(&job_id.to_string()).await;
-            match job {
-                Ok(job) => {
-                    if job.workflow_run_id != Some(workflow_id) {
-                        return Err(StorageError::Guard("HSK-403-SILENT-EDIT"));
-                    }
-                }
-                Err(StorageError::NotFound(_)) => {
-                    return Err(StorageError::Guard("HSK-403-SILENT-EDIT"));
-                }
-                Err(err) => return Err(err),
-            }
-
-            Ok(WriteContext::ai(actor_id, Some(job_id), Some(workflow_id)))
-        }
+/// The write actor is the authenticated session principal, never a header-supplied identity.
+fn session_write_context(authority: &AuthorizedResourceContext) -> Result<WriteContext, ApiError> {
+    let actor_id = Some(authority.actor_id.clone());
+    match authority.actor_kind.as_str() {
+        "operator" => Ok(WriteContext::human(actor_id)),
+        "system" => Ok(WriteContext::system(actor_id)),
+        _ => Err(protected_denial()),
     }
 }
 
@@ -247,35 +169,17 @@ async fn delete_canvas(
     State(state): State<AppState>,
     Path(canvas_id): Path<String>,
     headers: HeaderMap,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = match write_context_from_headers(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                None,
-                None,
-                &err,
-                "/canvases/:canvas_id",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
-
-    if let Err(err) = state.storage.delete_canvas(&ctx, &canvas_id).await {
-        record_silent_edit_diagnostic(
-            &state,
-            &headers,
-            None,
-            Some(&ctx),
-            &err,
-            "/canvases/:canvas_id",
+) -> Result<StatusCode, ApiError> {
+    let authority = canvas_authority(&state, &headers, &canvas_id, ResourceAction::Delete).await?;
+    let ctx = session_write_context(&authority)?;
+    state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state.storage.delete_canvas(&ctx, &canvas_id),
         )
-        .await;
-        return Err(map_storage_error(err));
-    }
+        .await
+        .map_err(map_canvas_error)?;
 
     tracing::info!(target: "handshake_core", route = "/canvases/:canvas_id", status = "deleted", canvas_id = %canvas_id, "canvas deleted");
 
@@ -287,49 +191,24 @@ async fn create_canvas(
     Path(workspace_id): Path<String>,
     headers: HeaderMap,
     Json(payload): Json<CreateCanvasRequest>,
-) -> Result<(StatusCode, Json<CanvasResponse>), (StatusCode, Json<ErrorResponse>)> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = match write_context_from_headers(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                Some(&workspace_id),
-                None,
-                &err,
-                "/workspaces/:workspace_id/canvases",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
-
-    let canvas = match state
-        .storage
-        .create_canvas(
-            &ctx,
-            NewCanvas {
-                workspace_id: workspace_id.clone(),
-                title: payload.title.clone(),
-            },
+) -> Result<(StatusCode, Json<CanvasResponse>), ApiError> {
+    let authority =
+        workspace_authority(&state, &headers, &workspace_id, ResourceAction::Create).await?;
+    let ctx = session_write_context(&authority)?;
+    let canvas = state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state.storage.create_canvas(
+                &ctx,
+                NewCanvas {
+                    workspace_id: workspace_id.clone(),
+                    title: payload.title.clone(),
+                },
+            ),
         )
         .await
-    {
-        Ok(canvas) => canvas,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                Some(&workspace_id),
-                Some(&ctx),
-                &err,
-                "/workspaces/:workspace_id/canvases",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
+        .map_err(map_storage_error)?;
 
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/canvases", status = "created", workspace_id = %workspace_id, canvas_id = %canvas.id, "canvas created");
 
@@ -348,12 +227,16 @@ async fn create_canvas(
 async fn list_canvases(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
-) -> Result<Json<Vec<CanvasResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    ensure_workspace_exists(&state, &workspace_id).await?;
-
+    headers: HeaderMap,
+) -> Result<Json<Vec<CanvasResponse>>, ApiError> {
+    let authority =
+        workspace_authority(&state, &headers, &workspace_id, ResourceAction::Read).await?;
     let rows = state
-        .storage
-        .list_canvases(&workspace_id)
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state.storage.list_canvases(&workspace_id),
+        )
         .await
         .map_err(map_storage_error)?;
 
@@ -376,12 +259,17 @@ async fn list_canvases(
 async fn get_canvas(
     State(state): State<AppState>,
     Path(canvas_id): Path<String>,
-) -> Result<Json<CanvasWithGraphResponse>, (StatusCode, Json<ErrorResponse>)> {
+    headers: HeaderMap,
+) -> Result<Json<CanvasWithGraphResponse>, ApiError> {
+    let authority = canvas_authority(&state, &headers, &canvas_id, ResourceAction::Read).await?;
     let graph = state
-        .storage
-        .get_canvas_with_graph(&canvas_id)
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state.storage.get_canvas_with_graph(&canvas_id),
+        )
         .await
-        .map_err(map_storage_error)?;
+        .map_err(map_canvas_error)?;
 
     tracing::info!(target: "handshake_core", route = "/canvases/:canvas_id", status = "ok", canvas_id = %canvas_id, "get canvas");
 
@@ -393,7 +281,8 @@ async fn rename_canvas(
     Path(canvas_id): Path<String>,
     headers: HeaderMap,
     Json(payload): Json<RenameCanvasRequest>,
-) -> Result<Json<CanvasResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<CanvasResponse>, ApiError> {
+    let authority = canvas_authority(&state, &headers, &canvas_id, ResourceAction::Update).await?;
     if payload.title.trim().is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -402,45 +291,20 @@ async fn rename_canvas(
             }),
         ));
     }
-    let ctx = match write_context_from_headers(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                None,
-                None,
-                &err,
-                "/canvases/:canvas_id",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
-    let canvas = match state
-        .storage
-        .rename_canvas(
-            &ctx,
-            &canvas_id,
-            payload.title.trim(),
-            payload.expected_updated_at,
+    let ctx = session_write_context(&authority)?;
+    let canvas = state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state.storage.rename_canvas(
+                &ctx,
+                &canvas_id,
+                payload.title.trim(),
+                payload.expected_updated_at,
+            ),
         )
         .await
-    {
-        Ok(canvas) => canvas,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                None,
-                Some(&ctx),
-                &err,
-                "/canvases/:canvas_id",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
+        .map_err(map_canvas_error)?;
     Ok(Json(CanvasResponse {
         id: canvas.id,
         workspace_id: canvas.workspace_id,
@@ -455,66 +319,40 @@ async fn update_canvas_graph(
     Path(canvas_id): Path<String>,
     headers: HeaderMap,
     Json(payload): Json<UpdateCanvasGraphRequest>,
-) -> Result<Json<CanvasWithGraphResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = match write_context_from_headers(&state, &headers).await {
-        Ok(ctx) => ctx,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                None,
-                None,
-                &err,
-                "/canvases/:canvas_id",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
-
-    let graph = match state
-        .storage
-        .update_canvas_graph(
-            &ctx,
-            &canvas_id,
-            payload
-                .nodes
-                .into_iter()
-                .map(|incoming| NewCanvasNode {
-                    id: incoming.id,
-                    kind: incoming.kind,
-                    position_x: incoming.position_x,
-                    position_y: incoming.position_y,
-                    data: incoming.data,
-                })
-                .collect(),
-            payload
-                .edges
-                .into_iter()
-                .map(|incoming| NewCanvasEdge {
-                    id: incoming.id,
-                    from_node_id: incoming.from_node_id,
-                    to_node_id: incoming.to_node_id,
-                    kind: incoming.kind,
-                })
-                .collect(),
+) -> Result<Json<CanvasWithGraphResponse>, ApiError> {
+    let authority = canvas_authority(&state, &headers, &canvas_id, ResourceAction::Update).await?;
+    let ctx = session_write_context(&authority)?;
+    let nodes = payload
+        .nodes
+        .into_iter()
+        .map(|incoming| NewCanvasNode {
+            id: incoming.id,
+            kind: incoming.kind,
+            position_x: incoming.position_x,
+            position_y: incoming.position_y,
+            data: incoming.data,
+        })
+        .collect();
+    let edges = payload
+        .edges
+        .into_iter()
+        .map(|incoming| NewCanvasEdge {
+            id: incoming.id,
+            from_node_id: incoming.from_node_id,
+            to_node_id: incoming.to_node_id,
+            kind: incoming.kind,
+        })
+        .collect();
+    let graph = state
+        .surreal
+        .with_record_user_scope(
+            authority.record_user_scope.clone(),
+            state
+                .storage
+                .update_canvas_graph(&ctx, &canvas_id, nodes, edges),
         )
         .await
-    {
-        Ok(graph) => graph,
-        Err(err) => {
-            record_silent_edit_diagnostic(
-                &state,
-                &headers,
-                None,
-                Some(&ctx),
-                &err,
-                "/canvases/:canvas_id",
-            )
-            .await;
-            return Err(map_storage_error(err));
-        }
-    };
+        .map_err(map_canvas_error)?;
 
     tracing::info!(target: "handshake_core", route = "/canvases/:canvas_id", status = "ok", canvas_id = %canvas_id, nodes = graph.nodes.len(), edges = graph.edges.len(), "update canvas graph");
 
@@ -558,23 +396,24 @@ fn edge_to_response(edge: CanvasEdge) -> CanvasEdgeResponse {
     }
 }
 
-async fn ensure_workspace_exists(
-    state: &AppState,
-    workspace_id: &str,
-) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
-    match state.storage.get_workspace(workspace_id).await {
-        Ok(Some(_)) => Ok(()),
-        Ok(None) => Err(not_found("workspace_not_found")),
-        Err(err) => Err(map_storage_error(err)),
+/// `/canvases/:canvas_id` errors: the caller already proved it can read the canvas, so a canvas
+/// that vanished under the authorized scope is answered like an unreadable one (constant denial,
+/// never an existence-disclosing 404).
+fn map_canvas_error(err: StorageError) -> ApiError {
+    match err {
+        StorageError::NotFound(_) => protected_denial(),
+        other => map_storage_error(other),
     }
 }
 
-fn map_storage_error(err: StorageError) -> (StatusCode, Json<ErrorResponse>) {
+fn map_storage_error(err: StorageError) -> ApiError {
     match err {
         StorageError::NotFound(code) => not_found(code),
         StorageError::Conflict(code) | StorageError::ConflictDetails { code, .. } => {
             (StatusCode::CONFLICT, Json(ErrorResponse { error: code }))
         }
+        // MT-154 silent-deny detection: a record-user write the permissions dropped.
+        StorageError::Guard("HSK-403-PROTECTED-RESOURCE") => protected_denial(),
         StorageError::Guard(_) | StorageError::Validation("HSK-403-SILENT-EDIT") => (
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -591,7 +430,7 @@ fn map_storage_error(err: StorageError) -> (StatusCode, Json<ErrorResponse>) {
     }
 }
 
-fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
+fn internal_error(err: impl std::fmt::Display) -> ApiError {
     tracing::error!(target: "handshake_core", error = %err, "db_error");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -599,7 +438,7 @@ fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorRespons
     )
 }
 
-fn not_found(code: &'static str) -> (StatusCode, Json<ErrorResponse>) {
+fn not_found(code: &'static str) -> ApiError {
     (StatusCode::NOT_FOUND, Json(ErrorResponse { error: code }))
 }
 
@@ -620,6 +459,17 @@ mod tests {
         let (status, Json(body)) = map_storage_error(StorageError::NotFound("canvas"));
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert_eq!(body.error, "canvas");
+    }
+
+    #[test]
+    fn mt154_canvas_id_route_never_discloses_existence() {
+        let (status, Json(body)) = map_canvas_error(StorageError::NotFound("canvas"));
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(body.error, "HSK-403-PROTECTED-RESOURCE");
+        let (status, Json(body)) =
+            map_storage_error(StorageError::Guard("HSK-403-PROTECTED-RESOURCE"));
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert_eq!(body.error, "HSK-403-PROTECTED-RESOURCE");
     }
 }
 
