@@ -87,6 +87,19 @@ impl ExportProvenance {
     }
 }
 
+/// MT-156: the directory a bundle is written to. It follows the configured workspace root
+/// (`HANDSHAKE_WORKSPACE_ROOT`) when set, so exports never land in the process working directory
+/// (Codex CX-109 portability; test runs keep output under their own runtime root).
+pub fn default_bundle_dir(bundle_id: &str) -> PathBuf {
+    let root = std::env::var_os("HANDSHAKE_WORKSPACE_ROOT")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    root.join("data")
+        .join("bundles")
+        .join(format!("bundle-{}", bundle_id))
+}
+
 pub fn bundle_path(bundle_id: &str) -> Option<PathBuf> {
     BUNDLE_STORE
         .lock()
@@ -278,9 +291,7 @@ impl DefaultDebugBundleExporter {
     }
 
     fn default_output_path(bundle_id: &str) -> PathBuf {
-        PathBuf::from("data")
-            .join("bundles")
-            .join(format!("bundle-{}", bundle_id))
+        default_bundle_dir(bundle_id)
     }
 
     fn store_bundle_location(&self, bundle_id: &str, path: PathBuf) {
