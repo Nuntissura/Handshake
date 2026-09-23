@@ -1,22 +1,18 @@
 ﻿# ACTIVATION_MANAGER_PROTOCOL
-## Deterministic Atomic Governance Files [CX-908]
+## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
 - Roles MUST consume typed JSON, JSONL, or declared contract fields before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
 - When changing packet, refinement, MT, startup, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
-## Governance Kernel Product-Governance Testbed [CX-911]
+## Governance Kernel Product-Governance Testbed [CX-914]
 - The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
 - External apps/tools and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, and runtime artifacts.
 - Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
-- `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the machine-readable topology ledger for governance roles, public scripts, checks, tests, Just recipes, phase/checkpoint bundles, workflow artifacts, authority owners, side-effect classes, primary debug artifacts, and replacement/sunset status.
-- All non-Coder roles MUST keep the topology ledger current when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, or session/runtime authority surfaces.
-- If this role cannot directly write `.GOV/` from its current lane, it MUST emit a typed blocker/proposal naming the exact topology update required; the owning coordinator must update the ledger before closeout.
-- New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
-- Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
+Retired 2026-09-24: topology ledger deleted with the harness.
 
 ## Validation Readiness [AM-OUT]
 
@@ -74,18 +70,18 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - This role is the pre-launch authoring lane so the Orchestrator can stay focused on workflow authority, repair decisions, launch control, and multi-WP coordination.
 - It exists specifically to offload refinement-heavy pre-launch reasoning from the Orchestrator, reduce context rot, and keep orchestrator-managed multi-WP steering viable.
 
-## Adult Production Boundary (When Applicable) [CX-123]
+## Adult Production Boundary (When Applicable) 
 
 - When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
 - The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The Activation Manager does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
 - Preserve raw sexual descriptors when they carry production meaning in prompts, recipes, workflow notes, reviews, scoring, filenames, labels, story cards, scene concepts, character archetypes, product-facing production text, or handoffs.
 - Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include `pussy`, `tits`, `dick`, `cock`, `cumplay`, `sluts`, `whores`, `fucktoy`, `stud`, and `monster dick`; these are non-exhaustive style signals, not a fixed vocabulary list.
 
-## Inter-Role Wire Discipline [CX-130] (HARD)
+## Inter-Role Wire Discipline [CX-914] (HARD)
 
-Refinement signature, packet creation, and pre-launch handback to the Orchestrator/Coder pipeline use typed fields. Pre-launch state (signature, scope, MT contract, model profiles, worktree assignment) crosses into orchestrator-managed via schema fields, never through prose summaries the next role must parse. Operator-facing refinement narrative belongs in the refinement artifact for human review and is NOT the wire to the Orchestrator. See Codex `[CX-130]` for the full rule.
+Refinement signature, packet creation, and pre-launch handback to the Orchestrator/Coder pipeline use typed fields. Pre-launch state (signature, scope, MT contract, model profiles, worktree assignment) crosses into orchestrator-managed via schema fields, never through prose summaries the next role must parse. Operator-facing refinement narrative belongs in the refinement artifact for human review and is NOT the wire to the Orchestrator. See Codex `[CX-914]` for the full rule.
 
-## Mechanical Intervention Discipline [CX-218K]
+## Mechanical Intervention Discipline [CX-AUTH-003]
 
 - Before repairing activation, readiness, spec enrichment, or packet hydration drift, classify 3-5 plausible causes: stale readiness projection, signature/scope mismatch, packet/spec pointer drift, worktree/backup drift, documentation/protocol drift, session drift, and clock/staleness drift.
 - Choose the cheapest deterministic read, repair, or typed helper first: readiness refresh, target artifact checks, packet/refinement checks, bounded activation repair, and typed handoff fields before asking for a model continuation.
@@ -94,7 +90,7 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 - Do not launch Coder, WP Validator, or Integration Validator. If downstream routing is blocked, hand the exact mechanical blocker back to Orchestrator.
 - Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as shared lane context for what happens after activation handoff.
 
-## Governance Stabilization Duty [CX-218L]
+## Governance Stabilization Duty [CX-AUTH-003]
 
 - Activation Manager owns pre-launch governance paperwork quality and must actively strive to make brittle `ORCHESTRATOR_MANAGED` activation transitions more mechanical. If refinement, packet, MT scaffolding, signature evidence, readiness output, build-order, traceability, or stub projections drift, repair the owned artifact or emit a typed handoff blocker before downstream launch.
 - Do not rely on Orchestrator babysitting to notice pre-launch paperwork gaps after handoff. `ACTIVATION_READINESS` must name unresolved drift mechanically enough for Orchestrator to launch, stop, or route repair without transcript interpretation.
@@ -132,7 +128,7 @@ During WP activation and microtask creation, the Activation Manager MUST run pre
 - When refinement, enrichment, matrix upkeep, or primitive-index work discovers a new high-ROI item, missing capability, unknown interaction, or follow-up requirement, the Activation Manager MUST create or update stub backlog items instead of silently dropping the discovery.
 - Unknown product behavior must resolve to explicit uncertainty plus a stub or spec-enrichment path. Do not guess.
 
-## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
+## Current Indexed Master Spec Write Surface (HARD)
 
 Activation Manager is one of the only roles allowed to patch current Master Spec content, and only during approved pre-launch enrichment. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`.
 

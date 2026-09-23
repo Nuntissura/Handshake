@@ -11,9 +11,11 @@
 | `MICRO_TASK_CONTRACT_TEMPLATE.json` | `hsk.microtask_contract@1` | WP-KERNEL-012 `MT-*.json` only (frozen) |
 | `REFINEMENT_CONTRACT_TEMPLATE.json` | `hsk.refinement_contract@1` | WP-KERNEL-012 `refinement.json` only (frozen) |
 
-V1 remains for WP-KERNEL-012 only. Do not migrate its `@1` files and do not author a new WP from V1. The V1 files are still loaded by `.GOV/roles_shared/checks/template-hbr-fields.mjs` (and `template-hbr-fields.test.mjs`), so they must stay in place.
+V1 remains for WP-KERNEL-012 only. Do not migrate its `@1` files and do not author a new WP from V1; keep the V1 files in place while WP-KERNEL-012 is open.
 
 V2 rules (each file's `_notes` states them): policy lives in `rule_refs` (Codex CX ids); the MT JSON is the status and recovery surface; digests are optional until Handshake exists; keys starting with `_` are author comments; V1 labels map as `PASS_Vn -> passed/pass`, `FAIL_Vn -> needs_remediation/fail`, `PARTIAL -> validating/inconclusive + blockers[] entry`.
+
+Three lane vocabularies exist and do not mix: the WP `workflow_lane` names the governance workflow that runs the packet (for example `ORCHESTRATOR_MANAGED`); MT `execution.lane` names the kind of MT work (`implementation`, `gui`, ..., `special_runs`); WP `runtime_lanes` declares product-internal parallel runtime lanes (CX-PILLAR-001).
 
 ## Markdown and other templates
 

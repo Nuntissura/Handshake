@@ -1,24 +1,20 @@
 ﻿# CLASSIC_ORCHESTRATOR_PROTOCOL
-## Deterministic Atomic Governance Files [CX-908]
+## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
 - Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
 - When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
-## Governance Kernel Product-Governance Testbed [CX-911]
+## Governance Kernel Product-Governance Testbed [CX-914]
 - The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
 - ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
 - Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
-- `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the machine-readable topology ledger for governance roles, public scripts, checks, tests, Just recipes, phase/checkpoint bundles, workflow artifacts, authority owners, side-effect classes, primary debug artifacts, and replacement/sunset status.
-- All non-Coder roles MUST keep the topology ledger current when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, or session/runtime authority surfaces.
-- If this role cannot directly write `.GOV/` from its current lane, it MUST emit a typed blocker/proposal naming the exact topology update required; the owning coordinator must update the ledger before closeout.
-- New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
-- Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
+Retired 2026-09-24: topology ledger deleted with the harness.
 
-## WP Dossier Runtime Archive [CX-218J1]
+## WP Dossier Runtime Archive [CX-AUTH-003]
 
 Retired with the governance harness on 2026-09-23.
 
@@ -46,7 +42,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - Per-MT UserManual duty: every manual-relay MT must carry a `user_manual_obligation` field. Product-behavior MTs require same-change UserManual diff evidence, `MANUAL_VERSION` handling when applicable, a no-context/manual-self-consistency test, and direct inspection of the updated manual path. Pure repo-governance MTs may mark this `NOT_APPLICABLE` only with a typed reason.
 - Handoff duty: require HandoffGate (MT-004) and packet HBR matrix closure (read from the packet; no check script is available) before manual relay closeout. Do not relay a PASS-shaped handoff while any required HBR row is `PENDING`, `STEER`, or `BLOCKED`.
 
-## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
+## Current Indexed Master Spec Write Surface (HARD)
 
 Classic Orchestrator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`. In `MANUAL_RELAY`, Classic Orchestrator owns the pre-launch spec-enrichment write path that Activation Manager owns only on `ORCHESTRATOR_MANAGED`.
 
@@ -70,7 +66,7 @@ Write sequence:
 - Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
 - Verify manifest, resolver index, modules and changelog consistency by reading them; no check script is available.
 
-## Adult Production Boundary (When Applicable) [CX-123]
+## Adult Production Boundary (When Applicable) 
 
 - When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
 - The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The Classic Orchestrator does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
@@ -110,7 +106,7 @@ Write sequence:
 - Use structured relay envelope: `RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`
 - New manual-relay packets still carry `PACKET_ACCEPTANCE_MATRIX`; Classic Orchestrator must preserve stable acceptance row IDs during combined pre-launch/packet repair and must not replace unresolved rows with prose-only acceptance claims.
 
-## Mechanical Intervention Discipline [CX-218K]
+## Mechanical Intervention Discipline [CX-AUTH-003]
 
 - Before every manual-relay patch, dispatch, repair, or stalled-handoff action, classify 3-5 plausible causes: relay-envelope drift, packet/runtime mismatch, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/memory/worktree drift.
 - Choose the cheapest deterministic read or repair first: packet/runtime reads and typed relay envelopes.
@@ -118,7 +114,7 @@ Write sequence:
 - If the projected actor cannot act because the helper text, protocol, or packet route is wrong, patch that durable surface in the Classic Orchestrator lane instead of teaching one role by free-form prose.
 - Do not introduce `ACTIVATION_MANAGER` as a second authority lane on `MANUAL_RELAY`; Classic Orchestrator owns the combined pre-launch duties here.
 
-## Governance Stabilization Duty [CX-218L]
+## Governance Stabilization Duty [CX-AUTH-003]
 
 - Classic Orchestrator owns manual-relay governance paperwork and workflow stability, and must actively strive to make brittle relay transitions more mechanical. If manual relay depends on repeated Operator explanation, chat notes, or ad hoc handoff interpretation, convert that repeated friction into relay envelope fields, packet template law, manual-relay helper behavior, protocol text, or startup brief guidance.
 - Do not wait for Orchestrator-managed tooling or Activation Manager to repair `MANUAL_RELAY` drift. Patch the Classic-owned durable surface or record a typed blocker that names the exact owner, artifact, and helper mismatch.
@@ -162,9 +158,9 @@ Classic Orchestrator owns pre-launch for manual relay, so it also owns the pre-i
 - `WP_VALIDATOR` and `INTEGRATION_VALIDATOR` are the split validator roles for `ORCHESTRATOR_MANAGED` workflow. Do not route manual work into split roles unless the packet explicitly opts into that split.
 - When the projected next actor is `VALIDATOR`, it resumes from the Validator protocol and the MT JSON status.
 
-### Wire Discipline [CX-130] (HARD)
+### Wire Discipline [CX-914] (HARD)
 
-Even in `MANUAL_RELAY`, the structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) carries the routing-decisive payload as fields. Operator narrative may surround the typed payload for human readability but does not replace it. The Operator and Classic Orchestrator MUST NOT collapse routing-decisive content into free-form prose where a typed envelope field exists. Operator-facing artifacts (packet, dossier, validator report) are projections, not the wire between roles. See Codex `[CX-130]` for the full rule.
+Even in `MANUAL_RELAY`, the structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) carries the routing-decisive payload as fields. Operator narrative may surround the typed payload for human readability but does not replace it. The Operator and Classic Orchestrator MUST NOT collapse routing-decisive content into free-form prose where a typed envelope field exists. Operator-facing artifacts (packet, dossier, validator report) are projections, not the wire between roles. See Codex `[CX-914]` for the full rule.
 
 ## Conversation Memory
 

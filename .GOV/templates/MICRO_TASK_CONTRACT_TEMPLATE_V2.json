@@ -8,7 +8,9 @@
     "Versioned validation_vN / remediation_vN blocks become verdicts[] and submissions[]; verdicts[].payload keeps the existing hsk.mt_validation_verdict@1 write-up.",
     "Value mapping from V1 labels: PASS_Vn -> phase passed / decision pass; FAIL_Vn -> needs_remediation / fail; PARTIAL -> validating / inconclusive plus a blockers[] entry.",
     "lifecycle.phase is authoritative; lifecycle.status is the derived label <DECISION>_V<n> kept for old readers.",
-    "execution.lane: repo values PRODUCT_CODE_BACKEND and PRODUCT_CODE_BACKEND_PLUS_NATIVE map to implementation; operator decision pending (see _repo_lane_values)."
+    "execution.lane: repo values PRODUCT_CODE_BACKEND and PRODUCT_CODE_BACKEND_PLUS_NATIVE map to implementation; operator decision pending (see _repo_lane_values).",
+    "failure_class keeps the repo meaning: a cause id (e.g. C1V-088-GUARD-STALE). failure_kind is the separate product|infrastructure|flaky classification; only product failures become MT remediation (CX-VAL-006).",
+    "lifecycle.rounds_without_output counts wasted rounds and resets on a new pushed commit or new verdict; at 2 the phase becomes needs_new_approach (status label NEEDS_NEW_APPROACH) until a diagnosis in diagnosis_refs names a new cause (CX-EXEC-013)."
   ],
   "instance_policy": {
     "omit_empty_optional_fields": true,
@@ -34,7 +36,11 @@
     "CX-VAL-002",
     "CX-VAL-003",
     "CX-VAL-004",
-    "CX-EXEC-009"
+    "CX-EXEC-009",
+    "CX-EXEC-013",
+    "CX-EXEC-014",
+    "CX-VAL-005",
+    "CX-VAL-006"
   ],
   "_rule_refs_replaces": [
     "contract_authority",
@@ -121,7 +127,8 @@
       "diagnostics",
       "documentation",
       "validation",
-      "migration"
+      "migration",
+      "special_runs"
     ],
     "_repo_lane_values": {
       "PRODUCT_CODE_BACKEND": "implementation",
@@ -216,9 +223,12 @@
       "needs_remediation",
       "passed",
       "blocked_on_dependency",
-      "needs_managed_resource_proof"
+      "needs_managed_resource_proof",
+      "needs_new_approach"
     ],
     "status": "READY",
+    "rounds_without_output": 0,
+    "diagnosis_refs": [],
     "claim_ref": null,
     "last_submission_ref": null,
     "last_verdict_ref": null,
@@ -256,6 +266,19 @@
     "submitted_by": "REPLACE_ME",
     "submitted_at_utc": "REPLACE_ME",
     "relevant_input_paths": [],
+    "test_run": null,
+    "_test_run_shape": {
+      "executed_count": 0,
+      "failed_count": 0,
+      "results_ref": "REPLACE_ME",
+      "failures": [
+        {
+          "test_name": "REPLACE_ME",
+          "mt_id": "REPLACE_ME",
+          "failure_kind": "REPLACE_ME"
+        }
+      ]
+    },
     "payload": {}
   },
   "verdicts": [],
@@ -273,6 +296,26 @@
     ],
     "acceptance_refs": [],
     "evidence_refs": [],
+    "failure_class": null,
+    "failure_kind": null,
+    "_failure_kind_enum": [
+      "product",
+      "infrastructure",
+      "flaky"
+    ],
+    "test_run": null,
+    "_test_run_shape": {
+      "executed_count": 0,
+      "failed_count": 0,
+      "results_ref": "REPLACE_ME",
+      "failures": [
+        {
+          "test_name": "REPLACE_ME",
+          "mt_id": "REPLACE_ME",
+          "failure_kind": "REPLACE_ME"
+        }
+      ]
+    },
     "remediation": null,
     "blocked_on_mt_ref": null,
     "batch_commit_ref": null,
@@ -295,6 +338,13 @@
     ],
     "ref": null,
     "reason": "REPLACE_ME",
+    "failure_class": null,
+    "failure_kind": null,
+    "_failure_kind_enum": [
+      "product",
+      "infrastructure",
+      "flaky"
+    ],
     "diagnosis": null,
     "raised_by": "REPLACE_ME",
     "raised_at_utc": "REPLACE_ME",

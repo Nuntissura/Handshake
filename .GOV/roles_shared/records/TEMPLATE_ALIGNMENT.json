@@ -3,16 +3,19 @@
   "template_pack": {
     "source": "Obsidian vault Handshake Creation Template",
     "pack_id": "HANDSHAKE-PROJECT-BASE-v1",
-    "pack_version": 19,
+    "pack_version": 21,
     "template_files": [
       "templates/authority/CODEX.template.md",
       "templates/authority/BUILD-RULES.template.md",
-      "templates/TEMPLATE-PACK.template.md"
+      "templates/TEMPLATE-PACK.template.md",
+      "templates/work-system/CODING-WORKFLOW.template.md",
+      "templates/work-system/RECEIPT.template.md"
     ]
   },
   "repo_targets": {
     "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
-    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.12.0",
+    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json@1.13.0",
+    "microtask_template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE_V2.json",
     "activation_manager": ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"
   },
   "mappings": [
@@ -159,6 +162,108 @@
       "template_id": "CODEX-PILLAR-001",
       "kind": "codex",
       "note": "readiness names hbr-matrix-check, spec anchors or spec_basis, pillar rows and fields; remediation MTs bypass refinement/enrichment/activation per CODEX-DECIDE-002"
+    },
+    {
+      "repo_id": "CX-EXEC-013",
+      "template_id": "CODEX-STEER-007",
+      "kind": "codex",
+      "note": "round definition, wasted round, rounds_without_output reset on pushed commit or verdict, limit 2 (CODING-WORKFLOW steering.run_accounting.rounds_without_output_limit); counter lives in the MT JSON, not wp_state"
+    },
+    {
+      "repo_id": "CX-EXEC-013",
+      "template_id": "CODEX-STEER-008",
+      "kind": "codex",
+      "note": "needs_new_approach exit only via a diagnosis naming a new cause; then post_diagnosis_runs probe 1 + confirm 1, then blocked and escalated"
+    },
+    {
+      "repo_id": "CX-EXEC-014",
+      "template_id": "CODEX-STEER-009",
+      "kind": "codex",
+      "note": "only named proof commands once per candidate commit; implementers (coder, kernel builder) compile/static checks only; one recorded retry for flaky_tests"
+    },
+    {
+      "repo_id": "CX-VAL-005",
+      "template_id": "CODEX-VAL-006",
+      "kind": "codex",
+      "note": "round trigger 5 ready MTs or 120 minutes (CODING-WORKFLOW validation.round_trigger, round_max_wait_minutes), batch_scope build_unit, canary_before_round, broken_round_build"
+    },
+    {
+      "repo_id": "CX-VAL-005",
+      "template_id": "CODEX-VAL-002",
+      "kind": "codex",
+      "note": "run_all_tests_no_fail_fast with per-test timeout; results mapped to MTs from structured runner output (validation.result_extraction; handwritten, no script)"
+    },
+    {
+      "repo_id": "CX-VAL-005",
+      "template_id": "CODING-WORKFLOW.validation.special_runs",
+      "kind": "codex",
+      "note": "performance/stress/durability runs in the special_runs lane on an idle host after the batch; round_outputs build-only-round-targets and clean after verdicts"
+    },
+    {
+      "repo_id": "CX-VAL-006",
+      "template_id": "CODEX-VAL-004",
+      "kind": "codex",
+      "note": "failure classes product|infrastructure|flaky named failure_kind (repo failure_class keeps the cause-id meaning); unowned failing test attributed by narrowing over round MT commits; defect-class sweep and per-cause remediation dispatch sentences of CODEX-VAL-004 not adopted in this pass"
+    },
+    {
+      "repo_id": "test_environment_prerequisites.flaky_tests",
+      "template_id": "BR-TEST-ENV-001",
+      "kind": "build_rule",
+      "note": "project_profile.test_environment.flaky_tests"
+    },
+    {
+      "repo_id": "test_environment_prerequisites.run_alone_tests",
+      "template_id": "BR-TEST-ENV-001",
+      "kind": "build_rule",
+      "note": "project_profile.test_environment.run_alone_tests"
+    },
+    {
+      "repo_id": "test_environment_prerequisites.shared_state_isolation",
+      "template_id": "BR-TEST-ENV-001",
+      "kind": "build_rule",
+      "note": "project_profile.test_environment.shared_state_isolation (per_test)"
+    },
+    {
+      "repo_id": "test_environment_prerequisites.canary_check",
+      "template_id": "BR-TEST-ENV-001",
+      "kind": "build_rule",
+      "note": "project_profile.test_environment.canary_check; placeholder REPLACE_ME until the Operator names the check"
+    },
+    {
+      "repo_id": "MT.lifecycle.rounds_without_output",
+      "template_id": "CODING-WORKFLOW.steering.run_accounting.counter",
+      "kind": "template_field",
+      "note": "template keeps it in wp_state.microtasks; repo keeps it in the MT JSON (status and recovery surface)"
+    },
+    {
+      "repo_id": "MT.lifecycle.diagnosis_refs",
+      "template_id": "CODEX-STEER-008",
+      "kind": "template_field",
+      "note": "refs to blockers[].diagnosis entries; distinct-cause check"
+    },
+    {
+      "repo_id": "MT.lifecycle.phase needs_new_approach",
+      "template_id": "CODING-WORKFLOW.mt_phases.needs_new_approach",
+      "kind": "template_field",
+      "note": "status label NEEDS_NEW_APPROACH"
+    },
+    {
+      "repo_id": "MT.blockers[]/verdicts[].failure_kind",
+      "template_id": "CODING-WORKFLOW.validation.failure_classes",
+      "kind": "template_field",
+      "note": "enum product|infrastructure|flaky; failure_class stays the cause id"
+    },
+    {
+      "repo_id": "MT.submissions[]/verdicts[].test_run",
+      "template_id": "RECEIPT.mechanical.test_run",
+      "kind": "template_field",
+      "note": "{executed_count, failed_count, results_ref, failures[{test_name, mt_id, failure_kind}]}; filter field omitted, receipt class renamed failure_kind"
+    },
+    {
+      "repo_id": "MT.execution.lane special_runs",
+      "template_id": "CODING-WORKFLOW.validation.special_runs",
+      "kind": "template_field",
+      "note": "lane enum value for performance/stress/durability runs"
     }
   ],
   "skipped_as_duplicate": [
@@ -172,5 +277,5 @@
     }
   ],
   "governance_pin_semantics": "in-flight WPs judged under their pinned commit; template changes apply from the next WP",
-  "generated_at_utc": "2026-09-23T16:53:03.000Z"
+  "generated_at_utc": "2026-09-24T00:00:00.000Z"
 }

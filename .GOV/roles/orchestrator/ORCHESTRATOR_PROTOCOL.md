@@ -1,24 +1,20 @@
-﻿# ORCHESTRATOR_PROTOCOL [CX-600-616]
-## Deterministic Atomic Governance Files [CX-908]
+﻿# ORCHESTRATOR_PROTOCOL 
+## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
 - Roles MUST consume typed JSON, JSONL, or declared contract fields before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
 - When changing packet, refinement, MT, startup, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
-## Governance Kernel Product-Governance Testbed [CX-911]
+## Governance Kernel Product-Governance Testbed [CX-914]
 - The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
 - External apps/tools and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, and runtime artifacts.
 - Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
-- `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the machine-readable topology ledger for governance roles, public scripts, checks, tests, Just recipes, phase/checkpoint bundles, workflow artifacts, authority owners, side-effect classes, primary debug artifacts, and replacement/sunset status.
-- All non-Coder roles MUST keep the topology ledger current when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, or session/runtime authority surfaces.
-- If this role cannot directly write `.GOV/` from its current lane, it MUST emit a typed blocker/proposal naming the exact topology update required; the owning coordinator must update the ledger before closeout.
-- New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
-- Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
+Retired 2026-09-24: topology ledger deleted with the harness.
 
-## WP Dossier Runtime Archive [CX-218J1]
+## WP Dossier Runtime Archive [CX-AUTH-003]
 
 Retired under CX-AUTH-003.
 
@@ -75,14 +71,14 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
 - Treat split authority, false-ready state, collapsed PASS claims, and missing direct coder-validator exchange as product-grade harness defects, not workflow inconvenience.
 - Prefer stop, repair, and explicit non-pass states over compensating with manual relay, interpretive narration, or optimistic status rounding.
 
-## Mechanical Intervention Discipline [CX-218K]
+## Mechanical Intervention Discipline [CX-AUTH-003]
 
 - Before every patch, steer, relay repair, or stalled-lane wake, classify 3-5 plausible causes: runtime route drift, notification/cursor drift, session drift, documentation/protocol drift, clock/staleness drift, and scope/memory/worktree drift are the default set.
 - Pick the cheapest deterministic proof or repair first: read the MT JSON status, the pushed commits, and runtime state.
 - Do not manually broker ordinary Coder/WP Validator technical content. Use the MT JSON status and verdict fields. Patch the durable surface when the same stall or wrong helper can recur.
 - For `ORCHESTRATOR_MANAGED`, own `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json` as the machine-readable lane contract. Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` only as a projection/reference.
 
-## Governance Stabilization Duty [CX-218L]
+## Governance Stabilization Duty [CX-AUTH-003]
 
 - The Orchestrator owns the `ORCHESTRATOR_MANAGED` workflow-control spine and must actively strive to make brittle governance paperwork and workflow transitions more mechanical. Recurring drift is not a chat note to keep resending; convert repeated Orchestrator steering notes into durable protocol law, startup brief cards, playbook entries, checks, typed helpers, or runtime projection fixes.
 - Do not normalize Orchestrator babysitting. If a lane only advances when the Orchestrator interprets prose or manually relays handoffs, treat that as a governance workflow defect and harden the mechanical surface that should have carried the transition.
@@ -91,7 +87,7 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
 - When changing `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` or `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, perform a Classic Orchestrator protocol compatibility check against `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` before closeout. Classic Orchestrator owns `MANUAL_RELAY` and combines the old Orchestrator plus Activation Manager pre-launch duties, so any Orchestrator or Activation Manager law change may require a matching manual-relay update. Update the Classic protocol in the same governance change when affected, or record `NO_CLASSIC_UPDATE_NEEDED` with a concrete reason in the governance-maintenance evidence.
 - Coder remains excluded from governance paperwork stabilization. If Coder reports governance drift, route it through Orchestrator-owned governance repair or the owning non-Coder role; do not ask Coder to patch `.GOV/` from the product-code lane.
 
-## Adult Production Boundary (When Applicable) [CX-123]
+## Adult Production Boundary (When Applicable) 
 
 - When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
 - The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The Orchestrator does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
@@ -118,7 +114,7 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
 - Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-gov-kernel`.
 - `user_ilja` and `gov_kernel` on GitHub are backup branches, not integration branches.
 - Permanent non-main worktrees (`wt-ilja`, `wtc-*`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.
-- `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through the gov-to-main sync (sync script deleted 2026-09-23; sync by hand with explicit paths) [CX-212D].
+- `gov_kernel` MUST NOT be merged into `main`. `.GOV/` changes reach `main` through the gov-to-main sync (sync script deleted 2026-09-23; sync by hand with explicit paths) [CX-113].
 - Root-level repo control files inherited from `main`, currently `AGENTS.md`, are main-only authoring surfaces. If that file needs changes, make that edit in `handshake_main` on local `main`, commit it on `main`, and then reseed/refresh the permanent non-main worktrees from `main`. Do not author or commit those files from WP worktrees.
 - Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
 - If a role reports formatter spillover or scope cleanup after a broad formatter, treat `git restore` as a destructive/state-hiding repair. The mechanical path is: identify the exact spillover files, preserve committed state if possible, emit/record a typed blocker, and require explicit approval before any worktree rewrite.
@@ -132,7 +128,7 @@ Canonical contracts the Orchestrator plans and routes against (typed JSON is aut
 - For that most recently presented action/target list, the only valid approval replies are `approved` or `proceed`. If the list changes, ask again.
 - Run `git worktree list` and `git branch -a` before asking for approval so the exact targets are visible.
 - For assistant-driven worktree deletion, after `approved` or `proceed` on the presented list, detach the `.GOV/` junction, then run `git worktree remove <path>`.
-- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** NEVER run `git worktree remove` while the worktree still holds its `.GOV/` junction. Non-main worktrees use a `.GOV/` directory junction pointing to `wt-gov-kernel/.GOV/`. Raw `git worktree remove` follows the junction and destroys the real governance files in the gov kernel. Remove the junction link itself first (never a recursive delete of its target); the deletion script was deleted 2026-09-23.
+- **FORBIDDEN: `git worktree remove` (raw) [CX-122].** Non-main worktrees hold a `.GOV/` directory junction to `wt-gov-kernel/.GOV/`; raw removal follows it and destroys the real governance files. Delete a worktree only with exactly these steps: (1) `fsutil reparsepoint query "<wt>\.GOV"` shows `Mount Point`, otherwise STOP and ask the Operator; (2) the gov kernel has no uncommitted work; (3) `cmd /c rmdir "<wt>\.GOV"` with no `/s`; (4) `wt-gov-kernel\.GOV\codex\Handshake_Codex_v1.4.md` still exists; (5) `git worktree remove <wt>`. Never use `rmdir /s`, `rm -rf`, `del` or `Remove-Item` on a worktree or its `.GOV`. Any failure: STOP, no manual cleanup.
 - If worktree deletion fails, stop. Do not fall back to manual filesystem cleanup (`rm -rf`, `Remove-Item`, `del`).
 
 ## Repo Boundary Rules (HARD)
@@ -148,19 +144,19 @@ See also:
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 - `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` â€” append-only shared memory of recurring repo bad habits and tooling rules
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. `wt-gov-kernel` on `gov_kernel` is the Orchestrator's default live execution surface. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Root-level repo control files are different: `AGENTS.md` is authored in `handshake_main` on local `main`, then propagated outward by canonical refresh/reseed. Synchronizing governance to main (sync script deleted 2026-09-23; sync by hand with explicit paths) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-212D]. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212C]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. `wt-gov-kernel` on `gov_kernel` is the Orchestrator's default live execution surface. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Root-level repo control files are different: `AGENTS.md` is authored in `handshake_main` on local `main`, then propagated outward by canonical refresh/reseed. Synchronizing governance to main (sync script deleted 2026-09-23; sync by hand with explicit paths) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-113]. See Codex CX-212C, CX-212F and CX-113 above for the full governance kernel architecture.
 
-## Inter-Role Wire Discipline [CX-130] (HARD)
+## Inter-Role Wire Discipline [CX-914] (HARD)
 
-Communication with other governed roles flows through typed fields, never free-form prose. When dispatching, steering, or routing, the Orchestrator acts on MT JSON status and verdict fields. Routing decisions MUST NOT be embedded in narrative steer prose; the receiving role must be able to act by reading typed fields. Operator-facing artifacts (WP packets, status reports) are projections of that typed truth — they are NOT the wire between roles. See Codex `[CX-130]` for the full rule, forbidden patterns, and direction of travel.
+Communication with other governed roles flows through typed fields, never free-form prose. When dispatching, steering, or routing, the Orchestrator acts on MT JSON status and verdict fields. Routing decisions MUST NOT be embedded in narrative steer prose; the receiving role must be able to act by reading typed fields. Operator-facing artifacts (WP packets, status reports) are projections of that typed truth — they are NOT the wire between roles. See Codex `[CX-914]` for the full rule, forbidden patterns, and direction of travel.
 
-## Cache-Stability Discipline [CX-CACHE-001] (HARD)
+## Cache-Stability Discipline (HARD)
 
 While a governed role session is active, the Orchestrator MUST NOT rebuild or mutate that role's cached system prompt. Governance mutations land in durable storage and become visible to the next startup/restart. When the Orchestrator must steer an active role with current governance context, wrap injected route or microtask context in the shared `<governance-context>` user-message fence. Any forced immediate cache invalidation must be explicit and operator-visible through a `--now` style opt-in; default behavior defers invalidation.
 
 ## Product Runtime Root (Current Default)
 
-- External build, test, and tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
+- External build, test, and tool outputs stay under `../Handshake_Artifacts/` [CX-984-001]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
 - Repo-local `target/` directories are workflow-invalid residue; before claiming clean governance/product state this is checked by reading the artifact (check script deleted 2026-09-23).
 - Product runtime state should default to the external sibling root `gov_runtime/`.
 - Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
@@ -201,7 +197,7 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
 - Absolute paths may be resolved internally by scripts for filesystem access, but they are implementation detail only. If an orchestrator-facing surface prints any host-specific absolute path form, treat that as governance drift and repair the emitting surface.
 - If any doc or tool suggests a drive-specific path, treat it as a governance bug and fix the governance surface.
 
-## Tooling Conflict Stance [CX-110] (HARD)
+## Tooling Conflict Stance [CX-AUTH-003] (HARD)
 
 - If tool output conflicts with this protocol or `.GOV/codex/Handshake_Codex_v1.4.md`, stop and escalate to the Operator.
 - Prefer fixing the governance tooling to match law over bypassing or weakening checks.
@@ -235,14 +231,14 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
   - `docs/`
   - `records/`
 
-## Strategic Priorities [CX-600A]
+## Strategic Priorities 
 
-### Storage Backend Portability [CX-DBP-001]
+### Storage Backend Portability 
 
 - Enforce the four portability pillars defined in the Master Spec.
 - Block database-touching work that bypasses the `Database` trait boundary.
 
-### Spec-to-Code Alignment [CX-598]
+### Spec-to-Code Alignment [CX-503B1]
 
 - "Done" means diff-scoped proof for the clauses actually claimed by the packet and refinement.
 - Reject packets that treat Main Body requirements as optional.
@@ -250,7 +246,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - Current Master Spec authority resolves through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to the active indexed bundle manifest, resolver `INDEX.json`, and ordered `spec-modules/`.
 - `Handshake_Master_Spec_v*.md` files are source baselines/provenance during indexed migration, not the active editing target.
 
-### Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
+### Current Indexed Master Spec Write Surface (HARD)
 
 The Orchestrator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`. All other roles must stay read-only and route spec gaps back to one of those roles.
 
@@ -274,18 +270,18 @@ Write sequence:
 - Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
 - Verify by reading the new `SPEC_CURRENT.md`, manifest, `INDEX.json`, and changelog (check scripts deleted 2026-09-23).
 
-### Deterministic Enforcement [CX-585A/C]
+### Deterministic Enforcement [CX-010]
 
 - Bump the current Master Spec version only when refinement changes durable product law, architecture, primitives, or shared contracts; perform that bump through the copy-first versioned indexed bundle workflow.
 - One-time signature gate remains mandatory.
 - Do not edit locked packets to "catch up" to a new current-spec state. Create a new remediation packet only when the updated spec actually requires new work.
 
-### Phase Closure [CX-585D]
+### Phase Closure [CX-010]
 
 - Phase closure requires all phase-critical WPs to be validation-backed, not merely "done".
 - Spec regression must pass before phase closure.
 
-### Packet Truth [CX-573B]
+### Packet Truth [CX-PROOF-002]
 
 - The packet is the authoritative workflow contract.
 - The Orchestrator must maintain one authoritative workflow truth across packet, runtime, task board, session, and worktree state.
@@ -300,12 +296,12 @@ Write sequence:
 - If more work is required, create a new remediation packet or versioned packet variant and keep the historical packet as audit evidence.
 - If stale runtime/session/task-board projections still make the historical packet look active or resumable, reconcile those projections down to historical/closed truth before new execution continues.
 
-### Dependency Discipline [CX-573E]
+### Dependency Discipline [CX-PROOF-002]
 
 - Identify blockers before work starts.
 - Downstream work remains blocked until upstream blockers are validation-backed.
 
-### Security and Contract Discipline [CX-VAL-HARD]
+### Security and Contract Discipline 
 
 - Reject hollow validation.
 - Require real evidence mapping.
@@ -337,7 +333,7 @@ Write sequence:
 - Validators own final validation-backed merge authority to `main` for product changes. An explicit Operator-directed `sync-gov-to-main` or `origin/main` push executed by the Orchestrator is mechanical topology/governance execution, not validator technical authority.
 - In this repo topology, final product containment is not an ordinary raw `git merge` happy path. The governed `INTEGRATION_VALIDATOR` lane owns the copy-based / contained-main reconciliation into `handshake_main/main` plus the final packet/task-board/runtime truth sync. The Orchestrator must not substitute a raw merge for that governed final-lane activity.
 
-## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
+## Worktree + Branch Gate (BLOCKING)
 
 Required verification at session start and whenever context is unclear:
 - `git rev-parse --show-toplevel`
@@ -347,34 +343,34 @@ Required verification at session start and whenever context is unclear:
 Chat requirement:
 
 ```text
-HARD_GATE_OUTPUT [CX-WT-001]
+HARD_GATE_OUTPUT 
 <verbatim command output>
 
-HARD_GATE_REASON [CX-WT-001]
+HARD_GATE_REASON 
 - Verify repo, worktree, and branch context before proceeding.
 
-HARD_GATE_NEXT_ACTIONS [CX-WT-001]
+HARD_GATE_NEXT_ACTIONS 
 - If correct: continue.
 - If incorrect: stop and ask the Operator for the correct worktree or branch.
 ```
 
 If the deterministic WP worktree is missing, create it with `git worktree add` automatically when the latest gate is PASS and `OPERATOR_ACTION: NONE`.
 
-## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
+## Gate Visibility Output (MANDATORY)
 
 When you run a gate command, include in the same turn:
 
 ```text
-GATE_OUTPUT [CX-GATE-UX-001]
+GATE_OUTPUT 
 <verbatim output>
 
-GATE_STATUS [CX-GATE-UX-001]
+GATE_STATUS 
 - PHASE: STUB|REFINEMENT|APPROVAL|SIGNATURE|PREPARE|PACKET_CREATE|PRE_WORK|DELEGATION|STATUS_SYNC
 - GATE_RAN: <exact command>
 - RESULT: PASS|FAIL|BLOCKED
 - WHY: <1-2 sentences>
 
-NEXT_COMMANDS [CX-GATE-UX-001]
+NEXT_COMMANDS 
 - <2-6 immediate next commands>
 ```
 
@@ -390,7 +386,7 @@ Special rule for recording a refinement:
 - do not answer a direct Operator question primarily with naked `path:line` citations or Build Order rows unless the Operator explicitly asks for exact locations only
 - exact line anchors remain appropriate when auditability materially matters, for example disputed packet truth, gate defects, or spec-anchor verification
 
-## Signature Bundle + Workflow Lane [CX-585C] (HARD)
+## Signature Bundle + Workflow Lane (HARD)
 
 At the signature step collect one approval bundle:
 - `USER_SIGNATURE`
@@ -436,7 +432,7 @@ Workflow semantics:
 - **After all MTs pass individually**, the validator MUST perform a Final WP Review: full product code check using the validator rubric, red team assessment, and wide-scope Master Spec alignment check. Only then write the validation verdict. If FAIL, record remediation instructions for the coder in the MT JSON verdict fields.
 - Do not send monolithic "implement everything" instructions. Each MT is a bounded unit of work that even a small local model can complete.
 - The per-MT loop exists to enable future mixed-model execution: cloud models handle MTs now, but the structure must be proven so local models (Ollama) can handle individual MTs later.
-- **WP Validator shares the coder worktree** (`wtc-*` on `feat/WP-{ID}`) per [CX-503G]. No separate `wtv-*` worktree needed. The per-MT stop ensures only one role is active at a time.
+- **WP Validator shares the coder worktree** (`wtc-*` on `feat/WP-{ID}`) per . No separate `wtv-*` worktree needed. The per-MT stop ensures only one role is active at a time.
 
 ## Auto-Relay Loop (Governed Communication)
 
@@ -452,7 +448,7 @@ Workflow semantics:
 - The Orchestrator monitors for: (1) MT JSON status changes, (2) stalls, (3) FAIL verdicts.
 - If polling is absolutely necessary, read the MT JSON status once after a reasonable delay, not repeated sleep-and-cat loops.
 
-## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
+## Auto-Continue on PASS (ANTI-BABYSIT)
 
 - If a gate shows PASS and `OPERATOR_ACTION: NONE`, continue to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - Stop only when:
@@ -486,18 +482,18 @@ Resume rule:
   - `RUNTIME_STATUS.json` for structured liveness
 - These artifacts support both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`.
 - They never override packet truth. If they conflict with the packet, the packet wins.
-- Volatile session/topology/WP-communication runtime state lives under the external repo-governance runtime root; repo-local spec-coupled runtime state remains under `/.GOV/roles_shared/runtime/`.
+- Volatile session/topology/WP-communication runtime state lives under the external repo-governance runtime root (`../gov_runtime/`), including shared runtime state under `../gov_runtime/roles_shared/`.
 
 ## Deterministic Helpers
 
 Removed 2026-09-23: the command surface was deleted with the governance harness.
 
-## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
+## Lifecycle Marker (MANDATORY)
 
 Every Orchestrator message should include:
 
 ```text
-LIFECYCLE [CX-LIFE-001]
+LIFECYCLE 
 - WP_ID: <WP-... or N/A>
 - STAGE: STUB|REFINEMENT|APPROVAL|SIGNATURE|PREPARE|PACKET_CREATE|PRE_WORK|DELEGATION|STATUS_SYNC
 - NEXT: <next stage or STOP>
@@ -534,7 +530,7 @@ Legacy flat compatibility:
 - `.GOV/task_packets/WP-{ID}.md`
 - `.GOV/refinements/WP-{ID}.md`
 
-[CX-212D] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*` branches â€” the governance kernel is the single source of truth, accessed via junction.
+[CX-113] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*` branches â€” the governance kernel is the single source of truth, accessed via junction.
 
 ## Current Orchestrator Workflow (Authoritative)
 
@@ -748,7 +744,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 ## Worktree Budget (HARD RULE)
 
-- Maximum WP-specific worktrees per WP: 1 [CX-503G].
+- Maximum WP-specific worktrees per WP: 1 .
 - The Coder and WP Validator share the same worktree (`wtc-*` on `feat/WP-*`). The per-MT stop pattern is driven by MT JSON status and verdict fields: the coder sets `READY_FOR_VALIDATION`, the WP Validator writes the verdict, and the coder resumes. Governance uses the `.GOV/` junction to the kernel.
 - **Session Context Rotation:** If a Coder or WP Validator session exceeds its token budget, the Orchestrator should close the session and start a fresh one. The new session receives the startup prompt plus current MT context â€” no need to replay prior MT history. This prevents the context bloat observed in prior runs.
 - The Integration Validator operates from `handshake_main` on branch `main` â€” no WP-specific worktree.
@@ -756,7 +752,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
 - All worktrees must be created under the shared worktree root. Off-root worktree creation is forbidden.
 
-## WP Worktree Creation Rules [CX-212D] (HARD RULE)
+## WP Worktree Creation Rules [CX-113] (HARD RULE)
 
 - WP worktrees (`wtc-*`) MUST NOT retain a git-tracked `/.GOV/` directory. Legacy `wtv-*` worktrees from the old 2-per-WP model are cleanup candidates.
 - Generic pre-packet worktree creation may seed from `main`, but governed coder worktree creation or reseed after packet creation MUST honor the packet baseline (`MERGE_BASE_SHA`) instead of moving local `main`.
@@ -766,7 +762,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
   2. Create a junction (`mklink /J` on Windows, symlink on Unix) from `/.GOV/` to `../wt-gov-kernel/.GOV`.
 - This ensures WP worktrees always read live governance from the kernel and never have a stale `/.GOV/` copy.
 
-## Gov-to-Main Sync Responsibility [CX-212D] (HARD RULE)
+## Gov-to-Main Sync Responsibility [CX-113] (HARD RULE)
 
 - The gov-to-main sync copies the governance kernel `/.GOV/` into `handshake_main` and commits it (sync script deleted 2026-09-23; sync by hand with explicit paths).
 - The sync must run from committed kernel truth. If `wt-gov-kernel/.GOV` is dirty, fix or commit `gov_kernel` first; do not mirror an uncommitted kernel snapshot into `main`.
@@ -803,8 +799,8 @@ Do not:
 Do:
 - keep refinement, packet, traceability, build-order, and Task Board aligned
 - use the current packet template
-- keep external session/topology/WP-communication runtime state under the repo-governance runtime root and keep repo-local spec-coupled runtime state under `/.GOV/roles_shared/runtime/`
-- keep role-owned state under `/.GOV/roles/orchestrator/runtime/`
+- keep external session/topology/WP-communication runtime state under the repo-governance runtime root (`../gov_runtime/`), including shared runtime state under `../gov_runtime/roles_shared/`
+- keep role-owned state under `../gov_runtime/roles/orchestrator/runtime/`
 - stop and escalate when tooling or docs conflict with active law
 - verify direct coder<->WP Validator communication is happening before allowing handoff
 - enforce worktree budget limits per WP

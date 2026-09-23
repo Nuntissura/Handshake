@@ -15,7 +15,7 @@
 
 This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `.GOV/spec/SPEC_CURRENT.md`).
 
-**Task Board entry format (enforced for In Progress/Done/Superseded via `just task-board-check`):**
+**Task Board entry format (required for In Progress/Done/Superseded; rows are edited by hand):**
 - In Progress: `- **[WP_ID]** - [IN_PROGRESS]`
 - Done: `- **[WP_ID]** - [MERGE_PENDING|VALIDATED|FAIL|OUTDATED_ONLY|ABANDONED]`
 - Superseded: `- **[WP_ID]** - [SUPERSEDED]`

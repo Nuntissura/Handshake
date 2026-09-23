@@ -1,7 +1,7 @@
 ﻿> **DEPRECATED** — This is the v1 rubric. The live binding rubric is **CODER_RUBRIC_V2.md** in this directory.
 > This file is retained as historical reference only. Do not use it for self-evaluation or acceptance criteria.
 
-# CODER RUBRIC (v1, DEPRECATED): Internal Quality Standard [CX-620-625]
+# CODER RUBRIC (v1, DEPRECATED): Internal Quality Standard 
 
 **Purpose:** Define what a PERFECT Coder looks like. Use this for self-evaluation before requesting commit.
 
@@ -67,7 +67,7 @@ You are NOT:
 
 ---
 
-### Responsibility 2: BOOTSTRAP Protocol [CX-577-622]
+### Responsibility 2: BOOTSTRAP Protocol 
 
 **What you do:**
 - [ ] Read all files listed in packet BOOTSTRAP (FILES_TO_OPEN)
@@ -129,7 +129,7 @@ PASS Pre-work verification complete. Starting implementation.
 **What you do:**
 - [ ] Change ONLY files in IN_SCOPE_PATHS
 - [ ] Implement EXACTLY what DONE_MEANS requires
-- [ ] Follow HARD_INVARIANTS [CX-101-106]
+- [ ] Follow HARD_INVARIANTS 
 - [ ] Respect OUT_OF_SCOPE boundaries (no "drive-by" refactoring)
 - [ ] Use existing code patterns from ARCHITECTURE.md
 - [ ] Add tests for new code (verifiable by removal test)
@@ -151,10 +151,10 @@ If I find missing requirements (scope incomplete):
 ```
 
 **Hard Invariants to Enforce (in your code, not existing):**
-- [ ] [CX-101]: LLM calls go through `/src/backend/llm/` only (not direct API)
-- [ ] [CX-102]: No direct HTTP calls in jobs/features (use api layer)
-- [ ] [CX-104]: No `println!`/`eprintln!` (use structured logging)
-- [ ] [CX-599A]: TODOs format: `TODO(HSK-####): description` (not bare TODOs)
+- [ ] LLM calls go through `/src/backend/llm/` only (not direct API)
+- [ ] No direct HTTP calls in jobs/features (use api layer)
+- [ ] No `println!`/`eprintln!` (use structured logging)
+- [ ] TODOs format: `TODO(HSK-####): description` (not bare TODOs)
 
 **Grep checks before committing:**
 ```bash
@@ -175,14 +175,14 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 **Quality Gates:**
 - PASS Code in IN_SCOPE_PATHS only, hard invariants met -> Pass to Step 7
 - FAIL Code in OUT_OF_SCOPE files -> BLOCK: "Changed {file}, which is OUT_OF_SCOPE. Reverting."
-- FAIL Hard invariant violation -> BLOCK: "[CX-101] violated: {issue}. Must fix."
+- FAIL Hard invariant violation -> BLOCK: " violated: {issue}. Must fix."
 - WARN Related bug found but out of scope -> Document in NOTES, not implemented
 
 **Success:** Your changes are precise, bounded, and follow architecture patterns.
 
 ---
 
-### Responsibility 4: Comprehensive Validation [CX-623]
+### Responsibility 4: Comprehensive Validation 
 
 **What you do:**
 - [ ] Run every command from TEST_PLAN
@@ -204,7 +204,7 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 **VALIDATION Block Template:**
 
 ```markdown
-## VALIDATION [CX-623]
+## VALIDATION 
 
 **Commands Run:**
 - cargo test --manifest-path src/backend/handshake_core/Cargo.toml -> PASS (5 tests)
@@ -479,7 +479,7 @@ Work is stuck (can't proceed without help)
 
 **Response:**
 ```
-BLOCKED: Packet incomplete [CX-581]
+BLOCKED: Packet incomplete [CX-010]
 
 work packet DONE_MEANS are not concrete.
 Current: "Feature works"
@@ -533,7 +533,7 @@ FAIL Manual review: BLOCK
 
 Blocking issue: unwrap() in production code
 Location: src/backend/handshake_core/src/jobs.rs:156
-Issue: [CX-104] Hard invariant violation
+Issue: Hard invariant violation
 
 Fixing:
 - Replacing unwrap() with proper error handling
@@ -677,7 +677,7 @@ Before requesting commit, ask yourself honestly:
 - [ ] **3. Files Read:** I read all FILES_TO_OPEN listed in BOOTSTRAP
 - [ ] **4. Code Scoped:** All my code changes are in IN_SCOPE_PATHS; zero changes outside
 - [ ] **5. Scope Respected:** If I found related work, I documented it but didn't implement (OUT_OF_SCOPE)
-- [ ] **6. Hard Invariants:** No hard invariant violations [CX-101-106] in my production code
+- [ ] **6. Hard Invariants:** No hard invariant violations in my production code
 - [ ] **7. Tests Pass:** Every TEST_PLAN command passes; zero test failures
 - [ ] **8. Manual Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
 - [ ] **9. Handoff Phase Check:** Retired with the governance harness on 2026-09-23.

@@ -32,7 +32,7 @@
 
 ## Spec publishing
 
-[CX-105C] Master Spec edits retain copy-first versioned bundles: preserve the previous bundle and update the new bundle's uniform version, manifest, resolver, hashes, changelog and SPEC_CURRENT together.
+ Master Spec edits retain copy-first versioned bundles: preserve the previous bundle and update the new bundle's uniform version, manifest, resolver, hashes, changelog and SPEC_CURRENT together.
 
 [KB-SPEC-001] Only explicitly approved enrichment authorizes spec changes. Resolve the active bundle from SPEC_CURRENT, copy it to the next version, edit that copy, keep module versions aligned, update internal references and the machine-readable changelog (paths, hashes, reason, approval and verification), and retain superseded bundles in the spec archive. Roadmaps guide ordering; topical spec modules define implementation and proof.
 
@@ -70,7 +70,7 @@
 
 ### Cargo test batch cadence
 
-[CX-503I1] Use focused proof while iterating and the required broad proof at the declared batch/final boundary. Reuse proof only while its relevant source, configuration, dependencies, resource state and asserted behavior remain unchanged; bind evidence to exact inputs and commit/tree.
+ Use focused proof while iterating and the required broad proof at the declared batch/final boundary. Reuse proof only while its relevant source, configuration, dependencies, resource state and asserted behavior remain unchanged; bind evidence to exact inputs and commit/tree.
 
 [KB-CAD-001] Do not require a separate proof run after each MT edit. Batch related repairs in SESSION_MT_BATCH; use the cheapest focused proof during implementation when it determines the next edit. Before declaring readiness, run the focused proof for changed behavior once on stable inputs and prove every affected test target compiles (for Cargo: `cargo check --locked --tests` per required feature set; do not link every test binary). The broad/full TEST_PLAN executes once in the independent shared batch validation, not per MT and not as a duplicate implementer run. If interrupted before that boundary, record DEFERRED_TO_SESSION_MT_BATCH with remaining MTs in existing state. Final WP completion still requires the required broad proof on the final unchanged implementation state.
 
@@ -123,7 +123,7 @@
 
 [KB-OUT-001] Commit and push per MT as soon as the changed code compiles (Codex CX-EXEC-007). Record the SHA in the MT before running proof. Never hold compiled work uncommitted until a batch is fully proven.
 
-[KB-OUT-002] Run builds, tests and sub-agent waits in the background and poll at least every 60 s, so steering is read within a minute (Codex CX-EXEC-009).
+[KB-OUT-002] Run builds, compile/static checks only (Rust: `cargo check --tests`) and sub-agent waits in the background and poll at least every 60 s, so steering is read within a minute; the validator runs tests in batched rounds (Codex CX-EXEC-009).
 
 [KB-OUT-003] A proof run that executes 0 tests or matches no test names is a defect, not a result. Fix the filter before counting an attempt.
 

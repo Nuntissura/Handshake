@@ -1,24 +1,20 @@
 ﻿# INTEGRATION_VALIDATOR_PROTOCOL [RGF-191]
-## Deterministic Atomic Governance Files [CX-908]
+## Deterministic Atomic Governance Files [CX-914]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
 - Roles MUST consume typed JSON, JSONL, or declared contract fields before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
 - When changing packet, refinement, MT, startup, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
 - Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
-## Governance Kernel Product-Governance Testbed [CX-911]
+## Governance Kernel Product-Governance Testbed [CX-914]
 - The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
 - External apps/tools and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, and runtime artifacts.
 - Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
 - Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Governance Topology Ledger Duty [CX-912]
-- `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the machine-readable topology ledger for governance roles, public scripts, checks, tests, Just recipes, phase/checkpoint bundles, workflow artifacts, authority owners, side-effect classes, primary debug artifacts, and replacement/sunset status.
-- All non-Coder roles MUST keep the topology ledger current when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, or session/runtime authority surfaces.
-- If this role cannot directly write `.GOV/` from its current lane, it MUST emit a typed blocker/proposal naming the exact topology update required; the owning coordinator must update the ledger before closeout.
-- New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
-- Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
+Retired 2026-09-24: topology ledger deleted with the harness.
 
-## WP Dossier Runtime Archive [CX-218J1]
+## WP Dossier Runtime Archive [CX-AUTH-003]
 
 Retired under CX-AUTH-003.
 
@@ -53,7 +49,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Mas
 - Quiet/process duty: final evidence must show tests, agent activity, sandboxes, and background processes are non-intrusive, attributable, and reclaimed.
 - Final-verdict duty: before PASS/merge readiness, review HBR rows (checked by reading the artifact; check script deleted 2026-09-23), HandoffGate evidence, validator-scan HBR evidence, and packet acceptance closure. Any required HBR row left `PENDING`, `STEER`, or `BLOCKED` is a hard blocker.
 
-## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
+## Current Indexed Master Spec Write Surface (HARD)
 
 Integration Validator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`.
 
@@ -86,7 +82,7 @@ Write sequence:
 - Mechanical closeout prep is the Orchestrator's responsibility.
 - Fresh context prevents the 256M token bloat that accumulated when sessions persisted across the full WP lifecycle.
 
-## Adult Production Boundary (When Applicable) [CX-123]
+## Adult Production Boundary (When Applicable) 
 
 - When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
 - The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The Integration Validator does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
@@ -102,18 +98,19 @@ Write sequence:
 - [VPX-001] A PASS requires independently executed proof for every required command at that level on the reviewed product inputs and a clean product tree. The assigned validator must execute missing or invalid proof; verified reuse under [VPX-004] satisfies this execution requirement without another run. Record dirty product state and withhold PASS. Reuse compatible warm build artifacts under Codex ownership rules; concurrent owners must not mutate the same target.
 - [VPX-002] Implementer-executed proof (Coder, Kernel Builder, their sub-agents), their result lines, logs, reports, and summaries are triage input only. They may direct where the validator looks; they are never cited as the basis of PASS. Reading them is not verification.
 - [VPX-003] Every validator proof execution is recorded as a typed proof record (`.GOV/roles_shared/schemas/PROOF_RECORD.schema.json`) in the packet's typed validation surface: MT JSON `validation.proof_records[]` for MT-level proof; the packet `VALIDATION_REPORTS` typed block for WP-level proof. The verdict record cites the proof record ids. A PASS without a proof record for each required command is a governance defect of the same severity as self-certification.
-- [VPX-004] Reuse valid proof executed by an independent validator, including a prior validator session or the other validator role, after inspecting its command, exit/result, log and input provenance. Verify that relevant source/dependency inputs, binary identity where used, features/configuration, environment/resource conditions and asserted behavior match the reviewed candidate. A different commit with unchanged relevant inputs, a new agent/session or a new MT verdict alone does not invalidate proof. Missing, unverifiable or changed inputs require affected proof again. Implementer proof cannot become independent acceptance evidence through delegation or relabeling. Cite the existing proof record and its applicability in the existing verdict; no separate reuse report. This governs reuse under [WPV-ART-003], [IV-ART-003] and [CX-503I1].
+- [VPX-004] Reuse valid proof executed by an independent validator, including a prior validator session or the other validator role, after inspecting its command, exit/result, log and input provenance. Verify that relevant source/dependency inputs, binary identity where used, features/configuration, environment/resource conditions and asserted behavior match the reviewed candidate. A different commit with unchanged relevant inputs, a new agent/session or a new MT verdict alone does not invalidate proof. Missing, unverifiable or changed inputs require affected proof again. Implementer proof cannot become independent acceptance evidence through delegation or relabeling. Cite the existing proof record and its applicability in the existing verdict; no separate reuse report. This governs reuse under [WPV-ART-003] and [IV-ART-003].
 - [VPX-005] Review stable batches and execute only missing or invalid required proof, reusing valid independent evidence under [VPX-004]. Bundle focused acceptance coverage across MTs; execute required broad proof at declared batch/final boundaries when its evidence is missing or invalid. An established product defect goes directly to the implementer with the exact finding; do not keep testing that defect while awaiting repair. Apply Codex CX-EXEC-003/004 to retries and escalation. Deferral never permits PASS with missing required proof.
 - [VPX-006] `NOT_RUN_WAIVED` is a legal evidence state only when the cited `WAIVERS GRANTED` entry carries a valid operator signature: `SIGNATURE=` (alias `USER_SIGNATURE=`) pipe field, format `{username}{DDMMYYYYHHMM}`, registered one-time in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (ledger entry `status=ACTIVE`, `signatureValid=true` per `parsePolicyWaiverLedger`). The verdict must cite the waiver id AND the signature. An unsigned waiver is not a waiver: ledger status is `UNSIGNED`, the evidence state is `BLOCKED`, and the validator reports the missing signature to the Orchestrator/operator.
 - [VPX-007] Batch validation is the default: combine compatible READY MTs at one stable candidate into one build and a bundled test invocation where the runner permits. One proof record may cover multiple MTs through covers[]; each verdict cites its coverage. Separate runs require incompatible inputs/isolation or a specific finding whose result selects the next repair. Preserve every required acceptance check.
 - [VPX-008] Reuse compatible build artifacts across MTs and validators with exclusive mutable-target ownership. Rebuild only when changed build inputs or missing/invalid artifacts require it; a commit identifier change, new session, status/report edit or MT boundary alone is not a rebuild reason. Reuse proof separately under [VPX-004]; a warm build does not itself prove test execution.
 - [IV-VPX-REF-001] WP Validator protocol rules [VPX-009], [VPX-010], [WPV-DEP-001], [WPV-STATUS-001] and [WPV-ART-006] apply equally to Integration Validator proof and verdicts.
+- Rounds, canary, run-all, failure_kind and round accounting follow the Codex clauses [CX-EXEC-013][CX-EXEC-014][CX-VAL-005][CX-VAL-006].
 
-## Inter-Role Wire Discipline [CX-130] (HARD)
+## Inter-Role Wire Discipline [CX-914] (HARD)
 
-Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and the terminal state is published to the per-WP `TERMINAL_CLOSEOUT_RECORD.json`. Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability — they project from the typed verdict, they are NOT the verdict. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout record. See Codex `[CX-130]` for the full rule.
+Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and the terminal state is published to the per-WP `TERMINAL_CLOSEOUT_RECORD.json`. Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability — they project from the typed verdict, they are NOT the verdict. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout record. See Codex `[CX-914]` for the full rule.
 
-## Mechanical Intervention Discipline [CX-218K]
+## Mechanical Intervention Discipline [CX-AUTH-003]
 
 - Before treating a closeout or merge path as blocked, classify 3-5 plausible causes: product proof failure, closeout artifact drift, notification/cursor drift, session drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
 - Choose the cheapest deterministic read, repair, or typed helper first: the final handoff MT JSON status, integration-validator context brief, contained-main proof, and closeout sync output before mutating verdict or merge truth.
@@ -122,7 +119,7 @@ Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate sch
 - Use typed verdict/concern fields for blocker truth. Do not encode route decisions only in narrative validator-report prose.
 - Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` only as lane context; Integration Validator authority remains final product judgment and merge authority.
 
-## Governance Stabilization Duty [CX-218L]
+## Governance Stabilization Duty [CX-AUTH-003]
 
 - Integration Validator stabilizes final-lane governance paperwork by actively striving to make brittle final review, merge, contained-main, terminal closeout, Task Board, and sync-to-main transitions more mechanical and aligned with the authoritative PASS/FAIL decision.
 - Do not depend on Orchestrator babysitting to discover missing terminal projection or closeout provenance. If the product verdict is clear but governance settlement debt remains, classify it as debt, name the owning artifact/helper, and use the closeout/sync surface you own or report the exact Orchestrator-owned repair.
@@ -218,7 +215,7 @@ After judgment, write the verdict:
 
 Before merge, verify no build/test/tool artifacts have leaked into the repo:
 - Tracked build outputs are checked by reading the artifact (check script deleted 2026-09-23) â€” FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
-- All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-205F], not inside the repo tree.
+- All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-984-001], not inside the repo tree.
 - Run a worktree-bound artifact-location check for the assigned WP before merge: runtime/build output inside the worktree or outside its required external WP/MT/owner directory is a blocking hygiene failure. Preserve product proof and classify/remediate the placement defect.
 - If artifact contamination is found: do NOT merge. Record the violation with the failure class. `PRODUCT_BLOCKER` requires product remediation/revalidation; `ENVIRONMENT_BLOCKER` routes to artifact-root repair; `GOVERNANCE_BLOCKER` routes to Orchestrator closeout repair.
 
@@ -228,7 +225,7 @@ After PASS verdict, artifact hygiene check, and closeout truth sync:
 - Perform the merge/containment of the approved commit range into local `main`
 - Verify the merge is clean (no conflicts, no unrelated changes)
 - Record `CONTAINED_IN_MAIN <MERGED_MAIN_SHA>` in the typed closeout record (`TERMINAL_CLOSEOUT_RECORD.json`)
-- Synchronize governance kernel to main branch (sync script deleted 2026-09-23; sync by hand with explicit paths) [CX-212D]
+- Synchronize governance kernel to main branch (sync script deleted 2026-09-23; sync by hand with explicit paths) [CX-113]
 - Push to `origin/main` after the sync succeeds
 - This is the Integration Validator's default responsibility. The Orchestrator MAY execute this mechanical sync/push path only when explicitly instructed by the Operator.
 

@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-09-23T16:53:03.000Z",
+  "updated_at": "2026-09-24T00:00:00.000Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -44,7 +44,12 @@
         "verification": "Start/activate/complete/rollback and interrupted-rollout recovery pass against a fresh managed SurrealDB."
       }
     ],
-    "expansion_directive": "When a future WP/MT introduces a new test-time prerequisite (database capability, system library, toolchain component), add it here AND wire its ensure-present + fail-loud check into the SurrealKit rollout/test path and Handshake-managed SurrealDB setup — do not leave the requirement implicit. PostgreSQL dependencies or extensions are forbidden."
+    "expansion_directive": "When a future WP/MT introduces a new test-time prerequisite (database capability, system library, toolchain component), add it here AND wire its ensure-present + fail-loud check into the SurrealKit rollout/test path and Handshake-managed SurrealDB setup — do not leave the requirement implicit. PostgreSQL dependencies or extensions are forbidden.",
+    "flaky_tests": [],
+    "run_alone_tests": [],
+    "shared_state_isolation": "per_test: tests sharing a database or directory isolate it per test or are listed in run_alone_tests",
+    "canary_check": "REPLACE_ME: short environment check run before every expensive validation round; a canary failure is infrastructure (CX-VAL-005)",
+    "run_policy_note": "Only tests listed in flaky_tests get one recorded retry (CX-EXEC-014). Tests in run_alone_tests run serially, outside the parallel batch."
   },
   "citation_kinds": {
     "codex": "rule ID in .GOV/codex/Handshake_Codex_v1.4.md (CX-*)",
@@ -1797,6 +1802,11 @@
       "version": "1.12.0",
       "at_utc": "2026-09-23T16:53:03.000Z",
       "change": "Aligned with the operator's Handshake Creation Template pack v19 (OPERATOR instruction 2026-09-23). Added COMPART (Compartmentalised Build Units) and COMPONENT (Canonical Component Mechanics) as permanent pillars with HBR-COMPART-001/002 and HBR-COMPONENT-001/002. Adopted the optional contract_fields {wp, mt} rule field per template BR-CONTRACT-SYNC-001 and populated it on the four new rules plus HBR-VIS-001 (gui_surface), HBR-PRIV-001 (auth_binding) and HBR-INT-001 (runtime_lanes); no existing rule text was otherwise changed. Codex anchors: CX-UNIT-001, CX-CAP-001, CX-PILLAR-001, CX-TPL-001. Build units are logical module paths until the compartment refactor WP lands crates; HBR-COMPART-002 stays DEFERRED until then. Mapping recorded in .GOV/roles_shared/records/TEMPLATE_ALIGNMENT.json."
+    },
+    {
+      "version": "1.13.0",
+      "at_utc": "2026-09-24T00:00:00.000Z",
+      "change": "Aligned with the operator's Handshake Creation Template pack v21 (template BR test_environment fields). Added flaky_tests, run_alone_tests, shared_state_isolation and a canary_check placeholder to test_environment_prerequisites; no rule text changed. Codex anchors: CX-EXEC-014 (one recorded retry only for listed flaky tests), CX-VAL-005 (canary before every round). Mapping recorded in .GOV/roles_shared/records/TEMPLATE_ALIGNMENT.json."
     }
   ]
 }

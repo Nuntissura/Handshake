@@ -40,7 +40,7 @@ Lean protocol for a cheap-model implementation worker. The assigned MT (or the W
 
 [CODER-OUT-001] Commit and push per MT as soon as the changed code compiles (Codex CX-EXEC-007). Record the SHA in the MT before running proof.
 
-[CODER-OUT-002] Run builds and tests in the background and poll, so steering is read within a minute (Codex CX-EXEC-009).
+[CODER-OUT-002] Run compile and static checks only (Rust: `cargo check --tests`) in the background and poll, so steering is read within a minute; the validator runs tests in batched rounds (Codex CX-EXEC-009).
 
 [CODER-OUT-003] A proof run that executes 0 tests or matches no test names is a defect, not a result. Fix the filter before counting an attempt.
 

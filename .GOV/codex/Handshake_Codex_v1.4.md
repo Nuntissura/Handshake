@@ -72,7 +72,7 @@
 
 [CX-118] Broad cleanup/sync requests do not authorize deletion or branch movement beyond the approved assignment or the owned-artifact cleanup in [CX-984-006]. For other targets, present exact object types and consequences and obtain explicit approval; changed targets require fresh approval.
 
-[CX-122] Never run raw `git worktree remove` or recursive filesystem deletion on worktree directories. Use the verified governed deletion path, which safely detaches `.GOV/` junctions; a failed helper is not permission for manual deletion.
+[CX-122] Never run `git worktree remove` on a worktree that still holds its `.GOV/` junction, and never delete worktree directories recursively. Deletion needs the Operator-approved target list and exactly these steps: (1) `fsutil reparsepoint query "<wt>\.GOV"` shows `Mount Point`, otherwise STOP and ask the Operator; (2) the gov kernel has no uncommitted work; (3) `cmd /c rmdir "<wt>\.GOV"` with no `/s`; (4) `wt-gov-kernel\.GOV\codex\Handshake_Codex_v1.4.md` still exists; (5) `git worktree remove <wt>`. Never use `rmdir /s`, `rm -rf`, `del` or `Remove-Item` on a worktree or its `.GOV`. Any failure: STOP, no manual cleanup.
 
 [CX-GIT-001] No agent, test or tool creates a worktree or branch, directly or indirectly. Compare the worktree and branch inventory before and after every run; a new entry is a defect of that run, the verdict names the offending test, and the stray ref is removed by native Git after the preservation check.
 
@@ -124,6 +124,10 @@
 
 [CX-EXEC-012] A remediation pass fixes failures already recorded in an MT/WP (validator findings, failing tests, named blockers); the recorded failure and its stated remediation are the specification. Flow: read the failure, inspect the named code, fix, commit and push, run that MT's proof commands, record the result. Verification against the failure, current code and proof output still applies; broad research, refinements/red-team, risk/ROI listing and new audits or analysis runs do not, unless the same fix has failed twice (CX-EXEC-003).
 
+[CX-EXEC-013] A round is one test, build or diagnostic run on an MT and ends in a pushed fix commit, a recorded verdict or a recorded blocker; otherwise it is wasted. The MT JSON records `rounds_without_output`, reset only by a new pushed commit or new verdict, and `diagnosis_refs`. At 2 the MT status becomes `NEEDS_NEW_APPROACH` and no further round on it runs until a recorded diagnosis names a cause different from every earlier one (a reworded cause is the same cause); then one probe and one confirming run, then the MT is blocked and escalated.
+
+[CX-EXEC-014] Only the MT's named proof commands run, once per candidate commit; implementers, including the kernel builder, run compile and static checks only. Reruns on an unchanged commit, extra diagnostics, hang checks, duplicate confirmations and new tests or check scripts require a recorded remediation naming them. The only automatic retry is one recorded retry for a test on the HBR `flaky_tests` list.
+
 [CX-VAL-001] A validation round freezes one pushed candidate commit at round start; later commits queue for the next round and never restart a running build. A batch holds at most five MTs, ordered by exactness of their named tests. PASS requires that every required check's result line in the hashed log reads pass.
 
 [CX-VAL-002] Proof reuse across commits requires the original proof's recorded relevant input paths and an empty intersection between those paths and the diff from the proof commit to the candidate commit; the reused verdict names both commits.
@@ -131,6 +135,10 @@
 [CX-VAL-003] Verdicts are recorded in a declared order: accepted event with the verdict payload and idempotency key, state written once, completed event. An accepted event without its completed event is a half-written verdict; on resume, complete it under the same key, never as a new verdict.
 
 [CX-VAL-004] Process identity is PID plus start time plus command line, recorded at launch; a bare PID is never an identity. A command expected to run over 2 minutes appends a running record before launch naming the command, commit, target path and expected outputs. On resume, read the host restart evidence before attributing a stopped job to a crash; a host restart triggers resume, not remediation.
+
+[CX-VAL-005] A validation round starts when 5 MTs are ready or 120 minutes have passed, never waiting for all; MTs sharing a build unit share a round. The HBR `canary_check` runs first; a canary failure is infrastructure, starts no round and yields no MT verdicts. Build only the round's test targets; if the round build breaks, rebuild without the offending MT's commits and fail that MT. Run every test without fail-fast under a per-test timeout, map results to MTs from the runner's structured output, and clean the round's outputs after verdicts are recorded. Performance, stress and durability runs go to the `special_runs` lane on an idle host after the batch.
+
+[CX-VAL-006] Every failure carries `failure_kind` product, infrastructure or flaky; `failure_class` remains the cause id. Only product failures become MT remediation. A failing test owned by no MT is attributed by narrowing over the round's MT commits.
 
 [CX-HOST-001] Every project declares its test environment in a machine-local host profile outside Codex law: runtime roots, database sync mode, default check timeouts, the hang procedure of dump and stack walk before any kill, and a tools manifest. A check run outside the declared environment is a defect, not a result.
 
