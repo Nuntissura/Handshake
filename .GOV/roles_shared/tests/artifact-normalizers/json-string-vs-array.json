@@ -1,8 +1,0 @@
-{
-  "absorber": "normalizeJsonStringVsArray",
-  "input": "{\"refs\":\"[\\\"a\\\",\\\"b\\\"]\"}",
-  "output": "{\"refs\":[\"a\",\"b\"]}",
-  "applied": true,
-  "compareJson": true
-}
-

@@ -1,7 +1,0 @@
-{
-  "absorber": "normalizeFieldValueWhitespace",
-  "input": "RISK_TIER: HIGH   \n```\nRISK_TIER: HIGH   \n```\n",
-  "output": "RISK_TIER: HIGH\n```\nRISK_TIER: HIGH   \n```\n",
-  "applied": true
-}
-
