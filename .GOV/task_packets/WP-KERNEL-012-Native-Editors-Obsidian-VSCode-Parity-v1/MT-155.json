@@ -25,7 +25,7 @@
   "title": "B18-MT-155-Authenticate-Product-Screenshot-Capture-Execute",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T12:15:26.970Z",
+  "updated_at_utc": "2026-09-23T12:39:40.215Z",
   "identity": {
     "mt_id": "MT-155",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -518,11 +518,16 @@
       "MT-157"
     ],
     "base_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
-    "candidate_sha": "bea9496d70670ade7abc97dfd06515795275c546",
+    "candidate_sha": "e9973e8c2e2e28ad9baa480e9ce24131a480531e",
     "commits": [
       "efe3a1a6 fix(MT-155)"
     ],
     "note": "Recorded at claim per KB-OUT-001 before proof.",
-    "updated_at_utc": "2026-09-23T12:15:26.970Z"
+    "updated_at_utc": "2026-09-23T12:39:40.215Z",
+    "candidate_history": [
+      "bea9496d70670ade7abc97dfd06515795275c546 (compiling batch, pins not re-measured)",
+      "888229743b8f8decb01e305367182c44ad79f058 (partial re-pin + test(MT-088))",
+      "e9973e8c2e2e28ad9baa480e9ce24131a480531e (full re-pin)"
+    ]
   }
 }

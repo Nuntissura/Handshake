@@ -25,7 +25,7 @@
   "title": "B18-MT-153-Loom-Routes-Account-Session-Authority",
   "group": "B18",
   "created_at_utc": "2026-09-23T09:49:34.269Z",
-  "updated_at_utc": "2026-09-23T12:15:26.970Z",
+  "updated_at_utc": "2026-09-23T12:39:40.215Z",
   "identity": {
     "mt_id": "MT-153",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1454,7 +1454,7 @@
       "MT-157"
     ],
     "base_sha": "0cfbff649c08ae260ac53eb866293b2bc273137d",
-    "candidate_sha": "bea9496d70670ade7abc97dfd06515795275c546",
+    "candidate_sha": "e9973e8c2e2e28ad9baa480e9ce24131a480531e",
     "commits": [
       "625893e1 fix(MT-154) schema batch (covers MT-153/154/156/157)",
       "8cebbbcd fix(MT-153) Loom C3 residuals"
@@ -1462,6 +1462,11 @@
     "lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-154/kb-c4",
     "c3_gates_at_0cfbff64": "clean git-archive export of 0cfbff64 (kb-c3/x): logs kb-c3/logs/09..14 exit 0 (set A, set B, set C, native check, native clippy int, native clippy default); 15 core clippy exit 101 with 397 unique pre-existing errors (debt 395-422) and 1 on a C3-changed line (api/loom.rs:1688 useless into_iter) fixed in 8cebbbcd",
     "note": "Recorded at claim per KB-OUT-001 before proof; proof_records follow on the re-pinned candidate.",
-    "updated_at_utc": "2026-09-23T12:15:26.970Z"
+    "updated_at_utc": "2026-09-23T12:39:40.215Z",
+    "candidate_history": [
+      "bea9496d70670ade7abc97dfd06515795275c546 (compiling batch, pins not re-measured)",
+      "888229743b8f8decb01e305367182c44ad79f058 (partial re-pin + test(MT-088))",
+      "e9973e8c2e2e28ad9baa480e9ce24131a480531e (full re-pin)"
+    ]
   }
 }
