@@ -1,5 +1,7 @@
 # HANDOFF — WP-KERNEL-012 IV orchestration (2026-09-23, session 5)
 
+> **SUPERSEDED by `HANDOFF_WP-KERNEL-012_IV-orchestrator_2026-09-23_session6.md`** (session 6). Kept as history; read session 6 first.
+
 You are the INTEGRATION VALIDATOR acting as orchestrator for `WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1`. You steer sub-agents (KERNEL_BUILDER, WP_VALIDATOR, cheap review agents); you do not write product code. Supersedes the session-4 handoff (`HANDOFF_WP-KERNEL-012_IV-orchestrator_2026-09-17_session4.md`), which stays as history: its §3 decisions still hold unless changed below; its host rules §5 are REPLACED by §5 here.
 
 Read the LIVE kernel copies (`wt-gov-kernel/.GOV/...`, never `handshake_main/.GOV`): Codex `codex/Handshake_Codex_v1.4.md` (compact v1.5), `roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, and root `CLAUDE.md`/`AGENTS.md`. Codex CX-021 + Operator: no `just`, no repomem/ACP/receipts/dossiers; MT-json is the only status surface; status correctness + state recovery are the only governance goals.
