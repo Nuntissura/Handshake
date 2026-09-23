@@ -140,7 +140,14 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE blocks
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE
     THEN { THROW 'blocks.last_job_id is required when last_actor_kind is AI'; };
 
-DEFINE TABLE OVERWRITE canvases SCHEMAFULL PERMISSIONS NONE;
+-- MT-154 (02-system-architecture.md:2758/2773/2776, LM-RLS-001/002): legacy canvases are workspace-scoped;
+-- viewers read, members create/edit, admins delete; an owner's workspace delete may remove them.
+DEFINE TABLE OVERWRITE canvases SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write')
+                    OR fn::mt120_workspace_delete(record::id(workspace_id));
 DEFINE FIELD OVERWRITE workspace_id ON TABLE canvases TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE title ON TABLE canvases TYPE string;
 DEFINE FIELD OVERWRITE last_job_id ON TABLE canvases TYPE option<string>;
@@ -155,7 +162,15 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE canvases
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE
     THEN { THROW 'canvases.last_job_id is required when last_actor_kind is AI'; };
 
-DEFINE TABLE OVERWRITE canvas_nodes SCHEMAFULL PERMISSIONS NONE;
+-- MT-154: canvas children inherit their canvas's workspace authority. Replacing a canvas graph is an edit
+-- of the canvas (PUT /canvases/:id authorizes update), so child rows are removable by update or delete.
+DEFINE TABLE OVERWRITE canvas_nodes SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')
+                FOR delete WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')
+                    OR fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'delete', 'fs.write')
+                    OR fn::mt120_workspace_delete(record::id(canvas_id.workspace_id));
 DEFINE FIELD OVERWRITE canvas_id ON TABLE canvas_nodes TYPE record<canvases> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE kind ON TABLE canvas_nodes TYPE string;
 DEFINE FIELD OVERWRITE position_x ON TABLE canvas_nodes TYPE float;
@@ -174,7 +189,13 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE canvas_nodes
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE
     THEN { THROW 'canvas_nodes.last_job_id is required when last_actor_kind is AI'; };
 
-DEFINE TABLE OVERWRITE canvas_edges SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE canvas_edges SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')
+                FOR delete WHERE fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'update', 'fs.write')
+                    OR fn::mt109_has_workspace_access(record::id(canvas_id.workspace_id), 'delete', 'fs.write')
+                    OR fn::mt120_workspace_delete(record::id(canvas_id.workspace_id));
 DEFINE FIELD OVERWRITE canvas_id ON TABLE canvas_edges TYPE record<canvases> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE from_node_id ON TABLE canvas_edges TYPE record<canvas_nodes> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE to_node_id ON TABLE canvas_edges TYPE record<canvas_nodes> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -192,7 +213,7 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE canvas_edges
     THEN { THROW 'canvas_edges.last_job_id is required when last_actor_kind is AI'; };
 
 -- 0002-0011 AI jobs, workflow persistence, and historical normalization.
-DEFINE TABLE OVERWRITE ai_jobs SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE ai_jobs SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(entity_refs, job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(entity_refs, job_inputs, 'read', 'fr.read') FOR create WHERE fn::mt154_job_access(entity_refs, job_inputs, 'create', 'fs.write') OR (job_kind = 'debug_bundle_export' AND fn::mt154_job_access(entity_refs, job_inputs, 'read', 'fr.read')) FOR update WHERE fn::mt154_job_access(entity_refs, job_inputs, 'update', 'fs.write') OR (job_kind = 'debug_bundle_export' AND fn::mt154_job_access(entity_refs, job_inputs, 'read', 'fr.read')) FOR delete NONE;
 DEFINE FIELD OVERWRITE trace_id ON TABLE ai_jobs TYPE string;
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE ai_jobs TYPE option<string>;
 DEFINE FIELD OVERWRITE job_kind ON TABLE ai_jobs TYPE string;
@@ -276,14 +297,14 @@ DEFINE FIELD OVERWRITE attachments ON TABLE model_session_messages TYPE array<st
 DEFINE FIELD OVERWRITE created_at ON TABLE model_session_messages TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE idx_model_session_messages_session ON TABLE model_session_messages FIELDS session_id, created_at;
 
-DEFINE TABLE OVERWRITE workflow_runs SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE workflow_runs SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'update', 'fs.write') OR (job_id.job_kind = 'debug_bundle_export' AND fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fr.read')) FOR delete NONE;
 DEFINE FIELD OVERWRITE job_id ON TABLE workflow_runs TYPE record<ai_jobs> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE status ON TABLE workflow_runs TYPE string;
 DEFINE FIELD OVERWRITE last_heartbeat ON TABLE workflow_runs TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE created_at ON TABLE workflow_runs TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE updated_at ON TABLE workflow_runs TYPE datetime DEFAULT time::now();
 
-DEFINE TABLE OVERWRITE workflow_node_executions SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE workflow_node_executions SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(workflow_run_id.job_id.entity_refs, workflow_run_id.job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(workflow_run_id.job_id.entity_refs, workflow_run_id.job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(workflow_run_id.job_id.entity_refs, workflow_run_id.job_id.job_inputs, 'update', 'fs.write') OR (workflow_run_id.job_id.job_kind = 'debug_bundle_export' AND fn::mt154_job_access(workflow_run_id.job_id.entity_refs, workflow_run_id.job_id.job_inputs, 'read', 'fr.read')) FOR delete NONE;
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE workflow_node_executions TYPE record<workflow_runs> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE node_id ON TABLE workflow_node_executions TYPE string;
 DEFINE FIELD OVERWRITE node_type ON TABLE workflow_node_executions TYPE string;
@@ -472,7 +493,7 @@ DEFINE EVENT OVERWRITE mt109_loom_source_integrity ON TABLE loom_blocks
         };
     };
 -- MT109_AUTHORITY_END
-DEFINE FIELD OVERWRITE block_id ON TABLE loom_blocks TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE block_id ON TABLE loom_blocks TYPE string ASSERT $value = record::id($this.id) AND ($before = NONE OR fn::mt153_loom_identity_unchanged($this));
 DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_blocks TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE created_in_session_id ON TABLE loom_blocks TYPE option<record<authenticated_sessions>> REFERENCE ON DELETE REJECT;
 -- 0334_loom_canvas_boards widens this allow-list with the canvas-board kind.
@@ -578,7 +599,14 @@ DEFINE INDEX OVERWRITE pk_ai_job_mcp_fields ON TABLE ai_job_mcp_fields FIELDS jo
 DEFINE INDEX OVERWRITE idx_ai_job_mcp_fields_progress_token ON TABLE ai_job_mcp_fields FIELDS mcp_progress_token UNIQUE;
 
 -- 0015_calendar_storage
-DEFINE TABLE OVERWRITE calendar_sources SCHEMAFULL PERMISSIONS NONE;
+-- MT-154 (02-system-architecture.md:2758/2773/2776, LM-RLS-001/002): calendar rows are workspace-scoped;
+-- viewers read, members create/edit, admins delete; an owner's workspace delete may remove them.
+DEFINE TABLE OVERWRITE calendar_sources SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write')
+                    OR fn::mt120_workspace_delete(record::id(workspace_id));
 DEFINE FIELD OVERWRITE workspace_id ON TABLE calendar_sources TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE display_name ON TABLE calendar_sources TYPE string;
 DEFINE FIELD OVERWRITE provider_type ON TABLE calendar_sources TYPE string;
@@ -617,7 +645,12 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE calendar_sources
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE
     THEN { THROW 'calendar_sources.last_job_id is required when last_actor_kind is AI'; };
 
-DEFINE TABLE OVERWRITE calendar_events SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE calendar_events SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write')
+                    OR fn::mt120_workspace_delete(record::id(workspace_id));
 DEFINE FIELD OVERWRITE workspace_id ON TABLE calendar_events TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source_id ON TABLE calendar_events TYPE record<calendar_sources> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE external_id ON TABLE calendar_events TYPE option<string>;
@@ -677,7 +710,10 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE calendar_events
     THEN { THROW 'calendar_events.last_job_id is required when last_actor_kind is AI'; };
 
 -- 0016_locus_structured_collaboration
-DEFINE TABLE OVERWRITE work_packets SCHEMAFULL PERMISSIONS NONE;
+-- MT-154 (D-154-3): account-owned; owner_account_id stamped from $auth at create (NONE for root/system
+-- writers, which a record user never sees).
+DEFINE TABLE OVERWRITE work_packets SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE work_packets TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE wp_id ON TABLE work_packets TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE version ON TABLE work_packets TYPE int;
 DEFINE FIELD OVERWRITE title ON TABLE work_packets TYPE string;
@@ -711,7 +747,8 @@ DEFINE INDEX OVERWRITE ix_dependencies_from_wp ON TABLE dependencies FIELDS from
 DEFINE INDEX OVERWRITE ix_dependencies_to_wp ON TABLE dependencies FIELDS to_wp_id;
 DEFINE INDEX OVERWRITE ix_dependencies_type ON TABLE dependencies FIELDS dependency_type;
 
-DEFINE TABLE OVERWRITE micro_tasks SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE micro_tasks SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE micro_tasks TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE mt_id ON TABLE micro_tasks TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE wp_id ON TABLE micro_tasks TYPE record<work_packets> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE name ON TABLE micro_tasks TYPE string;
@@ -868,8 +905,8 @@ DEFINE SEQUENCE IF NOT EXISTS kernel_event_sequence BATCH 1 START 1;
 
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
-    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)
-                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true)
                 FOR update, delete NONE;
 -- MT109_AUTHORITY_END
 DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT $value = record::id($this.id);
@@ -920,7 +957,7 @@ DEFINE INDEX OVERWRITE idx_kernel_session_queue_state_available ON TABLE kernel_
 DEFINE INDEX OVERWRITE idx_kernel_session_queue_lease ON TABLE kernel_session_queue FIELDS lease_expires_at;
 
 -- 0020_kernel_crdt_storage
-DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE kernel_crdt_updates SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_document_access(document_id, workspace_id, 'read', 'fs.read') FOR create WHERE fn::mt120_document_access(document_id, workspace_id, 'update', 'fs.write') AND event_ledger_event_id.authority_session_id = $auth.id AND event_ledger_event_id.wsids = [workspace_id] FOR update, delete NONE;
 DEFINE FIELD OVERWRITE schema_id ON TABLE kernel_crdt_updates TYPE string;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE kernel_crdt_updates TYPE string;
 DEFINE FIELD OVERWRITE document_id ON TABLE kernel_crdt_updates TYPE string;
@@ -1277,7 +1314,11 @@ DEFINE INDEX OVERWRITE idx_kernel_event_ledger_memory_bitemporal_manifest ON TAB
 -- partial-index predicates and ASC/DESC decorations have no SurrealDB schema equivalent;
 -- the same lookup columns and uniqueness semantics are retained.
 
-DEFINE TABLE OVERWRITE atelier_character SCHEMAFULL PERMISSIONS NONE;
+-- MT-154 (D-154-3; Master Spec 02-system-architecture.md:2740/:2751): every atelier_* row is an
+-- account-owned ProtectedResource. owner_account_id is stamped from $auth at create (NONE for root/system
+-- writers, which no record user can see) and is READONLY; fn::mt154_account_row gates every operation.
+DEFINE TABLE OVERWRITE atelier_character SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_character TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE internal_id ON TABLE atelier_character TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE public_id ON TABLE atelier_character TYPE string;
 DEFINE FIELD OVERWRITE display_name ON TABLE atelier_character TYPE string;
@@ -1286,7 +1327,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_character TYPE datetime D
 DEFINE INDEX OVERWRITE pk_atelier_character ON TABLE atelier_character FIELDS internal_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_character_1 ON TABLE atelier_character FIELDS public_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_sheet_version SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_sheet_version SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_sheet_version TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE version_id ON TABLE atelier_sheet_version TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_sheet_version TYPE record<atelier_character> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE parent_version_id ON TABLE atelier_sheet_version TYPE option<record<atelier_sheet_version>> ASSERT ($value = NONE OR record::exists($value)) REFERENCE ON DELETE REJECT;
@@ -1298,7 +1340,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sheet_version TYPE dateti
 DEFINE INDEX OVERWRITE pk_atelier_sheet_version ON TABLE atelier_sheet_version FIELDS version_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_sheet_version_1 ON TABLE atelier_sheet_version FIELDS character_internal_id, seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_media_asset SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_media_asset SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_asset TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_asset TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE content_hash ON TABLE atelier_media_asset TYPE string;
 DEFINE FIELD OVERWRITE mime ON TABLE atelier_media_asset TYPE string;
@@ -1312,7 +1355,8 @@ DEFINE FIELD OVERWRITE artifact_manifest.* ON TABLE atelier_media_asset TYPE any
 DEFINE INDEX OVERWRITE pk_atelier_media_asset ON TABLE atelier_media_asset FIELDS asset_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_media_asset_1 ON TABLE atelier_media_asset FIELDS content_hash UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_event SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_event SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_event TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE event_id ON TABLE atelier_event TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE event_family ON TABLE atelier_event TYPE string;
 DEFINE FIELD OVERWRITE aggregate_type ON TABLE atelier_event TYPE string;
@@ -1324,7 +1368,8 @@ DEFINE FIELD OVERWRITE kernel_event_id ON TABLE atelier_event TYPE option<string
 DEFINE FIELD OVERWRITE kernel_event_sequence ON TABLE atelier_event TYPE option<int>;
 DEFINE INDEX OVERWRITE pk_atelier_event ON TABLE atelier_event FIELDS event_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_intake_batch SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_intake_batch SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_intake_batch TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE batch_id ON TABLE atelier_intake_batch TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE idempotency_key ON TABLE atelier_intake_batch TYPE string;
 DEFINE FIELD OVERWRITE source_label ON TABLE atelier_intake_batch TYPE string;
@@ -1343,7 +1388,8 @@ DEFINE FIELD OVERWRITE target_collection_id ON TABLE atelier_intake_batch TYPE o
 DEFINE INDEX OVERWRITE pk_atelier_intake_batch ON TABLE atelier_intake_batch FIELDS batch_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_intake_batch_1 ON TABLE atelier_intake_batch FIELDS idempotency_key UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_intake_item SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_intake_item SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_intake_item TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE item_id ON TABLE atelier_intake_item TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE batch_id ON TABLE atelier_intake_item TYPE record<atelier_intake_batch> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source_path ON TABLE atelier_intake_item TYPE string;
@@ -1357,7 +1403,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_intake_item TYPE datetime
 DEFINE INDEX OVERWRITE pk_atelier_intake_item ON TABLE atelier_intake_item FIELDS item_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_intake_item_1 ON TABLE atelier_intake_item FIELDS batch_id, source_path UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_collection SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_collection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_collection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE name ON TABLE atelier_collection TYPE string;
 DEFINE FIELD OVERWRITE notes ON TABLE atelier_collection TYPE string DEFAULT '';
@@ -1370,14 +1417,16 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_collection TYPE datetime 
 DEFINE INDEX OVERWRITE pk_atelier_collection ON TABLE atelier_collection FIELDS collection_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_collection_1 ON TABLE atelier_collection FIELDS name UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_collection_item SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_collection_item SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_collection_item TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection_item TYPE record<atelier_collection> ASSERT (record::exists($value)) AND ($value = type::record('atelier_collection', record::id($this.id)[0])) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_collection_item TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND ($value = type::record('atelier_media_asset', record::id($this.id)[1])) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE sort_order ON TABLE atelier_collection_item TYPE int DEFAULT 0;
 DEFINE FIELD OVERWRITE added_at_utc ON TABLE atelier_collection_item TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_collection_item ON TABLE atelier_collection_item FIELDS collection_id, asset_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_contact_sheet SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_contact_sheet SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_contact_sheet TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE sheet_id ON TABLE atelier_contact_sheet TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE name ON TABLE atelier_contact_sheet TYPE string DEFAULT '';
 DEFINE FIELD OVERWRITE source_type ON TABLE atelier_contact_sheet TYPE string DEFAULT 'manual';
@@ -1392,20 +1441,23 @@ DEFINE FIELD OVERWRITE image_count ON TABLE atelier_contact_sheet TYPE int DEFAU
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_contact_sheet TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_contact_sheet ON TABLE atelier_contact_sheet FIELDS sheet_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_tag SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_tag SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_tag TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE tag_id ON TABLE atelier_tag TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE text ON TABLE atelier_tag TYPE string;
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_tag TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_tag ON TABLE atelier_tag FIELDS tag_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_tag_1 ON TABLE atelier_tag FIELDS text UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_character_tag SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_character_tag SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_character_tag TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_character_tag TYPE record<atelier_character> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)[0]) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE tag_id ON TABLE atelier_character_tag TYPE record<atelier_tag> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)[1]) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE tag_type ON TABLE atelier_character_tag TYPE 'manual' | 'derived';
 DEFINE INDEX OVERWRITE pk_atelier_character_tag ON TABLE atelier_character_tag FIELDS character_internal_id, tag_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_tag_rule SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_tag_rule SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_tag_rule TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE rule_id ON TABLE atelier_tag_rule TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE source_field_id ON TABLE atelier_tag_rule TYPE string;
 DEFINE FIELD OVERWRITE match_type ON TABLE atelier_tag_rule TYPE 'equals' | 'contains' | 'regex';
@@ -1416,7 +1468,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_tag_rule TYPE datetime DE
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_tag_rule TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_tag_rule ON TABLE atelier_tag_rule FIELDS rule_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_similarity_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_similarity_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_similarity_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE asset_internal_id ON TABLE atelier_similarity_projection TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE dhash_hex ON TABLE atelier_similarity_projection TYPE option<string>;
 DEFINE FIELD OVERWRITE palette_json ON TABLE atelier_similarity_projection TYPE object FLEXIBLE DEFAULT {};
@@ -1424,7 +1477,8 @@ DEFINE FIELD OVERWRITE palette_json.* ON TABLE atelier_similarity_projection TYP
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_similarity_projection TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_similarity_projection ON TABLE atelier_similarity_projection FIELDS asset_internal_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_export_request SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_export_request SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_export_request TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE export_id ON TABLE atelier_export_request TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_export_request TYPE record<atelier_character> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE sheet_version_id ON TABLE atelier_export_request TYPE record<atelier_sheet_version> ASSERT (record::exists($value)) REFERENCE ON DELETE REJECT;
@@ -1435,7 +1489,8 @@ DEFINE FIELD OVERWRITE requested_by ON TABLE atelier_export_request TYPE string;
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_export_request TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_export_request ON TABLE atelier_export_request FIELDS export_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_export_result SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_export_result SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_export_result TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE result_id ON TABLE atelier_export_result TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE export_id ON TABLE atelier_export_result TYPE record<atelier_export_request> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE artifact_ref ON TABLE atelier_export_result TYPE string;
@@ -1445,7 +1500,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_export_result TYPE dateti
 DEFINE INDEX OVERWRITE pk_atelier_export_result ON TABLE atelier_export_result FIELDS result_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_export_result_1 ON TABLE atelier_export_result FIELDS export_id, content_hash UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_export_manifest_entry SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_export_manifest_entry SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_export_manifest_entry TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE entry_id ON TABLE atelier_export_manifest_entry TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE export_id ON TABLE atelier_export_manifest_entry TYPE record<atelier_export_request> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE seq ON TABLE atelier_export_manifest_entry TYPE int;
@@ -1456,7 +1512,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_export_manifest_entry TYP
 DEFINE INDEX OVERWRITE pk_atelier_export_manifest_entry ON TABLE atelier_export_manifest_entry FIELDS entry_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_export_manifest_entry_1 ON TABLE atelier_export_manifest_entry FIELDS export_id, seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_media_annotation SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_media_annotation SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_annotation TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE annotation_id ON TABLE atelier_media_annotation TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_annotation TYPE record<atelier_media_asset> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE kind ON TABLE atelier_media_annotation TYPE string;
@@ -1471,7 +1528,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_media_annotation TYPE dat
 DEFINE INDEX OVERWRITE pk_atelier_media_annotation ON TABLE atelier_media_annotation FIELDS annotation_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_media_annotation_1 ON TABLE atelier_media_annotation FIELDS asset_id, seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_preference SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_preference SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_preference TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE preference_id ON TABLE atelier_preference TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE scope_kind ON TABLE atelier_preference TYPE 'global' | 'character';
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_preference TYPE option<record<atelier_character>> ASSERT ($value = NONE OR record::exists($value)) AND (($this.scope_kind = 'global' AND $value = NONE) OR ($this.scope_kind = 'character' AND $value != NONE)) REFERENCE ON DELETE CASCADE;
@@ -1491,7 +1549,8 @@ DEFINE FIELD OVERWRITE redaction_class ON TABLE atelier_preference TYPE string D
 DEFINE INDEX OVERWRITE pk_atelier_preference ON TABLE atelier_preference FIELDS preference_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_preference_1 ON TABLE atelier_preference FIELDS scope_kind, character_internal_id, key UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_pose_rig SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_pose_rig SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_pose_rig TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE rig_id ON TABLE atelier_pose_rig TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_pose_rig TYPE record<atelier_character> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source_asset_id ON TABLE atelier_pose_rig TYPE option<record<atelier_media_asset>> ASSERT ($value = NONE OR record::exists($value)) REFERENCE ON DELETE UNSET;
@@ -1514,7 +1573,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_pose_rig TYPE datetime DE
 DEFINE INDEX OVERWRITE pk_atelier_pose_rig ON TABLE atelier_pose_rig FIELDS rig_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_pose_rig_1 ON TABLE atelier_pose_rig FIELDS character_internal_id, source_ref, content_hash UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_pose_head_pose SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_pose_head_pose SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_pose_head_pose TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE rig_id ON TABLE atelier_pose_head_pose TYPE record<atelier_pose_rig> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE yaw_deg ON TABLE atelier_pose_head_pose TYPE float;
 DEFINE FIELD OVERWRITE pitch_deg ON TABLE atelier_pose_head_pose TYPE float;
@@ -1526,7 +1586,8 @@ DEFINE FIELD OVERWRITE quat_w ON TABLE atelier_pose_head_pose TYPE float;
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_pose_head_pose TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_pose_head_pose ON TABLE atelier_pose_head_pose FIELDS rig_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_pose_calibration SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_pose_calibration SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_pose_calibration TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE rig_id ON TABLE atelier_pose_calibration TYPE record<atelier_pose_rig> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE state ON TABLE atelier_pose_calibration TYPE 'unresolved' | 'resolved';
 DEFINE FIELD OVERWRITE block_reason ON TABLE atelier_pose_calibration TYPE option<string>;
@@ -1543,7 +1604,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_pose_calibration TYPE dat
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_pose_calibration TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_pose_calibration ON TABLE atelier_pose_calibration FIELDS rig_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_identity_profile SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_identity_profile SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_identity_profile TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE profile_id ON TABLE atelier_identity_profile TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_identity_profile TYPE record<atelier_character> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE seq ON TABLE atelier_identity_profile TYPE int;
@@ -1563,7 +1625,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_identity_profile TYPE dat
 DEFINE INDEX OVERWRITE pk_atelier_identity_profile ON TABLE atelier_identity_profile FIELDS profile_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_identity_profile_1 ON TABLE atelier_identity_profile FIELDS character_internal_id, seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_comfy_bridge_probe SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_bridge_probe SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_bridge_probe TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE probe_id ON TABLE atelier_comfy_bridge_probe TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_bridge_probe TYPE uuid;
 DEFINE FIELD OVERWRITE node_class_id ON TABLE atelier_comfy_bridge_probe TYPE string;
@@ -1577,7 +1640,8 @@ DEFINE FIELD OVERWRITE probed_at_utc ON TABLE atelier_comfy_bridge_probe TYPE da
 DEFINE INDEX OVERWRITE pk_atelier_comfy_bridge_probe ON TABLE atelier_comfy_bridge_probe FIELDS probe_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_comfy_bridge_probe_1 ON TABLE atelier_comfy_bridge_probe FIELDS workflow_run_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_comfy_capability_registration SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_capability_registration SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_capability_registration TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE registration_id ON TABLE atelier_comfy_capability_registration TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_capability_registration TYPE uuid;
 DEFINE FIELD OVERWRITE node_class_id ON TABLE atelier_comfy_capability_registration TYPE string;
@@ -1588,7 +1652,8 @@ DEFINE FIELD OVERWRITE registered_at_utc ON TABLE atelier_comfy_capability_regis
 DEFINE INDEX OVERWRITE pk_atelier_comfy_capability_registration ON TABLE atelier_comfy_capability_registration FIELDS registration_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_comfy_capability_registration_1 ON TABLE atelier_comfy_capability_registration FIELDS workflow_run_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_comfy_declared_output SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_declared_output SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_declared_output TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE declared_output_id ON TABLE atelier_comfy_declared_output TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE registration_id ON TABLE atelier_comfy_declared_output TYPE record<atelier_comfy_capability_registration> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE seq ON TABLE atelier_comfy_declared_output TYPE int;
@@ -1599,7 +1664,8 @@ DEFINE FIELD OVERWRITE routing_intent ON TABLE atelier_comfy_declared_output TYP
 DEFINE INDEX OVERWRITE pk_atelier_comfy_declared_output ON TABLE atelier_comfy_declared_output FIELDS declared_output_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_comfy_declared_output_1 ON TABLE atelier_comfy_declared_output FIELDS registration_id, seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_comfy_capability_reject SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_capability_reject SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_capability_reject TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE reject_id ON TABLE atelier_comfy_capability_reject TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE registration_id ON TABLE atelier_comfy_capability_reject TYPE record<atelier_comfy_capability_registration> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE seq ON TABLE atelier_comfy_capability_reject TYPE int;
@@ -1608,7 +1674,8 @@ DEFINE FIELD OVERWRITE reason ON TABLE atelier_comfy_capability_reject TYPE stri
 DEFINE INDEX OVERWRITE pk_atelier_comfy_capability_reject ON TABLE atelier_comfy_capability_reject FIELDS reject_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_comfy_capability_reject_1 ON TABLE atelier_comfy_capability_reject FIELDS registration_id, seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_comfy_intake_output SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_intake_output SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_intake_output TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE intake_output_id ON TABLE atelier_comfy_intake_output TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_intake_output TYPE uuid;
 DEFINE FIELD OVERWRITE node_execution_id ON TABLE atelier_comfy_intake_output TYPE string;
@@ -1631,13 +1698,15 @@ DEFINE FIELD OVERWRITE materialized_at_utc ON TABLE atelier_comfy_intake_output 
 DEFINE INDEX OVERWRITE pk_atelier_comfy_intake_output ON TABLE atelier_comfy_intake_output FIELDS intake_output_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_comfy_intake_output_1 ON TABLE atelier_comfy_intake_output FIELDS workflow_run_id, content_hash UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_comfy_fallback_marker SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_fallback_marker SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_fallback_marker TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_fallback_marker TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE fallback_reason ON TABLE atelier_comfy_fallback_marker TYPE string;
 DEFINE FIELD OVERWRITE engaged_at_utc ON TABLE atelier_comfy_fallback_marker TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_comfy_fallback_marker ON TABLE atelier_comfy_fallback_marker FIELDS workflow_run_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_sourcing_spec SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_sourcing_spec SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_sourcing_spec TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE record_id ON TABLE atelier_sourcing_spec TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE sourcing_spec_id ON TABLE atelier_sourcing_spec TYPE string;
 DEFINE FIELD OVERWRITE schema_version ON TABLE atelier_sourcing_spec TYPE string;
@@ -1655,7 +1724,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sourcing_spec TYPE dateti
 DEFINE INDEX OVERWRITE pk_atelier_sourcing_spec ON TABLE atelier_sourcing_spec FIELDS record_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_sourcing_spec_1 ON TABLE atelier_sourcing_spec FIELDS spec_hash UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_handler_version_matrix SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_handler_version_matrix SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_handler_version_matrix TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE entry_id ON TABLE atelier_handler_version_matrix TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE handler_family ON TABLE atelier_handler_version_matrix TYPE string;
 DEFINE FIELD OVERWRITE handler_version ON TABLE atelier_handler_version_matrix TYPE string;
@@ -1672,7 +1742,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_handler_version_matrix TY
 DEFINE INDEX OVERWRITE pk_atelier_handler_version_matrix ON TABLE atelier_handler_version_matrix FIELDS entry_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_handler_version_matrix_1 ON TABLE atelier_handler_version_matrix FIELDS handler_family, handler_version UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_sourcing_binding_decision SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_sourcing_binding_decision SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_sourcing_binding_decision TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE decision_id ON TABLE atelier_sourcing_binding_decision TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE sourcing_spec_id ON TABLE atelier_sourcing_binding_decision TYPE string;
 DEFINE FIELD OVERWRITE spec_hash ON TABLE atelier_sourcing_binding_decision TYPE string;
@@ -1687,7 +1758,8 @@ DEFINE FIELD OVERWRITE resolution_reason ON TABLE atelier_sourcing_binding_decis
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sourcing_binding_decision TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_sourcing_binding_decision ON TABLE atelier_sourcing_binding_decision FIELDS decision_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_version_mismatch_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_version_mismatch_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_version_mismatch_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE atelier_version_mismatch_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE decision_id ON TABLE atelier_version_mismatch_receipt TYPE record<atelier_sourcing_binding_decision> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE sourcing_spec_id ON TABLE atelier_version_mismatch_receipt TYPE string;
@@ -1701,7 +1773,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_version_mismatch_receipt 
 DEFINE INDEX OVERWRITE pk_atelier_version_mismatch_receipt ON TABLE atelier_version_mismatch_receipt FIELDS receipt_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_version_mismatch_receipt_1 ON TABLE atelier_version_mismatch_receipt FIELDS decision_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_sourcing_ingestion_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_sourcing_ingestion_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_sourcing_ingestion_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE atelier_sourcing_ingestion_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE decision_id ON TABLE atelier_sourcing_ingestion_receipt TYPE record<atelier_sourcing_binding_decision> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE ingestion_key ON TABLE atelier_sourcing_ingestion_receipt TYPE string;
@@ -1717,7 +1790,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sourcing_ingestion_receip
 DEFINE INDEX OVERWRITE pk_atelier_sourcing_ingestion_receipt ON TABLE atelier_sourcing_ingestion_receipt FIELDS receipt_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_sourcing_ingestion_receipt_1 ON TABLE atelier_sourcing_ingestion_receipt FIELDS ingestion_key UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_media_probe_report SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_media_probe_report SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_probe_report TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE probe_report_id ON TABLE atelier_media_probe_report TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE media_source_id ON TABLE atelier_media_probe_report TYPE string;
 DEFINE FIELD OVERWRITE source_media_hash ON TABLE atelier_media_probe_report TYPE string;
@@ -1732,7 +1806,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_media_probe_report TYPE d
 DEFINE INDEX OVERWRITE pk_atelier_media_probe_report ON TABLE atelier_media_probe_report FIELDS probe_report_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_media_probe_report_1 ON TABLE atelier_media_probe_report FIELDS source_media_hash UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_transcript_artifact SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_transcript_artifact SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_transcript_artifact TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE transcript_id ON TABLE atelier_transcript_artifact TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE media_source_id ON TABLE atelier_transcript_artifact TYPE string;
 DEFINE FIELD OVERWRITE source_media_hash ON TABLE atelier_transcript_artifact TYPE record<atelier_media_probe_report> ASSERT (record::exists($value)) REFERENCE ON DELETE REJECT;
@@ -1750,7 +1825,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_transcript_artifact TYPE 
 DEFINE INDEX OVERWRITE pk_atelier_transcript_artifact ON TABLE atelier_transcript_artifact FIELDS transcript_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_transcript_artifact_1 ON TABLE atelier_transcript_artifact FIELDS artifact_ref UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_caption_artifact SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_caption_artifact SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_caption_artifact TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE caption_artifact_id ON TABLE atelier_caption_artifact TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE transcript_id ON TABLE atelier_caption_artifact TYPE record<atelier_transcript_artifact> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE media_source_id ON TABLE atelier_caption_artifact TYPE string;
@@ -1769,7 +1845,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_caption_artifact TYPE dat
 DEFINE INDEX OVERWRITE pk_atelier_caption_artifact ON TABLE atelier_caption_artifact FIELDS caption_artifact_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_caption_artifact_1 ON TABLE atelier_caption_artifact FIELDS artifact_ref UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_transcript_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_transcript_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_transcript_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE atelier_transcript_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE kind ON TABLE atelier_transcript_receipt TYPE 'media_probe' | 'transcribe' | 'caption_render';
 DEFINE FIELD OVERWRITE job_id ON TABLE atelier_transcript_receipt TYPE string;
@@ -1790,7 +1867,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_transcript_receipt TYPE d
 DEFINE INDEX OVERWRITE pk_atelier_transcript_receipt ON TABLE atelier_transcript_receipt FIELDS receipt_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_transcript_receipt_1 ON TABLE atelier_transcript_receipt FIELDS job_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_md_output_root SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_md_output_root SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_md_output_root TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE root_id ON TABLE atelier_md_output_root TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE configured_root ON TABLE atelier_md_output_root TYPE string;
 DEFINE FIELD OVERWRITE materialization_mode ON TABLE atelier_md_output_root TYPE 'copy' | 'hardlink' | 'symlink' DEFAULT 'hardlink';
@@ -1801,7 +1879,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_md_output_root TYPE datet
 DEFINE INDEX OVERWRITE pk_atelier_md_output_root ON TABLE atelier_md_output_root FIELDS root_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_md_output_root_1 ON TABLE atelier_md_output_root FIELDS configured_root UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_md_allowlist_policy SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_md_allowlist_policy SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_md_allowlist_policy TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE allowlist_policy_id ON TABLE atelier_md_allowlist_policy TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE name ON TABLE atelier_md_allowlist_policy TYPE string;
 DEFINE FIELD OVERWRITE allowed_domains ON TABLE atelier_md_allowlist_policy TYPE array DEFAULT [];
@@ -1818,7 +1897,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_md_allowlist_policy TYPE 
 DEFINE INDEX OVERWRITE pk_atelier_md_allowlist_policy ON TABLE atelier_md_allowlist_policy FIELDS allowlist_policy_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_md_allowlist_policy_1 ON TABLE atelier_md_allowlist_policy FIELDS name UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_md_auth_context SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_md_auth_context SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_md_auth_context TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE auth_context_ref ON TABLE atelier_md_auth_context TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE label ON TABLE atelier_md_auth_context TYPE string;
 DEFINE FIELD OVERWRITE auth_mode ON TABLE atelier_md_auth_context TYPE 'none' | 'session' | 'cookie_jar' | 'header' DEFAULT 'none';
@@ -1831,7 +1911,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_md_auth_context TYPE date
 DEFINE INDEX OVERWRITE pk_atelier_md_auth_context ON TABLE atelier_md_auth_context FIELDS auth_context_ref UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_md_auth_context_1 ON TABLE atelier_md_auth_context FIELDS label UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_md_download_session SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_md_download_session SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_md_download_session TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE session_id ON TABLE atelier_md_download_session TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE parent_job_id ON TABLE atelier_md_download_session TYPE string;
 DEFINE FIELD OVERWRITE idempotency_key ON TABLE atelier_md_download_session TYPE string;
@@ -1848,7 +1929,8 @@ DEFINE FIELD OVERWRITE capability_grant_ref ON TABLE atelier_md_download_session
 DEFINE INDEX OVERWRITE pk_atelier_md_download_session ON TABLE atelier_md_download_session FIELDS session_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_md_download_session_1 ON TABLE atelier_md_download_session FIELDS idempotency_key UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_md_item_state SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_md_item_state SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_md_item_state TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE item_id ON TABLE atelier_md_item_state TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE session_id ON TABLE atelier_md_item_state TYPE record<atelier_md_download_session> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE normalized_url ON TABLE atelier_md_item_state TYPE string;
@@ -1866,7 +1948,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_md_item_state TYPE dateti
 DEFINE INDEX OVERWRITE pk_atelier_md_item_state ON TABLE atelier_md_item_state FIELDS item_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_md_item_state_1 ON TABLE atelier_md_item_state FIELDS session_id, normalized_url UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_md_checkpoint SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_md_checkpoint SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_md_checkpoint TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE checkpoint_id ON TABLE atelier_md_checkpoint TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE session_id ON TABLE atelier_md_checkpoint TYPE record<atelier_md_download_session> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE item_id ON TABLE atelier_md_checkpoint TYPE option<record<atelier_md_item_state>> ASSERT ($value = NONE OR record::exists($value)) REFERENCE ON DELETE CASCADE;
@@ -1877,7 +1960,8 @@ DEFINE FIELD OVERWRITE resume_token ON TABLE atelier_md_checkpoint TYPE option<s
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_md_checkpoint TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_md_checkpoint ON TABLE atelier_md_checkpoint FIELDS checkpoint_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_md_session_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_md_session_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_md_session_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE atelier_md_session_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE session_id ON TABLE atelier_md_session_receipt TYPE record<atelier_md_download_session> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE parent_job_id ON TABLE atelier_md_session_receipt TYPE string;
@@ -1899,7 +1983,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_md_session_receipt TYPE d
 DEFINE INDEX OVERWRITE pk_atelier_md_session_receipt ON TABLE atelier_md_session_receipt FIELDS receipt_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_md_session_receipt_1 ON TABLE atelier_md_session_receipt FIELDS session_id, terminal_stage UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_command_corpus_entry SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_command_corpus_entry SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_catalog_read(owner_account_id) FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_command_corpus_entry TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE entry_id ON TABLE atelier_command_corpus_entry TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE action_id ON TABLE atelier_command_corpus_entry TYPE string;
 DEFINE FIELD OVERWRITE corpus_source ON TABLE atelier_command_corpus_entry TYPE 'preload' | 'ipc_handler' | 'both';
@@ -1923,7 +2008,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_command_corpus_entry TYPE
 DEFINE INDEX OVERWRITE pk_atelier_command_corpus_entry ON TABLE atelier_command_corpus_entry FIELDS entry_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_command_corpus_entry_1 ON TABLE atelier_command_corpus_entry FIELDS action_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_command_corpus_blocked SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_command_corpus_blocked SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_catalog_read(owner_account_id) FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_command_corpus_blocked TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE blocked_id ON TABLE atelier_command_corpus_blocked TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE action_id ON TABLE atelier_command_corpus_blocked TYPE string;
 DEFINE FIELD OVERWRITE blocked_reason ON TABLE atelier_command_corpus_blocked TYPE 'no_manual_anchor' | 'ungoverned_execution' | 'no_capability_gate' | 'foreground_unbounded' | 'no_typed_receipt' | 'no_event_evidence';
@@ -1934,7 +2020,8 @@ DEFINE FIELD OVERWRITE last_seen_utc ON TABLE atelier_command_corpus_blocked TYP
 DEFINE INDEX OVERWRITE pk_atelier_command_corpus_blocked ON TABLE atelier_command_corpus_blocked FIELDS blocked_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_command_corpus_blocked_1 ON TABLE atelier_command_corpus_blocked FIELDS action_id, blocked_reason UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_command_corpus_parity_report SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_command_corpus_parity_report SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_catalog_read(owner_account_id) FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_command_corpus_parity_report TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE report_id ON TABLE atelier_command_corpus_parity_report TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE total_corpus ON TABLE atelier_command_corpus_parity_report TYPE int DEFAULT 0;
 DEFINE FIELD OVERWRITE covered_count ON TABLE atelier_command_corpus_parity_report TYPE int DEFAULT 0;
@@ -1945,7 +2032,8 @@ DEFINE FIELD OVERWRITE defects.* ON TABLE atelier_command_corpus_parity_report T
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_command_corpus_parity_report TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_command_corpus_parity_report ON TABLE atelier_command_corpus_parity_report FIELDS report_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_stealth_window SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_stealth_window SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_stealth_window TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE window_ref_id ON TABLE atelier_stealth_window TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE owner_actor ON TABLE atelier_stealth_window TYPE string;
 DEFINE FIELD OVERWRITE title ON TABLE atelier_stealth_window TYPE string;
@@ -1961,7 +2049,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_stealth_window TYPE datet
 DEFINE INDEX OVERWRITE pk_atelier_stealth_window ON TABLE atelier_stealth_window FIELDS window_ref_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_stealth_window_1 ON TABLE atelier_stealth_window FIELDS owner_actor, title UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_stealth_ref SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_stealth_ref SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_stealth_ref TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE ref_id ON TABLE atelier_stealth_ref TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE window_ref_id ON TABLE atelier_stealth_ref TYPE record<atelier_stealth_window> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE seq ON TABLE atelier_stealth_ref TYPE int;
@@ -1973,7 +2062,8 @@ DEFINE FIELD OVERWRITE pinned_at_utc ON TABLE atelier_stealth_ref TYPE datetime 
 DEFINE INDEX OVERWRITE pk_atelier_stealth_ref ON TABLE atelier_stealth_ref FIELDS ref_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_stealth_ref_1 ON TABLE atelier_stealth_ref FIELDS window_ref_id, seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_stealth_capture SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_stealth_capture SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_stealth_capture TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE capture_id ON TABLE atelier_stealth_capture TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE window_ref_id ON TABLE atelier_stealth_capture TYPE record<atelier_stealth_window> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE artifact_manifest_id ON TABLE atelier_stealth_capture TYPE string;
@@ -1982,7 +2072,8 @@ DEFINE FIELD OVERWRITE captured_at_utc ON TABLE atelier_stealth_capture TYPE dat
 DEFINE INDEX OVERWRITE pk_atelier_stealth_capture ON TABLE atelier_stealth_capture FIELDS capture_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_stealth_capture_1 ON TABLE atelier_stealth_capture FIELDS window_ref_id, artifact_manifest_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_sheet_parse_snapshot SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_sheet_parse_snapshot SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_sheet_parse_snapshot TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE parse_id ON TABLE atelier_sheet_parse_snapshot TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE version_id ON TABLE atelier_sheet_parse_snapshot TYPE record<atelier_sheet_version> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE template_id ON TABLE atelier_sheet_parse_snapshot TYPE string;
@@ -1997,7 +2088,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_sheet_parse_snapshot TYPE
 DEFINE INDEX OVERWRITE pk_atelier_sheet_parse_snapshot ON TABLE atelier_sheet_parse_snapshot FIELDS parse_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_sheet_parse_snapshot_1 ON TABLE atelier_sheet_parse_snapshot FIELDS version_id, template_id, template_hash UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_bulk_operation_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_bulk_operation_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_bulk_operation_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE atelier_bulk_operation_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE operation ON TABLE atelier_bulk_operation_receipt TYPE string;
 DEFINE FIELD OVERWRITE requested_by ON TABLE atelier_bulk_operation_receipt TYPE string;
@@ -2009,7 +2101,8 @@ DEFINE FIELD OVERWRITE payload.* ON TABLE atelier_bulk_operation_receipt TYPE an
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_bulk_operation_receipt TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_bulk_operation_receipt ON TABLE atelier_bulk_operation_receipt FIELDS receipt_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_trash_marker SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_trash_marker SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_trash_marker TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE marker_id ON TABLE atelier_trash_marker TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE target_type ON TABLE atelier_trash_marker TYPE 'media_asset' | 'sheet_version';
 DEFINE FIELD OVERWRITE target_id ON TABLE atelier_trash_marker TYPE uuid;
@@ -2019,7 +2112,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_trash_marker TYPE datetim
 DEFINE INDEX OVERWRITE pk_atelier_trash_marker ON TABLE atelier_trash_marker FIELDS marker_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_trash_marker_1 ON TABLE atelier_trash_marker FIELDS target_type, target_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_source_evidence_record SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_source_evidence_record SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_source_evidence_record TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE source_id ON TABLE atelier_source_evidence_record TYPE string ASSERT (string::trim($value) = $value AND $value != '');
 DEFINE FIELD OVERWRITE matrix_id ON TABLE atelier_source_evidence_record TYPE string ASSERT (string::trim($value) = $value AND $value != '');
 DEFINE FIELD OVERWRITE source_label ON TABLE atelier_source_evidence_record TYPE string ASSERT (string::trim($value) = $value AND $value != '');
@@ -2035,7 +2129,8 @@ DEFINE FIELD OVERWRITE gap_reason ON TABLE atelier_source_evidence_record TYPE o
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_source_evidence_record TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_source_evidence_record ON TABLE atelier_source_evidence_record FIELDS matrix_id, source_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_anchor_verification_record SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_anchor_verification_record SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_anchor_verification_record TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE anchor_id ON TABLE atelier_anchor_verification_record TYPE string ASSERT (string::trim($value) = $value AND $value != '');
 DEFINE FIELD OVERWRITE matrix_id ON TABLE atelier_anchor_verification_record TYPE string ASSERT (string::trim($value) = $value AND $value != '');
 DEFINE FIELD OVERWRITE source_id ON TABLE atelier_anchor_verification_record TYPE record<atelier_source_evidence_record> ASSERT (record::exists($value)) AND ($value = type::record('atelier_source_evidence_record', [$this.matrix_id, record::id($value)[1]])) REFERENCE ON DELETE CASCADE;
@@ -2048,7 +2143,8 @@ DEFINE FIELD OVERWRITE blocking_reason ON TABLE atelier_anchor_verification_reco
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_anchor_verification_record TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_anchor_verification_record ON TABLE atelier_anchor_verification_record FIELDS matrix_id, anchor_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_media_review_metadata SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_media_review_metadata SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_review_metadata TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_review_metadata TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE favorite ON TABLE atelier_media_review_metadata TYPE bool DEFAULT false;
 DEFINE FIELD OVERWRITE rating ON TABLE atelier_media_review_metadata TYPE int DEFAULT 0 ASSERT ($value >= 0 AND $value <= 5);
@@ -2060,7 +2156,8 @@ DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_media_review_metadata TYPE st
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_media_review_metadata TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_media_review_metadata ON TABLE atelier_media_review_metadata FIELDS asset_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_media_derivative SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_media_derivative SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_derivative TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE derivative_id ON TABLE atelier_media_derivative TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_derivative TYPE record<atelier_media_asset> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE derivative_kind ON TABLE atelier_media_derivative TYPE 'thumbnail' | 'proxy' | 'photo_studio_skeleton';
@@ -2083,7 +2180,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_media_derivative TYPE dat
 DEFINE INDEX OVERWRITE pk_atelier_media_derivative ON TABLE atelier_media_derivative FIELDS derivative_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_media_derivative_1 ON TABLE atelier_media_derivative FIELDS asset_id, derivative_kind, target_width, target_height, format UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_similarity_rebuild_job SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_similarity_rebuild_job SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_similarity_rebuild_job TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE job_id ON TABLE atelier_similarity_rebuild_job TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE asset_internal_id ON TABLE atelier_similarity_rebuild_job TYPE record<atelier_media_asset> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE status ON TABLE atelier_similarity_rebuild_job TYPE 'running' | 'completed' | 'failed';
@@ -2098,7 +2196,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_similarity_rebuild_job TY
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_similarity_rebuild_job TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_similarity_rebuild_job ON TABLE atelier_similarity_rebuild_job FIELDS job_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_ai_tag_suggestion SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_ai_tag_suggestion SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_ai_tag_suggestion TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE suggestion_id ON TABLE atelier_ai_tag_suggestion TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_ai_tag_suggestion TYPE record<atelier_character> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_ai_tag_suggestion TYPE option<record<atelier_media_asset>> ASSERT ($value = NONE OR record::exists($value)) REFERENCE ON DELETE UNSET;
@@ -2115,7 +2214,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_ai_tag_suggestion TYPE da
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_ai_tag_suggestion TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_ai_tag_suggestion ON TABLE atelier_ai_tag_suggestion FIELDS suggestion_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_media_sidecar SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_media_sidecar SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_sidecar TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE sidecar_id ON TABLE atelier_media_sidecar TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE parent_asset_id ON TABLE atelier_media_sidecar TYPE record<atelier_media_asset> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE sidecar_asset_id ON TABLE atelier_media_sidecar TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND ($value != $this.parent_asset_id) REFERENCE ON DELETE CASCADE;
@@ -2128,7 +2228,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_media_sidecar TYPE dateti
 DEFINE INDEX OVERWRITE pk_atelier_media_sidecar ON TABLE atelier_media_sidecar FIELDS sidecar_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_media_sidecar_1 ON TABLE atelier_media_sidecar FIELDS parent_asset_id, sidecar_asset_id, relation_kind UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_filesystem_health_check SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_filesystem_health_check SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_filesystem_health_check TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE check_id ON TABLE atelier_filesystem_health_check TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE requested_by ON TABLE atelier_filesystem_health_check TYPE string;
 DEFINE FIELD OVERWRITE scope_label ON TABLE atelier_filesystem_health_check TYPE option<string>;
@@ -2137,7 +2238,8 @@ DEFINE FIELD OVERWRITE summary.* ON TABLE atelier_filesystem_health_check TYPE a
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_filesystem_health_check TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_filesystem_health_check ON TABLE atelier_filesystem_health_check FIELDS check_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_filesystem_health_finding SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_filesystem_health_finding SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_filesystem_health_finding TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE finding_id ON TABLE atelier_filesystem_health_finding TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE check_id ON TABLE atelier_filesystem_health_finding TYPE record<atelier_filesystem_health_check> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE finding_kind ON TABLE atelier_filesystem_health_finding TYPE 'missing_original' | 'missing_thumbnail' | 'inbox_pending' | 'untracked_original' | 'sidecar_visibility_anomaly';
@@ -2148,7 +2250,8 @@ DEFINE FIELD OVERWRITE details.* ON TABLE atelier_filesystem_health_finding TYPE
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_filesystem_health_finding TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_filesystem_health_finding ON TABLE atelier_filesystem_health_finding FIELDS finding_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_image_import_request SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_image_import_request SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_image_import_request TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE import_id ON TABLE atelier_image_import_request TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE idempotency_key ON TABLE atelier_image_import_request TYPE string;
 DEFINE FIELD OVERWRITE source_kind ON TABLE atelier_image_import_request TYPE 'clipboard' | 'url';
@@ -2173,7 +2276,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_image_import_request TYPE
 DEFINE INDEX OVERWRITE pk_atelier_image_import_request ON TABLE atelier_image_import_request FIELDS import_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_image_import_request_1 ON TABLE atelier_image_import_request FIELDS idempotency_key UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_media_source_provenance_ref SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_media_source_provenance_ref SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_source_provenance_ref TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_source_provenance_ref TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) AND ($this.source_url_ref != NONE OR $this.source_path_ref != NONE OR $this.source_note_ref != NONE OR $this.contact_sheet_ref != NONE OR $this.task_ref != NONE OR $this.run_ref != NONE) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source_url_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
 DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_media_source_provenance_ref TYPE option<string>;
@@ -2185,7 +2289,8 @@ DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_media_source_provenance_ref T
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_media_source_provenance_ref TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_media_source_provenance_ref ON TABLE atelier_media_source_provenance_ref FIELDS asset_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_intake_item_rejection_audit SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_intake_item_rejection_audit SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_intake_item_rejection_audit TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE audit_id ON TABLE atelier_intake_item_rejection_audit TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE item_id ON TABLE atelier_intake_item_rejection_audit TYPE record<atelier_intake_item> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE batch_id ON TABLE atelier_intake_item_rejection_audit TYPE record<atelier_intake_batch> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
@@ -2196,7 +2301,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_intake_item_rejection_aud
 DEFINE INDEX OVERWRITE pk_atelier_intake_item_rejection_audit ON TABLE atelier_intake_item_rejection_audit FIELDS audit_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_intake_item_rejection_audit_1 ON TABLE atelier_intake_item_rejection_audit FIELDS item_id, lane, reason UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_export_intake_link SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_export_intake_link SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_export_intake_link TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE link_id ON TABLE atelier_export_intake_link TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE export_id ON TABLE atelier_export_intake_link TYPE record<atelier_export_request> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE batch_id ON TABLE atelier_export_intake_link TYPE record<atelier_intake_batch> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
@@ -2209,14 +2315,16 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_export_intake_link TYPE d
 DEFINE INDEX OVERWRITE pk_atelier_export_intake_link ON TABLE atelier_export_intake_link FIELDS link_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_export_intake_link_1 ON TABLE atelier_export_intake_link FIELDS export_id, batch_id, item_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_media_asset_tag SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_media_asset_tag SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_media_asset_tag TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_media_asset_tag TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND ($value = type::record('atelier_media_asset', record::id($this.id)[0])) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE tag_id ON TABLE atelier_media_asset_tag TYPE record<atelier_tag> ASSERT (record::exists($value)) AND ($value = type::record('atelier_tag', record::id($this.id)[1])) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source ON TABLE atelier_media_asset_tag TYPE string;
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_media_asset_tag TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_media_asset_tag ON TABLE atelier_media_asset_tag FIELDS asset_id, tag_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_collection_metadata_application SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_collection_metadata_application SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_collection_metadata_application TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE application_id ON TABLE atelier_collection_metadata_application TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection_metadata_application TYPE record<atelier_collection> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE requested_by ON TABLE atelier_collection_metadata_application TYPE string;
@@ -2228,7 +2336,8 @@ DEFINE FIELD OVERWRITE affected_asset_count ON TABLE atelier_collection_metadata
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_collection_metadata_application TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_collection_metadata_application ON TABLE atelier_collection_metadata_application FIELDS application_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_contact_sheet_svg_artifact SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_contact_sheet_svg_artifact SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_contact_sheet_svg_artifact TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE svg_artifact_id ON TABLE atelier_contact_sheet_svg_artifact TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE sheet_id ON TABLE atelier_contact_sheet_svg_artifact TYPE record<atelier_contact_sheet> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE manifest_hash ON TABLE atelier_contact_sheet_svg_artifact TYPE string;
@@ -2241,7 +2350,8 @@ DEFINE INDEX OVERWRITE pk_atelier_contact_sheet_svg_artifact ON TABLE atelier_co
 DEFINE INDEX OVERWRITE uq_atelier_contact_sheet_svg_artifact_1 ON TABLE atelier_contact_sheet_svg_artifact FIELDS artifact_ref UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_contact_sheet_svg_artifact_2 ON TABLE atelier_contact_sheet_svg_artifact FIELDS sheet_id, manifest_hash UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_contact_sheet_raster_export_plan SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_contact_sheet_raster_export_plan SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_contact_sheet_raster_export_plan TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE plan_id ON TABLE atelier_contact_sheet_raster_export_plan TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE sheet_id ON TABLE atelier_contact_sheet_raster_export_plan TYPE record<atelier_contact_sheet> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE format ON TABLE atelier_contact_sheet_raster_export_plan TYPE 'png' | 'jpg';
@@ -2252,7 +2362,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_contact_sheet_raster_expo
 DEFINE INDEX OVERWRITE pk_atelier_contact_sheet_raster_export_plan ON TABLE atelier_contact_sheet_raster_export_plan FIELDS plan_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_contact_sheet_raster_export_plan_1 ON TABLE atelier_contact_sheet_raster_export_plan FIELDS sheet_id, format UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_character_document SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_character_document SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_character_document TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE document_id ON TABLE atelier_character_document TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_character_document TYPE record<atelier_character> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE doc_type ON TABLE atelier_character_document TYPE 'note' | 'story' | 'moodboard';
@@ -2265,7 +2376,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_character_document TYPE d
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_character_document TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_character_document ON TABLE atelier_character_document FIELDS document_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_character_document_version SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_character_document_version SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_character_document_version TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE version_id ON TABLE atelier_character_document_version TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE document_id ON TABLE atelier_character_document_version TYPE record<atelier_character_document> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE version_seq ON TABLE atelier_character_document_version TYPE int;
@@ -2279,7 +2391,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_character_document_versio
 DEFINE INDEX OVERWRITE pk_atelier_character_document_version ON TABLE atelier_character_document_version FIELDS version_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_character_document_version_1 ON TABLE atelier_character_document_version FIELDS document_id, version_seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_story_card SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_story_card SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_story_card TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE card_id ON TABLE atelier_story_card TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE story_document_id ON TABLE atelier_story_card TYPE record<atelier_character_document> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE seq ON TABLE atelier_story_card TYPE int;
@@ -2292,7 +2405,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_story_card TYPE datetime 
 DEFINE INDEX OVERWRITE pk_atelier_story_card ON TABLE atelier_story_card FIELDS card_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_story_card_1 ON TABLE atelier_story_card FIELDS story_document_id, seq UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_story_beat SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_story_beat SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_story_beat TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE beat_id ON TABLE atelier_story_beat TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE story_document_id ON TABLE atelier_story_beat TYPE record<atelier_character_document> ASSERT (record::exists($value)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE card_id ON TABLE atelier_story_beat TYPE option<record<atelier_story_card>> ASSERT ($value = NONE OR record::exists($value)) REFERENCE ON DELETE UNSET;
@@ -2426,7 +2540,8 @@ DEFINE EVENT OVERWRITE cascade_atelier_source_evidence_record ON TABLE atelier_s
 -- named in its section comment.
 
 -- 0061_atelier_character_scripts
-DEFINE TABLE OVERWRITE atelier_character_script SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_character_script SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_character_script TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE script_id ON TABLE atelier_character_script TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE character_internal_id ON TABLE atelier_character_script TYPE record<atelier_character> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE script_name ON TABLE atelier_character_script TYPE string;
@@ -2444,7 +2559,8 @@ DEFINE INDEX OVERWRITE pk_atelier_character_script ON TABLE atelier_character_sc
 DEFINE INDEX OVERWRITE idx_atelier_character_script_character ON TABLE atelier_character_script FIELDS character_internal_id, updated_at_utc, script_id;
 
 -- 0064_atelier_bracket_links
-DEFINE TABLE OVERWRITE atelier_bracket_link_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_bracket_link_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_bracket_link_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE link_id ON TABLE atelier_bracket_link_projection TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE source_document_id ON TABLE atelier_bracket_link_projection TYPE record<atelier_character_document> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source_version_id ON TABLE atelier_bracket_link_projection TYPE record<atelier_character_document_version> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -2464,7 +2580,8 @@ DEFINE INDEX OVERWRITE idx_atelier_bracket_link_target ON TABLE atelier_bracket_
 -- guard trigger (document type + version ownership) is projected as the
 -- document/version record links plus the SCHEMAFULL field contract; the
 -- cross-row plpgsql assertions are enforced in the storage layer.
-DEFINE TABLE OVERWRITE atelier_moodboard SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_moodboard SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_moodboard TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE snapshot_id ON TABLE atelier_moodboard TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE document_id ON TABLE atelier_moodboard TYPE record<atelier_character_document> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE document_version_id ON TABLE atelier_moodboard TYPE record<atelier_character_document_version> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -2484,7 +2601,8 @@ DEFINE INDEX OVERWRITE idx_atelier_moodboard_document_latest ON TABLE atelier_mo
 -- (snapshot/document/version agreement, payload-hash recomputation, receipt
 -- field mirroring, `.GOV` rejection) are storage-layer invariants; the durable
 -- shape below is the transcribed table contract.
-DEFINE TABLE OVERWRITE atelier_moodboard_operation_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_moodboard_operation_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_moodboard_operation_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE operation_id ON TABLE atelier_moodboard_operation_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE snapshot_id ON TABLE atelier_moodboard_operation_receipt TYPE record<atelier_moodboard> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE document_id ON TABLE atelier_moodboard_operation_receipt TYPE record<atelier_character_document> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -2500,7 +2618,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_moodboard_operation_recei
 DEFINE INDEX OVERWRITE pk_atelier_moodboard_operation_receipt ON TABLE atelier_moodboard_operation_receipt FIELDS operation_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_moodboard_operation_receipt_snapshot ON TABLE atelier_moodboard_operation_receipt FIELDS snapshot_id, created_at_utc, operation_id;
 
-DEFINE TABLE OVERWRITE atelier_moodboard_export_request SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_moodboard_export_request SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_moodboard_export_request TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE export_id ON TABLE atelier_moodboard_export_request TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE snapshot_id ON TABLE atelier_moodboard_export_request TYPE record<atelier_moodboard> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE document_id ON TABLE atelier_moodboard_export_request TYPE record<atelier_character_document> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -2519,7 +2638,8 @@ DEFINE INDEX OVERWRITE uq_atelier_moodboard_export_request_1 ON TABLE atelier_mo
 DEFINE INDEX OVERWRITE idx_atelier_moodboard_export_request_snapshot ON TABLE atelier_moodboard_export_request FIELDS snapshot_id, created_at_utc, format;
 
 -- 0082_atelier_character_relationships
-DEFINE TABLE OVERWRITE atelier_character_relationship SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_character_relationship SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_character_relationship TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE relationship_id ON TABLE atelier_character_relationship TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE source_character_id ON TABLE atelier_character_relationship TYPE record<atelier_character> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE target_character_id ON TABLE atelier_character_relationship TYPE record<atelier_character> ASSERT record::exists($value) AND $value != $this.source_character_id REFERENCE ON DELETE CASCADE;
@@ -2543,7 +2663,8 @@ DEFINE TABLE OVERWRITE atelier_character_relationship_graph_projection TYPE NORM
 -- with lateral JSON array element expansion; it has no bounded SurrealQL form
 -- and is executed by the storage layer, so only the durable filter table is
 -- transcribed here.
-DEFINE TABLE OVERWRITE atelier_saved_search SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_saved_search SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_saved_search TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE saved_search_id ON TABLE atelier_saved_search TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE name ON TABLE atelier_saved_search TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE include_tags_json ON TABLE atelier_saved_search TYPE array DEFAULT [];
@@ -2562,7 +2683,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_saved_search TYPE datetim
 DEFINE INDEX OVERWRITE pk_atelier_saved_search ON TABLE atelier_saved_search FIELDS saved_search_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_saved_search_name ON TABLE atelier_saved_search FIELDS name UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_saved_search_updated ON TABLE atelier_saved_search FIELDS updated_at_utc;
-DEFINE TABLE OVERWRITE atelier_saved_search_retrieval_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_saved_search_retrieval_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_saved_search_retrieval_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE projection_id ON TABLE atelier_saved_search_retrieval_projection TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE saved_search_id ON TABLE atelier_saved_search_retrieval_projection TYPE string;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_saved_search_retrieval_projection TYPE string;
@@ -2582,7 +2704,8 @@ DEFINE INDEX OVERWRITE uq_atelier_saved_search_retrieval_projection_1 ON TABLE a
 DEFINE INDEX OVERWRITE idx_atelier_saved_search_retrieval_projection_search ON TABLE atelier_saved_search_retrieval_projection FIELDS saved_search_id;
 
 -- 0084_atelier_web_portfolio_exports
-DEFINE TABLE OVERWRITE atelier_web_portfolio_export_request SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_web_portfolio_export_request SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_web_portfolio_export_request TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE portfolio_export_id ON TABLE atelier_web_portfolio_export_request TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE source_collection_id ON TABLE atelier_web_portfolio_export_request TYPE record<atelier_collection> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE slug ON TABLE atelier_web_portfolio_export_request TYPE string ASSERT string::trim($value) != '';
@@ -2595,7 +2718,8 @@ DEFINE INDEX OVERWRITE pk_atelier_web_portfolio_export_request ON TABLE atelier_
 DEFINE INDEX OVERWRITE uq_atelier_web_portfolio_export_request_slug ON TABLE atelier_web_portfolio_export_request FIELDS slug UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_web_portfolio_export_request_collection ON TABLE atelier_web_portfolio_export_request FIELDS source_collection_id, created_at_utc;
 
-DEFINE TABLE OVERWRITE atelier_web_portfolio_export_result SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_web_portfolio_export_result SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_web_portfolio_export_result TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE result_id ON TABLE atelier_web_portfolio_export_result TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE portfolio_export_id ON TABLE atelier_web_portfolio_export_result TYPE record<atelier_web_portfolio_export_request> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE artifact_ref ON TABLE atelier_web_portfolio_export_result TYPE string ASSERT string::trim($value) != '' AND string::starts_with($value, 'artifact://');
@@ -2609,7 +2733,8 @@ DEFINE INDEX OVERWRITE uq_atelier_web_portfolio_export_result_1 ON TABLE atelier
 DEFINE INDEX OVERWRITE idx_atelier_web_portfolio_export_result_request ON TABLE atelier_web_portfolio_export_result FIELDS portfolio_export_id, created_at_utc;
 
 -- 0085_atelier_backup_manifests
-DEFINE TABLE OVERWRITE atelier_backup_manifest SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_backup_manifest SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_backup_manifest TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE backup_id ON TABLE atelier_backup_manifest TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE app_version ON TABLE atelier_backup_manifest TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE spec_version ON TABLE atelier_backup_manifest TYPE string ASSERT string::trim($value) != '';
@@ -2626,7 +2751,8 @@ DEFINE INDEX OVERWRITE pk_atelier_backup_manifest ON TABLE atelier_backup_manife
 DEFINE INDEX OVERWRITE uq_atelier_backup_manifest_hash ON TABLE atelier_backup_manifest FIELDS manifest_hash UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_backup_manifest_created ON TABLE atelier_backup_manifest FIELDS created_at_utc;
 
-DEFINE TABLE OVERWRITE atelier_backup_restore_preflight SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_backup_restore_preflight SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_backup_restore_preflight TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE preflight_id ON TABLE atelier_backup_restore_preflight TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE backup_id ON TABLE atelier_backup_restore_preflight TYPE record<atelier_backup_manifest> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE current_app_version ON TABLE atelier_backup_restore_preflight TYPE string ASSERT string::trim($value) != '';
@@ -2640,7 +2766,8 @@ DEFINE INDEX OVERWRITE pk_atelier_backup_restore_preflight ON TABLE atelier_back
 DEFINE INDEX OVERWRITE idx_atelier_backup_restore_preflight_backup ON TABLE atelier_backup_restore_preflight FIELDS backup_id, created_at_utc;
 
 -- 0086_atelier_state_probe_catalog
-DEFINE TABLE OVERWRITE atelier_state_probe_catalog_entry SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_state_probe_catalog_entry SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_state_probe_catalog_entry TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE catalog_id ON TABLE atelier_state_probe_catalog_entry TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE probe_id ON TABLE atelier_state_probe_catalog_entry TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE surface ON TABLE atelier_state_probe_catalog_entry TYPE 'character' | 'media' | 'intake' | 'collection' | 'docs' | 'moodboard' | 'pose' | 'comfyui_job' | 'session' | 'errors';
@@ -2658,7 +2785,8 @@ DEFINE INDEX OVERWRITE pk_atelier_state_probe_catalog_entry ON TABLE atelier_sta
 DEFINE INDEX OVERWRITE idx_atelier_state_probe_catalog_surface ON TABLE atelier_state_probe_catalog_entry FIELDS catalog_id, surface UNIQUE;
 
 -- 0087_atelier_action_receipts
-DEFINE TABLE OVERWRITE atelier_action_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_action_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_action_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE atelier_action_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE action_id ON TABLE atelier_action_receipt TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE params_sha256 ON TABLE atelier_action_receipt TYPE string ASSERT string::starts_with($value, 'sha256:') AND string::len($value) = 71;
@@ -2682,7 +2810,8 @@ DEFINE INDEX OVERWRITE idx_atelier_action_receipt_action ON TABLE atelier_action
 DEFINE INDEX OVERWRITE idx_atelier_action_receipt_session ON TABLE atelier_action_receipt FIELDS session_id, created_at_utc;
 
 -- 0089_atelier_reset_orphan_adoption
-DEFINE TABLE OVERWRITE atelier_reset_operation SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_reset_operation SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_reset_operation TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE reset_id ON TABLE atelier_reset_operation TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE mode ON TABLE atelier_reset_operation TYPE 'preferences_only' | 'full_preserve_original_media';
 DEFINE FIELD OVERWRITE requested_by ON TABLE atelier_reset_operation TYPE string ASSERT string::trim($value) != '';
@@ -2694,7 +2823,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_reset_operation TYPE date
 DEFINE INDEX OVERWRITE pk_atelier_reset_operation ON TABLE atelier_reset_operation FIELDS reset_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_reset_operation_created ON TABLE atelier_reset_operation FIELDS created_at_utc;
 
-DEFINE TABLE OVERWRITE atelier_orphan_manifest SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_orphan_manifest SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_orphan_manifest TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE manifest_id ON TABLE atelier_orphan_manifest TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE reset_id ON TABLE atelier_orphan_manifest TYPE record<atelier_reset_operation> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE manifest_json ON TABLE atelier_orphan_manifest TYPE object FLEXIBLE;
@@ -2704,7 +2834,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_orphan_manifest TYPE date
 DEFINE INDEX OVERWRITE pk_atelier_orphan_manifest ON TABLE atelier_orphan_manifest FIELDS manifest_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_orphan_manifest_reset ON TABLE atelier_orphan_manifest FIELDS reset_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_orphan_manifest_item SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_orphan_manifest_item SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_orphan_manifest_item TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE manifest_item_id ON TABLE atelier_orphan_manifest_item TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE manifest_id ON TABLE atelier_orphan_manifest_item TYPE record<atelier_orphan_manifest> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_orphan_manifest_item TYPE record<atelier_media_asset> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
@@ -2725,7 +2856,8 @@ DEFINE INDEX OVERWRITE idx_atelier_orphan_manifest_item_manifest_status ON TABLE
 DEFINE INDEX OVERWRITE idx_atelier_orphan_manifest_item_asset ON TABLE atelier_orphan_manifest_item FIELDS asset_id;
 
 -- 0090_atelier_pose_sidecars
-DEFINE TABLE OVERWRITE atelier_pose_sidecar SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_pose_sidecar SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_pose_sidecar TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE sidecar_id ON TABLE atelier_pose_sidecar TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE rig_id ON TABLE atelier_pose_sidecar TYPE record<atelier_pose_rig> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE source_asset_id ON TABLE atelier_pose_sidecar TYPE option<record<atelier_media_asset>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE UNSET;
@@ -2751,7 +2883,8 @@ DEFINE INDEX OVERWRITE idx_atelier_pose_sidecar_rig ON TABLE atelier_pose_sideca
 -- same pattern the 0018 kernel event ledger uses.
 DEFINE SEQUENCE IF NOT EXISTS atelier_pose_context_state_seq BATCH 1 START 1;
 
-DEFINE TABLE OVERWRITE atelier_pose_context_state SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_pose_context_state SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_pose_context_state TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE context_id ON TABLE atelier_pose_context_state TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE state_seq ON TABLE atelier_pose_context_state TYPE int DEFAULT sequence::nextval('atelier_pose_context_state_seq') ASSERT $value > 0;
 DEFINE FIELD OVERWRITE workspace_ref ON TABLE atelier_pose_context_state TYPE string ASSERT string::trim($value) != '';
@@ -2772,7 +2905,8 @@ DEFINE INDEX OVERWRITE idx_atelier_pose_context_state_links ON TABLE atelier_pos
 -- forward end state is the single field set below. The two legacy server backend partial
 -- unique indexes (`WHERE active AND open`, `WHERE open`) have no partial-index
 -- form here and are projected as the storage-layer single-active-rig invariant.
-DEFINE TABLE OVERWRITE atelier_pose_workspace_rig_state SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_pose_workspace_rig_state SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_pose_workspace_rig_state TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE workspace_ref ON TABLE atelier_pose_workspace_rig_state TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE session_ref ON TABLE atelier_pose_workspace_rig_state TYPE string DEFAULT 'pose-session://default' ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE rig_id ON TABLE atelier_pose_workspace_rig_state TYPE record<atelier_pose_rig> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
@@ -2789,7 +2923,8 @@ DEFINE INDEX OVERWRITE pk_atelier_pose_workspace_rig_state ON TABLE atelier_pose
 DEFINE INDEX OVERWRITE idx_atelier_pose_workspace_rig_state_order ON TABLE atelier_pose_workspace_rig_state FIELDS workspace_ref, session_ref, open, sort_order, rig_id;
 
 -- 0100_atelier_identity_crop_artifact
-DEFINE TABLE OVERWRITE atelier_identity_crop_artifact SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_identity_crop_artifact SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_identity_crop_artifact TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE crop_id ON TABLE atelier_identity_crop_artifact TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE profile_id ON TABLE atelier_identity_crop_artifact TYPE record<atelier_identity_profile> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE profile_version ON TABLE atelier_identity_crop_artifact TYPE int ASSERT $value >= 1;
@@ -2815,7 +2950,8 @@ DEFINE INDEX OVERWRITE uq_atelier_identity_crop_artifact_profile_version_hash ON
 DEFINE INDEX OVERWRITE idx_atelier_identity_crop_artifact_profile ON TABLE atelier_identity_crop_artifact FIELDS profile_id, profile_version, created_at_utc;
 
 -- 0102_atelier_comfy_workflow_receipt
-DEFINE TABLE OVERWRITE atelier_comfy_workflow_receipt SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_workflow_receipt SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_workflow_receipt TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE atelier_comfy_workflow_receipt TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE system_id ON TABLE atelier_comfy_workflow_receipt TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_workflow_receipt TYPE uuid;
@@ -2841,7 +2977,8 @@ DEFINE INDEX OVERWRITE idx_atelier_comfy_workflow_receipt_status ON TABLE atelie
 DEFINE INDEX OVERWRITE idx_atelier_comfy_workflow_receipt_history ON TABLE atelier_comfy_workflow_receipt FIELDS character_ref, workflow_spec_ref, status, created_at_utc;
 
 -- 0103_atelier_comfy_output_registration_failure
-DEFINE TABLE OVERWRITE atelier_comfy_output_registration_failure SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_output_registration_failure SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_output_registration_failure TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE failure_id ON TABLE atelier_comfy_output_registration_failure TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_output_registration_failure TYPE uuid;
 DEFINE FIELD OVERWRITE node_execution_id ON TABLE atelier_comfy_output_registration_failure TYPE string ASSERT string::trim($value) != '';
@@ -2874,7 +3011,8 @@ DEFINE INDEX OVERWRITE uq_atelier_comfy_output_registration_failure_dedup ON TAB
 DEFINE INDEX OVERWRITE idx_atelier_comfy_output_registration_failure_run_status ON TABLE atelier_comfy_output_registration_failure FIELDS workflow_run_id, status, updated_at_utc;
 
 -- 0105_atelier_pose_deferred_feature
-DEFINE TABLE OVERWRITE atelier_pose_deferred_feature SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_pose_deferred_feature SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_pose_deferred_feature TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE feature_id ON TABLE atelier_pose_deferred_feature TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE feature_kind ON TABLE atelier_pose_deferred_feature TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE status ON TABLE atelier_pose_deferred_feature TYPE 'PLANNED' | 'DEFERRED' | 'BLOCKED';
@@ -2887,7 +3025,8 @@ DEFINE INDEX OVERWRITE pk_atelier_pose_deferred_feature ON TABLE atelier_pose_de
 DEFINE INDEX OVERWRITE idx_atelier_pose_deferred_feature_kind ON TABLE atelier_pose_deferred_feature FIELDS feature_kind, status, created_at_utc;
 
 -- 0106_atelier_comfy_workflow_spec
-DEFINE TABLE OVERWRITE atelier_comfy_workflow_spec SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_workflow_spec SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_workflow_spec TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE spec_id ON TABLE atelier_comfy_workflow_spec TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE workflow_kind ON TABLE atelier_comfy_workflow_spec TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE spec_version ON TABLE atelier_comfy_workflow_spec TYPE string ASSERT string::trim($value) != '';
@@ -2905,7 +3044,8 @@ DEFINE INDEX OVERWRITE uq_atelier_comfy_workflow_spec_hash ON TABLE atelier_comf
 DEFINE INDEX OVERWRITE idx_atelier_comfy_workflow_spec_kind ON TABLE atelier_comfy_workflow_spec FIELDS workflow_kind, created_at_utc;
 
 -- 0107_atelier_comfy_version_metadata
-DEFINE TABLE OVERWRITE atelier_comfy_version_metadata SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_version_metadata SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_version_metadata TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE version_metadata_id ON TABLE atelier_comfy_version_metadata TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_version_metadata TYPE uuid;
 DEFINE FIELD OVERWRITE spec_id ON TABLE atelier_comfy_version_metadata TYPE option<record<atelier_comfy_workflow_spec>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
@@ -2921,7 +3061,8 @@ DEFINE INDEX OVERWRITE uq_atelier_comfy_version_metadata_run ON TABLE atelier_co
 DEFINE INDEX OVERWRITE idx_atelier_comfy_version_metadata_spec ON TABLE atelier_comfy_version_metadata FIELDS spec_id;
 
 -- 0108_atelier_comfy_job_queue
-DEFINE TABLE OVERWRITE atelier_comfy_job SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_job SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_job TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE job_id ON TABLE atelier_comfy_job TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_job TYPE uuid;
 DEFINE FIELD OVERWRITE spec_id ON TABLE atelier_comfy_job TYPE option<record<atelier_comfy_workflow_spec>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
@@ -2939,7 +3080,8 @@ DEFINE INDEX OVERWRITE idx_atelier_comfy_job_status ON TABLE atelier_comfy_job F
 DEFINE INDEX OVERWRITE idx_atelier_comfy_job_spec ON TABLE atelier_comfy_job FIELDS spec_id;
 
 -- 0109_atelier_comfy_diagnostic_bundle
-DEFINE TABLE OVERWRITE atelier_comfy_diagnostic_bundle SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_comfy_diagnostic_bundle SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_comfy_diagnostic_bundle TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE bundle_id ON TABLE atelier_comfy_diagnostic_bundle TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE workflow_run_id ON TABLE atelier_comfy_diagnostic_bundle TYPE uuid;
 DEFINE FIELD OVERWRITE request_json ON TABLE atelier_comfy_diagnostic_bundle TYPE object FLEXIBLE DEFAULT {};
@@ -2957,7 +3099,8 @@ DEFINE INDEX OVERWRITE pk_atelier_comfy_diagnostic_bundle ON TABLE atelier_comfy
 DEFINE INDEX OVERWRITE uq_atelier_comfy_diagnostic_bundle_run ON TABLE atelier_comfy_diagnostic_bundle FIELDS workflow_run_id UNIQUE;
 
 -- 0111_atelier_diagnostics_validation_matrix
-DEFINE TABLE OVERWRITE atelier_diagnostics_validation_matrix SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_diagnostics_validation_matrix SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_diagnostics_validation_matrix TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE row_id ON TABLE atelier_diagnostics_validation_matrix TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE matrix_kind ON TABLE atelier_diagnostics_validation_matrix TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE surface ON TABLE atelier_diagnostics_validation_matrix TYPE string ASSERT string::trim($value) != '';
@@ -2970,14 +3113,16 @@ DEFINE INDEX OVERWRITE pk_atelier_diagnostics_validation_matrix ON TABLE atelier
 DEFINE INDEX OVERWRITE idx_atelier_diagnostics_validation_matrix_kind ON TABLE atelier_diagnostics_validation_matrix FIELDS matrix_kind, surface, created_at_utc;
 
 -- 0112_atelier_diagnostics_typed_surfaces
-DEFINE TABLE OVERWRITE atelier_diagnostics_error_taxonomy SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_diagnostics_error_taxonomy SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_diagnostics_error_taxonomy TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE class ON TABLE atelier_diagnostics_error_taxonomy TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE description ON TABLE atelier_diagnostics_error_taxonomy TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE recovery_hint ON TABLE atelier_diagnostics_error_taxonomy TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_diagnostics_error_taxonomy TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_diagnostics_error_taxonomy ON TABLE atelier_diagnostics_error_taxonomy FIELDS class UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_diagnostics_prompt_response_matrix SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_diagnostics_prompt_response_matrix SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_diagnostics_prompt_response_matrix TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE entry_id ON TABLE atelier_diagnostics_prompt_response_matrix TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE prompt_text ON TABLE atelier_diagnostics_prompt_response_matrix TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE expected_response_shape ON TABLE atelier_diagnostics_prompt_response_matrix TYPE object FLEXIBLE;
@@ -2990,7 +3135,8 @@ DEFINE INDEX OVERWRITE pk_atelier_diagnostics_prompt_response_matrix ON TABLE at
 DEFINE INDEX OVERWRITE idx_atelier_diagnostics_prompt_response_matrix_status ON TABLE atelier_diagnostics_prompt_response_matrix FIELDS status, entry_id;
 
 -- 0113_atelier_command_log_session_heartbeat
-DEFINE TABLE OVERWRITE atelier_command_log SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_command_log SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_command_log TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE command_log_id ON TABLE atelier_command_log TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE session_ref ON TABLE atelier_command_log TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE command_id ON TABLE atelier_command_log TYPE string ASSERT string::trim($value) != '';
@@ -3001,7 +3147,8 @@ DEFINE FIELD OVERWRITE recorded_at_utc ON TABLE atelier_command_log TYPE datetim
 DEFINE INDEX OVERWRITE pk_atelier_command_log ON TABLE atelier_command_log FIELDS command_log_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_command_log_session ON TABLE atelier_command_log FIELDS session_ref, recorded_at_utc;
 
-DEFINE TABLE OVERWRITE atelier_diagnostics_session SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_diagnostics_session SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_diagnostics_session TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE session_ref ON TABLE atelier_diagnostics_session TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE status ON TABLE atelier_diagnostics_session TYPE 'ACTIVE' | 'STALE' DEFAULT 'ACTIVE';
 DEFINE FIELD OVERWRITE last_heartbeat_utc ON TABLE atelier_diagnostics_session TYPE datetime DEFAULT time::now();
@@ -3010,7 +3157,8 @@ DEFINE INDEX OVERWRITE pk_atelier_diagnostics_session ON TABLE atelier_diagnosti
 DEFINE INDEX OVERWRITE idx_atelier_diagnostics_session_heartbeat ON TABLE atelier_diagnostics_session FIELDS last_heartbeat_utc;
 
 -- 0114_atelier_model_config_apply
-DEFINE TABLE OVERWRITE atelier_model_config SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_model_config SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_model_config TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE config_id ON TABLE atelier_model_config TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE base_url ON TABLE atelier_model_config TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE model ON TABLE atelier_model_config TYPE string ASSERT string::trim($value) != '';
@@ -3020,7 +3168,8 @@ DEFINE FIELD OVERWRITE timeout_ms ON TABLE atelier_model_config TYPE int ASSERT 
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_model_config TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_model_config ON TABLE atelier_model_config FIELDS config_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_model_apply SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_model_apply SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_model_apply TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE apply_id ON TABLE atelier_model_apply TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE suggestion_ref ON TABLE atelier_model_apply TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE state ON TABLE atelier_model_apply TYPE 'DRAFT' | 'PREVIEW' | 'VALIDATED' | 'APPLIED' | 'REJECTED' | 'ROLLED_BACK';
@@ -3030,7 +3179,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_model_apply TYPE datetime
 DEFINE INDEX OVERWRITE pk_atelier_model_apply ON TABLE atelier_model_apply FIELDS apply_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_model_apply_state ON TABLE atelier_model_apply FIELDS state, apply_id;
 
-DEFINE TABLE OVERWRITE atelier_synthetic_input_guard SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_synthetic_input_guard SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_synthetic_input_guard TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE guard_id ON TABLE atelier_synthetic_input_guard TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE op ON TABLE atelier_synthetic_input_guard TYPE 'INJECT_KEY' | 'INJECT_MOUSE' | 'CLICK_ELEMENT' | 'TYPE_TEXT';
 DEFINE FIELD OVERWRITE target_ref ON TABLE atelier_synthetic_input_guard TYPE string ASSERT string::trim($value) != '';
@@ -3043,7 +3193,8 @@ DEFINE INDEX OVERWRITE idx_atelier_synthetic_input_guard_op ON TABLE atelier_syn
 -- retention/redaction columns added by 0129 (retention_class, exportable,
 -- redaction_applied) are folded into the field set below, matching how earlier
 -- additive ALTER-only migrations are projected.
-DEFINE TABLE OVERWRITE atelier_work_state_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_work_state_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_work_state_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE projection_id ON TABLE atelier_work_state_projection TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE active_mt ON TABLE atelier_work_state_projection TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE owner ON TABLE atelier_work_state_projection TYPE string ASSERT string::trim($value) != '';
@@ -3056,7 +3207,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_work_state_projection TYP
 DEFINE INDEX OVERWRITE pk_atelier_work_state_projection ON TABLE atelier_work_state_projection FIELDS projection_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_work_state_projection_active_mt ON TABLE atelier_work_state_projection FIELDS active_mt, created_at_utc;
 
-DEFINE TABLE OVERWRITE atelier_dcc_panel_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_dcc_panel_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_dcc_panel_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE panel_id ON TABLE atelier_dcc_panel_projection TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE panel_kind ON TABLE atelier_dcc_panel_projection TYPE 'SESSION' | 'LEASE' | 'COMMAND_LOG' | 'RECOVERY';
 DEFINE FIELD OVERWRITE state_json ON TABLE atelier_dcc_panel_projection TYPE object FLEXIBLE;
@@ -3065,7 +3217,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_dcc_panel_projection TYPE
 DEFINE INDEX OVERWRITE pk_atelier_dcc_panel_projection ON TABLE atelier_dcc_panel_projection FIELDS panel_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_dcc_panel_projection_kind ON TABLE atelier_dcc_panel_projection FIELDS panel_kind, created_at_utc;
 
-DEFINE TABLE OVERWRITE atelier_screenshot_artifact_storage SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_screenshot_artifact_storage SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_screenshot_artifact_storage TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE storage_id ON TABLE atelier_screenshot_artifact_storage TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE capture_id ON TABLE atelier_screenshot_artifact_storage TYPE uuid;
 DEFINE FIELD OVERWRITE artifact_manifest_id ON TABLE atelier_screenshot_artifact_storage TYPE string ASSERT string::trim($value) != '';
@@ -3084,7 +3237,8 @@ DEFINE FIELD OVERWRITE redaction_applied ON TABLE atelier_screenshot_artifact_st
 DEFINE INDEX OVERWRITE pk_atelier_screenshot_artifact_storage ON TABLE atelier_screenshot_artifact_storage FIELDS storage_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_atelier_screenshot_artifact_storage_capture ON TABLE atelier_screenshot_artifact_storage FIELDS capture_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_spec_drift_finding SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_spec_drift_finding SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_spec_drift_finding TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE finding_id ON TABLE atelier_spec_drift_finding TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE doc_ref ON TABLE atelier_spec_drift_finding TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE spec_ref ON TABLE atelier_spec_drift_finding TYPE string ASSERT string::trim($value) != '';
@@ -3095,7 +3249,8 @@ DEFINE INDEX OVERWRITE pk_atelier_spec_drift_finding ON TABLE atelier_spec_drift
 DEFINE INDEX OVERWRITE idx_atelier_spec_drift_finding_kind ON TABLE atelier_spec_drift_finding FIELDS drift_kind, created_at_utc;
 
 -- 0116_atelier_dcc_flight_recorder
-DEFINE TABLE OVERWRITE atelier_dcc_workflow_panel_projection SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_dcc_workflow_panel_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_dcc_workflow_panel_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE panel_id ON TABLE atelier_dcc_workflow_panel_projection TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE panel_kind ON TABLE atelier_dcc_workflow_panel_projection TYPE 'APPROVALS' | 'VISUAL_CAPTURE';
 DEFINE FIELD OVERWRITE state_json ON TABLE atelier_dcc_workflow_panel_projection TYPE object FLEXIBLE;
@@ -3104,7 +3259,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_dcc_workflow_panel_projec
 DEFINE INDEX OVERWRITE pk_atelier_dcc_workflow_panel_projection ON TABLE atelier_dcc_workflow_panel_projection FIELDS panel_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_dcc_workflow_panel_projection_kind ON TABLE atelier_dcc_workflow_panel_projection FIELDS panel_kind, created_at_utc;
 
-DEFINE TABLE OVERWRITE atelier_fr_workflow_event SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_fr_workflow_event SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_fr_workflow_event TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE record_id ON TABLE atelier_fr_workflow_event TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE event_kind ON TABLE atelier_fr_workflow_event TYPE 'FR-EVT-TOOL-CALL' | 'FR-EVT-TOOL-PROPOSAL' | 'FR-EVT-TOOL-APPLY-DECISION' | 'FR-EVT-VISUAL-CAPTURE' | 'FR-EVT-VISUAL-VALIDATION' | 'FR-EVT-VISUAL-RECOVERY' | 'FR-EVT-BUILD-GUARD' | 'FR-EVT-PACKAGE-GUARD' | 'FR-EVT-STALE-DOC-DETECTED';
 DEFINE FIELD OVERWRITE mt_owner ON TABLE atelier_fr_workflow_event TYPE 'MT-191' | 'MT-192' | 'MT-193' ASSERT ($this.event_kind INSIDE ['FR-EVT-TOOL-CALL', 'FR-EVT-TOOL-PROPOSAL', 'FR-EVT-TOOL-APPLY-DECISION'] AND $value = 'MT-191') OR ($this.event_kind INSIDE ['FR-EVT-VISUAL-CAPTURE', 'FR-EVT-VISUAL-VALIDATION', 'FR-EVT-VISUAL-RECOVERY'] AND $value = 'MT-192') OR ($this.event_kind INSIDE ['FR-EVT-BUILD-GUARD', 'FR-EVT-PACKAGE-GUARD', 'FR-EVT-STALE-DOC-DETECTED'] AND $value = 'MT-193');
@@ -3117,7 +3273,8 @@ DEFINE INDEX OVERWRITE idx_atelier_fr_workflow_event_kind ON TABLE atelier_fr_wo
 DEFINE INDEX OVERWRITE idx_atelier_fr_workflow_event_owner ON TABLE atelier_fr_workflow_event FIELDS mt_owner, created_at_utc;
 
 -- 0117_atelier_editable_surface_authority
-DEFINE TABLE OVERWRITE atelier_model_manual_section SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_model_manual_section SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_model_manual_section TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE section_id ON TABLE atelier_model_manual_section TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE section_text ON TABLE atelier_model_manual_section TYPE string ASSERT string::trim($value) != '' AND string::len($value) <= 1048576;
 DEFINE FIELD OVERWRITE revision ON TABLE atelier_model_manual_section TYPE int DEFAULT 1 ASSERT $value >= 1;
@@ -3126,7 +3283,8 @@ DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_model_manual_section TYPE
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_model_manual_section TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_model_manual_section ON TABLE atelier_model_manual_section FIELDS section_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_retrieval_policy SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_retrieval_policy SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_retrieval_policy TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE task_type ON TABLE atelier_retrieval_policy TYPE 'validator_hbr_test_packet' | 'kernel_builder_mt_implementation' | 'integration_validator_batch_review' | 'operator_triage' | 'swarm_harness_session' | 'process_ledger_inspection' | 'self_improvement_loop_eval' | 'general_retrieval';
 DEFINE FIELD OVERWRITE parameter ON TABLE atelier_retrieval_policy TYPE 'top_k' | 'capsule_budget_bytes';
 DEFINE FIELD OVERWRITE value ON TABLE atelier_retrieval_policy TYPE int ASSERT $value > 0 AND ($this.parameter != 'top_k' OR $value <= 64) AND ($this.parameter != 'capsule_budget_bytes' OR $value <= 1048576);
@@ -3136,7 +3294,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_retrieval_policy TYPE dat
 DEFINE INDEX OVERWRITE pk_atelier_retrieval_policy ON TABLE atelier_retrieval_policy FIELDS task_type, parameter UNIQUE;
 
 -- 0118_atelier_self_improve_runs
-DEFINE TABLE OVERWRITE atelier_self_improve_sandbox_run SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_self_improve_sandbox_run SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_self_improve_sandbox_run TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE sandbox_run_id ON TABLE atelier_self_improve_sandbox_run TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE surface_kind ON TABLE atelier_self_improve_sandbox_run TYPE 'model_manual' | 'retrieval_policy';
 DEFINE FIELD OVERWRITE snapshot_sha256 ON TABLE atelier_self_improve_sandbox_run TYPE string ASSERT string::starts_with($value, 'sha256:') AND string::len($value) = 71;
@@ -3147,7 +3306,8 @@ DEFINE FIELD OVERWRITE completed_at_utc ON TABLE atelier_self_improve_sandbox_ru
 DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_self_improve_sandbox_run TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_atelier_self_improve_sandbox_run ON TABLE atelier_self_improve_sandbox_run FIELDS sandbox_run_id UNIQUE;
 
-DEFINE TABLE OVERWRITE atelier_validator_first_pass_run SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_validator_first_pass_run SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_validator_first_pass_run TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE first_pass_run_id ON TABLE atelier_validator_first_pass_run TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE sandbox_run_id ON TABLE atelier_validator_first_pass_run TYPE option<record<atelier_self_improve_sandbox_run>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE corpus_item_id ON TABLE atelier_validator_first_pass_run TYPE uuid;
@@ -3167,7 +3327,8 @@ DEFINE INDEX OVERWRITE idx_atelier_vfp_run_corpus_item ON TABLE atelier_validato
 -- 0119_atelier_model_coordination_lease. The legacy server backend partial index
 -- (`WHERE lease_state = 'active'`) has no partial-index form here; the
 -- single-active-claimant rule is enforced in the claim transaction.
-DEFINE TABLE OVERWRITE atelier_model_coordination_lease SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_model_coordination_lease SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_model_coordination_lease TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE claim_id ON TABLE atelier_model_coordination_lease TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE thread_id ON TABLE atelier_model_coordination_lease TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE executor_kind ON TABLE atelier_model_coordination_lease TYPE 'local_small_model' | 'local_large_model' | 'cloud_model' | 'reviewer' | 'validator' | 'operator' | 'workflow_automation';
@@ -3210,7 +3371,8 @@ DEFINE INDEX OVERWRITE pk_kernel_diagnostic_bundle_manifest ON TABLE kernel_diag
 DEFINE INDEX OVERWRITE idx_kernel_diag_bundle_manifest_subject ON TABLE kernel_diagnostic_bundle_manifest FIELDS subject_kind, subject_ref, created_at_utc;
 
 -- 0122_atelier_model_manual_merge_drift
-DEFINE TABLE OVERWRITE atelier_model_manual_row_merge SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_model_manual_row_merge SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_model_manual_row_merge TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE run_id ON TABLE atelier_model_manual_row_merge TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE source_kind ON TABLE atelier_model_manual_row_merge TYPE 'core_data' | 'pose_comfy' | 'diagnostics_owned';
 DEFINE FIELD OVERWRITE manual_version ON TABLE atelier_model_manual_row_merge TYPE string ASSERT string::trim($value) != '';
@@ -3224,7 +3386,8 @@ DEFINE FIELD OVERWRITE created_at_utc ON TABLE atelier_model_manual_row_merge TY
 DEFINE INDEX OVERWRITE pk_atelier_model_manual_row_merge ON TABLE atelier_model_manual_row_merge FIELDS run_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_atelier_mm_row_merge_kind ON TABLE atelier_model_manual_row_merge FIELDS source_kind, created_at_utc;
 
-DEFINE TABLE OVERWRITE atelier_model_manual_drift_guard SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_model_manual_drift_guard SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_model_manual_drift_guard TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE run_id ON TABLE atelier_model_manual_drift_guard TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE guard_scope ON TABLE atelier_model_manual_drift_guard TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE manual_version ON TABLE atelier_model_manual_drift_guard TYPE string ASSERT string::trim($value) != '';
@@ -3285,7 +3448,8 @@ DEFINE INDEX OVERWRITE idx_kernel_vd_result_request ON TABLE kernel_visual_diff_
 -- 0129_atelier_visual_steer_retention. The MT-158 retention/redaction
 -- columns this migration adds to `atelier_screenshot_artifact_storage` are
 -- folded into that table's definition in the 0115 section above.
-DEFINE TABLE OVERWRITE atelier_visual_steer_feedback SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE atelier_visual_steer_feedback SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_visual_steer_feedback TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE feedback_id ON TABLE atelier_visual_steer_feedback TYPE string ASSERT ($value = record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE loop_id ON TABLE atelier_visual_steer_feedback TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE evidence_id ON TABLE atelier_visual_steer_feedback TYPE string ASSERT string::trim($value) != '';
@@ -3427,7 +3591,7 @@ DEFINE INDEX OVERWRITE idx_knowledge_spans_run ON TABLE knowledge_spans FIELDS i
 DEFINE INDEX OVERWRITE idx_knowledge_spans_content ON TABLE knowledge_spans FIELDS content_sha256;
 
 -- 0135_knowledge_entities
-DEFINE TABLE OVERWRITE knowledge_entities SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_entity_read(id) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND fn::mt120_loom_block_access(entity_key, record::id(workspace_id), 'read', 'fs.read')) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND type::record('loom_blocks', entity_key).content_type = 'view_def' AND type::record('loom_blocks', entity_key).workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')) FOR create WHERE fn::mt120_entity_write(id, primary_source_id, workspace_id) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND fn::mt120_loom_block_access(entity_key, record::id(workspace_id), 'create', 'fs.write')) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND type::record('loom_blocks', entity_key).content_type = 'view_def' AND type::record('loom_blocks', entity_key).workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')) FOR update WHERE fn::mt120_entity_write(id, primary_source_id, workspace_id) FOR delete NONE;
+DEFINE TABLE OVERWRITE knowledge_entities SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt120_entity_read(id) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND fn::mt120_loom_block_access(entity_key, record::id(workspace_id), 'read', 'fs.read')) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND type::record('loom_blocks', entity_key).content_type = 'view_def' AND type::record('loom_blocks', entity_key).workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND type::record('loom_blocks', entity_key).source_rich_document_id = type::record('knowledge_rich_documents', entity_key) AND type::record('knowledge_rich_documents', entity_key).workspace_id = workspace_id AND fn::mt120_document_access(entity_key, record::id(workspace_id), 'read', 'fs.read')) FOR create WHERE fn::mt120_entity_write(id, primary_source_id, workspace_id) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND fn::mt120_loom_block_access(entity_key, record::id(workspace_id), 'create', 'fs.write')) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND type::record('loom_blocks', entity_key).content_type = 'view_def' AND type::record('loom_blocks', entity_key).workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')) OR (entity_kind = 'loom_block' AND primary_source_id = NONE AND type::record('loom_blocks', entity_key).source_rich_document_id = type::record('knowledge_rich_documents', entity_key) AND type::record('knowledge_rich_documents', entity_key).workspace_id = workspace_id AND fn::mt120_document_access(entity_key, record::id(workspace_id), 'update', 'fs.write')) FOR update WHERE fn::mt120_entity_write(id, primary_source_id, workspace_id) FOR delete WHERE entity_kind = 'loom_block' AND primary_source_id = NONE AND fn::mt154_stage_card_projection_delete(entity_key, record::id(workspace_id)) AND fn::mt154_stage_compensation(entity_key, record::id(workspace_id)).entity_id = record::id(id);
 DEFINE FIELD OVERWRITE entity_id ON TABLE knowledge_entities TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_entities TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE entity_kind ON TABLE knowledge_entities TYPE 'symbol' | 'concept' | 'file' | 'folder' | 'project' | 'person' | 'role' | 'task' | 'api' | 'schema' | 'command' | 'media' | 'manual_entry' | 'product_primitive' | 'spec_topic' | 'work_packet' | 'micro_task' | 'taskboard_row' | 'rich_document' | 'loom_block' | 'user_manual_page';
@@ -3486,7 +3650,7 @@ DEFINE INDEX OVERWRITE pk_knowledge_edge_spans ON TABLE knowledge_edge_spans FIE
 DEFINE INDEX OVERWRITE idx_knowledge_edge_spans_span ON TABLE knowledge_edge_spans FIELDS span_id;
 
 -- 0137_knowledge_claims
-DEFINE TABLE OVERWRITE knowledge_claims SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_claims SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_claims TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_claims TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE claim_kind ON TABLE knowledge_claims TYPE 'source_fact' | 'product_behavior' | 'task_state' | 'operator_workflow';
@@ -3507,14 +3671,14 @@ DEFINE INDEX OVERWRITE pk_knowledge_claims ON TABLE knowledge_claims FIELDS clai
 DEFINE INDEX OVERWRITE idx_knowledge_claims_workspace_state ON TABLE knowledge_claims FIELDS workspace_id, lifecycle_state;
 DEFINE INDEX OVERWRITE idx_knowledge_claims_subject ON TABLE knowledge_claims FIELDS subject_entity_id;
 
-DEFINE TABLE OVERWRITE knowledge_claim_spans SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_claim_spans SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(claim_id.workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_claim_spans TYPE record<knowledge_claims> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE span_id ON TABLE knowledge_claim_spans TYPE record<knowledge_spans> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE created_at ON TABLE knowledge_claim_spans TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_knowledge_claim_spans ON TABLE knowledge_claim_spans FIELDS claim_id, span_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_knowledge_claim_spans_span ON TABLE knowledge_claim_spans FIELDS span_id;
 
-DEFINE TABLE OVERWRITE knowledge_claim_conflicts SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_claim_conflicts SCHEMAFULL PERMISSIONS FOR select WHERE claim_id.workspace_id = conflicting_claim_id.workspace_id AND fn::mt109_has_workspace_access(record::id(claim_id.workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE conflict_id ON TABLE knowledge_claim_conflicts TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_claim_conflicts TYPE record<knowledge_claims> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE conflicting_claim_id ON TABLE knowledge_claim_conflicts TYPE record<knowledge_claims> ASSERT record::exists($value) AND $value != $this.claim_id REFERENCE ON DELETE CASCADE;
@@ -3529,7 +3693,7 @@ DEFINE INDEX OVERWRITE idx_knowledge_claim_conflicts_claim ON TABLE knowledge_cl
 DEFINE INDEX OVERWRITE idx_knowledge_claim_conflicts_conflicting ON TABLE knowledge_claim_conflicts FIELDS conflicting_claim_id;
 
 -- 0138_knowledge_memory_passages
-DEFINE TABLE OVERWRITE knowledge_memory_passages SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_memory_passages SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE passage_id ON TABLE knowledge_memory_passages TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_passages TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE passage_text ON TABLE knowledge_memory_passages TYPE string ASSERT $value != '';
@@ -3550,7 +3714,7 @@ DEFINE INDEX OVERWRITE pk_knowledge_memory_passages ON TABLE knowledge_memory_pa
 DEFINE INDEX OVERWRITE idx_knowledge_memory_passages_workspace ON TABLE knowledge_memory_passages FIELDS workspace_id, compaction_policy;
 DEFINE INDEX OVERWRITE idx_knowledge_memory_passages_freshness ON TABLE knowledge_memory_passages FIELDS freshness_at;
 
-DEFINE TABLE OVERWRITE knowledge_passage_evidence SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_passage_evidence SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(passage_id.workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE passage_id ON TABLE knowledge_passage_evidence TYPE record<knowledge_memory_passages> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE ref_kind ON TABLE knowledge_passage_evidence TYPE 'source' | 'claim' | 'span';
 DEFINE FIELD OVERWRITE source_id ON TABLE knowledge_passage_evidence TYPE option<record<knowledge_sources>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -3597,7 +3761,7 @@ DEFINE TABLE OVERWRITE knowledge_rich_documents SCHEMAFULL
     PERMISSIONS FOR select WHERE (deleted_at = NONE AND (fn::mt109_source_read('rich_document', rich_document_id, record::id(workspace_id), 'workspace', record::id(workspace_id)) OR fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'read', 'fs.read'))) OR (deleted_at != NONE AND fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'delete', 'fs.write'))
                 FOR create WHERE fn::mt109_live_session() AND created_in_session_id = $auth.id AND deleted_at = NONE AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
                 FOR update WHERE fn::mt120_document_access(rich_document_id, record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_document_delete(rich_document_id, record::id(workspace_id))
-                FOR delete NONE;
+                FOR delete WHERE fn::mt154_stage_card_projection_delete(rich_document_id, record::id(workspace_id));
 -- MT109_AUTHORITY_END
 DEFINE FIELD OVERWRITE rich_document_id ON TABLE knowledge_rich_documents TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_rich_documents TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -3682,7 +3846,7 @@ DEFINE INDEX OVERWRITE pk_knowledge_editor_code_nodes ON TABLE knowledge_editor_
 DEFINE INDEX OVERWRITE uq_knowledge_editor_code_nodes_path ON TABLE knowledge_editor_code_nodes FIELDS rich_document_id, node_path UNIQUE;
 
 -- 0141_knowledge_context_bundles
-DEFINE TABLE OVERWRITE knowledge_context_bundles SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_context_bundles SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') AND build_receipt_event_id != NONE AND build_receipt_event_id.authority_session_id = $auth.id AND build_receipt_event_id.wsids = [record::id(workspace_id)] FOR update, delete NONE;
 DEFINE FIELD OVERWRITE bundle_id ON TABLE knowledge_context_bundles TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_context_bundles TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE kernel_task_run_id ON TABLE knowledge_context_bundles TYPE string ASSERT string::trim($value) != '';
@@ -3699,7 +3863,7 @@ DEFINE INDEX OVERWRITE pk_knowledge_context_bundles ON TABLE knowledge_context_b
 DEFINE INDEX OVERWRITE idx_knowledge_context_bundles_workspace ON TABLE knowledge_context_bundles FIELDS workspace_id, created_at;
 DEFINE INDEX OVERWRITE idx_knowledge_context_bundles_session ON TABLE knowledge_context_bundles FIELDS session_run_id;
 
-DEFINE TABLE OVERWRITE knowledge_context_bundle_items SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_context_bundle_items SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(bundle_id.workspace_id), 'read', 'fs.read') FOR create WHERE fn::mt109_has_workspace_access(record::id(bundle_id.workspace_id), 'create', 'fs.write') AND bundle_id.build_receipt_event_id.authority_session_id = $auth.id FOR update, delete NONE;
 DEFINE FIELD OVERWRITE bundle_id ON TABLE knowledge_context_bundle_items TYPE record<knowledge_context_bundles> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE item_ordinal ON TABLE knowledge_context_bundle_items TYPE int ASSERT $value >= 0;
 DEFINE FIELD OVERWRITE ref_kind ON TABLE knowledge_context_bundle_items TYPE 'source' | 'span' | 'claim' | 'passage' | 'entity';
@@ -3715,7 +3879,7 @@ DEFINE FIELD OVERWRITE unsupported_reason ON TABLE knowledge_context_bundle_item
 DEFINE INDEX OVERWRITE pk_knowledge_context_bundle_items ON TABLE knowledge_context_bundle_items FIELDS bundle_id, item_ordinal UNIQUE;
 DEFINE INDEX OVERWRITE idx_knowledge_context_bundle_items_ref ON TABLE knowledge_context_bundle_items FIELDS ref_kind, ref_id;
 
-DEFINE TABLE OVERWRITE knowledge_retrieval_traces SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_retrieval_traces SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') AND (bundle_id = NONE OR bundle_id.workspace_id = workspace_id) AND (trace_receipt_event_id = NONE OR trace_receipt_event_id.authority_session_id = $auth.id) FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write') AND (trace_receipt_event_id = NONE OR (trace_receipt_event_id.authority_session_id = $auth.id AND trace_receipt_event_id.wsids = [record::id(workspace_id)])) FOR delete NONE;
 DEFINE FIELD OVERWRITE trace_id ON TABLE knowledge_retrieval_traces TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_retrieval_traces TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE retrieval_mode ON TABLE knowledge_retrieval_traces TYPE 'none' | 'direct_load' | 'exact_lookup' | 'graph_traversal' | 'hybrid_rag';
@@ -3754,7 +3918,7 @@ DEFINE INDEX OVERWRITE idx_knowledge_idempotency_keys_workspace ON TABLE knowled
 -- key), so it stays a string here.
 
 -- 0150_knowledge_crdt_denial_receipts
-DEFINE TABLE OVERWRITE knowledge_crdt_denial_receipts SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_crdt_denial_receipts SCHEMAFULL PERMISSIONS FOR select WHERE document_id != NONE AND fn::mt120_document_access(document_id, workspace_id, 'read', 'fs.read') FOR create WHERE document_id != NONE AND fn::mt120_document_access(document_id, workspace_id, 'update', 'fs.write') AND event_ledger_event_id.authority_session_id = $auth.id AND event_ledger_event_id.wsids = [workspace_id] FOR update, delete NONE;
 DEFINE FIELD OVERWRITE receipt_id ON TABLE knowledge_crdt_denial_receipts TYPE string ASSERT $value = record::id($this.id);
 -- 0333_loom_ai_suggestions re-states this allow-list as the twelve-value
 -- superset that admits the AI-Loom promotion denial kind.
@@ -4127,7 +4291,7 @@ DEFINE INDEX OVERWRITE idx_knowledge_code_repair_open_source ON TABLE knowledge_
 DEFINE INDEX OVERWRITE idx_knowledge_code_repair_workspace_state ON TABLE knowledge_code_repair_queue FIELDS workspace_id, state, created_at;
 
 -- 0240_knowledge_memory_ontology
-DEFINE TABLE OVERWRITE knowledge_memory_ontology_terms SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_memory_ontology_terms SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE term_id ON TABLE knowledge_memory_ontology_terms TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_ontology_terms TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE term_kind ON TABLE knowledge_memory_ontology_terms TYPE 'entity_class' | 'relation_class' | 'attribute' | 'extraction_pattern';
@@ -4163,7 +4327,7 @@ DEFINE EVENT OVERWRITE enforce_ontology_lifecycle_transition ON TABLE knowledge_
             OR ($before.lifecycle_state = 'stable' AND $after.lifecycle_state = 'retired'))
     THEN { THROW 'knowledge_memory_ontology_terms lifecycle transition is illegal'; };
 
-DEFINE TABLE OVERWRITE knowledge_memory_ontology_aliases SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_memory_ontology_aliases SCHEMAFULL PERMISSIONS FOR select WHERE term_id.workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE alias_id ON TABLE knowledge_memory_ontology_aliases TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE term_id ON TABLE knowledge_memory_ontology_aliases TYPE record<knowledge_memory_ontology_terms> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_ontology_aliases TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -4176,7 +4340,7 @@ DEFINE INDEX OVERWRITE uq_knowledge_memory_ontology_aliases_norm ON TABLE knowle
 DEFINE INDEX OVERWRITE idx_knowledge_memory_ontology_aliases_term ON TABLE knowledge_memory_ontology_aliases FIELDS term_id;
 
 -- 0241_knowledge_memory_facts
-DEFINE TABLE OVERWRITE knowledge_memory_facts SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_memory_facts SCHEMAFULL PERMISSIONS FOR select WHERE claim_id.workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE fact_id ON TABLE knowledge_memory_facts TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_memory_facts TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE claim_id ON TABLE knowledge_memory_facts TYPE record<knowledge_claims> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -4256,7 +4420,7 @@ DEFINE INDEX OVERWRITE idx_kmbd_workspace ON TABLE knowledge_memory_bridge_decis
 DEFINE INDEX OVERWRITE idx_kmbd_edge ON TABLE knowledge_memory_bridge_decisions FIELDS bridge_edge_id;
 
 -- 0260_knowledge_semantic_catalog
-DEFINE TABLE OVERWRITE knowledge_semantic_catalog_entries SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE knowledge_semantic_catalog_entries SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read') FOR create, update, delete NONE;
 DEFINE FIELD OVERWRITE entry_id ON TABLE knowledge_semantic_catalog_entries TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_semantic_catalog_entries TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE entry_kind ON TABLE knowledge_semantic_catalog_entries TYPE 'entity_type' | 'index' | 'view' | 'tool';
@@ -4320,9 +4484,9 @@ DEFINE INDEX OVERWRITE idx_knowledge_document_backlinks_target ON TABLE knowledg
 
 -- 0292_loom_block_knowledge_bridge
 DEFINE TABLE OVERWRITE loom_block_knowledge_bridge SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'read', 'fs.read') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read'))
-                FOR create WHERE block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write'))
-                FOR update NONE FOR delete NONE;
+    PERMISSIONS FOR select WHERE fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'read', 'fs.read') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')) OR (block_id.source_rich_document_id != NONE AND record::id(block_id.source_rich_document_id) = record::id(block_id) AND block_id.workspace_id = workspace_id AND fn::mt120_document_access(record::id(block_id), record::id(workspace_id), 'read', 'fs.read'))
+                FOR create WHERE block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_loom_block_access(record::id(block_id), record::id(workspace_id), 'create', 'fs.write') OR (block_id.content_type = 'view_def' AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')) OR (block_id.source_rich_document_id != NONE AND record::id(block_id.source_rich_document_id) = record::id(block_id) AND block_id.workspace_id = workspace_id AND entity_id.workspace_id = workspace_id AND entity_id.entity_kind = 'loom_block' AND entity_id.entity_key = record::id(block_id) AND fn::mt120_document_access(record::id(block_id), record::id(workspace_id), 'update', 'fs.write'))
+                FOR update NONE FOR delete WHERE block_id.source_rich_document_id != NONE AND record::id(block_id.source_rich_document_id) = record::id(block_id) AND fn::mt154_stage_card_projection_delete(record::id(block_id), record::id(workspace_id)) AND fn::mt154_stage_compensation(record::id(block_id), record::id(workspace_id)).entity_id = record::id(entity_id);
 DEFINE FIELD OVERWRITE block_id ON TABLE loom_block_knowledge_bridge TYPE record<loom_blocks> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_block_knowledge_bridge TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE entity_id ON TABLE loom_block_knowledge_bridge TYPE record<knowledge_entities> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
@@ -4794,7 +4958,14 @@ DEFINE INDEX OVERWRITE pk_knowledge_workspace_search_bookmark_states ON TABLE kn
 DEFINE INDEX OVERWRITE idx_knowledge_workspace_search_bookmark_states_event ON TABLE knowledge_workspace_search_bookmark_states FIELDS event_ledger_event_id;
 
 -- 0331_debug_breakpoints
-DEFINE TABLE OVERWRITE knowledge_debug_breakpoints SCHEMAFULL PERMISSIONS NONE;
+-- MT-157 (Master Spec 02-system-architecture.md:2758/2773/2776, LM-RLS-002): record users read with the exact
+-- RichDocument read + fs.read grant; the replace-all PUT (DELETE + CREATE) needs update + fs.write; rows are never
+-- updated in place. Workspace/document deletes cascade through the REFERENCE fields below.
+DEFINE TABLE OVERWRITE knowledge_debug_breakpoints SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'update', 'fs.write')
+                FOR update NONE
+                FOR delete WHERE fn::mt120_document_access(record::id(rich_document_id), record::id(workspace_id), 'update', 'fs.write') OR fn::mt120_workspace_delete(record::id(workspace_id));
 DEFINE FIELD OVERWRITE breakpoint_id ON TABLE knowledge_debug_breakpoints TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE rich_document_id ON TABLE knowledge_debug_breakpoints TYPE record<knowledge_rich_documents> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE knowledge_debug_breakpoints TYPE record<workspaces> ASSERT record::exists($value) AND $value = $this.rich_document_id.workspace_id REFERENCE ON DELETE CASCADE;
@@ -4900,7 +5071,7 @@ DEFINE TABLE OVERWRITE loom_canvas_placements SCHEMAFULL
     PERMISSIONS FOR select WHERE (fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'read', 'fs.read') OR fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write')) AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))
                 FOR create WHERE fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))
                 FOR update WHERE fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read')))
-                FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id)) OR (fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read'))));
+                FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id)) OR (fn::mt120_loom_block_access(record::id(canvas_block_id), record::id(workspace_id), 'update', 'fs.write') AND (fn::mt120_loom_block_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read') OR (placed_block_id.source_rich_document_id != NONE AND record::id(placed_block_id.source_rich_document_id) = record::id(placed_block_id) AND fn::mt120_document_access(record::id(placed_block_id), record::id(workspace_id), 'read', 'fs.read'))) AND fn::mt154_stage_placement_delete(placement_id, record::id(placed_block_id), record::id(workspace_id), stage_provenance_key));
 DEFINE FIELD OVERWRITE placement_id ON TABLE loom_canvas_placements TYPE string ASSERT $value = record::id($this.id) AND string::starts_with($value, 'LCP-') AND string::len($value) = 36;
 DEFINE FIELD OVERWRITE canvas_block_id ON TABLE loom_canvas_placements TYPE record<loom_canvas_boards> REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE loom_canvas_placements TYPE record<workspaces> REFERENCE ON DELETE CASCADE;
@@ -5004,7 +5175,14 @@ DEFINE INDEX OVERWRITE idx_loom_block_search_embedding ON TABLE loom_block_searc
 DEFINE INDEX OVERWRITE idx_loom_block_search_ws_type ON TABLE loom_block_search_index FIELDS workspace_id, content_type;
 
 -- 0340_calendar_activity_spans
-DEFINE TABLE OVERWRITE calendar_activity_spans SCHEMAFULL PERMISSIONS NONE;
+-- MT-154: activity spans are workspace-scoped like the calendar rows they annotate.
+DEFINE TABLE OVERWRITE calendar_activity_spans SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write')
+                    OR fn::mt109_has_workspace_access(record::id(workspace_id), 'update', 'fs.write')
+                FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write')
+                    OR fn::mt120_workspace_delete(record::id(workspace_id));
 DEFINE FIELD OVERWRITE span_id ON TABLE calendar_activity_spans TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE calendar_activity_spans TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE calendar_event_id ON TABLE calendar_activity_spans TYPE string;
@@ -5018,7 +5196,14 @@ DEFINE INDEX OVERWRITE ix_calendar_activity_spans_event ON TABLE calendar_activi
 DEFINE INDEX OVERWRITE ix_calendar_activity_spans_workspace ON TABLE calendar_activity_spans FIELDS workspace_id;
 
 -- 0341_stage_capture_artifacts
-DEFINE TABLE OVERWRITE stage_capture_artifacts SCHEMAFULL PERMISSIONS NONE;
+-- MT-154 AC-154-3 (Master Spec 02-system-architecture.md:2776, LM-RLS-001/002): workspace readers read,
+-- workspace members capture (the row's actor is the session principal), captures are immutable, and
+-- only a workspace deleter (or the owner's workspace delete) removes them.
+DEFINE TABLE OVERWRITE stage_capture_artifacts SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'create', 'fs.write') AND $auth != NONE AND actor_id = $auth.principal_id.actor_id
+                FOR update NONE
+                FOR delete WHERE fn::mt120_workspace_delete(record::id(workspace_id)) OR fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write');
 DEFINE FIELD OVERWRITE artifact_id ON TABLE stage_capture_artifacts TYPE string ASSERT $value = record::id($this.id) AND string::starts_with($value, 'STGA-') AND string::len($value) = 37;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE stage_capture_artifacts TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE content_kind ON TABLE stage_capture_artifacts TYPE 'document' | 'selection' | 'canvas_node' | 'atelier_item';
@@ -5079,7 +5264,11 @@ DEFINE FIELD OVERWRITE applied ON TABLE knowledge_rich_document_loom_projection_
 DEFINE INDEX OVERWRITE pk_knowledge_rich_document_loom_projection_0343_state ON TABLE knowledge_rich_document_loom_projection_0343_state FIELDS block_id UNIQUE;
 
 -- 0344_atelier_intake_item_loom_projection
-DEFINE TABLE OVERWRITE atelier_intake_item_loom_projection SCHEMAFULL PERMISSIONS FOR select, create, update NONE FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write');
+-- MT-154 (AC-154-4, D-154-3): account-owned link; creating it additionally requires read on the exact
+-- target block (its loom_block resource or the same-id rich_document resource) so no account can pin
+-- another account's block. Delete stays with the workspace owner (workspace delete) or the link owner.
+DEFINE TABLE OVERWRITE atelier_intake_item_loom_projection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND (fn::mt120_loom_block_access(record::id(loom_block_id), record::id(workspace_id), 'read', 'fs.read') OR fn::mt120_document_access(record::id(loom_block_id), record::id(workspace_id), 'read', 'fs.read')) FOR update NONE FOR delete WHERE fn::mt109_has_workspace_access(record::id(workspace_id), 'delete', 'fs.write') OR fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_intake_item_loom_projection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE item_id ON TABLE atelier_intake_item_loom_projection TYPE record<atelier_intake_item> ASSERT (record::exists($value)) AND (record::id($value) = record::id($this.id)) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE loom_block_id ON TABLE atelier_intake_item_loom_projection TYPE record<loom_blocks> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE workspace_id ON TABLE atelier_intake_item_loom_projection TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
@@ -5227,9 +5416,9 @@ DEFINE INDEX OVERWRITE idx_fems_memory_lifecycle_fr_outbox_pending ON TABLE fems
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE fems_workspace_write_anchors SCHEMAFULL
     PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(workspace_key, 'read', 'memory.read') OR fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.propose') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.review') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.commit')
-                FOR create WHERE fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.propose') OR fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.commit')
-                FOR update WHERE fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.review') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.commit')
-                FOR delete NONE;
+                FOR create WHERE fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.propose') OR fn::mt109_has_workspace_access(workspace_key, 'create', 'memory.commit') OR fn::mt109_has_workspace_access(workspace_key, 'delete', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.review') OR fn::mt109_has_workspace_access(workspace_key, 'update', 'memory.commit') OR fn::mt109_has_workspace_access(workspace_key, 'delete', 'fs.write')
+                FOR delete WHERE fn::mt120_workspace_delete(workspace_key);
 -- MT109_AUTHORITY_END
 DEFINE FIELD OVERWRITE anchor_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_key ON TABLE fems_workspace_write_anchors TYPE string ASSERT string::trim($value) != '';
@@ -5241,7 +5430,14 @@ DEFINE INDEX OVERWRITE pk_fems_workspace_write_anchors ON TABLE fems_workspace_w
 -- columns (start_date, end_date_exclusive, normalization_note,
 -- temporal_contract_version) and the all-day date index this migration adds are
 -- folded into the 0015 calendar section above.
-DEFINE TABLE OVERWRITE calendar_mutation_outbox SCHEMAFULL PERMISSIONS NONE;
+-- MT-154: the outbox row is bound to its workspace (string id) like the calendar mutation it records.
+DEFINE TABLE OVERWRITE calendar_mutation_outbox SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::mt109_has_workspace_access(workspace_id, 'read', 'fs.read')
+                FOR create WHERE fn::mt109_has_workspace_access(workspace_id, 'create', 'fs.write')
+                    OR fn::mt109_has_workspace_access(workspace_id, 'update', 'fs.write')
+                FOR update WHERE fn::mt109_has_workspace_access(workspace_id, 'update', 'fs.write')
+                FOR delete WHERE fn::mt109_has_workspace_access(workspace_id, 'delete', 'fs.write')
+                    OR fn::mt120_workspace_delete(workspace_id);
 DEFINE FIELD OVERWRITE idempotency_key ON TABLE calendar_mutation_outbox TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE calendar_mutation_outbox TYPE string;
 DEFINE FIELD OVERWRITE source_id ON TABLE calendar_mutation_outbox TYPE string;
@@ -5266,7 +5462,16 @@ DEFINE INDEX OVERWRITE idx_calendar_mutation_outbox_workflow ON TABLE calendar_m
 -- Handshake-native EventLedger record link the SurrealDB preference store
 -- writes (`SurrealStorage::preference_*`); the source column carried the same
 -- ledger identity as opaque text because legacy server backend had no record type.
-DEFINE TABLE OVERWRITE preference_records SCHEMAFULL PERMISSIONS NONE;
+-- MT-154 (AC-154-3, D-154-3): workspace-scope rows follow the workspace grant; global/surface rows are
+-- account-owned (owner_account_id stamped from $auth at create, never rewritten).
+DEFINE TABLE OVERWRITE preference_records SCHEMAFULL
+    PERMISSIONS FOR select WHERE (scope_kind = 'workspace' AND fn::mt109_has_workspace_access(scope_ref, 'read', 'fs.read'))
+                    OR (scope_kind != 'workspace' AND fn::mt154_account_row(owner_account_id, 'fs.read'))
+                FOR create, update WHERE (scope_kind = 'workspace' AND fn::mt109_has_workspace_access(scope_ref, 'update', 'fs.write'))
+                    OR (scope_kind != 'workspace' AND fn::mt154_account_row(owner_account_id, 'fs.write'))
+                FOR delete WHERE (scope_kind = 'workspace' AND fn::mt109_has_workspace_access(scope_ref, 'delete', 'fs.write'))
+                    OR (scope_kind != 'workspace' AND fn::mt154_account_row(owner_account_id, 'fs.write'));
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE preference_records TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE preference_id ON TABLE preference_records TYPE string;
 DEFINE FIELD OVERWRITE scope_kind ON TABLE preference_records TYPE 'global' | 'workspace' | 'surface';
 DEFINE FIELD OVERWRITE scope_ref ON TABLE preference_records TYPE string DEFAULT '';
@@ -5285,7 +5490,15 @@ DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE preference_records TYPE re
 DEFINE INDEX OVERWRITE pk_preference_records ON TABLE preference_records FIELDS preference_id, scope_kind, scope_ref UNIQUE;
 DEFINE INDEX OVERWRITE preference_records_scope_idx ON TABLE preference_records FIELDS scope_kind, scope_ref;
 
-DEFINE TABLE OVERWRITE preference_change_receipts SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE preference_change_receipts SCHEMAFULL
+    PERMISSIONS FOR select WHERE (scope_kind = 'workspace' AND fn::mt109_has_workspace_access(scope_ref, 'read', 'fs.read'))
+                    OR (scope_kind != 'workspace' AND fn::mt154_account_row(owner_account_id, 'fs.read'))
+                FOR create WHERE (scope_kind = 'workspace' AND fn::mt109_has_workspace_access(scope_ref, 'update', 'fs.write'))
+                    OR (scope_kind != 'workspace' AND fn::mt154_account_row(owner_account_id, 'fs.write'))
+                FOR update NONE
+                FOR delete WHERE (scope_kind = 'workspace' AND fn::mt109_has_workspace_access(scope_ref, 'delete', 'fs.write'))
+                    OR (scope_kind != 'workspace' AND fn::mt154_account_row(owner_account_id, 'fs.write'));
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE preference_change_receipts TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE preference_id ON TABLE preference_change_receipts TYPE string;
 DEFINE FIELD OVERWRITE scope_kind ON TABLE preference_change_receipts TYPE 'global' | 'workspace' | 'surface';
 DEFINE FIELD OVERWRITE scope_ref ON TABLE preference_change_receipts TYPE string DEFAULT '';
@@ -6119,6 +6332,9 @@ DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt($capability: option<string>, 
             AND $source = 'native_editor_fr_ingestion' AND $payload.envelope.workspace_id = $wsids[0]
             AND (($payload.receipt_kind = 'native_editor_flight_recorder_pending' AND $event_type = 'FLIGHT_RECORDER_MIRROR_PENDING')
                  OR ($payload.receipt_kind = 'native_editor_flight_recorder_recorded' AND $event_type = 'FLIGHT_RECORDER_MIRROR_RECORDED')))
+        OR ($capability = 'fr.ingest.runtime_chat' AND $aggregate = 'runtime_chat_event'
+            AND $source = 'runtime_chat_fr_ingestion' AND $payload.workspace_id = $wsids[0]
+            AND $payload.receipt_kind = 'runtime_chat_flight_recorder_recorded' AND $event_type = 'FLIGHT_RECORDER_MIRROR_RECORDED')
         OR ($payload.workspace_id = $wsids[0] AND (
             ($capability = 'memory.propose' AND $payload.receipt_kind = 'fems_memory_write_proposal'
                 AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_intake' AND $event_type = 'ARTIFACT_PROPOSED')
@@ -6131,7 +6347,7 @@ DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt($capability: option<string>, 
 DEFINE FUNCTION OVERWRITE fn::mt109_ledger_producer($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>) {
     RETURN fn::mt109_ledger_workspace($resource, $wsids)
         AND fn::mt109_ledger_access($resource, $session, $capability, $action)
-        AND (($resource.resource_kind = 'flight_recorder' AND $action = 'create' AND $capability = 'fr.ingest.native_editor')
+        AND (($resource.resource_kind = 'flight_recorder' AND $action = 'create' AND $capability IN ['fr.ingest.native_editor', 'fr.ingest.runtime_chat'])
              OR ($resource.resource_kind = 'memory_proposal' AND (($action = 'create' AND $capability = 'memory.propose') OR ($action = 'update' AND $capability IN ['memory.review', 'memory.commit'])))
              OR ($resource.resource_kind = 'reconciliation_queue' AND $action = 'reconcile' AND $capability IN ['fr.ingest.native_editor', 'memory.commit']));
 };
@@ -6140,6 +6356,8 @@ DEFINE FUNCTION OVERWRITE fn::mt109_ledger_reader($resource: option<record<prote
     RETURN (fn::mt109_ledger_workspace($resource, $wsids)
             AND (fn::mt109_ledger_producer($resource, $session, $capability, $action, $wsids)
                  OR ($resource.resource_kind IN ['flight_recorder', 'reconciliation_queue'] AND $capability = 'fr.ingest.native_editor'
+                     AND fn::mt109_has_grant('flight_recorder', $wsids[0], 'read', 'fr.read'))
+                 OR ($resource.resource_kind = 'flight_recorder' AND $capability = 'fr.ingest.runtime_chat'
                      AND fn::mt109_has_grant('flight_recorder', $wsids[0], 'read', 'fr.read'))
                  OR ($resource.resource_kind IN ['memory_proposal', 'reconciliation_queue'] AND $capability IN ['memory.propose', 'memory.review', 'memory.commit']
                      AND fn::mt109_has_grant('memory_proposal', $wsids[0], 'read', 'memory.read'))))
@@ -6504,22 +6722,16 @@ FOR $block IN (SELECT block_id, source_rich_document_id, content_type, content_h
     };
 };
 -- Legacy generic sources have no account-bound resource kind in this producer; never delete them by workspace membership alone.
-IF array::len(SELECT id FROM documents WHERE workspace_id = $workspace) > 0
-    OR array::len(SELECT id FROM assets WHERE workspace_id = $workspace) > 0
-    OR array::len(SELECT id FROM canvases WHERE workspace_id = $workspace) > 0 {
+IF array::len(SELECT id FROM documents WHERE workspace_id = $workspace) > 0 {
     RETURN false;
 };
+-- MT-153/MT-154/MT-157 (Operator decision 2026-09-22 extended as C2 did): rows of the account-scoped Loom,
+-- calendar, Stage, Canvas and breakpoint surfaces can only be created by holders of this workspace's grants,
+-- so the owner's delete removes them through their workspace REFERENCE ON DELETE CASCADE.
 IF array::len(SELECT id FROM atelier_intake_item_loom_projection WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM ai_bronze_records WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM ai_silver_records WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM assets WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM blocks WHERE document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace)) > 0 { RETURN false; };
-IF array::len(SELECT id FROM calendar_activity_spans WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM calendar_events WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM calendar_sources WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM canvas_edges WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) > 0 { RETURN false; };
-IF array::len(SELECT id FROM canvas_nodes WHERE canvas_id IN (SELECT VALUE id FROM canvases WHERE workspace_id = $workspace)) > 0 { RETURN false; };
-IF array::len(SELECT id FROM canvases WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM documents WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_claim_conflicts WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_claim_spans WHERE claim_id IN (SELECT VALUE id FROM knowledge_claims WHERE workspace_id = $workspace)) > 0 { RETURN false; };
@@ -6527,7 +6739,6 @@ IF array::len(SELECT id FROM knowledge_claims WHERE workspace_id = $workspace) >
 IF array::len(SELECT id FROM knowledge_code_scip_imports WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_context_bundle_items WHERE bundle_id IN (SELECT VALUE id FROM knowledge_context_bundles WHERE workspace_id = $workspace)) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_context_bundles WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM knowledge_debug_breakpoints WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_memory_bridge_decisions WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_memory_conflict_detection_findings WHERE job_id IN (SELECT VALUE id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace)) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_memory_conflict_detection_jobs WHERE workspace_id = $workspace) > 0 { RETURN false; };
@@ -6537,22 +6748,12 @@ IF array::len(SELECT id FROM knowledge_memory_ontology_aliases WHERE workspace_i
 IF array::len(SELECT id FROM knowledge_memory_ontology_terms WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_memory_passages WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_passage_evidence WHERE passage_id IN (SELECT VALUE id FROM knowledge_memory_passages WHERE workspace_id = $workspace)) > 0 { RETURN false; };
-IF array::len(SELECT id FROM knowledge_quick_switcher_recents WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_retrieval_traces WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM knowledge_semantic_catalog_entries WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM knowledge_wiki_projections WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_ai_suggestions WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM loom_block_knowledge_bridge WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM loom_canvas_boards WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM loom_canvas_placements WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM loom_canvas_visual_edges WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_collection_members WHERE collection_id IN (SELECT VALUE id FROM loom_collections WHERE workspace_id = $workspace)) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_collections WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_folder_members WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_folders WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM loom_wiki_overlays WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM media_asset_tiers WHERE workspace_id = $workspace) > 0 { RETURN false; };
-IF array::len(SELECT id FROM stage_capture_artifacts WHERE workspace_id = $workspace) > 0 { RETURN false; };
 IF array::len(SELECT id FROM documents WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
 IF array::len(SELECT id FROM blocks WHERE document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace) AND (document_id IN (SELECT VALUE id FROM documents WHERE workspace_id = $workspace)) != true) > 0 { RETURN false; };
 IF array::len(SELECT id FROM canvases WHERE workspace_id IN (SELECT VALUE id FROM workspaces WHERE id = $workspace) AND (workspace_id = $workspace) != true) > 0 { RETURN false; };
@@ -6925,3 +7126,241 @@ DEFINE FUNCTION OVERWRITE fn::mt120_index_receipt($resource: option<record<prote
     RETURN true;
 };
 -- RECORD_USER_PRODUCER_END
+
+-- MT154_AUTHORITY_BEGIN
+-- MT-154 (Master Spec 02-system-architecture.md:2758/2773/2776, LM-RLS-001/002): receipts appended by the
+-- account-scoped non-Loom routes. A receipt is accepted only for the live session principal, bound to exactly
+-- one workspace the session holds the authorized action + capability on, and read back only by accounts that
+-- can read that workspace. Each route family whitelists its own (event, source, aggregate) triples below.
+DEFINE FUNCTION OVERWRITE fn::mt154_workspace_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE OR $capability = NONE OR $action = NONE
+        OR array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
+        OR $resource.resource_kind != 'workspace' OR $resource.external_resource_id != $wsids[0]
+        OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id
+        OR $actor_kind != $session.principal_id.actor_kind OR $actor_id != $session.principal_id.actor_id
+        OR !fn::mt154_workspace_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action) { RETURN false; };
+    RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+            AND fn::mt109_has_workspace_access($wsids[0], $action, $capability))
+        OR (!$write AND (fn::mt109_has_workspace_access($wsids[0], 'read', 'fs.read')
+            OR fn::mt109_has_workspace_access($wsids[0], 'read', 'fr.read')));
+};
+DEFINE FUNCTION OVERWRITE fn::mt154_workspace_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
+    RETURN fn::mt154_calendar_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action)
+        OR fn::mt154_stage_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action)
+        OR fn::mt154_canvas_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action)
+        OR fn::mt154_preference_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action)
+        OR fn::mt154_knowledge_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action)
+        OR fn::mt154_flight_recorder_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action);
+};
+-- Calendar: no calendar route appends a kernel_event_ledger receipt (PUT sources writes calendar_sources only;
+-- the calendar_workflow mutation receipt + outbox are written by upsert_calendar_event, which no route reaches).
+-- Deny-by-default until a record-user calendar route emits a receipt.
+DEFINE FUNCTION OVERWRITE fn::mt154_calendar_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
+    RETURN false;
+};
+-- Stage (MT-154 AC-154-5): the capture's allow decision + stored receipt (POST /workspaces/:ws/stage/artifacts,
+-- workspace fs.write/create), and the Stage canvas-card compensation receipt (MT-153 AC-153-7, workspace
+-- fs.write/delete). Denial receipts of refused requests are not accepted here.
+DEFINE FUNCTION OVERWRITE fn::mt154_stage_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
+    RETURN ($source = 'stage_capture_api' AND $capability = 'fs.write' AND $action = 'create'
+            AND $payload.capability_id = 'stage.jobs.enqueue' AND $payload.decision_outcome = 'allow'
+            AND $payload.artifact_id = $aggregate_id
+            AND (($event = 'TOOL_DECISION_RECORDED' AND $aggregate = 'stage_capture_authorization')
+                 OR ($event = 'ARTIFACT_STORED' AND $aggregate = 'stage_capture_artifact'
+                     AND $payload.receipt_kind = 'stage_capture_stored')))
+        OR ($event = 'KNOWLEDGE_RICH_DOCUMENT_DELETED' AND $source = 'loom_canvas_stage_compensation'
+            AND $aggregate = 'knowledge_rich_document' AND $capability = 'fs.write' AND $action = 'delete'
+            AND $payload.type = 'knowledge_rich_document_deleted' AND $payload.reason = 'stage_canvas_card_compensation'
+            AND $payload.rich_document_id = $aggregate_id AND $payload.block_id = $aggregate_id
+            AND $payload.placement_id != NONE AND $payload.entity_id != NONE);
+};
+-- MT-153 AC-153-7: the compensation receipt this session appended in the current transaction for one Stage-card
+-- RichDocument, or NONE. Only fn::mt154_stage_event admits such a receipt, and only for a workspace deleter.
+DEFINE FUNCTION OVERWRITE fn::mt154_stage_compensation($document: string, $workspace: string) {
+    IF $auth = NONE { RETURN NONE; };
+    RETURN (SELECT VALUE payload FROM kernel_event_ledger
+        WHERE event_type = 'KNOWLEDGE_RICH_DOCUMENT_DELETED' AND source_component = 'loom_canvas_stage_compensation'
+          AND aggregate_type = 'knowledge_rich_document' AND aggregate_id = $document
+          AND authority_session_id = $auth.id AND authority_action = 'delete'
+          AND payload.workspace_id = $workspace LIMIT 1)[0];
+};
+-- The complete reference guard of the Stage compensation, evaluated inside a PERMISSIONS predicate (perms off),
+-- so rows the owner cannot read still block the delete exactly as the former root transaction's THROW did.
+DEFINE FUNCTION OVERWRITE fn::mt154_stage_card_unreferenced($receipt: object, $workspace: string) {
+    LET $ws = type::record('workspaces', $workspace);
+    LET $document_id = $receipt.block_id;
+    LET $block = type::record('loom_blocks', $document_id);
+    LET $document = type::record('knowledge_rich_documents', $document_id);
+    LET $placement = type::record('loom_canvas_placements', $receipt.placement_id);
+    LET $entity = type::record('knowledge_entities', $receipt.entity_id);
+    LET $entity_id = $receipt.entity_id;
+    RETURN array::len((SELECT id FROM loom_canvas_placements WHERE placed_block_id = $block AND id != $placement)) = 0
+        AND array::len((SELECT id FROM loom_canvas_visual_edges WHERE from_placement_id = $placement OR to_placement_id = $placement)) = 0
+        AND array::len((SELECT id FROM loom_edges WHERE workspace_id = $ws AND (source_block_id = $block OR target_block_id = $block OR source_text_block_id = $document_id))) = 0
+        AND array::len((SELECT id FROM knowledge_sources WHERE loom_block_id = $block OR (workspace_id = $ws AND source_kind = 'rich_document' AND provenance.rich_document_id = $document_id))) = 0
+        AND array::len((SELECT id FROM loom_folder_members WHERE block_id = $block)) = 0
+        AND array::len((SELECT id FROM loom_canvas_boards WHERE block_id = $block)) = 0
+        AND array::len((SELECT id FROM atelier_intake_item_loom_projection WHERE loom_block_id = $block)) = 0
+        AND array::len((SELECT id FROM knowledge_edges WHERE source_entity_id = $entity OR target_entity_id = $entity)) = 0
+        AND array::len((SELECT id FROM knowledge_entity_spans WHERE entity_id = $entity)) = 0
+        AND array::len((SELECT id FROM knowledge_claims WHERE subject_entity_id = $entity)) = 0
+        AND array::len((SELECT id FROM knowledge_code_files WHERE file_entity_id = $entity)) = 0
+        AND array::len((SELECT id FROM knowledge_memory_facts WHERE subject_entity_id = $entity OR object_entity_id = $entity)) = 0
+        AND array::len((SELECT id FROM knowledge_memory_bridge_decisions WHERE entity_id_a = $entity OR entity_id_b = $entity)) = 0
+        AND array::len((SELECT id FROM knowledge_rich_document_drafts WHERE rich_document_id = $document)) = 0
+        AND array::len((SELECT id FROM knowledge_editor_code_nodes WHERE rich_document_id = $document)) = 0
+        AND array::len((SELECT id FROM knowledge_document_embeds WHERE rich_document_id = $document)) = 0
+        AND array::len((SELECT id FROM knowledge_document_backlinks WHERE workspace_id = $ws AND (source_document_id = $document OR target = $document_id OR target = $receipt.title))) = 0
+        AND array::len((SELECT id FROM knowledge_debug_breakpoints WHERE rich_document_id = $document)) = 0
+        AND array::len((SELECT id FROM knowledge_context_bundle_items WHERE ref_kind = 'entity' AND ref_id = $entity_id AND bundle_id.workspace_id = $ws)) = 0
+        AND array::len((SELECT id FROM fems_memory_proposals WHERE workspace_id = $ws AND document_id = $document_id)) = 0
+        AND array::len((SELECT id FROM loom_ai_suggestions WHERE workspace_id = $ws AND (block_id = $document_id OR target_block_id = $document_id))) = 0
+        AND array::len((SELECT id FROM knowledge_quick_switcher_recents WHERE workspace_id = $ws AND ((source_kind = 'loom_block' AND ref_id = $document_id) OR (result_kind = 'knowledge_entity' AND ref_id = $entity_id)))) = 0;
+};
+-- A Stage-card placement delete inside a compensation (this session's receipt names this placement) also
+-- requires the complete reference guard; every other placement delete is unchanged.
+DEFINE FUNCTION OVERWRITE fn::mt154_stage_placement_delete($placement_id: string, $placed_block: string, $workspace: string, $key: option<string>) {
+    IF $key = NONE { RETURN true; };
+    LET $receipt = fn::mt154_stage_compensation($placed_block, $workspace);
+    IF $receipt = NONE OR $receipt.placement_id != $placement_id { RETURN true; };
+    RETURN fn::mt154_stage_card_unreferenced($receipt, $workspace);
+};
+-- The Stage card's RichDocument projection rows (bridge, entity, RichDocument) are hard-deleted by a record
+-- user only inside that card's compensation, and only with the RichDocument's delete grant.
+DEFINE FUNCTION OVERWRITE fn::mt154_stage_card_projection_delete($document: string, $workspace: string) {
+    RETURN fn::mt120_document_access($document, $workspace, 'delete', 'fs.write')
+        AND fn::mt154_stage_compensation($document, $workspace) != NONE;
+};
+-- Canvas (legacy /canvases API): the routes append no kernel_event_ledger receipt; deny-by-default.
+DEFINE FUNCTION OVERWRITE fn::mt154_canvas_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
+    RETURN false;
+};
+DEFINE FUNCTION OVERWRITE fn::mt154_preference_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
+    RETURN $event = 'PREFERENCE_RECORD_CHANGED' AND $source = 'preferences' AND $aggregate = 'preference_record'
+        AND $capability = 'fs.write' AND $action = 'update'
+        AND $payload.type = 'preference_record_changed' AND $payload.scope = 'workspace'
+        AND $payload.scope_ref = $payload.workspace_id
+        AND string::starts_with($aggregate_id, 'workspace:' + $payload.workspace_id + ':');
+};
+-- Knowledge: memory-graph + retrieval-debug navigation receipts, the retrieval repair's fresh bundle/trace
+-- receipts, the RichDocument CRDT push update/conflict receipts, and the ingestion-pass completion receipt
+-- (the other ingestion receipts pass fn::mt120_index_receipt).
+DEFINE FUNCTION OVERWRITE fn::mt154_knowledge_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
+    IF $event = 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED' AND $source = 'knowledge_memory_api' AND $aggregate = 'knowledge_memory_nav' {
+        RETURN $capability = 'fs.read' AND $action = 'read' AND $payload.kind = 'memory_graph_query' AND $payload.query_kind = $aggregate_id
+            AND $aggregate_id IN ['claim_with_evidence', 'conflict_review', 'fact_trace', 'entity_neighborhood', 'visual_debug'];
+    };
+    IF $event = 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED' AND $source = 'knowledge_retrieval_api' AND $aggregate = 'knowledge_retrieval_nav' {
+        RETURN $payload.kind = 'retrieval_debug_query' AND $payload.query_kind = $aggregate_id
+            AND (($capability = 'fs.read' AND $action = 'read' AND $aggregate_id IN ['explain_bundle', 'export_bundle_evidence', 'bundle_staleness', 'list_catalog'])
+                 OR ($capability = 'fs.write' AND $action = 'create' AND $aggregate_id = 'repair_bundle'));
+    };
+    IF $event = 'CONTEXT_BUNDLE_RECORDED' AND $source = 'system' AND $aggregate = 'context_bundle' {
+        RETURN $capability = 'fs.write' AND $action = 'create' AND $payload.bundle_id = $aggregate_id;
+    };
+    IF $event = 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED' AND $source = 'system' AND $aggregate = 'knowledge_retrieval_trace' {
+        RETURN $capability = 'fs.write' AND $action = 'create' AND $payload.trace_id = $aggregate_id;
+    };
+    IF $aggregate = 'knowledge_crdt_document' AND (($event = 'KNOWLEDGE_CRDT_UPDATE_RECORDED' AND $source = 'knowledge_crdt_yjs_bridge')
+        OR ($event = 'KNOWLEDGE_CRDT_CONFLICT_DETECTED' AND $source = 'knowledge_crdt_save_semantics')) {
+        RETURN $capability = 'fs.write' AND $action = 'update';
+    };
+    IF $event = 'VALIDATION_RECORDED' AND $source = 'knowledge_ingestion' AND $aggregate = 'knowledge_ingestion_run' {
+        RETURN $capability = 'memory.propose' AND $action = 'create' AND $payload.kind = 'ingestion_run_finished' AND $payload.run_token = $aggregate_id;
+    };
+    RETURN false;
+};
+DEFINE FUNCTION OVERWRITE fn::mt154_flight_recorder_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
+    RETURN false;
+};
+-- MT-153 (spec_ruling_c3_silent_deny; Master Spec 02-system-architecture.md:2758, :16447 HSK-403-SILENT-EDIT):
+-- a record user's attempt to move a source-free standalone LoomBlock to another workspace, bind it to a
+-- RichDocument or change its content type is denied observably. Field ASSERTs run before the after-state
+-- permission recheck, which would otherwise drop the write silently; block_id is the first field processed.
+DEFINE FUNCTION OVERWRITE fn::mt153_loom_identity_unchanged($row: object) {
+    IF $auth = NONE { RETURN true; };
+    LET $old = (SELECT workspace_id, content_type, source_rich_document_id FROM ONLY $row.id);
+    IF $old != NONE AND $old.source_rich_document_id = NONE
+        AND ($row.source_rich_document_id != NONE OR $row.workspace_id != $old.workspace_id
+            OR $row.content_type != $old.content_type) {
+        THROW 'HSK-403-PROTECTED-RESOURCE';
+    };
+    RETURN true;
+};
+-- MT-153/MT-156: a kernel job started by an account request (Loom preview generation, debug bundle
+-- export) is readable and writable by record users only through the grant on the single workspace the job
+-- names (entity_refs workspace entry, else job_inputs.workspace_id / wsid). System jobs stay root-only.
+DEFINE FUNCTION OVERWRITE fn::mt154_job_workspace($entity_refs: option<array>, $job_inputs: option<object>) {
+    LET $refs = IF $entity_refs = NONE { [] } ELSE { array::map(array::filter($entity_refs, |$entry| $entry.entity_kind = 'workspace'), |$entry| $entry.entity_id) };
+    IF array::len($refs) > 1 { RETURN NONE; };
+    IF array::len($refs) = 1 { RETURN IF type::is_string($refs[0]) { $refs[0] } ELSE { NONE }; };
+    IF $job_inputs = NONE { RETURN NONE; };
+    LET $ws = $job_inputs.workspace_id ?? $job_inputs.wsid;
+    RETURN IF type::is_string($ws) { $ws } ELSE { NONE };
+};
+DEFINE FUNCTION OVERWRITE fn::mt154_job_access($entity_refs: option<array>, $job_inputs: option<object>, $action: string, $capability: string) {
+    IF $auth = NONE { RETURN false; };
+    LET $ws = fn::mt154_job_workspace($entity_refs, $job_inputs);
+    RETURN $ws != NONE AND fn::mt109_has_workspace_access($ws, $action, $capability);
+};
+-- Account-global rows (D-154-3: owner_account_id stamped from $auth; no workspace bind).
+-- An account-owned row is visible and writable only to a live session of its owning account holding
+-- the capability (read: fs.read, write: fs.write); root/system rows (owner NONE) are never visible to a
+-- record user. Master Spec 02-system-architecture.md:2740/:2751 (owner_account_id, private by default).
+DEFINE FUNCTION OVERWRITE fn::mt154_account_row($owner: option<record<local_accounts>>, $capability: string) {
+    RETURN fn::mt109_live_session() AND $owner != NONE AND $owner = $auth.account_id
+        AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+        AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability));
+};
+-- The builtin Atelier command-corpus catalog is projected by the product at startup (owner NONE); every
+-- live session holding fs.read may read it, and an account's own rows stay private to that account.
+DEFINE FUNCTION OVERWRITE fn::mt154_account_catalog_read($owner: option<record<local_accounts>>) {
+    RETURN fn::mt154_account_row($owner, 'fs.read')
+        OR ($owner = NONE AND fn::mt109_live_session()
+            AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS 'fs.read'))
+            AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS 'fs.read')));
+};
+-- Receipt kinds an account-scoped (no workspace) request may append: Atelier domain events and
+-- global/surface preference changes.
+DEFINE FUNCTION OVERWRITE fn::mt154_account_event($event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $capability: string, $action: string) {
+    RETURN $capability = 'fs.write' AND $action IN ['create', 'update', 'delete']
+        AND (($event = 'ATELIER_DOMAIN_EVENT_RECORDED' AND $source = 'atelier'
+                AND string::len($aggregate) > 0 AND string::len($aggregate_id) > 0
+                AND $payload.aggregate_type = $aggregate AND $payload.aggregate_id = $aggregate_id)
+            OR ($event = 'PREFERENCE_RECORD_CHANGED' AND $source = 'preferences' AND $aggregate = 'preference_record'
+                AND $action = 'update' AND $payload.type = 'preference_record_changed'
+                AND $payload.scope IN ['global', 'surface']));
+};
+-- An account receipt carries no workspace; its authority anchor is the owning account (the session's
+-- account, also stamped as authority_resource_id). Written only by that live session's principal; read back
+-- only by sessions of the same account, so another account reads 0 receipts.
+DEFINE FUNCTION OVERWRITE fn::mt154_account_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE OR $capability = NONE OR $action = NONE
+        OR array::len($wsids) != 0
+        OR $session.account_id != $auth.account_id OR record::id($resource) != record::id($session.account_id)
+        OR $actor_kind != $session.principal_id.actor_kind OR $actor_id != $session.principal_id.actor_id
+        OR !fn::mt154_account_event($event, $source, $aggregate, $aggregate_id, $payload, $capability, $action) { RETURN false; };
+    RETURN ($write AND $session = $auth.id
+            AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS $capability))
+            AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS $capability)))
+        OR (!$write
+            AND (($auth.delegated_capabilities CONTAINS '*') OR ($auth.delegated_capabilities CONTAINS 'fs.read'))
+            AND (($auth.principal_id.delegated_capabilities CONTAINS '*') OR ($auth.principal_id.delegated_capabilities CONTAINS 'fs.read')));
+};
+-- MT-157: the debugger-breakpoint PUT receipt (rich_document resource, Update + fs.write, session principal).
+DEFINE FUNCTION OVERWRITE fn::mt157_breakpoint_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
+    IF !fn::mt109_live_session() OR $resource = NONE OR $session = NONE OR $capability = NONE OR $action = NONE
+        OR array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
+        OR $resource.resource_kind != 'rich_document' OR $resource.external_resource_id != $aggregate_id
+        OR $resource.parent_resource_id.external_resource_id != $wsids[0]
+        OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id
+        OR $capability != 'fs.write' OR $action != 'update'
+        OR $event != 'KNOWLEDGE_RICH_DOCUMENT_SAVED' OR $source != 'debug_breakpoints' OR $aggregate != 'debug_breakpoints'
+        OR $payload.type != 'knowledge_debug_breakpoints_recorded' OR $payload.rich_document_id != $aggregate_id
+        OR $payload.minted_by_principal != record::id($session.principal_id)
+        OR $actor_kind != $session.principal_id.actor_kind OR $actor_id != $session.principal_id.actor_id { RETURN false; };
+    RETURN ($write AND $session = $auth.id AND fn::mt109_ledger_access($resource, $session, $capability, $action)
+            AND fn::mt120_document_access($aggregate_id, $wsids[0], 'update', 'fs.write'))
+        OR (!$write AND fn::mt120_document_access($aggregate_id, $wsids[0], 'read', 'fs.read'));
+};
+-- MT154_AUTHORITY_END
