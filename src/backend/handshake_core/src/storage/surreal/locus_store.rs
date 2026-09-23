@@ -287,11 +287,13 @@ pub(crate) async fn locus_task_board_update_work_packet(
     metadata: &str,
     wp_id: &str,
 ) -> StorageResult<()> {
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
     serde_json::from_str::<JsonValue>(metadata)?;
     let status = canonical_work_packet_status_for_storage(status)?;
     let task_board_status = canonical_task_board_status_for_storage(task_board_status)?;
     let bindings = TaskBoardUpdateBindings {
-        record: RecordId::new(WORK_PACKETS, wp_id.to_owned()),
+        record: locus_record(WORK_PACKETS, &owner, &wp_id),
         expected_version,
         status: status.to_owned(),
         task_board_status: task_board_status.to_owned(),
@@ -331,6 +333,8 @@ async fn create_wp(
     storage: &SurrealStorage,
     params: LocusCreateWpParams,
 ) -> StorageResult<JsonValue> {
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
     if params.priority > 4 {
         return Err(StorageError::Validation("priority must be between 0 and 4"));
     }
@@ -350,7 +354,7 @@ async fn create_wp(
         "work_packet_type": serde_json::to_value(params.kind)?,
     });
     let bindings = CreateWorkPacketBindings {
-        record: RecordId::new(WORK_PACKETS, params.wp_id.clone()),
+        record: locus_record(WORK_PACKETS, &owner, &params.wp_id),
         wp_id: params.wp_id.clone(),
         version: 1,
         title: params.title,
@@ -514,7 +518,9 @@ async fn delete_wp(
 }
 
 async fn load_wp(storage: &SurrealStorage, wp_id: &str) -> StorageResult<WorkPacketRow> {
-    let record = RecordId::new(WORK_PACKETS, wp_id.to_owned());
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
+    let record = locus_record(WORK_PACKETS, &owner, &wp_id);
     let row: Option<WorkPacketRow> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
@@ -584,6 +590,8 @@ async fn register_mts(
     storage: &SurrealStorage,
     params: LocusRegisterMtsParams,
 ) -> StorageResult<JsonValue> {
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
     let mut rows = Vec::with_capacity(params.micro_tasks.len());
     for mut task in params.micro_tasks {
         if task.wp_id != params.wp_id {
@@ -591,7 +599,7 @@ async fn register_mts(
         }
         dedupe_session_ids(&mut task.active_session_ids);
         rows.push(RegisterMtWrite {
-            record: RecordId::new(MICRO_TASKS, task.mt_id.clone()),
+            record: locus_record(MICRO_TASKS, &owner, &task.mt_id),
             mt_id: task.mt_id.clone(),
             name: task.name.clone(),
             status: micro_task_status_str(task.status).to_owned(),
@@ -601,7 +609,7 @@ async fn register_mts(
         });
     }
     let bindings = RegisterMtsBindings {
-        wp: RecordId::new(WORK_PACKETS, params.wp_id.clone()),
+        wp: locus_record(WORK_PACKETS, &owner, &params.wp_id),
         rows,
     };
     let result = storage
@@ -716,6 +724,8 @@ async fn record_iteration(
     storage: &SurrealStorage,
     params: LocusRecordIterationParams,
 ) -> StorageResult<JsonValue> {
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
     let (mut task, expected) = load_tracked_mt(storage, &params.wp_id, &params.mt_id).await?;
     let recorded_iteration = params.iteration.iteration;
     task.status = MicroTaskStatus::InProgress;
@@ -728,11 +738,11 @@ async fn record_iteration(
     );
     let iteration_id = format!("{:x}", Sha256::digest(iteration_identity.as_bytes()));
     let bindings = RecordIterationBindings {
-        task: persist_bindings(&task, expected)?,
+        task: persist_bindings(&task, expected, &owner)?,
         iteration: IterationWrite {
-            record: RecordId::new(MT_ITERATIONS, iteration_id.clone()),
+            record: locus_record(MT_ITERATIONS, &owner, &iteration_id),
             iteration_id,
-            mt_id: RecordId::new(MICRO_TASKS, params.mt_id.clone()),
+            mt_id: locus_record(MICRO_TASKS, &owner, &params.mt_id),
             iteration: i64::from(params.iteration.iteration),
             escalation_level: i64::from(params.iteration.escalation_level),
             model_id: params.iteration.model_id.clone(),
@@ -818,6 +828,8 @@ async fn add_dependency_attempt(
     storage: &SurrealStorage,
     params: &LocusAddDependencyParams,
 ) -> StorageResult<JsonValue> {
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
     ensure_wp_exists(storage, &params.from_wp_id).await?;
     ensure_wp_exists(storage, &params.to_wp_id).await?;
     let expected_anchor_version = read_dependency_graph_version(storage).await?;
@@ -835,10 +847,10 @@ async fn add_dependency_attempt(
     super::keyed_lock::race_test_support::pause_after_decision().await;
     let now = now_rfc3339();
     let bindings = DependencyWrite {
-        record: RecordId::new(DEPENDENCIES, params.dependency_id.clone()),
+        record: locus_record(DEPENDENCIES, &owner, &params.dependency_id),
         dependency_id: params.dependency_id.clone(),
-        from_wp_id: RecordId::new(WORK_PACKETS, params.from_wp_id.clone()),
-        to_wp_id: RecordId::new(WORK_PACKETS, params.to_wp_id.clone()),
+        from_wp_id: locus_record(WORK_PACKETS, &owner, &params.from_wp_id),
+        to_wp_id: locus_record(WORK_PACKETS, &owner, &params.to_wp_id),
         dependency_type: dependency_type_str(params.kind).to_owned(),
         created_at: now.clone(),
         vector_clock: serde_json::to_string(&json!({"local": 1}))?,
@@ -909,6 +921,8 @@ async fn remove_dependency(
     database: &SurrealDatabase,
     params: LocusRemoveDependencyParams,
 ) -> StorageResult<JsonValue> {
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(database.storage()).await?;
     // A removal cannot create a cycle and does not touch the anchor: its own row is
     // the narrowest key. One DELETE transaction, replay-safe.
     let dependency_id = &params.dependency_id;
@@ -919,7 +933,7 @@ async fn remove_dependency(
             None,
             || {
                 let bindings = RecordBinding {
-                    record: RecordId::new(DEPENDENCIES, dependency_id.clone()),
+                    record: locus_record(DEPENDENCIES, &owner, &dependency_id),
                 };
                 async move {
                     database
@@ -1096,7 +1110,9 @@ async fn get_mt_progress(
     storage: &SurrealStorage,
     params: LocusGetMtProgressParams,
 ) -> StorageResult<JsonValue> {
-    let record = RecordId::new(MICRO_TASKS, params.mt_id);
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
+    let record = locus_record(MICRO_TASKS, &owner, &params.mt_id);
     let row: Option<MicroTaskRow> = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
@@ -1128,9 +1144,11 @@ async fn load_tracked_mt(
     wp_id: &str,
     mt_id: &str,
 ) -> StorageResult<(TrackedMicroTask, String)> {
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
     let bindings = MicroTaskBinding {
-        record: RecordId::new(MICRO_TASKS, mt_id.to_owned()),
-        wp: RecordId::new(WORK_PACKETS, wp_id.to_owned()),
+        record: locus_record(MICRO_TASKS, &owner, &mt_id),
+        wp: locus_record(WORK_PACKETS, &owner, &wp_id),
     };
     let row: Option<MicroTaskRow> = storage
         .with_data_operation(move |database| {
@@ -1155,7 +1173,9 @@ async fn persist_tracked_mt(
     task: &TrackedMicroTask,
     expected_metadata: String,
 ) -> StorageResult<()> {
-    let bindings = persist_bindings(task, expected_metadata)?;
+    // MT-159: owner-scoped Locus keys (see locus_owner_scope).
+    let owner = locus_owner_scope(storage).await?;
+    let bindings = persist_bindings(task, expected_metadata, &owner)?;
     let result = storage
         .with_data_operation(move |database| {
             Box::pin(async move {
@@ -1188,10 +1208,11 @@ async fn persist_tracked_mt(
 fn persist_bindings(
     task: &TrackedMicroTask,
     expected_metadata: String,
+    owner: &Option<String>,
 ) -> StorageResult<PersistMicroTaskBindings> {
     Ok(PersistMicroTaskBindings {
-        record: RecordId::new(MICRO_TASKS, task.mt_id.clone()),
-        wp: RecordId::new(WORK_PACKETS, task.wp_id.clone()),
+        record: locus_record(MICRO_TASKS, owner, &task.mt_id),
+        wp: locus_record(WORK_PACKETS, owner, &task.wp_id),
         expected_metadata,
         name: task.name.clone(),
         status: micro_task_status_str(task.status).to_owned(),
@@ -1484,9 +1505,60 @@ fn record_string_key(record: &RecordId, table: &'static str) -> StorageResult<St
     }
     match &record.key {
         RecordIdKey::String(value) => Ok(value.clone()),
+        // MT-159: an account-owned row is keyed [owner_scope, id].
+        RecordIdKey::Array(parts) => match parts.as_slice() {
+            [surrealdb::types::Value::String(_), surrealdb::types::Value::String(id)] => {
+                Ok(id.clone())
+            }
+            _ => Err(StorageError::Database(format!(
+                "{table} record has a malformed owner-scoped key"
+            ))),
+        },
         _ => Err(StorageError::Database(format!(
             "{table} record does not have a string key"
         ))),
+    }
+}
+
+/// MT-159 (Master Spec 02-system-architecture.md:2752/:2759): the owner scope of the caller's Locus
+/// rows. `None` for root/system callers, whose rows keep their plain id; `Some("account:<id>")` for
+/// an account record user, whose rows are keyed `[owner_scope, id]` so a caller-chosen id never
+/// collides with, or reveals, another account's row. Resolved database-side by
+/// `fn::mt158_dependency_graph_scope()` (the same scope as the per-account dependency graph).
+pub(crate) async fn locus_owner_scope(storage: &SurrealStorage) -> StorageResult<Option<String>> {
+    if super::current_record_user_scope().is_none() {
+        return Ok(None);
+    }
+    let scopes = storage
+        .with_data_operation(move |database| {
+            Box::pin(async move {
+                database
+                    .query_values::<String, _>(
+                        "RETURN fn::mt158_dependency_graph_scope();",
+                        EmptyBindings {},
+                    )
+                    .await
+            })
+        })
+        .await
+        .map_err(StorageError::from)?;
+    match scopes.into_iter().next() {
+        Some(scope) if scope.starts_with("account:") => Ok(Some(scope)),
+        _ => Err(StorageError::Guard("HSK-403-PROTECTED-RESOURCE")),
+    }
+}
+
+/// MT-159: the record id of a Locus row for the given owner scope (see [`locus_owner_scope`]).
+pub(crate) fn locus_record(table: &'static str, owner: &Option<String>, id: &str) -> RecordId {
+    match owner {
+        None => RecordId::new(table, id.to_owned()),
+        Some(owner) => RecordId::new(
+            table,
+            RecordIdKey::Array(surrealdb::types::Array::from(vec![
+                owner.clone(),
+                id.to_owned(),
+            ])),
+        ),
     }
 }
 

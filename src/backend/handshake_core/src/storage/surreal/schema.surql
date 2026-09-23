@@ -712,9 +712,9 @@ DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE calendar_events
 -- 0016_locus_structured_collaboration
 -- MT-154 (D-154-3): account-owned; owner_account_id stamped from $auth at create (NONE for root/system
 -- writers, which a record user never sees).
-DEFINE TABLE OVERWRITE work_packets SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE TABLE OVERWRITE work_packets SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND fn::mt159_locus_key_is_own(id) FOR update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE work_packets TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
-DEFINE FIELD OVERWRITE wp_id ON TABLE work_packets TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE wp_id ON TABLE work_packets TYPE string ASSERT $value = fn::mt159_locus_key_id(record::id($this.id));
 DEFINE FIELD OVERWRITE version ON TABLE work_packets TYPE int;
 DEFINE FIELD OVERWRITE title ON TABLE work_packets TYPE string;
 DEFINE FIELD OVERWRITE description ON TABLE work_packets TYPE option<string>;
@@ -730,38 +730,38 @@ DEFINE FIELD OVERWRITE created_at ON TABLE work_packets TYPE string;
 DEFINE FIELD OVERWRITE updated_at ON TABLE work_packets TYPE string;
 DEFINE FIELD OVERWRITE vector_clock ON TABLE work_packets TYPE string;
 DEFINE FIELD OVERWRITE metadata ON TABLE work_packets TYPE string;
-DEFINE INDEX OVERWRITE pk_work_packets ON TABLE work_packets FIELDS wp_id UNIQUE;
+DEFINE INDEX OVERWRITE pk_work_packets ON TABLE work_packets FIELDS owner_account_id, wp_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_wp_status ON TABLE work_packets FIELDS status;
 DEFINE INDEX OVERWRITE idx_wp_priority ON TABLE work_packets FIELDS priority;
 DEFINE INDEX OVERWRITE idx_wp_task_board_status ON TABLE work_packets FIELDS task_board_status;
 
-DEFINE TABLE OVERWRITE dependencies SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND from_wp_id.owner_account_id = owner_account_id AND to_wp_id.owner_account_id = owner_account_id FOR delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE TABLE OVERWRITE dependencies SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND from_wp_id.owner_account_id = owner_account_id AND to_wp_id.owner_account_id = owner_account_id AND fn::mt159_locus_key_is_own(id) FOR update WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND from_wp_id.owner_account_id = owner_account_id AND to_wp_id.owner_account_id = owner_account_id FOR delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE dependencies TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
-DEFINE FIELD OVERWRITE dependency_id ON TABLE dependencies TYPE string ASSERT $value = record::id($this.id) AND string::trim($value) != '';
+DEFINE FIELD OVERWRITE dependency_id ON TABLE dependencies TYPE string ASSERT $value = fn::mt159_locus_key_id(record::id($this.id)) AND string::trim($value) != '';
 DEFINE FIELD OVERWRITE from_wp_id ON TABLE dependencies TYPE record<work_packets> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE to_wp_id ON TABLE dependencies TYPE record<work_packets> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE dependency_type ON TABLE dependencies TYPE 'blocks' | 'blocked_by' | 'related' | 'parent-child' | 'discovered-from' | 'duplicate-of' | 'depends-on' | 'implements' | 'tests' | 'documents';
 DEFINE FIELD OVERWRITE created_at ON TABLE dependencies TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE vector_clock ON TABLE dependencies TYPE string ASSERT string::trim($value) != '';
-DEFINE INDEX OVERWRITE pk_dependencies ON TABLE dependencies FIELDS dependency_id UNIQUE;
+DEFINE INDEX OVERWRITE pk_dependencies ON TABLE dependencies FIELDS owner_account_id, dependency_id UNIQUE;
 DEFINE INDEX OVERWRITE ix_dependencies_from_wp ON TABLE dependencies FIELDS from_wp_id;
 DEFINE INDEX OVERWRITE ix_dependencies_to_wp ON TABLE dependencies FIELDS to_wp_id;
 DEFINE INDEX OVERWRITE ix_dependencies_type ON TABLE dependencies FIELDS dependency_type;
 
-DEFINE TABLE OVERWRITE micro_tasks SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE TABLE OVERWRITE micro_tasks SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND fn::mt159_locus_key_is_own(id) FOR update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE micro_tasks TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
-DEFINE FIELD OVERWRITE mt_id ON TABLE micro_tasks TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE mt_id ON TABLE micro_tasks TYPE string ASSERT $value = fn::mt159_locus_key_id(record::id($this.id));
 DEFINE FIELD OVERWRITE wp_id ON TABLE micro_tasks TYPE record<work_packets> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE name ON TABLE micro_tasks TYPE string;
 DEFINE FIELD OVERWRITE status ON TABLE micro_tasks TYPE string;
 DEFINE FIELD OVERWRITE current_iteration ON TABLE micro_tasks TYPE option<int>;
 DEFINE FIELD OVERWRITE escalation_level ON TABLE micro_tasks TYPE option<int>;
 DEFINE FIELD OVERWRITE metadata ON TABLE micro_tasks TYPE string;
-DEFINE INDEX OVERWRITE pk_micro_tasks ON TABLE micro_tasks FIELDS mt_id UNIQUE;
+DEFINE INDEX OVERWRITE pk_micro_tasks ON TABLE micro_tasks FIELDS owner_account_id, mt_id UNIQUE;
 
-DEFINE TABLE OVERWRITE mt_iterations SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND mt_id.owner_account_id = owner_account_id FOR delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
+DEFINE TABLE OVERWRITE mt_iterations SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND mt_id.owner_account_id = owner_account_id AND fn::mt159_locus_key_is_own(id) FOR update WHERE fn::mt154_account_row(owner_account_id, 'fs.write') AND mt_id.owner_account_id = owner_account_id FOR delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE mt_iterations TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
-DEFINE FIELD OVERWRITE iteration_id ON TABLE mt_iterations TYPE string ASSERT $value = record::id($this.id);
+DEFINE FIELD OVERWRITE iteration_id ON TABLE mt_iterations TYPE string ASSERT $value = fn::mt159_locus_key_id(record::id($this.id));
 DEFINE FIELD OVERWRITE mt_id ON TABLE mt_iterations TYPE record<micro_tasks> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE iteration ON TABLE mt_iterations TYPE int ASSERT $value >= 1;
 DEFINE FIELD OVERWRITE escalation_level ON TABLE mt_iterations TYPE int ASSERT $value >= 0;
@@ -770,7 +770,7 @@ DEFINE FIELD OVERWRITE lora_id ON TABLE mt_iterations TYPE option<string>;
 DEFINE FIELD OVERWRITE outcome ON TABLE mt_iterations TYPE 'SUCCESS' | 'RETRY' | 'ESCALATE' | 'BLOCKED' | 'SKIPPED';
 DEFINE FIELD OVERWRITE validation_passed ON TABLE mt_iterations TYPE option<bool>;
 DEFINE FIELD OVERWRITE duration_ms ON TABLE mt_iterations TYPE int ASSERT $value >= 0;
-DEFINE INDEX OVERWRITE pk_mt_iterations ON TABLE mt_iterations FIELDS iteration_id UNIQUE;
+DEFINE INDEX OVERWRITE pk_mt_iterations ON TABLE mt_iterations FIELDS owner_account_id, iteration_id UNIQUE;
 DEFINE INDEX OVERWRITE uq_mt_iterations_task_iteration_escalation ON TABLE mt_iterations FIELDS mt_id, iteration, escalation_level UNIQUE;
 DEFINE INDEX OVERWRITE ix_mt_iterations_task ON TABLE mt_iterations FIELDS mt_id;
 
@@ -7370,5 +7370,18 @@ DEFINE FUNCTION OVERWRITE fn::mt157_breakpoint_receipt($resource: option<record<
 -- keep the single 'global' anchor. Master Spec 02-system-architecture.md:2740 (owner_account_id).
 DEFINE FUNCTION OVERWRITE fn::mt158_dependency_graph_scope() {
     RETURN IF $auth = NONE OR $auth.account_id = NONE { 'global' } ELSE { 'account:' + <string> record::id($auth.account_id) };
+};
+-- MT-159 (Operator decision 2026-09-23; Master Spec 02-system-architecture.md:2752/:2759): Locus ids are
+-- owner-scoped. A record user's work_packets/micro_tasks/mt_iterations/dependencies rows are keyed
+-- [owner_scope, id] (owner_scope = fn::mt158_dependency_graph_scope()), so the same caller-chosen id
+-- created by two accounts never collides and no create reveals another account's ids. Root/system rows
+-- keep their plain id.
+DEFINE FUNCTION OVERWRITE fn::mt159_locus_key_id($key: any) {
+    RETURN IF type::is_array($key) { $key[1] } ELSE { $key };
+};
+DEFINE FUNCTION OVERWRITE fn::mt159_locus_key_is_own($record: any) {
+    LET $key = record::id($record);
+    RETURN type::is_array($key) AND array::len($key) = 2 AND type::is_string($key[1])
+        AND $key[0] != 'global' AND $key[0] = fn::mt158_dependency_graph_scope();
 };
 -- MT154_AUTHORITY_END

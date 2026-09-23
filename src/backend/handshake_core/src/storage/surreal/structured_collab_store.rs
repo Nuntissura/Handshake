@@ -143,10 +143,12 @@ pub(crate) async fn micro_task_metadata(
     wp_id: &str,
     mt_id: &str,
 ) -> StorageResult<Option<String>> {
+    // MT-159: the work packet key is owner-scoped for account record users.
+    let owner = super::locus_store::locus_owner_scope(storage).await?;
     let row: Option<MicroTaskMetadataRecord> = storage
         .with_data_operation({
             let bindings = MicroTaskBinding {
-                work_packet: RecordId::new(WORK_PACKETS, wp_id.to_owned()),
+                work_packet: super::locus_store::locus_record(WORK_PACKETS, &owner, wp_id),
                 mt_id: mt_id.to_owned(),
             };
             move |database| {
@@ -170,10 +172,12 @@ pub(crate) async fn micro_task_status_rows(
     storage: &SurrealStorage,
     wp_id: &str,
 ) -> StorageResult<Vec<(String, String)>> {
+    // MT-159: the work packet key is owner-scoped for account record users.
+    let owner = super::locus_store::locus_owner_scope(storage).await?;
     let rows: Vec<MicroTaskStatusRecord> = storage
         .with_data_operation({
             let bindings = WorkPacketRecordBinding {
-                work_packet: RecordId::new(WORK_PACKETS, wp_id.to_owned()),
+                work_packet: super::locus_store::locus_record(WORK_PACKETS, &owner, wp_id),
             };
             move |database| {
                 Box::pin(async move {
@@ -199,10 +203,12 @@ pub(crate) async fn micro_task_rows(
     storage: &SurrealStorage,
     wp_id: &str,
 ) -> StorageResult<Vec<(String, String)>> {
+    // MT-159: the work packet key is owner-scoped for account record users.
+    let owner = super::locus_store::locus_owner_scope(storage).await?;
     let rows: Vec<MicroTaskRecord> = storage
         .with_data_operation({
             let bindings = WorkPacketRecordBinding {
-                work_packet: RecordId::new(WORK_PACKETS, wp_id.to_owned()),
+                work_packet: super::locus_store::locus_record(WORK_PACKETS, &owner, wp_id),
             };
             move |database| {
                 Box::pin(async move {

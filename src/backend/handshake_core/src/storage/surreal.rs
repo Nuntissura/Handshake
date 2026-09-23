@@ -278,6 +278,14 @@ pub enum SurrealStorageError {
         "embedded statement was not dispatched: the {budget_ms} ms operation budget was already spent"
     )]
     StatementBudgetExhausted { budget_ms: u128 },
+    /// MT-154 hardening (IV 2026-09-23, dumps hang-run15/18/21/22): the schema bootstrap did not
+    /// finish within its watchdog. Observed cause: the commit coordinator blocked in the OS file
+    /// flush (`WinWritableFile::Sync` -> `NtFlushBuffersFile`) with no competing I/O. The store
+    /// may be partially bootstrapped; a later open resumes or fails closed.
+    #[error(
+        "schema bootstrap stalled after {waited_ms} ms (possible OS flush stall); the store may be partially bootstrapped"
+    )]
+    BootstrapStalled { waited_ms: u128 },
     #[error("embedded workspace record has an invalid shape: {reason}")]
     InvalidWorkspaceRecord { reason: &'static str },
     #[error("embedded document record has an invalid shape: {reason}")]
